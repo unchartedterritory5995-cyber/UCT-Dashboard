@@ -126,6 +126,16 @@ approved for /charts). The coordinator made its one decision the switch trigger 
 The stale-render guard keys on the controller's own apply counter (`pendingCommit`), because the round has no
 decision `seq`. The deferred commit checks `decisionFor(group)` so that a newer decision supersedes it.
 
+**The deferred commit lives in `useSymbolHandoff`**, because `displayedSym` is the hook's own state:
+
+1. When `showDecided` returns `'applied'`, the hook stamps `appliedReqRef = {sym, seq}` and schedules
+   `setDisplayedSym(sym)` after the paint.
+2. Its passive effect stands down for that request: no warm, no round. Without this, today's path would show the
+   symbol again a task later. A newer request clears the stamp.
+
+The decision is all or nothing: a member whose timeframe moved in the same event still takes part. `decision.tfs`
+is a record of each member's timeframe, not a gate.
+
 ### 3.5 The stale-render guard
 
 Between `apply` and the deferred commit, any React render of StockChartBody (a tick, a hover island, a
