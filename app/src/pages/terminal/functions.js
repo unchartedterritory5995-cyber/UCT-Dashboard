@@ -632,7 +632,7 @@ export const FUNCTIONS = [
   // after the low and the 25 stocks that rose most in the 63 sessions after it, with sector medians
   // (GET /api/research/market-history, worked out by the server from its stored closes each evening).
   // `MKTH NDX` for the Nasdaq-100. MKTH is not in the site's stock universe.
-  { code: 'MKTH', label: 'Market history (corrections, bear markets, rallies and their leaders)', group: 'Market',
+  { code: 'MKTH', label: 'Market history (every correction and bear market, the rallies and their leaders)', group: 'Market',
     market: { panel: 'MarketHistory', args: [{ kind: 'mkthIndex', prop: 'index' }] } },
 ]
 
@@ -974,7 +974,7 @@ const FUNCTION_WORDS = {
   FUND: { example: 'NVDA FUND', keywords: ['fundamentals history', 'metrics', 'revenue history', 'eps history', 'margins',
     'fcf', 'roe', 'pe history', 'valuation history', 'financial history'],
     note: "Point in time from SEC filings: each figure dated by when its filing became public. Valuation is composed with UCT's stored prices." },
-  MKTH: { example: 'MKTH', keywords: ['market history', 'corrections', 'bear markets', 'drawdowns', 'rallies', 'past corrections',
+  MKTH: { example: 'MKTH', keywords: ['market history', 'corrections', 'bear market', 'drawdowns', 'rallies', 'past corrections',
     'rally leaders'],
     note: 'Every decline of 10% or more on closing prices, the rally after each low and its leaders. A record, not a forecast.' },
 }

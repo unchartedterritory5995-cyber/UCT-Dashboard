@@ -21,7 +21,7 @@ describe('MKTH in the registry', () => {
     expect(FUNCTIONS.filter((f) => f.code === 'MKTH')).toHaveLength(1)
     expect(FUNCTION_GROUPS).toContain(BY_CODE.MKTH.group)
     expect(BY_CODE.MKTH.group).toBe('Market')
-    expect(BY_CODE.MKTH.label).toBe('Market history (corrections, bear markets, rallies and their leaders)')
+    expect(BY_CODE.MKTH.label).toBe('Market history (every correction and bear market, the rallies and their leaders)')
     expect(BY_CODE.MKTH.market).toEqual({ panel: 'MarketHistory', args: [{ kind: 'mkthIndex', prop: 'index' }] })
     expect(BY_CODE.MKTH.market.flag).toBeUndefined()                 // no switch: the route has its own paid gate
     expect(BY_CODE.MKTH.ticker).toBeUndefined()
@@ -66,7 +66,7 @@ describe('MKTH in the registry', () => {
   })
 
   it('its words find it, and the words other functions answer to stay theirs', () => {
-    for (const w of ['market history', 'corrections', 'bear markets', 'drawdowns', 'rallies', 'past corrections', 'rally leaders']) {
+    for (const w of ['market history', 'corrections', 'bear market', 'drawdowns', 'rallies', 'past corrections', 'rally leaders']) {
       expect([w, codesForWords(w)[0]]).toEqual([w, 'MKTH'])
     }
     // its words take no word another function already answers to first
