@@ -144,8 +144,9 @@ const fmtNum = (v) => {
   if (!Number.isFinite(v)) return String(v)
   return Number.isInteger(v) ? String(v) : String(Number(v.toPrecision(6)))
 }
-/** Plain-mode words for calls the upper-case chart convention garbles. */
-const PLAIN_CALL_WORDS = Object.freeze({
+/** Plain-mode words for calls the upper-case chart convention garbles. (Exported for the rail that holds
+ *  this table and `CAPTION_CALL_WORDS` to one word per function: `derivedSettings.captions.test.js`.) */
+export const PLAIN_CALL_WORDS = Object.freeze({
   supertrend: 'Supertrend', supertrendDirection: 'Supertrend direction',
   // 2026-10-30 — Parabolic SAR (#523): "Parabolic SAR 0.02,0.2", not "SAR 0.02,0.2".
   sar: 'Parabolic SAR', sarDirection: 'Parabolic SAR trend',
@@ -155,6 +156,55 @@ const PLAIN_CALL_WORDS = Object.freeze({
   // 2026-11-17 — the regular session's own values: "Opening range high 30", not "OPENINGRANGEHIGH 30".
   sessionOpen: 'Session open', sessionHigh: 'Session high', sessionLow: 'Session low',
   openingRangeHigh: 'Opening range high', openingRangeLow: 'Opening range low',
+})
+/**
+ * ⭐ 2026-11-20 — THE WORDS A SETTINGS ROW SAYS A FUNCTION WITH (`mode: 'caption'`).
+ *
+ * THE GAP (seen in a live run's screenshots): a built indicator's settings rows named their numbers by the
+ * engine's own function names, upper-cased: "WILLIAMSR 9 (High, Low)", "HIGHESTBARS 60", "PERCENTRANK 19".
+ * A member reading the row cannot tell what the number tunes.
+ *
+ * ⛔ CAPTIONS ONLY. An indicator's NAME and its legend keep `PLAIN_CALL_WORDS` exactly as it is: a saved
+ * name is recognised as automatic by comparing it with the wording it was derived in (`namingSnapshot`),
+ * so re-wording names would freeze every saved one as if a member had typed it. A settings row is derived
+ * at read time and stored nowhere, so its words can be the plain ones today.
+ *
+ * ⛔ A WORD NEVER HIDES A DIFFERENCE. `atr` and `atrPine` are two calculations (Wilder's first bar, and
+ * TradingView's), as are `mfi` / `mfiPine` and `stoch` / `stochPine`: the TradingView one says so.
+ * A function with no entry here reads as it does in a name (its own plain word, else upper case), which
+ * is right for the acronyms a chart already uses (SMA, EMA, RSI, ATR, MACD, VWAP, ADX, CCI).
+ *
+ * ⛔ ONE WORD PER FUNCTION, ACROSS BOTH TABLES. A function is in `PLAIN_CALL_WORDS` (its word in a name AND in
+ * a settings row) or here (its word in a settings row only), never both: with two entries a row and a name
+ * could call one function two different things. `derivedSettings.captions.test.js` holds that the tables
+ * share no function, and that a settings row says a `PLAIN_CALL_WORDS` function with that table's own word.
+ *
+ * ⭐ THIS TABLE IS A LEDGERED ENUMERATION SITE (`engine/__tests__/enumerationSites.test.js`): a short display
+ * word per function is product language the closed table does not declare today (it declares `sentence`,
+ * a whole clause). FOLLOW-UP, recorded 2026-11-21: both word tables move into `closedTable.json` as ONE
+ * `caption` declaration per function, as a unit of a later engine train. One authority over a function's
+ * plain name is the goal; this table and its ledger row are the bridge until then.
+ */
+export const CAPTION_CALL_WORDS = Object.freeze({
+  williamsR: 'Williams %R',
+  aroonUp: 'Aroon up', aroonDown: 'Aroon down',
+  donchianUpper: 'Donchian upper', donchianMiddle: 'Donchian middle', donchianLower: 'Donchian lower',
+  ichimokuTenkan: 'Ichimoku conversion line', ichimokuKijun: 'Ichimoku base line',
+  ichimokuSpanA: 'Ichimoku leading span A', ichimokuSpanB: 'Ichimoku leading span B', ichimokuChikou: 'Ichimoku lagging span',
+  plusDI: '+DI', minusDI: '-DI',
+  highest: 'Highest', lowest: 'Lowest',
+  highestbars: 'Bars since the highest', lowestbars: 'Bars since the lowest',
+  barssince: 'Bars since', valuewhen: 'Value when', valuewhenOccurrence: 'Value when',
+  percentrank: 'Percent rank', percentileLinearInterpolation: 'Percentile', percentileNearestRank: 'Percentile (nearest rank)',
+  pivothigh: 'Pivot high', pivotlow: 'Pivot low',
+  stdev: 'Standard deviation', dev: 'Mean deviation', median: 'Median', sum: 'Sum',
+  change: 'Change', rising: 'Rising', falling: 'Falling',
+  cum: 'Running total', cumFrom: 'Running total from',
+  obvN: 'On-balance volume change', pvtN: 'Price volume trend change',
+  avwap: 'Anchored VWAP',
+  stoch: 'Stochastic',
+  atrPine: 'ATR (TradingView)', mfiPine: 'MFI (TradingView)', stochPine: 'Stochastic (TradingView)',
+  accum: 'Running value', accum2: 'Linked running values', accum3: 'Linked running values', accum4: 'Linked running values',
 })
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
@@ -219,8 +269,10 @@ export function nameOfTree(node, parentPrec = 0, mode = 'plain') {
       // A call whose name is a camel-case phrase reads as words in plain mode
       // ("Supertrend direction 3,10", not "SUPERTRENDDIRECTION 3,10"); the
       // formula wording keeps the upper-case convention byte for byte.
-      const fn = plain && PLAIN_CALL_WORDS[node.name] ? PLAIN_CALL_WORDS[node.name]
-        : String(node.name || '').toUpperCase()
+      // ⭐ a settings row's own words come first in `caption` mode (`CAPTION_CALL_WORDS`); a name never reads them
+      const fn = mode === 'caption' && CAPTION_CALL_WORDS[node.name] ? CAPTION_CALL_WORDS[node.name]
+        : plain && PLAIN_CALL_WORDS[node.name] ? PLAIN_CALL_WORDS[node.name]
+          : String(node.name || '').toUpperCase()
       // ⭐ THE CHART CONVENTION: "EMA 20", "RSI 14", "MACD 12,26,9". The bar
       // field `close` is the default source and is not repeated; any other source
       // IS part of the name ("EMA 20 (Open)") — a name must not hide what it reads.

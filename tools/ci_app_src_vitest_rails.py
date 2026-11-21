@@ -72,8 +72,6 @@ KNOWN_RED: dict[str, str] = {
         "TERM-063 ratchet: raw key listeners added outside the shortcut registry, and the baseline (164) is over CEILING 111",
     "app/src/lib/swallowedFetch.census.test.js":
         "TERM-033 shrink-only census: 3 new `.catch(() => null)` sites (use sectionFetcher, which throws)",
-    "app/src/components/ui/formControls.census.test.js":
-        "new hand-rolled role=switch files (NoteSharePanel.jsx, ...) and unnamed control sites grew 0 -> 12",
     "app/src/pages/terminal/a11y/terminalReachableContrast.test.js":
         "new inline --loss/--gain colours and new text under WCAG AA (NavBar.module.css .brandNameTop, ...)",
     "app/src/pages/terminal/themeColours.rail.test.js":
@@ -94,6 +92,11 @@ _DAILY_FIRST_PAINT_CODE = (
     "app/src/data/barStore",                                # the store's daily paths
 )
 DECLARED: dict[str, tuple[tuple[str, ...], str]] = {
+    # 2026-11-20: the form-control census walks EVERY app/src file (`git ls-files`, then a read of each), which the
+    # static scan sees only as three paths, so a PR adding an unnamed control or a hand-rolled switch anywhere else
+    # never ran it: it was red from 11-03 (#559's unnamed lab inputs) to 11-20 with every PR check green
+    "app/src/components/ui/formControls.census.test.js": (("app/src",),
+        "the form-control census (TERM-067): every app/src file is a control site it counts, so any app/src change runs it"),
     "app/src/components/dailyDeepHistoryClock.test.jsx": (_DAILY_FIRST_PAINT_CODE,
         "daily deep history in every session window: the chart holds the deep set, the library its newest rows, Origin bar 0"),
     "app/src/components/dailyFirstPaintAcceptance.test.jsx": (_DAILY_FIRST_PAINT_CODE,

@@ -211,15 +211,18 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
   // already handled it.
   // ⚰️ 2026-09-28: the session form now TRANSLATES on the chart pane (measured,
   // vw-time-session) — as the session clock, never as the day anchor.
-  it('⛔⛔ the 2-argument session form is the SESSION clock (its membership), its value the 09:30 open of the day', () => {
-    // ⭐ U-BUILTIN T-D (2026-11-19): a window that opens at 09:30 reads the day anchor INSIDE the window
-    // (R2 of `vw-bt-time-1440-spy-60-2026-11-16`); the membership is still the session clock's own
+  it('⛔⛔ the 2-argument session form is the SESSION clock (its membership), its value the start of the window', () => {
+    // ⭐ U-BUILTIN T-D EXT (2026-11-20): every window of one day is the session clock's daily tree, gated
+    // (`interpret.js::sessionDayWindowNode`); the 09:30 one is no longer the day anchor, because on an
+    // extended-hours chart the window's start (09:30, S1 of `vw-bi-time-d-extended-spy-60-2026-11-19`) and the
+    // day's open (04:00, A1) are different instants. The gate is read through where the window is measured.
     const t = translatePine(S('ta.change(time("D", "0930-1600")) != 0 ? 1 : 0'), { strict: true })
     expect(t.ok).toBe(true)
     const f = t.outputs[t.selected].formula
     expect(f).toMatch(/hour \* 60 \+ minute >= 570/)
-    expect(f).toBe('change(hour * 60 + minute >= 570 && hour * 60 + minute < 960 ? (dayopentime + 34200) * 1000 : 0 / 0) != 0 ? 1 : 0')
-    // another window keeps the session clock's daily tree, gated to a daily chart
+    expect(f).toBe('change(86400 == periodseconds ? (hour * 60 + minute >= 570 && hour * 60 + minute < 960 ? '
+      + '(time - mod((hour * 60 + minute - 570) * 60, 86400)) * 1000 : 0 / 0) : 0 / 0) != 0 ? 1 : 0')
+    // another window is the same daily tree, its own start
     const w = translatePine(S('time("D", "1000-1100")'), { strict: true })
     expect(w.outputs[w.selected].formula).toMatch(/^86400 == periodseconds \? /)
   })

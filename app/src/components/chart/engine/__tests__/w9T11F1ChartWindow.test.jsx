@@ -53,11 +53,12 @@ const flags = (broker) => {
   if (broker) vi.stubEnv('VITE_PINE_STRATEGY_BROKER_ENABLED', '1')
 }
 const inst = (defId = DEF_ID, id = 'i1') => ({ instanceId: id, defId, inputs: {}, hidden: false })
-const ctxFor = (instances, { bars, listing = true, window, pending, reg = registry, tf = 'D', frames }) => ({
+const ctxFor = (instances, { bars, listing = true, window, pending, reg = registry, tf = 'D', frames, depth }) => ({
   enabled: true, instances, registry: reg, bars, tf, sym: 'RDDT', newestBarIsForming: false,
   historyFromListing: listing, symbol: { ticker: 'RDDT', exchange: 'NYSE' },
   ...(window !== undefined ? { historyWindowBars: window } : {}),
   ...(pending !== undefined ? { historyWindowPending: pending } : {}),
+  ...(depth !== undefined ? { listingDepthBars: depth } : {}),
   ...(frames ? { frames } : {}),
   adjustTime: (t) => t, plan: { fresh: true },
   applyData: (series, data) => { if (series && data) series.setData(data) },
@@ -161,21 +162,21 @@ describe('W9-T11-F1 the window comes from the server, once, and only with the ga
     vi.stubGlobal('fetch', f)
     const off = renderHook(() => useStrategyHistoryWindow(true))
     await Promise.resolve()
-    expect(off.result.current).toEqual({ bars: null, pending: false })
+    expect(off.result.current).toEqual({ bars: null, pending: false, depth: null })
     off.unmount()
 
     flags(true)
     // r1 (N1): a chart that holds only indicators never asks
     const ind = renderHook(() => useStrategyHistoryWindow(false))
     await Promise.resolve()
-    expect(ind.result.current).toEqual({ bars: null, pending: false })
+    expect(ind.result.current).toEqual({ bars: null, pending: false, depth: null })
     ind.unmount()
     expect(f).not.toHaveBeenCalled()
 
     const on = renderHook(() => useStrategyHistoryWindow(true))
     // r1 (N3): asked and not answered yet is PENDING, not a missing window
-    expect(on.result.current).toEqual({ bars: null, pending: true })
-    await waitFor(() => expect(on.result.current).toEqual({ bars: SERVER_WINDOW, pending: false }))
+    expect(on.result.current).toEqual({ bars: null, pending: true, depth: null })
+    await waitFor(() => expect(on.result.current).toEqual({ bars: SERVER_WINDOW, pending: false, depth: null }))
     expect(f).toHaveBeenCalledTimes(1)
     expect(f.mock.calls[0][1]).toMatchObject({ credentials: 'include' })
     expect(f.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal)
@@ -186,10 +187,10 @@ describe('W9-T11-F1 the window comes from the server, once, and only with the ga
     const f = vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) }))
     vi.stubGlobal('fetch', f)
     const a = renderHook(() => useStrategyHistoryWindow(true))
-    expect(a.result.current).toEqual({ bars: null, pending: true })
-    await waitFor(() => expect(a.result.current).toEqual({ bars: null, pending: false }))
+    expect(a.result.current).toEqual({ bars: null, pending: true, depth: null })
+    await waitFor(() => expect(a.result.current).toEqual({ bars: null, pending: false, depth: null }))
     const b = renderHook(() => useStrategyHistoryWindow(true))
-    await waitFor(() => expect(b.result.current).toEqual({ bars: null, pending: false }))
+    await waitFor(() => expect(b.result.current).toEqual({ bars: null, pending: false, depth: null }))
     expect(f).toHaveBeenCalledTimes(1)
   })
 })
@@ -221,11 +222,11 @@ describe('W9-T11-F1 r2: an ask that never settles fails, and a mounted chart ask
     vi.useFakeTimers()
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
     const h = renderHook(() => useStrategyHistoryWindow(true))
-    expect(h.result.current).toEqual({ bars: null, pending: true })
+    expect(h.result.current).toEqual({ bars: null, pending: true, depth: null })
     await act(async () => { await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS - 1) })
-    expect(h.result.current).toEqual({ bars: null, pending: true })
+    expect(h.result.current).toEqual({ bars: null, pending: true, depth: null })
     await act(async () => { await vi.advanceTimersByTimeAsync(1) })
-    expect(h.result.current).toEqual({ bars: null, pending: false })
+    expect(h.result.current).toEqual({ bars: null, pending: false, depth: null })
     h.unmount()
     // what the binder does with that answer
     vi.useRealTimers()
@@ -247,16 +248,16 @@ describe('W9-T11-F1 r2: an ask that never settles fails, and a mounted chart ask
     const seen = []
     const h = renderHook(() => { const r = useStrategyHistoryWindow(true); seen.push(r); return r })
     await act(async () => { await vi.advanceTimersByTimeAsync(0) })
-    expect(h.result.current).toEqual({ bars: null, pending: false })
+    expect(h.result.current).toEqual({ bars: null, pending: false, depth: null })
     expect(f).toHaveBeenCalledTimes(1)
     await act(async () => { await vi.advanceTimersByTimeAsync(FAILURE_RETRY_MS - 1) })
     expect(f).toHaveBeenCalledTimes(1)
     await act(async () => { await vi.advanceTimersByTimeAsync(1) })
     expect(f).toHaveBeenCalledTimes(2)
-    expect(h.result.current).toEqual({ bars: null, pending: false })
+    expect(h.result.current).toEqual({ bars: null, pending: false, depth: null })
     await act(async () => { await vi.advanceTimersByTimeAsync(FAILURE_RETRY_MS) })
     expect(f).toHaveBeenCalledTimes(3)
-    expect(h.result.current).toEqual({ bars: SERVER_WINDOW, pending: false })
+    expect(h.result.current).toEqual({ bars: SERVER_WINDOW, pending: false, depth: null })
     // quiet: once the first ask failed, the chart was never pending again (no flicker to an empty pane)
     const firstAnswer = seen.findIndex((r) => !r.pending)
     expect(firstAnswer).toBeGreaterThan(-1)
@@ -479,6 +480,30 @@ describe('W9-T11-F1 the binder hands a strategy run the chart\'s window', () => 
     for (const [, c] of ind) expect('historyWindowBars' in c).toBe(false)
     expect(strategyRecordFor('i2')).toBe(null)
   })
+
+  // ⭐⭐ (2026-11-19, the strategy-only daily window) the served depth ([B-START-DEEP]) rides BESIDE the window: a
+  // strategy document handed a window is handed it too; an indicator, or a strategy with no window, never is
+  it('the served depth rides beside the window to strategy documents only', () => {
+    flags(true)
+    install(SRC, DEF_ID, 'Window strategy')
+    install(IND, IND_ID, 'Plain indicator')
+    const seen = []
+    const spy = { ...registry, computeFor: (def, b, inputs, c) => { seen.push([def.id, c]); return registry.computeFor(def, b, inputs, c) } }
+    binder.sync(ctxFor([inst(), inst(IND_ID, 'i2')], { bars: makeBars(40), window: SERVER_WINDOW + 7, depth: SERVER_WINDOW, reg: spy }))
+    const strat = seen.filter(([id]) => id === DEF_ID)
+    const ind = seen.filter(([id]) => id === IND_ID)
+    expect(strat.length).toBeGreaterThan(0)
+    for (const [, c] of strat) expect([c.historyWindowBars, c.listingDepthBars]).toEqual([SERVER_WINDOW + 7, SERVER_WINDOW])
+    for (const [, c] of ind) expect('listingDepthBars' in c).toBe(false)
+    // CONTROL: no window, no depth (the depth alone is never handed)
+    seen.length = 0
+    binder.teardown()
+    binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
+    binder.sync(ctxFor([inst()], { bars: makeBars(40), depth: SERVER_WINDOW, reg: spy }))
+    const noWindow = seen.filter(([id]) => id === DEF_ID)
+    expect(noWindow.length).toBeGreaterThan(0)
+    for (const [, c] of noWindow) expect('listingDepthBars' in c).toBe(false)
+  })
 })
 
 describe('W9-T11-F1 StockChart hands the binder the window from the hook', () => {
@@ -488,7 +513,7 @@ describe('W9-T11-F1 StockChart hands the binder the window from the hook', () =>
   const count = (re) => (SRC.match(re) || []).length
   it('reads the window from the hook, passes it in the binder ctx, and recomputes when it lands', () => {
     expect(count(/import useStrategyHistoryWindow from '\.\.\/hooks\/useStrategyHistoryWindow'/g)).toBe(1)
-    expect(count(/const \{ bars: strategyHistoryWindow, pending: strategyWindowPending \} = useStrategyHistoryWindow\(_holdsStrategyWindow\)/g)).toBe(1)
+    expect(count(/const \{ bars: strategyHistoryWindow, pending: strategyWindowPending, depth: strategyListingDepth \} = useStrategyHistoryWindow\(_holdsStrategyWindow\)/g)).toBe(1)
     // r1 (N1): asked only when a stored instance's definition is a strategy (the shared reader)
     expect(count(/\.some\(\(i\) => isStrategyWindowDefinition\(_defOf\(i && i\.defId\)\)\)/g)).toBe(1)
     expect(SRC).toMatch(/const _holdsStrategyWindow = useMemo\(/)

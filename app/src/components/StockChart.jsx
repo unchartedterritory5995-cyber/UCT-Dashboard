@@ -68,7 +68,7 @@ import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from '
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import { useChartTickerMeta as useTickerMeta, useChartTickerIpo as useTickerIpo } from './chart/restedReaders'
 import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
-import { isStrategyWindowDefinition } from './chart/engine/strategyWindow'
+import { isStrategyWindowDefinition, strategyNeedsFullDailyHistory } from './chart/engine/strategyWindow'
 import { servedFromListingOf, listingReferenceDate, listingStartOf } from './chart/engine/listingSeed'
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
@@ -1839,7 +1839,7 @@ import {
   paneOwnerOf,
 } from './chart/engine/displayTarget'
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
-import { chromePlan, capturedPriceRange, viewLockFractions, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
+import { chromePlan, capturedPriceRange, viewLockFractions, joinedAutoscaleExtent, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources, heldSpanFor } from './chart/engine/useSecondarySources'
 import { useCalcFrames } from './chart/engine/useCalcFrames'
@@ -5679,7 +5679,7 @@ export default function StockChart({
   // FRACTION (a fraction of the visible width, invariant to bar count so deep-
   // history backfill can never shift it) + the zoom width + the vertical candle
   // band. hLocked/vLocked flag whether each dimension differs from the default.
-  const _measureViewLock = (chart, prevBars) => {
+  const _measureViewLock = (chart, prevBars, opts = {}) => {
     try {
       if (!chart || !candleSeriesRef.current || !prevBars || !prevBars.length) return null
       const ts = chart.timeScale()
@@ -5702,6 +5702,12 @@ export default function StockChart({
         const s = Math.max(0, Math.floor(vr.from)), e = Math.min(oldN - 1, Math.ceil(vr.to))
         let hi = -Infinity, lo = Infinity
         for (let i = s; i <= e; i++) { const b = prevBars[i]; if (!b) continue; if (b.h > hi) hi = b.h; if (b.l < lo) lo = b.l }
+        // ⭐ The band is EVERYTHING the autoscale fits, not the candles alone (joinedAutoscaleExtent:
+        // an RS line under the bars shrank them 37% → 6.5% across drag/switch rounds). Axis captures only.
+        if (opts.joined) {
+          const j = joinedAutoscaleExtent(candleSeriesRef.current, s, e)
+          if (j) { if (j.hi > hi) hi = j.hi; if (j.lo < lo) lo = j.lo }
+        }
         const series = candleSeriesRef.current
         // ⚰️⚰️ `chart.paneSize()` IS THE FIRST PANE, AND THIS MEANT "PRICE".
         //
@@ -8760,7 +8766,13 @@ export default function StockChart({
   // Override / pinned / replay charts already fetch full (_pinnedFull) or don't fetch at all.
   const _deepFirstPaint = backgroundWarm && !barsOverridePending
     && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
-  const barCount = (_overlayActive || _pinnedFull || _deepFirstPaint) ? _fullTarget : Math.max(fetchDepth, _fpBars)
+  // ⭐⭐ (2026-11-19, the strategy-only daily window) a DAILY chart holding a strategy fetches its full daily history
+  // wherever it sits (`strategyWindow.js::strategyNeedsFullDailyHistory`): its run starts at the listing. Every other
+  // chart's request is unchanged (a standalone D chart already fetches full, `_deepFirstPaint`).
+  const _strategyDailyFull = useMemo(() => strategyNeedsFullDailyHistory({ tf: resolvedTf,
+    instances: cs.indicatorInstances, defOf: (id) => engineRegistry.getDefinition(id) }),
+  [cs, resolvedTf, userDefsGeneration])
+  const barCount = (_overlayActive || _pinnedFull || _deepFirstPaint || _strategyDailyFull) ? _fullTarget : Math.max(fetchDepth, _fpBars)
 
   // ─── BARS FOR EVERY CANONICAL SYMBOL THIS CHART'S INSTANCES NAME ─────────
   //
@@ -9877,7 +9889,7 @@ export default function StockChart({
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
   // binder hands no document a window. Fixed for the tab once it lands.
-  const { bars: strategyHistoryWindow, pending: strategyWindowPending } = useStrategyHistoryWindow(_holdsStrategyWindow)
+  const { bars: strategyHistoryWindow, pending: strategyWindowPending, depth: strategyListingDepth } = useStrategyHistoryWindow(_holdsStrategyWindow)
 
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
@@ -13628,6 +13640,9 @@ export default function StockChart({
         // ⭐⭐ W9-T11-F1 — the strategy window (see `strategyHistoryWindow` above). The binder hands it
         // to strategy documents only; every other document's ctx is unchanged.
         historyWindowBars: strategyHistoryWindow,
+        // ⭐⭐ (2026-11-19, the strategy-only daily window) the depth a run from the listing is served at without the
+        // deep-start rule ([B-START-DEEP], `vm.js`): beside the window, from the same server answer
+        listingDepthBars: strategyListingDepth,
         // r1 (N3): asked, not answered yet — the binder holds a strategy run instead of refusing it
         historyWindowPending: strategyWindowPending,
         adjustTime,
@@ -14829,7 +14844,7 @@ export default function StockChart({
     // reasoning is at the `useInstalledUserDefinitions` call site above.
     // ⭐ (2026-11-18) `data?.newest_bar_is_forming` is read into every run's context (the binder sync above), so it
     // is named here: a flag that lands with the same bars re-syncs, and the binder's memo (keyed on it) recomputes.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, strategyListingDepth, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   // ⚡ ONE PASS PER SWITCH (2026-11-19): on a symbol / timeframe switch the layout effect below already ran
@@ -17404,7 +17419,7 @@ export default function StockChart({
       if (!carryDragPlacement || replayCutoffRef.current) return
       requestAnimationFrame(() => {
         try {
-          const m = measureViewLockRef.current(chartRef.current, prevBarsRef.current)
+          const m = measureViewLockRef.current(chartRef.current, prevBarsRef.current, { joined: axisAuthored })
           if (!m) return
           const wasH = userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.anchorFrac != null
           const wasV = userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.top != null

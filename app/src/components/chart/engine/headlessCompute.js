@@ -94,6 +94,7 @@ import { HOST_KNOWN_DIVERGENCE_GUARD, HOST_KNOWN_DIVERGENCE_STAMP } from './host
 import { HELD_DIVERGENCE_GUARD, HELD_DIVERGENCE_STAMP } from './heldWithholds.js'
 import { plotOwnTitlesOf } from './pinePresentation.js'
 import { ENGINE_ERROR } from './ast/parse.js'
+import { PER_BAR_CLOCK_CODES as PER_BAR_CLOCK_CODE_LIST } from './ast/interpret.js'
 
 /** The clock the runtime lane is handed: it never moves, so no wall-clock stop decides anything. */
 const STILL_CLOCK = () => 0
@@ -249,10 +250,23 @@ function hostRefusalOf(def, out) {
   // a plot withheld on every bar by the chart clock or a calc_bars window says so on the chart's
   // strip; here it is a refusal, named the same way
   const clock = chartClockReport(out)
-  const row = clock && Array.isArray(clock.withheld) ? clock.withheld.find((w) => w && w.plots && w.plots.length) : null
-  if (row) return { code: row.code, message: row.reason, plots: Object.fromEntries(row.plots.map((p) => [p, { code: row.code, message: row.reason }])) }
+  // ⭐⭐ PER BAR, NOT WHOLE (coordinator ruling (A), 2026-11-20) — `history:before-chart` withholds the bars that read
+  // before the chart's first one and draws every other: a plot that carries it PER BAR (`withheldBarsReport`, written by
+  // `interpret.js::historyBeforeChartMask`) gives its values with those bars withheld by name (`drawnOutputs`), as the
+  // runtime lane's warm-up curtain does. ⚰️ Every named chart-clock row refused the whole script here, so since engine 90
+  // "Inspect a bar" answered "not computed here" for `plot(nz(close[1]))` off the listing. ⛔ Fails closed: a plot named
+  // with no per-bar column for the code, and every other chart-clock code, still refuses.
+  const perBar = withheldBarsReport(out) || {}
+  const wholeOf = (w) => (w && Array.isArray(w.plots) ? w.plots : [])
+    .filter((p) => !(PER_BAR_CLOCK_CODES.has(w.code) && perBar[p] && perBar[p][w.code]))
+  const row = clock && Array.isArray(clock.withheld) ? clock.withheld.find((w) => wholeOf(w).length) : null
+  if (row) return { code: row.code, message: row.reason, plots: Object.fromEntries(wholeOf(row).map((p) => [p, { code: row.code, message: row.reason }])) }
   return null
 }
+
+/** The chart-clock codes a plot can carry per bar (`__withheldBars`) rather than whole: `interpret.js::PER_BAR_CLOCK_CODES`,
+ *  the one authority (each writes its bars there). */
+const PER_BAR_CLOCK_CODES = new Set(PER_BAR_CLOCK_CODE_LIST)
 
 function hostLane(def, rows, opts) {
   const lane = COMPUTE_LANE.AST

@@ -177,6 +177,20 @@ _log = logging.getLogger(__name__)
 #: store this replaced (`user_preferences`) has none.
 MAX_DEFINITION_BYTES = 64 * 1024
 
+
+def too_large(size: int, cap: int) -> ValueError:
+    """⭐ ITEM 2 (2026-11-21) -- THE STORE'S SIZE REFUSAL, IN THE MEMBER'S WORDS (both caps: a formula's
+    `MAX_DEFINITION_BYTES`, a runtime document's `RUNTIME_MAX_DEFINITION_BYTES`). The router hands it to the
+    member door verbatim (400 `detail`), and the pane renders it as written.
+
+    ⚰️ It read "definition exceeds 65536 bytes (4076735) -- this store names its caps rather than inheriting
+    `user_preferences`', which has none": a note to the next developer, shown to a member who pressed Add on a
+    script the pane had just drawn (vdubus-pattern-gen-v2, whose host document is 4 MB)."""
+    return ValueError(
+        f"this indicator is too large to keep: as saved it would be {size} bytes, and a saved indicator may "
+        f"hold at most {cap}. Nothing was saved.")
+
+
 #: Live (non-tombstoned) definitions per user.
 MAX_DEFINITIONS_PER_USER = 50
 
@@ -3426,10 +3440,7 @@ def save(user_id: Any, def_id: str, definition: dict,
                       ensure_ascii=False)
     size = len(blob.encode("utf-8"))
     if size > MAX_DEFINITION_BYTES:
-        raise ValueError(
-            f"definition exceeds {MAX_DEFINITION_BYTES} bytes ({size}) — this "
-            "store names its caps rather than inheriting `user_preferences`', "
-            "which has none")
+        raise too_large(size, MAX_DEFINITION_BYTES)
 
     verdict = lint_verdict(definition)
     repaint = json.dumps(verdict, sort_keys=True, separators=(",", ":"))
@@ -3524,10 +3535,7 @@ def save(user_id: Any, def_id: str, definition: dict,
                               separators=(",", ":"), ensure_ascii=False)
             size = len(blob.encode("utf-8"))
             if size > MAX_DEFINITION_BYTES:
-                raise ValueError(
-                    f"definition exceeds {MAX_DEFINITION_BYTES} bytes ({size}) — this "
-                    "store names its caps rather than inheriting `user_preferences`', "
-                    "which has none")
+                raise too_large(size, MAX_DEFINITION_BYTES)
 
         if prev is None:
             prev_version = prior_rev = None
@@ -3914,10 +3922,7 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
     size = len(blob.encode("utf-8"))
     cap = runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES
     if size > cap:
-        raise ValueError(
-            f"definition exceeds {cap} bytes ({size}) — this "
-            "store names its caps rather than inheriting `user_preferences`', "
-            "which has none")
+        raise too_large(size, cap)
     repaint = json.dumps(runtime_definitions.repaint_stamp(definition), sort_keys=True,
                          separators=(",", ":"))
     requirements = "[]"
