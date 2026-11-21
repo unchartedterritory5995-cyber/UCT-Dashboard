@@ -507,6 +507,100 @@ const CHECKS = {
     // not the bar's own candles: on most bars the open differs from the bar's open
     expect(cols[0].filter((v, i) => Math.abs(v - b[i].o) > 1e-9).length).toBeGreaterThan(b.length * 0.9)
   },
+  // ⭐ 2026-11-21: a count in which each counted bar is judged by the bars AFTER it. The reference is two plain
+  // loops written from the recipe's stated rule; it shares no code with the engine.
+  'distribution-days': () => {
+    const b = BARS.daily, c = C(b), v = V(b)
+    const WIN = 25, DROP = 0.2, EXPIRE = 5
+    const isDist = (k) => k > 0 && c[k] <= c[k - 1] * (1 - DROP / 100) && v[k] > v[k - 1]
+    const want = new Array(b.length).fill(NAN)
+    let expiredSomewhere = 0
+    for (let i = WIN; i < b.length; i += 1) {
+      let n = 0
+      for (let k = i - WIN + 1; k <= i; k += 1) {
+        if (!isDist(k)) continue
+        let expired = false
+        for (let j = k + 1; j <= i; j += 1) if (c[j] >= c[k] * (1 + EXPIRE / 100)) expired = true
+        if (expired) expiredSomewhere += 1
+        else n += 1
+      }
+      want[i] = n
+    }
+    const cols = engineColumns('distribution-days')
+    expect(cols).toHaveLength(1)                                    // ONE plot: the count and nothing else
+    same(cols[0], want, 'distribution days', { from: WIN })
+    // the reference really exercises the rule: days are counted, and days DO expire on these bars
+    expect(Math.max(...want.slice(WIN))).toBeGreaterThan(3)
+    expect(expiredSomewhere).toBeGreaterThan(100)
+    // and a count that never expired anything would be a different column on many bars
+    const never = want.map((_, i) => { if (i < WIN) return NAN; let n = 0; for (let k = i - WIN + 1; k <= i; k += 1) if (isDist(k)) n += 1; return n })
+    expect(never.filter((x, i) => i >= WIN && x !== want[i]).length).toBeGreaterThan(100)
+  },
+  // ⭐ 2026-11-21: a state machine with a reset. The reference keeps the same three facts in plain variables.
+  'follow-through-day': () => {
+    const LOOK = 60, DRAW = 5, GAIN = 1.25
+    /** The recipe's stated rule in plain variables. `minDay` and `from` exist so the bars can be shown to tell rules apart. */
+    const rule = (b, { minDay = 4, from = C } = {}) => {
+      const c = C(b), l = L(b), v = V(b), top = from(b)
+      const want = new Array(b.length).fill(NAN)
+      let live = false, start = -1, restarted = 0, starts = 0
+      for (let i = LOOK - 1; i < b.length; i += 1) {
+        const inCorrection = c[i] <= maxOf(top, i, LOOK) * (1 - DRAW / 100)
+        let ended = false
+        if (live && l[i] < l[start]) { live = false; ended = true }
+        if (!live && c[i] > c[i - 1] && inCorrection) { live = true; start = i; starts += 1; if (ended) restarted += 1 }
+        want[i] = live && i - start + 1 >= minDay && c[i] >= c[i - 1] * (1 + GAIN / 100) && v[i] > v[i - 1] ? 1 : 0
+      }
+      return { want, restarted, starts }
+    }
+    const differ = (a, z) => a.filter((x, i) => ok(x) && x !== z[i]).length
+
+    // 1. the reference's daily bars: a market that mostly rises, so attempts are few and long
+    const trend = rule(BARS.daily)
+    const cols = engineColumns('follow-through-day')
+    expect(cols).toHaveLength(1)                                    // ONE mark and nothing else
+    same(cols[0], trend.want, 'follow-through day', { from: LOOK - 1 })
+    const signals = trend.want.filter((x) => x === 1).length
+    expect(signals).toBeGreaterThan(50)
+    expect(signals).toBeLessThan(BARS.daily.length / 4)
+    // the case the recipe writes out (a new attempt starting on the bar the old one ended) happens on them
+    expect(trend.restarted).toBeGreaterThan(0)
+
+    // 2. ⛔ THOSE BARS CANNOT TELL TWO OF THE RULES APART (measured 2026-11-21: no strong bar falls on day 3 of
+    // an attempt, and no attempt starts on a bar that is a correction by the highest HIGH only), so a recipe
+    // with either rule wrong passed check 1. A market in two parts is built here; on it both rules decide bars,
+    // which the `differ` lines below hold BEFORE the engine is asked (bars that stopped deciding a rule fail
+    // there, by name, instead of passing the comparison for the wrong reason).
+    const rnd = (() => { let s = 7; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296 } })()
+    let prev = 100
+    const choppy = BARS.daily.slice(0, 1000).map((x, i) => {
+      let level, noise, wick
+      if (i < 300) {
+        // a quiet, gently sliding channel with long upper wicks: the highest HIGH sits well above the highest
+        // close, so "a correction" by one is not a correction by the other
+        level = 100 * (1 - 0.0005 * i); noise = 0.02; wick = 0.08
+      } else {
+        // twenty-bar swings whose troughs step lower three times and then reset: bounces that fail (the
+        // attempt ends, and a new one may start on that bar) and strong bars early in an attempt
+        const j = i - 300, k = j % 20, step = Math.floor(j / 20) % 4
+        level = 85 * (1 - 0.04 * step) * (1 + 0.2 * (k < 12 ? 1 - k / 12 : (k - 12) / 8)); noise = 0.06; wick = 0.02
+      }
+      const o = prev * (1 + (rnd() - 0.5) * 0.01)
+      const c = level * (1 + (rnd() - 0.5) * noise)
+      const bar = { t: x.t, o, h: Math.max(o, c) * (1 + rnd() * wick), l: Math.min(o, c) * (1 - rnd() * 0.02), c, v: Math.round(1e6 * (0.5 + rnd())) }
+      prev = c
+      return bar
+    })
+    const chop = rule(choppy)
+    expect(chop.starts).toBeGreaterThan(8)
+    expect(differ(chop.want, rule(choppy, { minDay: 3 }).want), 'the built bars do not decide the earliest day (one day early)').toBeGreaterThan(1)
+    expect(differ(chop.want, rule(choppy, { minDay: 5 }).want), 'the built bars do not decide the earliest day (one day late)').toBeGreaterThan(1)
+    expect(differ(chop.want, rule(choppy, { from: H }).want), 'the built bars do not decide close against high').toBeGreaterThan(1)
+    expect(chop.restarted).toBeGreaterThan(1)
+    const chopCols = engineColumns('follow-through-day', sourceOf('follow-through-day'), choppy)
+    expect(chopCols).toHaveLength(1)
+    same(chopCols[0], chop.want, 'follow-through day on choppy bars', { from: LOOK - 1 })
+  },
 }
 
 describe('what each recipe plots equals an independent calculation', () => {

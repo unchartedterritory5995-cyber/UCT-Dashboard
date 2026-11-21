@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.12)
+# MD-1 — UCT market-data contract (v1.15)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.12 (v1.1–v1.12 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7, v1.8, v1.9, v1.10, v1.11 and v1.12 are additions whose new kinds are default OFF; v1.7 is written up after its kinds merged dark, v1.8, v1.9, v1.10, v1.11 and v1.12 with their kinds; v1.7 and v1.8 acked by the owner 2026-11-17 in place of agent-lead, whose session has ended; the §8.1 notices for v1.9, v1.10, v1.11 and v1.12 are owed by a person and are not acknowledged, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
+- **Status:** v1.15 (v1.1–v1.15 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7, v1.8, v1.9, v1.10, v1.11, v1.12, v1.13, v1.14 and v1.15 are additions whose new kinds are default OFF; v1.7 is written up after its kinds merged dark, v1.8, v1.9, v1.10, v1.11, v1.12, v1.13, v1.14 and v1.15 with their kinds; v1.7 and v1.8 acked by the owner 2026-11-17 in place of agent-lead, whose session has ended; the §8.1 notices for v1.9, v1.10, v1.11, v1.12, v1.13, v1.14 and v1.15 are owed by a person and are not acknowledged, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -1779,6 +1779,675 @@ kind.
   columns_left_out`), `rows`, `read_at`, `basis`, `units`, `source`, `check` (`state, reason, http_status, at`, or
   null). At most 20 maturities and 4 spreads are carried. `coverage` counts the maturities against those with a figure.
 
+### 4.16 Terminal data wave 7: `market.regime`, `stock.setups`, `stock.eventsTimeline`, `uct20.list`, `options.ivHistory`, `dilution.watch` (v1.13, terminal-data)
+
+Six more thin kinds, the Agent half of the REGM, TECH (its confirmed setups), EVTS, IVH and DILU terminal panels and of
+the UCT 20 page: UCT's market regime read, one stock's confirmed setups, one stock's dated events, the UCT 20 list,
+one stock's implied volatility by logged session, and one company's share-issuance filings. Each is an adapter over
+the service or store its member route already reads (`api/services/uct_agent/marketdata/regime_read.py`,
+`setups_read.py`, `events_timeline_read.py`, `uct20_read.py`, `iv_history_read.py`, `dilution_read.py`; registered in
+`kinds.py` with `owner="terminal-data"`). No new connection, job, database or write (§6), and no new environment
+variable.
+
+**Status: dark, not armed.** Like every kind, each is served only when it is listed in `UCT_AGENT_DATA_KINDS` (with
+`UCT_AGENT_DATA=1`). All six are model-isolated, so each also needs the master switch `UCT_AGENT_ISOLATED=1` and its
+own entry in `UCT_AGENT_ISOLATED_KINDS` (§4.4, ADR-005); until then it is refused for every purpose, and once armed it
+is served for purpose `answer` only. This section describes what the code does when a kind is switched on. It does not
+switch anything on. As written (2026-11-20), none of the six is in production's list.
+
+| Kind | Canonical service (member route) | Params | Declared freshness | `as_of` | `provider_calls` | Model-isolated |
+|---|---|---|---|---|---|---|
+| `market.regime` | the classification `api/services/voice_regime_classifier.py` last stored, read through `voice_regime_held.held_regime` (`GET /api/regime`) | `{}` | periodic · every read periodic | the time the server computed the held classification (never the time of the read) | 0 | **yes** |
+| `stock.setups` | the verdicts `api/services/pattern_vision/store.py` holds, read through the store's own `get_confirmed`, `count_evaluated` and `last_judged_at` (the confirmed branch of `GET /api/patterns/{sym}`) | `{symbol, rows}` | periodic · every read historical | the newest daily bar a returned setup was judged on; with none confirmed, the day the judge last ran (never the time of the read) | 0 | **yes** |
+| `stock.eventsTimeline` | the stores `api/services/events_timeline.py` reads, through `timeline(sym, held_only=True)` (`GET /api/research/events/{sym}`) | `{symbol, rows}` | periodic · every read historical | the date of the newest event that is not in the future (never a scheduled report, never the time of the read); null when there is none | 0 | **yes** |
+| `uct20.list` | the list the morning wire last pushed, read through `engine._leadership_as_pushed` (`GET /api/leadership`) | `{rows}` | periodic · every read historical | the wire run's own date (never the time of the read); null when the pushed list carries none | 0 | **yes** |
+| `options.ivHistory` | the sessions of UCT's options log already on the server's disk, read by `api/services/research/iv_history.py` over `LocalStore(get_store().root)` (`GET /api/research/iv-history/{sym}`) | `{symbol, rows}` | periodic · every read historical | the newest session with an at-the-money implied volatility for the stock (never today as such) | 0 | **yes** |
+| `dilution.watch` | the answer `api/services/dilution_watch.py` already holds, read through `dilution_watch.held_watch` (`GET /api/research/dilution-watch/{ticker}`) | `{symbol, rows}` | periodic · every read historical | the day of the newest filing of any form in the SEC's index for the company (never the time of the read); null when the answer names none | 0 | **yes** |
+
+**No read of this section starts a compute, a build, a download or a vendor request.** (§5: a turn has 20 provider
+requests and a member waiting.) Five of the six member paths can start work when the server holds nothing. A turn
+must not start any, so each adapter reads the read-only path beside its route and answers `unavailable`, with the
+reason, when nothing is held:
+
+| Kind | What the member path can start | What the adapter reads instead |
+|---|---|---|
+| `market.regime` | `voice_regime_classifier.get_current_regime` recomputes when nothing is held: it reads breadth (which can go on to a live fetch) and asks the market-data vendor for a VIX snapshot | `voice_regime_held.held_regime` (added with this version): the classification the classifier last stored in the shared cache, with the time it stored it, else nothing. It never computes, never reads breadth and never calls a vendor. It is a file beside the classifier, not a function in it, because flow-worker runs the classifier's file and that service is deployed by hand |
+| `stock.setups` | nothing is computed by the route's confirmed branch: verdicts are written by a background job. The route does create the verdict store when the file is absent (`init_db`) | the store's own three readers (`get_confirmed`, `count_evaluated`, `last_judged_at`). It never creates the store, never runs a detection, never draws a chart and never asks a model |
+| `stock.eventsTimeline` | `events_timeline.timeline(sym)` reads the earnings history from cache and, on a miss, schedules the earnings rebuild (a background job that asks a vendor) | `timeline(sym, held_only=True)` (added with this version), which reads the earnings history through `earnings_reaction_panel.held_earnings` (added with this version): the same stores, and an earnings history that is not held is the source state `not_held`, with nothing scheduled. The default call is unchanged |
+| `uct20.list` | the route starts a background bar warm for every name on the list, and `engine.get_leadership` can build the day's pending-acquisition set (`deal_status.consumer_pending`, when that rule is on: a build that reads news and bars, and a background refresh) | `engine._leadership_as_pushed` (the cache, then the file on the server), the wire's own date and status, and the pending-acquisition rule applied ONLY from a set already built for today. It never warms a bar and never builds or refreshes that set |
+| `options.ivHistory` | the route reads through the service's production store, which lists the log in remote storage and downloads any session file the server does not have | `LocalStore(get_store().root)`: a plain local store over the same directory, so the service reads the session files already mirrored on the server's disk and nothing else. Nothing is listed in or downloaded from remote storage |
+| `dilution.watch` | `dilution_watch.get_watch` starts the service's background build (a thread that requests the SEC's website) when nothing is held | `dilution_watch.held_watch`: the answer the service already holds, fresh or last good, else "not held". It never starts a build |
+
+Rails hold each adapter to what its member path serves and count computes, builds, downloads, threads and vendor
+requests: with nothing held the adapter starts none, and the member path's own reader is shown to start one in the
+same state. A further rail replaces every builder, job starter, fetch and vendor reader the six paths have with
+functions that fail, and runs every read of this section held and not held.
+
+**Two route switches are respected, and none is added.** The events timeline and the IV history each have a switch of
+their own on the member route (`EVENTS_TIMELINE_ENABLED`, `IV_HISTORY_ENABLED`). While a switch is not on the route
+answers 404 and the read is `unavailable` with that reason, never an empty answer. This version adds no switch and
+changes neither.
+
+**Each kind's own states, and what each read says.** No state is ever said as "no regime", "no setup", "no event",
+"an empty list", "no implied volatility" or "no filings":
+
+| The service or store says | The read |
+|---|---|
+| `market.regime`: no classification is held (none computed in the last 15 minutes) | `unavailable`, not held |
+| `market.regime`: the held classification is the classifier's "could not answer" answer, names a regime outside the classifier's vocabulary, has no confidence, or has every input missing (the classifier still names a regime then) | `unavailable`, no regime named |
+| `market.regime`: some of the five breadth figures were not available to the classifier | `ok`, those figures null and named |
+| `stock.setups`: the verdict store is not on the server | `unavailable`, not held; the store is not created |
+| `stock.setups`: no setup was judged on the stock in the store's window | `unavailable`, not judged |
+| `stock.setups`: setups were judged and none is confirmed | `ok`, no row, with the count judged |
+| `stock.setups`: the newest bar judged is older than the newest completed session | `ok` and `stale`, with both dates |
+| `stock.eventsTimeline`: the route's switch is off | `unavailable`, switched off |
+| `stock.eventsTimeline`: a source failed, or the earnings history is not held (`error`, `not_held`) | `partial`, the source named with which of the two it is |
+| `stock.eventsTimeline`: none of the four sources answered | `unavailable`, nothing stated |
+| `stock.eventsTimeline`: every source answered and no event is stored | `ok`, no row |
+| `stock.eventsTimeline`: the events cannot be placed against a report (the service's `state` is not `ok`) | `ok` or `partial`, offsets null, with the service's reason |
+| `stock.eventsTimeline`: no event is dated on or before the read day | `ok` or `partial`, `as_of` null, said |
+| `uct20.list`: no list is held (cache and file both empty), or no row of it has a usable symbol | `unavailable`, not held |
+| `uct20.list`: the pending-acquisition rule is on and today's set is not built | `unavailable`, the list members see cannot be stated without a build |
+| `uct20.list`: the route's own rule says a trading-day run was missed (`stale`), or the wire's publish check held or degraded the run (`held`, `degraded`) | `ok` and `stale`, with which |
+| `uct20.list`: the pushed list carries no run date | `ok` and `stale`, `as_of` null, said |
+| `options.ivHistory`: the route's switch is off | `unavailable`, switched off |
+| `options.ivHistory`: no session of the log is on the server's disk (`no_log`) | `unavailable`, not held |
+| `options.ivHistory`: the sessions held carry no at-the-money figure for the stock (`not_in_log`) | `unavailable`, not in the sessions held |
+| `options.ivHistory`: fewer ranked sessions than the service's minimum | `ok`, `rank` null, with the service's own sentence |
+| `options.ivHistory`: the newest session with a figure is older than the newest completed session | `ok` and `stale` |
+| `dilution.watch`: nothing is held (`not_held`), or a build is running with nothing held yet (`computing`) | `unavailable`, not held |
+| `dilution.watch`: the held answer records a read of the SEC's index that did not go well (`failed`, `unavailable`) | `unavailable`, with the reason in fixed words |
+| `dilution.watch`: the service's own `none` (`no_cik`, `no_filings`) | `ok`, no row, with its reason, `as_of` null |
+| `dilution.watch`: the answer is the last good one and its refresh is overdue (`last_good`) | `ok` and `stale` |
+| `dilution.watch`: the SEC's index was read only part of the way back | `ok`, the counts that need older filings null, said |
+| any kind: a malformed answer or a failing service | `unavailable`, read failed |
+
+**Rules all six share**
+- **A bad request is refused before any read.** Each kind's `validate` runs before admission (a `symbol` that is not
+  one US stock or fund ticker, an out-of-range `rows`): the read is `refused` and spends no budget. `market.regime`
+  and `uct20.list` take no symbol.
+- **A value that does not exist is null, never 0.** A breadth figure the classifier did not have, a setup's key level
+  or confidence that is not stored, the offset of an event that is not placed against a report, a figure the wire
+  did not carry, a session's at-the-money implied volatility that was not logged, a rank under the service's minimum
+  of sessions, and a filing count the read did not reach back far enough for are each null.
+- **The as-of is the data's own date, never the time of the read** (§3). When UCT computed, judged or read the
+  answer is a read time, not a data time: it rides beside the as-of in `data` (`computed_at`, `judged_at`,
+  `read_at`). `market.regime` is the one kind of this section whose `as_of` is itself a time UCT computed something:
+  the held classification carries no date for the breadth figures behind it, a note says so, and the read is
+  `periodic` because the classifier keeps a classification for at most 15 minutes. The other five reads are
+  `historical`; each kind is DECLARED `periodic`, a read being allowed to be less fresh than its kind.
+- **Unknown is never claimed fresh.** A time or a day the service did not record is said in the note as
+  `a time it did not record` or `a day it did not record`, and the field is null.
+- **The server says when it cut a list, and from which end.** `stock.setups`, `stock.eventsTimeline`,
+  `options.ivHistory` and `dilution.watch` carry the newest rows and leave out the OLD end; `uct20.list` carries the
+  top of the ranking and leaves out the BOTTOM. Each carries the whole count beside what is shown.
+- **What is left out is said.** `market.regime`, `stock.setups`, `stock.eventsTimeline` and `uct20.list` each leave
+  fields of their source out, name them in `data.left_out` and say so in a note. What is left out of each is the
+  builder's default, taken on the conservative side; it is listed per kind below.
+- **Every number is the service's own.** Nothing is re-derived, ranked or counted in the adapters.
+- **The member's answer is built from the read's `data` and `status`.** The browser capabilities template their text
+  from those; an envelope note is never echoed to the member as if it were data.
+
+**Why all six are model-isolated.** The licensing register
+(`docs/terminal-research/09-security-licensing-cost/licensing-register.md`) has no row that clears any of these six
+reads for a model provider. Isolating all six is the builder's default under the rule "when in doubt, isolated"; it
+is not a ruling by anyone. Each kind is decided from the rows of the data it is built on, quoted as they stand:
+- `market.regime`: a rules-based read over market breadth and VIX. Row T-11 ("Derived analytics — intraday breadth
+  (~40 metrics) + lenses, RS rank/line, correlation, sector flow, theme returns, base-structure library, candle
+  library, pattern engine (50 detectors), server indicators, Pine parity") is class **R**. Row T-12 ("Derived
+  analytics — the composites", the Exposure Rating among them) is class **R** and its action reads "Ask the question;
+  do not add new composite publications until answered; desk-first (D-001)". The AI row, row T-14, is class **R** and
+  its action reads "Ground on EOD + multi-symbol derived facts, never on a live single-symbol quote". None clears a
+  regime read for a model, so the kind is isolated, and the Exposure Rating and the VIX level are left out of it.
+- `stock.setups`: verdicts about the vendor's daily bars, and row T-11 names the "pattern engine (50 detectors)",
+  class **R**; row T-14 is class **R**. Neither clears a verdict about one stock's bars.
+- `stock.eventsTimeline`: the register has no row for this timeline. Its earnings rows carry the fundamentals
+  vendor's figures, and row T-44 ("AI processing — FMP numbers (fundamentals, analyst, earnings) into AI Search
+  synth/agent, Compass, stock briefs, Model Book") is class **U**: "No AI clause; derived-works clauses govern".
+- `uct20.list`: UCT's own selection, ranked on figures derived from the vendor's data: row T-11 names "RS
+  rank/line", class **R**; row T-12 names "UCT20 portfolio **NAV**" and "published entry/stop/target on named
+  tickers", class **R**, with the action quoted above; row T-14 is class **R**. The list is isolated, and the
+  portfolio, its NAV and each name's entry, stop and targets are left out of it.
+- `options.ivHistory`: computed from UCT's options log, an end-of-day snapshot of the options chain. The register
+  has no row for that log; the nearest is row T-28 ("Member display — options chain + Greeks + IV"), class **R**, and
+  row T-14 is class **R**.
+- `dilution.watch`: row T-96, share-issuance filings from the SEC's filing index, class **A**. The row itself says of
+  this use "Nothing else reads it (no AI lane, no export, no external publication)". A kind that sent the
+  classification to a model provider would be the AI lane that sentence says does not exist, so the kind is isolated
+  and the row is left as it stands. Of the six, this is the one whose source is public data.
+
+Whether an isolated value may ever reach the model is an owner decision (§4.4), and none is recorded here. On the
+browser the six kinds are read only by local-only capabilities (`stock.marketRegime`, `stock.setups`,
+`stock.eventsTimeline`, `stock.uct20List`, `stock.ivHistory`, `stock.dilutionWatch` in
+`app/src/agent/capabilities/terminalDataWave7.js`, all in `turn.LOCAL_ONLY_ACTIONS`): the model plans the lookup and
+never sees what came back. Each capability registers only while the server lists its own kind.
+
+**A question this section leaves open for `uct20.list` and `stock.setups`.** SC-1 §2d (owner F-16 ruling) keeps
+UCT's proprietary ratings and scores out of the Agent's SCREENS, and names `in_uct20`, `rs_rank` and every
+pattern-engine field among them. That section is about the scan path ("The member-facing Screener page and
+`/api/screener/*` do not change. This section is the Agent's view only"), and neither kind is a screen: nothing
+here filters, sorts or ranks on such a field. Both kinds do SHOW such values to the member (each UCT 20 name's RS
+rating and UCT 20 score; a confirmed setup's pattern and confidence), isolated from the model. Whether F-16 also
+bears on showing them through the Agent is not answered by SC-1 §2d as written and is not answered here: it is a
+question for the owner before either kind is armed. One effect is already in the browser and is not changed by
+this version: the Screener's own rail claims a screen-shaped message that names the UCT 20 ("which stocks are in
+the UCT 20") and answers it with the F-16 sentence before any model call, so `uct20.list` is never read for it.
+
+**`market.regime`** (source `uct-regime-classifier`)
+- What it returns: the regime the classifier last named (`data.regime`, with its member words `data.label` and its
+  sizing band `data.band`, all three the classifier's own vocabulary), its confidence, the five breadth figures
+  behind it and the classifier's reason lines. Every `ok` read carries the notes
+  `UCT's market regime read, as the server last computed it: a rules-based classification from market breadth and VIX, with the sizing band UCT's own GRADE verdicts read. It is what UCT's rules read, not advice and not a forecast`,
+  `` `as_of` is the time the server computed this read ({at}); it is never the time of this read. The breadth figures behind it carry no date of their own in the held read. The server recomputes at most every 15 minutes, and this read never recomputes `` and
+  `the UCT Exposure Rating and the VIX level are part of the held read and are left out of this answer, with the {n} reason lines that state them. The Market regime panel (REGM) in UCT shows them`.
+- Params: none.
+- **Left out (the builder's default).** The UCT Exposure Rating and the VIX level are in the held classification and
+  are not carried; a reason line that states either is dropped and counted (`data.reasons_left_out`).
+- **A figure the classifier did not have.** `{n} breadth figures were not available to the classifier and are null, never 0: {list}`, each figure said in fixed words:
+  `percent of stocks above the 50-day average`, `percent of stocks above the 200-day average`, `new highs`,
+  `new lows`, `distribution days`.
+- The read is never marked `stale`: the classifier drops a classification 15 minutes after it computed it, so a held
+  one is never older, and `as_of` says when it was computed.
+- `unavailable`: nothing held (`no regime read is held on this server at the moment, and this read never computes one. That is not the same as no regime. Open the Market regime panel (REGM) in UCT, then ask again`); no regime named
+  (`the classifier could not read its inputs, so the held read names no regime and no band; nothing is stated`); a failing read (`the regime read failed; nothing is stated. That is not the same as no regime`).
+- Data fields: `regime`, `label`, `band`, `confidence`, `signals` (`pct_above_50ma, pct_above_200ma, new_highs,
+  new_lows, distribution_days, market_phase`), `reasons` (at most 6, 120 characters each), `reasons_left_out`,
+  `left_out`, `vocabulary_version`, `computed_at`. `coverage` counts the five breadth figures against those the
+  classifier had.
+
+**`stock.setups`** (source `uct-setup-verdicts`)
+- What it returns: the setups UCT's chart judge confirmed on the stock's daily chart, newest bar first, by the
+  member's own rules: the store's window (a verdict on an older bar is not served, and a setup rejected on a newer
+  bar is not served from an older confirm), the route's default confidence floor (50) and the internal setups
+  dropped as for every member. `rows` 1–25 (default 10). Every `ok` read carries the notes
+  `the setups UCT's chart judge confirmed on {symbol}'s daily chart, as stored: the setup, the daily bar it was judged on, the judge's confidence and the key level stored with it. Stored verdicts only: no detection and no chart reading is run for this read. A record of what the judge confirmed, not a forecast and not advice` and
+  `only verdicts on a daily bar from the last {days} days are served, and a setup rejected on a newer bar is not served from an older one; {evaluated} setups were judged in that window`, and with at least one row
+  `` `as_of` is the newest daily bar a setup here was judged on ({day}); it is never the time of the read. The judge last ran on this stock at {at} (UCT's own time) ``.
+- Params: `symbol` (one US stock or fund ticker, in the house form `BRK-B`); `rows`.
+- **Judged and none confirmed** is an `ok` read with no row: `` {evaluated} setups were judged on {symbol} in the window and none is confirmed. `as_of` is the day the judge last ran ({day}), at {at} (UCT's own time) ``.
+- **The cut, from the old end.** `{total} setups are confirmed and the newest {shown} are returned, newest bar first: the list is cut from the OLD end`.
+- **Left out (the builder's default).** `the judge's written reasons and its list of checks are left out of this read: each row keeps the count of checks passed and made. The Technical read panel (TECH) in UCT shows them`.
+- **A level that is not stored.** `{n} of the setups returned have no key level stored and that level is null, never 0`.
+- **Stale.** `the newest bar judged is {day}, older than the newest completed session ({expected}). This read never runs the judge: it runs on UCT's own schedule`.
+- `unavailable`: the store is not on the server (`the setup verdict store is not on this server, and this read never creates it. That is not the same as no setup`); not judged
+  (`no setup was judged on {symbol} in the last {days} days, so nothing is stored to read. That is not the same as no setup. This read never runs a detection or reads a chart`); a failing read (`the setups read failed; nothing is stated. That is not the same as no setup`).
+- Data fields: `symbol`, `tf` (`D`), `rows`, `count`, `confirmed_total`, `cut`, `evaluated`, `window_days`,
+  `min_confidence`, `as_of`, `judged_at`, `expected_session`, `left_out`. Row fields: `setup, name, asof_date,
+  confidence, key_level, checks_passed, checks_made`; `name` is null for a setup the route's table does not name.
+  `coverage` counts the setups judged against the rows carried.
+
+**`stock.eventsTimeline`** (source `uct-events-stores`)
+- What it returns: the dated events the four sources hold for the stock, newest first, each placed against its
+  nearest earnings report when the service can place it (`print_date`, `offset`, `stage`), with the reports
+  themselves in `data.prints` (at most 9). `rows` 1–40 (default 20). Every `ok` or `partial` read carries the note
+  `dated events UCT's stores hold for {symbol}, each placed against its nearest earnings report: earnings reports and the next scheduled one, days the UCT catalyst engine flagged the stock, SEC filings in UCT's filing index, and days the room's mentions of the ticker spiked. Stored events only: nothing is fetched for this read. A record, not a forecast and not advice`, and
+  `` `as_of` is the date of the newest event that is not in the future ({day}); it is never the time of the read. A scheduled report is listed and is not the as-of `` or, with no such event, `` no event here is dated on or before the read day, so `as_of` is null ``.
+- Params: `symbol` (one US stock or fund ticker); `rows`.
+- **The four sources**, each with its own state in `data.sources` (`ok`, `empty`, `error`, `not_held`):
+  `the earnings history`, `the UCT catalyst engine's flags`, `the SEC filing index`,
+  `the room's mention counts`. A source that failed, or an earnings history that is not held, makes the read
+  `partial`: `{n} of the 4 sources did not answer and their events are missing from this list, which is not the same as no event there: {list}`, each source said with `not held on this server` or `the read failed`.
+- **The offset's unit.** `each event's offset from its nearest report is counted in {unit}` (the service's own words for its unit). When the service cannot place
+  the events, every offset is null: `the events are not placed against a report: {reason}`.
+- **No event stored.** `no event is stored for {symbol} in any of the 4 sources`.
+- **The cut, from the old end.** `{total} events are stored and the newest {shown} are returned, newest first: the list is cut from the OLD end`.
+- **Left out (the builder's default).** `the catalyst engine's written thesis and each filing's link are left out of this read. The Events timeline panel (EVTS) in UCT shows them`. A catalyst flag's `detail` is null for that reason.
+- The read is never marked `stale`: `as_of` says how new the newest stored event is.
+- `unavailable`: switched off (`the events timeline is switched off on this server (EVENTS_TIMELINE_ENABLED is not on), so nothing is read. That is not the same as no event`); no source answered
+  (`none of the 4 event sources answered for {symbol}; nothing is stated. That is not the same as no event`); a failing read (`the events timeline read failed; nothing is stated. That is not the same as no event`).
+- Data fields: `symbol`, `staged`, `reason`, `offset_unit`, `prints` (`date, label, state`), `rows`, `count`, `total`,
+  `cut`, `sources`, `as_of`, `left_out`. Row fields: `date, kind, title, detail, source, print_date, print_label,
+  print_state, offset, stage`. `coverage` counts the four sources against those that answered.
+
+**`uct20.list`** (source `uct-morning-wire`)
+- What it returns: the UCT 20 list as the morning wire last pushed it, in the list's own order, the first twenty as on
+  the UCT 20 page, less the names the page leaves out for a pending acquisition. `rows` 1–20 (default 20). Every `ok`
+  read carries the notes
+  `the UCT 20 leadership list as the morning wire last pushed it: each name's rank in the list, its RS rating, its UCT 20 score, its one-month and three-month returns in percent and its next earnings date. UCT's own selection, not advice and not a forecast`,
+  `the UCT 20 model portfolio (its value, its NAV curve, its entry and stop prices and its trades) and each name's entry, stop and targets are left out of this answer, with the wire's price and change and the written thesis. The UCT 20 page in UCT shows them`, and
+  `` `as_of` is the wire run's own date ({day}); it is never the time of the read. The list is built once a day before the open and this read never rebuilds it `` or, with no run date, `` the pushed list carries no run date, so `as_of` is null and how old the list is cannot be stated ``.
+- Params: `rows`.
+- **Left out (the builder's default).** The model portfolio and its NAV, each name's entry, stop and targets, the
+  wire's price and change (a morning snapshot, not a quote), and the written thesis and company description are not
+  carried.
+- **The cut, from the bottom.** `the list holds {total} names and the top {shown} are returned in the list's own order: it is cut from the BOTTOM of the ranking`.
+- **Pending acquisitions.** `{n} names with a pending acquisition are left off the list, as on the UCT 20 page`. The rule is applied only from a set already built for today.
+- **A figure the wire did not carry.** `{n} names have at least one figure the wire did not carry; those figures are null, never 0`.
+- **Stale.** `{why}. This read never rebuilds the list`, where `{why}` is `a trading-day wire run was missed, so this is the list of an earlier run`,
+  `the wire's publish check held this run, so this is the last list that passed it` or `the wire's publish check marked this run degraded` (said with its first letter capitalised). A list with no run date is `stale` too.
+- `unavailable`: nothing held (`no UCT 20 list is held on this server, and this read never builds one. That is not the same as an empty list`); the pending-acquisition set is not built
+  (`the UCT 20 page leaves out names with a pending acquisition, and today's set of those names is not built on this server yet. This read never builds it, so the list members see cannot be stated. Open the UCT 20 page in UCT, then ask again`); a failing read (`the UCT 20 read failed; nothing is stated. That is not the same as an empty list`).
+- Data fields: `rows`, `count`, `total`, `cut`, `as_of`, `status` (fresh · stale · held · degraded), `held_since`,
+  `pending_removed`, `left_out`. Row fields: `rank, symbol, rs, score, ret_1m, ret_3m, earnings_date`. `coverage`
+  counts the names on the list against the rows carried.
+
+**`options.ivHistory`** (source `uct-options-log`)
+- What it returns: the stock's at-the-money implied volatility by logged session, newest first, with the service's
+  own rank and percentile when enough sessions are logged (`data.rank`, else null with `data.rank_note`). `rows` 1–60
+  (default 20). Every `ok` read carries the notes
+  `{symbol}'s at-the-money implied volatility by session, from UCT's own options log as held on this server: the mean of the call and the put implied volatility at the strike closest to the stock, on the expiry closest to 30 days out, as a fraction (0.30 is 30%), with the days to expiry it was read at. Recorded once a day after the close: not a live figure, not a forecast and not advice` and
+  `` `as_of` is the newest session with an ATM IV for {symbol} ({day}); it is never the time of the read. The log began on {began} and {sessions} of its sessions are on this server ``.
+- Params: `symbol` (one US stock or fund ticker); `rows`.
+- **The cut, from the old end.** `{total} sessions are held for {symbol} and the newest {shown} are returned, newest first: the history is cut from the OLD end. The rank is over the service's own window, not over the rows returned`.
+- **No rank.** `no IV rank is stated: {why} The rank is null, never 0`, where `{why}` is the service's own sentence.
+- **A session with no figure.** `{n} of the sessions returned have no ATM IV for {symbol} and that figure is null, never 0`.
+- **A history the service marks partial.** `the service marks this history partial: {reasons}` (at most 5 of the service's reasons, 240 characters
+  each).
+- **Stale.** `the newest session held for {symbol} is {day}, older than the newest completed session ({expected}). A newer session may be logged and not mirrored on this server: this read never downloads one. Open the IV history panel (IVH) in UCT, then ask again`.
+- `unavailable`: switched off (`the IV history is switched off on this server (IV_HISTORY_ENABLED is not on), so nothing is read. That is not the same as no implied volatility`); no session on the server's disk
+  (`no session of UCT's options log is on this server's disk, and this read never downloads one. That is not the same as no implied volatility. Open the IV history panel (IVH) in UCT, then ask again`); the stock is not in the sessions held
+  (`the {sessions} sessions of UCT's options log on this server hold no ATM IV for {symbol}. That is not the same as no implied volatility: the stock may have no listed options, or its sessions may not be mirrored here`); a failing read (`the IV history read failed; nothing is stated. That is not the same as no implied volatility`).
+- Data fields: `symbol`, `rows`, `count`, `total`, `cut`, `as_of`, `logging_began`, `covers_from`, `covers_to`,
+  `sessions_logged`, `sessions_with_iv`, `missing_sessions` (a count), `rank` (`current, iv_rank, iv_percentile, low,
+  high, window_sessions`, or null), `rank_note`, `rank_min_sessions`, `partial`, `partial_reasons`,
+  `expected_session`, `source`. Row fields: `date, atm_iv, atm_dte, atm_expiration, rule, complete`; `atm_iv` is a
+  fraction (0.30 is 30%). `coverage` counts the sessions held for the stock against the rows carried that have a figure.
+
+**`dilution.watch`** (source `sec-edgar-filing-index`)
+- What it returns: one company's share-issuance filings as the service classified them from the SEC's filing index:
+  the newest filings, at most 3 shelf registrations with their state (`live`, `expired`, `not_effective`,
+  `withdrawal_requested`; "live" and "expired" are the service's estimates from dates), and the counts of offerings,
+  unregistered sales and registrations over 12 months and 3 years. It answers for one company: the service holds no
+  market-wide list, and none is made here. `rows` 1–40 (default 15). Every `ok` read with filings carries the note
+  `{symbol}'s share-issuance filings of the last {years} years as UCT classified them from the SEC's filing index: each filing's date, form and kind, its shelf registrations and their state, and counts of offerings, unregistered sales and registrations. Classified from the form type and item numbers alone: no filing document was read. A record of filings, not a forecast and not advice`, and
+  `` `as_of` is the day of the newest filing of any form in the SEC's index for {symbol} ({day}); it is never the time of this read. UCT read the index at {at} (UCT's own time) and the window ends on {to} `` or, when the answer names no newest filing day,
+  `` the held answer names no newest filing day for {symbol}, so `as_of` is null. UCT read the index at {at} (UCT's own time) and the window ends on {to} ``.
+- Params: `symbol` (one US stock ticker); `rows`.
+- **The service's own "none"** is an `ok` read with no row (`data.state` `none`): `` no share-issuance filing is stated for {symbol}: {why}. The answer carries no date, so `as_of` is null ``, where `{why}` is
+  `the SEC lists no filer for this symbol` or `the SEC has no filing index for this company`.
+- **The cut, from the old end.** `{total} filings are in the window and the newest {shown} are returned, newest first: the list is cut from the OLD end. The counts cover the whole window`.
+- **An index read only part of the way back.** `the SEC's index was read back to {day} only, not the whole window: a count that needs older filings is null, never 0 and never a smaller number`.
+- **A fund.** `the SEC classes {symbol} as a fund or its filings are a fund's: share issuance by a fund is routine and these rows do not mean what they mean for a company`.
+- **Stale.** `this is the last good answer UCT holds for {symbol} and its refresh is overdue. This read never refreshes it: open the Dilution watch panel (DILU) in UCT, then ask again`.
+- `unavailable`: nothing held (`no filing answer is held for {symbol} on this server, and this read never requests one from the SEC. That is not the same as no filings. Open the Dilution watch panel (DILU) in UCT, then ask again`); the service's last read of the SEC's index did not go well
+  (`UCT's last read of the SEC's filing index for {symbol} did not go well ({why}), and no earlier answer is held; nothing is stated. That is not the same as no filings`, where `{why}` is `the SEC's website refused the request`, `its answer could not be read`,
+  `the SEC's website said too many requests`, `it did not answer in time`, `the SEC's website answered with an error`,
+  `the read failed`, or otherwise `it did not go well`); a failing read (`the dilution watch read failed; nothing is stated. That is not the same as no filings`).
+- Each filing's link, accession number and file numbers are not carried (the builder's default); no filing document
+  was read by the service, so no share count and no dollar amount exists to carry.
+- Data fields: `symbol`, `state` (ok · none), `company`, `fund_like`, `window` (`years, from, to, recent_months,
+  recent_from`), `coverage` (`complete, from, pages_unread`), `newest_filing`, `summary` (`live_shelves,
+  pending_shelves`, and `offerings`, `unregistered`, `registrations`, each `m12, y3, latest`), `shelves` (`form, filed,
+  effective, expires_estimate, state, offerings, latest_offering`), `rows`, `count`, `total`, `cut`, `as_of`,
+  `read_at`, `last_good`; a `none` answer carries `none_reason` and `http_status` instead. Row fields: `date, form,
+  kind, what, under` (`form, filed, shelf`, or null). The envelope's `coverage` counts the filings in the window
+  against the rows carried.
+
+### 4.17 Terminal data wave 8: `stock.corporateActions`, `calendar.ipos`, `calendar.dividends` (v1.14, terminal-data)
+
+Three more thin kinds, the Agent half of the CACT, IPO and DVD terminal panels: one stock's splits and cash dividends,
+the IPO calendar, and the dividends and splits declared ahead for the stocks a member names. Each is an adapter over
+the service its member route already reads (`api/services/uct_agent/marketdata/corporate_actions_read.py`,
+`ipo_calendar_read.py`, `dividends_calendar_read.py`; registered in `kinds.py` with `owner="terminal-data"`). No new
+connection, job, database, write or route (§6), and no new environment variable.
+
+**Status: dark, not armed.** Like every kind, each is served only when it is listed in `UCT_AGENT_DATA_KINDS` (with
+`UCT_AGENT_DATA=1`). All three are model-isolated, so each also needs the master switch `UCT_AGENT_ISOLATED=1` and its
+own entry in `UCT_AGENT_ISOLATED_KINDS` (§4.4, ADR-005); until then it is refused for every purpose, and once armed it
+is served for purpose `answer` only. This section describes what the code does when a kind is switched on. It does not
+switch anything on. As written (2026-11-21), none of the three is in production's list.
+
+| Kind | Canonical service (member route) | Params | Declared freshness | `as_of` | `provider_calls` | Model-isolated |
+|---|---|---|---|---|---|---|
+| `stock.corporateActions` | the chart markers record `api/services/corporate_actions_held.py` reads, through `corporate_actions_held.held_actions` (`GET /api/research/corporate-actions/{ticker}`) | `{symbol, rows}` | periodic · every read historical | the newest event of either block (never the time of the read); null when the record lists none | 0 | **yes** |
+| `calendar.ipos` | the merged calendar `api/services/ipo_calendar.py` stored for the IPO panel's window, read through `ipo_calendar_held.held_ipos` (`GET /api/calendar/ipos`) | `{rows}` | periodic · every read periodic | null: the calendars carry no as-of; the time UCT read them rides beside it | 0 | **yes** |
+| `calendar.dividends` | what `api/services/dividends_calendar.py` stored for each named stock alone, read through `dividends_calendar_held.held_events` (`GET /api/calendar/dividends?syms=`) | `{symbols}` | periodic · every read periodic | null: a forward calendar carries no as-of; the time UCT read each stock rides beside it | 0 | **yes** |
+
+**No read of this section starts a build or a vendor request.** (§5: a turn has 20 provider requests and a member
+waiting.) Two of the three member routes ask a vendor when the server holds nothing; the third reads only what is held,
+and the chart reader behind its record builds one. A turn must not start any of that, so each adapter reads a
+read-only path and answers `unavailable`, with the reason, when nothing is held:
+
+| Kind | What the member path can start | What the adapter reads instead |
+|---|---|---|
+| `stock.corporateActions` | the route itself reads only the record held on the server's disk; the chart's reader of that record, `earnings_estimates.get_chart_markers`, builds it from the vendor when nothing is held and refreshes it in the background when it is more than a day old | `corporate_actions_held.held_actions`, the route's own service, and nothing else. It never builds, never refreshes and never asks the vendor |
+| `calendar.ipos` | `ipo_calendar.get_ipos_with_status` asks two vendors (Finnhub and FMP) whenever nothing is held for the range | `ipo_calendar_held.held_ipos` (added with this version, a new file beside the service): the merged rows the service stored for exactly the IPO panel's window, with the time it stored them, or the service's own record that both vendors failed, else nothing. It never fetches and never writes to the cache |
+| `calendar.dividends` | `dividends_calendar.get_events_with_status` asks the vendor (two reference reads per stock) whenever nothing is held for the symbol set; with no `syms` the route also reads the caller's own stocks | `dividends_calendar_held.held_events` (added with this version, a new file beside the service): what the service stored for one named stock alone (the DVD panel's one-stock read), with the time it stored it and whether it marked that read incomplete, else nothing. It never fetches, never writes to the cache, and never reads a member's own lists |
+
+Rails hold each adapter to what its member path serves and count builds, threads, vendor requests and cache writes:
+with nothing held the adapter starts none, and the member path's own reader is shown to start one in the same state. A
+further rail replaces every builder, refresh, vendor reader, route reader and the cache's writer with functions that
+fail, and runs every read of this section held and not held. Both new readers are pinned against their services: a
+rail drives the service itself over invented vendor rows and reads its answer back through the reader.
+
+**What this version does not build, and why.** The six Terminal panels that went live on 2026-11-20 were `COT`,
+`ANLG`, `MKTS`, `IPO`, `DVD` and `CACT`. `COT` is read already (the `cot.positioning` kind, its capability and its own routing group, `cot`).
+`ANLG`: the Breadth page shows its Analogues tab to admins only (`resolveBreadthTabs` in
+`app/src/hub/sections/breadthSection.js`), and whether the Agent may read that data is not answered, so no kind reads
+it. `MKTS`: the markets board reads three things, and none needs a kind of its own. Its index funds come from
+`GET /api/snapshot`: live vendor quotes the route rebuilds from the vendor once its 15-second copy has lapsed (it
+serves the last complete copy, at most two minutes old, while one refresh runs), and the production `quotes` kind
+already reads those funds from the vendor's snapshot (§4.1); its Treasury rows are the curve
+`rates.treasury` already reads (§4.15); its VIX and Bitcoin legs come from Yahoo Finance inside that snapshot, which the
+Agent's asset-quote kinds (`index.quote`, `crypto.quote`) decline to serve (`asset_quotes.py`: no licensed source, §4.7.3). The stocks first traded in the last year (`GET /api/scans/ipo-1y`) are not
+`calendar.ipos`: `leaders.longRun` already reads that list (its `IPO` lens, §4.10). The CACT panel's name and ticker
+record (`GET /api/research/rename-notice/{sym}`, behind its own switch) is not in `corporate_actions_held` and is not
+read here.
+
+**Each kind's own states, and what each read says.** No state is ever said as "no splits", "no IPOs" or "no dividend":
+
+| The service says | The read |
+|---|---|
+| `stock.corporateActions`: nothing is held for the stock (`not_held`: its chart has not been opened on this server) | `unavailable`, not held; nothing is built |
+| `stock.corporateActions`: the held record lists events in both blocks | `ok`, each block newest first with its own count and newest date |
+| `stock.corporateActions`: the held record lists none in one block, or in either | `ok`, the empty block said as what the record lists, never as proof of none (the chart's build withholds the dividends when its split read fails, and the record does not say so); with neither, `as_of` null, said |
+| `stock.corporateActions`: the record is older than the chart's own refresh age, or carries no read time | `ok` and `stale`, said; nothing is refreshed |
+| `calendar.ipos`: nothing is held for the IPO panel's window (a calendar held for another range does not count) | `unavailable`, not held |
+| `calendar.ipos`: the service's own record that both vendors failed for the window | `unavailable`, with the time UCT recorded it |
+| `calendar.ipos`: a calendar is held and lists no deal (at least one vendor answered) | `ok`, no row, said |
+| `calendar.ipos`: a deal with a field the calendars leave empty | `ok`, that field null, said |
+| `calendar.dividends`: nothing is held for any named stock alone | `unavailable`, not held |
+| `calendar.dividends`: nothing is held for some named stocks | `partial`, those stocks named and left out |
+| `calendar.dividends`: the service marked a stock's read incomplete (a vendor read failed or was cut by its deadline) | `partial`, what is held is carried and the stock is named, never as none |
+| `calendar.dividends`: a stock is held whole and nothing is declared ahead | `ok`, no row for it, said |
+| any kind: a malformed answer or a failing service | `unavailable`, read failed |
+
+**Rules all three share**
+- **A bad request is refused before any read.** Each kind's `validate` runs before admission (a `symbol` that is not
+  one US stock ticker in the route's own spelling, an out-of-range `rows`, a `symbols` list that is empty, longer than
+  ten or holds something that is not a ticker): the read is `refused` and spends no budget. `calendar.ipos` takes no
+  symbol.
+- **A value that does not exist is null, never 0.** A split ratio the record cannot state, a deal's price, shares or
+  value the calendars leave empty, a dividend amount not declared, and the event count of a stock with nothing held
+  are each null.
+- **The as-of is the data's own date, never the time of the read** (§3). `stock.corporateActions`'s `as_of` is the
+  newest event in the record; when UCT read the record from the vendor rides beside it (`read_at`). The two forward
+  calendars carry no as-of of their own, so their `as_of` is null, a note says so, and the time UCT read them rides
+  beside it (`read_at`; for `calendar.dividends` the oldest of the stocks', so the answer is never described fresher
+  than its oldest stock). The read day picks the IPO panel's window and splits its deals into ahead and before; it is
+  never stated as the data's date.
+- **Unknown is never claimed fresh.** A time the service did not record is said in the note as
+  `a time it did not record`, and the field is null.
+- **The server says when it cut a list, and from which end.** `stock.corporateActions` carries each block's newest rows
+  and leaves out the OLD end; `calendar.ipos` carries the soonest deals ahead (leaving out the FAR end) and the newest
+  deals before (leaving out the OLD end); `calendar.dividends` carries the soonest events and leaves out the FAR end.
+  Each carries the whole count beside what is shown.
+- **What is left out is said.** `stock.corporateActions` names the name and ticker record in `data.left_out`; the
+  canonical entity the two calendar services stamp on each row is not carried.
+- **Every number is the service's own.** Nothing is re-derived, ranked or counted in the adapters.
+- **The member's answer is built from the read's `data` and `status`.** The browser capabilities template their text
+  from those; an envelope note is never echoed to the member as if it were data, and the answers do not name a vendor.
+
+**Why all three are model-isolated.** The licensing register
+(`docs/terminal-research/09-security-licensing-cost/licensing-register.md`) has no row that clears any of these three
+reads for a model provider outright. Isolating all three is the builder's default under the rule "when in doubt,
+isolated"; it is not a ruling by anyone. Each kind is decided from the rows of the data it is built on, quoted as they
+stand:
+- `stock.corporateActions` and `calendar.dividends`: the vendor's reference data. The register's row T-07 ("Member display + external —
+  reference data (splits, dividends, tickers, conditions)", Massive · reference) reads class **R** in its class column
+  and "Ind **R** · Bus **LA (incl. external)**" in its scenario column, and the register's 2026-09-19 note, as the code's
+  licensing table follows it since 2026-11-19, reads it LA "each scoped to member display (AI use, external publication
+  and attribution stay their own rows)". The AI row, row T-14 ("AI processing — Massive numbers into Claude"), reads
+  class **R** in its class column and "Ind **R** · Bus **LA**" in its scenario column; the register's legend defines LA
+  as "Likely Allowed (verify contract)". Isolating until a person has checked the contract is the builder's default.
+- `calendar.ipos`: two vendors' calendars, merged. The register's row T-52 ("Member display — earnings-calendar past-day backfill;
+  company profile / metrics / logo; insider transactions; IPO calendar", Finnhub) covers Finnhub's leg for member
+  display. Its AI row, row T-54 ("AI processing — Finnhub fields in Compass / AI Search tool packs"), reads class **R** in
+  its class column, with its owner fact "ANSWERED — see T-51" and LA in its scenario column. No row names FMP's IPO
+  calendar (the code's licensing table says the same and falls through to U), and FMP's AI row, row T-44 ("AI
+  processing — FMP numbers (fundamentals, analyst, earnings) into AI Search synth/agent, Compass, stock briefs, Model
+  Book"), is class **U**: "No AI clause; derived-works clauses govern". A merged row does not say which vendor supplied
+  a field.
+
+Whether an isolated value may ever reach the model is an owner decision (§4.4), and none is recorded here. On the
+browser the three kinds are read only by local-only capabilities (`stock.splitsDividends`, `stock.ipoCalendar`,
+`stock.dividendsCalendar` in `app/src/agent/capabilities/terminalDataWave8.js`, all in `turn.LOCAL_ONLY_ACTIONS`): the
+model plans the lookup and never sees what came back. Each capability registers only while the server lists its own
+kind, and their routing words sit in one words-only group of their own (`marketCalendars`, the 50th of the 56 groups
+`turn.MAX_GROUPS` keeps; the cap is not changed by this version).
+
+**`stock.corporateActions`** (source `uct-chart-markers`)
+- What it returns: one stock's splits (back 45 years) and cash dividends (back 5 years, by
+  ex-date) as held beside its chart, each block newest first, with its own rows, count, window and newest date.
+  Dividend amounts are split-adjusted (what the chart draws), not the amounts as declared. `rows` 1–60 per
+  block (default 12, the CACT panel's own). Every `ok` read carries the notes
+  `{symbol}'s splits and cash dividends as UCT holds them beside the stock's chart, from its market-data vendor's reference data: splits back {split_years} years and cash dividends back {dividend_years} years by ex-date, newest first. Dividend amounts are split-adjusted (what the chart draws), not the amounts as declared. A record, not a forecast and not advice`,
+  `` `as_of` is the newest event in the record ({day}); it is never the time of this read. UCT read the record from its vendor at {at} (UCT's own time), and each block carries its own newest date `` or, when the record lists no event,
+  `` the record UCT holds for {symbol} lists no split and no cash dividend, so `as_of` is null. UCT read the record at {at} (UCT's own time). The record does not say whether every vendor read behind it answered, so this is what is held, not proof that none happened ``, and
+  `the company's name and ticker record (its former tickers) is not part of this record and is left out of this answer. The Corporate actions panel (CACT) in UCT reads it separately`.
+- Params: `symbol` (one US stock ticker, in the route's own spelling `BRK-B`); `rows`.
+- **An empty block.** `the record UCT holds for {symbol} lists no {what} in its {years}-year window. The record does not say whether every vendor read behind it answered, so this is what is held, not proof that none happened`, where `{what}` is `split` or `cash dividend`.
+- **The cut, from the old end.** `{total} {what} are held and the newest {shown} are returned, newest first: the list is cut from the OLD end`, where `{what}` is `splits` or `cash dividends`.
+- **A ratio that is not stated.** `{n} of the splits returned have no ratio the record can state; that ratio is null, never 0`.
+- **Stale.** `UCT read this record at {at}, more than {hours} hours ago, so a newer split or dividend may not be in it. This read never refreshes it: the stock's chart in UCT refreshes it when it is opened`; with no read time `the record carries no time UCT read it, so how old it is cannot be stated and it is marked stale. This read never refreshes it`.
+- `unavailable`: nothing held (`no splits or dividends are held for {symbol} on this server: they are held once the stock's chart has been opened in UCT, and this read never asks the vendor. That is not the same as no splits or dividends. Open the stock's chart in UCT, then ask again`); a failing read (`the corporate actions read failed; nothing is stated. That is not the same as no splits or dividends`).
+- Data fields: `symbol`, `state` (ok), `splits` (`rows, count, total, cut, window_years, as_of`), `dividends` (the same,
+  and `basis`: `split_adjusted`), `as_of`, `read_at`, `left_out`. Split row fields: `date, ratio, to_factor` (shares
+  after per share before); dividend row fields: `date, amount`. `coverage` counts the events held against the rows
+  carried.
+
+**`calendar.ipos`** (source `uct-ipo-calendar`)
+- What it returns: the IPO calendar for the IPO panel's own window (last week's Monday to next week's Friday around the
+  read day, New York time; `ipoCalendarModel.js` `ipoWindow`, pinned against the adapter's numbers), merged from two
+  vendors' calendars: each deal's day, company, symbol, exchange, price or price range, shares offered, value and
+  status, in two lists, today and ahead (`data.ahead`) and before today (`data.earlier`). `rows` 1–50 per list
+  (default 20). Every `ok` read carries the notes
+  `the IPO calendar for {start} to {end} (the window the IPO calendar panel reads: last week's Monday to next week's Friday) as UCT holds it, merged from two vendors' IPO calendars: each deal's day, company, symbol, exchange, price or price range, shares offered, value and status, deals today and ahead soonest first and earlier deals newest first. When one vendor fails the other's rows are served, and the server does not record which. A calendar of deals, not a forecast and not advice` and
+  `` the IPO calendars give no as-of time of their own, so `as_of` is null. UCT read them at {at} (UCT's own time); the server keeps one answer for at most {hours} hours, and this read never asks the vendors ``, and with at least one deal
+  `` `value` is the dollar value of the shares offered where a calendar gives it; for some deals a calendar gives the company's expected market value in its place, and the merged row does not say which ``.
+- Params: `rows`.
+- **No deal.** `no deal is on the IPO calendar for {start} to {end} in what UCT holds: the vendor calendars that answered list none`.
+- **The cuts.** `{total} deals are on the calendar for today and ahead and the soonest {shown} are returned: the list is cut from the FAR end` and `{total} deals before today are on the calendar and the newest {shown} are returned: the list is cut from the OLD end`.
+- **A field left empty.** `{n} deals have at least one field the calendars leave empty (price, shares or value); those fields are null, never 0`.
+- **A row the server holds that is not a deal.** `{n} rows the server holds have no usable day or no company and are not returned`.
+- The read is never marked `stale`: the service keeps one range for at most six hours.
+- `unavailable`: nothing held (`no IPO calendar is held on this server for {start} to {end} (the window the IPO calendar panel reads), and this read never asks the vendors. That is not the same as no IPOs. Open the IPO calendar panel (IPO) in UCT, then ask again`); both vendors failed
+  (`UCT's last read of the IPO calendars for {start} to {end} found both vendors failing, at {at} (UCT's own time); nothing is stated. That is not the same as no IPOs`); a failing read (`the IPO calendar read failed; nothing is stated. That is not the same as no IPOs`).
+- Data fields: `window` (`from, to`), `split_day`, `ahead` and `earlier` (each `rows, count, total, cut`), `total`,
+  `dropped`, `as_of` (null), `read_at`. Row fields: `symbol, name, date, exchange, price_range, shares, value, status`.
+  `coverage` counts the deals held against the rows carried.
+
+**`calendar.dividends`** (source `uct-dividend-calendar`)
+- What it returns: for each named stock (at most 10), what the service holds for that stock alone: its next
+  ex-dividend date with the cash amount as declared, and every split ahead, all soonest first (at most 40 events).
+  It never reads the member's own lists. Every `ok` or `partial` read carries the notes
+  `the dividends and splits declared ahead for {symbols} as UCT holds them, one stock at a time (the answer the dividend calendar panel reads for one stock), from its market-data vendor's reference data: for each stock its next ex-dividend date with the cash amount as declared, and every split ahead, soonest first. Past events are the Corporate actions panel's (CACT). A calendar of declared events, not a forecast and not advice`,
+  `` a forward calendar carries no as-of time of its own, so `as_of` is null. UCT read these stocks' calendars from its vendor at {at} at the oldest (UCT's own time), so an event dated before the day of this read may have passed since. The server keeps one stock's answer for at most {hours} hours, and this read never asks the vendor `` and
+  `this read answers for the stocks named in the request only: it never reads the member's own watchlists, positions or stocks`.
+- Params: `symbols` (1–10 US stock tickers).
+- **Nothing ahead.** `no dividend or split is declared ahead in what UCT read for: {list}`.
+- **An incomplete read.** `UCT's last read of these stocks did not fully answer (a vendor read failed or was cut by its deadline), so events may be missing for them: {list}. What is held is returned; that is not the same as no event`.
+- **Some stocks not held.** `nothing is held on this server for these stocks alone, and this read never asks the vendor, so they are not in this answer: {list}. That is not the same as no dividend or split. Open the dividend calendar panel (DVD) for each of them in UCT, then ask again`.
+- **The cut, from the far end.** `{total} events are held for these stocks and the soonest {shown} are returned: the list is cut from the FAR end`.
+- **An amount not declared.** `{n} of the dividends returned have no declared amount; that amount is null, never 0`.
+- The read is never marked `stale`: the service keeps one stock's answer for at most twelve hours, five minutes when
+  incomplete.
+- `unavailable`: nothing held for any named stock (`nothing is held on this server for {list} alone (the dividend calendar panel's one-stock read), and this read never asks the vendor. That is not the same as no dividend or split. Open the dividend calendar panel (DVD) for each stock in UCT, then ask again`); a failing read (`the dividend calendar read failed; nothing is stated. That is not the same as no dividend or split`).
+- Data fields: `symbols`, `stocks` (each `symbol`, `state` (complete · incomplete · not_held), `read_at`, `events`),
+  `rows`, `count`, `total`, `cut`, `as_of` (null), `read_at`. Row fields: `symbol`, `type` (dividend · split), `date`,
+  `amount`, `ratio`.
+  `coverage` counts the named stocks against those held.
+
+### 4.18 Terminal data wave 9: `rates.auctions`, `rates.realYields`, `fed.watch` (v1.15, terminal-data)
+
+Three more thin kinds, the Agent half of the AUCT terminal panel, the real-yield block of RATES and the FED panel: US
+Treasury auctions coming up and their recent results, the Treasury's real yields (TIPS) with the breakevens, and the
+Fed watch. Each is an adapter over the service its member route already reads
+(`api/services/uct_agent/marketdata/treasury_auctions_read.py`, `real_yields_read.py`, `fed_watch_read.py`;
+registered in `kinds.py` with `owner="terminal-data"`). No new connection, job, database, write or route (§6), and no
+new environment variable.
+
+**Status: dark, not armed.** Like every kind, each is served only when it is listed in `UCT_AGENT_DATA_KINDS` (with
+`UCT_AGENT_DATA=1`). All three are model-isolated, so each also needs the master switch `UCT_AGENT_ISOLATED=1` and its
+own entry in `UCT_AGENT_ISOLATED_KINDS` (§4.4, ADR-005); until then it is refused for every purpose, and once armed it
+is served for purpose `answer` only. This section describes what the code does when a kind is switched on. It does not
+switch anything on. As written (2026-11-21), none of the three is in production's list.
+
+| Kind | Canonical service (member route) | Params | Declared freshness | `as_of` | `provider_calls` | Model-isolated |
+|---|---|---|---|---|---|---|
+| `rates.auctions` | the answer `api/services/treasury_auctions.py` holds, read through `treasury_auctions_held.held_auctions` (`GET /api/research/treasury-auctions`) | `{rows}` | periodic · every read periodic | the newest date in the records (the Treasury's newest list of coming auctions or the newest auction day with a result); null when the records carry none (never the time of the read) | 0 | **yes** |
+| `rates.realYields` | the real yield block `api/services/treasury_real_yields.py` holds, shaped by the service's own `assemble` over the nominal days `treasury_yields` holds, read through `treasury_real_yields_held.held_real` (the `real` block of `GET /api/research/treasury-yields`) | `{}` | periodic · every read historical | the real curve's own date; the breakevens carry their own day | 0 | **yes** |
+| `fed.watch` | the Fed watch `api/services/fed_watch.py` holds, read through `fed_watch_held.held_answer` (`GET /api/research/fed-watch`) | `{rows}` | periodic · every read periodic | null: each of the seven blocks carries its own date | 0 | **yes** |
+
+**No read of this section starts a build or a request.** (§5: a turn has 20 provider requests and a member waiting.)
+Each member route starts its service's one background build when nothing is held or a refresh is due, and the Fed
+watch's own read-only answer reaches past the server for its rates. A turn must not start any of that, so each adapter
+reads a read-only path and answers `unavailable`, with the reason, when nothing is held:
+
+| Kind | What the member path can start | What the adapter reads instead |
+|---|---|---|
+| `rates.auctions` | `treasury_auctions.get_auctions` starts the service's one background build (two requests to the Treasury's Fiscal Data service) when nothing is held, and once after each weekday evening slot | `treasury_auctions_held.held_auctions` (added with this version, a new file beside the service): the service's own hold through its read-only `peek()` (memory, or the disk copy looked for once per process), shaped as the route serves it, else nothing. It never builds and never asks the publisher |
+| `rates.realYields` | `treasury_real_yields.get_real` starts the service's background build (requests to the Treasury's website) when nothing is held or a refresh is due | `treasury_real_yields_held.held_real` (added with this version, a new file beside the service): the service's own hold through `peek()`, the nominal days through `treasury_yields.held_rows` (read only), shaped by the service's own `assemble`, else nothing. It never builds and never asks the Treasury |
+| `fed.watch` | `fed_watch.get_fed_watch` starts the service's background build (the Board's feeds and pages, the New York Fed's survey page and data file) whenever something is due; and the service's own read-only `fed_watch.held_answer` asks the economics store for its three rates series (`econ.serving.series`), which on a cold serving cache reads the store's published files from the data bucket (`data_sync.get_bytes`) | `fed_watch_held.held_answer` (added with this version, a new file beside the service): every block as the service builds it, with the service's own block functions under the service's own lock, except the rates, which are read only from what the economics store's serving cache already holds (`fed_watch_held.held_rates`); a series not in that cache is `not_held`. It never builds, never reads a page or the bucket, and never writes to the shared cache |
+
+Rails hold each adapter to what its member path serves and count builds, threads, requests and cache writes: with
+nothing held the adapter starts none, and the member path's own reader is shown to start one in the same state (the
+Fed watch's own read-only answer is shown to reach the bucket reader). A further rail replaces every builder, job,
+publisher and page reader, the shared hold's `get`, `_start` and `_run`, the Fed watch's own rates block, the economics
+store's series reader, loaders and bucket reads, and the cache's writer with functions that fail, and runs every read
+of this section held and not held, with every refresh due. Each new reader is pinned against its service: a rail
+drives the service itself over an invented publisher and reads its answer back through the reader; the Fed watch's
+reader equals `fed_watch.held_answer()` block for block while the economics feature is off, and with it on its rates
+equal what the service's own rates block read through the store.
+
+**Why `rates.realYields` is a kind of its own, not an extension of `rates.treasury`.** The real block has its own
+date, its own held state and its own staleness (the route sends it beside the nominal answer as a block with its own
+status). Folded into `rates.treasury` (§4.15) it would either change what that kind's `as_of`, `stale`, notes and
+coverage mean, or hide the block's own state, and `rates.treasury`'s capability text and corpus entries would change.
+`rates.treasury` is untouched by this version.
+
+**The rates block and its switch.** The Fed watch's federal funds rates come from the economics store, which serves
+only while `ECON_ENABLED` is `1` on the server; the flag ledger (`docs/feature_flags.json`) records that switch as dark.
+Whatever the server's value, the block reports its own state: `off` while the switch is not `1` (the service's own
+words), and from what the serving cache holds while it is (`ok`, `not_held`, or `no_data`).
+
+**What this version leaves out, and why.** The FOMC statement's full text (the date, the link, the redline's word
+counts and the passages that changed are carried); this week's Fed speakers from the economic calendar; and the
+survey's probability ranges. Each is named in `data.left_out` and said in a note; the FED panel shows them. The news
+wire's vendor is not named in the data (`source` reads `news wire`).
+
+**Each kind's own states, and what each read says.** No state is ever said as "no auctions", "no figure" or "no Fed
+news":
+
+| The service says | The read |
+|---|---|
+| `rates.auctions`: nothing is held (no build has run on this server, or the last one did not work) | `unavailable`, not held; nothing is built |
+| `rates.auctions`: a held answer, both lists with rows | `ok`, each list with its own count and cut |
+| `rates.auctions`: a held answer whose records list no auction coming up, or no result | `ok`, the empty list said as what the records list; with neither, `as_of` null, said |
+| `rates.auctions`: the held answer was read before the last weekday evening slot, or its last look failed | `ok` and `stale`, said; nothing is looked for |
+| `rates.realYields`: nothing is held | `unavailable`, not held |
+| `rates.realYields`: the curve's date is older than the weekday before today in New York, or the last look failed | `ok` and `stale`, said |
+| `rates.realYields`: a maturity, a reference day or a breakeven side is missing | `ok`, that figure null, said |
+| `rates.realYields`: the nominal and the real curve have no day in common | `ok`, every breakeven null, said |
+| `fed.watch`: the Board's feeds have never been read here and no other block is held | `unavailable`, not held |
+| `fed.watch`: some blocks held, others not held, refused, unreadable, switched off or with no figure | `partial`, every block in its place with its own state, each one not held said |
+| `fed.watch`: all seven blocks held | `ok` |
+| `fed.watch`: a held block whose last look did not go well | `stale`, said |
+| any kind: a malformed answer or a failing service | `unavailable`, read failed |
+
+**Rules all three share**
+- **A bad request is refused before any read.** Each kind's `validate` runs before admission (an out-of-range or
+  non-integer `rows`; `rates.realYields` takes no argument): the read is `refused` and spends no budget. None takes a
+  symbol.
+- **A value that does not exist is null, never 0.** An auction amount, rate or bid-to-cover the Treasury left empty, a
+  bidder split with a class missing, a real yield, a reference day or a breakeven side that is not held, and a Fed rate,
+  projection or survey figure not held are each null.
+- **The as-of is the data's own date, never the time of the read** (§3). `rates.auctions`'s `as_of` is the newest date
+  in the records and `rates.realYields`'s the real curve's day; when UCT read them rides beside it (`read_at`). The Fed
+  watch's blocks carry different dates, so its `as_of` is null, a note says so, and each block carries its own.
+  `days_to_go` to the next decision counts from the day of the read, as the panel counts it.
+- **Unknown is never claimed fresh.** A time the service did not record is said in the note as
+  `a time it did not record`, and the field is null.
+- **The server says when it cut a list, and from which end.** `rates.auctions` carries the soonest auctions coming up
+  (leaving out the FAR end) and the newest results (leaving out the OLD end), and says when the service itself read one
+  page of a longer list; `fed.watch` carries the newest speeches and headlines (leaving out the OLD end) and the first
+  changed passages in the statement's order (leaving out the END). Each carries the whole count beside what is shown.
+- **What is left out is said.** See above.
+- **Every number is the service's own.** Nothing is re-derived in the adapters: the bidder shares, the breakevens and
+  the redline's counts are the services' own arithmetic. The changed passages are the redline's own segments, grouped
+  at the paragraph and sentence ends of the new statement.
+- **The member's answer is built from the read's `data` and `status`.** The browser capabilities template their text
+  from those; an envelope note is never echoed to the member as if it were data. The Board's citation, the New York
+  Fed's notice beside its rates and its attribution beside the survey are shown from the read's data, as the panel
+  shows them; the answers do not name the news wire's vendor.
+
+**Why all three are model-isolated.** The licensing register
+(`docs/terminal-research/09-security-licensing-cost/licensing-register.md`) has no row that clears any of these three
+reads for a model provider. Isolating all three is the builder's default under the rule "when in doubt, isolated"; it
+is not a ruling by anyone. Each kind is decided from the rows of the data it is built on, quoted as they stand:
+- `rates.auctions`: there is no row in the register for the Treasury's Fiscal Data auction records. The nearest row, row
+  T-95 (daily US Treasury par yields on the Terminal's `RATES` panel, class **A**, a US Government work), says "Nothing
+  else reads it (no AI lane, no export, no external publication)."
+- `rates.realYields`: there is no row in the register for the Treasury's real yield curve. Row T-95 covers the nominal
+  par curve the breakevens are worked out from, and says the same.
+- `fed.watch`: row T-97 (the Board's monetary policy releases, speeches and projections on the Terminal's `FED` panel,
+  class **A**: "Unless otherwise indicated, information on Board's website is in the public domain", and "Please cite to
+  the Board as the source of the information.") says "Nothing else reads it (no AI lane, no export, no external
+  publication)." The register's row T-98 (the same panel's New York Fed survey block, class **A** under the bank's Terms of Use as the
+  economics registry records them) says "The Terms of Use page itself was not read for this row". The headlines come
+  from the news wire UCT receives, which has no row in the register at all. The next decision comes from the economic
+  calendar UCT holds: row T-37 ("Member display — economic calendar (all non-current weeks; ForexFactory `thisweek` is
+  the other leg)", FMP) is class **R**, FMP's AI row, row T-44, is class **U** ("No AI clause; derived-works clauses
+  govern"), and row T-92 (ForexFactory among others) is "**U — not researched**". No block is split into a kind of its
+  own: none is cleared, so the whole answer is isolated.
+
+Whether an isolated value may ever reach the model is an owner decision (§4.4), and none is recorded here. On the
+browser the three kinds are read only by local-only capabilities (`stock.auctionCalendar`, `stock.realCurve`,
+`stock.fomcWatch` in `app/src/agent/capabilities/terminalDataWave9.js`, all in `turn.LOCAL_ONLY_ACTIONS`): the model
+plans the lookup and never sees what came back. Each capability registers only while the server lists its own kind,
+and their routing words sit in one words-only group of their own (`marketRates`, the 51st of the 56 groups
+`turn.MAX_GROUPS` keeps; the cap is not changed by this version). Real-yield asks in the Treasury yields' own words
+("the 10-year real yield", "the real yield curve") name wave 6's `marketRecords` group too: both groups ride along.
+
+**`rates.auctions`** (source `us-treasury-fiscal-data`)
+- What it returns: the auctions coming up (security type and term, auction day, issue day, announcement day, amount
+  offered, reopening, CUSIP), soonest first, and the results of the last 45 days (the rate and which one it is: high
+  yield, high rate or high discount margin; the bid-to-cover ratio; the competitive award split between primary dealers,
+  direct bidders and indirect bidders with each one's share; whether it was TIPS, a floating rate note or a cash
+  management bill), newest first. `rows` 1–50 per list (default 12, the AUCT panel's own). Every `ok` read
+  carries the notes `US Treasury auctions as UCT holds them, from the Treasury's Fiscal Data service: the auctions coming up (security, auction day, issue day, amount offered), soonest first, and the results of the last {days} days (the high yield, rate or discount margin, the bid-to-cover ratio, and the competitive award split between primary dealers, direct bidders and indirect bidders with each one's share), newest first. Amounts in US dollars and rates in percent, as the Treasury publishes them. A record and a schedule, not a forecast and not advice`, `` `as_of` is the newest date in what UCT read ({day}): the day of the Treasury's newest list of coming auctions ({upcoming}) or the newest auction day with a result ({through}), whichever is later; it is never the time of this read. UCT read the records at {at} (UCT's own time) `` or, when the records carry no date, `` the records UCT holds carry no date of their own, so `as_of` is null. UCT read them at {at} (UCT's own time) ``.
+- Params: `rows`.
+- **An empty list.** `the Treasury's records UCT holds list no auction coming up` and `the Treasury's records UCT holds list no auction with a result in the last {days} days`.
+- **The cuts.** `{total} auctions are listed as coming up and the soonest {shown} are returned: the list is cut from the FAR end` and `{total} auction results are held and the newest {shown} are returned: the list is cut from the OLD end`; the service's own one-page cut `the Treasury held more rows than the one page UCT reads, newest first, so the oldest are not in what UCT holds: {what}`, where `{what}` is `the oldest results`, `the oldest copies of the list of coming auctions`, or both.
+- **A figure left empty.** `{n} auctions returned have at least one figure the Treasury left empty (the amount, the rate, the bid-to-cover ratio or the bidder split); those figures are null, never 0`.
+- **A row the Treasury sent that is not an auction.** `{n} rows the Treasury sent have no auction day or no security and are not in what UCT holds`.
+- **Stale.** `UCT read these records at {at}, before the Treasury's last evening update UCT looks for ({slot}), so newer records may exist. This read never looks for them: open the Treasury auctions panel (AUCT) in UCT, then ask again`; a failed look `UCT's last look for newer auction records, at {at}, did not go well ({why}): the records held are the last good ones`.
+- `unavailable`: nothing held (`no Treasury auctions are held on this server yet, and this read never asks the Treasury. That is not the same as no auctions. Open the Treasury auctions panel (AUCT) in UCT, then ask again`); a failing read (`the Treasury auctions read failed; nothing is stated. That is not the same as no auctions`).
+- Data fields: `as_of`, `upcoming_as_of`, `results_through`, `window_days`, `upcoming` and `results` (each `rows, count,
+  total, cut`), `dropped`, `publisher_cut` (`upcoming, results`), `read_at`, `basis`, `source`, `check`. Upcoming row
+  fields: `security_type, security_term, auction_date, issue_date, announced_date, offering_amount, reopening, cusip`; result row fields: `security_type, security_term, auction_date, issue_date, maturity_date, offering_amount, rate, rate_kind, bid_to_cover, reopening, tips, floating_rate, cash_management, cusip, bidders` (`bidders`:
+  `primary_dealers`, `direct`, `indirect` each `amount, share`, and `total`). `coverage` counts the auctions held against
+  the rows carried.
+
+**`rates.realYields`** (source `us-treasury-real-curve`)
+- What it returns: the real yield at each maturity (5, 7, 10, 20 and 30 years), what it was one day and one week
+  earlier with the change in basis points, and the breakeven at each maturity (`breakevens`: its own day, and each row's
+  nominal, real and value). Every `ok` read carries the notes `US Treasury daily par real yields (Treasury inflation-protected securities) by maturity, as UCT holds them: each real yield in percent, what it was one day and one week earlier with the change in basis points, and the breakeven at each maturity (the nominal yield minus the real yield on the newest day both curves hold, in percent, worked out by UCT's server). End-of-day figures published by the US Treasury, not live quotes, not a forecast and not advice`, `` `as_of` is the date of the newest real figure ({day}); it is never today and never the time of the read. UCT read the figures from the Treasury's website at {at} (UCT's own time) ``.
+- Params: none.
+- **The breakevens.** For an older day than the real curve's `the breakevens are for {day}, the newest day both the nominal and the real curve have a figure, which is older than the newest real figure`; with no day in common
+  `no breakeven is stated: the nominal and the real curve have no day in common in what UCT holds, so every breakeven is null, never 0`; a side missing `{n} maturities have no breakeven on {day} (the nominal or the real figure is missing) and are null, never 0: {list}`.
+- **A figure or a reference day missing.** `{n} maturities have no real figure on {day} and are null, never 0: {list}` and `no real figure was found near enough to {list} earlier, so those changes are null, never 0`.
+- **Stale.** `the newest real figure held is {day}, older than {expected}, the weekday before today in New York. This read never looks for a newer one: open the Treasury yields panel (RATES) in UCT, then ask again`; a failed look `UCT's last look for newer real figures, at {at}, did not go well ({why}): the figures held are the last good ones`.
+- `unavailable`: nothing held (`no real yields are held on this server yet, and this read never requests them. That is not the same as no figure. Open the Treasury yields panel (RATES) in UCT, then ask again`); a failing read (`the real yields read failed; nothing is stated. That is not the same as no figure`).
+- Data fields: `as_of`, `ref_dates` (`d1, w1`), `maturities` (each `key, label, months, yield, was, change_bp`),
+  `breakevens` (`as_of`, `rows`: each `key, label, months, date, nominal, real, value`), `rows`, `read_at`, `basis`,
+  `source`, `check`. `coverage` counts the maturities against those with a figure.
+
+**`fed.watch`** (source `uct-fed-watch`)
+- What it returns: seven blocks, each with its own `state` (one of `ok, none, not_held, unavailable, failed, unreadable, off, no_data`) and source:
+  `statement` (its date, link, the newest minutes, and the redline: its state, the statement before it, the added and
+  removed word counts and the changed passages, each as it reads in the new statement and as it read before, at most
+  8), `speeches` (speaker, title, where, the time published, link), `headlines` (each with the time UCT received
+  it, and the tickers the news widget's own derivation finds), `next_meeting` (day, time, label, days to go, and whether
+  it comes from the economic calendar or the survey's meeting dates), `rates` (the effective rate and the target range's
+  two ends, each with its own date, and the New York Fed's notice), `projections` (the officials' median projection of
+  the federal funds rate by year and the longer run, the meeting and the release day), `survey` (the survey month, the
+  response due day, the meeting it was taken before, the median path for the meetings ahead, and the bank's
+  attribution). `rows` 1–15 per list (default 10). Every read with a block held carries the notes
+  `the Fed watch as UCT holds it, in seven blocks, each with its own source and its own date: the newest FOMC statement and what changed from the one before (the Federal Reserve Board), Fed speeches and testimony (the Board), Fed headlines from the news wire UCT receives, the next FOMC decision (the economic calendar UCT holds, or the New York Fed survey's meeting dates), the federal funds rates (the Federal Reserve Bank of New York), the officials' median rate projections (the Board) and the New York Fed's Survey of Market Expectations. The Board's and the New York Fed's own words and figures: no UCT forecast, no summary and not advice`, `` `as_of` is null: the seven blocks each carry their own date (the statement's day, each speech's and headline's time, the rates' own days, the projections' release day, the survey's month), and none of them is the time of this read ``, `the statement's full text, this week's Fed speakers from the calendar and the survey's probability ranges are left out of this answer. The Fed watch panel (FED) in UCT shows them` and `the Board asks to be cited as the source of its materials: {cite}`.
+- Params: `rows`.
+- **A block not stated.** `the {block} block is not stated: {why}`, where `{block}` is one of `FOMC statement`, `Fed speeches and testimony`, `Fed headlines`, `next FOMC decision`, `federal funds rates`, `rate projections`, `New York Fed survey` and `{why}` one of `its source lists none`, `it is not held on this server yet, and this read never asks for it. That is not the same as none`, `its source refused UCT's last look and nothing is held`, `UCT's last look did not get an answer and nothing is held`, `its page could not be read`, `it is switched off on this server, so nothing is read`, `no figure is held`.
+- **The redline.** `not one word changed from the statement of {previous}`; `no earlier statement is held to compare the newest one with, so no change is stated`; `the statement before the newest one ({previous}) is not held yet, so no change is stated. That is not the same as no change`; `the statement before the newest one ({previous}) could not be read, so no change is stated. That is not the same as no change`; `the two statements are too long to compare, so no change is stated`; the cut `{total} passages of the statement changed and the first {shown}, in the statement's order, are returned: the list is cut from the END`.
+- **Speeches.** `{total} speeches and testimony are listed and the newest {shown} are returned: the list is cut from the OLD end`; a feed not held `the {feeds} feed is not held, so its items are not in the list`.
+- **Headlines.** `{matched} of the newest {scanned} headlines on the wire are about the Fed; each headline's time is when UCT received it, and the wire gives no publication time of its own`; the cut `{matched} Fed headlines are held and the newest {shown} are returned: the list is cut from the OLD end`.
+- **The next decision.** `` `days_to_go` counts from the day of this read in New York ({today}), as the panel counts it ``.
+- **The rates.** `{n} of the three rates have no figure held and are null, never 0: {list}`; the bank's notice `the New York Fed's notice for the two rates, as the panel shows it: {notice}`.
+- **The survey.** `the survey's figures are its respondents' (market professionals'), not market prices and not a UCT forecast. {credit}`.
+- **Stale.** `UCT's last look for newer {what}, at {at}, did not go well ({why}): what is held is the last good read, and this read never looks again`.
+- `unavailable`: nothing held (`nothing of the Fed watch is held on this server yet, and this read never asks the Board, the New York Fed or the news wire. That is not the same as no statement, no speech and no headline. Open the Fed watch panel (FED) in UCT, then ask again`); a failing read (`the Fed watch read failed; nothing is stated. That is not the same as no Fed news`).
+- Data fields: `statement`, `speeches`, `headlines`, `next_meeting`, `rates`, `projections`, `survey`, `as_of` (null), `board_cite`, `left_out`. `coverage` counts the seven blocks
+  against those held.
+
 ## 8. Changing this contract
 
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
@@ -1788,6 +2457,9 @@ kind.
 
 ## 9. Changelog
 
+- **v1.15 addition (2026-11-21, terminal-data, data wave 9):** §4.18 documents three kinds added dark with this version: `rates.auctions`, `rates.realYields`, `fed.watch` (US Treasury auctions coming up and their recent results, the Treasury's real yields with the breakevens, and the Fed watch: the Agent half of the AUCT panel, the real-yield block of RATES and the FED panel). All three are model-isolated (ADR-005; the builder's default under "when in doubt, isolated": no row of the licensing register clears any of them for a model provider; §4.18 quotes the rows each kind is decided from: T-95 for the auction records and the real curve, which have no row of their own, and T-97, T-98, T-37, T-44 and T-92 for the Fed watch, whose headlines come from a news wire with no row in the register), and none starts a build or a request: each reads only what its service already holds (`treasury_auctions_held.held_auctions`, `treasury_real_yields_held.held_real`, `fed_watch_held.held_answer`) and is `unavailable` or `partial`, with the reason, otherwise (§5). Three read-only readers are added with this version, each a new file beside its service; every service's own calls are unchanged. The Fed watch's reader reads its rates only from what the economics store's serving cache holds, never from the store's published files, and its rates block reports its own state whatever `ECON_ENABLED` is. `rates.realYields` is a kind of its own, and `rates.treasury` (§4.15) is unchanged. `as_of` is the data's own date (the newest auction record, the real curve's day), or null where each block carries its own (the Fed watch); never the time of the read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** all three kinds of §4.18 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.18 records an owner decision.
+- **v1.14 addition (2026-11-21, terminal-data, data wave 8):** §4.17 documents three kinds added dark with this version: `stock.corporateActions`, `calendar.ipos`, `calendar.dividends` (one stock's splits and cash dividends, the IPO calendar, and the dividends and splits declared ahead for named stocks: the Agent half of the CACT, IPO and DVD panels). All three are model-isolated (ADR-005; the builder's default under "when in doubt, isolated": no row of the licensing register clears any of them for a model provider outright; §4.17 quotes the rows each kind is decided from: T-07 and T-14 for the corporate actions record and the dividend calendar, T-52, T-54 and T-44 for the IPO calendar), and none starts a build or a vendor request: each reads only what its service already holds (`corporate_actions_held.held_actions`, `ipo_calendar_held.held_ipos`, `dividends_calendar_held.held_events`) and is `unavailable` or `partial`, with the reason, otherwise (§5). Two read-only readers are added with this version, each a new file beside its service: `ipo_calendar_held.held_ipos` and `dividends_calendar_held.held_events`; every service's own calls are unchanged. `calendar.dividends` answers for the stocks named only and never reads a member's own lists. `as_of` is the data's own date (the newest event of the corporate actions record), or null where the data has none (the two forward calendars), with the time UCT read it beside it; never the time of the read. Three of the six panels that went live on 2026-11-20 get no kind, and §4.17 says why: `COT` is read already, `ANLG` is shown to admins only and whether the Agent may read it is not answered, and `MKTS` is live quotes that `quotes` and `rates.treasury` already read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** all three kinds of §4.17 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.17 records an owner decision.
+- **v1.13 addition (2026-11-20, terminal-data, data wave 7):** §4.16 documents six kinds added dark with this version: `market.regime`, `stock.setups`, `stock.eventsTimeline`, `uct20.list`, `options.ivHistory`, `dilution.watch` (UCT's market regime read, one stock's confirmed setups, one stock's dated events, the UCT 20 list, one stock's implied volatility by logged session, and one company's share-issuance filings: the Agent half of the REGM, TECH, EVTS, IVH and DILU panels and of the UCT 20 page). All six are model-isolated (ADR-005; the builder's default under "when in doubt, isolated": no row of the licensing register clears any of them for a model provider; §4.16 quotes the rows each kind is decided from: T-11, T-12 and T-14 for the regime read and the UCT 20 list, T-11 and T-14 for the setups, T-44 for the events timeline, T-28 and T-14 for the IV history, T-96 for the dilution watch), and none starts a compute, a build, a download or a vendor request: each reads only what its service or store already holds (`voice_regime_held.held_regime`, the verdict store's `get_confirmed`, `timeline(sym, held_only=True)`, `engine._leadership_as_pushed`, `LocalStore(get_store().root)`, `dilution_watch.held_watch`) and is `unavailable` or `partial`, with the reason, otherwise (§5). Three read-only accessors are added with this version: `voice_regime_held.held_regime` (a new file beside the classifier), `earnings_reaction_panel.held_earnings`, and the `held_only` form of `events_timeline.timeline`; each default call is unchanged. Fields left out of four of the reads (the UCT Exposure Rating and the VIX level; the judge's written reasons; the catalyst thesis and filing links; the UCT 20 model portfolio, its NAV and each name's entry, stop and targets) are the builder's default and are named in §4.16. `as_of` is the data's own date (the time the classification was computed, the newest bar judged, the newest event that is not in the future, the wire run's date, the newest logged session, the newest filing's day), never the time of the read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** all six kinds of §4.16 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.16 records an owner decision.
 - **v1.12 addition (2026-11-20, terminal-data, data wave 6):** §4.15 documents five kinds added dark with this version: `seasonality.stock`, `seasonality.board`, `options.tideHistory`, `options.oiChange`, `rates.treasury` (one stock and the index and sector funds by calendar month, Market Tide by finished session, one stock's open interest change, and US Treasury par yields: the Agent half of the SEAS, SEASB, TIDEH, OIC and RATES panels). All five are model-isolated (ADR-005: the licensing register has no row that names seasonality, Market Tide by day, the options log or the open interest change, and no row of it clears these figures for a model provider; §4.15 quotes the rows each kind is decided from: T-04, T-09 and T-71 for the two seasonality kinds, T-25 and T-26 for the tide, T-28 for the open interest change, T-95 for the Treasury yields, and T-14), and none starts a build, a fetch, a capture or a vendor request: each reads only what its service or store already holds (`bars_sqlite.get_bars_before`, `seasonality_board.held`, `tide_history.history`, `oi_change.held_change`, `treasury_yields.held_answer`) and is `unavailable` or `partial`, with the reason, otherwise (§5). Two read-only accessors are added to their services with this version: `seasonality_board.held` and `oi_change.held_change`. `as_of` is the data's own date (the newest bar, the newest stored session, the newer log file, the curve's date), never the day of the read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** all five kinds of §4.15 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.15 records an owner decision.
 - **v1.11 addition (2026-11-18, terminal-data, data wave 5):** §4.14 documents two kinds added dark with this version: `short.interest`, `short.list` (FINRA short interest and daily short volume, the Agent half of the SHINT and SHRTS panels). Both are model-isolated (ADR-005: FINRA's data, licensed to UCT through its market-data vendor for display to members, licensing register rows T-93 and T-94, and no row of that register clears it for a model provider), and neither starts a build, a check or a vendor request: each reads only what `api/services/short_data.py` already holds, through the service's read-only accessors `short_data.held_stock` and `short_data.held_market`, and is `unavailable` or `partial`, with the reason, otherwise (§5). One accessor changes with this version: `held_market` with no list held now hands back the service's standing `unavailable` / `failed` answer instead of only "not held". `as_of` is the report's settlement date, never the day of the read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** both kinds of §4.14 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.14 records an owner decision.
 - **v1.10 addition (2026-11-18, terminal-data, data wave 4):** §4.13 documents three kinds added dark with this version: `earnings.season`, `earnings.callThemes`, `group.drill`. All three are model-isolated (ADR-005: UCT's calendar with third-party results and estimates and UCT's own priced and past moves; phrases taken from third-party transcript text whose AI-processing right is unresolved; UCT's RS rank, confluence board and themes over derived changes), and none starts a build or spends a provider call: each reads only the answer its service already holds, through a read-only accessor added to that service with this version (`earnings_season.held_day`, `call_themes.held_themes`, `scan_period.period_groups_of`), and is `unavailable` or `partial`, with the reason, otherwise (§5). Two datasets of the same wave get no kind, and §4.13 says why: the UNVOL panel's unusual volume is already a `screen.run` scan (SC-1), and the MYH panel is the member's own Journal. `flow.summary` stays deferred (§4.4). Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** every kind of §4.13 is default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.13 records an owner decision.

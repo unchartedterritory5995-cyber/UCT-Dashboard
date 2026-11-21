@@ -456,12 +456,12 @@ describe('🔴 an edit that FAILS A GATE is refused and the old version keeps wo
     await clickEdit()
     H.writeResponse = {
       ok: false, status: 400,
-      json: async () => ({ detail: 'definition exceeds 65536 bytes (70000)' }),
+      json: async () => ({ detail: 'this indicator is too large to keep: as saved it would be 70000 bytes, and a saved indicator may hold at most 65536. Nothing was saved.' }),
     }
     await typeFormula('sma(close, 5)')
     await clickSave()
 
-    expect(screen.getByTestId('store-error').textContent).toContain('definition exceeds')
+    expect(screen.getByTestId('store-error').textContent).toContain('too large to keep')
     expect(drawnValue(DEF_ID), 'a refused save re-installed the new maths anyway')
       .toBeCloseTo(OLD_VALUE, 6)
   })

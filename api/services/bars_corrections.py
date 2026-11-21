@@ -62,6 +62,10 @@ _CACHE_MAX = 64
 #: as parsed JSON dicts would hold most of a gigabyte on the bars-api pod. Entries are kept as small tuples (`_compact`)
 #: and the cache drops its oldest tickers past this many entries.
 _CACHE_ENTRIES_MAX = 200_000
+#: What this applier understands. A manifest's `requires` naming anything else is REFUSED whole (this pod keeps the
+#: version it has), so a feature can never half-apply across pods running different code.
+#: "list_old" (U6): a set field's old may be a list of candidate olds; any one matching moves it to the one new.
+APPLIER_FEATURES = frozenset({"list_old"})
 
 _lock = threading.Lock()
 
@@ -145,6 +149,11 @@ def sync(client=None, bucket: Optional[str] = None) -> dict:
             return out
         m = json.loads(client.get_object(Bucket=bucket, Key=MANIFEST_KEY)["Body"].read())
         version = int(m.get("version") or 0)
+        missing = sorted(set(m.get("requires") or ()) - APPLIER_FEATURES)
+        if missing:
+            out["reason"] = f"refused: manifest v{version} requires {missing}, which this applier does not support"
+            _log.warning("[bars-corrections] %s", out["reason"])
+            return out
         if version < int(_state["version"] or 0):
             out["reason"] = f"refused: manifest v{version} is older than v{_state['version']} on this volume"
             _log.warning("[bars-corrections] %s", out["reason"])
@@ -227,8 +236,7 @@ def _compact(e: dict):
     try:
         op = e.get("op")
         if op == "set":
-            f = tuple((k, float(p[0]), float(p[1])) for k, p in (e.get("f") or {}).items()
-                      if k in ("o", "h", "l", "c", "v") and isinstance(p, (list, tuple)) and len(p) == 2)
+            f = tuple(x for x in (_field(k, p) for k, p in (e.get("f") or {}).items()) if x is not None)
             chk = tuple((k, float(v)) for k, v in (e.get("chk") or {}).items() if k in ("o", "h", "l", "c"))
             return ("set", f, chk) if f else None
         if op == "drop":
@@ -239,6 +247,20 @@ def _compact(e: dict):
     except (TypeError, ValueError, AttributeError):
         return None
     return None
+
+
+def _field(k, p):
+    """(field, (old, ...), new), or None for a field name this applier does not know. `p` = [old, new] or
+    [[old1, old2, ...], new] (U6 list-olds). A MALFORMED o/h/l/c/v raises, so `_compact` skips the WHOLE entry: applying
+    the rest of a correction would write a bar no vendor printed (and a pre-U6 applier skips a list-old entry whole too)."""
+    if k not in ("o", "h", "l", "c", "v"):
+        return None
+    if not isinstance(p, (list, tuple)) or len(p) != 2:
+        raise ValueError(f"malformed field {k}")
+    olds = tuple(float(x) for x in (p[0] if isinstance(p[0], (list, tuple)) else [p[0]]))
+    if not olds:
+        raise ValueError(f"field {k} lists no old")
+    return (k, olds, float(p[1]))
 
 
 def entries_for(ticker: str, tf: str, src: str) -> dict:
@@ -296,8 +318,8 @@ def _set(bar: dict, e: tuple) -> Optional[dict]:
         _counts["set_missed_chk"] += 1
         return None
     nb = None
-    for f, old, new in e[1]:
-        if _eq(bar.get(f), old):
+    for f, olds, new in e[1]:
+        if any(_eq(bar.get(f), o) for o in olds):
             nb = nb or dict(bar)
             nb[f] = new
         elif _eq(bar.get(f), new):

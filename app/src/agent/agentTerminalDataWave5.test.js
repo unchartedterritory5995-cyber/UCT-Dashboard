@@ -5,7 +5,7 @@
 // short volume ratio; an envelope's notes never echoed), served vs dark (each registers only while the server lists ITS
 // kind), local-only on both sides, the manifest text limits, the one read each answer makes with the member's arguments (a
 // rank read by the SHRTS panel's own word map), and the cross-file facts read from the other file (never retyped).
-// Routing: the two have their OWN words-only group (`shortInterest`, the 47th of the 48 the server keeps). Each capability's
+// Routing: the two have their OWN words-only group (`shortInterest`, the 47th of the 48 the server kept then). Each capability's
 // own words are on that group only while it is registered (a dark server's routing is routing.js's own), every plain ask
 // reaches its capability under v1 and v2, the group never rides the fill, and the words stay off other capabilities'
 // language: a bare "short" (the bearish side: the confluence board's SHORT, a short setup, net short futures), "short float"
@@ -446,10 +446,10 @@ describe('routing words', () => {
     expect([...g.actions].sort()).toEqual([...ALL].sort())
     expect(g.domains).toEqual([])
     expect(g.title.length).toBeLessThanOrEqual(160)                  // the server cuts a group title at 160 characters (turn.py validate_routing)
-    // the server keeps only MAX_GROUPS groups: this wave's is the 47th of 48 (how many are left is pinned by the wave that took
-    // the last one, agentTerminalDataWave6.test.js)
+    // the server keeps only MAX_GROUPS groups: this wave's is the 47th (the cap was 48 when this wave was built; wave 7's build
+    // raised it to 56 on 2026-11-20, and agentTerminalDataWave7.test.js pins how many are left)
     const max = Number(/^MAX_GROUPS\s*=\s*(\d+)\s*$/m.exec(py('api/services/uct_agent/turn.py'))[1])
-    expect([max, GROUPS.length <= max]).toEqual([48, true])
+    expect([max, GROUPS.length <= max]).toEqual([56, true])
     expect(GROUPS.map(x => x.id).slice(45, 47)).toEqual([WAVE4_GROUP, ROUTE_GROUP])
     expect(new Set(GROUPS.map(x => x.id)).size).toBe(GROUPS.length)
   })

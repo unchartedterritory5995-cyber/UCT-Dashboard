@@ -1,0 +1,29 @@
+//@version=5
+indicator("Follow-through day", overlay=true)
+lookback    = input.int(60, "Highest-close lookback (bars)", minval=2)
+drawdownPct = input.float(5.0, "Correction: percent below the highest close", minval=0.0, step=0.25)
+minDay      = input.int(4, "Earliest day of the attempt", minval=1)
+gainPct     = input.float(1.25, "Minimum gain on the day (%)", minval=0.0, step=0.05)
+// in a correction: the close is at least drawdownPct percent below the highest close of the lookback (this bar included)
+hiClose = ta.highest(close, lookback)
+inCorrection = close <= hiClose * (1 - drawdownPct / 100)
+// ONE rally attempt at a time, kept across bars: whether it is live, which day of it this is, and the low it started on
+var bool  active   = false
+var int   dayCount = 0
+var float startLow = na
+if active
+    // the attempt ends when a later bar trades below the low of the bar it started on
+    if low < startLow
+        active := false
+        dayCount := 0
+        startLow := na
+    else
+        dayCount += 1
+// it starts on a bar that closes above the prior close while in a correction (a new one may start on the bar the old one ended)
+if not active and close > close[1] and inCorrection
+    active := true
+    dayCount := 1
+    startLow := low
+// a follow-through day: day minDay or later of a live attempt, up at least gainPct percent on more volume than the prior bar
+followThrough = active and dayCount >= minDay and close >= close[1] * (1 + gainPct / 100) and volume > volume[1]
+plotshape(followThrough, "Follow-through day", shape.triangleup, location.belowbar, color.green, size=size.small)

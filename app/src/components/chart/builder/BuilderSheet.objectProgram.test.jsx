@@ -232,8 +232,12 @@ plot(close > ta.sma(close, 50) ? 1 : 0, title = "Above")
     if (!built.ok) throw new Error(built.reason)
     return JSON.parse(JSON.stringify(built.definition))
   }
+  // ⭐ RULING 1 (2026-11-20) — on a chart FROM THE LISTING: off it, the na test's bars (the average's first 49) are now
+  // withheld whatever the semantics (the window reaches before bar 0), so neither the non-vacuity check below nor the
+  // rename's "same column" could see a lost `naConditionFalse`. From the listing a Pine document draws Pine's 0 there
+  // and a document without the Pine stamps (semantics 2) withholds them: the difference this rail is about.
   const column = (def) => {
-    const cols = computeFor(def, BARS, undefined, { tf: 'D', symbol: { ticker: 'SPY', exchange: 'NYSE Arca' }, newestBarIsForming: false })
+    const cols = computeFor(def, BARS, undefined, { tf: 'D', symbol: { ticker: 'SPY', exchange: 'NYSE Arca' }, newestBarIsForming: false, historyFromListing: true })
     return JSON.stringify(Array.from(cols.value).slice(0, 60))
   }
   const STAMPS = ['recurrenceOrigin', 'naConditionFalse', 'lowerTf', 'otherSymbols', 'periodReads', 'runtimeErrors', 'disclosures', 'requirementTags']
