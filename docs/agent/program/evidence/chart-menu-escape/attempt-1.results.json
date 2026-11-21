@@ -1,0 +1,90 @@
+{
+ "mode": "REAL BROWSER (headless Chrome, CDP input) on the LOCAL agent harness, synthetic bars: not production",
+ "at": "2026-11-10T15:32:58.578Z",
+ "base": "http://127.0.0.1:5305",
+ "steps": [
+  {
+   "step": "right-click (1)",
+   "menuOpen": true,
+   "rows": 9,
+   "active": {
+    "tag": "DIV",
+    "role": "region",
+    "tabIndex": 0,
+    "label": "SPY daily price chart",
+    "inChart": true,
+    "isBody": false
+   }
+  },
+  {
+   "step": "Escape (1)",
+   "menuOpen": false,
+   "rows": 0,
+   "active": {
+    "tag": "DIV",
+    "role": "region",
+    "tabIndex": 0,
+    "label": "SPY daily price chart",
+    "inChart": true,
+    "isBody": false
+   }
+  },
+  {
+   "step": "right-click (2)",
+   "menuOpen": true,
+   "rows": 9,
+   "active": {
+    "tag": "DIV",
+    "role": "region",
+    "tabIndex": 0,
+    "label": "SPY daily price chart",
+    "inChart": true,
+    "isBody": false
+   }
+  },
+  {
+   "step": "Escape (2)",
+   "menuOpen": false,
+   "rows": 0,
+   "active": {
+    "tag": "DIV",
+    "role": "region",
+    "tabIndex": 0,
+    "label": "SPY daily price chart",
+    "inChart": true,
+    "isBody": false
+   }
+  },
+  {
+   "step": "right-click (3)",
+   "menuOpen": true,
+   "rows": 9,
+   "active": {
+    "tag": "DIV",
+    "role": "region",
+    "tabIndex": 0,
+    "label": "SPY daily price chart",
+    "inChart": true,
+    "isBody": false
+   }
+  },
+  {
+   "step": "click the backdrop",
+   "menuOpen": false,
+   "rows": 0,
+   "active": {
+    "tag": "BODY",
+    "role": null,
+    "tabIndex": -1,
+    "label": "",
+    "inChart": false,
+    "isBody": true
+   }
+  }
+ ],
+ "at_point": {
+  "x": 267,
+  "y": 262
+ },
+ "consoleErrors": []
+}
