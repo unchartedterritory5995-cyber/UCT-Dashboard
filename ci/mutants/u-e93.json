@@ -27,7 +27,7 @@
       "from": "  CALL_STEPS += 1",
       "to": "  void CALL_STEPS",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e93.test.js",
-      "expectRed": "resolution steps"
+      "expectRed": "the whole script refuses, naming the steps"
     },
     {
       "id": "E4",
@@ -37,6 +37,33 @@
       "to": "    return fn()",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e93.test.js",
       "expectRed": "inside the door"
+    },
+    {
+      "id": "E5",
+      "mutant": "the step budget ships as the 400M placeholder",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "export const PINE_TRANSLATE_CALL_MAX_STEPS = 500000000",
+      "to": "export const PINE_TRANSLATE_CALL_MAX_STEPS = 400000000",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e93.test.js",
+      "expectRed": "not the 400M placeholder"
+    },
+    {
+      "id": "E6",
+      "mutant": "the wall stop ships as a measurement lifted it (600 s)",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "export const PINE_TRANSLATE_BUDGET_MS = 400000",
+      "to": "export const PINE_TRANSLATE_BUDGET_MS = 600000",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e93.test.js",
+      "expectRed": "the census's value"
+    },
+    {
+      "id": "E7",
+      "mutant": "the wall stop below 3x the slowest served call (the old 10 s)",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "export const PINE_TRANSLATE_BUDGET_MS = 400000",
+      "to": "export const PINE_TRANSLATE_BUDGET_MS = 10000",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.timeout.test.js",
+      "expectRed": "the wall stop is the last resort"
     }
   ]
 }

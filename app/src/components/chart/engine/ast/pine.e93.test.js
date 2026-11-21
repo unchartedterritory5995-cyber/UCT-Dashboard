@@ -19,7 +19,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { translatePine, lastTranslateWindow, PINE_TRANSLATE_CALL_MAX_STEPS } from './pine.js'
+import { translatePine, lastTranslateWindow, PINE_TRANSLATE_CALL_MAX_STEPS, PINE_TRANSLATE_BUDGET_MS } from './pine.js'
 import { withMemberDoorClock } from '../runtime/runtimeColumns.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../runtime/lowerIr.js'
@@ -157,4 +157,17 @@ describe('3. ⭐⭐ the member door\'s runs: the host clock racing changes nothi
     stub.mockRestore()
     expect(canon(raced)).toBe(canon(real))
   }, 120000)
+})
+
+describe('⭐⭐ e93 — the shipped budgets are the census\'s, never a placeholder or a measurement\'s lift', () => {
+  it('the step budget: 2x or more the most step-hungry served script, and not the 400M placeholder', () => {
+    // e93's census, both lanes: the most steps one served script spent in one translatePine call: 230,299,396
+    expect(PINE_TRANSLATE_CALL_MAX_STEPS).toBe(500000000)
+    expect(PINE_TRANSLATE_CALL_MAX_STEPS).not.toBe(400000000)
+    expect(PINE_TRANSLATE_CALL_MAX_STEPS / 230299396).toBeGreaterThanOrEqual(2)
+  })
+  it('the wall stop: the census\'s value (a measurement lifts it to 600 s in its own snapshot only)', () => {
+    expect(PINE_TRANSLATE_BUDGET_MS).toBe(400000)
+    expect(PINE_TRANSLATE_BUDGET_MS).not.toBe(600000)
+  })
 })

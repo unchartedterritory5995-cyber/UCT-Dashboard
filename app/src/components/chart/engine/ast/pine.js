@@ -8310,13 +8310,22 @@ const MAX_CALL_DEPTH = 24
  * ⛔ THIS GUARD IS PERMANENT. It is not scaffolding for the cycle bug below it:
  * a budget is the only thing that holds when the NEXT unbounded shape arrives, and
  * that one will not be known in advance either.
+ *
+ * ⭐⭐ e93 (NUMBER PENDING) — IT IS NOW THE LAST-RESORT STOP, AND IT REFUSES THE WHOLE CALL BY NAME. The 10s above cut
+ * served scripts: a call that ran past it had the rest of its work swallowed by the `catch`es a timeout passed through,
+ * and the picture depended on the machine's speed (e93's census: 2-3 drawn documents and 3-4 reports per lane). The
+ * deterministic bound is now `PINE_TRANSLATE_CALL_MAX_STEPS`; this clock is latched (`tripWindow`: once it trips, every
+ * read says so and the call answers the whole script by name), and it sits at 3.4x the slowest served script's clean,
+ * uncut translate call: 117,377 ms (statistics-table, the median of three runs on master's code with nothing else
+ * running; docs/pine/evidence/e93). ⛔ Lowering it refuses served scripts whole: a ruling, not a tuning.
  */
-export const PINE_TRANSLATE_BUDGET_MS = 10000
+export const PINE_TRANSLATE_BUDGET_MS = 400000
 
 /** ⭐⭐ e93 — THE DETERMINISTIC BOUND OF ONE `translatePine` CALL: every resolution step and printer tick of the call,
  *  on every machine the same. Past it the whole script refuses by name (`countCallStep`). CALIBRATED FROM THE CENSUS
- *  (docs/pine/evidence/e93): a stated multiple of the most step-hungry served script, so no served script reaches it. */
-export const PINE_TRANSLATE_CALL_MAX_STEPS = 400000000
+ *  (docs/pine/evidence/e93): 2.17x the most step-hungry served script (230,299,396 steps in one call, both lanes), so no
+ *  served script reaches it. ⛔ Lowering it refuses served scripts whole: a ruling, not a tuning. */
+export const PINE_TRANSLATE_CALL_MAX_STEPS = 500000000
 
 /**
  * ⭐⭐ AND A STEP CAP, BECAUSE WALL-CLOCK ALONE DOES NOT CATCH THIS SHAPE.
