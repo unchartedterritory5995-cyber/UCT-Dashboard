@@ -93,7 +93,12 @@ function label(st, text) {
  */
 function seriesWriteSites(refName) {
   const ast = Parser.extend(jsx()).parse(SRC, { ecmaVersion: 'latest', sourceType: 'module', locations: true })
-  const comp = ast.body.find((s) => s.type === 'ExportDefaultDeclaration').declaration
+  // The writes live in the component BODY. Since #2278 the default export is a thin shell
+  // (`export default function StockChart`) around `function StockChartBody`, so scan the body when it
+  // exists and the default export otherwise. Never fall back to "nothing": the non-blind guard below
+  // must keep failing if the writes move somewhere this scan cannot see.
+  const body = ast.body.find((s) => s.type === 'FunctionDeclaration' && s.id && s.id.name === 'StockChartBody')
+  const comp = body || ast.body.find((s) => s.type === 'ExportDefaultDeclaration').declaration
   const isRef = (n) => !!n && n.type === 'MemberExpression' && n.object.type === 'Identifier' &&
     n.object.name === refName && n.property.type === 'Identifier' && n.property.name === 'current'
   const helper = applyDataMethods(ast)
