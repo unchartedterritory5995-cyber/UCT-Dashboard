@@ -14,13 +14,20 @@
 // it to the member instead of showing every variable as "empty".
 import { topLevelNames } from '../../engine/runtime/topLevelNames.js'
 import { computeHeadless } from '../../engine/headlessCompute.js'
-import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from '../memberPane/memberPaneDefinition'
+import { MEMBER_PANE_DEF_PREFIX } from '../memberPane/memberPaneDefinition'
+import { doorBuildOnce } from '../memberPane/memberDoorAsync'
 
 /** The script's top-level names, `[{ name, line }]`. */
 export const names = (source) => topLevelNames(source)
 
-/** A script as the definition the chart would draw: `{ ok, definition, reason }`. */
-export const build = (source) => memberPaneDefinition({ source, id: MEMBER_PANE_DEF_PREFIX })
+/** A script as the definition the chart would draw: `{ ok, definition, reason }`, a promise. ⭐ THE PASTE WORKER
+ *  (2026-11-21): built in the member door's worker (the script and each probe copy), never on the page's thread; the
+ *  script itself shares the pane's build (one key). A door that threw rejects, as the call did. */
+export async function build(source) {
+  const landed = await doorBuildOnce({ source, id: MEMBER_PANE_DEF_PREFIX })
+  if (landed && landed.error) throw new Error(landed.error.message || 'the door threw')
+  return landed ? landed.built : null
+}
 
 /**
  * "Definition to values, for these bars", bound to the chart the builder was opened over.

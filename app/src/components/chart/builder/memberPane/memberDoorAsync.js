@@ -447,6 +447,26 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
   }
 }
 
+/**
+ * ⭐ ONE BUILD, ASKED ONCE: the door's answer for `args` through `service` (the page's by default), as a promise of what
+ * lands (`{built, error, consultPending, offThread, ms}`); the subscription is released once it has. For a caller that
+ * is not a component and needs one answer (Indicator House's copy, inspect-a-bar). A build another subscriber is reading
+ * goes on for it (a release stops a build only when its last reader leaves).
+ */
+export function doorBuildOnce(args, service = memberDoorService()) {
+  return new Promise((resolve) => {
+    let release = null
+    let landed = false
+    release = service.subscribe(args, (answer) => {
+      if (landed) return
+      landed = true
+      // (an answer made here, where there are no workers, lands before `subscribe` returns its release)
+      Promise.resolve().then(() => { if (release) release() })
+      resolve(answer)
+    })
+  })
+}
+
 let _service = null
 /** The page's member door (one per page, created on first use; nothing is spawned until a build is asked for). */
 export function memberDoorService() {
