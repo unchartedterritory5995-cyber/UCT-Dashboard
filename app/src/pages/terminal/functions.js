@@ -609,6 +609,13 @@ export const FUNCTIONS = [
   // from what the econ service already published. No argument. LIQ is not in the site's universe.
   { code: 'LIQ', label: 'Liquidity (Fed balance sheet, TGA, reverse repo, net liquidity)', group: 'Market',
     market: { panel: 'Liquidity' } },
+  // OIL (2026-11-21): the EIA's weekly oil report. The week's crude build or draw (the econ service's own
+  // weekly change, a UCT calculation from the EIA's stock figures), when it came out and the next weekly
+  // report from the release calendar; each series' latest week, the week before, the change and the same
+  // week a year ago; two years of crude stocks (GET /api/econ/latest and /api/econ/series: the econ routes'
+  // own flag and gate). No argument. OIL is not in the site's stock universe.
+  { code: 'OIL', label: 'Weekly oil report (EIA: crude, gasoline, distillate stocks, production, refining, pump prices)', group: 'Market',
+    market: { panel: 'Oil' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -939,6 +946,11 @@ const FUNCTION_WORDS = {
   LIQ: { example: 'LIQ', keywords: ['liquidity', 'net liquidity', 'fed balance sheet', 'reverse repo', 'rrp', 'tga',
     'qt', 'quantitative tightening', 'm2', 'money supply', 'reserves'],
     note: 'Net liquidity is a UCT calculation from the Fed and Treasury figures, each part beside it. No forecasts.' },
+  // None of these words was another code's keyword. 'spr' only reached RATES through "spreads" in its label (the
+  // lowest score); RATES still follows OIL for it. No keyword makes a generic word ("prices") find OIL.
+  OIL: { example: 'OIL', keywords: ['oil', 'crude', 'crude inventories', 'eia', 'oil inventories', 'gasoline', 'distillates',
+    'refinery', 'spr'],
+    note: "The EIA's own weekly figures, with the next report's date. No futures prices and no forecasts." },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
