@@ -19,6 +19,7 @@ import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtec
 import { chartRailRefusal, RAIL_MARK, chartEffects, chartPickStale, keepTickers, createdTickers } from './chartRail'
 import { screenChartReuse, REUSE_NOTE } from './chartReuse'
 import { stateRailDecision, noteApplied, noteBeforeRows, STATE_RAIL_MARK, notDoneAdds, notDoneLine, subjectIdsOf, nextTurnSubjects } from './stateRail'
+import { shadowRemoval } from './resolver/shadow'
 import { lastTouchedDrawing } from './capabilities/drawings'
 import { lastCreatedList } from './capabilities/watchlist'
 import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
@@ -918,6 +919,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
 
     railMarkRef.current = c ? RAIL_MARK : STATE_RAIL_MARK
+    // D31 resolver P1 — SHADOW only (resolver/enforce.js): computed beside the rails, never changes `r`; any exception swallowed
+    try { shadowRemoval({ plan, words: railWordsRef.current, host, subject: subjectChart, previous: prevObj, picked: railPickedRef.current, rails: { text: r, ask: !!railAskRef.current } }) } catch { /* the shadow never decides */ }
     return r
   }
   if (!memoryRef.current) memoryRef.current = createMemory()
