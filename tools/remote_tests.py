@@ -5,6 +5,8 @@ WHY (2026-11-16, GitHub Pro rollout): every session's heavy test run queues on O
 public, so standard runners are free and the account now runs 40 jobs at once. This sends a session's tests there.
 
 HOW (what the tool does, in order):
+  0. waits for CI room (see the admission section): while the deploy gate has a job waiting for a runner, the
+     request waits on this PC instead of in GitHub's queue; capped (--max-wait-min), fails open, before any push;
   1. tests the COMMITTED state of HEAD (uncommitted edits are NOT included; the tool says so if the tree is dirty);
   2. pushes HEAD to `refs/remote-tests/<id>`: a ref OUTSIDE refs/heads, so no push-triggered workflow fires and
      nothing deploys. The repo is PUBLIC, so the commit is readable like any branch push (push protection still runs);
@@ -46,7 +48,8 @@ from pathlib import Path
 WORKFLOW = "remote-tests.yml"
 REF_PREFIX = "refs/remote-tests/"
 #: at most 6 shards per request, and the workflow runs at most 4 of them at once (`max-parallel`): the 40-job pool is
-#: shared with the master deploy gate (14 jobs), and session runs must not starve deploys.
+#: shared with the master deploy gate (read the gate's own job list; this comment does not restate its size), and
+#: session runs must not starve deploys.
 MAX_SHARDS = 6
 #: a path or a pytest node id: no spaces, no shell metacharacters. (What keeps a path from being an OPTION is the
 #: required `PYTEST_ROOTS` / `src/` prefix in validate(), the one rule for that; a second leading-character rule here

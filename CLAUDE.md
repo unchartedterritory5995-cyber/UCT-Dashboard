@@ -104,6 +104,16 @@ local; send anything heavier than a few files here. Rails: `tests/test_remote_te
 deleted mid-run on 2026-11-16 by a "leftover ref" cleanup that counted every session's refs); the tool deletes
 its own ref when it finishes.
 
+**It waits for room before it enqueues (2026-11-20).** GitHub has no job priority, so on a full 40-job pool a
+session's run sat in the same queue as the master deploy gate (11/20: gate jobs waited up to 22 min for a runner;
+a ~16 min gate took 44). Now, BEFORE it pushes its ref, the tool waits on this PC while the deploy gate has a job
+waiting for a runner, or while 4+ remote runs are in flight and other runs are queued; it prints why and re-checks
+every 60-75 s. The wait is capped at 30 min (`--max-wait-min N`) and then it dispatches anyway: it never drops a
+request, it dispatches at once if it cannot read the load, and a wait that is stopped leaves nothing behind (no
+ref, no run). `--max-wait-min 0` skips the wait: for a production incident only. Spend the pool deliberately: one
+request per finished change (not one per step of a train), only the tests and shards you need, and no second
+dispatch while one of yours is still queued or running.
+
 ## ⛔⛔ flow-worker DEPLOYS ARE MANUAL (owner decision 2026-11-12) — read before touching options-flow code
 
 Railway **auto deploy is DISABLED for `flow-worker`** (the live options tape, Live Flow, Options Flow,

@@ -927,3 +927,8 @@ def test_main_waits_before_it_pushes_the_ref(monkeypatch):
     with pytest.raises(KeyboardInterrupt):
         rt.main(["--pytest", "tests/test_a.py"])
     assert not any(c != "WAIT" and _is_ref_push(c) for c in record), record
+
+
+def test_claude_md_documents_the_admission_wait():
+    text = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "--max-wait-min 0" in text and "waits for room" in text
