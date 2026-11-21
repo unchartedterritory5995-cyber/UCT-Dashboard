@@ -1,5 +1,5 @@
 // @vitest-environment node
-// The daily DELTA on the device (UFFSDLT1, docs/charts/first-frame-seed-format.md section 10), against deltas
+// The daily DELTA on the device (UFFSDLT2, docs/charts/first-frame-seed-format.md section 10), against deltas
 // the SERVER built: __fixtures__/ffseed_delta.json is written by tools/ffseed_make_delta_js_fixture.py from
 // api/services/ffseed_format.py + ffseed_delta.py (`build_delta`, which proves each delta with the reference
 // applier before returning it). Synthetic bars. Every case ends in one of two states: the device holds the
@@ -11,6 +11,7 @@ import FIX from './__fixtures__/ffseed_delta.json'
 import { createDeviceEngine } from './engine'
 import { memoryIO } from './io'
 import { trailerLengthOf, parseTrailer, decodeRecord, PACK_TAIL_BYTES } from './codec'
+import { gunzipSync, gzipSync } from 'fflate'
 import { parseDelta, applyDelta, OP } from './delta'
 
 const sha = (b) => createHash('sha256').update(b).digest('hex')
@@ -95,18 +96,25 @@ async function holdingBase(tf, { disk = new Map(), files = null, io = null, ...o
   return { ...k, eng, edge, disk }
 }
 /** Rebuild a DELTA with its trailer edited by `fn` (the blobs unchanged, so every offset still holds). */
-function withDeltaTrailer(delta, fn) {
+/** Rebuild `delta` with its trailer edited by `fn`; `as` = 'v1' (plain JSON, "UFFSDLT1") or 'v2' (gzip, the
+ *  server's "UFFSDLT2"), default: the file's own version. The blobs are unchanged. */
+function withDeltaTrailer(delta, fn = () => {}, { as = null } = {}) {
   const n = delta.length
   const tlen = new DataView(delta.buffer, delta.byteOffset + n - 16, 8).getUint32(0, true)
   const dataEnd = n - 16 - tlen
-  const tr = JSON.parse(new TextDecoder().decode(delta.subarray(dataEnd, dataEnd + tlen)))
+  const v2 = String.fromCharCode(...delta.subarray(n - 8)) === 'UFFSDLT2'
+  const raw = delta.subarray(dataEnd, dataEnd + tlen)
+  const tr = JSON.parse(new TextDecoder().decode(v2 ? gunzipSync(raw) : raw))
+  const outV2 = as == null ? v2 : as === 'v2'
+  if (as != null) tr.v = outV2 ? 2 : 1
   fn(tr)
-  const t = new TextEncoder().encode(JSON.stringify(tr))
+  const json = new TextEncoder().encode(JSON.stringify(tr))
+  const t = outV2 ? gzipSync(json, { mtime: 0 }) : json
   const out = new Uint8Array(dataEnd + t.length + 16)
   out.set(delta.subarray(0, dataEnd), 0)
   out.set(t, dataEnd)
   new DataView(out.buffer).setUint32(dataEnd + t.length, t.length, true)
-  out.set(delta.subarray(n - 8), dataEnd + t.length + 8)
+  out.set(new TextEncoder().encode(outV2 ? 'UFFSDLT2' : 'UFFSDLT1'), dataEnd + t.length + 8)
   return out
 }
 /** night 2 against a delta whose bytes are `bad` (the manifest naming exactly those bytes), counts left out */
@@ -279,11 +287,32 @@ describe('engine: the delta path', () => {
     expect(r.delta).toMatch(/longer than the manifest says/)
   })
 
-  it('the reader refuses what a version-1 delta cannot be', () => {
+  it('the server writes version 2 (a gzip trailer); version 1 (plain JSON) still reads to the same delta', () => {
+    for (const tf of ['5', 'D']) {
+      const d = caseOf(tf).delta
+      expect(String.fromCharCode(...d.subarray(d.length - 8))).toBe('UFFSDLT2')
+      const v1 = withDeltaTrailer(d, undefined, { as: 'v1' })
+      expect(v1.length).toBeGreaterThan(d.length)                   // the gzip trailer is the smaller one
+      const a = parseDelta(d, { tf }), b = parseDelta(v1, { tf })
+      expect(b.dataEnd).toBe(a.dataEnd)
+      expect([...b.symbols]).toEqual([...a.symbols])
+      expect({ ...b, symbols: null }).toEqual({ ...a, symbols: null })
+      expect(() => parseDelta(withDeltaTrailer(d, (tr) => { tr.v = 2 }, { as: 'v1' }), { tf })).toThrow(/not an ffseed-delta v1/)
+    }
+  })
+
+  it('a version-2 file whose trailer is not gzip is refused', () => {
+    const d = caseOf('5').delta
+    const plain = withDeltaTrailer(d, (tr) => { tr.v = 2 }, { as: 'v1' })
+    plain.set(new TextEncoder().encode('UFFSDLT2'), plain.length - 8)
+    expect(() => parseDelta(plain, { tf: '5' })).toThrow(/trailer is not gzip JSON/)
+  })
+
+  it('the reader refuses what a delta cannot be', () => {
     const d = caseOf('5').delta
     const bad = (fn) => () => parseDelta(withDeltaTrailer(d, fn), { tf: '5' })
     expect(() => parseDelta(d, { tf: 'D' })).toThrow(/holds tf 5, expected D/)
-    expect(bad((tr) => { tr.v = 2 })).toThrow(/not an ffseed-delta v1/)
+    expect(bad((tr) => { tr.v = 1 })).toThrow(/not an ffseed-delta v2/)
     expect(bad((tr) => { tr.fields = [...tr.fields].reverse() })).toThrow(/unknown entry fields/)
     expect(bad((tr) => { tr.base = tr.build })).toThrow(/build \/ base/)
     expect(bad((tr) => { tr.symbols.APP[0] = 4 })).toThrow(/op 4/)
@@ -292,7 +321,7 @@ describe('engine: the delta path', () => {
     expect(bad((tr) => { tr.symbols.SAME[2] = 5 })).toThrow(/blob/)
     expect(bad((tr) => { tr.symbols.APP[10] = 3 })).toThrow(/window/)
     const pack = caseOf('5').next
-    expect(() => parseDelta(pack, { tf: '5' })).toThrow(/not a UFFSDLT1 file/)
+    expect(() => parseDelta(pack, { tf: '5' })).toThrow(/not a UFFSDLT2 or UFFSDLT1 file/)
   })
 
   it('a corrupted delta never lands: a flipped byte in transit (sha256), or a server-side wrong value (the column CRC)', async () => {
@@ -326,17 +355,17 @@ describe('engine: the delta path', () => {
       expect(filesOn(disk)).toEqual(['D.2.ok', 'D.2.pack'])
       expect(eng.info().tfs.D.via).toBe('full')
     }
-    // (c) a delta this reader does not know (a future "UFFSDLT2"), its sha256 matching: a decode error
+    // (c) a delta this reader does not know (a future "UFFSDLT3"), its sha256 matching: a decode error
     {
       const k = caseOf('5')
       const wrong = k.delta.slice()
-      wrong[wrong.length - 1] = 0x32
+      wrong[wrong.length - 1] = 0x33
       const files = { ...k.files, [k.newEntry.delta.url]: wrong }
       const entry = { ...k.newEntry, delta: { ...k.newEntry.delta, bytes: wrong.length, sha256: sha(wrong) } }
       const { eng } = await holdingBase('5', { files })
       const r = await eng.ingest(entry)
       expect(r).toMatchObject({ via: 'full' })
-      expect(r.delta).toMatch(/not a UFFSDLT1 file/)
+      expect(r.delta).toMatch(/not a UFFSDLT2 or UFFSDLT1 file/)
     }
   })
 

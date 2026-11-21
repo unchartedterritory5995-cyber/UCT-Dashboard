@@ -690,6 +690,13 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     scrollMargin,
     // See rafObserveElementRect above — prevents the narrow-width #185 crash.
     observeElementRect: rafObserveElementRect,
+    // ⭐ (2026-11-20, switch profile) NO flushSync ON SCROLL. react-virtual's default re-renders through
+    // `flushSync` on every scroll event while the list scrolls (`isScrolling`), and the arrow key's
+    // `scrollIntoView` is such a scroll: that forced the whole pending chart switch to render and commit
+    // synchronously inside the scroll handler (23 ms a two-chart list flip, profiled on production). As an
+    // ordinary update it batches with the switch. The selected row needs no new render to be seen: it is
+    // already mounted (the window plus `overscan`), and the browser scrolls it into view itself.
+    useFlushSync: false,
   })
   const vItems = virt.getVirtualItems()
   const first = vItems.length ? vItems[0].index : 0

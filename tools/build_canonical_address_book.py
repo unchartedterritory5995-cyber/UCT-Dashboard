@@ -165,6 +165,12 @@ _KEY_SEEK = re.compile(
     + _RXS + r"+ORDER" + _RXS + r"+BY" + _RXS + r"+" + chr(92) + r"1(?:" + _RXS + r"+ASC)?"
     + _RXS + r"+LIMIT" + _RXS + r"+1" + _RXS + r"*$", re.I)
 
+#: `SELECT COUNT(*) | MAX(c) | ... FROM t WHERE ... > ?` -- a statement whose whole select list is aggregates returns
+#: ONE number about the rows, never the rows themselves, so it is not "what is new since" (`_delta_filter_columns`).
+_AGGREGATE_ONLY = re.compile(
+    r"^" + _RXS + r"*SELECT" + _RXS + r"+(?:(?:COUNT|MAX|MIN|SUM|AVG|TOTAL)" + _RXS + r"*\([^()]*\)"
+    + _RXS + r"*,?" + _RXS + r"*)+FROM" + _RXB, re.I)
+
 
 class _DropDocstrings(ast.NodeTransformer):
     """⛔⛔ CODE, NEVER PROSE — and this file nearly shipped without it.
@@ -357,6 +363,10 @@ def _delta_filter_columns(tree: ast.Module) -> dict:
     that selects ONLY the column it filters, ordered by it, one row -- `SELECT ticker FROM ohlcv WHERE
     ticker>? ORDER BY ticker LIMIT 1` (05ff3d9bd9, 2026-11-09: the worker's index walk to the next ticker)
     asks "which key comes next", never "what is new since". Anything else with `> ?` still counts.
+
+    ⭐ NOR IS AN AGGREGATE (`_AGGREGATE_ONLY`): `SELECT COUNT(*) FROM split_heal_undo_log WHERE ticker=? AND tf=?
+    AND healed_at_ms > ? ...` (#2297, 2026-11-20: "is there a later heal?") returns one number, never rows, so it
+    asks no "since when" about the table, and the undo log is bookkeeping beside the bars, not an address.
     """
     out: dict = {}
     pat = re.compile(r"FROM" + _RXS + r"(" + _RXW + r"+)" + r"(?:(?!FROM).)*?"
@@ -364,7 +374,7 @@ def _delta_filter_columns(tree: ast.Module) -> dict:
                      re.I | re.S)
     for fn in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]:
         for sql in _string_constants(fn):
-            if _KEY_SEEK.match(sql):
+            if _KEY_SEEK.match(sql) or _AGGREGATE_ONLY.match(sql):
                 continue
             for table, col in pat.findall(sql):
                 out.setdefault(table, {}).setdefault(col, set()).add(fn.name)

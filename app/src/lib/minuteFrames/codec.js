@@ -17,6 +17,11 @@ export const TODAY_MAGIC = 'UMT1'
 export const VERSION = 1
 export const FLAG_AV = 0x01
 export const FLAG_INCOMPLETE = 0x02
+/** A DAILY section follows the blocks: the server's day row per symbol (api/services/minute_frames.py). */
+export const FLAG_DAILY = 0x04
+/** Every flag bit this decoder understands. A frame with any other bit is REFUSED (permanently, see
+ *  FrameError.frame): a future bit may change what the bytes mean, and a misread frame is worse than a gap. */
+export const KNOWN_FLAGS = FLAG_AV | FLAG_INCOMPLETE | FLAG_DAILY
 export const NO_SEQ = 0xFFFFFFFF
 export const KIND_ONTIME = 0
 export const KIND_LATE = 1
@@ -27,7 +32,12 @@ export const SESSION_MINUTES = 960
 
 const POW10 = [1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8]
 
-export class FrameError extends Error {}
+/** A frame that cannot be read. `frame` is set when the CRC proved the bytes are the publisher's own (so the
+ *  refusal is PERMANENT, a retry gets the same bytes): its header { day, seq, prevSeq, epoch, minute, flags },
+ *  which lets a reader account for the minute as a gap and move on (consumer.js) instead of asking again. */
+export class FrameError extends Error {
+  constructor(message, frame = null) { super(message); this.frame = frame }
+}
 
 let CRC_TABLE = null
 /** Standard CRC-32 (zlib's). */
@@ -71,7 +81,8 @@ function checkCrc(b, start, end) {
  * Decode one RAW frame (`u8[start, end)`). Returns
  *   { day, seq, prevSeq, epoch, minute, flags, complete, withAv, symbols,
  *     blocks: [{ minute, kind, start, end }],   // rows [start, end) of the columns
- *     n, sym: Uint32Array, o, h, l, c, v: Float64Array, av: Float64Array|null (NaN = absent) }
+ *     n, sym: Uint32Array, o, h, l, c, v: Float64Array, av: Float64Array|null (NaN = absent),
+ *     daily: null | { n, sym: Uint32Array, o, h, l, c, v: Float64Array } }   // FLAG_DAILY: the server's day rows
  */
 export function decodeFrame(u8, start = 0, end = u8.length) {
   const b = u8
@@ -80,11 +91,20 @@ export function decodeFrame(u8, start = 0, end = u8.length) {
   if (b[start + 4] !== VERSION) throw new FrameError(`unsupported version ${b[start + 4]}`)
   checkCrc(b, start, end)
   const flags = b[start + 5]
-  const day = u32(b, start + 8)
-  const seq = u32(b, start + 12)
-  const prevSeq = u32(b, start + 16)
-  const epoch = u32(b, start + 20)
-  const minute = u32(b, start + 24)
+  const head = { day: u32(b, start + 8), seq: u32(b, start + 12), prevSeq: u32(b, start + 16),
+    epoch: u32(b, start + 20), minute: u32(b, start + 24), flags }
+  // past the CRC every refusal is permanent: the bytes are what the publisher wrote
+  try {
+    return _decodeBody(b, start, end, head)
+  } catch (e) {
+    if (e instanceof FrameError && !e.frame) e.frame = head
+    throw e
+  }
+}
+
+function _decodeBody(b, start, end, head) {
+  const { flags } = head
+  if (flags & ~KNOWN_FLAGS) throw new FrameError(`unknown flags 0x${flags.toString(16)}`)
   const stop = end - 4
   let pos = start + 28
   const dv = new DataView(b.buffer, b.byteOffset, b.byteLength)
@@ -115,31 +135,23 @@ export function decodeFrame(u8, start = 0, end = u8.length) {
     prev = s
   }
 
-  const withAv = (flags & FLAG_AV) !== 0
-  let cap = Math.max(16, nSym + 16)
-  let sym = new Uint32Array(cap)
-  let O = new Float64Array(cap), H = new Float64Array(cap), L = new Float64Array(cap)
-  let C = new Float64Array(cap), V = new Float64Array(cap)
-  let AV = withAv ? new Float64Array(cap) : null
-  const grow = () => {
-    cap *= 2
-    const g = (a, T) => { const x = new T(cap); x.set(a); return x }
-    sym = g(sym, Uint32Array); O = g(O, Float64Array); H = g(H, Float64Array); L = g(L, Float64Array)
-    C = g(C, Float64Array); V = g(V, Float64Array); if (AV) AV = g(AV, Float64Array)
+  /** Columns of records, grown by doubling. */
+  const columns = (cap, withAv) => ({ cap, n: 0, sym: new Uint32Array(cap), o: new Float64Array(cap),
+    h: new Float64Array(cap), l: new Float64Array(cap), c: new Float64Array(cap), v: new Float64Array(cap),
+    av: withAv ? new Float64Array(cap) : null })
+  const grow = (c) => {
+    c.cap *= 2
+    const g = (a, T) => { const x = new T(c.cap); x.set(a); return x }
+    c.sym = g(c.sym, Uint32Array); c.o = g(c.o, Float64Array); c.h = g(c.h, Float64Array); c.l = g(c.l, Float64Array)
+    c.c = g(c.c, Float64Array); c.v = g(c.v, Float64Array); if (c.av) c.av = g(c.av, Float64Array)
   }
-
-  const nBlocks = varint()
-  const blocks = []
-  let row = 0
-  for (let bi = 0; bi < nBlocks; bi++) {
-    const bmin = varint()
-    if (pos >= stop) throw new FrameError('truncated block')
-    const kind = b[pos++]
-    const n = varint()
-    const first = row
+  /** `n` records (the block record layout, api/services/minute_frames.py) appended to `cols`. */
+  const records = (cols, n) => {
+    const withAv = cols.av !== null
     let idx = -1
     for (let r = 0; r < n; r++) {
-      if (row >= cap) grow()
+      if (cols.n >= cols.cap) grow(cols)
+      const row = cols.n
       idx += varint() + 1
       if (idx >= nSym) throw new FrameError('symbol index out of range')
       if (pos >= stop) throw new FrameError('truncated record')
@@ -147,39 +159,63 @@ export function decodeFrame(u8, start = 0, end = u8.length) {
       const k = sc & 0x0F, kv = sc >> 4
       if (k === RAW_SCALE) {
         if (pos + 32 > stop) throw new FrameError('truncated record')
-        O[row] = dv.getFloat64(pos, true); H[row] = dv.getFloat64(pos + 8, true)
-        L[row] = dv.getFloat64(pos + 16, true); C[row] = dv.getFloat64(pos + 24, true)
+        cols.o[row] = dv.getFloat64(pos, true); cols.h[row] = dv.getFloat64(pos + 8, true)
+        cols.l[row] = dv.getFloat64(pos + 16, true); cols.c[row] = dv.getFloat64(pos + 24, true)
         pos += 32
       } else {
         if (k > 8) throw new FrameError('bad price scale')
         const o = zz(), dc = zz(), dh = zz(), dl = zz()
         const c = o + dc
         const p = POW10[k]
-        O[row] = o / p; C[row] = c / p
-        H[row] = (Math.max(o, c) + dh) / p
-        L[row] = (Math.min(o, c) - dl) / p
+        cols.o[row] = o / p; cols.c[row] = c / p
+        cols.h[row] = (Math.max(o, c) + dh) / p
+        cols.l[row] = (Math.min(o, c) - dl) / p
       }
       if (kv === RAW_SCALE) {
         if (pos + (withAv ? 16 : 8) > stop) throw new FrameError('truncated record')
-        V[row] = dv.getFloat64(pos, true); pos += 8
-        if (withAv) { AV[row] = dv.getFloat64(pos, true); pos += 8 }
+        cols.v[row] = dv.getFloat64(pos, true); pos += 8
+        if (withAv) { cols.av[row] = dv.getFloat64(pos, true); pos += 8 }
       } else {
         if (kv > 8) throw new FrameError('bad volume scale')
-        V[row] = varint() / POW10[kv]
-        if (withAv) { const a = varint(); AV[row] = a === 0 ? NaN : (a - 1) / POW10[kv] }
+        cols.v[row] = varint() / POW10[kv]
+        if (withAv) { const a = varint(); cols.av[row] = a === 0 ? NaN : (a - 1) / POW10[kv] }
       }
-      sym[row] = idx
-      row++
+      cols.sym[row] = idx
+      cols.n++
     }
-    blocks.push({ minute: bmin, kind, start: first, end: row })
+  }
+
+  const withAv = (flags & FLAG_AV) !== 0
+  const rows = columns(Math.max(16, nSym + 16), withAv)
+  const nBlocks = varint()
+  const blocks = []
+  for (let bi = 0; bi < nBlocks; bi++) {
+    const bmin = varint()
+    if (pos >= stop) throw new FrameError('truncated block')
+    const kind = b[pos++]
+    const n = varint()
+    const first = rows.n
+    records(rows, n)
+    blocks.push({ minute: bmin, kind, start: first, end: rows.n })
+  }
+  // FLAG_DAILY: varint count, then records WITHOUT av (whatever FLAG_AV says): each symbol's day row
+  let daily = null
+  if (flags & FLAG_DAILY) {
+    const n = varint()
+    const d = columns(Math.max(1, Math.min(n, nSym)), false)
+    records(d, n)
+    daily = { n: d.n, sym: d.sym.subarray(0, d.n), o: d.o.subarray(0, d.n), h: d.h.subarray(0, d.n),
+      l: d.l.subarray(0, d.n), c: d.c.subarray(0, d.n), v: d.v.subarray(0, d.n) }
   }
   if (pos !== stop) throw new FrameError('trailing bytes')
+  const row = rows.n
   return {
-    day, seq, prevSeq, epoch, minute, flags, withAv,
+    ...head, withAv,
     complete: (flags & FLAG_INCOMPLETE) === 0,
     symbols, blocks, n: row,
-    sym: sym.subarray(0, row), o: O.subarray(0, row), h: H.subarray(0, row), l: L.subarray(0, row),
-    c: C.subarray(0, row), v: V.subarray(0, row), av: AV ? AV.subarray(0, row) : null,
+    sym: rows.sym.subarray(0, row), o: rows.o.subarray(0, row), h: rows.h.subarray(0, row), l: rows.l.subarray(0, row),
+    c: rows.c.subarray(0, row), v: rows.v.subarray(0, row), av: rows.av ? rows.av.subarray(0, row) : null,
+    daily,
   }
 }
 
@@ -195,8 +231,10 @@ export function todayInfo(u8) {
 }
 
 /** Every frame of a RAW today file, decoded one at a time (a full-market day is ~1.9 M rows:
- *  never all of them in memory at once). */
-export function* todayFrames(u8) {
+ *  never all of them in memory at once). `refused: true`: a frame this decoder permanently refuses
+ *  (FrameError.frame, e.g. a flag bit it does not know) is yielded as `{ refused: true, error, ...header }`
+ *  in its place instead of ending the walk (the file's own CRC already proved every byte). */
+export function* todayFrames(u8, { refused = false } = {}) {
   const info = todayInfo(u8)
   const end = u8.length - 12
   let pos = 16, count = 0
@@ -205,7 +243,12 @@ export function* todayFrames(u8) {
     const len = u32(u8, pos)
     pos += 4
     if (pos + len > end) throw new FrameError('truncated')
-    yield decodeFrame(u8, pos, pos + len)
+    let f
+    try { f = decodeFrame(u8, pos, pos + len) } catch (e) {
+      if (!refused || !(e instanceof FrameError) || !e.frame) throw e
+      f = { refused: true, error: e.message, ...e.frame }
+    }
+    yield f
     pos += len
     count++
   }
@@ -216,6 +259,15 @@ export function* todayFrames(u8) {
 export function hhmmOfSeq(seq) {
   const m = SESSION_START_MIN + seq
   return String(Math.floor(m / 60)).padStart(2, '0') + String(m % 60).padStart(2, '0')
+}
+
+/** The DAILY rows of a decoded frame as plain objects ({ sym, o, h, l, c, v }; [] without the section). */
+export function dailyRows(f) {
+  const d = f?.daily
+  if (!d) return []
+  const out = new Array(d.n)
+  for (let r = 0; r < d.n; r++) out[r] = { sym: f.symbols[d.sym[r]], o: d.o[r], h: d.h[r], l: d.l[r], c: d.c[r], v: d.v[r] }
+  return out
 }
 
 /** The rows of a decoded frame as plain objects (tests and diagnostics; not the hot path). */

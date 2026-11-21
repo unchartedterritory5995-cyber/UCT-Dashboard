@@ -404,7 +404,7 @@ class RecordingTVPage:
         step = (bc.bar_step_range(held) or (None, None))[0]
         interval = held if (held == self.resolution or self.stale_mode == "held") else self.resolution
         return {"ok": True, "session": self._resolved_session(held), "subsession": self.subsession,
-                "interval": str(interval), "bars": BARS, "step": step, "last": FIRST_BAR + (BARS - 1) * (step or 0)}
+                "interval": str(interval), "bars": BARS, "step": step}
 
     def _set_resolution(self, r):
         self.res_changed_at = self.t
