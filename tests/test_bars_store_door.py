@@ -109,6 +109,7 @@ WRITES = re.compile(r"\bput_bars(_many)?\s*\(|INSERT\s+(OR\s+\w+\s+)?INTO\s+(mai
 RAW_REQUIRED = {
     "api/services/bars_split_repair.py": "rescales the rows it reads and writes every one back",
     "api/services/audit.py": "compares the rows AS STORED with the vendor",
+    "api/services/bars_regraft.py": "its dry-run diff compares a re-graft against the rows AS STORED, which put_bars replaces",
 }
 #: Modules that call the door AND write the store, whose door reads are NOT written back (read for serving).
 READ_ONLY_OK = {
