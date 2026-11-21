@@ -24,15 +24,14 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import UIcon from '../../ui/UIcon'
 import { usePineLibraries } from './usePineLibraries'
-import { paramLocatorsIn } from './pineParamManifest'
 import { memberNumber } from '../engine/ast/memberValue'
 import { noteHeading } from '../engine/ast/parse'
-import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
+import { COMPARISONS, conditionFrom, operatorLabel } from './toCondition'
 import { splitPaste } from './libraryIntake'
-import { inspectService, inspectLibraryService } from './inspectAsync'
+import { inspectService, inspectLibraryService, askHeldObjects } from './inspectAsync'
+import { placementsOf, numericOf, verdictOf } from './inspectView'
 import { useWorkerJob } from './memberPane/useMemberDoor'
 import { importOutcome, classifyNote, SEVERITY } from '../engine/ast/importOutcome'
-import { importVerdict } from '../engine/ast/importVerdict'
 import ImportGapNotice from '../supportLoop/ImportGapNotice'
 import PineEditorStatus, { usePineEditorStatus } from './PineEditorStatus'
 import { editorStatusEnabled } from './editorStatusGate'
@@ -231,7 +230,9 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   // typing; `inspectService` computes it in the member door's worker (`inspectAsync.js`), and PasteBox takes it when it
   // lands. ⛔ The same report the synchronous call returned (`inspectSource` / `inspectPine`, now a pure module), read
   // exactly as before: it crossed faithfully (`memberPane/memberDoorProtocol.js`).
-  const reportArgs = useCallback((s, opts) => ({ source: s, ...(dialect !== undefined ? { dialect } : {}), ...(opts ? { opts } : {}) }), [dialect])
+  // (`savedRow`: the saved script being edited, which the editor status panel's status is made with, in the report's worker)
+  const reportArgs = useCallback((s, opts) => ({ source: s, ...(dialect !== undefined ? { dialect } : {}), ...(opts ? { opts } : {}),
+    ...(savedRow ? { savedRow } : {}) }), [dialect, savedRow])
   const [text, setText] = useState(initialSource)
   const [asked, setAsked] = useState(() => (initialSource && initialSource.trim() ? reportArgs(initialSource) : null))
   const [report, setReport] = useState(null)
@@ -402,6 +403,10 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     if (!report || chosen == null) return null
     return report.outputs[chosen] || null
   }, [report, chosen])
+  // ⭐⭐ THE PASTE WORKER — a report from the report's worker crosses LIGHT (`inspectView.reportForPage`): without the
+  // trees and the object program, with what is derived from them here otherwise (`pageView`). A report this page
+  // computed is full and is derived from here, by the same functions.
+  const view = (report && report.pageView) || null
 
   // ⭐⭐ C2D.1/C2D.2 — PLACEMENTS, NOT A MANIFEST, AND FOR EVERY OUTPUT.
   //
@@ -420,12 +425,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   // and deduplicates against its own `taken` set — so it hands back the
   // placement and lets the one component that owns key assignment supply the
   // address. See `paramLocatorsIn`'s own header.
-  const paramPlacements = useMemo(() => {
-    const params = (report && report.inputParams) || []
-    if (!params.length) return null
-    return (report.outputs || []).map((o) => (o && o.ast
-      ? paramLocatorsIn(params, o.ast) : []))
-  }, [report])
+  const paramPlacements = useMemo(() => (view ? view.placements : placementsOf(report)), [report, view])
 
   // ⭐⭐ A NUMERIC COLUMN CAN BE CHARTED BUT NOT SCREENED ON, and this is where the
   // member turns one into a screen. Measured: 41 corpus scripts translate, all 41
@@ -472,15 +472,23 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   const plainSkipped = useMemo(() => (active?.fixedInputs || []), [active])
 
   // ⭐ THE PASTE WORKER — parsed once per column, not on every render (a long column's parse took ~0.18 s, three
-  // renders in a row on the AFTER trace)
-  const numericColumn = useMemo(() => !!(active && active.formula && !yieldsCondition(active.formula)), [active])
+  // renders in a row on the AFTER trace), and, for a report from the worker, parsed there (`pageView.numeric`)
+  const numericColumn = useMemo(() => {
+    if (view && Array.isArray(view.numeric) && chosen != null && typeof view.numeric[chosen] === 'boolean') return view.numeric[chosen]
+    return numericOf(active)
+  }, [view, chosen, active])
   const condition = useMemo(() => {
     if (!numericColumn || String(screenValue).trim() === '') return null
     return conditionFrom(active.formula, screenOp, screenValue)
   }, [numericColumn, active, screenOp, screenValue])
 
+  // ⭐ THE PASTE WORKER — a Use whose program is still in the report's worker waits for it (`askHeldObjects`); the
+  // button says so, and a second press meanwhile does nothing
+  const [using, setUsing] = useState(false)
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   const use = useCallback(() => {
-    if (!active || !active.formula) return
+    if (!active || !active.formula || using) return
     // ⭐⭐ THE OBJECT FORM CARRIES THE AUTHOR'S KNOBS. `BuilderSheet` has branched
     // on `{source, inputs}` since W1b.9 and nothing ever produced one — the only
     // thing that did was a `vi.mock` in its own test, which is the "built, tested,
@@ -638,10 +646,23 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     // whose only non-formula content is a set of lines and labels has no member
     // inputs, no placements and one output — so without this it would take the
     // bare-string branch and the program would be dropped on the floor.
-    const objectProgram = wrapped || !report ? null : (report.objects || null)
-    onPick?.(extra || objectProgram
+    const pick = (objectProgram) => onPick?.(extra || objectProgram
       ? { source: picked, inputs: rows, inputParams, presentation, outputs, objects: objectProgram }
       : picked)
+    // ⭐ THE PASTE WORKER — the program of a report from the worker stayed there (`inspectView.js`): asked for now, the
+    // pick handed on when it comes, exactly as it would have been
+    if (!wrapped && report && view && view.objectsHeld && !report.objects) {
+      setUsing(true)
+      const args = inspection.args
+      askHeldObjects(report, args).then((objectProgram) => {
+        if (!alive.current) return
+        setUsing(false)
+        pick(objectProgram)
+        onImportTelemetry?.((report && report.dialect) || 'pine')
+      })
+      return
+    }
+    pick(wrapped || !report ? null : (report.objects || null))
     // ⭐ Phase One Track C — a SEPARATE, purely-additive notification channel,
     // deliberately NOT folded into `onPick`'s own payload. `onPick`'s shape
     // (a bare string, or `{source, inputs}`) is a heavily-guarded contract —
@@ -659,7 +680,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     // is declared further down this component's body, and closing over it
     // here would be a temporal-dead-zone reference at first render.
     onImportTelemetry?.((report && report.dialect) || 'pine')
-  }, [active, onPick, onImportTelemetry, condition, report, paramPlacements])
+  }, [active, onPick, onImportTelemetry, condition, report, paramPlacements, view, using, inspection.args])
 
   // ⚰️⚰️ THIS COUNTED EVERY ROW WITH A FORMULA, and it is what a member reads.
   //
@@ -737,7 +758,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   // itself is untouched: `semanticShown` and everything else still read it.
   // Record: docs/indicators/i2/PINE-COORDINATION-import-verdict.md.
   const verdict = useMemo(
-    () => (report && report.dialect !== 'pine' ? importVerdict(report) : null), [report])
+    () => (report && report.dialect !== 'pine' ? (view ? view.verdict : verdictOf(report)) : null), [report, view])
   const shownVerdict = verdict || outcome
   const semanticShown = useMemo(() => {
     if (!outcome) return []
@@ -1254,7 +1275,8 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
             type="button"
             className={styles.useBtn}
             data-testid="pine-use"
-            disabled={disabled || !active || !active.formula}
+            disabled={disabled || !active || !active.formula || using}
+            data-using={using ? 'true' : undefined}
             onClick={use}
           >
             Use this formula

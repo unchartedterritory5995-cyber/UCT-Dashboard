@@ -98,7 +98,7 @@ describe('⭐⭐ the member door worker resolves named imports to the pure modul
   })
 
   it('2. the table names real files, and every row is an import the file makes', () => {
-    expect(ROWS.length).toBe(4)
+    expect(ROWS.length, 'the table holds exactly the four pairs (one more would alias another import)').toBe(4)
     for (const { file, spec, to } of ROWS) {
       expect(fs.existsSync(path.join(APP, file)), file).toBe(true)
       expect(resolveFrom(file, to), `${file} -> ${to}`).toBeTruthy()

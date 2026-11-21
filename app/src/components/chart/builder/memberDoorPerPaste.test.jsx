@@ -70,9 +70,9 @@ import { PINE_DEBOUNCE_MS } from './PineBox'
 import { CHECKING_TEXT } from './PineEditorStatus'
 import { AuthContext } from '../../../context/AuthContext'
 import { createMemberDoorService, createKeyedWorkerService, __setMemberDoorServiceForTests } from './memberPane/memberDoorAsync'
-import { INSPECT_WORKER_JOB, INSPECT_LIBRARY_WORKER_JOB, STATUS_WORKER_JOB, __setInspectServicesForTests } from './inspectAsync'
+import { INSPECT_WORKER_JOB, INSPECT_LIBRARY_WORKER_JOB, __setInspectServicesForTests, __setHubChannelForTests, hubMessageForTests } from './inspectAsync'
 import { memberDoorStateVersion } from './memberPane/memberDoorImage'
-import { FakeDoorWorker, importWorkerCore } from '../../../testing/builder/memberDoor.testkit.js'
+import { FakeDoorWorker, importWorkerCore, fakeChannel } from '../../../testing/builder/memberDoor.testkit.js'
 import * as engineRegistry from '../engine/nativeRegistry'
 import { MEMBER_PANE_DEF_PREFIX } from './memberPane/memberPaneDefinition'
 
@@ -87,17 +87,22 @@ class CountingWorker extends FakeDoorWorker {
     D.inWorker = true
     try { super.answer(job) } finally { D.inWorker = false }
   }
+  inWorker(fn) {
+    D.inWorker = true
+    try { return fn() } finally { D.inWorker = false }
+  }
 }
 // ⭐ the stand-in worker runs the REAL handler in a FRESH module graph, as a real worker is its own graph: the page's
 // state reaches it only through the job's image (in this graph, applying an image would also move the page's state)
 let core = null
+let reportCore = null   // ⭐ the report's worker is another worker: its own module graph (the hub's two sides)
 beforeAll(async () => {
   core = await importWorkerCore(vi)
+  reportCore = await importWorkerCore(vi)
 }, 120000)
 let made = []
 let svc = null
 let reports = null
-let statuses = null
 let madeReports = []
 let versions = []
 function useService(mode = 'answer') {
@@ -110,10 +115,11 @@ function useService(mode = 'answer') {
   })
   __setMemberDoorServiceForTests(svc)
   // ⭐ PasteBox's report on its OWN stand-in worker (always answering: the door's mode is what the rails hold)
-  reports = createKeyedWorkerService({ job: INSPECT_WORKER_JOB, factory: () => { const w = new CountingWorker(core); madeReports.push(w); return w } })
-  const library = createKeyedWorkerService({ job: INSPECT_LIBRARY_WORKER_JOB, factory: () => new CountingWorker(core) })
-  statuses = createKeyedWorkerService({ job: STATUS_WORKER_JOB, factory: () => new CountingWorker(core) })
-  __setInspectServicesForTests({ inspect: reports, library, status: statuses })
+  reports = createKeyedWorkerService({ job: INSPECT_WORKER_JOB, onMessage: hubMessageForTests,
+    factory: () => { const w = new CountingWorker(reportCore); madeReports.push(w); return w } })
+  const library = createKeyedWorkerService({ job: INSPECT_LIBRARY_WORKER_JOB, factory: () => new CountingWorker(reportCore) })
+  __setInspectServicesForTests({ inspect: reports, library })
+  __setHubChannelForTests(fakeChannel)
 }
 /** What the service was asked, for a failure's message: each job's script (length) and the state versions. */
 const asked = () => JSON.stringify({ jobs: made.map((w) => w.jobs.map((j) => `${j.args.id}:${j.args.source.length}`)), versions, stats: svc && svc.stats() })
@@ -139,6 +145,7 @@ afterEach(() => {
   cleanup()
   __setMemberDoorServiceForTests(null)
   __setInspectServicesForTests({})
+  __setHubChannelForTests(null)
   engineRegistry.uninstallUserDefinition(MEMBER_PANE_DEF_PREFIX)
   vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllEnvs()
 })
@@ -176,6 +183,8 @@ describe('⭐⭐ a paste costs ONE door build and ONE report, each in a worker, 
     expect(D.tMain - before.tMain, 'translatePine calls on the MAIN thread during the paste').toBe(0)
     expect(D.sMain - before.sMain, 'editor statuses computed on the MAIN thread').toBe(0)
     expect(D.sWorker - before.sWorker, 'editor statuses computed in a worker (the report alone, then with the door answer)').toBeGreaterThan(0)
+    // ⭐ THE HUB: the door answer that crossed carries no translation (the status's, made in the report's worker)
+    expect(made[0].jobs.length).toBe(1)
     expect(D.tWorker - before.tWorker, 'translatePine calls in the workers (the report and the door)').toBeGreaterThan(1)
     expect(madeReports.length, 'the report has its own worker').toBe(1)
     expect(made.length, 'the door has its own worker').toBe(1)
@@ -227,6 +236,7 @@ describe('⭐ the pane while a build runs: it says so, keeps its picture, and it
     await act(async () => { for (const w of made) w.release() })
     await flush()
     expect(svc.stats().posted, 'two builds: the first text, then the edited one').toBe(2)
+    expect(svc.stats().held, 'only the text on screen is held (the old one was released)').toBe(1)
     expect(screen.queryByTestId('pine-member-pane-building')).toBe(null)
   }, 120000)
 })

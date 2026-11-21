@@ -20,6 +20,7 @@ import path from 'node:path'
 import { inspectSource, inspectPine } from './inspectSource'
 import { inspectLibrary } from './libraryIntake'
 import { INSPECT_WORKER_JOB, INSPECT_LIBRARY_WORKER_JOB, inspectKeyOf } from './inspectAsync'
+import { reportForPage } from './inspectView'
 import { createKeyedWorkerService, createMemberDoorService } from './memberPane/memberDoorAsync'
 import { MEMBER_PANE_DEF_PREFIX } from './memberPane/memberPaneDefinition'
 import { canonOf, fakeDoorWorkers, importWorkerCore } from '../../../testing/builder/memberDoor.testkit.js'
@@ -58,7 +59,8 @@ describe('1. the same report the synchronous call returned, field for field', ()
       for (let i = 0; i < 50 && !got.length; i += 1) await settle()
       expect(got, inspectKeyOf(args)).toHaveLength(1)
       expect(got[0].offThread).toBe(true)
-      expect(hidden(got[0].report), `${inspectKeyOf(args).slice(0, 40)}: the worker's report is the main thread's`).toBe(hidden(sync()))
+      // ⭐ the page reads the report light (`inspectView.reportForPage`): the main thread's, less what stays in the worker
+      expect(hidden(got[0].report), `${inspectKeyOf(args).slice(0, 40)}: the worker's report is the main thread's`).toBe(hidden(reportForPage(sync())))
       off()
     }
     svc.dispose()

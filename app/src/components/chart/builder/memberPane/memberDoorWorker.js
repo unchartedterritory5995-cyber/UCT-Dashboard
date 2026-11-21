@@ -7,10 +7,17 @@
 // ⛔ AN ANSWER THAT CANNOT BE POSTED IS SAID, NEVER DROPPED: a structured clone refuses a function, and a
 // door answer that grew one would otherwise leave the page waiting for its watchdog. The page refuses the
 // script by name with the reason (`memberDoorAsync.js`).
-import { answerJobOfKind } from './memberDoorWorkerCore.js'
+import { answerJobOfKind, setPeer, setPagePost, acceptPageMessage } from './memberDoorWorkerCore.js'
+
+// ⭐ THE HUB (`memberDoorWorkerCore.js`): the status this worker makes reaches the page unasked
+setPagePost((m) => self.postMessage(m))
 
 self.onmessage = (event) => {
-  const reply = answerJobOfKind(event.data)
+  const data = event.data
+  // the page's MessageChannel to the other worker (the door's and the report's), and a door answer the page made
+  if (data && data.kind === 'peer') { setPeer(event.ports && event.ports[0], data.role); return }
+  if (data && typeof data.type === 'string') { acceptPageMessage(data); return }
+  const reply = answerJobOfKind(data)
   try {
     self.postMessage(reply)
   } catch (err) {

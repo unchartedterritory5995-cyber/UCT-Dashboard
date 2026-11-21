@@ -23,9 +23,10 @@ import { recordRuntimeConsults, runtimeConsultPendingOf } from '../../engine/run
 import { inspectSource, inspectPine } from '../inspectSource.js'
 import { inspectLibrary } from '../libraryIntake.js'
 import { editorStatus } from '../editorStatus.js'
-import { MEMBER_DOOR_JOB, INSPECT_JOB, INSPECT_LIBRARY_JOB, STATUS_JOB, restoreFaithful } from './memberDoorProtocol.js'
+import { reportForPage, stampsForCrossing } from '../inspectView.js'
+import { MEMBER_DOOR_JOB, INSPECT_JOB, INSPECT_LIBRARY_JOB, restoreFaithful, plainAnswerOf, faithfulAnswerOf } from './memberDoorProtocol.js'
 
-export { MEMBER_DOOR_JOB, INSPECT_JOB, INSPECT_LIBRARY_JOB, STATUS_JOB }
+export { MEMBER_DOOR_JOB, INSPECT_JOB, INSPECT_LIBRARY_JOB, plainAnswerOf, faithfulAnswerOf }
 // ⛔⛔ THE REGISTRATIONS A CHART PAGE MAKES WHEN IT LOADS ARE MADE HERE TOO. On the page the door's graph is
 // BuilderSheet's (the binder registers the run half's object rail, `runHalfObjectRail.js`, and with it the host lane's
 // `runtime.error` stop, `runtimeErrorStop.js`); in the worker `vite.config.js` resolves the door's sheet imports to the
@@ -34,86 +35,6 @@ export { MEMBER_DOOR_JOB, INSPECT_JOB, INSPECT_LIBRARY_JOB, STATUS_JOB }
 // graph holds every load-time registration of the page's door graph that is not a page's own (streams, preferences,
 // drawings): `memberDoorWorkerGraph.test.js`, with a control.
 import '../../engine/runHalfObjectRail.js'
-
-const PASS_THROUGH = (v) => v instanceof Date || v instanceof RegExp || ArrayBuffer.isView(v) || v instanceof ArrayBuffer
-
-/**
- * ⭐ THE DOOR'S ANSWER AS PLAIN DATA, the way it crosses to the page. A structured clone refuses a function and
- * keeps neither a class's prototype nor an error's own fields, and the answer's working object (`translation`,
- * which the editor's status panel reads) holds all three. So, before it is posted: every own ENUMERABLE field
- * whose value is not a function, at every depth; a Map and a Set as a Map and a Set; an error or any other
- * class instance as a plain object of its own enumerable fields (an error keeps its `name` and `message` too);
- * and ONE copy of an object reached twice, so `a === b` in the answer is `a === b` on the page (the status
- * panel finds a row's output by its tree's identity). Exactly what JSON and a structured clone agree an object
- * IS; the census proves the page reads the same document and the same status from it.
- */
-export function plainAnswerOf(value, seen = new Map()) {
-  return copyOf(value, seen, null)
-}
-
-/**
- * ⭐ THE ANSWER AS IT CROSSES, FAITHFULLY (`memberDoorProtocol.js`): `plainAnswerOf`'s copy, plus every NON-ENUMERABLE
- * own property of an object or array in it (`hidden`: the copy it belongs to, its key, its value copied the same way,
- * and its descriptor's `writable` / `configurable`), which the page puts back before anyone reads the answer
- * (`restoreFaithful`). `lost` counts what no clone can carry (a function or an accessor held non-enumerably, a symbol
- * key); a rail holds it at zero for what the door and PasteBox answer. An error is copied as `plainAnswerOf` copies it.
- * @returns {{value: any, hidden: object[], lost: number}}
- */
-export function faithfulAnswerOf(value) {
-  const acc = { hidden: [], lost: 0 }
-  const out = copyOf(value, new Map(), acc)
-  return { value: out, hidden: acc.hidden, lost: acc.lost }
-}
-
-function copyHidden(value, out, seen, acc) {
-  if (!acc || value instanceof Error) return
-  acc.lost += Object.getOwnPropertySymbols(value).length
-  for (const k of Object.getOwnPropertyNames(value)) {
-    if (Object.prototype.propertyIsEnumerable.call(value, k)) continue
-    if (Array.isArray(value) && k === 'length') continue
-    const d = Object.getOwnPropertyDescriptor(value, k)
-    if (!d || !('value' in d) || typeof d.value === 'function') { acc.lost += 1; continue }
-    acc.hidden.push({ node: out, key: k, value: copyOf(d.value, seen, acc), writable: d.writable, configurable: d.configurable })
-  }
-}
-
-function copyOf(value, seen, acc) {
-  if (value === null || typeof value !== 'object') return typeof value === 'function' ? undefined : value
-  if (seen.has(value)) return seen.get(value)
-  if (PASS_THROUGH(value)) return value
-  if (Array.isArray(value)) {
-    const out = []
-    seen.set(value, out)
-    for (let i = 0; i < value.length; i += 1) {
-      const v = value[i]
-      out.push(typeof v === 'function' ? undefined : copyOf(v, seen, acc))
-    }
-    copyHidden(value, out, seen, acc)
-    return out
-  }
-  if (value instanceof Map) {
-    const out = new Map()
-    seen.set(value, out)
-    for (const [k, v] of value) if (typeof v !== 'function' && typeof k !== 'function') out.set(copyOf(k, seen, acc), copyOf(v, seen, acc))
-    return out
-  }
-  if (value instanceof Set) {
-    const out = new Set()
-    seen.set(value, out)
-    for (const v of value) if (typeof v !== 'function') out.add(copyOf(v, seen, acc))
-    return out
-  }
-  const out = {}
-  seen.set(value, out)
-  if (value instanceof Error) { out.name = value.name; out.message = value.message }
-  for (const k of Object.keys(value)) {
-    const v = value[k]
-    if (typeof v === 'function') continue
-    out[k] = copyOf(v, seen, acc)
-  }
-  copyHidden(value, out, seen, acc)
-  return out
-}
 
 /** A consult's source, when it is the job's own script, crosses as a mark (`{job: true}`): a door consults
  *  about its own script several times, and the page holds that text already. */
@@ -126,6 +47,77 @@ function compactConsults(log, source) {
 }
 
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
+
+// ─── ⭐⭐ THE HUB: THE CHART DOOR'S ANSWER AND PASTEBOX'S REPORT MEET IN THE REPORT'S WORKER ─────────────────────
+//
+// What crosses to the page is what the page reads (measured, #2254: a heavy script's door answer was 47.8 MB and its
+// report 62.5 MB of structured clone, 0.8-1.2 s to receive on the page). The door's `translation` and the report's trees
+// are read only by the editor status panel's status (`editorStatus`), so the status is made HERE, where the full report
+// lives, from the full door answer the door's worker sends over a MessageChannel the page set up between the two
+// (`setPeer`), and only the status (a few KB) crosses to the page. The door's worker keeps its last full answer and
+// sends it again to a new port (a respawned report worker starts empty). A refusal the page made itself (a worker
+// that died, the watchdog) reaches this worker as a message from the page (`acceptDoorAnswer`).
+let PEER = null
+let PEER_ROLE = null
+let PAGE_POST = null
+let LAST_DOOR = null
+const REPORTS = new Map()      // report key -> { source, report, savedRow }
+const DOORS = new Map()        // source -> { key, version, answer }
+const KEEP = 3
+const keep = (map, key, value) => {
+  map.delete(key)
+  map.set(key, value)
+  while (map.size > KEEP) map.delete(map.keys().next().value)
+}
+
+/** How this worker speaks to the page unasked (the entry sets it: `self.postMessage`). */
+export function setPagePost(fn) { PAGE_POST = typeof fn === 'function' ? fn : null }
+
+/** The other worker's port (the page's MessageChannel), and which side this worker is. The door's side sends its last
+ *  answer again; the report's side listens. */
+export function setPeer(port, role) {
+  if (PEER && PEER !== port) { try { PEER.onmessage = null; PEER.close() } catch { /* gone */ } }
+  PEER = port || null
+  PEER_ROLE = role || null
+  if (!PEER) return
+  if (PEER_ROLE === 'inspect') PEER.onmessage = (e) => acceptDoorAnswer(e && e.data)
+  if (PEER_ROLE === 'door' && LAST_DOOR) { try { PEER.postMessage(LAST_DOOR) } catch { /* a closed port */ } }
+}
+
+/** The status of a report and (when one has landed) the chart door's answer for its text, as it crosses. */
+function statusOf(entry, door) {
+  const value = editorStatus({ report: entry.report, pane: door ? door.answer : null, savedRow: entry.savedRow ?? null,
+    inspectedSource: entry.source })
+  const crossing = faithfulAnswerOf(value)
+  return { doorKey: door ? door.key : null, doorVersion: door ? door.version : null,
+    answer: crossing.value, hidden: crossing.hidden, lost: crossing.lost }
+}
+
+/** A chart door answer for `source` (from the door's worker over the port, or one the page made): kept, and the
+ *  status of every kept report of that text made and sent to the page. */
+export function acceptDoorAnswer(msg) {
+  const m = msg && typeof msg === 'object' ? msg : null
+  if (!m || m.type !== 'door-answer' || typeof m.source !== 'string') return
+  const door = { key: m.key, version: m.version, answer: restoreFaithful({ value: m.answer, hidden: m.hidden }) }
+  keep(DOORS, m.source, door)
+  if (!PAGE_POST) return
+  for (const [reportKey, entry] of REPORTS) {
+    if (entry.source !== m.source) continue
+    try { PAGE_POST({ type: 'status', reportKey, ...statusOf(entry, door) }) } catch { /* the page is gone */ }
+  }
+}
+
+/** The answer the page reads of a door build: the build without its `translation` (the status's, made here). Every
+ *  other own property is kept as it is, its descriptor included. */
+export function doorForPage(built) {
+  if (!built || typeof built !== 'object') return built
+  const light = {}
+  for (const k of Reflect.ownKeys(built)) {
+    if (k === 'translation') continue
+    Object.defineProperty(light, k, Object.getOwnPropertyDescriptor(built, k))
+  }
+  return light
+}
 
 /**
  * Answer one job.
@@ -150,9 +142,18 @@ export function answerMemberDoorJob(msg) {
     } finally {
       recordRuntimeConsults(null)
     }
-    const crossing = faithfulAnswerOf(built)
+    // ⭐ THE HUB: the full answer to the report's worker (its status is made there); the page gets the rest
+    const full = faithfulAnswerOf(built)
+    LAST_DOOR = { type: 'door-answer', key: m.key ?? null, version: m.version ?? null, source: source ?? null,
+      answer: full.value, hidden: full.hidden }
+    if (PEER && PEER_ROLE === 'door' && source !== undefined) {
+      try { PEER.postMessage(LAST_DOOR) } catch { /* a closed port: the next one is sent the same answer */ }
+    }
+    const crossing = faithfulAnswerOf(doorForPage(built))
     return {
       id: m.id,
+      key: m.key ?? null,
+      version: m.version ?? null,
       ok: true,
       answer: crossing.value,
       hidden: crossing.hidden,
@@ -174,8 +175,9 @@ export function answerMemberDoorJob(msg) {
   }
 }
 
-/** A job's answer, faithfully, over the page's state: `compute(args)` with the runtime lists' consult log open. */
-function answerJob(m, compute) {
+/** A job's answer, faithfully, over the page's state: `compute(args)` with the runtime lists' consult log open.
+ *  `forPage(value)`: what of it crosses (default: all of it). */
+function answerJob(m, compute, forPage = (v) => v) {   // forPage(value, args)
   const t0 = clock()
   const args = m.args && typeof m.args === 'object' ? m.args : {}
   const source = typeof args.source === 'string' ? args.source : undefined
@@ -189,7 +191,7 @@ function answerJob(m, compute) {
     } finally {
       recordRuntimeConsults(null)
     }
-    const crossing = faithfulAnswerOf(value)
+    const crossing = faithfulAnswerOf(forPage(value, args))
     return { id: m.id, ok: true, answer: crossing.value, hidden: crossing.hidden, lost: crossing.lost,
       consults: compactConsults(log, source), ms: clock() - t0 }
   } catch (err) {
@@ -204,9 +206,30 @@ function answerJob(m, compute) {
  * @param {{kind: string, id: number, args: {source: string, dialect?: string, opts?: object}, image: object}} msg
  */
 export function answerInspectJob(msg) {
-  return answerJob(msg || {}, (a) => (a.dialect === undefined || a.dialect === null
-    ? inspectPine(a.source, a.opts == null ? undefined : a.opts)
-    : inspectSource(a.source, a.dialect, a.opts == null ? undefined : a.opts)))
+  const m = msg || {}
+  let kept = null
+  // ⭐ THE LIGHT REPORT: the page is sent what PasteBox reads (`inspectView.reportForPage`); the trees and the object
+  // program stay here, with the full report (the status's, and the program a Use asks for: `answerObjectsAsk`)
+  const reply = answerJob(m, (a) => {
+    const report = a.dialect === undefined || a.dialect === null
+      ? inspectPine(a.source, a.opts == null ? undefined : a.opts)
+      : inspectSource(a.source, a.dialect, a.opts == null ? undefined : a.opts)
+    kept = { source: a.source, report, savedRow: a.savedRow ?? null }
+    return report
+  }, (report, a) => stampsForCrossing(reportForPage(report), a.source))
+  if (!reply.ok || !kept || m.key == null) return reply
+  // ⭐ THE HUB: the full report stays here; the page is sent the status of it alone and, when the chart door's answer
+  // for this text has come, with it
+  keep(REPORTS, m.key, kept)
+  const statuses = []
+  try {
+    statuses.push(statusOf(kept, null))
+    const door = DOORS.get(kept.source)
+    if (door) statuses.push(statusOf(kept, door))
+  } catch (err) {
+    statuses.push({ doorKey: null, doorVersion: null, error: { message: String((err && err.message) || err) } })
+  }
+  return { ...reply, key: m.key, version: m.version ?? null, statuses }
 }
 
 /** ⭐ The report of a paste holding several scripts (`libraryIntake.inspectLibrary`), off the main thread. */
@@ -215,18 +238,37 @@ export function answerInspectLibraryJob(msg) {
 }
 
 /**
- * ⭐ THE EDITOR STATUS PANEL'S STATUS, off the main thread: `editorStatus` of PasteBox's report and the chart door's
- * answer, each restored here as faithfully as it reached the page (the page hands on the tables it was given,
- * `memberDoorProtocol.hiddenTableOf`).
- * @param {{args: {report, reportHidden?, pane?, paneHidden?, savedRow?, inspectedSource?}}} msg
+ * ⭐ THE OBJECT PROGRAM OF A REPORT, asked for when the member presses Use (`inspectAsync.askHeldObjects`): from the
+ * report this worker kept; when it has gone (this worker was started after the report landed: a newer text stopped
+ * the one before it), the report is made again here from the page's arguments and image, never on the page.
+ * Answered to the page as `{type: 'ask-answer', askId, ok, answer, hidden, remade}`.
  */
-export function answerStatusJob(msg) {
-  return answerJob(msg || {}, (a) => editorStatus({
-    report: restoreFaithful({ value: a.report, hidden: a.reportHidden }),
-    pane: a.pane ? restoreFaithful({ value: a.pane, hidden: a.paneHidden }) : null,
-    savedRow: a.savedRow ?? null,
-    inspectedSource: a.inspectedSource ?? null,
-  }))
+export function answerObjectsAsk(msg) {
+  const m = msg && typeof msg === 'object' ? msg : {}
+  let entry = typeof m.reportKey === 'string' ? REPORTS.get(m.reportKey) : null
+  let remade = false
+  if (!entry && m.args && typeof m.args === 'object') {
+    const again = answerInspectJob({ kind: INSPECT_JOB, id: -1, key: m.reportKey, version: null, args: m.args, image: m.image })
+    remade = again.ok === true
+    entry = REPORTS.get(m.reportKey) || null
+  }
+  let reply
+  if (!entry) {
+    reply = { type: 'ask-answer', askId: m.askId, ok: false, remade }
+  } else {
+    const crossing = faithfulAnswerOf(entry.report && entry.report.objects ? entry.report.objects : null)
+    reply = { type: 'ask-answer', askId: m.askId, ok: true, answer: crossing.value, hidden: crossing.hidden, lost: crossing.lost, remade }
+  }
+  if (PAGE_POST) { try { PAGE_POST(reply) } catch { /* the page is gone */ } }
+  return reply
+}
+
+/** A message from the page that is not a job (`{type}`): a door answer the page made, or a Use's ask. */
+export function acceptPageMessage(msg) {
+  const type = msg && typeof msg === 'object' ? msg.type : null
+  if (type === 'door-answer') return acceptDoorAnswer(msg)
+  if (type === 'objects-ask') return answerObjectsAsk(msg)
+  return undefined
 }
 
 /** One job, by its kind (`memberDoorProtocol.js`). */
@@ -234,6 +276,5 @@ export function answerJobOfKind(msg) {
   const kind = msg && msg.kind
   if (kind === INSPECT_JOB) return answerInspectJob(msg)
   if (kind === INSPECT_LIBRARY_JOB) return answerInspectLibraryJob(msg)
-  if (kind === STATUS_JOB) return answerStatusJob(msg)
   return answerMemberDoorJob(msg)
 }

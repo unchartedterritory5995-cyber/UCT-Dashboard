@@ -108,6 +108,14 @@ function expandConsults(list, source) {
   })
 }
 
+/** ⭐ THE HUB — which door build (its key and the page state it was asked in) an answer that crossed is, so the editor
+ *  status panel can ask the report's worker for the status of exactly that answer (`inspectAsync.js`). */
+const DOOR_REFS = new WeakMap()
+/** `{key, version}` of a door answer that crossed from the worker, or null (one made on this page). */
+export function doorRefOf(built) {
+  return built && typeof built === 'object' ? (DOOR_REFS.get(built) || null) : null
+}
+
 /** ⭐ THE CHART DOOR'S JOB, for `createKeyedWorkerService`: what is the door's own in the service below. */
 function doorJob(budgetMs) {
   return {
@@ -126,11 +134,14 @@ function doorJob(budgetMs) {
       }
       return { built, error, consultPending: runtimeConsultPendingOf({ source: args.source }), offThread: false }
     },
-    fromReply(reply) {
+    fromReply(reply, entry, version) {
       if (reply.ok === true) {
         if (reply.warmed === true) warmRuntimeLane()
-        return { built: restoreFaithful({ value: reply.answer, hidden: reply.hidden }), error: null,
-          consultPending: reply.consultPending === true, offThread: true, ms: reply.ms }
+        // ⭐ THE HUB: what crossed is the build without its `translation`; the status of the full one is the report
+        // worker's (`memberDoorWorkerCore.js`), asked for by this build's key and state
+        const built = restoreFaithful({ value: reply.answer, hidden: reply.hidden })
+        if (built && typeof built === 'object') DOOR_REFS.set(built, { key: entry.key, version })
+        return { built, error: null, consultPending: reply.consultPending === true, offThread: true, ms: reply.ms }
       }
       return { built: null, error: { message: (reply.error && reply.error.message) || 'no message' }, consultPending: false, offThread: true }
     },
@@ -167,7 +178,9 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
  * its answer. Each service holds its OWN worker, so two services compute at once.
  */
 export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEMBER_DOOR_WATCHDOG_MS,
-  version = memberDoorStateVersion } = {}) {
+  version = memberDoorStateVersion, onMessage = null } = {}) {
+  const workerListeners = new Set()   // told of every worker this service starts, and when it has none
+  const told = (w) => { for (const fn of [...workerListeners]) { try { fn(w) } catch { /* a listener's fault */ } } }
   const offThread = !!factory || (browserCanWork() && !devServer())
   const make = factory || defaultFactory
   const entries = new Map()   // key -> { key, args, want, landed, subs: Set, asked }
@@ -177,6 +190,8 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
   let nextId = 1
   let asked = 0
   let idle = null
+  const asks = new Map()      // askId -> { msg, resolve, posted }: messages the worker answers by `askId` (`ask`)
+  let nextAskId = 1
   const counts = { builds: 0, posted: 0, answered: 0, shared: 0, superseded: 0, stopped: 0, watchdog: 0, died: 0, threw: 0, spawned: 0, relatched: 0 }
 
   function kill() {
@@ -184,6 +199,7 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
     worker = null
     workerPermitted = null
     if (!w) return
+    told(null)
     w.onmessage = null
     w.onerror = null
     w.onmessageerror = null
@@ -225,14 +241,38 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
     next()
   }
 
+  /** Every ask not answered yet, to the worker this service has now (once to each worker). */
+  function postAsks() {
+    if (!worker) return
+    for (const a of asks.values()) {
+      if (a.posted === worker) continue
+      try { worker.postMessage(a.msg); a.posted = worker } catch { /* the next worker is sent it */ }
+    }
+  }
+
+  /** Nobody subscribes and nothing is owed: the idle worker is let go after a while. */
+  function idleLater() {
+    if (!entries.size && !running && !asks.size && worker && idle === null) {
+      idle = setTimeout(() => { idle = null; if (!entries.size && !running && !asks.size) kill() }, MEMBER_DOOR_IDLE_MS)
+    }
+  }
+
   function onReply(w, reply) {
+    // ⭐ an answer to an ask (`ask`), by its id
+    if (w === worker && reply && reply.type === 'ask-answer') {
+      const a = asks.get(reply.askId)
+      if (a) { asks.delete(reply.askId); a.resolve(reply); idleLater() }
+      return
+    }
+    // ⭐ a message the worker sends unasked (the hub's status), not a reply to a job
+    if (w === worker && reply && typeof reply.type === 'string') { if (onMessage) onMessage(reply); return }
     const r = running
     if (w !== worker || !r || !reply || reply.id !== r.id) return
     // ⭐ what the build did to the page, done on the page, in order, before anyone reads the answer
     replayRuntimeConsults(expandConsults(reply.consults, r.entry.args.source))
     if (reply.ok === true) counts.answered += 1
     else counts.threw += 1
-    finish(r, job.fromReply(reply, r.entry))
+    finish(r, job.fromReply(reply, r.entry, r.version))
   }
 
   function onDeath(w, why) {
@@ -241,7 +281,9 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
     kill()
     counts.died += 1
     mark(job.kind, 'died')
-    if (r) finish(r, job.failed(why, r.entry))
+    if (r) finish(r, job.failed(why, r.entry, r.version))
+    // ⭐ a question it had not answered is asked of a new worker (nothing else may start one)
+    if (asks.size && !worker) spawn()
   }
 
   function spawn() {
@@ -255,6 +297,10 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
       onDeath(w, 'it stopped with an error')
     }
     w.onmessageerror = () => onDeath(w, 'its answer could not be read')
+    told(w)
+    // ⭐ an ask the worker before this one did not answer is asked of this one (it holds the job's state again)
+    worker = w
+    postAsks()
     return w
   }
 
@@ -268,7 +314,7 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
     counts.builds += 1
     const v = entry.want
     if (!offThread) {
-      land(entry, v, job.runHere(entry.args, entry))
+      land(entry, v, job.runHere(entry.args, entry, v))
       return
     }
     const r = { entry, id: nextId++, version: v, timer: null }
@@ -282,18 +328,18 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
     if (!worker) {
       counts.died += 1
     mark(job.kind, 'died')
-      finish(r, job.failed('it could not be started', entry))
+      finish(r, job.failed('it could not be started', entry, v))
       return
     }
     try {
       if (!image) throw new Error('no image')
-      worker.postMessage({ kind: job.kind, id: r.id, args: entry.args, image })
+      worker.postMessage({ kind: job.kind, id: r.id, key: entry.key, version: v, args: entry.args, image })
       workerPermitted = permitted
     } catch {
       kill()
       counts.died += 1
     mark(job.kind, 'died')
-      finish(r, job.failed('its job could not be sent', entry))
+      finish(r, job.failed('its job could not be sent', entry, v))
       return
     }
     counts.posted += 1
@@ -306,7 +352,7 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
       counts.watchdog += 1
       mark(job.kind, 'watchdog')
       kill()
-      finish(r, job.timedOut(r.entry))
+      finish(r, job.timedOut(r.entry, r.version))
     }, watchdogMs)
   }
 
@@ -346,16 +392,34 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
         next()
       }
       // ⭐ nobody subscribes now: the idle worker is let go after a while (a member who pastes again respawns it)
-      if (!entries.size && !running && worker && idle === null) {
-        idle = setTimeout(() => { idle = null; if (!entries.size && !running) kill() }, MEMBER_DOOR_IDLE_MS)
-      }
+      idleLater()
     }
+  }
+
+  /**
+   * ⭐ A question for this service's worker that is not a job (`msg` with a `type`), answered by the worker as
+   * `{type: 'ask-answer', askId, ...}`. A worker is started when there is none; a worker that stops before answering
+   * (a newer job stopped it, it died) has the question asked of the next one. Resolves with the answer, or with null
+   * where there are no workers or one cannot be started.
+   */
+  function ask(msg) {
+    if (!offThread) return Promise.resolve(null)
+    return new Promise((resolve) => {
+      const askId = nextAskId++
+      asks.set(askId, { msg: { ...msg, askId }, resolve, posted: null })
+      if (idle !== null) { clearTimeout(idle); idle = null }
+      if (!worker) spawn()
+      if (!worker) { asks.delete(askId); resolve(null); return }
+      postAsks()
+    })
   }
 
   function dispose() {
     if (idle !== null) { clearTimeout(idle); idle = null }
     stopRunning()
     entries.clear()
+    for (const a of asks.values()) a.resolve(null)
+    asks.clear()
   }
 
   return {
@@ -364,6 +428,14 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
     stats: () => ({ ...counts, busy: !!running, alive: !!worker, held: entries.size }),
     offThread,
     keyOf: job.keyOf,
+    /** ⭐ THE HUB: `fn(worker | null)` on every worker this service starts, and when it has none; returns the unsubscribe. */
+    onWorker(fn) { workerListeners.add(fn); if (worker) fn(worker); return () => workerListeners.delete(fn) },
+    ask,
+    /** A message for this service's worker that is not a job (the hub's door answers); dropped when there is none. */
+    notify(msg, transfer) {
+      if (!worker) return false
+      try { worker.postMessage(msg, transfer || []); return true } catch { return false }
+    },
   }
 }
 

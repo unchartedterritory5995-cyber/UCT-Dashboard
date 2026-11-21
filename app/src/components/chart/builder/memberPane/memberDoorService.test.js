@@ -29,6 +29,8 @@ import {
 import { runtimeLaneWarmAsks } from '../../engine/runtime/runtimeAsync'
 import { __resetRuntimePanePermission, __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
 import { canonOf, fakeDoorWorkers, FakeDoorWorker, importWorkerCore } from '../../../../testing/builder/memberDoor.testkit.js'
+// ⭐ the page reads a door answer without its translation (the hub's: `memberDoorWorkerCore.doorForPage`)
+import { doorForPage } from './memberDoorWorkerCore'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 const corpus = (n) => fs.readFileSync(path.join(REPO, 'corpus/committed', n), 'utf8')
@@ -129,7 +131,7 @@ describe('2. cancel-on-rebuild: never two builds racing, never a build nobody as
     made[1].release()
     await settle()
     expect(a).toHaveLength(1)
-    expect(canonOf(a[0].built)).toBe(canonOf(memberPaneDefinition({ source: RVOL, id: MEMBER_PANE_DEF_PREFIX })))
+    expect(canonOf(a[0].built)).toBe(canonOf(doorForPage(memberPaneDefinition({ source: RVOL, id: MEMBER_PANE_DEF_PREFIX }))))
     expect(maxInFlight, 'one build at a time').toBe(1)
     offA(); offB()
     svc.dispose()
@@ -233,7 +235,7 @@ describe('5. the CONTROL: a fast script answers at once, and its answer is the m
     await until(() => got.length === 1, 10000)
     expect(Date.now() - t0).toBeLessThan(1000)
     expect(got[0].offThread).toBe(true)
-    expect(canonOf(got[0].built)).toBe(canonOf(main))
+    expect(canonOf(got[0].built)).toBe(canonOf(doorForPage(main)))
     off()
     svc.dispose()
   }, 60000)
@@ -310,14 +312,14 @@ describe('7. the permission: a worker that latched "not permitted" is never aske
       off()
       return got[n].built
     }
-    expect(canonOf(await ask())).toBe(canonOf(notPermitted))
+    expect(canonOf(await ask())).toBe(canonOf(doorForPage(notPermitted)))
     __permitRuntimePaneForTests()                       // the member's permission arrives
-    expect(canonOf(await ask()), 'answered as permitted').toBe(canonOf(permitted))
+    expect(canonOf(await ask()), 'answered as permitted').toBe(canonOf(doorForPage(permitted)))
     expect(made, 'a fresh worker').toHaveLength(2)
     expect(made[0].terminated).toBe(true)
     expect(svc.stats().relatched).toBe(1)
     __resetRuntimePanePermission()                      // revoked: the latch applies a revocation in place
-    expect(canonOf(await ask()), 'answered as not permitted, by the same worker').toBe(canonOf(notPermitted))
+    expect(canonOf(await ask()), 'answered as not permitted, by the same worker').toBe(canonOf(doorForPage(notPermitted)))
     expect(made).toHaveLength(2)
     svc.dispose()
   }, 240000)

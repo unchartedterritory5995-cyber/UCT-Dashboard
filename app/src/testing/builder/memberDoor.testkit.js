@@ -81,10 +81,40 @@ export class FakeDoorWorker {
     this.onmessage = null
     this.onerror = null
     this.onmessageerror = null
+    // ⭐ THE HUB: what this worker's handler sends the page unasked (a status), one microtask later, cloned
+    if (typeof core.setPagePost === 'function') {
+      core.setPagePost((m) => {
+        const data = structuredClone(m)
+        Promise.resolve().then(() => { if (!this.terminated && this.onmessage) this.onmessage({ data }) })
+      })
+    }
   }
 
-  postMessage(msg) {
+  /** Runs `fn` as this worker's own work (a counting stand-in marks it). */
+  inWorker(fn) { return fn() }
+
+  postMessage(msg, transfer) {
     if (this.terminated) return
+    // ⭐ THE HUB: the page's channel to the other worker (its port handed to the handler, every message it delivers run
+    // as this worker's work), and a door answer the page made (handed to the handler one microtask later)
+    if (msg && msg.kind === 'peer') {
+      const port = transfer && transfer[0]
+      if (port && typeof this.core.setPeer === 'function') {
+        const worker = this
+        const wrapped = {
+          postMessage: (m) => port.postMessage(m),
+          close: () => { if (port.close) port.close() },
+          set onmessage(h) { port.onmessage = h ? (e) => worker.inWorker(() => h(e)) : null },
+        }
+        this.inWorker(() => this.core.setPeer(wrapped, msg.role))
+      }
+      return
+    }
+    if (msg && typeof msg.type === 'string') {
+      const data = structuredClone(msg)
+      Promise.resolve().then(() => { if (!this.terminated) this.inWorker(() => this.core.acceptPageMessage(data)) })
+      return
+    }
     const job = structuredClone(msg)
     this.jobs.push(job)
     if (this.onPost) this.onPost(job, this)
@@ -144,4 +174,18 @@ export async function importWorkerCore(vi) {
     }
   }
   return import('../../components/chart/builder/memberPane/memberDoorWorkerCore.js')
+}
+
+/** ⭐ A stand-in MessageChannel for the hub (`inspectAsync.__setHubChannelForTests`): two linked ports, each message
+ *  structured-cloned and delivered one microtask later (a real channel delivers on the event loop, which a rail's fake
+ *  timers would hold). */
+export function fakeChannel() {
+  const make = () => ({ onmessage: null, other: null, closed: false,
+    postMessage(m) { const data = structuredClone(m); const to = this.other; Promise.resolve().then(() => { if (!to.closed && to.onmessage) to.onmessage({ data }) }) },
+    close() { this.closed = true } })
+  const port1 = make()
+  const port2 = make()
+  port1.other = port2
+  port2.other = port1
+  return { port1, port2 }
 }

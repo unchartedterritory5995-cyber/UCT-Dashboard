@@ -15,8 +15,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPane/memberPaneDefinition'
-import { useMemberDoor, useWorkerJob } from './memberPane/useMemberDoor'
-import { statusService, statusArgsOf } from './inspectAsync'
+import { useMemberDoor } from './memberPane/useMemberDoor'
+import { useHubStatus } from './useHubStatus'
 import { memberDoorKeyOf } from './memberPane/memberDoorAsync'
 import {
   PANEL_STATE, SEVERITY, stillWorksText, sourceLine,
@@ -434,14 +434,12 @@ export function usePineEditorStatus({ enabled, report, inspectedSource = '', sav
   const paneChecking = !!(doorArgs && door.pending)
   const asked = useAdmissionPending(isPine ? inspectedSource : '', pane, admission)
   useEffect(() => { if (asked.answers) setLanded(asked.answers) }, [asked.answers])
-  // ⭐⭐ THE PASTE WORKER (2026-11-21) — the status is computed off the main thread, once per (report, door answer,
-  // saved row, text) (`inspectAsync.js::statusService`). While a newer one computes, the last one stands, marked as
-  // checking (nothing it lists or records is about the newest answer yet).
-  const statusArgs = useMemo(() => (isPine ? statusArgsOf({ report, pane, savedRow, inspectedSource }) : null),
-    [isPine, report, pane, savedRow, inspectedSource])
-  const statusJob = useWorkerJob(statusService(), statusArgs, null)
-  const status = isPine && statusJob.landed ? statusJob.landed.status : null
-  const statusChecking = !!(statusArgs && statusJob.pending)
+  // ⭐⭐ THE PASTE WORKER (2026-11-21) — the status is made in the report's worker, where the full report and the
+  // chart door's full answer meet (`inspectAsync.js`, the hub), and read here by name (`useHubStatus`). While the
+  // current one has not come, the last one stands, marked as checking.
+  const hub = useHubStatus({ enabled: isPine, report, pane, savedRow, inspectedSource })
+  const status = isPine ? hub.status : null
+  const statusChecking = isPine && hub.pending
   // ⭐ the real run, and the drawings the lane lost: beside the status, never inside it (see above)
   const run = useRunOnChart(status ? pane : null, chart, runOnChart ? { run: runOnChart } : undefined)
   const lostDrawings = useMemo(() => (status ? drawingLossOf(pane) : null), [status, pane])
