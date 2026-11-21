@@ -233,6 +233,8 @@ export function oneLineOf(status) {
   return look[0] || shownName(status?.name, 'your indicator')
 }
 const sentence = (s) => { const t = String(s || '').trim(); return t ? `${t[0].toUpperCase()}${t.slice(1)}`.replace(/[.\s]+$/, '') : t }
+/** UCT's own notes about the build an applied turn made (`outcomeOf`'s `uctNotes`), as must-show lines. */
+const uctNotesOf = (out) => (Array.isArray(out?.uctNotes) ? out.uctNotes.filter(n => typeof n === 'string' && n.trim()) : [])
 /** The lines a member must always see after a turn (Indicators (d)): questions, refusals, unavailable. */
 const mustShow = (lines) => (lines || []).filter(l => /^Question:|cannot be used|couldn’t|could not|not understood|isn’t available|is not available/i.test(String(l)))
 // ⛔ F2b — WHAT "SAVE IT" MEANS. One deterministic rule, shared by the fast path (layout.js and
@@ -746,7 +748,10 @@ export const indicatorDraftsKind = {
           // full read-back stays in the context for "how does it work?". Questions / refusals / unavailable
           // parts are never collapsed. A Save riding in this request (R1) answers the "apply it?" itself.
           const rides = patch.ops.some(o => o.type === 'save')
-          lines.push(`${opened ? 'Draft ready' : 'Draft updated'} (not saved yet): ${sentence(oneLineOf(st))}.${rides ? '' : ' Want me to apply it or change anything?'}`, ...mustShow(out.lines))
+          // ⭐ 2026-11-21 (ruling, amending the one-line rule above FOR THIS CASE ONLY): what UCT ITSELF says about
+          // a build's limits (a count that stops, a value recomputed from N bars back) is a must-show line too,
+          // each on its own line under the one line. The assistant's own assumptions are not: the dock shows them.
+          lines.push(`${opened ? 'Draft ready' : 'Draft updated'} (not saved yet): ${sentence(oneLineOf(st))}.${rides ? '' : ' Want me to apply it or change anything?'}`, ...mustShow(out.lines), ...uctNotesOf(out))
           undoData = { draftRef, stepId: out.stepId }
         } else if (out.kind === 'question') {
           lines.push(...(out.reply ? [out.reply] : []), ...(out.questions || []), 'No change was made to the draft.')

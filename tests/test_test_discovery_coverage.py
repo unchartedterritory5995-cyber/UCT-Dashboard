@@ -140,6 +140,24 @@ def test_every_collectable_test_file_lives_under_a_testpaths_root(discovery):
     )
 
 
+def _generates_tests(tree: ast.Module) -> bool:
+    """Does the module install its tests at import time, with a module-level `globals().update(<call>)`?
+
+    ⚰️ 2026-10-15 (63a570ecae, the internal trader-setup detectors): seven detector batteries under
+    tests/pattern_engine/detectors/ build their tests with a shared generator, e.g.
+    `globals().update(make_tests("uct_kicker", detect_uct_kicker, ...))`, and define no `def test_*` of
+    their own. pytest collects every one; this rail called all seven "a module named into collection by
+    accident" for five weeks. A module-level `globals().update(...)` whose argument is a CALL is that
+    shape and nothing else counts: a file that defines no test and installs none is still named."""
+    for stmt in tree.body:
+        call = stmt.value if isinstance(stmt, ast.Expr) else None
+        if (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.func.attr == "update"
+                and isinstance(call.func.value, ast.Call) and isinstance(call.func.value.func, ast.Name)
+                and call.func.value.func.id == "globals" and call.args and isinstance(call.args[0], ast.Call)):
+            return True
+    return False
+
+
 def _matches_prefix_or_glob(patterns, name: str) -> bool:
     """pytest's own rule for `python_functions`/`python_classes`: a value with
     glob characters is fnmatched, anything else is a plain prefix."""
@@ -184,7 +202,7 @@ def test_no_production_module_is_wearing_a_test_name(pytestconfig, discovery):
              and _matches_prefix_or_glob(funcs, n.name))
             or (isinstance(n, ast.ClassDef) and _matches_prefix_or_glob(classes, n.name))
             for n in ast.walk(tree)
-        )
+        ) or _generates_tests(tree)
         if not has_test:
             empty.append(f"{rel}: matches python_files but defines no test")
     assert not empty, (

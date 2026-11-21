@@ -384,6 +384,16 @@ _VERIFIED_UPSERT_SQL = (
 #: store_meta keys: wholesale-change floors (see `bump_store_floor`).
 REV_FLOOR_KEY = "rev_floor_ms"
 PROOF_FLOOR_KEY = "proof_floor_s"
+#: ⭐ THE SHARED HISTORY FLOOR (2026-11-21, the content-derived base). The served history_rev (and rev) of
+#: every series is at least this, on EVERY store, because it is a committed constant rather than a store's own
+#: clock or floor. Why: a browser compares history_rev across whichever store answered (it refuses a LOWER
+#: one and re-reads on a HIGHER one), and on 2026-11-21 web and bars-api served different bases for 70 of 70
+#: series measured (their floors 7.7 h apart). Set ABOVE every floor and series measured that day
+#: (web 1794637146710, bars-api 1794609510375, snapshot 1794665511070, highest series 1795159493420) and
+#: BELOW the deploy, so a write after it still rises: every untouched series is then the same number on
+#: every pod. The deploy costs ONE full re-read of every cached series for every browser.
+#: ⛔ ONLY EVER RAISED, by a deliberate PR that appends to `T_LEDGER` (tests/test_history_rev_content_base.py).
+HISTORY_REV_SHARED_FLOOR_MS = 1795231800000          # 2026-11-21T03:30:00Z
 #: A wholesale DELETE (the boot heals) leaves holes in every series: the oldest deleted
 #: key and when — a series that has not been covered since must reach back to it.
 GLOBAL_UNSEALED_FROM_KEY = "unsealed_from_ts"
@@ -405,12 +415,42 @@ def _create_meta_tables(c: sqlite3.Connection) -> None:
 
 _hlc_lock = threading.Lock()
 _hlc_last_ms = 0
+_hlc_seeded = False
+
+
+def _hlc_seed() -> int:
+    """The highest stamp the store already holds (its floor and every series' revs), read once per process
+    (D4): a new process whose wall clock stepped back never stamps below what it served before. Read-only,
+    a separate connection, never raises (0 when the store cannot be read)."""
+    try:
+        c = sqlite3.connect(f"file:{_DB_PATH}?mode=ro", uri=True, timeout=1)
+        try:
+            vals = [HISTORY_REV_SHARED_FLOOR_MS]
+            for sql in ("SELECT MAX(v) FROM store_meta WHERE k='rev_floor_ms'",
+                        "SELECT MAX(rev) FROM series_meta", "SELECT MAX(history_rev) FROM series_meta"):
+                try:
+                    v = c.execute(sql).fetchone()[0]
+                    if v is not None:
+                        vals.append(int(float(v)))
+                except sqlite3.OperationalError:
+                    pass
+            return max(vals)
+        finally:
+            c.close()
+    except Exception:                                    # noqa: BLE001 - a clock must never fail
+        return 0
 
 
 def _now_ms() -> int:
     """This process's hybrid-logical clock in ms: wall time, but strictly increasing
-    across calls (two writes in one millisecond still get distinct, ordered revs)."""
-    global _hlc_last_ms
+    across calls (two writes in one millisecond still get distinct, ordered revs), and
+    never below what the store already holds (`_hlc_seed`, once per process)."""
+    global _hlc_last_ms, _hlc_seeded
+    if not _hlc_seeded:
+        seed = _hlc_seed()
+        with _hlc_lock:
+            _hlc_last_ms = max(_hlc_last_ms, seed)
+            _hlc_seeded = True
     with _hlc_lock:
         _hlc_last_ms = max(_hlc_last_ms + 1, int(time.time() * 1000))
         return _hlc_last_ms
@@ -649,7 +689,18 @@ _mem_floors = {"rev_floor_ms": 0.0, "proof_floor_s": 0.0}   # + global unsealed 
 _pending_floors: dict = {}
 
 
-def bump_store_floor(reason: str = "", deleted_from: int | None = None) -> None:
+def _persist_floors_now(vals: dict) -> None:
+    """Write the floors to store_meta at once (max-merge), on a short-lived connection of its own."""
+    c = sqlite3.connect(_DB_PATH, timeout=5)
+    try:
+        c.executemany("INSERT INTO store_meta(k, v) VALUES (?, ?) "
+                      "ON CONFLICT(k) DO UPDATE SET v = max(store_meta.v, excluded.v)", list(vals.items()))
+        c.commit()
+    finally:
+        c.close()
+
+
+def bump_store_floor(reason: str = "", deleted_from: int | None = None, persist: bool = False) -> None:
     """A WHOLESALE change (bars.db replaced by a snapshot, a bulk delete across many
     series): every series' served rev becomes >= now_ms and every proof taken before
     now is void. Lock-free for the caller (persisted by the meta flusher) so it is safe
@@ -673,6 +724,17 @@ def bump_store_floor(reason: str = "", deleted_from: int | None = None) -> None:
         _pending_verified.clear()       # every queued proof predates the floor
         _pending_seals.clear()
     _logger.info("[sqlite] store floor bumped (%s)", reason or "wholesale change")
+    if persist:
+        # ⭐ D4 (2026-11-21): an INSTALL's floor reaches disk before the call returns. Left to the 1 s flusher,
+        # a restart in that second served the new file at the worker's lower floor: every series this pod had
+        # just served at the install instant FELL, and browsers refuse a lower history_rev. Only callers that
+        # hold no write transaction pass persist=True; a failure falls back to the flusher, never raises.
+        try:
+            with _floor_lock:
+                vals = {REV_FLOOR_KEY: _mem_floors[REV_FLOOR_KEY], PROOF_FLOOR_KEY: _mem_floors[PROOF_FLOOR_KEY]}
+            _persist_floors_now(vals)
+        except Exception as e:                           # noqa: BLE001
+            _logger.warning("[sqlite] store floor persist deferred to the flusher: %s", e)
     _ensure_meta_flusher()
 
 
@@ -974,6 +1036,7 @@ def series_meta(ticker: str, tf: str, _conn_override=None) -> dict:
     answers rev 0 / no proof."""
     key = (ticker.upper(), str(tf))
     rev, hrev, vt, pfloor = 0, 0, None, _mem_floors[PROOF_FLOOR_KEY]
+    hrow, floor_ms = 0, 0
     adj = None
     seal_row = (None, None, None, None)
     glob = (None, None)
@@ -997,8 +1060,11 @@ def series_meta(ticker: str, tf: str, _conn_override=None) -> dict:
             vt = float(row[2]) if row[2] is not None else None
             pfloor = max(pfloor, float(row[3] or 0))
             seal_row = (row[4], row[5], row[6], row[7])
-        rev = max(rev, int(rev_floor))
-        hrev = max(hrev, int(rev_floor))
+        hrow, floor_ms = hrev, int(rev_floor)            # the series' own number, for the stamp (D6)
+        # The shared floor covers every series this store HOLDS; one never written keeps "rev 0 = no write".
+        shared = HISTORY_REV_SHARED_FLOOR_MS if row else 0
+        hrev = max(hrev, floor_ms, shared)
+        rev = max(rev, floor_ms, shared, hrev if row else 0)          # a history change is a change
         pfloor = max(pfloor, store_pfloor)
         glob = _store_unsealed(c)
     except Exception:                                    # noqa: BLE001
@@ -1018,7 +1084,9 @@ def series_meta(ticker: str, tf: str, _conn_override=None) -> dict:
         # held history or prepended rows (an old-basis fallback, a merge) voids it.
         from api.services import adjustment_basis as _ab
         st = _ab.parse_stamp(adj)
-        if st is not None and st[0] == hrev:
+        # ⭐ D6 (2026-11-21): a stamp binds to the series' OWN history_rev (`hrow`), so a floor (a store's or the
+        # shared one) never voids it; one bound before that, to max(own, store floor), still holds.
+        if st is not None and st[0] in (hrow, max(hrow, floor_ms)):
             try:
                 first = c.execute("SELECT MIN(ts) FROM ohlcv WHERE ticker=? AND tf=?", key).fetchone()[0]
             except Exception:                            # noqa: BLE001
@@ -1512,7 +1580,9 @@ def apply_split_basis(ticker: str, plans: dict) -> dict:
                                        series_meta(tkr, tf, _conn_override=c)["history_rev"]))
                         stamp = None
                         if p.get("adj_events") is not None:
-                            hrev = series_meta(tkr, tf, _conn_override=c)["history_rev"]
+                            # D6: the series' OWN history_rev (just moved by this write), never the floored one.
+                            hrev = int((c.execute("SELECT history_rev FROM series_meta WHERE ticker=? AND tf=?",
+                                                  (tkr, tf)).fetchone() or (0,))[0] or 0)
                             first = c.execute("SELECT MIN(ts) FROM ohlcv WHERE ticker=? AND tf=?",
                                               (tkr, tf)).fetchone()[0]
                             stamp = _ab.bind_stamp(p["adj_events"], hrev, first)
@@ -3157,6 +3227,82 @@ def _drop_stale_sealed(c, ticker: str, tf: str, rows: list, snapped: list, check
     return k_rows, k_snap
 
 
+class AddOnlyBar(dict):
+    """A bar a writer may ADD to the store but must never let REPLACE a row the store already holds:
+    `put_bars` writes it INSERT OR IGNORE even inside a replacing write. It is the plain dict it wraps
+    (JSON, `.get`, comparisons), so a reader that is not a writer never notices it.
+
+    ⚰️ 2026-11-21, web's CX: a deep fetch's yfinance graft (bars older than Massive's 2003-09-10 floor)
+    written on Yahoo's basis, which is 1.04^4 below the vendor's for CX, REPLACED the 1,001 stored rows
+    before the floor. That put a x1.16 cliff at 2003-09-10, an overnight move that never traded. A graft
+    whose join cannot be proven (`bars_fetch._yf_join_factor` None) is AddOnlyBar
+    (`bars_fetch._merge_daily_bars`). Rails: tests/test_deep_merge_join.py."""
+    __slots__ = ()
+
+
+#: ⭐ PROVENANCE OF UNJOINED ROWS (ruling 2026-11-21). Every write that FILLED dates from an AddOnlyBar
+#: (an unjoined source: no proven join factor, or an empty Massive answer) logs the span it filled, so
+#: rows on an unproven basis can be found and rebased. A later proven join rebases them on its own: it
+#: is a plain, replacing write. Best effort: the log never fails the bar write.
+#: ⭐ A ROW IS ONE LOGGED FILL, so its key is a rowid alias (`id INTEGER PRIMARY KEY`): two fills of one series in
+#: one millisecond are two rows, never one replacing the other (a natural key of ticker/tf/ts_min/written_at_ms
+#: could collide and drop a note). The address book requires every table to say what one row is one of.
+_UNJOINED_DDL = ("CREATE TABLE IF NOT EXISTS unjoined_writes (id INTEGER PRIMARY KEY, ticker TEXT NOT NULL, "
+                 "tf TEXT NOT NULL, ts_min INTEGER NOT NULL, ts_max INTEGER NOT NULL, rows INTEGER NOT NULL, "
+                 "written_at_ms INTEGER NOT NULL, source TEXT NOT NULL)")
+
+
+def _bar_key(b: dict, date_tf: bool) -> int | None:
+    try:
+        t = b.get("t")
+        return int(str(t).replace("-", "")) if date_tf else int(t)
+    except (TypeError, ValueError):
+        return None
+
+
+def _held_keys(ticker: str, tf: str, bars: list, date_tf: bool) -> set:
+    """The stored keys among `bars`' key range (one PK range seek), read just before an add-only write."""
+    keys = [k for k in (_bar_key(b, date_tf) for b in bars) if k is not None]
+    if not keys:
+        return set()
+    try:
+        rows = _conn().execute("SELECT ts FROM ohlcv WHERE ticker=? AND tf=? AND ts BETWEEN ? AND ?",
+                               (ticker.upper(), tf, min(keys), max(keys))).fetchall()
+    except sqlite3.Error:
+        return set(keys)                  # unknown: claim nothing was filled
+    return {r[0] for r in rows}
+
+
+def _note_unjoined(ticker: str, tf: str, bars: list, date_tf: bool, held_before: set) -> None:
+    filled = sorted(k for k in {_bar_key(b, date_tf) for b in bars} - set(held_before) if k is not None)
+    if not filled:
+        return
+    try:
+        present = _held_keys(ticker, tf, [{"t": k} for k in filled], False)
+        filled = [k for k in filled if k in present]   # refused bars (validation, calendar) were not written
+        if not filled:
+            return
+        with _WRITE_LOCK:
+            c = _conn()
+            c.execute(_UNJOINED_DDL)
+            c.execute("INSERT INTO unjoined_writes (ticker, tf, ts_min, ts_max, rows, written_at_ms, source) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                      (ticker.upper(), tf, filled[0], filled[-1], len(filled), _now_ms(), "unjoined-yfinance"))
+            c.commit()
+    except Exception:  # noqa: BLE001 — provenance never fails the write
+        _logger.warning("[sqlite] %s tf=%s: unjoined-provenance log failed", ticker, tf)
+
+
+def unjoined_writes(ticker: str, tf: str) -> list[dict]:
+    """The logged unjoined fills of one series, oldest first."""
+    try:
+        rows = _conn().execute("SELECT ts_min, ts_max, rows, written_at_ms, source FROM unjoined_writes "
+                               "WHERE ticker=? AND tf=? ORDER BY written_at_ms", (ticker.upper(), tf)).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return [dict(zip(("ts_min", "ts_max", "rows", "written_at_ms", "source"), r)) for r in rows]
+
+
 def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
              on_conflict: str = "replace", checked_at: float | None = None) -> int:
     """Upsert bars.  date_tf=True means bar["t"] is 'YYYY-MM-DD' → YYYYMMDD int.
@@ -3175,9 +3321,20 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
     On ``DatabaseError: disk image is malformed`` schedules a background
     recovery (snapshot re-pull from R2) and re-raises so the caller's
     exception handler can return an empty result for this single request.
+
+    An ``AddOnlyBar`` in a replacing write is written ADD-ONLY (its own INSERT OR IGNORE
+    write): it may fill a date the store lacks, never replace a row the store holds.
     """
     if not bars:
         return 0
+    if on_conflict != "ignore" and any(isinstance(b, AddOnlyBar) for b in bars):
+        plain = [b for b in bars if not isinstance(b, AddOnlyBar)]
+        add = [b for b in bars if isinstance(b, AddOnlyBar)]
+        n = put_bars(ticker, tf, plain, date_tf, on_conflict, checked_at) if plain else 0
+        held = _held_keys(ticker, tf, add, date_tf)
+        n += put_bars(ticker, tf, add, date_tf, "ignore", checked_at)
+        _note_unjoined(ticker, tf, add, date_tf, held)
+        return n
     ticker = ticker.upper()
     bars, _rejected = _writable_bars(ticker, tf, bars)
     bars, snapped = _grid_rows(ticker, tf, bars, date_tf)

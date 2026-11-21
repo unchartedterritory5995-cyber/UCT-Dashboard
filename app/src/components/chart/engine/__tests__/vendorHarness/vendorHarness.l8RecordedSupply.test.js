@@ -87,6 +87,15 @@ describe('L8 — what the grade is handed', () => {
     expect(ours.ok).toBe(false)
     expect(String(ours.refusal)).toMatch(/not recorded — other symbol SPX: not graded, by owner ruling 2026-11-15/)
   })
+
+  // ⭐ (coordinator ruling 2026-11-21, the Fred RS parity audit at engine 91, option (b)) the three post-close captures of
+  // 2026-11-17 have no record of what our server served; their post-close state is graded MATCH by pm-rddt-1d-2026-11-16.
+  // Before this record they read DIVERGE on no-bars (other-symbol:no-bars); now each is refused by NAME, never graded.
+  it.each(['agl', 'nvda', 'rddt'])('⛔ pc-%s-1d-2026-11-17: deliberately not supplied (coordinator ruling), INCONCLUSIVE by name', (sym) => {
+    const ours = runOurSide(capOf(`rs-rating-fred6724-pc-${sym}-1d-2026-11-17`))
+    expect(ours.ok).toBe(false)
+    expect(String(ours.refusal)).toMatch(/not recorded — other symbol (SPX|RSRATING|SEED_FRED6725_RS_RATING:RSRATING): not graded, by coordinator ruling 2026-11-21/)
+  })
 })
 
 describe('L8 — the runtime-on lane\'s run-half grant is a test seam only', () => {

@@ -253,6 +253,10 @@
   "B-SLIPPAGE": [
    "w9-k4-slippage-rddt-1d-2026-11-15"
   ],
+  "B-START-DEEP": [
+   "supertrend-strategy-deep-aapl-1d-2026-11-19",
+   "supertrend-strategy-deep-spy-1d-2026-11-19"
+  ],
   "B-TICK-HIST": [
    "w9-p3-every-tick-history-rddt-1d-2026-11-15"
   ],

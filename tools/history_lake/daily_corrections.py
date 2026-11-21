@@ -208,8 +208,156 @@ def _atomic_json(path, obj):
     os.replace(tmp, path)
 
 
+def rescale_check(store: str, out: Path) -> dict:
+    """F3 (coordinator ruling): the standing rescale check (tools/bars_rescale_check.py) over the SAME store this build
+    reads. Writes out/RESCALE_FLAG.json {"exit", "names"}. Exit 2 (could not run) fails the build; a finding is not a
+    failure here: `publish` refuses every flagged name unless it is listed in --cleared."""
+    from tools import bars_rescale_check as F3
+    code = F3.main(["--db", store, "--out", str(out / "rescale_check.json")])
+    if code == 2:
+        raise SystemExit("bars_rescale_check could not run: the build stops (F3)")
+    rep = json.load(open(out / "rescale_check.json"))
+    names = sorted({str(r.get("ticker")).upper() for r in rep.get("rescale_artifacts") or ()}
+                   | {str(r.get("ticker")).upper() for k in ("pending", "declined") for r in rep.get(k) or ()})
+    flag = {"exit": code, "names": names}
+    _atomic_json(out / "RESCALE_FLAG.json", flag)
+    print("F3 rescale check:", code, names)
+    return flag
+
+
+def blocked_names(out: Path, cleared: str) -> set:
+    """F3-flagged names a publish must not carry: their stored rows hold rescale damage, so a compare-and-set entry built
+    on them could turn one wrong value into another. `--cleared` names the ones data-identity's rows have replaced.
+    No flag file: the build did not run the check, and nothing may be published."""
+    p = out / "RESCALE_FLAG.json"
+    if not p.exists():
+        raise SystemExit("refused: no RESCALE_FLAG.json (the build must run the F3 rescale check first)")
+    flag = json.load(open(p))
+    if int(flag.get("exit", 2)) == 2:
+        raise SystemExit("refused: the F3 rescale check could not run on this build")
+    return {str(s).upper() for s in flag.get("names") or ()} - {x.strip().upper() for x in (cleared or "").split(",") if x.strip()}
+
+
+def has_list_olds(entries) -> bool:
+    return any(isinstance(p, (list, tuple)) and p and isinstance(p[0], (list, tuple))
+               for e in entries for p in (e.get("f") or {}).values())
+
+
+def merge_same_key(entries: list) -> list:
+    """One entry per (tf, src, d, op): a `set` key that several rows name becomes ONE entry whose fields carry every
+    candidate old (U6 list-olds), and REFUSES (SystemExit) when the rows disagree on a field's new value. Drops and
+    keep_wicks on one key must be identical."""
+    out, by = [], {}
+    for e in entries:
+        key = (e.get("tf"), e.get("src"), e.get("d"), e.get("op"))
+        if key not in by:
+            by[key] = {**e, "f": {k: [list(v[0]) if isinstance(v[0], (list, tuple)) else [v[0]], v[1]]
+                                  for k, v in (e.get("f") or {}).items()}} if e.get("op") == "set" else dict(e)
+            out.append(key)
+            continue
+        cur = by[key]
+        if e.get("op") != "set":
+            if {k: v for k, v in e.items()} != {k: v for k, v in cur.items()}:
+                raise SystemExit(f"refused: two different {e.get('op')} rows on {key}")
+            continue
+        for k, v in (e.get("f") or {}).items():
+            olds = list(v[0]) if isinstance(v[0], (list, tuple)) else [v[0]]
+            if k in cur["f"]:
+                if abs(float(cur["f"][k][1]) - float(v[1])) > 1e-9:
+                    raise SystemExit(f"refused: rows on {key} disagree on the new {k}: {cur['f'][k][1]} vs {v[1]}")
+                cur["f"][k][0] += [o for o in olds if all(abs(o - x) > 1e-9 for x in cur["f"][k][0])]
+            else:
+                cur["f"][k] = [olds, v[1]]
+        if (e.get("chk") or {}) != (cur.get("chk") or {}):
+            cur["chk"] = {}                         # rows measured on different stores: only the per-field old matches
+    ops = defaultdict(set)
+    for tf, src, d, op in out:
+        ops[(tf, src, d)].add(op)
+    both = sorted(k for k, v in ops.items() if {"set", "drop"} <= v)
+    if both:                                        # the applier would answer by entry ORDER: two authorities, refuse
+        raise SystemExit(f"refused: a set and a drop on the same bar {both[:3]} ({len(both)} bars)")
+    res = []
+    for key in out:
+        e = by[key]
+        if e.get("op") == "set":
+            e = {**e, "f": {k: [v[0][0] if len(v[0]) == 1 else v[0], v[1]] for k, v in e["f"].items()}}
+        res.append(e)
+    return res
+
+
+def row_entry(r: dict) -> dict:
+    """A ledger row (ours or data-identity's: sym, tf, d, src, op, f/old, chk, plus evidence) as a payload entry."""
+    op, base = r.get("op"), {"tf": r["tf"], "src": r["src"], "d": r["d"], "op": r.get("op")}
+    if op == "set":
+        return {**base, "f": {k: list(v) for k, v in (r.get("f") or {}).items()}, "chk": dict(r.get("chk") or {})}
+    if op == "drop":
+        return {**base, "old": list(r["old"])}
+    if op == "keep_wick":
+        return {**base, "field": r["field"], "value": r["value"]}
+    raise SystemExit(f"refused: a row with op {op!r} ({r.get('sym')} {r.get('tf')} {r.get('d')}) is not a payload entry")
+
+
+def cmd_rows(a):
+    """Load ledger-row files (data-identity's R-C rows) into out/entries, for one version with the builder's entries.
+    Every row becomes a payload entry and is merged with that symbol's builder entries through `merge_same_key`, which
+    refuses rows that disagree on a new value or put a set and a drop on one bar. A symbol in --replace has its builder
+    entries REPLACED (the rows supersede a basis the builder read wrong); an F3-flagged symbol that already has builder
+    entries must be named there or the load is refused. `--exclude FILE:SYM,...` leaves a file's rows for a symbol out
+    (a later file superseding them). All or nothing: a refusal writes no file. Records out/rows_loaded.json."""
+    import hashlib
+    out = Path(a.out)
+    ent_dir = out / "entries"
+    flagged = blocked_names(out, "")
+    replace = {x.strip().upper() for x in (a.replace or "").split(",") if x.strip()}
+    only = {x.strip().upper() for x in (a.symbols or "").split(",") if x.strip()}
+    excl = defaultdict(set)
+    for x in (a.exclude or "").split(","):
+        if x.strip():
+            f, _, s = x.strip().rpartition(":")
+            if not f or not s:
+                raise SystemExit(f"refused: --exclude wants FILE:SYM, got {x!r}")
+            excl[os.path.basename(f)].add(s.upper())
+    unknown = set(excl) - {os.path.basename(f) for f in a.files}
+    if unknown:
+        raise SystemExit(f"refused: --exclude names files not being loaded: {sorted(unknown)}")
+    new, rec = defaultdict(list), {"files": [], "exclude": {k: sorted(v) for k, v in excl.items()}, "replace": sorted(replace)}
+    for f in a.files:
+        raw = open(f, "rb").read()
+        n = skipped = 0
+        for line in raw.decode("utf-8").splitlines():
+            if not line.strip():
+                continue
+            r = json.loads(line)
+            sym = str(r["sym"]).upper()
+            if sym in excl.get(os.path.basename(f), ()) or (only and sym not in only):
+                skipped += 1
+                continue
+            new[sym].append(row_entry(r))
+            n += 1
+        rec["files"].append({"file": os.path.basename(f), "sha256": hashlib.sha256(raw).hexdigest(), "rows": n, "skipped": skipped})
+    plans, per = {}, {}
+    for sym in sorted(new):
+        p = ent_dir / f"{sym}.json"
+        have = json.load(open(p)) if p.exists() else []
+        if have and sym in flagged and sym not in replace:
+            raise SystemExit(f"refused: {sym} is F3-flagged and has builder entries; name it in --replace (the rows "
+                             f"supersede them) or leave its rows out")
+        kept = [] if sym in replace else have
+        plans[sym] = merge_same_key(kept + new[sym])
+        per[sym] = {"builder_kept": len(kept), "builder_replaced": len(have) - len(kept), "rows": len(new[sym]),
+                    "entries": len(plans[sym]), "list_old_entries": sum(has_list_olds([e]) for e in plans[sym])}
+    ent_dir.mkdir(parents=True, exist_ok=True)
+    for sym, ents in plans.items():
+        _atomic_json(ent_dir / f"{sym}.json", ents)
+    rec["symbols"] = per
+    _atomic_json(out / "rows_loaded.json", rec)
+    print(json.dumps(per, indent=1))
+    return per
+
+
 def cmd_build(a):
     out = Path(a.out)
+    rescale_check(a.store, out)
     minutes = json.load(open(out / "minutes.json"))
     raw = json.load(open(out / "rawday.json"))
     ent_dir = out / "entries"
@@ -266,10 +414,16 @@ def cmd_publish(a, client=None, bucket=None):
     from api.services import bars_corrections as K
     out = Path(a.out)
     have = {p.stem for p in (out / "entries").glob("*.json")}
+    blocked = blocked_names(out, getattr(a, "cleared", ""))
     if a.stage == "none":
         names = set()                                     # the revert drill: every earlier symbol retires
     else:
-        names = have if a.stage == "all" else {s for s in a.stage.split(",") if s} & have
+        asked = have if a.stage == "all" else {s for s in a.stage.split(",") if s} & have
+        if a.stage != "all" and asked & blocked:
+            raise SystemExit(f"refused: F3-flagged {sorted(asked & blocked)} (clear them with --cleared)")
+        names = asked - blocked
+        if asked & blocked:
+            print("F3: left out of this publish:", sorted(asked & blocked))
         if not names:
             raise SystemExit(f"nothing to publish: {a.stage} has no entries")
     if client is None:
@@ -282,6 +436,15 @@ def cmd_publish(a, client=None, bucket=None):
             raise
         prev = None
     ents = {s: json.load(open(out / "entries" / f"{s}.json")) for s in sorted(names)}
+    # ⛔ U6: an applier older than U6 reads a list-old field as malformed and skips the whole entry, so a version with
+    # list-olds would half-apply across pods running mixed code. It is refused until the operator declares that every
+    # tier's applier supports them (`--appliers-support list_old`, after checking each tier's deployed commit), and the
+    # manifest says `requires: ["list_old"]` so a newer applier lacking the feature refuses the version whole.
+    needs = sorted({"list_old"} if any(has_list_olds(e) for e in ents.values()) else set())
+    declared = {x.strip() for x in (getattr(a, "appliers_support", "") or "").split(",") if x.strip()}
+    if set(needs) - declared:
+        raise SystemExit(f"refused: this version needs applier features {needs}; pass --appliers-support "
+                         f"{','.join(needs)} once every tier runs an applier that supports them")
     m = plan_manifest(prev, a.version, names, a.stage, {s: entries_hash(e) for s, e in ents.items()})
     rec_dir = out / "published" / f"v{a.version}"
     rec_dir.mkdir(parents=True, exist_ok=True)
@@ -293,6 +456,8 @@ def cmd_publish(a, client=None, bucket=None):
         if not a.dry:
             client.put_object(Bucket=bucket, Key=f"{K.PREFIX}v{a.version}/{s}.json.gz", Body=body, ContentType="application/json")
         (rec_dir / f"{s}.json.gz").write_bytes(body)
+    if needs:
+        m["requires"] = needs
     body = json.dumps(m).encode("utf-8")
     if not a.dry:
         client.put_object(Bucket=bucket, Key=K.MANIFEST_KEY, Body=body, ContentType="application/json", CacheControl="no-store")
@@ -427,7 +592,13 @@ def cmd_verify(a):
             w = want.get((sym, tf), {})
             last = max((str(x["t"])[:10] for x in af.get("bars") or []), default="")
             extra = {d: v for d, v in dif.items() if d not in w and d != last}       # the developing bar moves on its own
+            # A ledger row that did NOT reach the served answer (a compare-and-set or chk miss: the stored row moved, e.g.
+            # a re-fetch). Counted per ticker so a drifted series shows up as a number, not silence.
+            after_by = {str(x["t"])[:10]: x for x in af.get("bars") or []}
+            missed = [d for d, r in w.items() if r.get("op") == "set" and d in after_by
+                      and any(abs(after_by[d][k] - nv) > 1e-6 for k, (_ov, nv) in (r.get("f") or {}).items() if k in "ohlc")]
             report[f"{sym}_{tf}"] = {"changed": len(dif), "ledger_rows": len(w), "changed_not_in_ledger": len(extra),
+                                     "ledger_rows_not_applied": len(missed), "missed_sample": missed[:5],
                                      "extra_sample": dict(list(extra.items())[:5]),
                                      "history_rev": [bf.get("history_rev"), af.get("history_rev")]}
     print(json.dumps(report, indent=1, default=str))
@@ -436,7 +607,7 @@ def cmd_verify(a):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=("candidates", "minutes", "build", "publish", "capture", "verify", "yahoo"))
+    ap.add_argument("cmd", choices=("candidates", "minutes", "build", "rows", "publish", "capture", "verify", "yahoo"))
     ap.add_argument("--out", default="D:/uct-price-data/u3")
     ap.add_argument("--store", default="D:/uct-price-data/snapshot/x/bars.db")
     ap.add_argument("--joined", default="D:/uct-history/daily-v1/joined")
@@ -456,8 +627,13 @@ def main(argv=None):
     ap.add_argument("--before", default="")
     ap.add_argument("--after", default="")
     ap.add_argument("--symbols-file", default="")
+    ap.add_argument("--cleared", default="", help="F3-flagged names data-identity's rows have replaced (comma list)")
+    ap.add_argument("--appliers-support", default="", help="applier features every tier is verified to run (list_old)")
+    ap.add_argument("--files", nargs="+", default=[], help="rows: ledger-row .jsonl files to load into --out/entries")
+    ap.add_argument("--replace", default="", help="rows: symbols whose builder entries the loaded rows replace")
+    ap.add_argument("--exclude", default="", help="rows: FILE:SYM,... a file's rows to leave out (superseded)")
     a = ap.parse_args(argv)
-    {"candidates": cmd_candidates, "minutes": cmd_minutes, "build": cmd_build, "publish": cmd_publish,
+    {"candidates": cmd_candidates, "minutes": cmd_minutes, "build": cmd_build, "rows": cmd_rows, "publish": cmd_publish,
      "capture": cmd_capture, "verify": cmd_verify, "yahoo": cmd_yahoo}[a.cmd](a)
 
 

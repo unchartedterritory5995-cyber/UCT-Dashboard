@@ -39,12 +39,11 @@ Neither row is answered as asked. No committed grade uses them as regular-hours 
 supply keeps regular captures apart and prefers them. (The probe's own header still says "extended hours OFF". Its
 bytes are the captures' `source.sha256`, so it is corrected here, not there.)
 
-**The regular-hours re-takes (owed):** batch rows on the regular-hours layout `MyS1vKSg` (`run --layout MyS1vKSg`).
-They carry `"session": "regular"` and `"layout": "MyS1vKSg"`, so their capture ids end `-rth-<date>`.
-- Q-L2-rth: `vw-lower-tf-bars.pine` on NYSE:RDDT **15**, **60** and **240**.
-- Q-L3-rth: the same on NYSE:RDDT **5**.
-⚠️ They are listed here, not as table rows: the queue keys a target by probe, symbol and timeframe, with no session,
-so a table row would read as already answered by the extended captures.
+**The regular-hours re-takes (owed) are the Q-L2 and Q-L3 rows themselves.** The queue reads a row's session beside
+its chart ("extended hours OFF" / "extended OFF": regular) and answers it only with a capture that RECORDED that session
+(the session dimension, 2026-11-21), so the four targets `vw-lower-tf-bars@NYSE:RDDT@{5,15,60,240}@regular` are
+QUEUED and the four extended captures no longer answer them. Their manifest rows carry `"session": "regular"` and
+`"layout": "MyS1vKSg"` (the regular-hours rig layout, `run --layout MyS1vKSg`), so their capture ids end `-rth-<date>`.
 
 ## Q-L1 — `vw-lower-tf.pine`
 

@@ -640,6 +640,10 @@ export function execute(program, ctx, limits, opts) {
     if (ctx.bars > win) {
       throw new BrokerStart(`a strategy run takes the most recent ${win} bars, and this run holds ${ctx.bars}`)
     }
+    // ⭐⭐ [B-START-DEEP] (2026-11-19, the strategy-only daily window) the depth a run from the listing is served at
+    // without the deep-start rule: the context's `listingDepthBars` (the chart's shared window, from the server), and
+    // absent, the window itself (every caller that hands no second value runs exactly as before)
+    const depth = Number.isInteger(ctx.listingDepthBars) && ctx.listingDepthBars > 0 ? ctx.listingDepthBars : win
     // W9-T4 r1 — `ctx.minContract`: the symbol's `syminfo.mincontract`. W9-T4-F1: the one product caller
     // (`runtimeColumns.js`) derives it from the symbol's witnessed `symbolScope.json::min_contract` row, the
     // value a script's own `syminfo.mincontract` folds to; no row ⇒ undefined ⇒ a cash / percent-of-equity
@@ -651,6 +655,8 @@ export function execute(program, ctx, limits, opts) {
       tradingDays: ctx.tradingDays,
       // [B-EXEC] the forming newest bar this run does not execute (below), or none: the broker asks the rule
       formingBar: ctx.confirmed === false && ctx.bars > 0 ? ctx.bars - 1 : null,
+      // [B-START-DEEP] the bar past the served depth, when the run covers more (the broker asks the rule)
+      deepFrom: ctx.bars > depth ? ctx.bars - depth : null,
     })
   }
   // ⭐⭐ S1 — [B-EXEC] a default strategy executes once per CLOSED bar: on a forming bar

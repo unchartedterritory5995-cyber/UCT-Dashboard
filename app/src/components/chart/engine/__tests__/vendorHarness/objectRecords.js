@@ -339,7 +339,20 @@ export function pairRecords(capture, objects) {
   }
   {
     const spec = OBJECTS_V2_FIELDS.linefills
-    const vendor = [...(R.linefills || [])].filter(Boolean).sort(byId)
+    // ⭐ ORPHAN FILLS (coordinator ruling 2026-11-21). TradingView keeps the RECORD of a fill whose lines the object
+    // limit (`max_lines_count`) has removed from the chart; a fill between lines that are no longer there has no
+    // geometry and cannot be drawn. So only the fills whose two lines are BOTH in the capture's own line records are
+    // paired and counted; the others are counted apart (`orphanVendor`) and named, never a count difference.
+    // ⛔ FAIL CLOSED: where the capture holds no readable line records, no fill is an orphan (the grade is as before).
+    // ⚰️ liquidity-pools-spy-1d-2026-10-03: 504 fill records, 252 between two lines TradingView still holds; ours 252,
+    // every one paired and agreeing. price-action-as-in-book-...-spy-1d-2026-10-03: 261 records, 49 drawable; ours 49.
+    const linesReadable = Array.isArray(R.lines)
+      && !((capture.objects && Array.isArray(capture.objects.unreadable) ? capture.objects.unreadable : []).includes('lines'))
+    const vendorLineIds = new Set(linesReadable ? R.lines.filter(Boolean).map((l) => l.id) : [])
+    const drawable = (x) => !linesReadable || (vendorLineIds.has(x.line1) && vendorLineIds.has(x.line2))
+    const recorded = [...(R.linefills || [])].filter(Boolean).sort(byId)
+    const vendor = recorded.filter(drawable)
+    const orphanVendor = recorded.length - vendor.length
     const ours = live.filter((o) => o && o.family === spec.ourFamily)
     // ⭐ A LINEFILL IS PAIRED BY ITS TWO LINES, not by creation order: Pine keeps
     // ONE fill per pair of lines (a new `linefill.new` on the same pair replaces
@@ -367,6 +380,7 @@ export function pairRecords(capture, objects) {
     families.linefills = {
       unpairedVendor: vendor.length - usedV.size,
       unpairedOurs,
+      ...(orphanVendor ? { orphanVendor } : {}),
       pairs: pairs.map(([v, o]) => ({ vendorId: v.id, ourId: o.id, where: `linefill #${o.id}`, fields: recordRows('linefills', ctx, v, o.props || {}, false) })),
     }
   }

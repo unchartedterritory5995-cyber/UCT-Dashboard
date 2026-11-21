@@ -9,23 +9,23 @@
    "from": "  const secs = ccOp('+', [ccLeaf('dayopentime'), ccNum(SESSION_OPEN_SECONDS)])",
    "to": "  const secs = ccOp('+', [ccLeaf('dayopentime'), ccNum(0)])",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
-   "expectRed": "R6_secs_D_anchor"
+   "expectRed": "\"got\":-34200"
   },
   {
    "id": "T2",
    "mutant": "a weekend daily bar no longer withholds the anchor",
    "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "    if (dow === 1 || dow === 7) return false",
-   "to": "    if (false) return false",
+   "from": "  if (daily) return { kind: sat && sun ? 'around-the-clock' : (sat || sun ? 'off-session' : 'daily'), overnight: null }",
+   "to": "  if (daily) return { kind: 'daily', overnight: null }",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/periodAnchorParity.test.js",
    "expectRed": "every day"
   },
   {
    "id": "T3",
-   "mutant": "the 09:30 window is not the day anchor (back to na off a daily chart)",
-   "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "    if (dayLiteral && !wraps && start === SESSION_OPEN_MINUTE && offset === null) {",
-   "to": "    if (dayLiteral && !wraps && start === -1 && offset === null) {",
+   "mutant": "the 09:30 window is not read off a daily chart (back to na there)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if (kind === 'regular' || kind === 'period') return w.start * 60 === SESSION_OPEN_SECONDS",
+   "to": "  if (kind === 'regular' || kind === 'period') return false",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
    "expectRed": "R2_secs_D_rth"
   },
@@ -33,10 +33,10 @@
    "id": "T4",
    "mutant": "another window is drawn off a daily chart instead of withheld",
    "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "  if (scan.dayGates.length && tfStated && tf !== 'D') add(DAY_SESSION_OTHER_CHART)",
-   "to": "  if (false) add(DAY_SESSION_OTHER_CHART)",
+   "from": "      add(DAY_SESSION_OTHER_CHART)",
+   "to": "      void DAY_SESSION_OTHER_CHART",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
-   "expectRed": "withheld by name"
+   "expectRed": "time-session:day-on-other-chart"
   },
   {
    "id": "T5",
@@ -105,8 +105,8 @@
    "id": "P1",
    "mutant": "the Python twin serves the anchor on every chart",
    "file": "api/services/ast_interpret.py",
-   "from": "    if tf in (\"W\", \"M\"):\n        return True",
-   "to": "    if True:\n        return True",
+   "from": "    return kind in _DAY_SERVED_KINDS and (kind != \"extended\" or pine_compare_on(opts))",
+   "to": "    return True",
    "rail": "python -m pytest -q tests/test_ast_period_anchor_parity.py",
    "expectRed": "time-day:off-session"
   }

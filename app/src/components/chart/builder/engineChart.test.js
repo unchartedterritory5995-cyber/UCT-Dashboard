@@ -14,7 +14,10 @@ import process from 'node:process'
 const LF = String.fromCharCode(10)
 const read = (rel) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8').split(String.fromCharCode(13)).join('')
 const code = (text) => text.split(LF).map((l) => l.split('//')[0].trimEnd()).filter((l) => l.trim()).join(LF)
-const CHART = read('src/components/StockChart.jsx')
+// StockChart reads its bar arrays through its render box (`__heavy.x` while rendering, `__heavy.committed.x` after a
+// commit: chart/latestCallback.js); `unbox` reads the source as the values it names, so these facts compare values, not spellings.
+const unbox = (t) => t.split('__heavy.committed.').join('').split('__heavy.').join('').replace(/[ \t]*\/\* eslint-disable-line react-hooks\/exhaustive-deps -- the box \(__heavy\)[^*]*\*\//g, '')
+const CHART = unbox(read('src/components/StockChart.jsx'))
 
 function block(text, from, to) {
   const a = text.indexOf(from)
@@ -48,6 +51,28 @@ describe('engineChart is the binder\'s own view of the chart', () => {
   it('it is memoised on exactly what it reads, so a tick that changes none of them hands the toolbar the same object', () => {
     const deps = CHART.slice(CHART.indexOf('}), [filteredBars, sym, symbolMeta'), CHART.indexOf(LF, CHART.indexOf('}), [filteredBars, sym, symbolMeta')))
     expect(deps).toBe('}), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved])')
+  })
+
+  // ⭐ 2026-11-21 -- and ONE read-only getter beside the context: what the chart has DRAWN (`binder.bindings()`), for
+  // a reader beside the chart that must compute nothing (`authoring/emptyOnChart.js`).
+  it('it also hands down what the chart has drawn, as a getter over the binder: no new fact, no new dependency', () => {
+    const lines = mine.split(LF).map((l) => l.trim())
+    expect(lines).toContain('bindings: drawnBindingsReader(engineRef),')
+    // a getter, read at call time: it sits OUTSIDE the context (the six facts are still the whole of it, above)
+    // and the dependency list is what it was (the test above), so no tick hands the toolbar a new object for it
+    expect(mine.indexOf('bindings: drawnBindingsReader')).toBeGreaterThan(mine.indexOf('...(listingUnserved ? { listingStart: true } : {}),'))
+    expect(mine.split('engineRef').length - 1).toBe(1)
+    // ⛔ THE CLOSURE IS BUILT AT MODULE LEVEL, not inside the render (a closure written in a render keeps that
+    // render's whole context alive, and this object is held by the toolbar and the dock): no arrow in the memo
+    expect(mine.includes('=>'), 'a closure inside the memo').toBe(mine.split('=>').length - 1 === 1)   // only `useMemo(() => ({`
+    const all = code(CHART)
+    const at = all.indexOf('function drawnBindingsReader(engineRef) {')
+    expect(at).toBeGreaterThan(-1)
+    expect(at).toBeLessThan(all.indexOf('function chartDebugHandle('))           // out with the debug handle, above the component
+    const body = all.slice(at, all.indexOf(LF + '}', at))
+    expect(body.split(LF).map((l) => l.trim())).toEqual(['function drawnBindingsReader(engineRef) {', 'return () => engineRef.current?.binder?.bindings?.() || []'])
+    // it only READS: nothing in it writes, syncs or computes
+    for (const never of ['sync(', 'computeFor', 'set', 'await']) expect(body.includes(never), never).toBe(false)
   })
 
   it('every toolbar mount is handed it, beside the bars it already had', () => {

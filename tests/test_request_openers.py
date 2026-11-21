@@ -39,6 +39,21 @@ FREED = [
     "Add New 52-week high for the first time in 30 days", "Add Range expansion bar (range twice its 20-day average)",
     "Done. Show Weekly pivot points",                                       # a second sentence opens again
 ]
+#: ⭐ 2026-11-21 -- seven more request verbs, each MEASURED in (`_SENTENCE_OPENERS`' last line): a request typed
+#: in Title Case that opens with one was an unknown indicator named by its first words.
+FREED_BY_A_VERB = [
+    "Signal When RSI Crosses 30", "Detect Higher Highs", "Detect Lower Lows", "Measure Drawdown from the 52 week high",
+    "Alert When Price Crosses the 50 day average", "Check Whether the close is above the 200 day average",
+    "Identify Outside Bars", "Scan For New Highs",
+]
+#: A name after one of those verbs is still refused, by the name WITHOUT the verb.
+STILL_A_NAME_AFTER_A_VERB = [
+    ("Signal Brannock Line", "Brannock Line"), ("Detect Brannock Wave", "Brannock Wave"), ("Measure Brannock Momentum", "Brannock Momentum"),
+    ("Alert Hartwell Signal", "Hartwell Signal"), ("Check Brannock Flow", "Brannock Flow"), ("Identify Brannock Trend", "Brannock Trend"),
+    ("Scan Hartwell Pattern", "Hartwell Pattern"),
+]
+#: Tried in the same measurement and LEFT OUT: alone, each freed no request. The list stays closed.
+MEASURED_AND_LEFT_OUT = ["count", "rank", "flag", "tally", "total", "sum", "number", "score", "tag", "test", "spot", "print", "list"]
 #: A name is still a name after an opener: two or more Title-Case words that nothing accounts for.
 STILL_A_NAME = [
     ("Add Gann Fan", "Gann Fan"), ("Add the Gann Fan", "Gann Fan"), ("Show Hull Suite", "Hull Suite"),
@@ -60,6 +75,40 @@ def test_a_name_after_an_opener_is_still_a_name_and_is_named_without_the_opener(
     r = conv.converse(message, user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is False and r["gate"] == "concept:ungrounded" and client.calls == [], r
     assert r["not_understood"][0]["phrase"] == phrase                       # "Gann Fan", never "Add Gann Fan"
+
+
+@pytest.mark.parametrize("message", FREED_BY_A_VERB)
+def test_a_request_verb_typed_first_in_title_case_is_not_a_named_indicator(conv, message):
+    got = conv.understand_turn(message, CHART)
+    assert got["refusal"] is None, (message, got["refusal"])
+    assert got["not_understood"] == [] and got["request_text"] == message.strip()
+
+
+@pytest.mark.parametrize("message, phrase", STILL_A_NAME_AFTER_A_VERB)
+def test_a_name_after_a_request_verb_is_still_a_name(conv, clean_env, model, message, phrase):
+    client = model([])
+    r = conv.converse(message, user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is False and r["gate"] == "concept:ungrounded" and client.calls == [], r
+    assert r["not_understood"][0]["phrase"] == phrase
+
+
+def test_the_opener_list_is_closed_and_each_measured_verb_does_work():
+    seven = ["signal", "detect", "measure", "alert", "check", "identify", "scan"]
+    assert [v for v in seven if v not in dc._SENTENCE_OPENERS] == []
+    assert [v for v in MEASURED_AND_LEFT_OUT if v in dc._SENTENCE_OPENERS] == []
+    # every one of the seven is the FIRST word of a request it frees: none rides in on another's evidence
+    opens = {m.split()[0].lower() for m in FREED_BY_A_VERB}
+    assert sorted(opens) == sorted(seven)
+    # ⛔ `average` freed a request in the same measurement and is STILL not an opener: it is a word names are
+    # made of ("Average True Range"), which this door's older rule keeps out of the list. Its request stays a name.
+    assert "average" not in dc._SENTENCE_OPENERS
+    kept = dc.plan("Average Range over 20 days", dc.INDICATOR_KIND, strict_names=True)
+    assert [n["phrase"] for n in kept["not_understood"]] == ["Average Range"]
+    # and with the rule off (`/propose`) a verb is still read as part of the name
+    off = dc.plan("Detect Brannock Wave", dc.INDICATOR_KIND)
+    assert [n["phrase"] for n in off["not_understood"]] == ["Detect Brannock Wave"]
+    on = dc.plan("Detect Brannock Wave", dc.INDICATOR_KIND, strict_names=True)
+    assert [n["phrase"] for n in on["not_understood"]] == ["Brannock Wave"]
 
 
 def test_an_opener_is_excused_only_where_a_sentence_opens_when_it_comes_to_dropping_it():

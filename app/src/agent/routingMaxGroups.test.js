@@ -3,6 +3,8 @@
 // `need_groups` enum, so a request that needs the last group can never reroute to it. Found 2026-11-11: master
 // was exactly at 24, and #1074's 25th group (layoutBar) pushed `guide` off. This reads the server constant from
 // turn.py's text and fails the moment routing.js outgrows it.
+// The constant was 48 until 2026-11-20: raised to 56 by the integrator's wave 7 build, when the catalog reached 49
+// (Terminal data wave 7's `marketReads` group). Not an owner decision: a builder's change, recorded in turn.py.
 import fs from 'node:fs'
 import path from 'node:path'
 import { it, expect } from 'vitest'

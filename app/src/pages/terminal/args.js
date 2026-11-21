@@ -14,6 +14,7 @@ import { currentWeekMonday, mondayOf } from '../calendar/weekAnchor'
 import { canonicalCode, isCode } from './functions'
 import { parseAlertPrice } from './alertModel'
 import { parseScatMetric, parseScatUniverse, scatMetricLabel } from './scatterArgs'
+import { COT_WORDS } from './panels/cotModel'
 
 /** The chart's timeframe codes (StockChart `tf`), with the spellings a member types. */
 export const TIMEFRAMES = {
@@ -149,6 +150,13 @@ export const SEAS_MEASURE_WORDS = Object.freeze({ AVG: 'average', AVERAGE: 'aver
 // Market wave A: copies of the panel models' argument rules (args.marketWaveA.test.js pins each to its owner)
 export const COT_MARKET_SHAPE = /^[A-Z0-9&][A-Z0-9&.-]{0,11}$/
 export const ANLG_COUNT_BOUNDS = Object.freeze([3, 10])
+// INS CLUSTER: a copy of the panel model's words (args.insiderClusters.test.js pins it to its owner)
+export const INS_VIEW_WORDS = Object.freeze({ CLUSTER: 'cluster', CLUSTERS: 'cluster' })
+// MKTH (2026-11-21): a copy of the panel model's index words (functions.marketHistory.test.js pins it to its owner)
+export const MKTH_INDEX_ARG_WORDS = Object.freeze({
+  SPX: 'SPX', SP500: 'SPX', SPY: 'SPX',
+  NDX: 'NDX', NASDAQ: 'NDX', NAS100: 'NDX', QQQ: 'NDX',
+})
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -163,6 +171,24 @@ export const HILO_GROUP_WORDS = Object.freeze({
 })
 /** The cadences `cadence` accepts (RRG's daily or weekly closes; panels/RrgPanel.jsx RRG_CADENCES). */
 export const CADENCES = Object.freeze(['D', 'W'])
+// FUND (2026-11-21): a copy of the panel model's metric words (functions.fundMetrics.test.js pins it to its owner)
+export const FUND_METRIC_WORDS = Object.freeze({
+  REV: 'revenue_ttm', REVQ: 'revenue_q', NETINC: 'net_income_ttm', NETINCQ: 'net_income_q',
+  EPS: 'eps_ttm', EPSQ: 'eps_q', OCF: 'operating_cash_flow_ttm', FREECF: 'fcf_ttm',
+  REVG: 'revenue_growth_ttm', REVGQ: 'revenue_growth_q', EPSG: 'eps_growth_ttm', EPSGQ: 'eps_growth_q',
+  GROSSM: 'gross_margin', OPM: 'operating_margin', NETM: 'net_margin', FCFM: 'fcf_margin', ROE: 'roe', ROA: 'roa',
+  CASHEQ: 'cash', ASSETS: 'total_assets', LIAB: 'total_liabilities', EQUITY: 'shareholders_equity',
+  SHARES: 'shares_outstanding',
+  MCAP: 'market_cap', PE: 'pe_ttm', PS: 'ps_ttm', PBOOK: 'pb', FCFY: 'fcf_yield',
+  BETA1Y: 'beta_1y_spy',
+})
+export const FUND_MAX_METRICS = 12
+export const FUND_MAX_PEERS = 3
+const FUND_WORD_OF = Object.freeze(Object.fromEntries(Object.entries(FUND_METRIC_WORDS).map(([w, id]) => [id, w])))
+const fundMetricOf = (tok) => {
+  const k = String(tok ?? '').trim().toUpperCase()
+  return Object.prototype.hasOwnProperty.call(FUND_METRIC_WORDS, k) ? FUND_METRIC_WORDS[k] : null
+}
 
 /**
  * Each kind: `parse(token, ctx)` → a value or null (not this kind), `describe(value)` → the
@@ -609,6 +635,9 @@ export const ARG_KINDS = {
       return COT_MARKET_SHAPE.test(t) ? t : null
     },
     describe: (v) => `market "${v}"`,
+    // a word in COT's own market dictionary (OIL, GOLD, WTI…) is COT's even when it is also a function code
+    // (`OIL`, the weekly oil report): `COT OIL` is crude positioning; any other code after COT stays that code
+    known: (tok) => Object.prototype.hasOwnProperty.call(COT_WORDS, String(tok ?? '').trim().toUpperCase()),
   },
   /** ANLG's count: how many similar sessions, a whole number from 3 to 10 (the route's own bounds;
    *  a pinned copy of panels/analoguesModel.js, args.marketWaveA.test.js). */
@@ -621,6 +650,66 @@ export const ARG_KINDS = {
       return n >= ANLG_COUNT_BOUNDS[0] && n <= ANLG_COUNT_BOUNDS[1] ? n : null
     },
     describe: (v) => `${v} similar sessions`,
+  },
+  // ── INS CLUSTER (2026-11-21) ──
+  /** INS's view (panels/insiderClustersModel.js INS_VIEW_ARG_WORDS; pinned by args.insiderClusters.test.js):
+   *  `INS CLUSTER` is the cluster list from the SEC's Form 4 filings; bare `INS` stays all buys. */
+  insView: {
+    takes: 'CLUSTER',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(INS_VIEW_WORDS, key) ? INS_VIEW_WORDS[key] : null
+    },
+    describe: (v) => (v === 'cluster' ? 'insider cluster buys' : v),
+  },
+  // ── FUND (2026-11-21): the panel model's words (panels/fundMetricsModel.js; pinned by functions.fundMetrics.test.js) ──
+  /** FUND's line: ONE metric word draws that metric as a line (parseFundMetric). */
+  fundMetric: {
+    takes: 'a metric to draw as a line (PE, REV, EPS, NETM, FCFM, ROE)',
+    parse: (tok) => fundMetricOf(tok),
+    describe: (v) => `line of ${FUND_WORD_OF[v] || v}`,
+  },
+  /** FUND's rows: metric words joined by + (`REV+EPS+PE`, `REV+` for one), at most twelve (parseFundMetrics). */
+  fundMetrics: {
+    takes: 'the rows, metric words joined by + (REV+EPS+PE)',
+    parse: (tok) => {
+      const t = String(tok ?? '').trim().toUpperCase()
+      if (!t.includes('+')) return null
+      const parts = t.split('+').filter(Boolean)
+      if (!parts.length || parts.length > FUND_MAX_METRICS) return null
+      const ids = parts.map(fundMetricOf)
+      return ids.some((x) => !x) || new Set(ids).size !== ids.length ? null : ids
+    },
+    describe: (v) => `rows ${v.map((id) => FUND_WORD_OF[id] || id).join(', ')}`,
+  },
+  /** FUND's compared tickers: a REST kind (`rest: true` on the spec), every ticker after the code, at most
+   *  three, none twice (parseFundPeers). A REST spec never decides on its own that a word is an argument
+   *  rather than the stock (parseCommand.js isDeclaredArg), so `FUND NVDA AMD` keeps NVDA as the stock. A
+   *  function code or a metric word is a ticker here only with `$`, as everywhere on the command line. */
+  fundPeers: {
+    takes: 'up to three tickers to compare (NVDA FUND AMD AVGO)',
+    parse: (tok) => {
+      const words = String(tok ?? '').trim().split(/\s+/).filter(Boolean)
+      if (!words.length || words.length > FUND_MAX_PEERS) return null
+      const out = []
+      for (const w of words) {
+        const s = ARG_KINDS.symbol.parse(w)
+        if (!s || out.includes(s) || (!String(w).startsWith('$') && fundMetricOf(s))) return null
+        out.push(s)
+      }
+      return out
+    },
+    describe: (v) => `compared with ${v.join(', ')}`,
+  },
+  // ── market history (2026-11-21) ──
+  /** MKTH's index (panels/marketHistoryModel.js MKTH_INDEX_WORDS; pinned by functions.marketHistory.test.js). */
+  mkthIndex: {
+    takes: 'an index (SPX for the S&P 500, NDX for the Nasdaq-100)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(MKTH_INDEX_ARG_WORDS, key) ? MKTH_INDEX_ARG_WORDS[key] : null
+    },
+    describe: (v) => (v === 'NDX' ? 'the Nasdaq-100' : 'the S&P 500'),
   },
 }
 

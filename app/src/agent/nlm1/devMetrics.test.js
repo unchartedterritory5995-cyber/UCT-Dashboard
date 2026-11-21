@@ -15,7 +15,7 @@ import { manifestFor } from '../capabilities'
 import { correctTypos, lexiconFor } from '../nl/lexicon'
 import dev from './dev/paraphrases.json'
 
-await registerCatalog()
+const CATALOG = new Set((await registerCatalog()).all)
 const SHOW = globalThis.process?.env?.NLM1_METRICS === '1'
 
 // prompt size: the routed manifest's JSON bytes (what the per-turn cost cap, #785, reserves on) and its groups
@@ -62,9 +62,31 @@ function report(label, m) {
   for (const t of m.regress) console.log(`METRICS ${label} REGRESS ${JSON.stringify(t)}`)
 }
 
-const corpusCases = corpus.intents.flatMap(i => i.phrasings.map(p => ({ text: typeof p === 'string' ? p : p.text, needs: i.needs, recentActions: i.recentActions, board: i.board })))
+// THE CORPUS IS SCORED ON THE CATALOG THIS FILE REGISTERS (production's data kinds, registerCatalog's default). A corpus
+// entry for a DARK capability (`kinds: 'ALL'`) needs an action that catalog does not hold, and a words-only dark group has
+// no words while its capability is not registered (capabilities/terminalDataWave*.js arm them at registration). No router
+// can select it there, so such a phrasing says nothing about either router: it was counted as a miss, and each dark data
+// wave lowered the own-groups figure by its own size (90.7% before wave 7's 24 phrasings, 88.3% after) with no router
+// change. Those phrasings are left out of this measurement and COUNTED (rails below); their routing with the capability
+// registered is pinned where the words live (agentTerminalDataWave*.test.js) and in the corpus run on the full catalog.
+const allCorpusCases = corpus.intents.flatMap(i => i.phrasings.map(p => ({ text: typeof p === 'string' ? p : p.text, needs: i.needs, recentActions: i.recentActions, board: i.board, kinds: i.kinds || null, id: i.id })))
+const inCatalog = (k) => k.needs.every(a => CATALOG.has(a))
+const corpusCases = allCorpusCases.filter(inCatalog)
+const leftOut = allCorpusCases.filter(k => !inCatalog(k))
 
 describe('NLM-1 dev metrics (routing v2 vs v1)', () => {
+  it('the corpus cases left out are dark entries only, and most of the corpus is still measured', () => {
+    // only an entry the corpus itself marks as needing the whole catalog may be left out
+    expect(leftOut.filter(k => k.kinds !== 'ALL').map(k => `${k.id}: ${k.text}`)).toEqual([])
+    // non-vacuity: something is left out today (the dark data waves), and the measured part is the large majority
+    expect(leftOut.length).toBeGreaterThan(0)
+    expect(corpusCases.length).toBeGreaterThanOrEqual(700)
+    expect(corpusCases.length / allCorpusCases.length).toBeGreaterThanOrEqual(0.8)
+    // a production-catalog entry is never dropped: every entry not marked for the whole catalog is measured in full
+    const prod = allCorpusCases.filter(k => k.kinds !== 'ALL')
+    expect(prod.every(inCatalog)).toBe(true)
+    if (SHOW) console.log(`METRICS corpus measured ${corpusCases.length} of ${allCorpusCases.length} (left out, dark: ${leftOut.length})`)
+  })
   for (const [label, cases] of [['corpus', corpusCases], ['dev', dev.cases]]) {
     it(`${label}: own-groups ≥ 90%, availability ≥ v1, no capability below v1`, () => {
       if (globalThis.process?.env?.NLM1_TUNE) globalThis.__NLM1_TUNING__ = JSON.parse(globalThis.process.env.NLM1_TUNE)

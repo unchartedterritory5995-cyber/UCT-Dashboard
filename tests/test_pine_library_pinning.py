@@ -477,6 +477,8 @@ JS_LIBRARY_FIXTURE_FILES = {
         "two fixture libraries written for the store-held rail (tester/inner/1, tester/outer/1)",
     "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.capRound4.test.js":
         "a stand-in written for the rail; the real version is read from the out-of-git store, opt-in",
+    "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js":
+        "the Q-BH0 island control's fixture library (tester/qbh0island/1, a v5 bool's history inside a v6 script)",
     "app/src/components/chart/engine/runtime/__tests__/libraryImportRefusal.test.js": "a fixture library",
     "app/src/components/chart/builder/memberPane/runtimeLibraryDoor.test.js": "a fixture library",
     "app/src/components/chart/builder/memberPane/runtimeParamDefaults.test.js": "a fixture library",

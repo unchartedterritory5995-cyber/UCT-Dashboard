@@ -853,6 +853,24 @@ CONVERSE_SYSTEM_PROMPT = (
     "An opening range needs bars that divide it (30 minutes on a 1, 5, 15 or 30-minute chart); on "
     "longer bars it is withheld and says so, so mention that an opening range is for intraday "
     "charts.\n"
+    "  \"LAST WEEK'S\" OR \"LAST MONTH'S\" VALUE on a chart of shorter bars (\"last month's high and low\", \"the "
+    "prior week's close\") is the `tf` read as it stands: tf(high, M) already IS the last closed month's high "
+    "on every bar of this month. Do NOT put an offset around it: an offset outside a `tf` read counts bars of "
+    "the CHART, so offset 1 of tf(high, M) is one daily bar late and still shows the month before last on the "
+    "first bar of each month. Only when the member asks for a period further back (\"the month before last\") "
+    "put the offset INSIDE the read, where it counts periods: tf(offset 1 of high, M).\n"
+    "  A VALUE THAT RESTARTS WITH THE CALENDAR on every year, quarter, month or week (\"year to date "
+    "percent change\", \"month to date\", \"this year's high\", \"the high so far this month\", \"since the "
+    "start of each month\") is built from the bar's OWN calendar and NEVER from a date, so it is right on "
+    "every year of the chart and stays right after the year turns. The restart is `year != offset 1 of "
+    "year` for a year, `monthfirst` for a month, `weekfirst` for a week, and `monthfirst && (month == 1 || "
+    "month == 4 || month == 7 || month == 10)` for a quarter. The year to date percent change is the close "
+    "against the prior year's last close: valuewhen(year != offset 1 of year, offset 1 of close, 300). This "
+    "year's running high is accum(high, year != offset 1 of year ? high : max(self, high), 300). The last "
+    "argument of `valuewhen` is a WINDOW in bars and must reach back past the event (a year of daily bars "
+    "is about 252): never 1, which is blank on every bar but the event's own. These need no date, so never "
+    "ask for one. The dates of the next paragraph are for an ANCHOR only (an anchored VWAP from the start "
+    "of this year).\n"
     "  A DATE THE MEMBER NAMES BY THE CALENDAR (\"this year\", \"year to date\", \"this quarter\", \"since the start of the month\", \"this week\"): you do NOT know today's date, so never work out "
     "the year, quarter, month or week yourself. `uct_language_notes.calendar` gives today's date and the exact "
     "start of each, in New York time, as the number `avwap(...)` takes. Use that number as it is and say the "
@@ -879,6 +897,16 @@ CONVERSE_SYSTEM_PROMPT = (
     "qualify). Only when the member asks for the last N bars that qualify (\"the average volume of the last "
     "10 up days\") is no value right, written 0 / 0, and then say in `assumptions` that the window reaches "
     "back past other bars.\n"
+    "  A COUNT, A SUM OR AN AVERAGE OVER A WINDOW OF A CONDITION THAT READS SOMETHING WITH ITS OWN WARM-UP "
+    "(\"the percent of the last 50 days the close was above its 20 day average\", \"how many of the last 20 "
+    "days closed above the 200 day average\"): a comparison with a value that does not exist yet is FALSE "
+    "here, so on the bars where that average has no value the count would add a 0 and show a NUMBER for "
+    "something that is not known. On a symbol with less history than the average needs, that number is 0 "
+    "on every bar. The count must have NO VALUE until the thing the condition reads (X: the average, the "
+    "highest, the RSI) has a value on the window's OLDEST bar: na(offset N - 1 of X) ? 0 / 0 : <the "
+    "count>. For the last 50 bars above a 20-bar average: na(offset 49 of sma(close, 20)) ? 0 / 0 : "
+    "sum(close > sma(close, 20) ? 1 : 0, 50) * 100 / 50. A condition that reads only this bar and the one "
+    "before it (close > offset 1 of close) needs no such guard.\n"
     "  A COUNT OF BARS SINCE something, when the count itself is what the member wants to see: give "
     "`barssince` a window far longer than the thing being measured (500 unless the member names one), "
     "never the event's own length (\"bars since the last 50-bar high\" is barssince(cond, 500), not 50: "
@@ -901,10 +929,22 @@ CONVERSE_SYSTEM_PROMPT = (
     "between 0 and 1. `warmup` is a plain whole number up to 960: use 300 unless the member "
     "asks. `self` exists ONLY inside an accum's update; one accum never sits inside another "
     "(give the inner one its own output's formula instead). A TOTAL THAT NEVER FORGETS (on-balance "
-    "volume, an accumulation and distribution line, any \"running total\" with no window) is not what an "
-    "accum gives: an accum over W bars is that total's CHANGE across the last W bars, a different line. "
-    "Build it, and name and label the output for what it is (\"Net volume, last 300 bars\"), never \"On "
-    "Balance Volume\" or \"cumulative\".\n"
+    "volume, an accumulation and distribution line, any \"running total\" or \"cumulative\" value with no "
+    "window) is cum(x): the running total of x over every bar of the loaded history. On-balance volume is "
+    "cum(close > offset 1 of close ? volume : close < offset 1 of close ? 0 - volume : 0). It is NEVER an "
+    "accum: an accum over W bars is that total's CHANGE across the last W bars, a different line. Only "
+    "when the member names a window (\"over the last 300 bars\") is it sum(x, N).\n"
+    "  A RUNNING VALUE THAT STARTS ON A DATE the member names (\"a trailing stop from my entry on 2 June "
+    "2026\", \"the highest high since 3 March\", \"count the up days since 1 May\") has NO value before "
+    "that date and STARTS FRESH on the first bar on or after it: on that bar it is its starting value "
+    "itself, and only the bars after it read `self`. With D the date as the number `time` holds, write "
+    "time < D ? 0 / 0 : accum(start, offset 1 of time < D ? start : update, 900). The stop two ATRs under "
+    "the close that only rises from the date: time < D ? 0 / 0 : accum(close - 2 * atr(high, low, close, "
+    "14), offset 1 of time < D ? close - 2 * atr(high, low, close, 14) : max(self, close - 2 * atr(high, "
+    "low, close, 14)), 900). NEVER let the first bar read `self`: max(self, x) on the start bar carries "
+    "the level of the bar BEFORE the date into the value, so a stop starts too high and a count starts "
+    "above its first number. Do not draw the unstarted level before the date; when the member wants that "
+    "line as well it is a second output. Say in `assumptions` the date it starts on.\n"
     "  SEVERAL RUNNING VALUES THAT FEED EACH OTHER are accum2, accum3 or accum4: accumK(which, "
     "warmup, start1..startK, update1..updateK). All K values are replaced together on each bar. "
     "Inside the updates `state1`..`stateK` are their PREVIOUS values, and `which` (a plain whole "
@@ -1030,9 +1070,13 @@ DATA_PREAMBLE = dc.DATA_PREAMBLE
 #: the member's words name a calendar start, the turn carries today's date and the exact start of
 #: this year, quarter, month and week (`calendar_notes`), and the instructions forbid working any of
 #: them out. Any other turn is byte for byte what it was (nothing is added, the clock is not read).
+#: ⭐ 2026-11-21 -- "this CALENDAR year" names one too (it was unmatched, so the assistant asked for a
+#: date the door had). And the dates are for an ANCHOR only: a value that RESTARTS each year, month or
+#: week is built from the bar's own calendar (the instructions' paragraph above the dated one), since a
+#: date written into such a value is blank or wrong on every other year and goes stale when the year turns.
 _CALENDAR_WORDS = re.compile(
-    r"\b(?:this|current)\s+(?:year|quarter|month|week)\b|\byear[\s-]+to[\s-]+date\b|\bytd\b|\bqtd\b|\bmtd\b|"
-    r"\bstart\s+of\s+(?:the\s+|this\s+)?(?:year|quarter|month|week)\b|\b(?:yearly|quarterly|monthly|weekly)\s+(?:anchored\s+)?vwap\b",
+    r"\b(?:this|current)\s+(?:calendar\s+)?(?:year|quarter|month|week)\b|\byear[\s-]+to[\s-]+date\b|\bytd\b|\bqtd\b|\bmtd\b|"
+    r"\bstart\s+of\s+(?:the\s+|this\s+)?(?:calendar\s+)?(?:year|quarter|month|week)\b|\b(?:yearly|quarterly|monthly|weekly)\s+(?:anchored\s+)?vwap\b",
     re.I)
 CALENDAR_TZ = "America/New_York"
 
@@ -2117,10 +2161,19 @@ def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
     twin = chart_twins.house_formula(t.get("name")) if isinstance(t.get("name"), str) else None
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
+        # ⭐ 2026-11-21 (ruling) -- THE MEMBER'S OWN RULE WINS. Found live: asked to mark inside bars "where the
+        # high is below the prior high and the low is above the prior low", the assistant built the firm's
+        # formula (a touch allowed, on a bar that traded) and said so. Nothing was hidden, but the member had
+        # stated the rule and got ours. A house term settles what the WORD means when the member only names
+        # it (the 2026-11-18 ruling: never a question, never two formulas for one word); a member who spells
+        # the rule out has asked for that rule.
         out["rule"] = ("the firm's meaning of this term on a chart: use this formula and "
                        "disclose its numbers in `assumptions`. If the member gave their own "
                        "number for it (a different length or window), keep this formula's shape "
-                       "with the member's number")
+                       "with the member's number. If the member spells out the RULE itself in the "
+                       "same request (what is compared with what, and whether a touch counts), "
+                       "build THEIR rule exactly and say in `assumptions` how it differs from the "
+                       "firm's")
         subject = chart_twins.PATTERN_SUBJECT.get(t.get("name"))
         if subject:
             out["rule"] += ". " + subject
@@ -2448,6 +2501,43 @@ def _refuse_infinity_in_a_window(trees: List[Tuple[str, Any]]) -> None:
                     "sum, a number far above any real one inside lowest (1000000000000000). If the last N "
                     "qualifying bars is what the member asked for, write the no value as 0 / 0 and say in "
                     "`assumptions` that the window reaches back past other bars.")
+
+
+#: The call whose last argument is how far BACK it looks for the bar it reads from, and the smallest window
+#: that can reach a bar other than this one.
+_VALUE_AT_AN_EVENT = "valuewhen"
+_SMALLEST_WINDOW_THAT_LOOKS_BACK = 2
+
+
+def _refuse_a_value_at_an_event_that_cannot_look_back(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-21 -- `valuewhen(cond, value, 1)` READS ONLY THIS BAR.
+
+    Found by a value check. Asked for the year to date change, the assistant read "the prior year's last
+    close" as ``valuewhen(<a bar of an earlier year>, close, 1)``. The last argument is a WINDOW in bars: the
+    value comes from the most recent of the last N bars where the condition was true. With N = 1 that is this
+    bar or nothing, so the line had a value only where the condition itself was true and was blank on every
+    bar after the event it was meant to remember, under a reply that described a held level.
+
+    Refused: a literal window below 2. Written honestly that formula is ``cond ? value : 0 / 0``, which is
+    not refused, so nothing a member can ask for is lost. A window that is too short for the event's spacing
+    cannot be seen from the formula; the window's own statement of what is empty on the chart answers that.
+    """
+    for where, tree in trees:
+        for node in _walk(tree):
+            if node.get("type") != "call" or node.get("name") != _VALUE_AT_AN_EVENT:
+                continue
+            args = node.get("args")
+            window = _is_literal_number(args[-1]) if isinstance(args, list) and len(args) == 3 else None
+            if window is not None and window < _SMALLEST_WINDOW_THAT_LOOKS_BACK:
+                raise _Refused(
+                    "envelope:reference",
+                    f"{where}: `{_VALUE_AT_AN_EVENT}` is given a window of {window:g} bar. Its last argument is how "
+                    "many bars it looks BACK for the most recent bar where the condition was true, so this reads "
+                    "only the bar itself: a value where the condition is true and NO VALUE on every bar after "
+                    "it. To hold the value from the last time the condition was true, give it a window that "
+                    "reaches back past that event (500 unless the member names one; a year of daily bars is "
+                    "about 252). If a value on only the bars where the condition is true is what the member "
+                    "asked for, write that as a choice: cond ? value : 0 / 0.")
 
 
 _EXTREMES_OF_A_WINDOW = frozenset({"highest", "lowest"})
@@ -3870,6 +3960,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     _refuse_unsupported_nodes(_trees_of(envelope))
     _refuse_negative_bars_back(_trees_of(envelope))
     _refuse_infinity_in_a_window(_trees_of(envelope))
+    _refuse_a_value_at_an_event_that_cannot_look_back(_trees_of(envelope))
     _refuse_a_stand_in_drawn_as_a_value(_trees_of(envelope))
     _refuse_a_reading_compared_with_itself(_trees_of(envelope))
     _refuse_scalars(_trees_of(envelope))
@@ -4361,7 +4452,43 @@ def running_value_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
                         f"and levels restart {window} bars back. A chart computed from the symbol's "
                         "first bar can differ.")
             notes.append({"output": key, "text": text})
-    return notes[:RUNNING_VALUE_NOTE_MAX]
+    return (notes + running_total_notes(envelope))[:RUNNING_VALUE_NOTE_MAX]
+
+
+#: A total over every bar of the loaded history (the table's own function; `ta.cum` on the Pine lane is this call).
+RUNNING_TOTAL_FN = "cum"
+RUNNING_TOTAL_NOTE = ("This is a running total from the first bar of the loaded history, so its level depends on "
+                      "where that history starts. Its bar-to-bar changes do not.")
+
+
+def running_total_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    """2026-11-20 -- One assumption per output this patch builds from a TRUE running total (`cum`): where it
+    starts, in the member's words. The same honesty by shape as a running value's note, and for the same
+    reason: the door says it itself, the model is not trusted to remember to. The level of such a total moves
+    when more history is loaded (the table's `window_dependent` tag); its changes from bar to bar do not."""
+    notes: List[Dict[str, Any]] = []
+    for op in envelope.get("ops") or []:
+        if not isinstance(op, Mapping):
+            continue
+        if op.get("op") == "create":
+            outputs = [(o.get("key"), o.get("tree")) for o in op.get("outputs") or [] if isinstance(o, Mapping)]
+        elif op.get("op") == "add_output":
+            outputs = [(op.get("key"), op.get("tree"))]
+        elif op.get("op") == "set_output_tree":
+            outputs = [(op.get("output"), op.get("tree"))]
+        else:
+            continue
+        for key, tree in outputs:
+            stack, total = [tree], False
+            while stack and not total:
+                node = stack.pop()
+                if isinstance(node, dict):
+                    total = _is_call(node, (RUNNING_TOTAL_FN,))
+                    if isinstance(node.get("args"), list):
+                        stack.extend(node["args"])
+            if total and isinstance(key, str):
+                notes.append({"output": key, "text": RUNNING_TOTAL_NOTE})
+    return notes
 
 
 def with_running_value_notes(envelope: Dict[str, Any]) -> Dict[str, Any]:
