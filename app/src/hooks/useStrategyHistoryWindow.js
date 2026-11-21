@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { strategyBrokerEnabled } from '../components/chart/engine/strategyBrokerGate'
 import {
-  FAILURE_RETRY_MS, loadStrategyHistoryWindow, strategyHistoryWindowNow,
+  FAILURE_RETRY_MS, loadStrategyHistoryWindow, strategyHistoryWindowNow, strategyListingDepthNow,
 } from '../components/chart/engine/strategyWindow'
 
 // W9-T11-F1 — the strategy window a chart hands its broker runs (`ctx.historyWindowBars`), from the
@@ -16,6 +16,8 @@ import {
 //     after each further failure, with no reload. A retry is quiet: `pending` stays false, so the named
 //     refusal stays on screen until a window lands, and never flickers to an empty pane.
 // Once set the window never changes for the tab, so a chart load's window is fixed.
+//   · `depth` (2026-11-19, the strategy-only daily window): the depth a run from the listing is served at without
+//     the deep-start rule, landed with the window from the same answer (`strategyListingDepthNow`), or null.
 export default function useStrategyHistoryWindow(enabled) {
   const [state, setState] = useState(() => {
     const now = strategyHistoryWindowNow()
@@ -36,5 +38,6 @@ export default function useStrategyHistoryWindow(enabled) {
     const t = setTimeout(ask, FAILURE_RETRY_MS)
     return () => { live = false; clearTimeout(t) }
   }, [asking, state.done, state.bars, state.tries])
-  return { bars: asking ? state.bars : null, pending: asking && !state.done }
+  return { bars: asking ? state.bars : null, pending: asking && !state.done,
+    depth: asking && state.bars !== null ? strategyListingDepthNow() : null }
 }

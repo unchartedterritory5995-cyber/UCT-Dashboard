@@ -1,0 +1,60 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "objects unit A4: a branch of a function body decided by a parameter its call site passes per bar is compiled per call site with HIST-S3's every-bar check on that branch (pineRuntimeFrontend.js::checkedParamOf, frameChecked): drawn while it runs on every call, stopped by name at the first call it skips; a simple/const parameter, a caller's own fixable parameter, a loop, the drawing build, the object door and a request's value keep the refusal. (A4-5, a loop guard in checkedParamOf, SURVIVED run 44812085285: the loop's own r4Guard refuses that call, so the duplicate guard was deleted rather than kept unproved.)",
+ "mutants": [
+  {
+   "id": "A4-1",
+   "mutant": "the checked copy is never compiled (the old refusal stands)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (!checkedOk(culprit, held)) throw unfixed(held)",
+   "to": "        throw unfixed(held)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a4ParamBranchChecked.test.js",
+   "expectRed": "the S&R shape builds and every bar equals"
+  },
+  {
+   "id": "A4-2",
+   "mutant": "a checked parameter is still named the culprit a caller could fix (the copy refuses again)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "                && slots[sl].index < fnRec.params && !(frameChecked && frameChecked.has(sl)) ? x.name : false",
+   "to": "                && slots[sl].index < fnRec.params ? x.name : false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a4ParamBranchChecked.test.js",
+   "expectRed": "the S&R shape builds and every bar equals"
+  },
+  {
+   "id": "A4-3",
+   "mutant": "a caller's own parameter is no longer left to its call site (the C35 chain is skipped)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if (blockedParam && !blockedPerBar) return false",
+   "to": "      if (false) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a4ParamBranchChecked.test.js",
+   "expectRed": "keeps C35's copy: exact, no check"
+  },
+  {
+   "id": "A4-4",
+   "mutant": "the drawing build takes the checked copy too",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (atObjectDoor || inRequestValue || objectsInRun) return false",
+   "to": "    if (atObjectDoor || inRequestValue) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a4ParamBranchChecked.test.js",
+   "expectRed": "the drawing build (HIST-S3 runs on the value lane only)"
+  },
+  {
+   "id": "A4-6",
+   "mutant": "a `simple` parameter passed a per-bar value is checked instead of refused",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (q === 'const' || q === 'simple') return false",
+   "to": "    if (false) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a4ParamBranchChecked.test.js",
+   "expectRed": "a parameter declared `simple` passed a per-bar value"
+  },
+  {
+   "id": "A4-7",
+   "mutant": "the round loop never adds a parameter to the checked set (an offset first, then the branch)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (!checked.has(p2) && checkedOk(p2, rec.error)) { checked.add(p2); continue }",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a4ParamBranchChecked.test.js",
+   "expectRed": "an offset read first and then a branch on the same parameter"
+  }
+ ]
+}

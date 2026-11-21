@@ -2800,7 +2800,14 @@ def _fill_daily_tail_with_yf(ticker: str, massive_iso: list[dict]) -> list[dict]
     }
     for b in massive_iso:
         by_date[b["t"]] = b  # Massive wins overlap
-    return [by_date[k] for k in sorted(by_date)]
+    out = [by_date[k] for k in sorted(by_date)]
+    if not massive_iso and out:
+        # ⛔ No Massive answer at all: this is yfinance's WHOLE history, unjoined (ruling 2026-11-21). Held
+        # history (every session before the newest) may only fill dates the store lacks. The newest session
+        # is the mutable tail (bars_sqlite.history_floor: D/W/M history is every row before the tail), so it
+        # may still update, as the tail-fill always could.
+        out = [_sqlite.AddOnlyBar(b) for b in out[:-1]] + out[-1:]
+    return out
 
 
 def _recent_daily_iso(ticker: str, days: int) -> list[dict]:
@@ -3359,7 +3366,13 @@ def _yf_join_factor(yf_bars: list[dict], massive_bars: list[dict]) -> float | No
     the first `_MERGE_JOIN_SESSIONS` shared sessions, they are one security on two bases, and
     that ratio joins them. When the ratio wanders, they are different securities (GEN: Massive's
     per-ticker GenOn against yfinance's Symantec) and nothing is rescaled: that is a lineage
-    question (bars_identity), not a basis one."""
+    question (bars_identity), not a basis one.
+
+    ⭐ 2026-11-21: a PROVEN SAME basis returns 1.0, not None. One ratio over the window, within
+    `_MERGE_JOIN_MIN_GAP` of 1, proves both vendors are on one basis, so the graft is a join of
+    1.0: an ordinary replacing write that can repair a store whose pre-floor rows sit on a third
+    basis (web's ADSK / BSX / KIM x2). None now means UNPROVEN only (too short an overlap, a
+    wandering ratio), and `_merge_daily_bars` makes that graft add-only."""
     by_t = {b.get("t"): b for b in yf_bars}
     ratios = []
     for m in massive_bars:
@@ -3375,10 +3388,10 @@ def _yf_join_factor(yf_bars: list[dict], massive_bars: list[dict]) -> float | No
     if len(ratios) < _MERGE_JOIN_SESSIONS:
         return None
     med = sorted(ratios)[len(ratios) // 2]
-    if abs(med - 1.0) <= _MERGE_JOIN_MIN_GAP:
-        return None
     if any(abs(r / med - 1.0) > _MERGE_JOIN_TOL for r in ratios):
-        return None
+        return None                       # the ratio wanders: unproven
+    if abs(med - 1.0) <= _MERGE_JOIN_MIN_GAP:
+        return 1.0                        # proven: one basis already
     return med
 
 
@@ -3391,14 +3404,44 @@ def _merge_daily_bars(yf_bars: list[dict], massive_bars: list[dict]) -> list[dic
     if not yf_bars:
         return massive_bars
     if not massive_bars:
-        return yf_bars
+        # ⛔ An EMPTY Massive answer (an outage, a refusal) is an unjoined source too (ruling 2026-11-21):
+        # yfinance's whole series may only ADD dates the store lacks, never rewrite held history onto
+        # another basis. A brand-new ticker still gets every row (nothing is held), with its provenance
+        # recorded (`bars_sqlite.unjoined_writes`); a later proven join rebases them (a plain write).
+        return [_sqlite.AddOnlyBar(b) for b in yf_bars]
     cutoff = massive_bars[0]["t"]  # ISO date string sorts lexically
     older_yf = [b for b in yf_bars if b["t"] < cutoff]
     f = _yf_join_factor(yf_bars, massive_bars)
-    if f is not None and older_yf:
+    if f == 1.0 and older_yf:
+        older_yf = [dict(b) for b in older_yf]          # a proven same basis: a plain, replacing write
+    elif f is not None and older_yf:
         from api.services.bars_sanitize import scale_bar
         older_yf = [scale_bar(dict(b), 1.0 / f) for b in older_yf]
+    elif older_yf:
+        # ⛔ UNPROVEN JOIN, ADD-ONLY (2026-11-21). Without one proven basis these bars may be on
+        # another one (web's CX: Yahoo's, 1.04^4 below the vendor's). They may fill dates the store
+        # lacks, never replace rows it holds (`bars_sqlite.AddOnlyBar`).
+        older_yf = [_sqlite.AddOnlyBar(b) for b in older_yf]
     return older_yf + massive_bars
+
+
+def _add_only_periods(daily: list[dict], periods: list[dict], tf: str) -> list[dict]:
+    """W/M resampled from a deep daily series: every period that STARTS before its first joined day
+    (the first non-`AddOnlyBar`) holds unjoined graft days, so it is add-only too."""
+    joined = [b["t"] for b in daily if not isinstance(b, _sqlite.AddOnlyBar)]
+    if len(joined) == len(daily):
+        return periods
+    first = min(joined) if joined else None
+    out = []
+    for p in periods:
+        try:
+            d = datetime.strptime(str(p["t"])[:10], "%Y-%m-%d")
+            start = (d - timedelta(days=d.weekday())) if tf == "W" else d.replace(day=1)
+            late = first is not None and start.strftime("%Y-%m-%d") >= first
+        except (KeyError, TypeError, ValueError):
+            late = False
+        out.append(p if late else _sqlite.AddOnlyBar(p))
+    return out
 
 
 def _fetch_daily(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
@@ -3432,7 +3475,7 @@ def _fetch_weekly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
         # Build deep daily series first, then resample. Need enough daily bars
         # to cover max_bars weeks: ~5 trading days/week + buffer.
         daily = _fetch_daily(ticker, max_bars * 7, deep=True)
-        weekly = _resample_weekly_iso(daily)
+        weekly = _add_only_periods(daily, _resample_weekly_iso(daily), "W")
         return weekly[-max_bars:]
     # Fast path: Massive recent + yfinance tail-fill when stale, resampled.
     from api.services.massive import get_agg_bars
@@ -3475,7 +3518,7 @@ def _fetch_monthly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]
     """Fetch monthly bars — daily from Massive (+ yfinance if deep), resampled."""
     if deep:
         daily = _fetch_daily(ticker, max_bars * 25, deep=True)  # ~21 trading days/month
-        monthly = _resample_monthly_iso(daily)
+        monthly = _add_only_periods(daily, _resample_monthly_iso(daily), "M")
         return monthly[-max_bars:]
     # Fast path: Massive recent + yfinance tail-fill when stale, resampled.
     from api.services.massive import get_agg_bars

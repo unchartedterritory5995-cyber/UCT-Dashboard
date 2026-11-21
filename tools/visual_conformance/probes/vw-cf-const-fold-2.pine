@@ -1,0 +1,60 @@
+//@version=6
+indicator("UCTPROBE_VW_CF_CONST_FOLD_2", overlay = false)
+
+// Q-CF2 (2026-11-20). THE CONTEXTS Q-CF DID NOT MEASURE. Q-CF (vw-cf-const-fold-{spy,rddt}-1d-2026-11-20) read
+// that TradingView rounds a compile-time constant float to the double nearest its %.16g text: in a plot argument,
+// a `float` binding, a `var`, a constant sub-expression inside a series expression, and a 17-digit literal; only
+// the FINAL folded value (1 / 7 * 3 -> 0.4285714285714285); never an `input.float` default. This probe asks the
+// rest, each row as (value - the same arithmetic at RUN time) * 1e18, 0 where the value is IEEE:
+//   G1-G2  a `:=` reassignment of a constant expression (a `var` and a plain declaration)
+//   G3-G4  a constant expression as a ternary branch under a SERIES condition
+//   G5-G8  a constant expression as a call argument (nz, a series math call, a user function, array.from)
+//   M9-M13 a math.* call on constant arguments (sqrt 2, sqrt 2*pi, toradians, and two 16-digit CONTROLS)
+//   L14-L17 a 17+-digit literal whose %.16g rounding differs as a DOUBLE and as TEXT; the run-time reference is
+//          str.tonumber of the same digits (plain digits, no exponent: Q-STN read exponent spellings as na)
+// Expected under "fold everything": G*, M9-M11 move (3.47, -55.5 ... e-18 scale); M12/M13 0. A row that does
+// not compile is a reading (record the error and the line).
+//
+// CAPTURE: AMEX:SPY 1D, >= 300 bars, inputs at defaults. Every row's value is the same on every bar.
+
+s0 = close * 0                       // 0 on every bar, a SERIES: what it touches is computed at run time
+rPi = (s0 + math.pi) / 180           // pi / 180, IEEE, at run time
+rA = (s0 + 0.1) + 0.2                // 0.1 + 0.2, IEEE, at run time
+
+plot(bar_index, "C0_bar_index_CONTROL")
+
+// := reassignment
+var float ra = 0.0
+ra := math.pi / 180
+float rb = na
+rb := 0.1 + 0.2
+plot((ra - rPi) * 1e18, "G1_var_reassigned_pi_over_180_1e18")
+plot((rb - rA) * 1e18, "G2_reassigned_tenth_plus_fifth_1e18")
+
+// a ternary branch under a series condition (always true here)
+t1 = close > 0 ? math.pi / 180 : 0.0
+t2 = bar_index >= 0 ? 0.1 + 0.2 : 1.0
+plot((t1 - rPi) * 1e18, "G3_ternary_branch_pi_over_180_1e18")
+plot((t2 - rA) * 1e18, "G4_ternary_branch_tenth_plus_fifth_1e18")
+
+// a call argument
+ident(x) => x
+plot((nz(math.pi / 180) - rPi) * 1e18, "G5_nz_arg_1e18")
+plot((math.max(math.pi / 180, s0) - rPi) * 1e18, "G6_series_math_max_arg_1e18")
+plot((ident(math.pi / 180) - rPi) * 1e18, "G7_user_function_arg_1e18")
+plot((array.get(array.from(math.pi / 180), 0) - rPi) * 1e18, "G8_array_from_arg_1e18")
+
+// math.* on constant arguments
+plot((math.sqrt(2) - math.sqrt(s0 + 2)) * 1e18, "M9_sqrt_2_1e18")
+plot((math.sqrt(2 * math.pi) - math.sqrt(s0 + 2 * math.pi)) * 1e18, "M10_sqrt_2pi_1e18")
+plot((math.toradians(132.87) - math.toradians(s0 + 132.87)) * 1e18, "M11_toradians_132p87_1e18")
+plot((math.log(10) - math.log(s0 + 10)) * 1e18, "M12_log_10_1e18_CONTROL")
+plot((math.exp(1) - math.exp(s0 + 1)) * 1e18, "M13_exp_1_1e18_CONTROL")
+
+// 17+-digit literals where the double and the text round differently:
+//   3.1611237438705656 (the double of 3.16112374387056560): %.16g of the double 3.161123743870565, of the text ...566
+//   0.42857142857142855: of the double 0.4285714285714285, of the text 0.4285714285714286
+plot(3.16112374387056560e0, "L14_literal_exp_spelling")
+plot(3.1611237438705656, "L15_literal_plain_spelling")
+plot((3.1611237438705656 - (s0 + str.tonumber("3.1611237438705656"))) * 1e18, "L16_literal_minus_runtime_1e18")
+plot((0.42857142857142855 - (s0 + str.tonumber("0.42857142857142855"))) * 1e18, "L17_literal_minus_runtime_1e18")

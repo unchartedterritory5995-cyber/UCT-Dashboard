@@ -7,7 +7,7 @@
 // notes never echoed), served vs dark (each registers only while the server lists ITS kind), local-only on both sides, the
 // manifest text limits, the one read each answer makes with the member's arguments (a measure, a scope and a side read by
 // the panels' own word maps), and the cross-file facts read from the other file (never retyped).
-// Routing: the five share ONE words-only group (`marketRecords`, the 48th and LAST of the 48 the server keeps). Each
+// Routing: the five share ONE words-only group (`marketRecords`, the 48th, the last of the 48 the server kept then). Each
 // capability's own words are on that group only while it is registered (a dark server's routing is routing.js's own), every
 // plain ask reaches its capability under v1 and v2, the group never rides the fill, and the words stay off other
 // capabilities' language: open interest in futures and positioning (COT), a dividend yield, win rates, a named year's
@@ -771,17 +771,18 @@ describe('routing words', () => {
   beforeEach(() => { reset(); vi.restoreAllMocks() })
   afterEach(() => { reset(); globalThis.fetch = realFetch })
 
-  it('the group is words-only and never a filler, routing.js lists the five by action with no word of its own, and NO group is left', () => {
+  it('the group is words-only and never a filler, routing.js lists the five by action with no word of its own, and it is the 48th group', () => {
     const g = ownGroup()
     expect(g.wordsOnly && g.fillLast).toBe(true)
     expect(g.words).toEqual([])                                      // server-armed: empty until a capability registers
     expect([...g.actions].sort()).toEqual([...ALL].sort())
     expect(g.domains).toEqual([])
     expect(g.title.length).toBeLessThanOrEqual(160)                  // the server cuts a group title at 160 characters (turn.py validate_routing)
-    // the server keeps only MAX_GROUPS groups: this wave's is the 48th of 48, so NONE is left, and the cap is not raised
+    // the server keeps only MAX_GROUPS groups: this wave's is the 48th, the last of the 48 kept when it was built. Wave 7's build
+    // raised the cap to 56 on 2026-11-20 for its own group (agentTerminalDataWave7.test.js pins the count as it stands)
     const max = Number(/^MAX_GROUPS\s*=\s*(\d+)\s*$/m.exec(py('api/services/uct_agent/turn.py'))[1])
-    expect([GROUPS.length, max, max - GROUPS.length]).toEqual([48, 48, 0])
-    expect(GROUPS.map(x => x.id).slice(-3)).toEqual([WAVE4_GROUP, WAVE5_GROUP, ROUTE_GROUP])
+    expect([GROUPS.map(x => x.id).indexOf(ROUTE_GROUP) + 1, max, GROUPS.length <= max]).toEqual([48, 56, true])
+    expect(GROUPS.map(x => x.id).slice(45, 48)).toEqual([WAVE4_GROUP, WAVE5_GROUP, ROUTE_GROUP])
     expect(new Set(GROUPS.map(x => x.id)).size).toBe(GROUPS.length)
     // no action of this wave is in any other group's list
     for (const other of GROUPS.filter(x => x.id !== ROUTE_GROUP)) for (const n of ALL) expect(other.actions || [], `${other.id}: ${n}`).not.toContain(n)

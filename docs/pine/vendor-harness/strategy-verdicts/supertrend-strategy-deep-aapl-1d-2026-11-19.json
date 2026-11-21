@@ -1,0 +1,240 @@
+{
+ "schema": "uct.strategy-verdict/v1",
+ "captureId": "supertrend-strategy-deep-aapl-1d-2026-11-19",
+ "captureSha256": "a5bfa60a34aaa435dc66e74321b40997befe7062c4fbac430e3a8d335c411ad7",
+ "receipt": 3441911600,
+ "sourceSha256": "7e343cf8b46cb5aab4eb84ee28dcd76c1af2e2af8461dec02271b6a89133c00a",
+ "queueTargetId": "Q-SU-8",
+ "symbol": "NASDAQ:AAPL",
+ "timeframe": "1D",
+ "gradeMethod": "a",
+ "verdict": "MATCH",
+ "step": 7,
+ "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar",
+ "first": null,
+ "graded": {
+  "trades": true,
+  "fills": true,
+  "slots": 9,
+  "values": 7,
+  "texts": 0
+ },
+ "referenceTrades": 60,
+ "rulesExercised": [
+  "B-DEFAULTS",
+  "B-DIR",
+  "B-FILL",
+  "B-MARGIN",
+  "B-MARKET",
+  "B-QTY",
+  "B-REVERSE",
+  "B-ROUND",
+  "B-SIG",
+  "B-START-DEEP",
+  "B-V4-MARGIN0",
+  "B-WHEN"
+ ],
+ "ungradedSlots": [
+  {
+   "slot": "maxDrawdown",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "maxRunup",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "buyAndHoldReturn",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "percentProfitable",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgBarsInTrades",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sharpeRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sortinoRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  }
+ ],
+ "ungradedTexts": [],
+ "ungradedValues": [
+  {
+   "slot": "plot_7",
+   "what": "`fill` at line 36 (colorer of fill_0)"
+  },
+  {
+   "slot": "plot_8",
+   "what": "`fill` at line 37 (colorer of fill_1)"
+  },
+  {
+   "slot": "plot_9",
+   "what": "`barcolor` at line 56"
+  }
+ ],
+ "firstDifference": null,
+ "prefixExact": null,
+ "culprit": null,
+ "afterDifference": null,
+ "provenance": {
+  "strategySettings": {
+   "properties": [
+    {
+     "name": "ATR Period",
+     "value": 10
+    },
+    {
+     "name": "Source",
+     "value": "hl2"
+    },
+    {
+     "name": "ATR Multiplier",
+     "value": 3
+    },
+    {
+     "name": "Change ATR Calculation Method ?",
+     "value": true
+    },
+    {
+     "name": "Show Buy/Sell Signals ?",
+     "value": false
+    },
+    {
+     "name": "Highlighter On/Off ?",
+     "value": true
+    },
+    {
+     "name": "Bar Coloring On/Off ?",
+     "value": true
+    },
+    {
+     "name": "From Month",
+     "value": 9
+    },
+    {
+     "name": "From Day",
+     "value": 1
+    },
+    {
+     "name": "From Year",
+     "value": 2018
+    },
+    {
+     "name": "To Month",
+     "value": 1
+    },
+    {
+     "name": "To Day",
+     "value": 1
+    },
+    {
+     "name": "To Year",
+     "value": 9999
+    },
+    {
+     "name": "pyramiding",
+     "value": 1
+    },
+    {
+     "name": "Calculate Strategy on Order's Fill(s)",
+     "value": false
+    },
+    {
+     "name": "Calculate Strategy on every Tick(s)",
+     "value": false
+    },
+    {
+     "name": "Backtesting Limit Order(s) fill assumption",
+     "value": 0
+    },
+    {
+     "name": "Default entry/order Qty Type",
+     "value": "fixed"
+    },
+    {
+     "name": "Default entry/order Qty Value",
+     "value": 1
+    },
+    {
+     "name": "Initial Capital",
+     "value": 100000
+    },
+    {
+     "name": "Base Currency",
+     "value": "NONE"
+    },
+    {
+     "name": "Backtesting slippage for market orders",
+     "value": 0
+    },
+    {
+     "name": "Commission Type",
+     "value": "percent"
+    },
+    {
+     "name": "Commission Value",
+     "value": 0
+    },
+    {
+     "name": "Process orders on bar Close",
+     "value": false
+    },
+    {
+     "name": "Close entries rule",
+     "value": "FIFO"
+    },
+    {
+     "name": "Run mode: 'backtest', 'alert' or something else",
+     "value": "BACKTEST"
+    },
+    {
+     "name": "Alert message template for run mode 'alert'",
+     "value": ""
+    },
+    {
+     "name": "Alert type for run mode 'alert'",
+     "value": "order_fills"
+    },
+    {
+     "name": "Margin Long",
+     "value": 0
+    },
+    {
+     "name": "Margin Short",
+     "value": 0
+    },
+    {
+     "name": "calc_range",
+     "value": ""
+    }
+   ]
+  }
+ }
+}

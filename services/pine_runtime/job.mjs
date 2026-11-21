@@ -127,6 +127,9 @@ export function runArgs(doc, job) {
     // W9-T11: the window, from the job's ctx exactly as the browser forwards its own (runtimeAsync.js
     // ::messageOf); never a literal here. HP-7 compares the two shapes.
     ...(job.ctx.historyWindowBars !== undefined ? { historyWindowBars: job.ctx.historyWindowBars } : {}),
+    // (2026-11-20) and the served depth beside it, exactly as the browser forwards its own (runtimeAsync.js::messageOf):
+    // a server run states a deep start the way a chart's does ([B-START-DEEP]). HP-7 compares the two shapes.
+    ...(job.ctx.listingDepthBars !== undefined ? { listingDepthBars: job.ctx.listingDepthBars } : {}),
   }
   return { def, rows, ctx }
 }

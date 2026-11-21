@@ -175,7 +175,7 @@ def test_weekly_and_monthly_are_re_derived_only_where_they_derive_from_the_daili
     m_other = [CR.mkey(BAD), 222.0, 230.0, 200.0, 225.0, 0.0]       # another basis entirely (R2): left alone
     rows, entries, S, _ = _build({f"SPY|{BAD}": _minutes()}, store={"D": st, "W": [w_ok], "M": [m_other]})
     w = [x for x in entries if x["tf"] == "W"]
-    assert len(w) == 1 and w[0]["f"]["l"][1] > 118.9 and w[0]["chk"]
+    assert len(w) == 1 and w[0]["f"]["l"][1] > 118.9 and w[0]["chk"] == {}     # W/M: no chk (a re-fetch moves closes)
     assert not [x for x in entries if x["tf"] == "M"] and S["M_stored_not_derived_from_its_dailies"] == 1
 
 
@@ -216,6 +216,7 @@ def test_publish_writes_payloads_first_and_the_manifest_last(tmp_path):
     (tmp_path / "entries" / "SPY.json").write_text(json.dumps([{"tf": "D", "src": "store", "d": BAD, "op": "set",
                                                                   "f": {"l": [112.09, 119.57]}, "chk": {"c": 119.63}}]))
     (tmp_path / "entries" / "AAPL.json").write_text("[]")
+    (tmp_path / "RESCALE_FLAG.json").write_text(json.dumps({"exit": 0, "names": []}))
     s3 = _S3({"version": 1, "symbols": [], "retired": []})
     a = types.SimpleNamespace(out=str(tmp_path), stage="SPY", version=2, dry=False)
     m = DC.cmd_publish(a, client=s3, bucket="b")
@@ -240,3 +241,53 @@ def test_rows_before_the_newest_listing_break_are_never_corrected():
     rows, entries, S, _ = _build({f"SPY|{BAD}": _minutes()}, store={"D": st})
     assert not [x for x in entries if x["d"] < DAYS[0]]
     assert S["store_rows_before_listing_break"] == 30
+
+
+
+# ── F3 (coordinator ruling): flagged names are never published unless cleared ──────────────────────────────
+def _pub_dir(tmp_path, flag):
+    (tmp_path / "entries").mkdir()
+    for s in ("SPY", "CBSH"):
+        (tmp_path / "entries" / f"{s}.json").write_text(json.dumps([{"tf": "D", "src": "store", "d": BAD, "op": "set",
+                                                                      "f": {"l": [1.0, 2.0]}, "chk": {}}]))
+    if flag is not None:
+        (tmp_path / "RESCALE_FLAG.json").write_text(json.dumps(flag))
+
+
+def test_publish_refuses_a_flagged_name_and_leaves_flagged_names_out_of_all(tmp_path):
+    _pub_dir(tmp_path, {"exit": 1, "names": ["CBSH"]})
+    with pytest.raises(SystemExit):
+        DC.cmd_publish(types.SimpleNamespace(out=str(tmp_path), stage="SPY,CBSH", version=2, dry=False, cleared=""), client=_S3(), bucket="b")
+    m = DC.cmd_publish(types.SimpleNamespace(out=str(tmp_path), stage="all", version=2, dry=False, cleared=""), client=_S3(), bucket="b")
+    assert m["symbols"] == ["SPY"]
+    m = DC.cmd_publish(types.SimpleNamespace(out=str(tmp_path), stage="all", version=2, dry=False, cleared="CBSH"), client=_S3(), bucket="b")
+    assert m["symbols"] == ["CBSH", "SPY"]
+
+
+@pytest.mark.parametrize("flag", [None, {"exit": 2, "names": []}])
+def test_publish_refuses_without_a_good_f3_check(tmp_path, flag):
+    _pub_dir(tmp_path, flag)
+    with pytest.raises(SystemExit):
+        DC.cmd_publish(types.SimpleNamespace(out=str(tmp_path), stage="SPY", version=2, dry=False, cleared=""), client=_S3(), bucket="b")
+
+
+def test_the_build_stops_when_the_f3_check_cannot_run(tmp_path, monkeypatch):
+    from tools import bars_rescale_check as F3
+    monkeypatch.setattr(F3, "main", lambda argv: 2)
+    with pytest.raises(SystemExit):
+        DC.rescale_check(str(tmp_path / "missing.db"), tmp_path)
+
+
+def test_verify_counts_ledger_rows_that_did_not_apply(tmp_path):
+    (tmp_path / "ledger.jsonl").write_text(chr(10).join(json.dumps(r) for r in [
+        {"sym": "SPY", "tf": "D", "d": DAYS[1], "op": "set", "f": {"l": [0.5, 0.9]}},
+        {"sym": "SPY", "tf": "D", "d": DAYS[2], "op": "set", "f": {"l": [0.5, 0.8]}}]))
+    before = [{"t": d, "o": 1, "h": 2, "l": 0.5, "c": 1} for d in DAYS[:5]]
+    after = [dict(b) for b in before]
+    after[1] = dict(after[1], l=0.9)                                  # applied; DAYS[2] did not
+    for sub, bars in (("b", before), ("a", after)):
+        (tmp_path / sub).mkdir()
+        for tf in "DWM":
+            (tmp_path / sub / f"SPY_{tf}.json").write_text(json.dumps({"bars": bars if tf == "D" else []}))
+    rep = DC.cmd_verify(types.SimpleNamespace(out=str(tmp_path), symbols="SPY", before=str(tmp_path / "b"), after=str(tmp_path / "a")))
+    assert rep["SPY_D"]["ledger_rows_not_applied"] == 1 and rep["SPY_D"]["missed_sample"] == [DAYS[2]]

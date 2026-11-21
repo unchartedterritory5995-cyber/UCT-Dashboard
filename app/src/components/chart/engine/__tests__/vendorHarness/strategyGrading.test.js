@@ -257,6 +257,11 @@ const STRATEGY_CAPTURE_ROWS = Object.freeze({
   // newest daily bar forming, with their Strategy Tester reports: [B-EXEC], a strategy executes once per closed bar
   'supertrend-strategy-is-rddt-1d-2026-11-18': 'Q-S1p',
   'macd-shortlong-strategy-is-rddt-1d-2026-11-18': 'Q-S1p',
+  // 2026-11-20 (PR #2146, the rig run): the community strategy on a DEEP daily chart, scrolled back to the listing,
+  // with its Strategy Tester report (`settings.dateRange.backtest.from` = the listing): where TradingView starts a
+  // backtest deeper than the shared window, [B-START-DEEP] (docs/pine/capture-queue-2026-11-19-strategy-unit.md, A)
+  'supertrend-strategy-deep-spy-1d-2026-11-19': 'Q-SU-7',
+  'supertrend-strategy-deep-aapl-1d-2026-11-19': 'Q-SU-8',
 })
 
 function committedReportCaptures() {

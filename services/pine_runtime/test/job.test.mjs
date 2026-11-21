@@ -240,6 +240,16 @@ test('W9-T11: runArgs forwards the job ctx window (as the browser does), and onl
   assert.equal(runArgs(doc, job).ctx.historyWindowBars, 77)
 })
 
+test('(2026-11-20) runArgs forwards the job ctx served depth (as the browser does), and only when the job states one', () => {
+  const doc = docOf('x')
+  const job = parsedJob('A', { n: 2 })
+  assert.equal('listingDepthBars' in runArgs(doc, job).ctx, false)
+  job.ctx.listingDepthBars = 5000
+  assert.equal(runArgs(doc, job).ctx.listingDepthBars, 5000)
+  job.ctx.listingDepthBars = 12
+  assert.equal(runArgs(doc, job).ctx.listingDepthBars, 12)
+})
+
 test('RS RATING L5: on the REAL bundle a server run of another symbol is refused by name, never held as loading', async () => {
   real = real || await buildRealBundle()
   const rt = await import(pathToFileURL(real.outfile).href)

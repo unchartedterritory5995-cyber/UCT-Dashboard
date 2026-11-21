@@ -259,6 +259,13 @@ class RecordingTVPage:
         self.buffers = {}
         self.bound = "update"                  # the editor starts bound to the last add
         self.menu = None
+        # ⭐ (2026-11-21) THE CONTAINERS (`rig_controls.js`, the rig's recorded DOM): how many rows of a text the open
+        # menus hold (a same-text element outside every menu is not one), the texts something else covers at their
+        # centre, whether the editor dialog holds its own `Add to chart`, and how many sit OUTSIDE it (a modal's).
+        self.menu_rows = {"Create new": 1, "Indicator": 1}
+        self.covered = {}                      # text -> how many more reads it stays covered (math.inf: never clears)
+        self.add_in_dialog = True
+        self.add_outside = 0
         self.create_count = 0
         self.next_id = 100
         self.injected = False
@@ -436,16 +443,41 @@ class RecordingTVPage:
         return {"ok": True, "x": TITLE_XY[0], "y": TITLE_XY[1], "text": "Untitled script", "how": "heuristic"}
 
     def _menu_item(self, a):
-        if a.get("text") == "Create new" and self.menu in ("title", "create"):
+        """As `rig_controls.js` (`within: 'menu'`) answers on the page: the ONE row of the text in the open menus
+        (`menu_rows`), never a covered one (`covered`); several is a STOP, a covered one is read again."""
+        text = a.get("text")
+        shown = ((text == "Create new" and self.menu in ("title", "create"))
+                 or (text == "Indicator" and self.menu == "create" and bool(a.get("rightOf"))))
+        n = self.menu_rows.get(text, 1) if shown else 0
+        if n == 0:
+            return {"ok": False, "STOP": False, "found": 0, "covered": False, "why": f"no visible {text!r} in an open menu"}
+        if n > 1:
+            return {"ok": False, "STOP": True, "found": n, "covered": False,
+                    "why": f"{n} visible {text!r} in an open menu: exactly one, or nothing is clicked"}
+        if self._still_covered(text):
+            return {"ok": False, "STOP": False, "found": 1, "covered": True,
+                    "why": f"{text!r} in an open menu is covered at its centre by another element: nothing is clicked"}
+        if text == "Create new":
             return {"ok": True, "x": CREATE_XY[0], "y": CREATE_XY[1],
                     "rect": {"left": 280, "right": 360, "top": 130, "bottom": 150}}
-        if a.get("text") == "Indicator" and self.menu == "create" and a.get("rightOf"):
-            return {"ok": True, "x": INDICATOR_XY[0], "y": INDICATOR_XY[1],
-                    "rect": {"left": 440, "right": 520, "top": 130, "bottom": 150}}
-        return {"ok": False, "found": 0}
+        return {"ok": True, "x": INDICATOR_XY[0], "y": INDICATOR_XY[1],
+                "rect": {"left": 440, "right": 520, "top": 130, "bottom": 150}}
+
+    def _still_covered(self, text):
+        """Is `text` under another element at this read? Each read uses one of its covered reads up."""
+        left = self.covered.get(text, 0)
+        if left <= 0:
+            return False
+        self.covered[text] = left - 1
+        return True
+
+    def _own_add(self):
+        """The editor dialog's own `Add to chart` (shown while the editor is open and unbound)."""
+        return 1 if self.editor_open and self.bound == "add" and self.add_in_dialog else 0
 
     def _binding(self, _):
-        add = 1 if self.editor_open and self.bound == "add" else 0
+        # the binding gate counts own-text `Add to chart` over the WHOLE page: the dialog's and any outside it
+        add = self._own_add() + self.add_outside
         upd = 1 if self.editor_open and self.bound == "update" else 0
         return {"addToChart": add, "updateOnChart": upd, "gate": add == 1 and upd == 0}
 
@@ -469,6 +501,13 @@ class RecordingTVPage:
         if not self.visible or not gate["gate"]:
             self.adds.append((self.bound, False))
             return {"STOP": True, "vis": "visible", "gate": gate}
+        # ⭐ as `rig_controls.js` (`within: 'editor'`): the ONE button inside the dialog, uncovered, or nothing
+        covered = self._own_add() == 1 and self._still_covered("Add to chart")
+        if self._own_add() != 1 or covered:
+            self.adds.append((self.bound, False))
+            return {"STOP": True, "vis": "visible", "gate": gate, "found": self._own_add(), "covered": covered,
+                    "why": "no visible 'Add to chart' in #pine-editor-dialog" if self._own_add() != 1
+                    else "'Add to chart' in #pine-editor-dialog is covered at its centre by another element"}
         src = self.buffers[self.current]
         sha = hashlib.sha256(src.encode("utf-8")).hexdigest()
         self._maybe_crash("add", sha)
