@@ -1,0 +1,141 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "Q-BH0 (fix/pine-v6-bool-history-false, NUMBER PENDING): a Pine v6 bool's written history `x[k]` reads `false` on the first k bars, where it reaches before history begins (TradingView's captures vw-v6-bool-history-bar0-{spy,rddt}-1d-2026-11-19), and the read itself after; v5 and older keep `na`, judged per token, so a v5 library inside a v6 script keeps it; a number's history keeps `na`; only those bars are answered, never a bool held as `na` after them. The columnar lane (pine.js::v6BoolHistory, the Resolver's plain read; a reassigned name's read above its update is refused pine:state for a v6 bool latch, so it carries no wrap and no mutant) and every arm of the run's offset lowering (pineRuntimeFrontend.js::v6BoolHistoryIr: a slot, a function's own slot, an expression hoisted into a committed series, a request's own region, a column the run reads). Every wrap, gate and reading, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "B1",
+   "mutant": "the columnar lane's plain read (`barOffsetNode`) is not wrapped",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        return v6BoolHistory(barOffsetNode(child, node.n, this.table, node.tok, wrote), node.n, histVersion)",
+   "to": "        return barOffsetNode(child, node.n, this.table, node.tok, wrote)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "the twin"
+  },
+  {
+   "id": "B3",
+   "mutant": "the columnar lane's version gate admits v5",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  if (!(Number(version) >= 6) || !Number.isInteger(back) || back < 1) return tree",
+   "to": "  if (!(Number(version) >= 5) || !Number.isInteger(back) || back < 1) return tree",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "v5, production"
+  },
+  {
+   "id": "B4",
+   "mutant": "the columnar lane reads the program version, not the version at the read's token",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        const histVersion = versionAt(node.tok, this.pineVersion)",
+   "to": "        const histVersion = this.pineVersion",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "over island tokens"
+  },
+  {
+   "id": "B5",
+   "mutant": "the columnar lane wraps any history, a number's included",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  if (!tree || typeof tree !== 'object' || tree.type === 'num' || !isBoolishTree(tree)) return tree",
+   "to": "  if (!tree || typeof tree !== 'object' || tree.type === 'num') return tree",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "NUMBER's history"
+  },
+  {
+   "id": "B6",
+   "mutant": "the columnar lane answers every `na` of the read as false (`nz(x[k], 0)`), not only the bars before history",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  return cOp('?:', [cCall('na', [{ type: 'offset', value: back, args: [cSeries('close')] }]), cNum(0), tree])",
+   "to": "  return cCall('nz', [tree, cNum(0)])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "keeps its read"
+  },
+  {
+   "id": "B7",
+   "mutant": "the columnar lane answers one bar too many",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "[{ type: 'offset', value: back, args: [cSeries('close')] }]",
+   "to": "[{ type: 'offset', value: back + 1, args: [cSeries('close')] }]",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "the twin"
+  },
+  {
+   "id": "R1",
+   "mutant": "the run's read of a `var` slot is not wrapped",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          return v6BoolHistoryIr(node, scope, histSlot(varSlot, historySlotFor(varSlot, back, at), back), back)",
+   "to": "          return histSlot(varSlot, historySlotFor(varSlot, back, at), back)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "a `var bool` slot"
+  },
+  {
+   "id": "R2",
+   "mutant": "the run's read of a function's own slot is not wrapped",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (owner !== null) return v6BoolHistoryIr(node, scope, histSlot(varSlot, fnHistorySlotFor(owner, varSlot, back, at), back), back)",
+   "to": "          if (owner !== null) return histSlot(varSlot, fnHistorySlotFor(owner, varSlot, back, at), back)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "a function's own bool"
+  },
+  {
+   "id": "R3",
+   "mutant": "the run's read of an expression hoisted into a committed series is not wrapped",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            return v6BoolHistoryIr(node, scope, histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, hb, at), hb), hb)",
+   "to": "            return histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, hb, at), hb)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "hoisted"
+  },
+  {
+   "id": "R4",
+   "mutant": "the run's read inside a request's own region is not wrapped",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          return v6BoolHistoryIr(node, scope, histSlot(slot, hoistedHistorySlot(slot, back, at), back), back)",
+   "to": "          return histSlot(slot, hoistedHistorySlot(slot, back, at), back)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "a request's own region"
+  },
+  {
+   "id": "R5",
+   "mutant": "the run's read of a column is not wrapped",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        return v6BoolHistoryIr(node, scope, hist(column(columnOf(node.arg, locate(node.tok))), back), back)",
+   "to": "        return hist(column(columnOf(node.arg, locate(node.tok))), back)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "a text input"
+  },
+  {
+   "id": "R6",
+   "mutant": "the run's version gate admits v5",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (!(versionAt(node.tok, pineVersion) >= 6) || !Number.isInteger(back) || back < 1) return h",
+   "to": "    if (!(versionAt(node.tok, pineVersion) >= 5) || !Number.isInteger(back) || back < 1) return h",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "v5 keeps"
+  },
+  {
+   "id": "R7",
+   "mutant": "the run reads the program version, not the version at the read's token",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (!(versionAt(node.tok, pineVersion) >= 6) || !Number.isInteger(back) || back < 1) return h",
+   "to": "    if (!(Number(pineVersion) >= 6) || !Number.isInteger(back) || back < 1) return h",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "the runtime lane: the v5 library"
+  },
+  {
+   "id": "R8",
+   "mutant": "the run wraps any history, a number's included",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (!ty || ty === NA_TY || ty.kind !== 'bool') return h",
+   "to": "    if (!ty) return h",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "NUMBER's history"
+  },
+  {
+   "id": "R9",
+   "mutant": "the run answers one bar too many",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    return ternary(irBuiltin('na', [hist(series('close'), back)]), num(0), h)",
+   "to": "    return ternary(irBuiltin('na', [hist(series('close'), back + 1)]), num(0), h)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js",
+   "expectRed": "a `var bool` slot"
+  }
+ ]
+}

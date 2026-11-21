@@ -7363,6 +7363,39 @@ function barOffsetNode(child, n, table, tok, wrote) {
     + 'both of which this table already declares', locate(tok))
 }
 
+/** ⭐⭐ Q-BH0 (NUMBER PENDING) — A PINE v6 `bool`'S HISTORY BEFORE HISTORY BEGINS READS `false`.
+ *
+ *  WITNESSED: TradingView's captures `vw-v6-bool-history-bar0-{spy,rddt}-1d-2026-11-19` (committed; probe
+ *  `tools/visual_conformance/probes/vw-v6-bool-history-bar0.pine`, from the listing) draw 1 on bar 0 for `b[1] == false`,
+ *  `not b[1]`, `b[1] != true`, `b != b[1]`, `b and not b[1]`, a `var bool`'s `c[1] == false` / `not c[1]` and
+ *  `u[1] == false`, and on bars 0 and 1 for `b[2] == false`; the reference says why ("To Pine Script version 6":
+ *  "Boolean values cannot be na"). This engine read that history as `na` and drew 0 there.
+ *  So a WRITTEN `x[k]` (`k` a whole number ≥ 1) of a v6 `bool` is `na(close[k]) ? 0 : x[k]`: `false` exactly on the
+ *  first `k` bars, where the read reaches before the series' first bar, and the read itself on every later bar. The
+ *  series' own `close` stands for "a bar exists `k` bars before this one" (`na` exactly on its first `k` bars; inside
+ *  a `tf` / `sym` read it is that series' own), and it reads back from formula text (`close[k]`; an offset of a
+ *  literal, `1[k]`, does not: `pine:roundtrip`). The run writes the same test (`pineRuntimeFrontend.js::v6BoolHistoryIr`).
+ *  ⛔ NOT `nz(x[k], 0)`: that would also turn a value this engine holds as `na` after history begins (a crossing's
+ *  own warm-up, a bar a supply lacks) into a confident `false`, which Q-BH0 did not witness. Only the bars before
+ *  history are answered. ⛔ Off the listing those bars are read before the chart's first bar and stay withheld by
+ *  name, as every such read is (`interpret.js::historyBeforeChartMask`). ⛔ v5 and older keep `na` (a v5 `bool` can
+ *  be `na`: engine 56, S1), judged per token (`versionAt`), so a v5 library inside a v6 script keeps it.
+ *  `version` is the version at the read's token; `tree` is the read as resolved. Python twin: the same nodes, no
+ *  new rule (`ast_interpret.py` evaluates `?:`, `na` and `close[k]` as `interpret.js` does;
+ *  `tests/fixtures/ast/v6_bool_history_parity.json`). */
+let v6BoolHistoryOn = true
+/** Tests and measurements only (the Q-BH0 rails' controls and census): `false` reads a v6 bool's history as this
+ *  engine read it before Q-BH0, in both lanes (the run asks `v6BoolHistoryServed`). Nothing a member reaches calls it. */
+export function __v6BoolHistoryForTests(on) { v6BoolHistoryOn = on !== false }
+/** Is the Q-BH0 rule on (always, outside a test that turned it off)? */
+export const v6BoolHistoryServed = () => v6BoolHistoryOn
+function v6BoolHistory(tree, back, version) {
+  if (!v6BoolHistoryOn) return tree
+  if (!(Number(version) >= 6) || !Number.isInteger(back) || back < 1) return tree
+  if (!tree || typeof tree !== 'object' || tree.type === 'num' || !isBoolishTree(tree)) return tree
+  return cOp('?:', [cCall('na', [{ type: 'offset', value: back, args: [cSeries('close')] }]), cNum(0), tree])
+}
+
 const PINE_OP_TO_TABLE = Object.freeze({
   '+': '+', '-': '-', '*': '*', '/': '/',
   '>': '>', '<': '<', '>=': '>=', '<=': '<=',
@@ -12009,6 +12042,13 @@ export class Resolver {
         }
         const blockRead = this.blockLocalHistory(node)
         if (blockRead !== null) return blockRead
+        // ⭐⭐ Q-BH0 — a v6 `bool`'s history before history begins is `false` (`v6BoolHistory`), on the plain read
+        // below. ⛔ Not on a reassigned name's read here (`plainRecurrence`): inside the name's own update it is the
+        // recurrence's `self`, and above the update, measured 2026-11-20, a v6 `bool` latch read there is refused by
+        // name on this lane (`pine:state`: an `if`-block latch and a self-referential `?:` one alike), so no rail can
+        // reach a wrap there (mutation-proved: the wrap's removal survived every rail). The run reads such a latch
+        // from its slot and serves the rule (`pineRuntimeFrontend.js::v6BoolHistoryIr`).
+        const histVersion = versionAt(node.tok, this.pineVersion)
         const plain = this.plainRecurrence(node, node.tok)
         if (plain !== null) return plain
         this.guardOffsetOfMutable(node)
@@ -12016,7 +12056,7 @@ export class Resolver {
         // reach the seam the same way and nesting needs no special case.
         const child = this.resolve(node.arg)
         const wrote = node.arg.type === 'name' ? `${node.arg.name}[${node.n}]` : null
-        return barOffsetNode(child, node.n, this.table, node.tok, wrote)
+        return v6BoolHistory(barOffsetNode(child, node.n, this.table, node.tok, wrote), node.n, histVersion)
       }
       case 'name': return this.resolveName(node)
       case 'call': return this.resolveCall(node)

@@ -118,9 +118,11 @@ describe('what is NOT cast', () => {
     // ⭐ ENGINE 56 (S1 v2, s18 v1 / v3): every version below 6 reads it the same way (was: below v4
     // nothing claimed)
     expect(formulaOf(tr(3, 'plot((close > open)[1] and high > low ? 1 : 2)'))).toBe('(close > open)[1] != 0 && high > low ? 1 : 2')
-    // ⛔ and v6 is left as it was (a v6 bool is never `na`; measured: casting there moved
-    // trend-duration-forecast-chartprime MATCH -> DIVERGE)
-    expect(formulaOf(tr(6, 'plot((close > open)[1] and high > low ? 1 : 2)'))).toBe('(close > open)[1] && high > low ? 1 : 2')
+    // ⛔ and v6 is not cast (a v6 bool is never `na`; measured: casting there moved
+    // trend-duration-forecast-chartprime MATCH -> DIVERGE). ⭐ Q-BH0 (NUMBER PENDING): its history before
+    // history begins is `false` (`pine.js::v6BoolHistory`), so the read carries that test, and no cast
+    expect(formulaOf(tr(6, 'plot((close > open)[1] and high > low ? 1 : 2)')))
+      .toBe('(na(close[1]) ? 0 : (close > open)[1]) && high > low ? 1 : 2')
   })
 
   it('⛔ a `var` bool accumulated through `self` stays a bool for the KIND (no number cast) and is read as a condition in `and`', () => {
