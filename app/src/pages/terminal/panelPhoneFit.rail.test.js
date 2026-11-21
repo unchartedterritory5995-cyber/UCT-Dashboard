@@ -197,6 +197,10 @@ const MEASURED = [
   ['MoversPanel.jsx', 'MOST', [524], [550]],
   ['RepeatContractsPanel.jsx', 'ACCUM', [522], [550]],
   ['ConfluencePanel.jsx', 'CONFL', [513], [530]],
+  // INS, measured 2026-11-21 with the role as a second line under the insider's name (it was its own column,
+  // 911px of table in a 567px box): 513.3 + 29. Below the step Shares and Price fold, the same two a phone hides;
+  // Value and Traded always show.
+  ['InsiderPanel.jsx', 'INS', [543], [550]],
   ['FlowListsPanel.jsx', 'FLWL, FLWL OPEN', [499, 458], [510, 480]],
   ['UnusualVolumePanel.jsx', 'UNVOL', [499], [510]],
   ['ShortListPanel.jsx', 'SHRTS (all four ranks)', [492], [510]],
@@ -235,10 +239,9 @@ const FITS_THE_BOTTOM = [
   ['ThemeBoardPanel.jsx', 'THMS (leaders, laggards)', 318],
 ]
 /** Tables with no sample rows: never measured, so they must not fold on a desktop panel above the bottom of the ladder.
- *  InsiderPanel.jsx (INS) was measured on 2026-11-21 (part 5): 343px past its box in the 592px panel, its role on one
- *  line. It stays here, naming no step, until its layout is decided (the part 5 report hands the choice back). */
+ *  (InsiderPanel.jsx left this list on 2026-11-21: see INS in MEASURED.) */
 const NOT_MEASURED = ['CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', 'EtfPanel.jsx',
-  'GroupDrillPanel.jsx', 'InsiderPanel.jsx', 'PeerPanel.jsx', 'WatchlistPanel.jsx',
+  'GroupDrillPanel.jsx', 'PeerPanel.jsx', 'WatchlistPanel.jsx',
   // Market wave C (2026-11-21): no fold step measured; the phone columns fold through `phoneHide`
   'TreasuryAuctionsPanel.jsx']
 const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
@@ -296,7 +299,7 @@ describe('the fold ladder: a table folds only from its own step down', () => {
       expect([code, need, step, step - need >= 5]).toEqual([code, need, step, true])
       expect([code, need, step, step - need <= 30]).toEqual([code, need, step, true])
     }
-    expect(pairs.length).toBe(24)
+    expect(pairs.length).toBe(25)   // 25 since INS was measured (2026-11-21)
   })
 
   it('RSS: each of its five screens names its own step, and a screen nobody measured names none', () => {
