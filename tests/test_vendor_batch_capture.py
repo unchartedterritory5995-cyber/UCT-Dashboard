@@ -827,3 +827,159 @@ def test_the_spec_is_tradingviews_encoding_and_the_matcher_reads_through_it():
     assert not bc.sym_match('={"session":"extended","symbol":"AMEX:QQQ"}', "AMEX:SPY")
     with pytest.raises(bc.GateFailed):
         bc.Opts(session="overnight")
+
+
+# ── a TradingView BUILT-IN from the Indicators dialog: two gates, the measured search, the generated label ──────────────
+# (coordinator ruling 2026-11-20, item 2: patrick-54's scratchpad `batch_builtin.py` moved into the repo)
+VWAP_ROW = {"slug": "vwap-earn", "builtin": {"id": "STD;VWAP"}, "builtinInputs": {"Anchor Period": "Earnings"},
+            "captureStem": "builtin-vwap-anchor-earnings"}
+
+
+def _builtin_batch(tmp_path, rows, page=None):
+    manifest = {"schema": "uct.vendor-batch-manifest/v1", "scripts": [json.loads(json.dumps(r)) for r in rows]}
+    page = page or bd.RecordingTVPage()
+    code, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    return page, rd, code, manifest
+
+
+def test_a_builtin_is_added_from_the_dialog_by_its_measured_search_and_its_identity_is_read_back(tmp_path):
+    page, rd, code, manifest = _builtin_batch(tmp_path, [VWAP_ROW])
+    res = rd.results()["vwap-earn"]
+    assert res["outcome"] == bc.CAPTURED and code == 0, res
+    steps = res["steps"]
+    want = ["gate:before add", "builtin:open_dialog", "builtin:search_and_click", "builtin:closed",
+            "builtin:identity", "builtin:input_ids", "builtin:input-in_1", "compute", "inject", "vh_capture", "verify"]
+    pos = [steps.index(w) for w in want]
+    assert pos == sorted(pos), steps
+    assert not {"open_editor", "title", "binding_gate", "set_source", "add"} & set(steps)   # no editor at all
+    assert page.searches == ["VWAP"]                       # the measured term, from the table: the row named none
+    cap = json.loads(pathlib.Path(res["capture"]).read_text(encoding="utf-8"))
+    assert cap["study"]["id"] == "Script$STD;VWAP@tv-scripting"
+    assert {"id": "in_1", "value": "Earnings"} in cap["study"]["inputs"]
+    assert cap["source"]["text"] == bc.builtin_label(VWAP_ROW)                  # the GENERATED label, verbatim
+    assert cap["source"]["sha256"] == manifest["scripts"][0]["sha256"] == hashlib.sha256(
+        bc.builtin_label(VWAP_ROW).encode("utf-8")).hexdigest()
+    assert res["cleanup"]["ok"] and not page.studies and not page.dialog_open
+
+
+def test_the_refuted_vwap_search_is_refused_before_any_page_step(tmp_path):
+    # ⚰️ 2026-11-20: "Volume Weighted Average Price" lists 36 community scripts and not the built-in (7 of 7 rows stopped)
+    row = dict(VWAP_ROW, builtin={"id": "STD;VWAP", "search": "Volume Weighted Average Price"})
+    page, rd, code, _ = _builtin_batch(tmp_path, [row])
+    assert code == 1
+    abort = [e for e in _ledger(tmp_path / "run") if e["event"] == "abort"]
+    assert abort and "the measured dialog search is 'VWAP'" in abort[0]["reason"], abort
+    assert "OPEN_DIALOG" not in page.names() and not page.searches
+
+
+def test_a_search_that_does_not_list_the_id_clicks_nothing_and_stops_by_name(tmp_path, monkeypatch):
+    # the PRE-CLICK gate, live: an unmeasured search for an id the dialog does not list under it
+    monkeypatch.setattr(bc, "BUILTIN_SEARCH", {k: v for k, v in bc.BUILTIN_SEARCH.items() if k != "STD;VWAP"})
+    row = dict(VWAP_ROW, builtin={"id": "STD;VWAP", "search": "Volume Weighted Average Price"})
+    page, rd, _, _ = _builtin_batch(tmp_path, [row])
+    res = rd.results()["vwap-earn"]
+    assert res["outcome"] == bc.GATE_FAILED, res
+    assert 'no element with data-id STD;VWAP after searching "Volume Weighted Average Price"' in res["reason"]
+    assert "nothing clicked" in res["reason"]
+    assert page.next_id == 100 and not page.studies                 # no element was clicked, so no study was ever added
+    assert "builtin:identity" not in res["steps"] and not page.dialog_open
+    assert not list((tmp_path / "run" / "captures").glob("*.json"))
+
+
+def test_a_click_that_lands_another_study_stops_by_name_and_the_study_is_removed(tmp_path):
+    # the POST-ADD gate: the element carries the row's data-id, but what it added is another study (a moved label)
+    page = bd.RecordingTVPage()
+    page.lands_on = {"STD;VWAP": "Script$PUB;dc6dc22f6df34a818f00858fdbd237b1@tv-scripting"}
+    _, rd, _, _ = _builtin_batch(tmp_path, [VWAP_ROW], page=page)
+    res = rd.results()["vwap-earn"]
+    assert res["outcome"] == bc.GATE_FAILED, res
+    assert "landed on ['Script$PUB;dc6dc22f6df34a818f00858fdbd237b1@tv-scripting']" in res["reason"]
+    assert "not ['Script$STD;VWAP@tv-scripting']" in res["reason"]
+    assert res["cleanup"]["ok"] and res["cleanup"]["removed"] and not page.studies
+    assert not list((tmp_path / "run" / "captures").glob("*.json"))
+
+
+def _vwap_dirty_batch(tmp_path, clean_save):
+    """The measured rig (an add is autosaved, a widget-API removal is not) with the built-in VWAP, whose census title
+    ("VWAP") is not its `getAllStudies()` name ("Volume-weighted average price")."""
+    page = bd.RecordingTVPage(autosave="tradingview")
+    manifest = {"schema": "uct.vendor-batch-manifest/v1", "scripts": [json.loads(json.dumps(VWAP_ROW))]}
+    from pine_vendor_capture import acquire
+    assert acquire(page, 5) == 0
+    rd = bc.RunDir(tmp_path / "run", "selfcheck")
+    code = bc.run_batch(page, manifest, rd, bd.fast_opts(clean_save=clean_save), bd.FakeClock(page), bc.NodeVerifier(),
+                        log=lambda *_: None)
+    return page, rd, code
+
+
+def test_a_builtin_is_owned_by_its_chart_name_not_its_census_title_and_the_clean_save_removes_it(tmp_path):
+    # ⚰️ 2026-11-21, the s4 VWAP retake 2 (patrick-54): ownership was the census title "VWAP", `getAllStudies()` names the
+    # study "Volume-weighted average price", so the batch's own leftover read as foreign and the guard refused the save
+    page, rd, code = _vwap_dirty_batch(tmp_path, clean_save=True)
+    res = rd.results()["vwap-earn"]
+    assert res["outcome"] == bc.CAPTURED, res
+    cap = json.loads(pathlib.Path(res["capture"]).read_text(encoding="utf-8"))
+    assert cap["study"]["title"] == "VWAP" and cap["study"]["description"] == "Volume-weighted average price"  # the split
+    rows = [r for r in _ledger(tmp_path / "run") if r.get("event") == "clean-save"]
+    assert len(rows) == 1 and "refused" not in rows[0], rows
+    assert [s["name"] for s in rows[0]["found"]] == ["Volume-weighted average price"]       # the leftover the add saved
+    assert rows[0]["saved"] is True and rows[0]["ok"] is True and rows[0]["after"]["studies"] == []
+    assert code == 0 and page.persisted["studies"] == []                                       # a fresh load reads clean
+
+
+def test_control_without_the_clean_save_the_builtins_leftover_leaves_the_rig_dirty(tmp_path):
+    # the rail above can fail: the dialog add persisted a study the in-page removal never unsaved
+    page, rd, code = _vwap_dirty_batch(tmp_path, clean_save=False)
+    assert rd.results()["vwap-earn"]["outcome"] == bc.CAPTURED and code == bc.RIG_DIRTY
+    (v,) = _verify_rows(tmp_path / "run")
+    assert [s["name"] for s in v["studies"]] == ["Volume-weighted average price"]
+
+
+@pytest.mark.parametrize("extra, why", [
+    ({"path": "probes/studio/builtin-vwap-anchor-earnings.label.txt"}, "drop `path`"),
+    ({"sha256": "1f4c9ba0c2a9d8c4e3c6cd20f03ae6c72c23693203ca0abb8180d5612a1c331d"}, "is not the generated label's"),
+])
+def test_a_builtin_row_never_carries_a_hand_label(tmp_path, extra, why):
+    # ⚰️ the retake2 rows' hand label said search "Volume Weighted Average Price" while the add typed "VWAP"
+    page, _, code, _ = _builtin_batch(tmp_path, [dict(VWAP_ROW, **extra)])
+    abort = [e for e in _ledger(tmp_path / "run") if e["event"] == "abort"]
+    assert code == 1 and abort and why in abort[0]["reason"], abort
+    assert "OPEN_DIALOG" not in page.names()
+    mpath = tmp_path / "m.json"
+    mpath.write_text(json.dumps({"schema": "uct.vendor-batch-manifest/v1", "scripts": [dict(VWAP_ROW, **extra)]}),
+                     encoding="utf-8")
+    with pytest.raises(SystemExit, match="vwap-earn"):
+        bc._load_manifest(mpath)
+
+
+def test_the_loaded_manifest_derives_each_builtin_rows_sha_from_its_label(tmp_path):
+    mpath = tmp_path / "m.json"
+    mpath.write_text(json.dumps({"schema": "uct.vendor-batch-manifest/v1", "scripts": [VWAP_ROW]}), encoding="utf-8")
+    row = bc._load_manifest(mpath)["scripts"][0]
+    assert row["sha256"] == hashlib.sha256(bc.builtin_label(VWAP_ROW).encode("utf-8")).hexdigest()
+    assert row["path"] is None
+
+
+def test_the_generated_label_says_what_was_added_how_and_at_which_settings():
+    assert bc.builtin_label(VWAP_ROW) == (
+        'TradingView built-in STD;VWAP added from the Indicators dialog (search "VWAP"), not pasted Pine: '
+        "Anchor Period = Earnings, every other setting at its default. "
+        "Label generated by batch_capture.builtin_label from the manifest row.")
+    assert bc.builtin_label({"slug": "d", "builtin": {"id": "STD;DPO"}}).endswith(
+        "not pasted Pine: every setting at its default. Label generated by batch_capture.builtin_label from the manifest row.")
+    assert "published script PUB;b96fdd470dac47d1a227d8aae88bdbb4" in bc.builtin_label(
+        {"slug": "p", "builtin": {"id": "PUB;b96fdd470dac47d1a227d8aae88bdbb4"}})
+
+
+def test_the_search_table_is_the_measured_one_and_only_pine_ids_are_added():
+    assert bc.BUILTIN_SEARCH["STD;VWAP"] == "VWAP"
+    assert all(k.startswith(tuple(bc.BUILTIN_ID_KINDS)) and v.strip() for k, v in bc.BUILTIN_SEARCH.items())
+    assert bc.builtin_identity("STD;VWAP") == "Script$STD;VWAP@tv-scripting"
+    for row, why in (({"slug": "a", "builtin": {"id": "VWAPAA@tv-basicstudies", "search": "VWAP"}}, "not a Pine script id"),
+                     ({"slug": "b", "builtin": {"id": "STD;Not_Measured"}}, "no measured dialog search"),
+                     ({"slug": "c", "builtin": {"id": "STD;VWAP", "search": ""}}, "non-empty string"),
+                     ({"slug": "d", "builtin": "STD;VWAP"}, "`builtin` must be")):
+        with pytest.raises(bc.GateFailed, match=why):
+            bc.builtin_spec(row)
+    # an unmeasured id that names its own search is allowed: its first live run is the proof (the pre-click gate)
+    assert bc.builtin_spec({"slug": "e", "builtin": {"id": "STD;Not_Measured", "search": "Not Measured"}})["search"] == "Not Measured"
