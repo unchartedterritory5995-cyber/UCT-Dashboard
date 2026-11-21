@@ -23,9 +23,9 @@ describe('the device store switch', () => {
     expect(buildTimeMs(null)).toBeNull()
   })
 
-  it('is OFF by default in this PR; "1" turns it on, "0" off', () => {
-    expect(DEVICE_STORE_DEFAULT_ON).toBe(false)
-    expect(deviceStoreEnabled()).toBe(false)
+  it('the default is desktop-only (switch.default.test.js): a browser that is not a desktop is OFF; "1" turns it on, "0" off', () => {
+    expect(DEVICE_STORE_DEFAULT_ON).toBe(true)
+    expect(deviceStoreEnabled()).toBe(false)   // jsdom's matchMedia answers no desktop: off
     localStorage.setItem(DEVICE_STORE_KEY, '1')
     expect(deviceStoreEnabled()).toBe(true)
     localStorage.setItem(DEVICE_STORE_KEY, '0')
