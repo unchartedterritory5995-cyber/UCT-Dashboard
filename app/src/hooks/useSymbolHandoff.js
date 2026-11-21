@@ -194,8 +194,11 @@ function primeDeviceFor(sym, tf, sess) {
 
 /** ⭐ (2026-11-21, the cold switch) Wake `cb` on each change of the entry (sym, tf) shows, instead of polling it
  *  every POLL_MS; null under the legacy source (no store to watch: the caller polls). */
+// ⛔ DEVICE STORE ON ONLY (2026-11-21, to ship in the chart train): with the device store off, every waiter keeps
+// today's POLL_MS poll, so this branch changes NOTHING for a member without it (cold gates 1, 3 and 4 are device-only
+// by construction: the prime returns at !DEVICE; the worker and its minute replay only run with the store on).
 const watchEntry = (sym, tf, opts, cb) => {
-  if (!BARSTORE) return null
+  if (!BARSTORE || !DEVICE) return null
   try { return storePrefetch.watch?.(sym, tf, opts, cb) || null } catch { return null }
 }
 
