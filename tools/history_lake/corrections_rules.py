@@ -425,8 +425,10 @@ def build_ticker(sym: str, *, served: bool, rec, end: str, store: dict, yf: dict
                     S[f"{tf}_stored_not_derived_from_its_dailies"] += 1   # R2: left unchanged
                     continue
                 f_map = {F[q]: [s[1 + q], C[q]] for q in range(4) if U[q] != C[q]}
-                chk_fields = [x for x in ("c", "o") if x not in f_map]
-                chk = {chk_fields[0]: s[1 + F.index(chk_fields[0])]} if chk_fields else {}
+                # ⛔ NO chk ON W/M (coordinator ruling): a re-fetch re-derives a stored W/M row from the vendor's dailies
+                # and can move its close by cents, which would refuse a correct entry. The per-field compare-and-set on
+                # the corrected field (the bad print itself) is the identity check.
+                chk = {}
                 entries.append({"tf": tf, "src": "store", "d": pk, "op": "set", "f": f_map, "chk": chk})
                 rows.append({"sym": sym, "tf": tf, "d": pk, "src": "store", "op": "set", "f": f_map, "chk": chk, "recent_key": pk})
                 S[f"{tf}_store_set"] += 1

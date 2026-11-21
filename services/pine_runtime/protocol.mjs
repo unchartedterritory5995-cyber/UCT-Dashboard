@@ -223,7 +223,7 @@ function jobOf(v, path, { tfSet, maxBars, profile }) {
   }
   if (typeof v.tf !== 'string' || !tfSet.includes(v.tf)) throw bad(`${path}.tf`, `must be one of ${tfSet.join(', ')}`)
   const bars = barsOf(v.bars, `${path}.bars`, maxBars)
-  const c = closed(v.ctx, `${path}.ctx`, ['newestBarIsForming', 'historyFromListing'], ['runtimeInputs', 'historyWindowBars'])
+  const c = closed(v.ctx, `${path}.ctx`, ['newestBarIsForming', 'historyFromListing'], ['runtimeInputs', 'historyWindowBars', 'listingDepthBars'])
   const ctx = {
     newestBarIsForming: bool(c.newestBarIsForming, `${path}.ctx.newestBarIsForming`),
     historyFromListing: bool(c.historyFromListing, `${path}.ctx.historyFromListing`),
@@ -232,6 +232,10 @@ function jobOf(v, path, { tfSet, maxBars, profile }) {
     // (the API reads bars_window.HISTORY_WINDOW_BARS). Optional: a job without it is a job as before,
     // and a broker run told no window refuses `runtime:strategy-start` by name (vm.js).
     ...(Object.hasOwn(c, 'historyWindowBars') ? { historyWindowBars: posInt(c.historyWindowBars, `${path}.ctx.historyWindowBars`) } : {}),
+    // (2026-11-20, the strategy-only daily window) the depth a run from the listing is served at without [B-START-DEEP]
+    // (the browser's `listingDepthBars`, runtimeAsync.js::messageOf), as the CALLER states it. Optional: a job without
+    // it runs exactly as before (a run deeper than its window is refused by name; no deep start is asked).
+    ...(Object.hasOwn(c, 'listingDepthBars') ? { listingDepthBars: posInt(c.listingDepthBars, `${path}.ctx.listingDepthBars`) } : {}),
   }
   const want = Object.hasOwn(v, 'want') ? wantOf(v.want, `${path}.want`) : []
   if (want.includes(STRATEGY_WANT) && profile !== STRATEGY_PROFILE) {

@@ -128,6 +128,12 @@ jobs:
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -m pytest tests/test_corp_actions_census.py -q -p no:cacheprovider
 
+      # 2026-11-20: 2,741 of 3,450 test files ran in no lane; tools/domain_test_census.py maps every one to a
+      # domain by its own imports and this rail holds that each lands in a lane, a queued domain, or EXEMPT
+      - name: Every test file lands in a lane, a queued domain, or EXEMPT
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_domain_test_census.py -q -p no:cacheprovider
+
       - name: This job mirrors the gate's static steps
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -m pytest tests/test_gate_static_rails_pr.py -q -p no:cacheprovider

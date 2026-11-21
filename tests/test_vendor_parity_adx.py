@@ -26,9 +26,12 @@ isolation proof.
 capture needed for this specific claim -- it is about translator behavior,
 not real-runtime arithmetic): Pine's real `ta.dmi(diLength, adxSmoothing)`
 allows those two lengths to differ; UCT's table uses ONE shared `period` for
-both, and `pine.js`'s `dmiParts`/`dmiLeg` resolver REFUSES (`pine:tuple`) any
-asymmetric pair rather than silently collapsing it -- already covered by
-`pine.tupleBuiltins.test.js`/`pine.tuples.test.js`, not re-tested here.
+both. ⚰️ RMA-SEED (engine 92): Pine's `ta.dmi` no longer reads this table
+at all -- it is `pine.js::PINE_TUPLE_BUILTINS.dmi`, TradingView's body over
+`ta.rma`, unequal lengths served, witnessed bit for bit on
+`vw-bi-dmi-{spy,rddt}-1d-2026-11-19` (`rmaSeedDmi.test.js`,
+`test_ast_rma_seed.py`). The table entries tested here are the formula
+language's and the native chart's.
 """
 import json
 from pathlib import Path

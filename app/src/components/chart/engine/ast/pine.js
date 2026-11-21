@@ -101,7 +101,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
+import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, sessionDayWindowNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 import { memberNumber } from './memberValue.js'
@@ -112,6 +112,7 @@ import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
 // `parse.js`, neither of which imports this file.
 import { checkBudget, DEFAULT_BUDGET, REFUSALS as BUDGET_REFUSALS } from './budget.js'
+import { openDoorWindow, closeDoorWindow, doorWindowOpen, doorTripped, openDoor, doorDeadlinePassed } from './doorDeadline.js'
 // ⭐⭐ C3B — the OBJECT half of a Pine script. `pineObjects.js` reads the
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
 // imports this file, so there is no cycle and the object model stays authorable
@@ -697,8 +698,6 @@ const timeAnchorSentence = (pineName) => `\`${pineName}(<timeframe>)\` is the OP
  *  the capture). ⛔ NOT a `PINE_TF_SPELLING` entry: that map also feeds `request.security` and the
  *  `timeframe.*` family, and no capture asked a request at `"1440"`. */
 const CLOCK_TF_ALIASES = Object.freeze({ 1440: 'D' })
-/** 09:30, the regular session's open, in minutes of the New York day (`sessionClockOf`, U-BUILTIN T-D). */
-const SESSION_OPEN_MINUTE = 9 * 60 + 30
 const clockTfCodeOf = (lit) => {
   const key = String(lit).trim().toUpperCase()
   return PINE_TF_SPELLING[key] || (Object.prototype.hasOwnProperty.call(CLOCK_TF_ALIASES, key) ? CLOCK_TF_ALIASES[key] : null)
@@ -1279,7 +1278,11 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // refuses every other source by name. See the `key === 'vwap'` branch there.
   // ⭐⭐ THE THREE LEGS `ta.dmi` ANSWERS WITH. Pine has no singular spelling for
   // them — the only way to reach one is to destructure `[+DI, -DI, ADX]` — so
-  // these keys are synthetic and `dmiParts` is their only caller.
+  // these keys are synthetic. ⚰️ RMA-SEED (engine 92): their only caller,
+  // `dmiParts`, is gone — `ta.dmi` is `PINE_TUPLE_BUILTINS.dmi`, TradingView's body
+  // over `ta.rma` — so no translation of `ta.dmi` emits them any more. They stay
+  // declared only for what already names them (a formula translated before this
+  // engine number reads `plusDI` / `minusDI` / `adx`, `FN_PINE`'s).
   //
   // ⛔ THEY ARE DECLARED HERE RATHER THAN BUILT AT THE DESTRUCTURE, and that is
   // the point of this table: the manifest states what KIND each argument is and
@@ -4157,39 +4160,6 @@ function eqAtDmi(toks, close) {
   return rel < 0 ? -1 : close + 1 + rel
 }
 
-/** `[a, b, c] = ta.dmi(diLen, adxLen)` → three bindings, or `null`.
- *
- *  ⛔ NOTHING IS INVENTED HERE. Each part is an ordinary Pine call node naming a
- *  function the MANIFEST declares (`plusDI`/`minusDI`/`adx`), handed to the same
- *  resolver every other call goes through — so the arity, the argument roles and
- *  the lookback all come from the table rather than from this function. */
-function dmiParts(toks, close, names, env, first) {
-  if (names.length !== 3) return null
-  const eq = eqAtDmi(toks, close)
-  let call = null
-  try { call = parseWholeExpression(toks.slice(eq + 1)) } catch { return null }
-  // `ta.dmi` and a bare `dmi` are the same call; `normaliseName` lowercases and
-  // drops underscores but keeps the namespace, so the segment is taken here.
-  const bare = normaliseName(String(call.name).split('.').pop())
-  if (!call || call.type !== 'call' || bare !== 'dmi') return null
-  const args = (call.args || []).map((a) => a.value)
-  if (args.length !== 2) return null
-  const at = locate(first)
-  // Each leg is an ordinary Pine call whose ROLE ORDER is declared in
-  // `PINE_CALL_SHAPES`, so the three series come from the table's own statement
-  // of them rather than from this function. (Filling them here refused at
-  // `pine:role-order`, correctly.)
-  // ⛔ THE TWO PERIODS ARE COMPARED AT RESOLVE TIME, NOT HERE. At fold time a
-  // name is not a value, so the first cut compared the two argument nodes by
-  // SPELLING — which refused `ta.dmi(diLen, adxSmooth)` even when both inputs
-  // hold 14, and that is exactly the call the corpus's ADX script makes.
-  // Deferring it is the same shape `switch` and a tuple part already use.
-  const leg = (pineName) => ({
-    kind: 'dmiLeg', pineName, a: args[0], b: args[1], env: new Map(env), at,
-  })
-  return [leg('dmiplusleg'), leg('dmiminusleg'), leg('dmiadxleg')]
-}
-
 /** ⭐⭐ THE BUILT-IN TUPLES THIS ENGINE CAN TAKE APART, each part written as an
  *  ordinary PINE expression over the caller's own argument nodes.
  *
@@ -4294,6 +4264,60 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       return [mid, bin('+', mid, band), bin('-', mid, band)]
     },
   },
+  // ⭐⭐ DMI — `[diPlus, diMinus, adx] = ta.dmi(diLength, adxSmoothing)` (RMA-SEED, engine 92), TradingView's
+  // own "Directional Movement Index" body, written out over `ta.rma` on BOTH lanes (the runtime lane takes these
+  // same trees through `pineTupleBuiltinCallParts`):
+  //   up = ta.change(high), down = -ta.change(low)
+  //   plusDM = na(up) ? na : (up > down and up > 0 ? up : 0)      (minusDM the mirror)
+  //   truerange = ta.rma(ta.tr, diLength)
+  //   plus = fixnan(100 * ta.rma(plusDM, diLength) / truerange)    (minus the mirror)
+  //   adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), adxSmoothing), sum = plus + minus
+  // ⭐ WITNESSED, not assumed: `vw-bi-dmi-{spy,rddt}-1d-2026-11-19` W1-W4 subtract this body from TradingView's
+  // `ta.dmi` and read 0 on every bar, for (17, 14) and (14, 20) — so the ADX smooths over the SECOND length,
+  // and an unequal pair is served (it refused `pine:tuple` while the legs were the house table's one-period
+  // `adx`). With `ta.rma`'s exactly rounded seed (`interpret.js::rmaSeedMean`) all seven of its columns are
+  // TradingView's bit for bit on both symbols; the house `computeADX` this replaced (a Wilder SUM, not `ta.rma`)
+  // missed the last bit on 6,703 / 8,497 SPY bars of +DI alone. `>` and `==` are the Pine document's own
+  // (TradingView's epsilon, `pineCompare.js`), as the built-in's are (vw-fcmp-builtins B32-B34).
+  // ⛔ The native chart / screener ADX (`indicators.js::computeADX`) is not this and is untouched: it is not
+  // Pine-served.
+  dmi: {
+    arity: 2,
+    parts: 3,
+    // both lengths are the member's inputs whichever leg is read (the ADX alone reads the second)
+    resolveEveryArg: true,
+    build: (a, tok) => {
+      const pc = (n, args) => ({ type: 'call', name: n, args: args.map((v) => ({ value: v })), tok })
+      const bin = (op, left, right) => ({ type: 'binary', op, left, right, tok })
+      const nm = (name) => ({ type: 'name', name, tok })
+      const num = (value) => ({ type: 'number', value, tok })
+      const tern = (test, yes, no) => ({ type: 'ternary', test, yes, no, tok })
+      const off = (arg, n) => ({ type: 'offset', arg, n, tok })
+      // ⛔ NO STATEFUL CALL IN A `?:` ARM. The body names `up`, `down` and `sum` as variables, computed on every
+      // bar; written inline, a call inside an arm runs in Pine only on the bars the arm is taken. The member door
+      // refuses `ta.change` there (`pine:block`, `armRunsWhy`), and the runtime lane stops by name on a chart
+      // where `sum == 0` skips the `ta.rma`s inside `sum` (`CallSiteRunsStop`; a run of inside bars does it). So
+      // `ta.change(high)` is spelled `high - high[1]` (its definition, the same subtraction bit for bit) and the
+      // ADX's `sum == 0 ? 1 : sum` as `sum + (sum == 0 ? 1 : 0) * (1 - sum)`:
+      // where `sum == 0` (within TradingView's epsilon) that is `sum + (1 - sum)`, which rounds to exactly 1 for
+      // 0 <= sum <= 1e-10 (|1 - sum - (1 - sum)rounded| <= 2^-54, so `sum + fl(1 - sum)` is 1 within half an ulp,
+      // ties to even); elsewhere `sum + 0 * (1 - sum)` is `sum` exactly, and `na` stays `na`. The DIs are never
+      // negative, so `sum` is not either. Railed bit for bit on both lanes, every bar (`rmaSeedDmi.test.js`).
+      const up = bin('-', nm('high'), off(nm('high'), 1))
+      const down = { type: 'unary', op: '-', arg: bin('-', nm('low'), off(nm('low'), 1)), tok }
+      const dm = (x, y) => tern(pc('na', [x]), nm('na'),
+        tern(bin('and', bin('>', x, y), bin('>', x, num(0))), x, num(0)))
+      const truerange = pc('ta.rma', [nm('ta.tr'), a[0]])
+      const di = (move) => pc('fixnan', [bin('/', bin('*', num(100), pc('ta.rma', [move, a[0]])), truerange)])
+      const plus = di(dm(up, down))
+      const minus = di(dm(down, up))
+      const sum = bin('+', plus, minus)
+      const denominator = bin('+', sum, bin('*', tern(bin('==', sum, num(0)), num(1), num(0)), bin('-', num(1), sum)))
+      const adx = bin('*', num(100), pc('ta.rma', [
+        bin('/', pc('math.abs', [bin('-', plus, minus)]), denominator), a[1]]))
+      return [plus, minus, adx]
+    },
+  },
   // ⭐⭐ SUPERTREND — `[st, dir] = ta.supertrend(factor, atrPeriod)`. Not a stateless
   // expansion: each leg is `callExpansions.js::supertrendTrees`, the three bounded
   // `accum` recurrences that KEEP the band ratchet and the direction flip (see the
@@ -4340,6 +4364,10 @@ function builtinTupleParts(toks, close, names, env, first) {
   // being guessed at.
   const built = spec.build(raw.map((a) => a.value), first)
   if (!built) return null
+  // ⭐ RMA-SEED — an entry that names every argument has each one resolved with any part (`mintArgs`, `resolveBinding`)
+  if (spec.resolveEveryArg) {
+    return built.map((node) => Object.assign(exprBinding(node, new Map(env), at), { mintArgs: raw.map((a) => a.value) }))
+  }
   return built.map((node) => exprBinding(node, new Map(env), at))
 }
 
@@ -7363,6 +7391,39 @@ function barOffsetNode(child, n, table, tok, wrote) {
     + 'both of which this table already declares', locate(tok))
 }
 
+/** ⭐⭐ Q-BH0 (engine 92) — A PINE v6 `bool`'S HISTORY BEFORE HISTORY BEGINS READS `false`.
+ *
+ *  WITNESSED: TradingView's captures `vw-v6-bool-history-bar0-{spy,rddt}-1d-2026-11-19` (committed; probe
+ *  `tools/visual_conformance/probes/vw-v6-bool-history-bar0.pine`, from the listing) draw 1 on bar 0 for `b[1] == false`,
+ *  `not b[1]`, `b[1] != true`, `b != b[1]`, `b and not b[1]`, a `var bool`'s `c[1] == false` / `not c[1]` and
+ *  `u[1] == false`, and on bars 0 and 1 for `b[2] == false`; the reference says why ("To Pine Script version 6":
+ *  "Boolean values cannot be na"). This engine read that history as `na` and drew 0 there.
+ *  So a WRITTEN `x[k]` (`k` a whole number ≥ 1) of a v6 `bool` is `na(close[k]) ? 0 : x[k]`: `false` exactly on the
+ *  first `k` bars, where the read reaches before the series' first bar, and the read itself on every later bar. The
+ *  series' own `close` stands for "a bar exists `k` bars before this one" (`na` exactly on its first `k` bars; inside
+ *  a `tf` / `sym` read it is that series' own), and it reads back from formula text (`close[k]`; an offset of a
+ *  literal, `1[k]`, does not: `pine:roundtrip`). The run writes the same test (`pineRuntimeFrontend.js::v6BoolHistoryIr`).
+ *  ⛔ NOT `nz(x[k], 0)`: that would also turn a value this engine holds as `na` after history begins (a crossing's
+ *  own warm-up, a bar a supply lacks) into a confident `false`, which Q-BH0 did not witness. Only the bars before
+ *  history are answered. ⛔ Off the listing those bars are read before the chart's first bar and stay withheld by
+ *  name, as every such read is (`interpret.js::historyBeforeChartMask`). ⛔ v5 and older keep `na` (a v5 `bool` can
+ *  be `na`: engine 56, S1), judged per token (`versionAt`), so a v5 library inside a v6 script keeps it.
+ *  `version` is the version at the read's token; `tree` is the read as resolved. Python twin: the same nodes, no
+ *  new rule (`ast_interpret.py` evaluates `?:`, `na` and `close[k]` as `interpret.js` does;
+ *  `tests/fixtures/ast/v6_bool_history_parity.json`). */
+let v6BoolHistoryOn = true
+/** Tests and measurements only (the Q-BH0 rails' controls and census): `false` reads a v6 bool's history as this
+ *  engine read it before Q-BH0, in both lanes (the run asks `v6BoolHistoryServed`). Nothing a member reaches calls it. */
+export function __v6BoolHistoryForTests(on) { v6BoolHistoryOn = on !== false }
+/** Is the Q-BH0 rule on (always, outside a test that turned it off)? */
+export const v6BoolHistoryServed = () => v6BoolHistoryOn
+function v6BoolHistory(tree, back, version) {
+  if (!v6BoolHistoryOn) return tree
+  if (!(Number(version) >= 6) || !Number.isInteger(back) || back < 1) return tree
+  if (!tree || typeof tree !== 'object' || tree.type === 'num' || !isBoolishTree(tree)) return tree
+  return cOp('?:', [cCall('na', [{ type: 'offset', value: back, args: [cSeries('close')] }]), cNum(0), tree])
+}
+
 const PINE_OP_TO_TABLE = Object.freeze({
   '+': '+', '-': '-', '*': '*', '/': '/',
   '>': '>', '<': '<', '>=': '>=', '<=': '<=',
@@ -8394,13 +8455,90 @@ export function endTranslateBudget() {
  * difference between 10s and 46 × 10s on a 45-output script like Uncharted Clouds.
  */
 export function translateBudgetExpired() {
+  if (doorWindowOpen() && doorDeadlinePassed()) return true
   return TRANSLATE_DEADLINE !== Infinity && TRANSLATE_WINDOW_CLOCK() > TRANSLATE_DEADLINE
 }
 
 export function translateBudgetMs() { return TRANSLATE_BUDGET }
 
+/** The sentence of the whole-script refusal the output loop and the object pass raise when the
+ *  budget is gone: the door's own when the DOOR's deadline is what passed (`withDoorDeadline`). */
+function wholeScriptTimeout(sourcePath) {
+  const door = doorWindowOpen() ? doorDeadlinePassed() : null
+  if (door) return doorRefusal(door, null)
+  return new PineRefusal('pine:timeout',
+    `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
+    + (sourcePath ? ' translating `' + sourcePath + '`' : '')
+    + '. This is a translator defect, not a limit on the script: report it with the file.',
+    null)
+}
+
+// ─── ⭐⭐ THE DOOR DEADLINE: ONE CLOCK ACROSS A WHOLE MEMBER-DOOR CALL (`doorDeadline.js`, 2026-11-20) ─────────
+// A member door's call opens ONE window (`withDoorDeadline`), and every clock limb below also asks it: the sampled
+// check of every Resolver of the call (`checkClock`), the printer's tick, and the output loop's and object pass's
+// `translateBudgetExpired`; once it has tripped, every later resolution step refuses at once (`checkBudget`). Why the
+// per-translation bounds alone held a tab for minutes, and the measurement: `doorDeadline.js`.
+// ⛔ Closed (no window), nothing here reads a clock and every limb answers exactly as before, byte for byte.
+
+/**
+ * Runs `fn` inside a door window of `budgetMs` on `now` (default the wall clock, `wallNow`). A window opened inside
+ * another never outlives it: each check asks every open window, innermost first.
+ * @returns {{value: *, tripped: boolean, elapsedMs: number}} `tripped` when the deadline passed while `fn` ran (a
+ *   throw after the trip is caught here: `value` is then `null`); any other throw propagates unchanged.
+ */
+export function withDoorDeadline(budgetMs, fn, now) {
+  const clock = clockOrNull(now) || wallNow
+  const t0 = clock()
+  const win = openDoorWindow(budgetMs, clock)
+  let value = null
+  try {
+    value = fn()
+  } catch (err) {
+    if (!win.tripped) throw err
+    value = null
+  } finally {
+    closeDoorWindow(win)
+  }
+  return { value, tripped: win.tripped, elapsedMs: clock() - t0 }
+}
+
+/** The translator's refusal for a passed door deadline (the door replaces it with its own sentence). */
+function doorRefusal(door, tok) {
+  return new PineRefusal('pine:timeout',
+    `${REFUSALS['pine:timeout']} — the whole check of this script gave up after ${door.budgetMs}ms`,
+    tok ? locate(tok) : null)
+}
+
+/** The tripped window's one refusal, made once and thrown again at every later step (`checkBudget`). */
+function trippedDoorRefusal() {
+  const door = openDoor()
+  if (!door.refusal) door.refusal = doorRefusal(door, null)
+  return door.refusal
+}
+
+/** ⭐ A door-only tick for a walk the translator's own budgets never bounded, charged `n` units of work: with no
+ *  door window open it returns at once, so a translation outside the member door answers exactly as before; with one,
+ *  a tripped window throws at once, and the clock is read each time the work charged crosses a 4,096 boundary. */
+let doorTicks = 0
+function tickDoorOnly(n = 1) {
+  if (!doorWindowOpen()) return
+  if (doorTripped()) throw trippedDoorRefusal()
+  const before = doorTicks
+  doorTicks += n
+  if (Math.floor(before / (BUDGET_CHECK_MASK + 1)) === Math.floor(doorTicks / (BUDGET_CHECK_MASK + 1))) return
+  checkDoorClock(null)
+}
+
+/** A checkpoint between phases (`doorDeadline.js::checkDoorDeadline`), raising the translator's own refusal. */
+function checkDoorClock(tok) {
+  if (!doorWindowOpen()) return
+  const door = doorDeadlinePassed()
+  if (door) throw doorRefusal(door, tok)
+}
+
 export function tickTranslateBudget() {
   if ((((printSteps += 1)) & BUDGET_CHECK_MASK) !== 0) return
+  checkDoorClock(null)
   if (TRANSLATE_WINDOW_CLOCK() <= TRANSLATE_DEADLINE) return
   throw new PineRefusal('pine:timeout',
     `${REFUSALS['pine:timeout']} — gave up after ${TRANSLATE_BUDGET}ms`
@@ -9068,6 +9206,16 @@ export class Resolver {
     // and refused for being too deep HAS been read, and re-resolving it in the
     // closing pass would report the same exhaustion twice under a worse name.
     if (bound && typeof bound === 'object') bound.read = true
+    // ⭐ RMA-SEED — a part of a tuple built-in that names every argument (`PINE_TUPLE_BUILTINS.dmi`,
+    // `resolveEveryArg`): each argument is resolved first, for what resolving does to the script's inputs (an
+    // `input.int` length is minted as the member's parameter whichever leg is read). ⚰️ `dmiParts`' legs resolved
+    // both lengths to compare them, so a script reading only +DI / -DI still listed its "DMI Smoothing" input, and
+    // its frozen parameter ids (`paramIdLegacy.js`) address it; TradingView lists it too.
+    if (bound && bound.kind === 'expr' && Array.isArray(bound.mintArgs)) {
+      const prevEnv = this.env
+      this.env = bound.env || prevEnv
+      try { for (const a of bound.mintArgs) this.resolve(a) } finally { this.env = prevEnv }
+    }
     // ⭐⭐ C31 — see `foldStatements`' conditional-call mark. Only a Resolver
     // that asks (`refuseCondCalls`, the object pass's) refuses it.
     // ⭐⭐ C42 — where the block runs exactly ONCE the fold also built what the
@@ -9444,33 +9592,6 @@ export class Resolver {
           + 'and there is no default', bound.at || locate(tok))
       }
       return this.resolveBinding(picked, tok, name)
-    }
-    // ⭐ ONE LEG OF `ta.dmi`, with its two periods compared HERE where they are
-    // values rather than names.
-    //
-    // ⛔ PINE SMOOTHS THE ADX OVER ITS SECOND ARGUMENT while the DI legs use the
-    // first; this table's `adx` takes ONE period for both. So an unequal pair
-    // refuses rather than quietly returning a 14/14 ADX — the identical decision
-    // `ADX14.20` makes on the TC2000 side, and the same reason: a member who
-    // asked for 14/20 must not be handed a number that is not the indicator they
-    // asked for.
-    if (bound.kind === 'dmiLeg') {
-      const prevEnv = this.env
-      this.env = bound.env || prevEnv
-      try {
-        const a = this.resolve(bound.a)
-        const b = this.resolve(bound.b)
-        const same = a.type === 'num' && b.type === 'num' && a.value === b.value
-        if (!same) {
-          throw new PineRefusal('pine:tuple',
-            `${REFUSALS['pine:tuple']} — \`ta.dmi\` smooths its ADX over the SECOND period `
-            + 'and this table uses one period for both, so the two must agree',
-            bound.at || locate(tok))
-        }
-        return this.resolve({
-          type: 'call', name: bound.pineName, args: [{ value: bound.a }], tok,
-        })
-      } finally { this.env = prevEnv }
     }
     // ⭐⭐ ONE ELEMENT OF A TUPLE `request.security` (2026-09-11). Volume's line 259
     // is `[a,…,h] = request.security(syminfo.tickerid, 'D', f_getDailyData(),
@@ -10529,6 +10650,10 @@ export class Resolver {
    */
   checkBudget(tok) {
     this.budgetSteps += 1
+    // ⭐⭐ A TRIPPED DOOR WINDOW REFUSES AT EVERY STEP (`withDoorDeadline`): a refusal a caller catches and retries
+    // around must not buy the script another 4,096 steps per retry. One property read when a window is open, and
+    // ONE refusal per window, thrown again (a fresh one captured a stack per retry: measured, ~0.6 s of a 3 s trip).
+    if (doorTripped()) throw trippedDoorRefusal()
     // ⛔ THE STEP CAP IS CHECKED OUTSIDE THE MASK. Gating it behind the same
     // 4096-step gate as the clock made any cap below 4096 UNREACHABLE — a guard
     // that cannot fire. A control asking a normal script to stop at 100 steps is
@@ -10547,6 +10672,8 @@ export class Resolver {
   /** The wall-clock half of `checkBudget`, also asked by a replayed probe
    *  (`resolveProbed`) whose charged steps cross a sampling boundary. */
   checkClock(tok) {
+    // ⭐⭐ THE DOOR'S CLOCK FIRST (`withDoorDeadline`): it bounds every Resolver of the call, however many.
+    checkDoorClock(tok)
     const where = this.sourcePath ? ' translating `' + this.sourcePath + '`' : ''
     const tail = '. This is a translator defect, not a limit on the script: '
       + 'report it with the file.'
@@ -11238,9 +11365,21 @@ export class Resolver {
     } else {
       // a growing window: slots 0 … size−1 are filled, so a fold carries the
       // running value only through slots that exist (`has`).
-      const step = (acc, j) => (member === 'max' || member === 'min'
-        ? [I(`math.${member}`), P('('), ...acc, P(','), ...v(j), P(')')]
-        : [P('('), ...acc, P('+'), ...v(j), P(')')])
+      // ⭐ door-deadline — THESE FOLDS ARE BUILT BY COPYING, AND THE UNSHIFT ONE DOUBLES EVERY SLOT (its running
+      // value appears in both arms), so it is the one walk of a translation no budget bounded: measured, most of a
+      // member-door call that ran for minutes on a public script. Each step of the fold is charged to the door BEFORE
+      // its copies are made, by the tokens it carries (`tickDoorOnly` in `step`, which both orders call once a slot: a
+      // no-op with no door window, so the tokens and every answer are unchanged), and the copies themselves are the
+      // spreads they always were.
+      // ⚰️ MEASURED, BOTH WAYS IT WENT WRONG: a copy token by token, ticking each, ran one public script's call on to
+      // the deadline where the spread had finished; a bulk `concat` made the worker exit at once, every time. Keep the
+      // spreads.
+      const step = (acc, j) => {
+        tickDoorOnly(acc.length)
+        return member === 'max' || member === 'min'
+          ? [I(`math.${member}`), P('('), ...acc, P(','), ...v(j), P(')')]
+          : [P('('), ...acc, P('+'), ...v(j), P(')')]
+      }
       if (w.order === 'unshift') {
         // index order j = 0, 1, …: acc_j = has(j) ? step(acc_{j-1}, j) : acc_{j-1}
         body = v(0)
@@ -12009,6 +12148,13 @@ export class Resolver {
         }
         const blockRead = this.blockLocalHistory(node)
         if (blockRead !== null) return blockRead
+        // ⭐⭐ Q-BH0 — a v6 `bool`'s history before history begins is `false` (`v6BoolHistory`), on the plain read
+        // below. ⛔ Not on a reassigned name's read here (`plainRecurrence`): inside the name's own update it is the
+        // recurrence's `self`, and above the update, measured 2026-11-20, a v6 `bool` latch read there is refused by
+        // name on this lane (`pine:state`: an `if`-block latch and a self-referential `?:` one alike), so no rail can
+        // reach a wrap there (mutation-proved: the wrap's removal survived every rail). The run reads such a latch
+        // from its slot and serves the rule (`pineRuntimeFrontend.js::v6BoolHistoryIr`).
+        const histVersion = versionAt(node.tok, this.pineVersion)
         const plain = this.plainRecurrence(node, node.tok)
         if (plain !== null) return plain
         this.guardOffsetOfMutable(node)
@@ -12016,7 +12162,7 @@ export class Resolver {
         // reach the seam the same way and nesting needs no special case.
         const child = this.resolve(node.arg)
         const wrote = node.arg.type === 'name' ? `${node.arg.name}[${node.n}]` : null
-        return barOffsetNode(child, node.n, this.table, node.tok, wrote)
+        return v6BoolHistory(barOffsetNode(child, node.n, this.table, node.tok, wrote), node.n, histVersion)
       }
       case 'name': return this.resolveName(node)
       case 'call': return this.resolveCall(node)
@@ -14002,19 +14148,21 @@ export class Resolver {
     // ⚰️ `onItsOwnChart` (`periodseconds == 86400`) sat inside the membership, so on an intraday chart
     // `time("D", sess)` was `na` on every bar, and a script's own `na(t) ? … : …` drew that as an answer:
     // capture `vw-bt-time-1440-spy-60-2026-11-16` R2 reads `time("D", "0930-1600")` as the 09:30 session
-    // open on every regular-hours hourly bar. Two shapes now:
-    //   · a window that OPENS AT 09:30 New York (the exchange's zone), not wrapping: the start of the window
-    //     and the open of the day are one instant, so the value is the `time("D")` anchor itself
-    //     (`interpret.js::dayAnchorNode`), on a daily chart (where it is the bar's own 09:30 `time`, the
-    //     tree's answer before) and on an intraday one alike, withheld where the anchor is
-    //     (`time-day:off-session`);
-    //   · any other window keeps the daily tree, gated `86400 == periodseconds ? … : na`
-    //     (`sessionDayGateNode`), which the chart-clock mask withholds by name on a chart that states
-    //     another timeframe (`time-session:day-on-other-chart`): the window's start or the day's open there
-    //     is Q-BI-TD1c. A chart that states no timeframe reads it as before (`na` off a daily bar length).
+    // open on every regular-hours hourly bar.
+    // ⭐⭐ U-BUILTIN T-D EXT (2026-11-20) — AND THE VALUE IS THE START OF THE WINDOW, NOT THE OPEN OF THE DAY.
+    // On a chart with pre-market and after-hours bars TradingView answers every window as its own start on the
+    // bar's day (`vw-bi-time-d-extended-spy-60-2026-11-19` S1-S4: "0930-1600" reads 09:30 there while
+    // `time("D")` reads 04:00). ⚰️ A 09:30 window was written as the `time("D")` anchor (`dayAnchorNode`), the
+    // same instant on a regular-hours chart and 5.5 hours apart on an extended one. So EVERY window of one day
+    // in the exchange's zone is now the one gated daily tree (`interpret.js::sessionDayWindowNode`, built there
+    // so its recogniser is the same builder): read through its gate where `sessionDayGateServed` says it is
+    // measured (an extended-hours chart, and a 09:30 window on a regular-hours, 1W or 1M chart), withheld by
+    // name on any other chart below daily (`time-session:day-on-other-chart`). A window that wraps past
+    // midnight or names a fixed zone keeps the gated tree below and is withheld off a daily chart. A chart
+    // that states no timeframe reads every one as before (`na` off a daily bar length).
     const dayLiteral = !isOwnTf && code === 'D'
-    if (dayLiteral && !wraps && start === SESSION_OPEN_MINUTE && offset === null) {
-      return cOp('?:', [inside, dayAnchorNode(this.pineVersion !== null), cOp('/', [cNum(0), cNum(0)])])
+    if (dayLiteral && !wraps && offset === null) {
+      return sessionDayWindowNode(start, end, days, this.pineVersion !== null)
     }
     const gated = (tree) => (dayLiteral ? sessionDayGateNode(tree) : tree)
     if (onItsOwnChart && !dayLiteral) inside = cOp('&&', [inside, onItsOwnChart])
@@ -19378,9 +19526,9 @@ function destructureBindings(toks, env, first) {
   const names = toks.slice(1, close)
     .filter((t) => t.kind === 'ident' && !TYPE_WORDS.has(t.value))
 
-  const dmi = eqAtDmi(toks, close) >= 0 ? dmiParts(toks, close, names, env, first) : null
-  if (dmi) return { names, bindings: dmi }
-
+  // ⭐ RMA-SEED — `ta.dmi` is an ordinary `PINE_TUPLE_BUILTINS` member now (its body over `ta.rma`), so it is
+  // taken apart here like `ta.bb`; ⚰️ its own arm (`dmiParts`, three legs of the house table's one-period `adx`,
+  // refusing an unequal pair) is gone.
   const builtin = builtinTupleParts(toks, close, names, env, first)
   if (builtin) return { names, bindings: builtin }
 
@@ -19564,7 +19712,7 @@ function tupleRefusalTail(call, names, env) {
     return '`' + shown + '`' + ' could not be taken apart'
   }
   // ⭐ THE LIST IS DERIVED so it cannot go stale the day another tuple is added.
-  const known = [...Object.keys(PINE_TUPLE_BUILTINS), 'dmi'].sort()
+  const known = Object.keys(PINE_TUPLE_BUILTINS).sort()
     .map((k) => '`' + 'ta.' + k + '`').join(', ')
   return 'this engine has no tuple form for ' + '`' + shown + '`'
     + ' — the ones it can take apart are ' + known
@@ -30080,13 +30228,7 @@ function translatePineResult(source, opts = {}) {
       // every individual guard reported itself satisfied. Inside the try on
       // purpose: this becomes a per-output refusal like any other, rather than an
       // exception escaping `translatePine`.
-      if (translateBudgetExpired()) {
-        throw new PineRefusal('pine:timeout',
-          `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
-          + (opts.sourcePath ? ' translating `' + opts.sourcePath + '`' : '')
-          + '. This is a translator defect, not a limit on the script: report it with the file.',
-          null)
-      }
+      if (translateBudgetExpired()) throw wholeScriptTimeout(opts.sourcePath)
 
       const cur = new Cursor(out.toks.slice(2))
       const args = parseArguments(cur)
@@ -30720,13 +30862,7 @@ function translatePineResult(source, opts = {}) {
     // ⛔ THE OBJECT PASS IS A SECOND ENTRY POINT AND NEEDS THE SAME BOUND. It
     // builds its own Resolver, so without this it buys a fresh step budget after
     // the output loop has already spent the script's whole wall clock.
-    if (translateBudgetExpired()) {
-      throw new PineRefusal('pine:timeout',
-        `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
-        + (opts.sourcePath ? ' translating `' + opts.sourcePath + '`' : '')
-        + '. This is a translator defect, not a limit on the script: report it with the file.',
-        null)
-    }
+    if (translateBudgetExpired()) throw wholeScriptTimeout(opts.sourcePath)
     // ⭐ `objectRawTrees` is set by the LANE ADAPTER (`runtime/objectLane.js`)
     // and by nothing else. Unset, this pass behaves byte-identically to before.
     // ⭐ C18 — `runtimeCheck` is the member door's compile check for values read

@@ -179,6 +179,20 @@ describe('[B-ROUND] a fill on a bar OPEN off the tick grid is that open rounded 
     expect(used).toContain('B-ROUND')
   })
 
+  // ⭐⭐ (2026-11-20, Q-SU-8) the tie is the FLOAT's: 145.265 / 0.01 = 14526.499999999998 lands a hair under the half and
+  // TradingView fills it at 145.26 (supertrend-strategy-deep-aapl-1d-2026-11-19, 2022-07-08); an exact x.5 quotient
+  // (62.875 / 0.01 = 6287.5, and the 32 other ties of the committed captures) fills UP
+  it('a tie whose float quotient sits under the half rounds DOWN (145.265 -> 145.26); an exact x.5 rounds UP (62.875 -> 62.88)', () => {
+    const shift = (rows, d) => rows.map(([o, h, l, c]) => [o + d, h + d, l + d, c + d])
+    const down = served(SRC, { bars: barsOf([[100, 101, 99, 100], [100, 101, 99, 100], ...shift([[100.265, 101.5, 99.5, 101]], 45),
+      [146, 149, 145.5, 148.5], [148.5, 150, 147.5, 149], ...Array.from({ length: 5 }, () => [149, 150, 148.5, 149.5])]) })
+    expect(145.265 / 0.01).toBeLessThan(14526.5)
+    expect(down.trades[0].entry.price).toBe(145.26)
+    const up = served(SRC, { bars: base([62.875, 63.5, 62.5, 63]) })
+    expect(62.875 / 0.01).toBe(6287.5)
+    expect(up.trades[0].entry.price).toBe(62.88)
+  })
+
   it('above a half tick rounds UP (103.506 -> 103.51); a market SELL on a tie rounds UP too (it is rounding, not slippage)', () => {
     const up = served(SRC, { bars: base(null, [103.506, 105, 102.5, 104]) })
     expect(up.trades[0].exit.price).toBe(103.51)

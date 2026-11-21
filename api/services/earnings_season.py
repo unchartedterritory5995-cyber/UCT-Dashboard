@@ -107,9 +107,15 @@ def read_week(monday: date) -> Optional[dict]:
     """The calendar week that starts on `monday`, through the Calendar's own readers (fresh, else
     the last good week, else its single-flighted build). BACKGROUND THREAD ONLY."""
     from api.routers import calendar as route
+    from api.services.calendar_week_contract import week_days
     if monday == route._week_dates()[0]:
-        return route._get_calendar_payload(None)
-    return route._get_or_build_range_week(monday)
+        payload = route._get_calendar_payload(None)
+    else:
+        payload = route._get_or_build_range_week(monday)
+    # TERM-030: the shared shape check. A malformed week raises here, and the caller says the calendar could not be
+    # read; a week whose rows changed shape must never read as "nobody reports".
+    week_days(payload, reader="api.services.earnings_season.read_week")
+    return payload
 
 
 def read_priced(ds: str) -> dict[str, dict]:

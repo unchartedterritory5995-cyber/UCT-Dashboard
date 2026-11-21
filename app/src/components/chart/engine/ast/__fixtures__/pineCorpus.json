@@ -81,7 +81,7 @@
   "translates": true,
   "outputs": 16,
   "usable": 13,
-  "selectedFormula": "crossOver(plusDI(high, low, close, 14), minusDI(high, low, close, 14))",
+  "selectedFormula": "crossOver(valuewhenOccurrence(!na(100 * rma(na(high - high[1]) ? 0 / 0 : high - high[1] > -(low - low[1]) && high - high[1] > 0 ? high - high[1] : 0, 14) / rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14)), 100 * rma(na(high - high[1]) ? 0 / 0 : high - high[1] > -(low - low[1]) && high - high[1] > 0 ? high - high[1] : 0, 14) / rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 0), valuewhenOccurrence(!na(100 * rma(na(-(low - low[1])) ? 0 / 0 : -(low - low[1]) > high - high[1] && -(low - low[1]) > 0 ? -(low - low[1]) : 0, 14) / rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14)), 100 * rma(na(-(low - low[1])) ? 0 / 0 : -(low - low[1]) > high - high[1] && -(low - low[1]) > 0 ? -(low - low[1]) : 0, 14) / rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 0))",
   "downstream": {
    "ok": true,
    "guard": null,

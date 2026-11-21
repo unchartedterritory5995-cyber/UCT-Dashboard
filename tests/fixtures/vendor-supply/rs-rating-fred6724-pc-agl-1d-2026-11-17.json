@@ -1,0 +1,13 @@
+{
+ "schema": "uct.harness-supply/v1",
+ "capture": "rs-rating-fred6724-pc-agl-1d-2026-11-17",
+ "why": "RS RATING (docs/pine/RS-RATING-TRANSFER.md): the record of what OUR SERVER serves for this capture's other symbols. Here, deliberately none (see notRecorded): read by ourSide.js::recordedSupplyOf, which grades the capture INCONCLUSIVE by name instead of on missing bars.",
+ "other": {
+  "SPX": {
+   "notRecorded": "not graded, by coordinator ruling 2026-11-21 (the Fred RS parity audit at engine 91, option (b)): this post-close capture (taken 2026-11-17 21:10Z, its newest bar that day's settled close) has no record of the bars our server served for SPX or RSRATING on 2026-11-17, and recording SPX needs the owner's FMP credential run (record_rs_supply.py --spx under `railway run`). Its post-close state is graded MATCH by rs-rating-fred6724-pm-rddt-1d-2026-11-16, so it is filed unsupplied on purpose: no verdict here implies a pass or a fail."
+  },
+  "SEED_FRED6725_RS_RATING:RSRATING": {
+   "notRecorded": "not graded, by coordinator ruling 2026-11-21 (the Fred RS parity audit at engine 91, option (b)): this post-close capture (taken 2026-11-17 21:10Z, its newest bar that day's settled close) has no record of the bars our server served for SPX or RSRATING on 2026-11-17, and recording SPX needs the owner's FMP credential run (record_rs_supply.py --spx under `railway run`). Its post-close state is graded MATCH by rs-rating-fred6724-pm-rddt-1d-2026-11-16, so it is filed unsupplied on purpose: no verdict here implies a pass or a fail."
+  }
+ }
+}

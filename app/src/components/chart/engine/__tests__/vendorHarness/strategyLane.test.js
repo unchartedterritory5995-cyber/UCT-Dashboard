@@ -17,6 +17,9 @@
 //   SL5 THE LANE ASSERTION CAN FAIL: runtime-on with the gate dark, or with no broker run, is refused.
 //   SL6 ONE CODE PATH, IN THE SOURCE: neither `strategyLane.js` nor `ourSide.js` builds with `strategyBroker` or
 //       widens the pin ledger with `brokerPinned`.
+//   SL9 THE DEEP DAILY START THROUGH THE MEMBER DOOR (2026-11-20): Q-SU-7 (SPY 1D from 1993, 8,511 bars) and Q-SU-8
+//       (AAPL 1D from 1980, 11,572 bars) grade MATCH on the run the door makes over the strategy window, with the shared
+//       window as its served depth (both off the modules), the run asking [B-START-DEEP] on the committed ledger.
 //   SL7 A REPORT REFUSED WHOLE IS REFUSED BY NAME: a record the report cannot read (a trade time that is a date, the
 //       shape a daily chart's run recorded before 2026-11-17) refuses whole (`runtime:strategy-report-record`); the
 //       grade says so, never "profit differs" on a withheld profit. On a member's daily bars the run now records each
@@ -33,6 +36,7 @@ import {
   assertStrategyLaneMeasured, STRATEGY_SLOT_MAP, laneValueOutputsOf,
 } from './strategyLane.js'
 import { gradeStrategyCapture } from './strategyHarness.js'
+import { strategyReportOf, DATA_SOURCE_SENTENCE } from '../../runtime/brokerReport.js'
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
 import { LANE_PRODUCTION, LANE_RUNTIME_ON } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { sealCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
@@ -207,6 +211,9 @@ describe('SL7 a report refused whole is refused by name, never a different answe
     expect(verdict.strategy.refusedBy).toBeUndefined()
     expect(verdict.strategy.verdict).toBe('MATCH')
     expect(verdict.verdict).toBe('MATCH')
+    // CONTROL for SL9's data-source note: a run within the shared window carries none
+    const { ours } = gradeCapture(cap(ID))
+    expect('dataSentence' in strategyReportOf(ours.strategy.record).window).toBe(false)
   })
   it('a record the report cannot read (a trade time that is a date) refuses whole by name: EXPECTED-REFUSAL, no compare', () => {
     armed(true)
@@ -275,4 +282,20 @@ describe('SL6 one code path, in the source', () => {
   it('control: the strategy harness (the pin question) does, so the pattern reads code', () => {
     expect(codeOf('strategyHarness.js')).toMatch(SECOND_PATH)
   })
+})
+
+describe('SL9 the deep daily start, graded through the member door on the committed ledger', () => {
+  for (const [id, row] of [['supertrend-strategy-deep-spy-1d-2026-11-19', 'Q-SU-7'], ['supertrend-strategy-deep-aapl-1d-2026-11-19', 'Q-SU-8']]) {
+    it(`${row} ${id}: MATCH, every trade and stated report slot, the run from the listing asking [B-START-DEEP]`, () => {
+      armed(true)
+      const { verdict, ours } = gradeCapture(cap(id))
+      expect(verdict.strategy.broker).toBe(true)
+      expect(verdict.strategy.verdict, verdict.strategy.reason).toBe('MATCH')
+      expect(verdict.verdict).toBe('MATCH')
+      expect(ours.strategy.record.rulesUsed).toContain('B-START-DEEP')
+      // the member's report says which history it runs on (`brokerReport.js::DATA_SOURCE_SENTENCE`)
+      expect(strategyReportOf(ours.strategy.record).window.dataSentence).toBe(DATA_SOURCE_SENTENCE)
+      expect(ours.strategy.record.trades).toHaveLength(cap(id).provenance.report.tree.trades.length)
+    })
+  }
 })

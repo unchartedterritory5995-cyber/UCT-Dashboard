@@ -27,7 +27,7 @@ multi-timeframe-vwap-v5, orb.
 |---|---|---|---|---|---|
 | Q-BI-TD1a | `vw-bi-time-d-extended.pine` (00126794df48342b) | AMEX:SPY 5, EXTENDED HOURS ON, >= 2,000 bars (10+ sessions) | no | every row on every bar | the `time("D")` anchor, `ta.change(time("D"))`, `timeframe.change("D")` and `time("D", sess)` on extended-hours 5m bars |
 | Q-BI-TD1b | the same | AMEX:SPY 60, EXTENDED HOURS ON, >= 400 bars | no | the same | the same on 60m |
-| Q-BI-TD1c | the same | AMEX:SPY 60, EXTENDED HOURS OFF, >= 400 bars | no | the same (S3: a window that starts after the open) | `time("D", "1000-1100")` on regular-hours bars: the window's start or the day's open |
+| Q-BI-TD1c | `vw-bi-time-d-extended.pine` (00126794df48342b) | AMEX:SPY 60, EXTENDED HOURS OFF, >= 400 bars | no | the same (S3: a window that starts after the open) | `time("D", "1000-1100")` on regular-hours bars: the window's start or the day's open |
 | Q-BI-TD1d | the same | BITSTAMP:BTCUSD 60, >= 400 bars | no | the same | the anchor on a 24-hour symbol whose exchange zone is UTC |
 
 ## The built-in names whose behaviour the reference does not state
@@ -43,7 +43,7 @@ multi-timeframe-vwap-v5, orb.
 | Q-BI-COR4 | `vw-bi-correlation-v4.pine` (93a2dc928e98bd57) | AMEX:SPY 1D from the listing | no | every row on every bar | v4 `correlation` over runtime state (committed:correlation-matrix, whose next walls are its requests); its warm-up, zero-variance and na-window edges |
 | Q-BI-COR6 | `vw-bi-correlation-v6.pine` (25f9a09da9b97fb6) | AMEX:SPY 1D from the listing | no | the same | `ta.correlation`, the same edges |
 | Q-BI-SFB-a | `vw-bi-session-isfirstbar.pine` (1482b3ed3add675e) | AMEX:SPY 5, EXTENDED HOURS ON, >= 2,000 bars | no | every row on every bar | `session.isfirstbar` / `_regular` / `islastbar` / `_regular` (2 sample scripts, any) |
-| Q-BI-SFB-b | the same | AMEX:SPY 5, EXTENDED HOURS OFF | no | the same | the same, regular-hours bars |
+| Q-BI-SFB-b | `vw-bi-session-isfirstbar.pine` (1482b3ed3add675e) | AMEX:SPY 5, EXTENDED HOURS OFF | no | the same | the same, regular-hours bars |
 | Q-BI-SFB-c | the same | AMEX:SPY 1D, >= 300 bars | no | the same | the same, daily bars |
 | Q-BI-SFB-d | the same | BITSTAMP:BTCUSD 60, >= 400 bars | no | the same | the same, a 24-hour symbol |
 | Q-BI-TC2-a | `vw-bi-time-close-2arg.pine` (c92a5e08ff8a2afb) | AMEX:SPY 60, extended hours off, >= 400 bars | no | every row on every bar | `time_close(tf, session[, tz])` (2 sample scripts, any) |
@@ -57,11 +57,18 @@ multi-timeframe-vwap-v5, orb.
 was extended-hours and the batch did not read the session. TC2-a is not answered as asked: the capture shows
 `time_close(tf, session)` on extended-hours 60m bars only, and no claim about regular-hours bars may be drawn from it.
 (The probe header says "extended hours off". Its bytes are the capture's `source.sha256`, so it is corrected here.)
-**The regular-hours re-take (owed), Q-BI-TC2-a-rth:** `vw-bi-time-close-2arg.pine` on AMEX:SPY 60, >= 400 bars, as a
-batch row on the regular-hours layout `MyS1vKSg`, with `"session": "regular"` and `"layout": "MyS1vKSg"` (capture id
-`vw-bi-time-close-2arg-spy-60-rth-<date>`). TD1c (Q-BI-TD1c) and SFB-b (Q-BI-SFB-b) ask for the regular session
-too, and run on the same layout the same way. ⚠️ These are listed here, not as table rows: the queue keys a target by
-probe, symbol and timeframe, with no session.
+**The regular-hours re-takes (owed) are the rows themselves: TC2-a, TD1c and SFB-b.** The queue reads a row's session
+beside its chart ("extended hours off": regular; "EXTENDED HOURS ON": extended) and answers it only with a capture that
+RECORDED that session (the session dimension, 2026-11-21): `vw-bi-time-close-2arg@AMEX:SPY@60@regular` is QUEUED and
+the extended capture no longer answers it. TD1c and SFB-b name their probe (they read "the same", which names none, so
+they were never targets): `vw-bi-time-d-extended@AMEX:SPY@60@regular` and `vw-bi-session-isfirstbar@AMEX:SPY@5@regular`.
+Their manifest rows carry `"session": "regular"` and `"layout": "MyS1vKSg"` (the regular-hours rig layout,
+`run --layout MyS1vKSg`), so their capture ids end `-rth-<date>` (`vw-bi-time-close-2arg-spy-60-rth-<date>`).
+**TC2-a's re-take is TAKEN** (patrick-54, 2026-11-21 03:34-03:38Z, from master 1fe40a6f2c, `--layout MyS1vKSg`):
+`vw-bi-time-close-2arg-spy-60-rth-2026-11-20`, `symbol.session` 0930-1600, 60, 20,889 bars; the negative control on the
+rig layout stopped by name (GATE_FAILED, "resolves session '0400-2000' ... not the regular session '0930-1600'"),
+nothing captured. It is held in its run dir until the promotion gate admits an `-rth` id (the session-dimension PR);
+promoted, it answers `vw-bi-time-close-2arg@AMEX:SPY@60@regular`.
 
 ## Not asked here (no capture row)
 

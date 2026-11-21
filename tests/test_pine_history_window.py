@@ -35,7 +35,17 @@ def test_anonymous_is_refused():
 def test_a_signed_in_member_reads_the_one_window():
     r = _app({"id": "m1", "role": "member"}).get(PATH)
     assert r.status_code == 200
-    assert r.json() == {"historyWindowBars": bars_window.HISTORY_WINDOW_BARS}
+    # ⭐ (2026-11-19, D9 strategy-only) the shared window, unchanged, AND the strategy window beside it
+    assert r.json() == {"historyWindowBars": bars_window.HISTORY_WINDOW_BARS,
+                        "strategyHistoryWindowBars": bars_window.STRATEGY_HISTORY_WINDOW_BARS}
+    assert r.json()["strategyHistoryWindowBars"] > r.json()["historyWindowBars"]
+
+
+def test_the_strategy_window_follows_its_own_constant(monkeypatch):
+    monkeypatch.setattr(phw, "STRATEGY_HISTORY_WINDOW_BARS", bars_window.STRATEGY_HISTORY_WINDOW_BARS + 1)
+    r = _app({"id": "m1", "role": "member"}).get(PATH)
+    assert r.json()["strategyHistoryWindowBars"] == bars_window.STRATEGY_HISTORY_WINDOW_BARS + 1
+    assert r.json()["historyWindowBars"] == bars_window.HISTORY_WINDOW_BARS
 
 
 def test_the_answer_follows_the_constant_not_a_copy(monkeypatch):
