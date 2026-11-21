@@ -743,8 +743,22 @@ def test_admission_gate_running_with_no_job_queued_dispatches():
 
 
 def test_admission_a_queued_gate_run_with_no_jobs_yet_waits():
-    ok, why = rt.room_to_dispatch([_run(9, "queued")], {"9": []}, [], [], _now())
+    gate = {**_run(9, "queued"), "updated_at": "2026-11-21T03:09:00Z"}
+    ok, why = rt.room_to_dispatch([gate], {"9": []}, [], [], _now())
     assert not ok and "is queued" in why
+
+
+def test_admission_a_queued_gate_run_with_no_jobs_for_long_is_ignored():
+    """Review 2026-11-20: a FRESH ghost (queued, 0 jobs, like 11/11's) must not hold every request for 30 min.
+    A real gate run lists its jobs seconds after it leaves `pending` (updated_at moves then)."""
+    gate = {**_run(9, "queued", "2026-11-21T02:00:00Z"), "updated_at": "2026-11-21T02:00:00Z"}
+    assert rt.room_to_dispatch([gate], {"9": []}, [], [], _now())[0]
+
+
+def test_admission_a_queued_run_older_than_the_signal_window_is_not_a_full_pool():
+    """Rule B's queued-runs signal has its own window: a fresh ghost of ANY workflow must not read as a full pool."""
+    remote = [_run(i, "in_progress") for i in range(4)]
+    assert rt.room_to_dispatch([], {}, remote, [_run(50, "queued", "2026-11-21T00:00:00Z")], _now())[0]
 
 
 def test_admission_a_queued_gate_run_with_a_waiting_job_waits():
@@ -802,14 +816,33 @@ def _at(clock):
 def test_read_load_sends_the_four_reads_in_order():
     clock = _Clock()
     gate = {"id": 9, "status": "in_progress", "created_at": _at(clock)}
-    api, fake, _ = _api([_ok({"workflow_runs": [gate]}), _ok({"jobs": [{"status": "queued"}]}),
-                         _ok({"workflow_runs": []}), _ok({"workflow_runs": []})], clock)
+    remote = [{"id": i, "status": "in_progress", "created_at": _at(clock)} for i in range(4)]
+    api, fake, _ = _api([_ok({"workflow_runs": [gate]}), _ok({"jobs": [{"status": "in_progress"}]}),
+                         _ok({"workflow_runs": remote}), _ok({"workflow_runs": []})], clock)
     load = rt.read_load(api)
     assert [c[1] for c in fake.calls] == [_GATE_RUNS, "repos/{owner}/{repo}/actions/runs/9/jobs?per_page=100",
                                           _REMOTE_RUNS, _QUEUED_RUNS]
     assert {c[0] for c in fake.calls} == {"GET"} and len(fake.calls) == 4
-    assert load.gate_runs == [gate] and load.gate_jobs == {"9": [{"status": "queued"}]}
-    assert load.remote_runs == [] and load.queued_runs == []
+    assert load.gate_runs == [gate] and load.gate_jobs == {"9": [{"status": "in_progress"}]}
+    assert load.remote_runs == remote and load.queued_runs == []
+
+
+def test_read_load_stops_after_the_gate_when_the_gate_is_waiting():
+    """Review 2026-11-20 (quota): once rule A says wait, the other reads cannot change the answer: 2 requests."""
+    clock = _Clock()
+    gate = {"id": 9, "status": "in_progress", "created_at": _at(clock)}
+    api, fake, _ = _api([_ok({"workflow_runs": [gate]}), _ok({"jobs": [{"status": "queued"}]})], clock)
+    load = rt.read_load(api)
+    assert len(fake.calls) == 2 and not rt.room_to_dispatch(load.gate_runs, load.gate_jobs, load.remote_runs,
+                                                             load.queued_runs, clock.t)[0]
+
+
+def test_read_load_skips_queued_runs_when_few_remote_runs_are_in_flight():
+    clock = _Clock()
+    remote = [{"id": i, "status": "in_progress", "created_at": _at(clock)} for i in range(3)]
+    api, fake, _ = _api([_ok({"workflow_runs": []}), _ok({"workflow_runs": remote})], clock)
+    assert rt.read_load(api) is not None
+    assert [c[1] for c in fake.calls] == [_GATE_RUNS, _REMOTE_RUNS]
 
 
 def test_read_load_reads_jobs_for_a_queued_gate_run_too():
@@ -822,9 +855,9 @@ def test_read_load_reads_jobs_for_a_queued_gate_run_too():
 
 
 def test_read_load_skips_jobs_when_no_gate_is_running():
-    api, fake, _ = _api([_ok({"workflow_runs": []}), _ok({"workflow_runs": []}), _ok({"workflow_runs": []})])
+    api, fake, _ = _api([_ok({"workflow_runs": []}), _ok({"workflow_runs": []})])
     assert rt.read_load(api) is not None
-    assert len(fake.calls) == 3 and not any("/jobs" in c[1] for c in fake.calls)
+    assert len(fake.calls) == 2 and not any("/jobs" in c[1] for c in fake.calls)
 
 
 @pytest.mark.parametrize("answer", [
@@ -841,15 +874,15 @@ def test_read_load_returns_none_on_any_error_and_never_sleeps(answer):
 
 def test_read_load_repeat_check_is_conditional():
     empty = {"workflow_runs": []}
-    api, fake, _ = _api([_ok(empty, etag='W/"g"'), _ok(empty, etag='W/"r"'), _ok(empty, etag='W/"q"'),
-                         (304, {}, ""), (304, {}, ""), (304, {}, "")])
+    api, fake, _ = _api([_ok(empty, etag='W/"g"'), _ok(empty, etag='W/"r"'), (304, {}, ""), (304, {}, "")])
     assert rt.read_load(api) is not None and rt.read_load(api) is not None
-    assert fake.calls[3][2] == {"If-None-Match": 'W/"g"'}
-    assert api.not_modified == 3
+    assert fake.calls[2][2] == {"If-None-Match": 'W/"g"'}
+    assert api.not_modified == 2
 
 
 def _crowded(clock):
-    return rt.Load([{"id": 9, "status": "queued", "created_at": _at(clock)}], {}, [], [])
+    """A gate run with a job waiting for a runner (rule A). Jobs never fetched are unknown, never a reason to wait."""
+    return rt.Load([{"id": 9, "status": "in_progress", "created_at": _at(clock)}], {"9": [{"status": "queued"}]}, [], [])
 
 
 def _seq(*values):
@@ -879,6 +912,27 @@ def test_wait_for_room_gives_up_after_max_wait_and_dispatches(monkeypatch):
     assert rt.wait_for_room(api, 300, log=lines.append, rand=lambda: 0.0) == "waited-out"
     assert sum(clock.sleeps) >= 300
     assert any("dispatching anyway" in ln for ln in lines), lines
+
+
+def test_wait_for_room_backs_off_60_90_120_and_keeps_its_cap(monkeypatch):
+    """Review 2026-11-20 (quota): 60 s for 5 min, 90 s to 15 min, 120 s after; the cap is pinned on both sides."""
+    api, _, clock = _api([])
+    monkeypatch.setattr(rt, "read_load", lambda a: _crowded(clock))
+    assert rt.wait_for_room(api, 1800, log=lambda *_: None, rand=lambda: 0.0) == "waited-out"
+    assert clock.sleeps[:5] == [60.0] * 5 and 90.0 in clock.sleeps and clock.sleeps[-1] == 120.0
+    assert 1800 <= sum(clock.sleeps) < 1800 + 120 + rt.ROOM_JITTER_S
+
+
+def test_wait_for_room_a_low_quota_stops_checking_and_dispatches(monkeypatch):
+    """11/19 the shared 5,000/h quota hit 0 and blocked every session's merges: never spend the last of it here."""
+    api, _, clock = _api([])
+    api.remaining = rt.ADMISSION_QUOTA_FLOOR - 1
+
+    def must_not_read(a):
+        raise AssertionError("read the load with the quota at the floor")
+    monkeypatch.setattr(rt, "read_load", must_not_read)
+    assert rt.wait_for_room(api, 1800, log=lambda *_: None) == "quota-low"
+    assert clock.sleeps == []
 
 
 def test_wait_for_room_unreadable_load_dispatches_now(monkeypatch):
