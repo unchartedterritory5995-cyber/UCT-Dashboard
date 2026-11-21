@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;24c8348e46f34e9796f7df1b19177823",
+ "title": "Kalman Smoothed ROC & Stochastic",
+ "author": "profitprotrading",
+ "url": null,
+ "agreeCount": 2947,
+ "category": "momentum",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/kalman-smoothed-roc-stochastic__24c8348e46.pine",
+ "cached_source": "tools/pine_survey/cache/sources/kalman-smoothed-roc-stochastic__24c8348e46.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,110 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © profitprotrading
+
+//@version=5
+indicator("Kalman Smoothed ROC & Stochastic", shorttitle = "SROCST")
+
+//MA Smoothing
+ma_type = input.string(title='MA Type', defval='TEMA', options=['EMA', 'DEMA', 'TEMA', 'WMA', 'VWMA', 'SMA', 'SMMA', 'HMA', 'LSMA', 'PEMA'], group = "Moving Average Smoothing")
+lsma_offset = input.int(defval=0, title='*(LSMA) Only - Offset Value', minval=0, group = "Moving Average Smoothing")
+smoothlen = input(12, "Smoothing Length")
+
+
+//MA Smoothing indicator credit to: © traderharikrishna https://www.tradingview.com/v/X72V8xjH/
+ma(type, src, len) =>
+    float result = 0
+    if type == 'SMA'  // Simple
+        result := ta.sma(src, len)
+        result
+    if type == 'EMA'  // Exponential
+        result := ta.ema(src, len)
+        result
+    if type == 'DEMA'  // Double Exponential
+        e = ta.ema(src, len)
+        result := 2 * e - ta.ema(e, len)
+        result
+    if type == 'TEMA'  // Triple Exponential
+        e = ta.ema(src, len)
+        result := 3 * (e - ta.ema(e, len)) + ta.ema(ta.ema(e, len), len)
+        result
+    if type == 'WMA'  // Weighted
+        result := ta.wma(src, len)
+        result
+    if type == 'VWMA'  // Volume Weighted
+        result := ta.vwma(src, len)
+        result
+    if type == 'SMMA'  // Smoothed
+        w = ta.wma(src, len)
+        result := na(w[1]) ? ta.sma(src, len) : (w[1] * (len - 1) + src) / len
+        result
+    if type == 'HMA'  // Hull
+        result := ta.wma(2 * ta.wma(src, len / 2) - ta.wma(src, len), math.round(math.sqrt(len)))
+        result
+    if type == 'LSMA'  // Least Squares
+        result := ta.linreg(src, len, lsma_offset)
+        result
+    if type == 'PEMA'
+        // Copyright (c) 2010-present, Bruno Pio
+        // Copyright (c) 2019-present, Alex Orekhov (everget)
+        // Pentuple Exponential Moving Average script may be freely distributed under the MIT license.
+        ema1 = ta.ema(src, len)
+        ema2 = ta.ema(ema1, len)
+        ema3 = ta.ema(ema2, len)
+        ema4 = ta.ema(ema3, len)
+        ema5 = ta.ema(ema4, len)
+        ema6 = ta.ema(ema5, len)
+        ema7 = ta.ema(ema6, len)
+        ema8 = ta.ema(ema7, len)
+        pema = 8 * ema1 - 28 * ema2 + 56 * ema3 - 70 * ema4 + 56 * ema5 - 28 * ema6 + 8 * ema7 - ema8
+        result := pema
+        result
+    result
+//
+
+//Kalman Filter with credit to © Loxx https://www.tradingview.com/v/OxYmisSS/
+src = input(close, "Kalman Source", group = "Kalman Filter")
+Sharpness = input.float(25.0, "Sharpness", group = "Kalman Filter")
+K = input.float(1.0, "Filter Period", group = "Kalman Filter")
+
+velocity = 0.0
+kfilt = 0.0
+
+Distance = src - nz(kfilt[1], src)
+Error = nz(kfilt[1], src) + Distance * math.sqrt(Sharpness*K/ 100)
+velocity := nz(velocity[1], 0) + Distance*K / 100
+kfilt := Error + velocity
+
+//ROC
+length = input.int(9, "ROC Length", minval=1, group = "Rate of Change")
+roc = 100 * (kfilt - kfilt[length])/kfilt[length]
+
+//Stochastic
+periodK = input.int(14, title="%K Length", minval=1, group = "Stochastic")
+smoothK = input.int(1, title="%K Smoothing", minval=1, group = "Stochastic")
+periodD = input.int(3, title="%D Smoothing", minval=1, group = "Stochastic")
+k = ta.sma(ta.stoch(close, high, low, periodK), smoothK)
+d = ta.sma(k, periodD)
+
+//ROC + Stochastic
+blend = (roc + d)/2
+blend := ma(ma_type, blend, smoothlen)
+
+//Plotting
+bcol = blend > blend[1] ? color.rgb(255, 255, 255) : color.rgb(17, 0, 208)
+blendx = plot(blend, "Blended ROC & Stochastic", linewidth = 2, color = bcol)
+plotshape(ta.crossover(blend,blend[1]) and barstate.isconfirmed ? blend : na, style = shape.labelup, text = "B", textcolor = color.white, location = location.absolute, size = size.tiny, color = color.rgb(0, 135, 14), offset = -1)
+plotshape(ta.crossunder(blend,blend[1]) and barstate.isconfirmed ? blend : na, style = shape.labeldown, text = "S", textcolor = color.white, location = location.absolute, size = size.tiny, color = color.rgb(37, 0, 224), offset = -1)
+
+//OB/OS
+obtop = plot(60, display = display.none)
+obb = plot(50, display = display.none)
+osb = plot(0, display = display.none)
+ostop = plot(10, display =  display.none)
+mid = plot(30, "Midline", display = display.none)
+fill(blendx, mid, blend > blend[1] ? blend : 30, blend > blend[1] ? 30 : blend, blend > blend[1] ? color.rgb(169, 162, 255, 60) : #00000000, blend > blend[1] ? #00000000 : color.rgb(17, 0, 208,60))
+
+
+hline(60, color = color.rgb(255, 0, 0))
+hline(50, color = color.rgb(255, 0, 0))
+hline(0, color = color.rgb(0, 222, 7))
+hline(10, color = color.rgb(0, 222, 7))
