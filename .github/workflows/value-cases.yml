@@ -1,0 +1,89 @@
+# promotion-gate: no — PR-only. It never runs on a master push; a red here holds the PR, before the merge.
+# ─── THE VALUE CASES, ON EVERY PR THAT CAN CHANGE WHAT THE CREATE INDICATOR DOOR'S ANSWERS COMPUTE ───────
+#
+# WHY (2026-11-21, Studio plan section 7, L10; asked for by the Pine coordinator). The value cases hold what the
+# door answered on production to an independent account of what the member asked: a formula to a plain
+# calculation on every bar, a script to what it computes AND draws through the member pane's own path, a request
+# that cannot be served to a refusal that names the wall. They cost nothing to run and call no model. Unit 1
+# ran them in the ADVISORY authoring runner only, and a deterministic check that never holds a pull request
+# drifts: the important half of a rail must not be opt-in.
+#
+# WHAT IT RUNS. `tests/test_value_cases.py` (formula and wall lanes, the server's own interpreter) and
+# `tests/test_value_cases_scripts.py` (script lane: the shipped engine modules bundled with the esbuild in
+# `app/node_modules` and run in node). On any pull request that touches the door, the interpreter, the script
+# reference or recipes, the engine and member pane the script lane runs, or the cases and their tools.
+# ⛔ A SKIP IS A FAILURE HERE: the script lane skips where node or the app's modules are missing, and a lane
+#   where it skips is a lane that held nothing.
+# No secrets, no network beyond package installs, no pull_request_target, read-only token.
+name: value cases (PR)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/value-cases.yml'
+      - 'tools/value_cases/**'
+      - 'tools/value_eval.py'
+      - 'tools/converse_eval.py'
+      - 'tests/test_value_cases.py'
+      - 'tests/test_value_cases_scripts.py'
+      - 'tests/fixtures/authoring/value_cases.json'
+      # the door, and the interpreter a formula answer is computed by
+      - 'api/services/definition_conversation.py'
+      - 'api/services/script_conversation.py'
+      - 'api/services/pine_authoring.py'
+      - 'api/services/ast_interpret.py'
+      - 'api/services/call_expansions.py'
+      # the script reference and recipes the assistant writes from
+      - 'app/src/components/chart/supportLoop/**'
+      # what the script lane runs: the engine and the member pane's own path
+      - 'app/src/components/chart/engine/**'
+      - 'app/src/components/chart/builder/memberPane/**'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run. A
+# dispatch is grouped by its own SHA and is never cancelled. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  value-cases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install
+        run: |
+          set -eux
+          python -m pip install --quiet -r requirements.txt pytest
+          (cd app && npm ci --no-audit --no-fund)
+
+      - name: The value cases, every lane, none skipped
+        shell: bash
+        run: |
+          # pipefail: without it `| tee` hands the step tee's exit code and a red run reads green.
+          set -euxo pipefail
+          python -m pytest tests/test_value_cases.py tests/test_value_cases_scripts.py -q -p no:cacheprovider -rs 2>&1 | tee value_cases.log
+          # a run is a run only with a totals line, and a skip means this lane lost node or the modules
+          grep -qE "^[0-9]+ passed" value_cases.log || { echo "::error::no totals line: the value cases did not run"; exit 1; }
+          if grep -qE "[0-9]+ skipped" value_cases.log; then
+            echo "::error::a value case was skipped: this lane must have node and app/node_modules"; exit 1
+          fi

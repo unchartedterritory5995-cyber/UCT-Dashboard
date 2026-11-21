@@ -43,6 +43,8 @@ CASES = DATA["cases"]
 BY_ID = {c["id"]: c for c in CASES}
 FORMULA = [c for c in CASES if c["lane"] == "formula"]
 WALL = [c for c in CASES if c["lane"] == "wall"]
+#: graded here; the script lane runs the browser engine and has its own file (tests/test_value_cases_scripts.py)
+HERE = FORMULA + WALL
 #: the fewest cases each lane may hold: a fixture cut to a handful would still pass every other test
 FLOOR = {"formula": 100, "wall": 28}
 FIRST_REASON = "written from the request's words before the answer was read"
@@ -56,10 +58,10 @@ def test_the_fixture_is_whole():
     for case in CASES:
         assert case["words"].strip() and len(case["words"]) > 12, case["id"]
         assert case["recorded"]["on"][:4] == "2026", case["id"]
-        assert ("rule" in case) == (case["lane"] == "formula") and ("wall" in case) == (case["lane"] == "wall"), case["id"]
+        assert ("rule" in case) == (case["lane"] in ("formula", "script")) and ("wall" in case) == (case["lane"] == "wall"), case["id"]
 
 
-@pytest.mark.parametrize("case", CASES, ids=[c["id"] for c in CASES])
+@pytest.mark.parametrize("case", HERE, ids=[c["id"] for c in HERE])
 def test_the_recorded_answer_is_right_on_the_lane_the_request_belongs_on(case):
     result = G.grade_case(case)
     assert result["verdict"] == "right", (case["words"], result["lines"])
@@ -225,6 +227,12 @@ def test_every_wall_is_named_in_the_requests_own_words():
         assert names and any(n.lower() in case["words"].lower() for n in names), case["id"]
 
 
+def test_a_script_case_is_never_passed_by_this_files_grader():
+    script = next(c for c in CASES if c["lane"] == "script")
+    assert G.grade_case(script)["verdict"] == "no grader"
+    assert G.lane_of(script["answer"]) == "script"
+
+
 def test_a_refusal_where_a_formula_belongs_is_not_right():
     refused = WALL[0]["answer"]
     result = G.grade_case(FORMULA[0], refused)
@@ -269,7 +277,7 @@ def test_the_market_is_the_same_every_run_long_enough_and_has_ties():
 
 def _answers_dir(tmp_path, changed=None, missing=()):
     """A run folder as the recorder writes one: <id>-0.body.json per request, the door's whole answer."""
-    for case in CASES:
+    for case in HERE:
         if case["id"] in missing:
             continue
         answer = (changed or {}).get(case["id"], case["answer"])

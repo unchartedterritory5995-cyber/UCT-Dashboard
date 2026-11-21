@@ -17,11 +17,6 @@
 #   the step fails if pytest reports any skipped test.
 # No secrets, no network beyond package installs, nothing live: the runner's `--offline` path
 # only. The live path needs a key and an explicit spend flag and is refused in these tests.
-#
-# AND THE VALUE CASES (2026-11-21, Studio plan section 7, L10): `tests/test_value_cases.py` holds
-# every recorded answer of the door to an independent account of what was asked. It needs no
-# node, but it must run wherever the door, the interpreter or the cases change, and a pull
-# request touching only those reached no lane that ran it. Same rule: a skip is a failure.
 name: authoring eval runner
 
 on:
@@ -35,11 +30,6 @@ on:
       - 'tests/test_converse_eval_runner.py'
       - 'tests/fixtures/authoring/**'
       - 'api/services/definition_conversation.py'
-      - 'api/services/ast_interpret.py'
-      - 'api/services/call_expansions.py'
-      - 'tools/value_cases/**'
-      - 'tools/value_eval.py'
-      - 'tests/test_value_cases.py'
       - 'app/package.json'
       - 'app/package-lock.json'
       - 'app/src/components/chart/**'
@@ -87,14 +77,4 @@ jobs:
           grep -qE "^[0-9]+ passed" runner.log || { echo "::error::no totals line: the tests did not run"; exit 1; }
           if grep -qE "[0-9]+ skipped" runner.log; then
             echo "::error::a test was skipped: this lane must have node and app/node_modules"; exit 1
-          fi
-
-      - name: The value cases, none skipped
-        shell: bash
-        run: |
-          set -euxo pipefail
-          python -m pytest tests/test_value_cases.py -q -p no:cacheprovider -rs 2>&1 | tee value_cases.log
-          grep -qE "^[0-9]+ passed" value_cases.log || { echo "::error::no totals line: the value cases did not run"; exit 1; }
-          if grep -qE "[0-9]+ skipped" value_cases.log; then
-            echo "::error::a value case was skipped"; exit 1
           fi
