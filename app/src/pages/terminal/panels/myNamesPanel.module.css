@@ -227,6 +227,25 @@
   overflow-wrap: break-word;
 }
 
+/* SNUG CELLS (2026-11-20, part 4), as marketPanels.module.css: in the 592px panel of a 1440px
+   desktop board ALRT ran 26px past its panel and the delete link was cut off. A table that opts in
+   (`snugCells` on the <table>) gets the closer cells in a snug panel (at most 660px wide), every
+   column still showing and nothing wrapped. A wider panel is unchanged. */
+:where([data-fit~='snug']) .snugCells th,
+:where([data-fit~='snug']) .snugCells td {
+  padding-inline: var(--space-xs);
+}
+
+:where([data-fit~='snug']) .snugCells th:first-child,
+:where([data-fit~='snug']) .snugCells td:first-child {
+  padding-left: 0;
+}
+
+:where([data-fit~='snug']) .snugCells th:last-child,
+:where([data-fit~='snug']) .snugCells td:last-child {
+  padding-right: 0;
+}
+
 /* TOUCH TIER (phone + tablet): finger targets, as MOST (moversPanel.module.css). */
 @media (max-width: 1024px) {
   .chip,

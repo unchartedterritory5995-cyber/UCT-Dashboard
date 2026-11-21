@@ -165,6 +165,16 @@
   color: var(--text-bright);
 }
 
+/* The watch star takes no width as the last thing in a cell (PanelSymbol.module.css), so it hangs
+   13px past the symbol. Where the symbol is the first column that is free space; in a right-aligned
+   symbol column (BRKO) it was the cell's own 8px padding and then the next cell: the star sat 3px
+   from the setup's first letter, and on a phone 5px INTO it. A cell with this class keeps the room
+   for it: the star's 13px and 6px more, which with the next cell's own padding is the 10px other
+   panels' stars have in a snug or folded panel (14px in a wide one). */
+.table td.markRoom {
+  padding-right: calc(var(--space-sm) * 2 + 3px);
+}
+
 .linkBtn {
   color: var(--accent);
   text-decoration: underline;
@@ -300,17 +310,32 @@
   stroke-width: 1.5;
 }
 
-/* SCAT: the plot fills the panel, with a floor so a short panel still reads. */
-.scatStage {
-  flex: 1;
-  min-height: 16rem;
-  height: 22rem;
+/* SCAT: the plot fills the panel, with a floor so a short panel still reads.
+   It did not (2026-11-20, part 4): the stage was 256px tall and the chart inside it 100px. Two
+   causes. The panel's block was only as tall as its contents, so `flex: 1` had nothing to share out
+   and the stage sat on its floor; and the chart's own `height: 100%` had no fixed height to be a
+   share of, so the chart library fell back to its 100px default. Now the block is at least as tall
+   as the panel body (.scatFill), the stage takes what the toolbar and the method line leave, and
+   the chart is pinned to the stage's four edges, which always resolves. */
+.scatFill {
+  min-height: 100%;
 }
 
-/* PHONE SCREEN: a phone gives the scatter a shorter stage, so the axes and the method line fit one screen. */
+.scatStage {
+  flex: 1 1 auto;
+  min-height: 16rem;
+  position: relative;
+}
+
+.scatChart {
+  position: absolute;
+  inset: 0;
+}
+
+/* PHONE SCREEN: a lower floor (220px), so the pickers, the plot and the method line share one screen. */
 @media (max-width: 640px) {
   .scatStage {
-    height: 18rem;
+    min-height: 13.75rem;
   }
 }
 
@@ -440,4 +465,25 @@
 :where([data-fit~='medium']) .table th.mediumTight {
   min-width: 0;
   overflow-wrap: break-word;
+}
+
+/* SNUG CELLS (2026-11-20, part 4, measured in the 592px panel a 1440px desktop board gives each of
+   two panels: BRKO ran 55px past it, the economy table of SENT 76px, ALRT 26px). A table that opts
+   in (`snugCells` on the <table>) gets the fold tier's closer cells in a snug panel, with every
+   column still showing and no cell folded: 4px a side in place of 8, and the two outer cells give
+   up their outer padding (the panel body already insets them). A panel wider than 660px is
+   unchanged, and so is every table that does not opt in. */
+:where([data-fit~='snug']) .snugCells th,
+:where([data-fit~='snug']) .snugCells td {
+  padding-inline: var(--space-xs);
+}
+
+:where([data-fit~='snug']) .snugCells th:first-child,
+:where([data-fit~='snug']) .snugCells td:first-child {
+  padding-left: 0;
+}
+
+:where([data-fit~='snug']) .snugCells th:last-child,
+:where([data-fit~='snug']) .snugCells td:last-child {
+  padding-right: 0;
 }

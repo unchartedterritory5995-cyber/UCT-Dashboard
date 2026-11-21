@@ -138,7 +138,7 @@
 .tickerInner { flex-shrink: 0; }
 /* The badges (NEW, INSIDER, TEAM, earnings) travel as one group. On a wide screen the group is
    not a box, so its badges sit in the ticker cell's line exactly as before; a phone gives the
-   group its own line under the ticker (the phone block below). */
+   group its own line under the ticker ("The table fits ITSELF" below). */
 .badges { display: contents; }
 .sym { font-family: var(--font-mono); font-size: var(--text-xl); font-weight: 800; color: var(--ut-cream); cursor: pointer; }
 .sym:hover { color: var(--ut-green-bright); }
@@ -272,46 +272,102 @@
 }
 
 /* ── Phone: essentials only ────────────────────────────────────────────────── */
+/* What a phone SCREEN changes: the page's own padding, type sizes, the finger-sized row. Which
+   columns the table shows is not decided here any more: the table measures itself (next block). */
 @media (max-width: 640px) {
-  .page { padding: 12px 10px; }
+  /* The page header bleeds to the screen edge by the page's own padding. It reads these two
+     (PageHeader.module.css, the phone rule); without them it assumed 16 px, bled 6 px past each
+     side of this 10 px padding and the page scrolled sideways by 6 px (panel fit, part 4). */
+  .page { padding: 12px 10px; --page-pad-top-m: 12px; --page-pad-x-m: 10px; }
   .heading { font-size: var(--text-2xl); letter-spacing: 2px; }
-  /* Slimmer fixed columns + tighter gap: 242px fixed + 36px gaps leaves the
-     ticker cell real room on 360px phones (badges were colliding with PRICE,
-     RATING and the caret were clipped — review-panel finding) */
-  .table { --cols: 20px minmax(0, 1fr) 58px 50px 56px 44px 14px; gap: 6px; }
-  .headerRow, .row { gap: 6px; }
+  .table { gap: 6px; }
   .row { padding: 13px 2px; min-height: var(--tap-min); box-sizing: border-box; }
   .headerRow { padding: 4px 2px 8px; font-size: var(--text-xs); }
-  .cTag, .cRs, .cDays, .companyName { display: none; }
   .sym { font-size: var(--text-xl); }
   .price { font-size: var(--text-base); }
   .since, .rating { font-size: var(--text-base); }
   .expanded { padding: 6px 2px 16px 6px; }
   .expandedSide { flex-direction: column; }
+}
 
-  /* Phone fit, part 3 (2026-11-20). At 340 to 390 px the ticker, its badges and the price were
-     drawn on top of each other: the ticker column was 0 to 54 px wide and its contents spilled
-     over PRICE. Now the ticker column only has to hold the ticker (and its watch star): the
-     badges move to a second line UNDER it that runs the width of the row, so a row with a badge
-     is one line taller and a row without one is unchanged. The ticker cell steps aside
-     (display: contents) so its two parts are placed on the row's own grid. */
-  .row { row-gap: 4px; }
-  .tickerCell { display: contents; }
-  .tickerInner { grid-column: 2; grid-row: 1; min-width: 0; }
-  .badges { display: flex; flex-wrap: wrap; gap: 4px; grid-column: 2 / -1; grid-row: 2; min-width: 0; }
-  .badges:empty { display: none; }
+/* ── The table fits ITSELF (panel fit, part 4, 2026-11-20) ───────────────────────────── */
+/* The list is shown on the full page, on a phone, and inside a UCT Terminal panel that can be any
+   width on any screen: a desktop board at 1440 px gives it a 592 px panel (a 534 px table), which
+   no screen rule can know. Part 3 fixed the phone with a screen rule, so that panel still drew the
+   ticker, price and badges on top of each other (measured: all 20 rows, by up to 51 px, and the
+   RATING column and the expand buttons 102 px past the table). Now the table's box measures
+   itself and picks one of five layouts. The box holds the list AND its footnote.
 
-  /* Where the table is too narrow for six columns, "Since add" folds; rating and the day's
-     change stay. The table measures ITSELF (it is 54 px narrower than the screen on the page and
-     58 px in a Terminal panel), so one rule serves both. Measured: a five-letter ticker with its
-     watch star is 73 px wide, and six columns leave it that much only from a 355 px table
-     (a screen of about 410 px). Below that the five columns sit 4 px apart, which leaves the
-     ticker 74 px in the narrowest case measured (a 282 px table: a panel on a 340 px phone). */
-  .table { container: uct20table / inline-size; }
-  @container uct20table (max-width: 354px) {
-    .headerRow, .row { grid-template-columns: 18px minmax(0, 1fr) 58px 50px 44px 14px; column-gap: 4px; }
-    .cSince { display: none; }
+     over 920 px    the wide layout above, untouched (634 px of fixed columns and gaps, which
+                    leaves the ticker, its badges and the company name 286 px or more)
+     920 to 530     every column kept. The badges move to a second line under the ticker (part 3's
+                    phone layout), the company name steps aside, and each column may shrink from
+                    its wide width down to a floor that still holds its longest value. The floors
+                    add up to 530 px.
+     529 to 446     the TREND tag steps aside (it is a label, not a number); every number stays
+     445 to 355     part 3's phone layout, unchanged: ticker, price, change, since add, rating
+     354 or less    part 3's fold, unchanged: "Since add" goes, and so does the footnote sentence
+                    that explains it
+
+   The largest phone table measured is 336 px (a 390 px screen; about 376 px on a 430 px one), so
+   every phone lands in the last two layouts exactly as part 3 left it. */
+.tableFit { container: uct20table / inline-size; }
+
+@container uct20table (max-width: 920px) {
+  /* The sector line was one unbreakable 524 px item: a phone cut 176 to 226 px of it off. */
+  .ctxItem { white-space: normal; }
+
+  .headerRow,
+  .row {
+    grid-template-columns:
+      minmax(18px, 30px) minmax(76px, 94px) minmax(74px, 1fr) minmax(64px, 78px) minmax(50px, 64px)
+      minmax(34px, 54px) minmax(34px, 50px) minmax(60px, 72px) minmax(48px, 62px) minmax(14px, 22px);
+    gap: 6px;
+    padding-inline: 2px;
   }
+  .row { row-gap: 4px; }
+  /* A tablet screen hides DAYS for the wide layout (the 1024 px block above); here the columns
+     are counted from the table's own width, so it is shown wherever there is room for it. */
+  .cDays { display: block; }
+  .companyName { display: none; }
+  /* The ticker cell steps aside (display: contents) so its two parts are placed on the row's own
+     grid: the ticker in its column, the badges on a second line that runs to the end of the row.
+     A row with a badge is one line taller; a row without one is unchanged. */
+  .tickerCell { display: contents; }
+  .tickerInner { grid-column: 3; grid-row: 1; min-width: 0; }
+  .badges { display: flex; flex-wrap: wrap; gap: 4px; grid-column: 3 / -1; grid-row: 2; min-width: 0; }
+  .badges:empty { display: none; }
+}
+
+@container uct20table (max-width: 529px) {
+  .headerRow,
+  .row {
+    grid-template-columns:
+      minmax(18px, 30px) minmax(74px, 1fr) minmax(64px, 78px) minmax(50px, 64px)
+      minmax(34px, 54px) minmax(34px, 50px) minmax(60px, 72px) minmax(48px, 62px) minmax(14px, 22px);
+  }
+  .cTag { display: none; }
+  .tickerInner { grid-column: 2; }
+  .badges { grid-column: 2 / -1; }
+}
+
+/* Part 3's phone layout (2026-11-20), now on the table's own width. 242 px of fixed columns and
+   36 px of gaps leave the ticker column real room; it only has to hold the ticker and its star. */
+@container uct20table (max-width: 445px) {
+  .headerRow,
+  .row { grid-template-columns: 20px minmax(0, 1fr) 58px 50px 56px 44px 14px; }
+  .cRs, .cDays { display: none; }
+}
+
+/* Part 3's fold, unchanged. Measured: a five-letter ticker with its watch star is 73 px wide, and
+   six columns leave it that much only from a 355 px table (a screen of about 410 px). Below that
+   the five columns sit 4 px apart, which leaves the ticker 74 px in the narrowest case measured
+   (a 282 px table: a panel on a 340 px phone). The footnote's sentence about the column folds
+   with the column, and nothing else in the footnote changes. */
+@container uct20table (max-width: 354px) {
+  .headerRow,
+  .row { grid-template-columns: 18px minmax(0, 1fr) 58px 50px 44px 14px; column-gap: 4px; }
+  .cSince, .footSince { display: none; }
 }
 
 /* Touch (wave 14): Copy tickers / How it's built audited 30px. */
