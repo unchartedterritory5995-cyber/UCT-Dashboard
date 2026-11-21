@@ -350,8 +350,10 @@ export function curveGeometry(view, { w = 320, h = 120, padX = 6, padY = 8 } = {
  * Pure: one spread's daily history laid out in a `w` x `h` box, with the zero line.
  *   path, zeroY (null when zero is outside the range drawn), first / last / low / high: { date, v }
  * null when fewer than two days have a figure.
+ * `withZero: false` draws the line's own range (a level far from zero, like LIQ's net liquidity, would
+ * otherwise be a flat line along the top); zero is then outside the range and zeroY is null.
  */
-export function spreadGeometry(history, key = 's10y2y', { w = 320, h = 120, padX = 2, padY = 8 } = {}) {
+export function spreadGeometry(history, key = 's10y2y', { w = 320, h = 120, padX = 2, padY = 8, withZero = true } = {}) {
   const dates = history?.dates || []
   const vals = history?.[key] || []
   const have = dates.map((d, i) => ({ date: d, v: vals[i] })).filter((p) => p.date && p.v != null)
@@ -363,15 +365,15 @@ export function spreadGeometry(history, key = 's10y2y', { w = 320, h = 120, padX
     if (p.v > high.v) high = p
   }
   // zero is always in the range, so "above or below zero" can be read off the picture
-  const min = Math.min(low.v, 0)
-  const max = Math.max(high.v, 0)
+  const min = withZero ? Math.min(low.v, 0) : low.v
+  const max = withZero ? Math.max(high.v, 0) : high.v
   const span = max - min || 1
   const n = dates.length
   const x = (i) => padX + (n > 1 ? i / (n - 1) : 0) * (w - 2 * padX)
   const y = (v) => padY + (1 - (v - min) / span) * (h - 2 * padY)
   const points = dates.map((d, i) => (d && vals[i] != null ? { x: x(i), y: y(vals[i]) } : null))
   return {
-    w, h, min, max, path: pathThrough(points), zeroY: r1(y(0)), days: have.length,
+    w, h, min, max, path: pathThrough(points), zeroY: min <= 0 && max >= 0 ? r1(y(0)) : null, days: have.length,
     first: have[0], last: have[have.length - 1], low, high,
   }
 }

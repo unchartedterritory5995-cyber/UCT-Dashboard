@@ -607,6 +607,19 @@ export const GROUPS = [
   { id: 'marketCalendars', title: 'A stock\'s corporate actions (past splits and cash dividends), the IPO calendar, dividends and splits declared ahead for named stocks',
     domains: [], actions: ['stock.splitsDividends', 'stock.ipoCalendar', 'stock.dividendsCalendar'], fillLast: true, wordsOnly: true,
     words: [] },
+  // Terminal data wave 9 (stock.auctionCalendar / stock.realCurve / stock.fomcWatch): US Treasury auctions coming up and their
+  // results, Treasury real yields and breakevens, and the Fed watch, ALL THREE in ONE group of their own. No existing group was
+  // used: `marketCalendars` (wave 8) and `marketRecords` (wave 6, Treasury yields) are held at their sizes, the `calendar`
+  // group is the Calendar page's own, and every other words-only group is held at its size. WORDS-ONLY and fillLast for wave
+  // 3's reasons, so it is never a filler and no existing group or unrecognised request changes; listed by `actions` because
+  // their `stock` domain would put them in the `data` group, which has no room under the routing budget. `words` stays EMPTY
+  // here: capabilities/terminalDataWave9.js arms each capability's own words only while it is registered (the server serves
+  // its kind), so on a dark server this group never matches and routing is byte-identical to the base (pinned in
+  // agentTerminalDataWave9.test.js). This is the 51st of the 56 groups the server keeps (turn.MAX_GROUPS); the cap is not
+  // changed here.
+  { id: 'marketRates', title: 'US Treasury auctions (coming up and recent results), Treasury real yields and breakevens, the Fed watch (FOMC statement changes, speeches, next decision)',
+    domains: [], actions: ['stock.auctionCalendar', 'stock.realCurve', 'stock.fomcWatch'], fillLast: true, wordsOnly: true,
+    words: [] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)
 const REPLAY_ON_WORDS = /^(?:please )?(?:play|pause|resume|unpause|stop)\b|\b(?:play|pause|resume) (?:it|playback|playing)\b|\b(?:next|previous|prev|last) bar\b|\bstep (?:it )?(?:forward|back(?:ward)?)\b|\b(?:forward|back) (?:\d+|one|a|ten) bars?\b|\b(?:speed (?:it )?up|slow (?:it )?down|faster|slower)\b|\b(?:1|5|20) ?x\b|\b(?:to )?the (?:start|end|beginning)\b/
