@@ -192,7 +192,8 @@ def last_rth_bucket_ts(tf: str, asof: date) -> int:
     early close. The serve path's own reading (`bars_fetch.session_complete`: the bucket holding the
     last second before the regular close), so the two cannot disagree."""
     from api.services import bars_fetch
-    return int(bars_fetch._ext_bucket_start(str(tf), int(bars_fetch._session_window(asof, "rth")[1]) - 1))
+    _open_ts, close_ts = bars_fetch._session_window(asof, "rth")
+    return int(bars_fetch._ext_bucket_start(str(tf), int(close_ts) - 1))
 
 
 def last_closed_session(now: Optional[datetime] = None, after_min: int = RTH_CLOSE_MIN) -> date:
