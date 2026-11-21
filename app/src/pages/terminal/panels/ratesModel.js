@@ -27,6 +27,15 @@
 //         history: { from, to, points, years, dates[], y2y[], y10y[], y30y[], s10y2y[], s10y3m[] } }
 //     check   null, or { state, reason, http_status, at }: the last look for a newer figure did not
 //             go well, and the figures shown are the last ones read
+//     real    the REAL yield curve (TIPS) and the breakevens, as their own block with their own
+//             status, dates and source (api/services/treasury_real_yields.py). Only beside an `ok`
+//             answer; absent from an older server.
+//             { status 'ok' | 'computing' | 'unavailable' | 'failed', reason, http_status,
+//               as_of, ref_dates { d1, w1 }, maturities [{ key ('5y' ... '30y'), label, months,
+//               yield (PERCENT), was { d1, w1 }, change_bp { d1, w1 } }],
+//               breakevens { as_of (the newest day BOTH curves hold, or null),
+//                            rows [{ key, date, nominal, real, value (nominal minus real, PERCENT) }] },
+//               read_at, source, check }
 //
 // ⛔ A MISSING NUMBER IS NEVER 0: null stays null and the panel prints "No figure".
 // ⛔ THESE ARE END-OF-DAY FIGURES. The panel always says the date of the newest one.
@@ -35,6 +44,7 @@
 export const RATES_CODE = 'RATES'
 export const RATES_URL = '/api/research/treasury-yields'
 export const SOURCE = 'US Treasury daily par yield curve'
+export const REAL_SOURCE = 'US Treasury daily par real yield curve'
 
 /** The change horizons the server sends, shortest first, as a sentence names them. */
 export const HORIZONS = Object.freeze({
@@ -119,6 +129,50 @@ function historyOf(h) {
   }
 }
 
+const checkOf = (c) => (isObj(c) && typeof c.state === 'string'
+  ? { state: c.state, reason: typeof c.reason === 'string' ? c.reason : null, httpStatus: num(c.http_status) }
+  : null)
+
+/**
+ * Pure: the answer's `real` block as the panel draws it, or null when the server sent none.
+ *   state   'ok' | 'computing' | 'unavailable' | 'failed'
+ *   ok:     asOf, refDates { d1, w1 }, rows [{ key, label, yield, changeBp, nominal, breakeven }],
+ *           breakevenAsOf (its own date: the newest day both curves hold, or null), readAt, check
+ * The breakeven is the SERVER's figure. It is null when either side is missing, never 0, and it is
+ * never worked out here.
+ */
+export function realRead(raw) {
+  if (!isObj(raw)) return null
+  const status = String(raw.status || '')
+  if (status === 'computing') return { state: 'computing' }
+  const said = { reason: typeof raw.reason === 'string' ? raw.reason : null, httpStatus: num(raw.http_status) }
+  if (status === 'unavailable') return { state: 'unavailable', ...said }
+  const asOf = day(raw.as_of)
+  const maturities = Array.isArray(raw.maturities) ? raw.maturities.map(maturityOf).filter(Boolean) : []
+  if (status !== 'ok' || !asOf || !maturities.some((m) => m.yield != null)) return { state: 'failed', ...said }
+  const be = isObj(raw.breakevens) ? raw.breakevens : {}
+  const breakevenAsOf = day(be.as_of)
+  const byKey = Object.fromEntries((Array.isArray(be.rows) ? be.rows : []).filter((r) => isObj(r) && typeof r.key === 'string').map((r) => [r.key, r]))
+  return {
+    state: 'ok',
+    asOf,
+    refDates: { d1: isObj(raw.ref_dates) ? day(raw.ref_dates.d1) : null, w1: isObj(raw.ref_dates) ? day(raw.ref_dates.w1) : null },
+    rows: maturities.map((m) => {
+      const b = byKey[m.key]
+      // a breakeven without its day, or for another day than the block's, is not shown as one
+      const dated = !!b && !!breakevenAsOf && day(b.date) === breakevenAsOf
+      return {
+        key: m.key, label: m.label, yield: m.yield, changeBp: m.changeBp,
+        nominal: dated ? num(b.nominal) : null,
+        breakeven: dated ? num(b.value) : null,
+      }
+    }),
+    breakevenAsOf,
+    readAt: typeof raw.read_at === 'string' ? raw.read_at : null,
+    check: checkOf(raw.check),
+  }
+}
+
 /**
  * Pure: the route's answer as the panel draws it.
  *   state   'ok' | 'computing' | 'unavailable' | 'failed' (a failed build, or not this route's answer)
@@ -136,9 +190,7 @@ export function ratesRead(body) {
   const maturities = Array.isArray(body.maturities) ? body.maturities.map(maturityOf).filter(Boolean) : []
   if (status !== 'ok' || !asOf || !maturities.some((m) => m.yield != null)) return { state: 'failed' }
   const labels = Object.fromEntries(maturities.map((m) => [m.key, m.label]))
-  const check = isObj(body.check) && typeof body.check.state === 'string'
-    ? { state: body.check.state, reason: typeof body.check.reason === 'string' ? body.check.reason : null, httpStatus: num(body.check.http_status) }
-    : null
+  const check = checkOf(body.check)
   return {
     state: 'ok',
     asOf,
@@ -148,6 +200,7 @@ export function ratesRead(body) {
     spreads: (Array.isArray(body.spreads) ? body.spreads : []).map((s) => spreadOf(s, labels)).filter(Boolean),
     history: historyOf(body.history),
     check,
+    real: realRead(body.real),
   }
 }
 
@@ -213,6 +266,44 @@ export function spreadTrendSentence(s) {
 export function unavailableWords(reason, httpStatus) {
   if (reason === 'shape') return "Treasury yields are not available right now: the Treasury's website answered, but not with figures this screen can read."
   return `Treasury yields are not available right now: the Treasury's website refused the server's request${httpStatus ? ` (it answered ${httpStatus})` : ''}.`
+}
+
+/** Pure: the real yield block's date, basis and source, in one sentence that is always on screen. */
+export function realAsOfSentence(real) {
+  return `End-of-day real yields for ${dayText(real.asOf)}: what Treasury inflation-protected securities yield above inflation. Source: ${REAL_SOURCE}.`
+}
+
+/** Pure: the breakevens' own date and what they are, or why there are none. */
+export function breakevenSentence(real) {
+  if (!real.breakevenAsOf) {
+    return 'No breakeven can be worked out: the two curves have no day in common in what the site holds.'
+  }
+  const own = real.breakevenAsOf === real.asOf ? '' : ', the newest day both curves have a figure'
+  return `Breakevens are for ${dayText(real.breakevenAsOf)}${own}: the nominal yield minus the real yield at the same maturity, `
+    + 'which is the inflation rate the bond market is pricing over that many years.'
+}
+
+/** Pure: plain words for a real yield block that has no figures to show. */
+export function realMissingWords(real) {
+  if (real?.state === 'computing') {
+    return "Real yields are being read from the Treasury's website. This part fills in on its own."
+  }
+  if (real?.state === 'unavailable') {
+    return real.reason === 'shape'
+      ? "Real yields and breakevens are not available right now: the Treasury's website answered, but not with figures this screen can read. That is not the same as no figures."
+      : `Real yields and breakevens are not available right now: the Treasury's website refused the server's request${real.httpStatus ? ` (it answered ${real.httpStatus})` : ''}. That is not the same as no figures.`
+  }
+  return 'Real yields and breakevens could not be read just now. That is not the same as no figures. The server tries again by itself.'
+}
+
+/** Pure: a look for newer real yields that did not go well, said above the last good ones (with their date). */
+export function realCheckWords(check, asOf) {
+  const what = check?.state !== 'unavailable'
+    ? 'The last look for newer real yields did not get an answer.'
+    : check.reason === 'shape'
+      ? "The Treasury's website answered the last look for newer real yields, but not with figures this screen can read."
+      : `The Treasury's website refused the last look for newer real yields${check.httpStatus ? ` (it answered ${check.httpStatus})` : ''}.`
+  return `${what} These are the last real yields the site read, for ${dayText(asOf)}.`
 }
 
 // ── the two small pictures (geometry only; the panel draws them) ───────────────────────────────

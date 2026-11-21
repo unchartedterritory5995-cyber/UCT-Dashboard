@@ -148,6 +148,8 @@ export const PANEL_IMPORTERS = {
   IpoCalendar: () => import('./panels/IpoCalendarPanel'),
   DividendCalendar: () => import('./panels/DividendCalendarPanel'),
   CorporateActions: () => import('./panels/CorporateActionsPanel'),
+  // Market wave C (2026-11-21): Treasury auctions, upcoming and recent results
+  TreasuryAuctions: () => import('./panels/TreasuryAuctionsPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),

@@ -226,7 +226,9 @@ const NOT_MEASURED = ['CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', '
   // Market waves A and B (2026-11-20): looked at in a 640px desktop panel and on a 340px phone (no overflow),
   // but no fold step was measured for them
   'AnaloguesPanel.jsx', 'CotPanel.jsx', 'MarketsBoardPanel.jsx',
-  'CorporateActionsPanel.jsx', 'DividendCalendarPanel.jsx', 'IpoCalendarPanel.jsx']
+  'CorporateActionsPanel.jsx', 'DividendCalendarPanel.jsx', 'IpoCalendarPanel.jsx',
+  // Market wave C (2026-11-21): no fold step measured; the phone columns fold through `phoneHide`
+  'TreasuryAuctionsPanel.jsx']
 const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
 const stepsIn = (src) => [...src.matchAll(/data-fold=(?:"([^"]*)"|\{paired \? undefined : '([^']*)'\})/g)].map((m) => m[1] ?? m[2])
 

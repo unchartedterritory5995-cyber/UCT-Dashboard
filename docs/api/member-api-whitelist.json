@@ -4716,6 +4716,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "",
+      "path": "/api/research/treasury-auctions",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
       "path": "/api/research/treasury-yields",
       "rate_limit_family": "research",
       "tier": "paid"
