@@ -190,6 +190,24 @@
       "to": "    if (worker && workerPermitted === false && permitted) { counts.relatched += 1 }",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
       "expectRed": "answered as permitted"
+    },
+    {
+      "id": "W1",
+      "mutant": "the worker resolver no longer checks the importer: every file's `../BuilderSheet` / `../FormulaField` is aliased in a worker",
+      "file": "app/scripts/memberDoorWorkerPure.mjs",
+      "from": "  if (!normalise(importer).endsWith(`/app/${MEMBER_DOOR_FILE}`)) return null",
+      "to": "  void normalise",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorWorkerGraph.test.js",
+      "expectRed": "nothing else"
+    },
+    {
+      "id": "W2",
+      "mutant": "the worker resolver aliases a third specifier",
+      "file": "app/scripts/memberDoorWorkerPure.mjs",
+      "from": "  '../FormulaField': '../evaluateFormula.js',",
+      "to": "  '../FormulaField': '../evaluateFormula.js',\n  '../pineParamManifest': '../pineParamManifest.js',",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorWorkerGraph.test.js",
+      "expectRed": "exactly those"
     }
   ]
 }

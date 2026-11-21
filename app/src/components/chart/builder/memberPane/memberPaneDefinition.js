@@ -72,16 +72,15 @@ import {
   alertNoteForOutput, foldNotesForOutput, REQUIREMENT_NOTES,
 } from '../../engine/ast/parse'
 import { applyParamEdit } from '../paramEdit'
-import { buildDefinition } from '../buildDefinition'
+import { buildDefinition } from '../BuilderSheet'
 import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
-import { evaluateFormula } from '../evaluateFormula'
-// ⭐ THE PASTE WORKER (2026-11-20) — THE REGISTRATIONS A CHART PAGE MAKES ARE MADE WHEREVER THIS DOOR LOADS. A chart
-// page registers the run half's object rail (`binder.js` imports `runHalfObjectRail.js`, which brings
-// `runtimeErrorStop.js`, the host lane's `runtime.error` stop, with it), and the documents this door mints are computed
-// under them. This door's graph used to bring the whole app with it (`buildDefinition` was imported from
-// `BuilderSheet.jsx`), and these two with it; now that graph is a worker's whole graph (`memberDoorWorker.js`), so it
-// holds them itself rather than depend on a page having loaded them (the door reads neither while it builds).
-import '../../engine/runHalfObjectRail.js'
+import { evaluateFormula } from '../FormulaField'
+// ⭐⭐ THE PASTE WORKER (2026-11-20) — THE TWO IMPORTS ABOVE ARE THE PAGE'S, AND THE WORKER RESOLVES THEM TO THE PURE
+// MODULES. `BuilderSheet.jsx` and `FormulaField.jsx` re-export `buildDefinition` and `evaluateFormula` from
+// `../buildDefinition.js` and `../evaluateFormula.js` (the SAME functions, railed: `memberDoorWorkerGraph.test.js`).
+// On the page this door imports them as it always did, so the page's chunk graph (what every route loads first) is
+// unchanged; inside a WORKER bundle `vite.config.js::memberDoorWorkerPure` resolves these two specifiers to the pure
+// modules, so the member door's worker holds no React and no sheet.
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
 import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'
