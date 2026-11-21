@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 5086,
+  "passed": 5078,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 5,
+  "wall_s": 617.8,
+  "failed_files": [
+    "tests/test_s6_cp2_migration.py",
+    "tests/test_scan_sweep_bar_close_state.py",
+    "tests/test_secret_scrub.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 5078 passed, 5 skipped, 1 xfailed, 7300 warnings in 617.80s (0:10:17)",
+  "ok": true
+}

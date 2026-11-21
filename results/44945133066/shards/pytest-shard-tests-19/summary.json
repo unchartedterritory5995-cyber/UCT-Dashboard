@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 749,
+  "passed": 738,
+  "failed": 8,
+  "errored": 0,
+  "skipped": 3,
+  "wall_s": 656.59,
+  "failed_files": [
+    "tests/test_shared_data_root_guard.py",
+    "tests/test_shared_root_guard.py",
+    "tests/test_shared_state_landmines.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "8 failed, 738 passed, 3 skipped, 24 warnings in 656.59s (0:10:56)",
+  "ok": true
+}

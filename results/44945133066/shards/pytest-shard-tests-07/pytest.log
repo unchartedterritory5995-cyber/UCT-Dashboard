@@ -1,0 +1,237 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+.................................
+[holiday week] 18:00 ET catch-up — day | store before | OLD downloads | NEW downloads
+  Fri 11-13 | 2026-11-03 | DOWNLOAD |        -
+  Sat 11-14 | 2026-11-03 | DOWNLOAD |        -
+  Sun 11-15 | 2026-11-03 | DOWNLOAD |        -
+  Mon 11-16 | 2026-11-03 | DOWNLOAD | DOWNLOAD
+  Tue 11-17 | 2026-11-10 |        - |        -
+  Wed 11-18 | 2026-11-10 | DOWNLOAD |        -
+  Thu 11-19 | 2026-11-10 | DOWNLOAD |        -
+.
+[normal week] 18:00 ET catch-up — day | store before | OLD downloads | NEW downloads
+  Fri 10-30 | 2026-10-20 | DOWNLOAD | DOWNLOAD
+  Sat 10-31 | 2026-10-27 |        - |        -
+  Sun 11-01 | 2026-10-27 |        - |        -
+  Mon 11-02 | 2026-10-27 |        - |        -
+  Tue 11-03 | 2026-10-27 |        - |        -
+  Wed 11-04 | 2026-10-27 | DOWNLOAD |        -
+  Thu 11-05 | 2026-10-27 | DOWNLOAD |        -
+...................................... [  5%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+....sssssssssssss....................................................... [ 18%]
+........................................................................ [ 21%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+..................s..................................................... [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+...F.................................................................... [ 45%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+..................F..................................................... [ 64%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 72%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 80%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+.....................                                                    [100%]
+=================================== FAILURES ===================================
+________________ test_deep_daily_request_keeps_background_path _________________
+
+fresh_state = None
+
+    def test_deep_daily_request_keeps_background_path(fresh_state):
+        """D/W/M dwell-warm fires on every chart open — must stay non-blocking."""
+        today = time.strftime("%Y-%m-%d")
+        bars_sqlite.put_bars(
+            "MSTR", "D",
+            [{"t": today, "o": 10, "h": 11, "l": 9, "c": 10.5, "v": 1000}],
+            date_tf=True,
+        )
+        with patch.object(bars_fetch, "_fetch_daily", return_value=[]) as mf:
+            resp = bars_fetch._get_bars_inner("MSTR", "D", 20000)
+        body = _body(resp)
+>       assert len(body["bars"]) == 1  # stale-while-revalidate serve
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_deep_backfill_sync.py:113: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+----------------------------- Captured stderr call -----------------------------
+2026-11-21 20:41:46,790 WARNING api.services.bars_sqlite: [sqlite] put_bars refused 1/1 impossible bars for MSTR tf=D; first: t='2026-11-21' ['D key on a non-trading day (Saturday)']
+2026-11-21 20:41:46,791 INFO api.services.bars_fetch: [bars] cold bg fetch MSTR tf=D: no provider has data — negative-cached 1800s
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.bars_sqlite:bars_sqlite.py:3095 [sqlite] put_bars refused 1/1 impossible bars for MSTR tf=D; first: t='2026-11-21' ['D key on a non-trading day (Saturday)']
+INFO     api.services.bars_fetch:bars_fetch.py:4339 [bars] cold bg fetch MSTR tf=D: no provider has data — negative-cached 1800s
+_____ test_the_real_boundary_resolve_and_run_railway_status_json_for_real ______
+
+    def test_the_real_boundary_resolve_and_run_railway_status_json_for_real():
+        """⛔ RULE 10: the fake-`run` cases above CANNOT see a PATH-resolution defect. This one can."""
+>       exe = resolve_railway()                     # real shutil.which — raises if absent
+
+tests/test_deploy_watch.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+which = <function which at 0x759c4abf51c0>
+
+    def resolve_railway(which=shutil.which) -> str:
+        """The resolved absolute path to the CLI, or raise. This is the whole 2026-09-10 defect."""
+        exe = which("railway")
+        if not exe:
+>           raise RailwayNotFound(
+                "`railway` is not on PATH. shutil.which found nothing, so every probe would raise "
+                "FileNotFoundError and the watch would report nothing while looking healthy."
+            )
+E           deploy_watch.RailwayNotFound: `railway` is not on PATH. shutil.which found nothing, so every probe would raise FileNotFoundError and the watch would report nothing while looking healthy.
+
+scripts/deploy_watch.py:47: RailwayNotFound
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_definition_record.py:262
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_definition_record.py:262: SyntaxWarning: invalid escape sequence '\d'
+    the one thing in the run that touched it. On a box where `C:\data` exists
+
+tests/test_definition_sharing.py:55
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_definition_sharing.py:55: SyntaxWarning: invalid escape sequence '\d'
+    passed only because the shared `C:\data\auth.db` happened to hold a real
+
+tests/test_cream_selection_audit_1009.py::test_card_still_renders_with_two_contracts_per_name
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/watchlist_card.py:131: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_cross_module_imports_resolve.py::test_no_module_imports_a_name_its_target_does_not_define
+tests/test_cross_module_imports_resolve.py::test_no_module_imports_a_name_its_target_does_not_define
+tests/test_cross_module_imports_resolve.py::test_the_sweep_actually_READ_something
+tests/test_cross_module_imports_resolve.py::test_every_KNOWN_DEAD_entry_is_still_dead
+tests/test_cross_module_imports_resolve.py::test_every_KNOWN_DEAD_entry_is_still_dead
+tests/test_d3_cp3_staleness_reader.py::test_nothing_in_api_calls_last_tick_age_yet
+tests/test_d3_realtime_topology_rail.py::test_there_is_no_FOURTH_vendor_socket_anywhere_under_api
+tests/test_definition_concierge.py::test_NO_python_module_declares_a_SECOND_coverage_gaps
+tests/test_definition_record.py::test_the_record_has_EXACTLY_ONE_PRODUCTION_WRITER_and_it_is_NAMED
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_crypto_bars.py: 108 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_daily_trading_days_only.py::TestTheProducer::test_a_provider_saturday_aggregate_is_not_normalized_into_the_series
+tests/test_daily_trading_days_only.py::TestTheProducer::test_a_provider_saturday_aggregate_is_not_normalized_into_the_series
+tests/test_daily_trading_days_only.py::TestTheProducer::test_a_provider_saturday_aggregate_is_not_normalized_into_the_series
+tests/test_daily_trading_days_only.py::test_crypto_exemption_reaches_the_producer_and_resamplers
+tests/test_daily_trading_days_only.py::test_crypto_exemption_reaches_the_producer_and_resamplers
+tests/test_daily_trading_days_only.py::test_crypto_exemption_reaches_the_producer_and_resamplers
+tests/test_daily_trading_days_only.py::test_crypto_exemption_reaches_the_producer_and_resamplers
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2746: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+
+tests/test_darkpool_bigblock.py: 14 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/darkpool_bigblock.py:269: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow().isoformat()
+
+tests/test_darkpool_eod_card.py::test_render_card_accepts_record_and_tier_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/darkpool_eod.py:251: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in _logo.getdata()])
+
+tests/test_data_sync_bounded_reads.py::test_merge_snapshot_streams_and_still_merges
+tests/test_data_sync_bounded_reads.py::test_apply_delta_streams_and_still_merges
+tests/test_data_sync_delta_skip_unchanged.py::test_apply_delta_skips_the_pairs_an_identical_delta_already_merged
+tests/test_data_sync_delta_skip_unchanged.py::test_apply_delta_skips_the_pairs_an_identical_delta_already_merged
+tests/test_delta_export_index_seek.py::test_a_daily_bar_reaches_the_web_through_a_delta
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/data_sync.py:326: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(dest)
+
+tests/test_deep_backfill_sync.py::test_deep_intraday_partial_request_returns_full_depth_synchronously
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3070: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    gap_days = max(0, (datetime.utcnow().date() - _last_et_day).days)
+
+tests/test_deep_backfill_sync.py::test_deep_intraday_partial_request_returns_full_depth_synchronously
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3083: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
+
+tests/test_deep_backfill_sync.py::test_deep_intraday_partial_request_returns_full_depth_synchronously
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3090: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_deep_merge_join.py::test_an_empty_massive_answer_never_rewrites_stored_history_and_only_fills_dates
+tests/test_deep_merge_join.py::test_a_new_ticker_gets_its_unjoined_rows_with_their_provenance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3454: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_deep_merge_join.py::test_an_empty_massive_answer_never_rewrites_stored_history_and_only_fills_dates
+tests/test_deep_merge_join.py::test_a_new_ticker_gets_its_unjoined_rows_with_their_provenance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3457: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_definition_record.py::test_the_record_has_EXACTLY_ONE_PRODUCTION_WRITER_and_it_is_NAMED
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_desk_recap_poster.py::test_overloaded_render_never_spills_past_floor
+tests/test_desk_recap_poster.py::test_overloaded_render_never_spills_past_floor
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_recap_poster.py:92: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    return list(img.crop((0, H - 108, rp._W, H - 82)).getdata())
+
+tests/test_desk_thumbnail.py::test_candle_skyline_draws_both_up_and_down_candles
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:337: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    px = list(img.crop((0, 300, t._W, 518)).getdata())
+
+tests/test_desk_thumbnail.py::test_candle_skyline_wicks_rise_above_every_body
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:350: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    lit = sum(1 for r, g, b in band.getdata() if max(r, g, b) > 60)
+
+tests/test_desk_thumbnail.py::test_candle_skyline_bodies_are_rooted_at_the_waterline
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:358: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    row = list(img.crop((0, 512, t._W, 513)).getdata())      # just above waterline 518
+
+tests/test_desk_thumbnail.py::test_evening_card_carries_green_candles_over_the_sunset
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_desk_thumbnail.py:367: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    (0, 300, t._W, 518)).getdata())
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:144: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:161: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:167: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:187: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:204: UCT_LAB_CUP_TIER unset
+SKIPPED [6] tests/test_cup_tier_lab_parity.py:223: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:248: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:278: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_deal_status.py:500: no local bars.db
+FAILED tests/test_deep_backfill_sync.py::test_deep_daily_request_keeps_background_path - assert 0 == 1
+ +  where 0 = len([])
+FAILED tests/test_deploy_watch.py::test_the_real_boundary_resolve_and_run_railway_status_json_for_real - deploy_watch.RailwayNotFound: `railway` is not on PATH. shutil.which found nothing, so every probe would raise FileNotFoundError and the watch would report nothing while looking healthy.
+2 failed, 2669 passed, 14 skipped, 163 warnings in 411.95s (0:06:51)

@@ -1,0 +1,724 @@
+{
+  "verdict": "COVERAGE_LOST",
+  "counts": {
+    "new": 6,
+    "fixed": 46,
+    "unchanged": 162,
+    "missing": 2,
+    "baseline": 210,
+    "current": 168,
+    "current_ran": 222695,
+    "new_flaky": 0,
+    "flaky_size": 0,
+    "flaky_new": 0,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 2,
+    "new_ours": 0,
+    "new_others": 2,
+    "new_unattributed": 4
+  },
+  "arithmetic": "baseline 210 = unchanged 162 + fixed 46 + missing 2  |  current 168 = unchanged 162 + new 6 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "44568753938",
+  "current_run_id": "44945133066",
+  "baseline_sha": "38d98d3d9bdc280f73d91407b6275bfbcd56e083",
+  "current_sha": "6f989fd1d4ac1f2e11218a096a8a3d2edceae153",
+  "commit_range": "38d98d3d9bdc280f73d91407b6275bfbcd56e083..6f989fd1d4ac1f2e11218a096a8a3d2edceae153",
+  "first_run": false,
+  "new": [
+    "pytest|api.services.journal_two.test_note_convert_d3|test_inline_raw_tags_scale_linearly[<lambda>1]",
+    "pytest|tests.test_deep_backfill_sync|test_deep_daily_request_keeps_background_path",
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_journal_two_derivation_versions|test_every_door_keeps_both_indexes_after_a_version_rebuild",
+    "vitest|src/lib/presentation/dataGrid/dataGridSeed.rail.test.js|TERM-065 \u2014 a new sortable grid uses the DataGrid seed > every migrated grid imports the seed and hand-rolls nothing",
+    "vitest|src/lib/presentation/dataGrid/dataGridSeed.rail.test.js|TERM-065 \u2014 a new sortable grid uses the DataGrid seed > no hand-rolled grid outside the baseline \u2014 each one named"
+  ],
+  "missing": [
+    "pytest|?|tests.test_canonical_address_book",
+    "pytest|tests.test_gallery_w11_fnote1|test_the_one_mb_worst_case_reduces_in_under_half_a_second[one host, 1 MB]"
+  ],
+  "fixed": [
+    "pytest|tests.test_address_space|test_every_owned_named_table_is_an_address_kind_or_exempt_with_a_reason",
+    "pytest|tests.test_alert_taxonomy_indicator_condition_schema|test_the_callers_of_the_type_module_are_exactly_the_declared_four",
+    "pytest|tests.test_bars_ordinal_census|test_bars_ordinal_census_matches_a_fresh_derivation",
+    "pytest|tests.test_block_runs_server_lanes|test_the_guard_is_evaluated_under_the_trees_own_opts",
+    "pytest|tests.test_breadth_library_serve|test_the_warm_loop_warms_uct_plus_the_participation_family",
+    "pytest|tests.test_c45_withheld_doors|test_bar_index_is_asked_only_of_a_document_that_means_pines",
+    "pytest|tests.test_corp_actions_census|test_every_corporate_action_site_is_REGISTERED_with_a_state",
+    "pytest|tests.test_corp_actions_census|test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason",
+    "pytest|tests.test_corp_actions_census|test_the_census_runs_as_a_command_and_reports_its_verdict",
+    "pytest|tests.test_document_ocr.TestAClaimNobodyCanServeIsNotProcessing|test_the_member_facing_chain_ends_at_a_navigable_page",
+    "pytest|tests.test_entitlements_manifest|test_the_checked_in_manifest_IS_what_the_declarations_derive",
+    "pytest|tests.test_gitattributes_eol|test_every_derived_path_is_declared_text_unset",
+    "pytest|tests.test_gitattributes_eol|test_git_grep_cached_and_working_tree_disagree_which_is_the_whole_point",
+    "pytest|tests.test_gitattributes_eol|test_the_declared_list_is_still_the_derived_list",
+    "pytest|tests.test_journal_two_task_digest|test_every_body_writer_in_the_code_is_driven_here_or_exempt_with_a_reason",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start",
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins",
+    "pytest|tests.test_note_semantic|test_PLAN_RAIL_CONTROL_flag_on_a_natural_language_query_adds_only_bounded_reads",
+    "pytest|tests.test_note_semantic|test_PLAN_RAIL_flag_unset_the_handler_runs_exactly_lane_Is_statements[None]",
+    "pytest|tests.test_note_semantic|test_PLAN_RAIL_flag_unset_the_handler_runs_exactly_lane_Is_statements[why did I cut my winners early]",
+    "pytest|tests.test_run_half_refusal_telemetry|test_every_literal_run_half_refusal_code_is_accepted",
+    "pytest|tests.test_sample_never_feeds_real_numbers|test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason",
+    "pytest|tests.test_scan_live_sweep|test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGREE",
+    "pytest|tests.test_scan_not_computable_inputs|test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST",
+    "pytest|tests.test_terminal_next_kill_switch|test_every_frontend_gate_answers_from_the_payload_the_switch_empties",
+    "pytest|tests.test_terminal_unusual_volume_scan|test_by_now_reads_the_live_reading_highest_first_and_dates_it",
+    "pytest|tests.test_terminal_unusual_volume_scan|test_the_direction_and_the_multiple_are_rules_on_the_server",
+    "pytest|tests.test_terminal_unusual_volume_scan|test_the_floors_keep_funds_cheap_and_thin_names_off_both_readings",
+    "pytest|tests.test_test_discovery_coverage|test_no_production_module_is_wearing_a_test_name",
+    "pytest|tests.test_web_capture_coverage.TestAdversarialCoverage|test_a_reference_only_capture_offers_NO_body_text_to_answer_from",
+    "pytest|tests.test_web_capture_coverage.TestCitationTruthfulness|test_a_PDF_page_STILL_says_p_N",
+    "pytest|tests.test_web_capture_coverage.TestCitationTruthfulness|test_a_web_capture_is_labelled_a_CAPTURED_PASSAGE_not_a_page",
+    "pytest|tests.test_web_capture_coverage.TestCoverageInTheEnvelope|test_a_PDF_page_still_carries_document_complete",
+    "pytest|tests.test_web_capture_coverage.TestCoverageInTheEnvelope|test_a_row_with_NO_capture_type_is_treated_as_a_pre_wave_L_pdf",
+    "pytest|tests.test_web_capture_coverage.TestCoverageInTheEnvelope|test_a_web_passage_page_carries_selected_passage_only",
+    "pytest|tests.test_web_capture_coverage.TestCoverageInTheEnvelope|test_a_web_reference_carries_metadata_only",
+    "pytest|tests.test_web_capture_coverage.TestCoverageInTheEnvelope|test_selected_passage_only_can_NEVER_map_to_document_complete",
+    "vitest|src/components/FeedbackWidget.test.jsx|the Help menu: where it hangs, and which rows a page gets > opened from a page's own Help button, it hangs under that button; from the corner \"?\", in the corner",
+    "vitest|src/components/chart/pane/attachedPineDisclosures.noGuardIds.test.jsx|r4 \u2014 drift rail: guard namespaces > every namespace minted under app/src is known (or internal-only)",
+    "vitest|src/components/ui/formControls.census.test.js|\u2b50 HAND-ROLLED SWITCHES MAY NOT GROW > no file gained a hand-rolled switch, and no new file appeared",
+    "vitest|src/components/ui/formControls.census.test.js|\u2b50 UNNAMED CONTROL SITES MAY ONLY SHRINK > no new unnamed control site appeared anywhere in app/src",
+    "vitest|src/components/ui/formControls.census.test.js|\u2b50 UNNAMED CONTROL SITES MAY ONLY SHRINK > the baseline is tight \u2014 a migration lowers UNNAMED_BASELINE in the same commit",
+    "vitest|src/pages/command/keyListenerCensus.test.js|TERM-063 \u2014 the raw key-listener ratchet > no file holds MORE raw key listeners than its baseline (new ones go through the registry)",
+    "vitest|src/pages/command/keyListenerCensus.test.js|TERM-063 \u2014 the raw key-listener ratchet > the baseline sits at or under the stated CEILING, and the CEILING is tight",
+    "vitest|src/pages/journal-2-0/components/notebook/routines/TrackerEditorSheet.test.jsx|editing a tracker > tracker_kind_fixed_after_create"
+  ],
+  "new_flaky": [],
+  "flaky": [],
+  "file_level_resolved": [],
+  "coverage_lost": [
+    "pytest|?|tests.test_canonical_address_book",
+    "pytest|tests.test_gallery_w11_fnote1|test_the_one_mb_worst_case_reduces_in_under_half_a_second[one host, 1 MB]"
+  ],
+  "missing_buckets": {
+    "pytest|?|tests.test_canonical_address_book": [
+      "UNATTRIBUTED",
+      "the entry names no file this checkout has"
+    ],
+    "pytest|tests.test_gallery_w11_fnote1|test_the_one_mb_worst_case_reduces_in_under_half_a_second[one host, 1 MB]": [
+      "DE-COLLECTED",
+      "tests/test_gallery_w11_fnote1.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ]
+  },
+  "attribution": {
+    "pytest|api.services.journal_two.test_note_convert_d3|test_inline_raw_tags_scale_linearly[<lambda>1]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched api/services/journal_two/test_note_convert_d3.py or anything it imports"
+    },
+    "pytest|tests.test_deep_backfill_sync|test_deep_daily_request_keeps_background_path": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched tests/test_deep_backfill_sync.py or anything it imports"
+    },
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts": {
+      "class": "imported-file-change",
+      "commits": [
+        "4fae464f4"
+      ],
+      "workstreams": [
+        {
+          "commit": "4fae464f4",
+          "workstream": "feat/libchain-store-held",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_journal_two_derivation_versions|test_every_door_keeps_both_indexes_after_a_version_rebuild": {
+      "class": "imported-file-change",
+      "commits": [
+        "dfb449ea4"
+      ],
+      "workstreams": [
+        {
+          "commit": "dfb449ea4",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "vitest|src/lib/presentation/dataGrid/dataGridSeed.rail.test.js|TERM-065 \u2014 a new sortable grid uses the DataGrid seed > every migrated grid imports the seed and hand-rolls nothing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched src/lib/presentation/dataGrid/dataGridSeed.rail.test.js or anything it imports"
+    },
+    "vitest|src/lib/presentation/dataGrid/dataGridSeed.rail.test.js|TERM-065 \u2014 a new sortable grid uses the DataGrid seed > no hand-rolled grid outside the baseline \u2014 each one named": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched src/lib/presentation/dataGrid/dataGridSeed.rail.test.js or anything it imports"
+    },
+    "pytest|tests.test_address_space|test_every_owned_named_table_is_an_address_kind_or_exempt_with_a_reason": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched tests/test_address_space.py or anything it imports"
+    },
+    "pytest|tests.test_alert_taxonomy_indicator_condition_schema|test_the_callers_of_the_type_module_are_exactly_the_declared_four": {
+      "class": "test-file-change",
+      "commits": [
+        "4f8174a0e"
+      ],
+      "workstreams": [
+        {
+          "commit": "4f8174a0e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_bars_ordinal_census|test_bars_ordinal_census_matches_a_fresh_derivation": {
+      "class": "test-file-change",
+      "commits": [
+        "90f60ff96"
+      ],
+      "workstreams": [
+        {
+          "commit": "90f60ff96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_block_runs_server_lanes|test_the_guard_is_evaluated_under_the_trees_own_opts": {
+      "class": "test-file-change",
+      "commits": [
+        "d4d7caa7a"
+      ],
+      "workstreams": [
+        {
+          "commit": "d4d7caa7a",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_breadth_library_serve|test_the_warm_loop_warms_uct_plus_the_participation_family": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched tests/test_breadth_library_serve.py or anything it imports"
+    },
+    "pytest|tests.test_c45_withheld_doors|test_bar_index_is_asked_only_of_a_document_that_means_pines": {
+      "class": "test-file-change",
+      "commits": [
+        "09331d2f1"
+      ],
+      "workstreams": [
+        {
+          "commit": "09331d2f1",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_corp_actions_census|test_every_corporate_action_site_is_REGISTERED_with_a_state": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched tests/test_corp_actions_census.py or anything it imports"
+    },
+    "pytest|tests.test_corp_actions_census|test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched tests/test_corp_actions_census.py or anything it imports"
+    },
+    "pytest|tests.test_corp_actions_census|test_the_census_runs_as_a_command_and_reports_its_verdict": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched tests/test_corp_actions_census.py or anything it imports"
+    },
+    "pytest|tests.test_document_ocr.TestAClaimNobodyCanServeIsNotProcessing|test_the_member_facing_chain_ends_at_a_navigable_page": {
+      "class": "test-file-change",
+      "commits": [
+        "957f0d45e"
+      ],
+      "workstreams": [
+        {
+          "commit": "957f0d45e",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_entitlements_manifest|test_the_checked_in_manifest_IS_what_the_declarations_derive": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched tests/test_entitlements_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_gitattributes_eol|test_every_derived_path_is_declared_text_unset": {
+      "class": "test-file-change",
+      "commits": [
+        "dfdd3bae0"
+      ],
+      "workstreams": [
+        {
+          "commit": "dfdd3bae0",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_gitattributes_eol|test_git_grep_cached_and_working_tree_disagree_which_is_the_whole_point": {
+      "class": "test-file-change",
+      "commits": [
+        "dfdd3bae0"
+      ],
+      "workstreams": [
+        {
+          "commit": "dfdd3bae0",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_gitattributes_eol|test_the_declared_list_is_still_the_derived_list": {
+      "class": "test-file-change",
+      "commits": [
+        "dfdd3bae0"
+      ],
+      "workstreams": [
+        {
+          "commit": "dfdd3bae0",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_journal_two_task_digest|test_every_body_writer_in_the_code_is_driven_here_or_exempt_with_a_reason": {
+      "class": "test-file-change",
+      "commits": [
+        "dfb449ea4"
+      ],
+      "workstreams": [
+        {
+          "commit": "dfb449ea4",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped": {
+      "class": "imported-file-change",
+      "commits": [
+        "d6eb6dc7c",
+        "1239928db",
+        "5cfdd3262",
+        "9e86c1774",
+        "9fa904c2b",
+        "db51b93cb",
+        "851d47c72",
+        "212691037",
+        "9e62d6c19",
+        "1f368f91d"
+      ],
+      "workstreams": [
+        {
+          "commit": "d6eb6dc7c",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "1239928db",
+          "workstream": "origin/infra/gate-blind-detector",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "5cfdd3262",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "9e86c1774",
+          "workstream": "feat/strategy-unit",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "9fa904c2b",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "db51b93cb",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "851d47c72",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "212691037",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "9e62d6c19",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "1f368f91d",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched tests/test_massive_ws_stop.py or anything it imports"
+    },
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched tests/test_massive_ws_stop.py or anything it imports"
+    },
+    "pytest|tests.test_note_semantic|test_PLAN_RAIL_CONTROL_flag_on_a_natural_language_query_adds_only_bounded_reads": {
+      "class": "test-file-change",
+      "commits": [
+        "6c23a31e6"
+      ],
+      "workstreams": [
+        {
+          "commit": "6c23a31e6",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_note_semantic|test_PLAN_RAIL_flag_unset_the_handler_runs_exactly_lane_Is_statements[None]": {
+      "class": "test-file-change",
+      "commits": [
+        "6c23a31e6"
+      ],
+      "workstreams": [
+        {
+          "commit": "6c23a31e6",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_note_semantic|test_PLAN_RAIL_flag_unset_the_handler_runs_exactly_lane_Is_statements[why did I cut my winners early]": {
+      "class": "test-file-change",
+      "commits": [
+        "6c23a31e6"
+      ],
+      "workstreams": [
+        {
+          "commit": "6c23a31e6",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_run_half_refusal_telemetry|test_every_literal_run_half_refusal_code_is_accepted": {
+      "class": "test-file-change",
+      "commits": [
+        "1cc30a7c7"
+      ],
+      "workstreams": [
+        {
+          "commit": "1cc30a7c7",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_sample_never_feeds_real_numbers|test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason": {
+      "class": "test-file-change",
+      "commits": [
+        "0495bb39b"
+      ],
+      "workstreams": [
+        {
+          "commit": "0495bb39b",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_scan_live_sweep|test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGREE": {
+      "class": "test-file-change",
+      "commits": [
+        "d4d7caa7a"
+      ],
+      "workstreams": [
+        {
+          "commit": "d4d7caa7a",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_scan_not_computable_inputs|test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST": {
+      "class": "test-file-change",
+      "commits": [
+        "dec0a589b"
+      ],
+      "workstreams": [
+        {
+          "commit": "dec0a589b",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_terminal_next_kill_switch|test_every_frontend_gate_answers_from_the_payload_the_switch_empties": {
+      "class": "test-file-change",
+      "commits": [
+        "07c54becc",
+        "5f9a3d496"
+      ],
+      "workstreams": [
+        {
+          "commit": "07c54becc",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "5f9a3d496",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": true
+        }
+      ]
+    },
+    "pytest|tests.test_terminal_unusual_volume_scan|test_by_now_reads_the_live_reading_highest_first_and_dates_it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched tests/test_terminal_unusual_volume_scan.py or anything it imports"
+    },
+    "pytest|tests.test_terminal_unusual_volume_scan|test_the_direction_and_the_multiple_are_rules_on_the_server": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched tests/test_terminal_unusual_volume_scan.py or anything it imports"
+    },
+    "pytest|tests.test_terminal_unusual_volume_scan|test_the_floors_keep_funds_cheap_and_thin_names_off_both_readings": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched tests/test_terminal_unusual_volume_scan.py or anything it imports"
+    },
+    "pytest|tests.test_test_discovery_coverage|test_no_production_module_is_wearing_a_test_name": {
+      "class": "test-file-change",
+      "commits": [
+        "6b37a4782"
+      ],
+      "workstreams": [
+        {
+          "commit": "6b37a4782",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_web_capture_coverage.TestAdversarialCoverage|test_a_reference_only_capture_offers_NO_body_text_to_answer_from": {
+      "class": "test-file-change",
+      "commits": [
+        "1bd928115"
+      ],
+      "workstreams": [
+        {
+          "commit": "1bd928115",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_web_capture_coverage.TestCitationTruthfulness|test_a_PDF_page_STILL_says_p_N": {
+      "class": "test-file-change",
+      "commits": [
+        "1bd928115"
+      ],
+      "workstreams": [
+        {
+          "commit": "1bd928115",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_web_capture_coverage.TestCitationTruthfulness|test_a_web_capture_is_labelled_a_CAPTURED_PASSAGE_not_a_page": {
+      "class": "test-file-change",
+      "commits": [
+        "1bd928115"
+      ],
+      "workstreams": [
+        {
+          "commit": "1bd928115",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_web_capture_coverage.TestCoverageInTheEnvelope|test_a_PDF_page_still_carries_document_complete": {
+      "class": "test-file-change",
+      "commits": [
+        "1bd928115"
+      ],
+      "workstreams": [
+        {
+          "commit": "1bd928115",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_web_capture_coverage.TestCoverageInTheEnvelope|test_a_row_with_NO_capture_type_is_treated_as_a_pre_wave_L_pdf": {
+      "class": "test-file-change",
+      "commits": [
+        "1bd928115"
+      ],
+      "workstreams": [
+        {
+          "commit": "1bd928115",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_web_capture_coverage.TestCoverageInTheEnvelope|test_a_web_passage_page_carries_selected_passage_only": {
+      "class": "test-file-change",
+      "commits": [
+        "1bd928115"
+      ],
+      "workstreams": [
+        {
+          "commit": "1bd928115",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_web_capture_coverage.TestCoverageInTheEnvelope|test_a_web_reference_carries_metadata_only": {
+      "class": "test-file-change",
+      "commits": [
+        "1bd928115"
+      ],
+      "workstreams": [
+        {
+          "commit": "1bd928115",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_web_capture_coverage.TestCoverageInTheEnvelope|test_selected_passage_only_can_NEVER_map_to_document_complete": {
+      "class": "test-file-change",
+      "commits": [
+        "1bd928115"
+      ],
+      "workstreams": [
+        {
+          "commit": "1bd928115",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "vitest|src/components/FeedbackWidget.test.jsx|the Help menu: where it hangs, and which rows a page gets > opened from a page's own Help button, it hangs under that button; from the corner \"?\", in the corner": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched src/components/FeedbackWidget.test.jsx or anything it imports"
+    },
+    "vitest|src/components/chart/pane/attachedPineDisclosures.noGuardIds.test.jsx|r4 \u2014 drift rail: guard namespaces > every namespace minted under app/src is known (or internal-only)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched src/components/chart/pane/attachedPineDisclosures.noGuardIds.test.jsx or anything it imports"
+    },
+    "vitest|src/components/ui/formControls.census.test.js|\u2b50 HAND-ROLLED SWITCHES MAY NOT GROW > no file gained a hand-rolled switch, and no new file appeared": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched src/components/ui/formControls.census.test.js or anything it imports"
+    },
+    "vitest|src/components/ui/formControls.census.test.js|\u2b50 UNNAMED CONTROL SITES MAY ONLY SHRINK > no new unnamed control site appeared anywhere in app/src": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched src/components/ui/formControls.census.test.js or anything it imports"
+    },
+    "vitest|src/components/ui/formControls.census.test.js|\u2b50 UNNAMED CONTROL SITES MAY ONLY SHRINK > the baseline is tight \u2014 a migration lowers UNNAMED_BASELINE in the same commit": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched src/components/ui/formControls.census.test.js or anything it imports"
+    },
+    "vitest|src/pages/command/keyListenerCensus.test.js|TERM-063 \u2014 the raw key-listener ratchet > no file holds MORE raw key listeners than its baseline (new ones go through the registry)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched src/pages/command/keyListenerCensus.test.js or anything it imports"
+    },
+    "vitest|src/pages/command/keyListenerCensus.test.js|TERM-063 \u2014 the raw key-listener ratchet > the baseline sits at or under the stated CEILING, and the CEILING is tight": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched src/pages/command/keyListenerCensus.test.js or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/notebook/routines/TrackerEditorSheet.test.jsx|editing a tracker > tracker_kind_fixed_after_create": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 38d98d3d9..6f989fd1d touched src/pages/journal-2-0/components/notebook/routines/TrackerEditorSheet.test.jsx or anything it imports"
+    }
+  },
+  "run_attempt": "1",
+  "rerun_flaky": []
+}

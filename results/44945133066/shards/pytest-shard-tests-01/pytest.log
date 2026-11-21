@@ -1,0 +1,200 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.....F.................F.F.............................................. [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 17%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+..........................................................F............. [ 25%]
+........................................................................ [ 28%]
+........................................................................ [ 31%]
+........................................................................ [ 34%]
+........................................................................ [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 48%]
+........................................................................ [ 51%]
+........................................................................ [ 54%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 63%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 80%]
+........................................................................ [ 83%]
+........................................................................ [ 86%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+........................................................................ [ 97%]
+.........................................................                [100%]
+==============================================================================
+SHARED PRODUCTION DATA ROOT WRITTEN TO BY THE TEST SUITE — 2 attempt(s)
+==============================================================================
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/plan]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1124 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:12521 _flow_plan_sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:1060 _guarded_sqlite_connect
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/optimize]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1124 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:12564 _flow_optimize_sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:1060 _guarded_sqlite_connect
+
+=================================== FAILURES ===================================
+__________________ test_column_presets_have_a_typed_store_now __________________
+
+    def test_column_presets_have_a_typed_store_now():
+        """§2 gap 1 -- FLIPPED 2026-09-25 by A12 CP2 (the pin below did exactly what it
+        was written to do: it failed the day the store landed, and was updated rather
+        than made to pass again). `visiblePerf` is now backed by the per-member server
+        preference `watchlist_perf_cols` through `usePreferences`: hydrated once after
+        prefs load, written on change, unknown keys dropped on read. Pinned the same way
+        the gap was -- by the literals -- so a regression to session state fails here."""
+        path = os.path.join(_AT_ROOT, "app", "src", "pages", "Watchlists.jsx")
+        src = open(path, encoding="utf-8").read()
+        assert "const [visiblePerf, setVisiblePerf] = useState(new Set())" not in src, (
+            "visiblePerf is plain session state again -- A12 CP2's persistence was reverted")
+        assert "const WATCHLIST_PERF_COLS_KEY = 'watchlist_perf_cols'" in src
+        assert "parsePref(prefs?.[WATCHLIST_PERF_COLS_KEY], null)" in src, "the read side is gone"
+>       assert "setPref(WATCHLIST_PERF_COLS_KEY, serialized)" in src, "the write side is gone"
+E       AssertionError: the write side is gone
+E       assert 'setPref(WATCHLIST_PERF_COLS_KEY, serialized)' in '// app/src/pages/Watchlists.jsx\n//\n// ⚠️ READ BEFORE CHANGING THE LAYOUT OF THIS FILE.\n//\n// This component has T...        onUnavailable={() => setWlHistoryId(null)}\n          />\n        </Sheet>\n      )}\n\n    </div>\n  )\n}\n\n'
+
+tests/test_a12_s6_consistency_rail.py:250: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_column_presets_have_a_typ0/auth.db
+_____________ test_no_bare_catalyst_tag_literal_in_a_tag_position ______________
+
+    def test_no_bare_catalyst_tag_literal_in_a_tag_position():
+        failures = []
+        for rel in product_python_files():
+            tree = _parse(rel)
+            if tree is None:
+                continue
+            for ln, val in bare_tag_literals(tree):
+                failures.append(f"{rel}:{ln} bare tag literal {val!r} - use a8_taxonomy.CATALYST_TAG.{val.upper()}")
+>       assert not failures, "\n".join(failures)
+E       AssertionError: api/services/uct_agent/marketdata/eval/build_freshness.py:318 bare tag literal 'Catalyst' - use a8_taxonomy.CATALYST_TAG.CATALYST
+E       assert not ["api/services/uct_agent/marketdata/eval/build_freshness.py:318 bare tag literal 'Catalyst' - use a8_taxonomy.CATALYST_TAG.CATALYST"]
+
+tests/test_a8_taxonomy.py:334: AssertionError
+__________ test_no_new_cashtag_grammar_and_the_baseline_only_shrinks ___________
+
+    def test_no_new_cashtag_grammar_and_the_baseline_only_shrinks():
+        """Every OTHER cashtag grammar is a recorded, reasoned divergence (each has its
+        own owner ruling). A new one fails by name; one that disappeared must leave the
+        baseline in the same commit, so the ledger can only shrink."""
+        baseline = _cashtag_baseline()
+        for e in baseline.values():
+            assert len((e.get("reason") or "").strip()) >= 20, f"{e['path']}: a baseline entry needs a reason"
+        found = set()
+        new = []
+        for rel in product_python_files():
+            tree = _parse(rel)
+            if tree is None:
+                continue
+            for ln, pat in cashtag_grammars(tree):
+                if pat == A8.CASHTAG_PATTERN:
+                    continue  # the rail above owns this case
+                found.add((rel, pat))
+                if (rel, pat) not in baseline:
+                    new.append(f"{rel}:{ln} introduces a cashtag grammar {pat!r} - read a8_taxonomy.CASHTAG_RE")
+        stale = sorted(f"{p}  {pat!r}" for (p, pat) in set(baseline) - found)
+>       assert not new, "\n".join(new)
+E       AssertionError: api/services/tx_headline_match.py:63 introduces a cashtag grammar '\\$([A-Z]{1,5}(?:\\.[A-Z])?)\\b' - read a8_taxonomy.CASHTAG_RE
+E         api/services/uct_agent/turn.py:2101 introduces a cashtag grammar '\\$[A-Za-z]{1,6}\\b|(?<![A-Za-z0-9])[A-Z]{1,5}(?![A-Za-z0-9])' - read a8_taxonomy.CASHTAG_RE
+E         tools/agent_v2_corpus_cost.py:80 introduces a cashtag grammar '^\\$([A-Za-z]+)(?:\\[(\\d+)\\])?(?:\\{\\w+\\})?$' - read a8_taxonomy.CASHTAG_RE
+E       assert not ["api/services/tx_headline_match.py:63 introduces a cashtag grammar '\\\\$([A-Z]{1,5}(?:\\\\.[A-Z])?)\\\\b' - read a8_...uces a cashtag grammar '^\\\\$([A-Za-z]+)(?:\\\\[(\\\\d+)\\\\])?(?:\\\\{\\\\w+\\\\})?$' - read a8_taxonomy.CASHTAG_RE"]
+
+tests/test_a8_taxonomy.py:375: AssertionError
+_____ test_every_module_that_calls_a_model_is_described_in_the_door_table ______
+
+    def test_every_module_that_calls_a_model_is_described_in_the_door_table():
+        found = _found()
+        unlisted = sorted(set(found) - set(ai_doors.DOORS))
+>       assert not unlisted, (
+            "these modules call a model API and api/services/ai_doors.py does not say "
+            "what reaches them or what bounds their spend:\n"
+            + "\n".join(f"  {p}  <- {', '.join(str(s) for s in found[p][:3])}" for p in unlisted)
+            + "\n\nAdd a Door: kind, surface, budget, and for a member door the meter it "
+            "reads through and the module wiring the population cap (or `gap=` saying why not)."
+        )
+E       AssertionError: these modules call a model API and api/services/ai_doors.py does not say what reaches them or what bounds their spend:
+E           api/services/script_conversation.py  <- api/services/script_conversation.py:197 invoke .messages.create (in _call_model)
+E         
+E         Add a Door: kind, surface, budget, and for a member door the meter it reads through and the module wiring the population cap (or `gap=` saying why not).
+E       assert not ['api/services/script_conversation.py']
+
+tests/test_ai_doors_census.py:48: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_a8_primary_mention.py: 1 warning
+tests/test_account_size_authority.py: 1 warning
+tests/test_address_space.py: 2 warnings
+tests/test_alert_destination.py: 3 warnings
+tests/test_alert_erasure.py: 2 warnings
+tests/test_alert_ledger_admission.py: 3 warnings
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_a8_primary_mention.py::test_every_reader_of_the_join_is_tweet_store_or_a_recorded_mention_lister
+tests/test_alert_ledger_admission.py::test_the_door_has_EXACTLY_ONE_production_call_site
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_ai_doors_census.py::test_every_module_that_calls_a_model_is_described_in_the_door_table
+  api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_ai_meters.py: 23 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/test_a12_s6_consistency_rail.py::test_column_presets_have_a_typed_store_now - AssertionError: the write side is gone
+assert 'setPref(WATCHLIST_PERF_COLS_KEY, serialized)' in '// app/src/pages/Watchlists.jsx\n//\n// ⚠️ READ BEFORE CHANGING THE LAYOUT OF THIS FILE.\n//\n// This component has T...        onUnavailable={() => setWlHistoryId(null)}\n          />\n        </Sheet>\n      )}\n\n    </div>\n  )\n}\n\n'
+FAILED tests/test_a8_taxonomy.py::test_no_bare_catalyst_tag_literal_in_a_tag_position - AssertionError: api/services/uct_agent/marketdata/eval/build_freshness.py:318 bare tag literal 'Catalyst' - use a8_taxonomy.CATALYST_TAG.CATALYST
+assert not ["api/services/uct_agent/marketdata/eval/build_freshness.py:318 bare tag literal 'Catalyst' - use a8_taxonomy.CATALYST_TAG.CATALYST"]
+FAILED tests/test_a8_taxonomy.py::test_no_new_cashtag_grammar_and_the_baseline_only_shrinks - AssertionError: api/services/tx_headline_match.py:63 introduces a cashtag grammar '\\$([A-Z]{1,5}(?:\\.[A-Z])?)\\b' - read a8_taxonomy.CASHTAG_RE
+  api/services/uct_agent/turn.py:2101 introduces a cashtag grammar '\\$[A-Za-z]{1,6}\\b|(?<![A-Za-z0-9])[A-Z]{1,5}(?![A-Za-z0-9])' - read a8_taxonomy.CASHTAG_RE
+  tools/agent_v2_corpus_cost.py:80 introduces a cashtag grammar '^\\$([A-Za-z]+)(?:\\[(\\d+)\\])?(?:\\{\\w+\\})?$' - read a8_taxonomy.CASHTAG_RE
+assert not ["api/services/tx_headline_match.py:63 introduces a cashtag grammar '\\\\$([A-Z]{1,5}(?:\\\\.[A-Z])?)\\\\b' - read a8_...uces a cashtag grammar '^\\\\$([A-Za-z]+)(?:\\\\[(\\\\d+)\\\\])?(?:\\\\{\\\\w+\\\\})?$' - read a8_taxonomy.CASHTAG_RE"]
+FAILED tests/test_ai_doors_census.py::test_every_module_that_calls_a_model_is_described_in_the_door_table - AssertionError: these modules call a model API and api/services/ai_doors.py does not say what reaches them or what bounds their spend:
+    api/services/script_conversation.py  <- api/services/script_conversation.py:197 invoke .messages.create (in _call_model)
+  
+  Add a Door: kind, surface, budget, and for a member door the meter it reads through and the module wiring the population cap (or `gap=` saying why not).
+assert not ['api/services/script_conversation.py']
+4 failed, 2501 passed, 40 warnings in 459.71s (0:07:39)

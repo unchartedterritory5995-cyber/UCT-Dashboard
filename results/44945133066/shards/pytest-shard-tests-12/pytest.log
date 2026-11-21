@@ -1,0 +1,118 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  4%]
+........................................................................ [  8%]
+..............................s.s....................................... [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 21%]
+........................................................................ [ 25%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 38%]
+........................................................................ [ 42%]
+........................................................................ [ 46%]
+........................................................................ [ 50%]
+........................................................................ [ 54%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+....................F................................................... [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 76%]
+........................................................................ [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 88%]
+....s..............................................[activity] Failed to log j2:notebook_ai_actions_planned for u1: FOREIGN KEY constraint failed
+..................... [ 92%]
+........................................................................ [ 97%]
+.................................................                        [100%]
+=================================== FAILURES ===================================
+__________ test_every_door_that_reads_a_member_template_body_is_named __________
+
+    def test_every_door_that_reads_a_member_template_body_is_named():
+        found = _readers()
+        assert "api/services/journal_two/note_daily.py" in found                 # non-vacuity: the census sees the door
+>       assert found <= set(DOORS), f"a new door reads a member template's body: {sorted(found - set(DOORS))}"
+E       AssertionError: a new door reads a member template's body: ['api/services/journal_two/notebook_today.py']
+E       assert {'api/routers...e_gallery.py'} <= {'api/routers...e_gallery.py'}
+E         
+E         Extra items in the left set:
+E         'api/services/journal_two/notebook_today.py'
+
+tests/test_note_creation_doors_no_block_tokens.py:83: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+<unknown>:964
+tests/test_no_schwab_in_production_code.py::test_no_production_code_calls_schwab_or_imports_a_schwab_client
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+tests/test_node_vocabulary_parity.py::test_the_search_FINDS_the_copies_it_is_supposed_to_guard
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+api/services/journal_two/note_connectors/providers/obsidian.py:964
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_named_route_audiences.py::test_the_live_admin_reads_carry_the_admin_gate_themselves
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:186: SyntaxWarning: invalid escape sequence '\['
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:3: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:1347: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:627: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_note_sync_router.py::test_start_initial_sync_never_raises_into_a_successful_connect
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/note_sync.py:610: RuntimeWarning: coroutine '_start_initial_sync.<locals>._run' was never awaited
+    log.warning("[note_sync] no event loop; initial sync for %s deferred to the scheduler", source_id)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_notebook_body_order.py::test_every_converted_route_has_a_request_body_schema_in_the_api_docs
+tests/test_notebook_body_order.py::test_documenting_the_bodies_changes_nothing_about_how_a_request_is_handled
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID chart_markers_endpoint_api_chart_markers__ticker__get for function chart_markers_endpoint at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/earnings.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_notebook_body_order.py::test_every_converted_route_has_a_request_body_schema_in_the_api_docs
+tests/test_notebook_body_order.py::test_documenting_the_bodies_changes_nothing_about_how_a_request_is_handled
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID test_discord_post_api_live_test_discord_post_post for function test_discord_post at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/liveflow_router.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_notebook_body_order.py::test_every_converted_route_has_a_request_body_schema_in_the_api_docs
+tests/test_notebook_body_order.py::test_documenting_the_bodies_changes_nothing_about_how_a_request_is_handled
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID admin_clear_before_date_api_live_admin_clear_before_date_post for function admin_clear_before_date at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/liveflow_router.py
+    warnings.warn(message, stacklevel=1)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [2] tests/test_nb_gate_stdout.py:90: the stripped env reproduces cp1252 only where the locale is cp1252; the forced-cp1252 case carries this rail on this platform
+SKIPPED [1] tests/test_note_upload_doors_media_policy.py:127: pi_heif is installed
+FAILED tests/test_note_creation_doors_no_block_tokens.py::test_every_door_that_reads_a_member_template_body_is_named - AssertionError: a new door reads a member template's body: ['api/services/journal_two/notebook_today.py']
+assert {'api/routers...e_gallery.py'} <= {'api/routers...e_gallery.py'}
+  
+  Extra items in the left set:
+  'api/services/journal_two/notebook_today.py'
+1 failed, 1701 passed, 3 skipped, 22 warnings in 539.24s (0:08:59)

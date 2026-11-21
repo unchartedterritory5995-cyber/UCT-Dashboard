@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 2706,
+  "passed": 2699,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 504.51,
+  "failed_files": [
+    "api/services/journal_two/test_note_convert_d3.py",
+    "api/services/scheduler_lock_test.py",
+    "api/services/test_ticker_search_entity_master_integration.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 2699 passed, 4 skipped, 7 warnings in 504.51s (0:08:24)",
+  "ok": true
+}

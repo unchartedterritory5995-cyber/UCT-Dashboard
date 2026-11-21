@@ -1,0 +1,463 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+...............................FFssss................................... [  3%]
+........................................................................ [  6%]
+...s...s................ss.............................................. [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 20%]
+........................................................................ [ 23%]
+........................................................................ [ 26%]
+......FF.FF.........................ssssss................FFFF.......... [ 30%]
+.........F.......................................................F...... [ 33%]
+........................................................................ [ 36%]
+........................................................................ [ 40%]
+........................................................................ [ 43%]
+.....................s.................................................. [ 46%]
+........................................................................ [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 56%]
+........................................................................ [ 60%]
+........................................................................ [ 63%]
+........................................................................ [ 66%]
+........................................................................ [ 70%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 80%]
+.......................E................................................ [ 83%]
+........................................................................ [ 86%]
+........................................................................ [ 90%]
+........................................................................ [ 93%]
+........................................................................ [ 96%]
+...................................................................      [100%]
+==================================== ERRORS ====================================
+___________ ERROR at teardown of test_check_ticker_clean_contiguous ____________
+a product module imported during this test bound a test's function, and keeps it after the patch was undone (patch the DATA the function reads, e.g. `auth_db._DB_PATH`, or import the module before patching): api.services.fundamentals_monitor.sec_newest_reported_quarter <- _isolated_monitor_db.<locals>.<lambda> (tests/test_fundamentals_monitor.py:26)
+=================================== FAILURES ===================================
+____________ test_every_existing_drawing_is_byte_for_byte_unchanged ____________
+
+swept = {'counts': {'detections': 3689, 'dropped_new_ids': 39, 'flat_top': 20, 'flat_top_stamped': 3, ...}, 'kept': {'0:262': ...:262': 'eb15c66be2b78ec0', '0:268': '692f80a4583c4c7e', '0:274': '960916705e64c48e', '0:280': '414e50c6ed72ead8', ...}}
+
+    def test_every_existing_drawing_is_byte_for_byte_unchanged(swept):
+        bad = sorted(k for k, d in GOLDEN["digests"].items() if swept["stripped"].get(k) != d)
+>       assert bad == [], f"{len(bad)} scans moved: {bad[:10]}"
+E       AssertionError: 15 scans moved: ['12:262', '12:268', '12:280', '14:274', '15:268', '17:280', '17:286', '18:286', '19:298', '1:286']
+E       assert ['12:262', '1...'17:280', ...] == []
+E         
+E         Left contains 15 more items, first extra item: '12:262'
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     '12:262',
+E         +     '12:268',
+E         +     '12:280',
+E         +     '14:274',
+E         +     '15:268',
+E         +     '17:280',
+E         +     '17:286',
+E         +     '18:286',
+E         +     '19:298',
+E         +     '1:286',
+E         +     '20:262',
+E         +     '22:262',
+E         +     '3:268',
+E         +     '6:268',
+E         +     '6:274',
+E         + ]
+
+tests/test_flat_top_golden.py:97: AssertionError
+__________ test_control_the_comparison_sees_the_stamp_when_it_is_kept __________
+
+swept = {'counts': {'detections': 3689, 'dropped_new_ids': 39, 'flat_top': 20, 'flat_top_stamped': 3, ...}, 'kept': {'0:262': ...:262': 'eb15c66be2b78ec0', '0:268': '692f80a4583c4c7e', '0:274': '960916705e64c48e', '0:280': '414e50c6ed72ead8', ...}}
+
+    def test_control_the_comparison_sees_the_stamp_when_it_is_kept(swept):
+        moved = {k for k, d in GOLDEN["digests"].items() if swept["kept"].get(k) != d}
+        assert moved, "keeping the stamp changed nothing: the digest cannot see a drawing"
+>       assert len(moved) <= swept["counts"]["flat_top_stamped"]
+E       AssertionError: assert 17 <= 3
+E        +  where 17 = len({'12:262', '12:268', '12:280', '14:274', '15:268', '17:280', ...})
+
+tests/test_flat_top_golden.py:103: AssertionError
+_______ test_NARRATIVE_a_failed_call_charges_every_sdk_attempt[timeout] ________
+
+narrative = <function narrative.<locals>.run at 0x7cb145f6aac0>
+failure = APITimeoutError('Request timed out or interrupted. This could be due to a network timeout, dropped connection, or request cancellation. See https://docs.anthropic.com/en/api/errors#long-requests for more details.')
+
+    @pytest.mark.parametrize("failure", [TIMEOUT, DROPPED], ids=["timeout", "dropped"])
+    def test_NARRATIVE_a_failed_call_charges_every_sdk_attempt(narrative, failure):
+        fake, out = narrative(failure)
+        assert out.status_code == 500 and len(fake.calls) == 1
+>       assert narrative_cost_guard.spend_today_usd(NARRATIVE) == pytest.approx(_worst())
+E       assert 0.3015 == 0.40725 ± 4.1e-07
+E         
+E         comparison failed
+E         Obtained: 0.3015
+E         Expected: 0.40725 ± 4.1e-07
+
+tests/test_flow_lanes_failed_call_charged.py:168: AssertionError
+_______ test_NARRATIVE_a_failed_call_charges_every_sdk_attempt[dropped] ________
+
+narrative = <function narrative.<locals>.run at 0x7cb145f6a840>
+failure = APIConnectionError('Connection error.')
+
+    @pytest.mark.parametrize("failure", [TIMEOUT, DROPPED], ids=["timeout", "dropped"])
+    def test_NARRATIVE_a_failed_call_charges_every_sdk_attempt(narrative, failure):
+        fake, out = narrative(failure)
+        assert out.status_code == 500 and len(fake.calls) == 1
+>       assert narrative_cost_guard.spend_today_usd(NARRATIVE) == pytest.approx(_worst())
+E       assert 0.3015 == 0.40725 ± 4.1e-07
+E         
+E         comparison failed
+E         Obtained: 0.3015
+E         Expected: 0.40725 ± 4.1e-07
+
+tests/test_flow_lanes_failed_call_charged.py:168: AssertionError
+________ test_NARRATIVE_a_failure_after_the_reply_is_not_charged_twice _________
+
+narrative = <function narrative.<locals>.run at 0x7cb145f6a0c0>
+
+    def test_NARRATIVE_a_failure_after_the_reply_is_not_charged_twice(narrative):
+        """`content=None` fails after the usage was recorded: one row at its usage, no worst case on top."""
+        _, out = narrative(SimpleNamespace(content=None, usage=SimpleNamespace(input_tokens=1000, output_tokens=100)))
+        assert out.status_code == 500
+        assert narrative_cost_guard.calls_today_for_surface(NARRATIVE) == 1
+>       assert narrative_cost_guard.spend_today_usd(NARRATIVE) == pytest.approx(
+            narrative_cost_guard.estimate_cost(MODEL, 1000, 100))
+E       assert 0.003 == 0.00450000000...0005 ± 4.5e-09
+E         
+E         comparison failed
+E         Obtained: 0.003
+E         Expected: 0.0045000000000000005 ± 4.5e-09
+
+tests/test_flow_lanes_failed_call_charged.py:182: AssertionError
+___________ test_NARRATIVE_a_success_is_still_charged_from_its_usage ___________
+
+narrative = <function narrative.<locals>.run at 0x7cb145f6b420>
+
+    def test_NARRATIVE_a_success_is_still_charged_from_its_usage(narrative):
+        reply = SimpleNamespace(content=[SimpleNamespace(text="Stocks closed higher.")],
+                                usage=SimpleNamespace(input_tokens=1000, output_tokens=100))
+        fake, out = narrative(reply)
+        assert out == {"narrative": "Stocks closed higher."}
+        assert fake.calls[0]["max_tokens"] == 250
+>       assert narrative_cost_guard.spend_today_usd(NARRATIVE) == pytest.approx(
+            narrative_cost_guard.estimate_cost(MODEL, 1000, 100))
+E       assert 0.003 == 0.00450000000...0005 ± 4.5e-09
+E         
+E         comparison failed
+E         Obtained: 0.003
+E         Expected: 0.0045000000000000005 ± 4.5e-09
+
+tests/test_flow_lanes_failed_call_charged.py:192: AssertionError
+__________ test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7cb146020fe0>
+_clean_caches = None
+
+    def test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold(monkeypatch, _clean_caches):
+        monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")      # whole-D warm...
+        # ...and no parts at all, which is precisely the prod reading.
+    
+        h = fa.health(current_version=7)
+    
+        assert h["warm"] is False, (
+            "health reported the fast path warm while the transport members take "
+            "was empty -- the proxy-not-artifact defect")
+>       assert h["warm_whole"] is True, "the whole-D path really was warm"
+E       KeyError: 'warm_whole'
+
+tests/test_flow_prepare.py:240: KeyError
+_________ test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7cb146023ec0>
+_clean_caches = None
+
+    def test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged(monkeypatch, _clean_caches):
+        """Without this the test above would pass on a health() that always says
+        cold, and the long-standing behaviour would be silently broken."""
+        monkeypatch.setattr(fa, "parts_enabled", lambda: False)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")
+    
+        h = fa.health(current_version=7)
+>       assert h["warm"] is True and h["reason"] is None
+E       assert (False is True)
+
+tests/test_flow_prepare.py:252: AssertionError
+_______ test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7cb145fbca40>
+_clean_caches = None
+
+    def test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built(monkeypatch, _clean_caches):
+        monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")
+        fa._PARTS_CACHE[fa.DEFAULT_VIEW + ("bootstrap",)] = (7, b"gz")
+    
+        h = fa.health(current_version=7)
+>       assert h["warm"] is True and h["warm_parts"] is True
+E       assert (False is True)
+
+tests/test_flow_prepare.py:262: AssertionError
+____________ test_parts_built_for_a_SUPERSEDED_version_are_not_warm ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7cb1518637a0>
+_clean_caches = None
+
+    def test_parts_built_for_a_SUPERSEDED_version_are_not_warm(monkeypatch, _clean_caches):
+        """The next caller rebuilds, so reporting warm is how a stalled preparer
+        would hide -- the same rule the whole-D path already had."""
+        monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+        monkeypatch.setattr(fa, "available", lambda: True)
+        fa._PARTS_CACHE[fa.DEFAULT_VIEW + ("bootstrap",)] = (6, b"gz")
+    
+        h = fa.health(current_version=7)
+        assert h["warm"] is False
+>       assert "stale" in (h["reason"] or "")
+E       AssertionError: assert 'stale' in (('bundle_missing'))
+
+tests/test_flow_prepare.py:274: AssertionError
+_________________ test_a_BURST_of_bumps_collapses_to_ONE_roll __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7cb1518af0b0>
+
+    def test_a_BURST_of_bumps_collapses_to_ONE_roll(monkeypatch):
+        """N rapid bumps must not become N rolls. If this ever fails, the burst
+        concern becomes real and `prev_version is None` stops being sufficient."""
+        monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+        monkeypatch.setattr(fr, "_PREPARE_LAST", None)
+        monkeypatch.setattr(fr, "_PREPARE_POLL_S", 0.05)
+        base = _bumped_version()
+        state = {"v": base}
+        _stub_build(monkeypatch, base, lambda: state["v"])
+        monkeypatch.setattr(fr, "_get_cached_or_build",
+                            lambda source, days: (state["v"],
+                                                  __import__("gzip").compress(b"csv")))
+    
+        fr._PREPARE_STOP.clear()
+        t = threading.Thread(target=fr._prepare_loop, daemon=True)
+        t.start()
+        try:
+            for i in range(1, 6):        # five bumps, back to back
+                state["v"] = base + i
+            time.sleep(1.2)
+        finally:
+            fr._PREPARE_STOP.set()       # ⛔ never leak the thread into a neighbour
+            t.join(timeout=5)
+            fr._PREPARE_STOP.clear()
+    
+        rolls = list(fr._PREPARE_ROLLS)
+>       assert len(rolls) == 1, (
+            f"{len(rolls)} rolls from 5 bumps — the loop is observing intermediate "
+            "versions, so a burst CAN reach the ledger and rolls 2..N would be "
+            "misfiled as steady-state")
+E       AssertionError: 2 rolls from 5 bumps — the loop is observing intermediate versions, so a burst CAN reach the ledger and rolls 2..N would be misfiled as steady-state
+E       assert 2 == 1
+E        +  where 2 = len([{'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}, {'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}])
+
+tests/test_flow_prepare.py:682: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-21 20:43:19,928 INFO api.flow_router: [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39921563 in 0ms
+2026-11-21 20:43:19,928 INFO api.flow_router: [flow-prepare] version moved during pass 1 — skipping the remainder for v=39921563
+2026-11-21 20:43:19,978 INFO api.flow_router: [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39921568 in 0ms
+2026-11-21 20:43:19,978 INFO api.flow_router: [flow-prepare] remainder warmed v=39921568 in 0ms
+------------------------------ Captured log call -------------------------------
+INFO     api.flow_router:flow_router.py:2708 [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39921563 in 0ms
+INFO     api.flow_router:flow_router.py:2719 [flow-prepare] version moved during pass 1 — skipping the remainder for v=39921563
+INFO     api.flow_router:flow_router.py:2708 [flow-prepare] first paint warmed ('stocks', 1, 'Last1') v=39921568 in 0ms
+INFO     api.flow_router:flow_router.py:2730 [flow-prepare] remainder warmed v=39921568 in 0ms
+_________________ test_every_read_path_test_file_is_classified _________________
+
+    def test_every_read_path_test_file_is_classified():
+        classified = _classified()
+        orphans = [f for f in _read_path_test_files() if f not in classified]
+>       assert orphans == [], (
+            "these test files reach a flow read-path module and NOTHING RUNS THEM:\n  "
+            + "\n  ".join(orphans)
+            + "\n\nPut each one in a batch in tools/flow_read_gate.py, or in EXCLUDED with a "
+              "reason. This is the position test_cream_meta_key was in for 54 days.")
+E       AssertionError: these test files reach a flow read-path module and NOTHING RUNS THEM:
+E           tests/test_cream_route_answers_at_once.py
+E           tests/test_live_massive_corrupt_page_resilience.py
+E           tests/test_live_massive_fair_ask_aggregate.py
+E           tests/test_massive_ws_spot_fetch.py
+E           tests/test_mem_observe.py
+E           tests/test_stream_ingest_skeleton.py
+E           tests/test_ticker_types_replica.py
+E         
+E         Put each one in a batch in tools/flow_read_gate.py, or in EXCLUDED with a reason. This is the position test_cream_meta_key was in for 54 days.
+E       assert ['tests/test_...eton.py', ...] == []
+E         
+E         Left contains 7 more items, first extra item: 'tests/test_cream_route_answers_at_once.py'
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     'tests/test_cream_route_answers_at_once.py',
+E         +     'tests/test_live_massive_corrupt_page_resilience.py',
+E         +     'tests/test_live_massive_fair_ask_aggregate.py',
+E         +     'tests/test_massive_ws_spot_fetch.py',
+E         +     'tests/test_mem_observe.py',
+E         +     'tests/test_stream_ingest_skeleton.py',
+E         +     'tests/test_ticker_types_replica.py',
+E         + ]
+
+tests/test_flow_read_gate_manifest.py:92: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_flow_card_from_page.py::test_an_incomplete_basis_is_labelled_on_the_all_rung_and_on_the_card
+tests/test_flow_card_from_page.py::test_the_card_reads_the_as_of_header_and_says_so_on_the_card
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/watchlist_card.py:131: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_flow_tape_spool.py:57: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    hour = datetime.utcfromtimestamp(in_w0 / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_flow_tape_spool.py:63: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    hour1 = datetime.utcfromtimestamp(in_w1 / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+tests/test_flow_tape_spool.py::test_iter_spool_lines_prefers_gz_over_plain_twin
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_tape_spool.py:357: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    h0 = datetime.utcfromtimestamp(t0_ns / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+tests/test_flow_tape_spool.py::test_iter_spool_lines_prefers_gz_over_plain_twin
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_tape_spool.py:358: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    h1 = datetime.utcfromtimestamp(t1_ns / 1e9 + 3600).strftime("%Y%m%d-%H")
+
+tests/test_fmp_guard_census.py::test_real_repo_has_zero_unquarantined_violations
+tests/test_fmp_guard_census.py::test_retired_quarantine_entries_are_genuinely_clean
+tests/test_fmp_guard_census.py::test_no_quarantine_entry_is_stale
+tests/test_fmp_helper_census.py::test_the_real_tree_matches_the_ratchet_exactly
+tests/test_fmp_helper_census.py::test_the_census_is_not_blind_on_the_real_tree
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_fmp_helper_census.py::test_every_body_or_none_call_names_its_timeout
+tests/test_fmp_timeout_pinning.py::test_every_fmp_get_call_site_names_its_timeout
+tests/test_fmp_timeout_pinning.py::test_the_scan_ALSO_SEES_fmp_get_passed_as_a_REFERENCE
+tests/test_fmp_timeout_pinning.py::test_the_owner_reserved_exclusion_is_STILL_REAL
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_front_app.py::test_health_does_not_depend_on_the_upstream
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_front_app.py::test_health_does_not_depend_on_the_upstream
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_flat_top_lab_parity.py:146: UCT_LAB_FLATTOP_V2 unset
+SKIPPED [1] tests/test_flat_top_lab_parity.py:171: UCT_LAB_FLATTOP_V2 unset
+SKIPPED [1] tests/test_flat_top_lab_parity.py:196: UCT_LAB_FLATTOP_V2 unset
+SKIPPED [1] tests/test_flat_top_lab_parity.py:231: UCT_LAB_FLATTOP_V2 unset
+SKIPPED [1] tests/test_flow_aggregate.py:68: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:118: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:243: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:259: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_parts_only.py:64: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:73: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:81: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:89: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:98: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:122: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_worker_watch_coverage.py:100: no diff against origin/master — nothing to judge (this is the on-master case, not a pass)
+ERROR tests/test_fundamentals_monitor.py::test_check_ticker_clean_contiguous - Failed: a product module imported during this test bound a test's function, and keeps it after the patch was undone (patch the DATA the function reads, e.g. `auth_db._DB_PATH`, or import the module before patching): api.services.fundamentals_monitor.sec_newest_reported_quarter <- _isolated_monitor_db.<locals>.<lambda> (tests/test_fundamentals_monitor.py:26)
+FAILED tests/test_flat_top_golden.py::test_every_existing_drawing_is_byte_for_byte_unchanged - AssertionError: 15 scans moved: ['12:262', '12:268', '12:280', '14:274', '15:268', '17:280', '17:286', '18:286', '19:298', '1:286']
+assert ['12:262', '1...'17:280', ...] == []
+  
+  Left contains 15 more items, first extra item: '12:262'
+  
+  Full diff:
+  - []
+  + [
+  +     '12:262',
+  +     '12:268',
+  +     '12:280',
+  +     '14:274',
+  +     '15:268',
+  +     '17:280',
+  +     '17:286',
+  +     '18:286',
+  +     '19:298',
+  +     '1:286',
+  +     '20:262',
+  +     '22:262',
+  +     '3:268',
+  +     '6:268',
+  +     '6:274',
+  + ]
+FAILED tests/test_flat_top_golden.py::test_control_the_comparison_sees_the_stamp_when_it_is_kept - AssertionError: assert 17 <= 3
+ +  where 17 = len({'12:262', '12:268', '12:280', '14:274', '15:268', '17:280', ...})
+FAILED tests/test_flow_lanes_failed_call_charged.py::test_NARRATIVE_a_failed_call_charges_every_sdk_attempt[timeout] - assert 0.3015 == 0.40725 ± 4.1e-07
+  
+  comparison failed
+  Obtained: 0.3015
+  Expected: 0.40725 ± 4.1e-07
+FAILED tests/test_flow_lanes_failed_call_charged.py::test_NARRATIVE_a_failed_call_charges_every_sdk_attempt[dropped] - assert 0.3015 == 0.40725 ± 4.1e-07
+  
+  comparison failed
+  Obtained: 0.3015
+  Expected: 0.40725 ± 4.1e-07
+FAILED tests/test_flow_lanes_failed_call_charged.py::test_NARRATIVE_a_failure_after_the_reply_is_not_charged_twice - assert 0.003 == 0.00450000000...0005 ± 4.5e-09
+  
+  comparison failed
+  Obtained: 0.003
+  Expected: 0.0045000000000000005 ± 4.5e-09
+FAILED tests/test_flow_lanes_failed_call_charged.py::test_NARRATIVE_a_success_is_still_charged_from_its_usage - assert 0.003 == 0.00450000000...0005 ± 4.5e-09
+  
+  comparison failed
+  Obtained: 0.003
+  Expected: 0.0045000000000000005 ± 4.5e-09
+FAILED tests/test_flow_prepare.py::test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold - KeyError: 'warm_whole'
+FAILED tests/test_flow_prepare.py::test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged - assert (False is True)
+FAILED tests/test_flow_prepare.py::test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built - assert (False is True)
+FAILED tests/test_flow_prepare.py::test_parts_built_for_a_SUPERSEDED_version_are_not_warm - AssertionError: assert 'stale' in (('bundle_missing'))
+FAILED tests/test_flow_prepare.py::test_a_BURST_of_bumps_collapses_to_ONE_roll - AssertionError: 2 rolls from 5 bumps — the loop is observing intermediate versions, so a burst CAN reach the ledger and rolls 2..N would be misfiled as steady-state
+assert 2 == 1
+ +  where 2 = len([{'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}, {'blocked_by': None, 'blocked_held_ms': None, 'blocked_pass': None, 'bucket_bound_s': None, ...}])
+FAILED tests/test_flow_read_gate_manifest.py::test_every_read_path_test_file_is_classified - AssertionError: these test files reach a flow read-path module and NOTHING RUNS THEM:
+    tests/test_cream_route_answers_at_once.py
+    tests/test_live_massive_corrupt_page_resilience.py
+    tests/test_live_massive_fair_ask_aggregate.py
+    tests/test_massive_ws_spot_fetch.py
+    tests/test_mem_observe.py
+    tests/test_stream_ingest_skeleton.py
+    tests/test_ticker_types_replica.py
+  
+  Put each one in a batch in tools/flow_read_gate.py, or in EXCLUDED with a reason. This is the position test_cream_meta_key was in for 54 days.
+assert ['tests/test_...eton.py', ...] == []
+  
+  Left contains 7 more items, first extra item: 'tests/test_cream_route_answers_at_once.py'
+  
+  Full diff:
+  - []
+  + [
+  +     'tests/test_cream_route_answers_at_once.py',
+  +     'tests/test_live_massive_corrupt_page_resilience.py',
+  +     'tests/test_live_massive_fair_ask_aggregate.py',
+  +     'tests/test_massive_ws_spot_fetch.py',
+  +     'tests/test_mem_observe.py',
+  +     'tests/test_stream_ingest_skeleton.py',
+  +     'tests/test_ticker_types_replica.py',
+  + ]
+12 failed, 2127 passed, 15 skipped, 21 warnings, 1 error in 577.28s (0:09:37)

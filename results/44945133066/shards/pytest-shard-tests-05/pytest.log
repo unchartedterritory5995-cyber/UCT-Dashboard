@@ -1,0 +1,243 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.........................................................F.............. [  2%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+............................F........................................... [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+.......................................F................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+...........................................                              [100%]
+=================================== FAILURES ===================================
+________ test_the_axis_declares_exactly_what_the_legacy_lane_enumerates ________
+
+    def test_the_axis_declares_exactly_what_the_legacy_lane_enumerates():
+        declared = set(ax.declarations())
+        legacy = set(indicator_alert_evaluator.all_addresses())
+        assert declared == legacy, (
+            "the axis and the legacy lane disagree about what exists — "
+            f"only-axis={declared - legacy} only-legacy={legacy - declared}")
+>       assert len(declared) == 44, f"expected 30 indicators + close + ma_cross + 12 rs_line (2b-05; +rating, 2b-06 2026-11-07), got {len(declared)}"
+E       AssertionError: expected 30 indicators + close + ma_cross + 12 rs_line (2b-05; +rating, 2b-06 2026-11-07), got 51
+E       assert 51 == 44
+E        +  where 51 = len({'adx.adx', 'adx.minusDI', 'adx.plusDI', 'atr', 'bb', 'bb.lower', ...})
+
+tests/test_canonical_indicator_axis.py:27: AssertionError
+_______________ test_the_swept_population_is_PINNED_not_floored ________________
+
+    def test_the_swept_population_is_PINNED_not_floored():
+        """⛔⛔ THE CLAUSE THAT CAN NOTICE A 4-SITE DROP.
+    
+        The floor this replaces was `seen >= 10` against a population of 21: it
+        could not distinguish 17 from 21, so it sat green beside a matcher missing
+        a fifth of the tree. See `EXPECTED_LITERAL_SEVERITY_SITES` for why this is
+        an exact pin rather than a tighter floor.
+        """
+        sites = _SWEEP["resolved"]
+        lits = _literal_severity(sites)
+        fewer = (
+            "FEWER than pinned — sites have VANISHED, which is the regression this "
+            "pin exists to catch. Look for a deleted guard, or for a matcher that "
+            "stopped resolving an alias, BEFORE you touch the number."
+        )
+        more = (
+            "MORE than pinned — a new emit site was added. That is fine and expected: "
+            "update EXPECTED_LITERAL_SEVERITY_SITES (and EXPECTED_EMIT_SITES) in the "
+            "SAME commit that adds the site, so the number stays a measurement rather "
+            "than becoming a floor nobody trusts."
+        )
+>       assert len(lits) == EXPECTED_LITERAL_SEVERITY_SITES, (
+            f"{len(lits)} literal-severity chart_health_alerts.emit() sites under "
+            f"api/, pinned at {EXPECTED_LITERAL_SEVERITY_SITES}.\n"
+            f"{fewer if len(lits) < EXPECTED_LITERAL_SEVERITY_SITES else more}\n"
+            f"derived inventory:\n  {_inventory(lits)}"
+        )
+E       AssertionError: 28 literal-severity chart_health_alerts.emit() sites under api/, pinned at 27.
+E         MORE than pinned — a new emit site was added. That is fine and expected: update EXPECTED_LITERAL_SEVERITY_SITES (and EXPECTED_EMIT_SITES) in the SAME commit that adds the site, so the number stays a measurement rather than becoming a floor nobody trusts.
+E         derived inventory:
+E           api/cream_card.py:181::<computed>::critical
+E           api/main.py:2196::<computed>::warning
+E           api/main.py:2249::<computed>::warning
+E           api/main.py:2440::<computed>::warning
+E           api/main.py:2638::<computed>::warning
+E           api/oi_morning.py:661::<computed>::critical
+E           api/routers/push.py:101::taxonomy_version_mismatch::warning
+E           api/services/bars_continuous_audit.py:156::bars_store_unhealthy::critical
+E           api/services/bars_continuous_audit.py:181::bars_daily_store_stale::critical
+E           api/services/bars_continuous_audit.py:222::intraday_hotset_stale::critical
+E           api/services/bars_continuous_audit.py:232::intraday_hotset_stale::warning
+E           api/services/bars_rail_monitor.py:337::bars_stream_rail_silent::critical
+E           api/services/bars_reconciliation.py:387::daily_drift_detected::warning
+E           api/services/calendar_week_contract.py:98::<computed>::warning
+E           api/services/desk_session_insights.py:1127::<computed>::critical
+E           api/services/discord_buzz_digest.py:211::<computed>::critical
+E           api/services/discord_render/stall_record.py:196::<computed>::critical
+E           api/services/fundamentals_monitor.py:527::fundamentals_regression::critical
+E           api/services/journal_two/tweet_capture_sync.py:128::<computed>::critical
+E           api/services/perplexity_search.py:184::perplexity_auth_failure::critical
+E           api/services/provider_coverage_monitor.py:734::provider_coverage_regression::critical
+E           api/services/single_stock_etfs.py:349::ssetf_rebuild_refused::warning
+E           api/services/source_circuit_breaker.py:78::<computed>::warning
+E           api/services/wire/coverage_monitor.py:109::wire_coverage_unmeasured::warning
+E           api/services/wire/coverage_monitor.py:88::wire_coverage_incomplete::critical
+E           api/services/wisdom/capture/health.py:86::<computed>::critical
+E           api/services/wisdom/extract/batch.py:150::<computed>::critical
+E           api/services/wisdom/registry.py:465::<computed>::critical
+E       assert 28 == 27
+E        +  where 28 = len({'api/cream_card.py:181::<computed>::critical': {'key': None, 'lineno': 181, 'name': 'chart_health_alerts', 'rel': 'ap...40::<computed>::warning': {'key': None, 'lineno': 2440, 'name': 'chart_health_alerts', 'rel': 'api/main.py', ...}, ...})
+
+tests/test_chart_health_severity_vocabulary.py:836: AssertionError
+________ test_every_docs_file_an_agent_suite_reads_is_an_agent_ci_path _________
+
+    def test_every_docs_file_an_agent_suite_reads_is_an_agent_ci_path():
+        bad = {d: sorted(r) for d, r in sorted(READS.items()) if not acr.matches(d, PATHS)}
+>       assert not bad, ("docs/ files read by the Agent suites but outside agent-ci.yml's push/pull_request paths (a docs-only "
+                         "change to one never runs Agent CI). Add each to BOTH lists:\n"
+                         + "\n".join(f"  {d}  <- {', '.join(r)}" for d, r in bad.items()))
+E       AssertionError: docs/ files read by the Agent suites but outside agent-ci.yml's push/pull_request paths (a docs-only change to one never runs Agent CI). Add each to BOTH lists:
+E           docs/terminal-research/09-security-licensing-cost/licensing-register.md  <- tests/test_uct_agent_data_terminal_wave5.py, tests/test_uct_agent_data_terminal_wave6.py, tests/test_uct_agent_data_terminal_wave7.py, tests/test_uct_agent_data_terminal_wave8.py, tests/test_uct_agent_data_terminal_wave9.py
+E       assert not {'docs/terminal-research/09-security-licensing-cost/licensing-register.md': ['tests/test_uct_agent_data_terminal_wave5...data_terminal_wave7.py', 'tests/test_uct_agent_data_terminal_wave8.py', 'tests/test_uct_agent_data_terminal_wave9.py']}
+
+tests/test_ci_agent_docs_paths.py:137: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:964
+tests/test_canonical_address_book.py::test_exactly_the_named_module_reads_the_address_book
+tests/test_canonical_address_book.py::test_every_reader_of_the_book_is_NAMED
+tests/test_canonical_address_book.py::test_every_reader_of_the_book_is_NAMED
+tests/test_canonical_address_book.py::test_the_reader_detector_sees_an_ACCESSOR_import_not_only_the_file
+tests/test_canonical_address_book.py::test_the_reader_detector_sees_an_ACCESSOR_import_not_only_the_file
+tests/test_canonical_address_book.py::test_no_product_path_calls_the_resolver_unless_named
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+tests/test_chart_renderer_signed_out.py: 3 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:740: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_chart_renderer_admin_recycle.py: 64 warnings
+tests/test_chart_renderer_pool.py: 34 warnings
+tests/test_chart_renderer_service.py: 12 warnings
+tests/test_chart_renderer_signed_out.py: 6 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+tests/test_chart_renderer_signed_out.py: 3 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:847: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_shape_when_authenticated
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_degrades_safely_on_an_exception
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_chart_parity_harness.py:46: chart_parity imports playwright at module scope
+FAILED tests/test_canonical_indicator_axis.py::test_the_axis_declares_exactly_what_the_legacy_lane_enumerates - AssertionError: expected 30 indicators + close + ma_cross + 12 rs_line (2b-05; +rating, 2b-06 2026-11-07), got 51
+assert 51 == 44
+ +  where 51 = len({'adx.adx', 'adx.minusDI', 'adx.plusDI', 'atr', 'bb', 'bb.lower', ...})
+FAILED tests/test_chart_health_severity_vocabulary.py::test_the_swept_population_is_PINNED_not_floored - AssertionError: 28 literal-severity chart_health_alerts.emit() sites under api/, pinned at 27.
+  MORE than pinned — a new emit site was added. That is fine and expected: update EXPECTED_LITERAL_SEVERITY_SITES (and EXPECTED_EMIT_SITES) in the SAME commit that adds the site, so the number stays a measurement rather than becoming a floor nobody trusts.
+  derived inventory:
+    api/cream_card.py:181::<computed>::critical
+    api/main.py:2196::<computed>::warning
+    api/main.py:2249::<computed>::warning
+    api/main.py:2440::<computed>::warning
+    api/main.py:2638::<computed>::warning
+    api/oi_morning.py:661::<computed>::critical
+    api/routers/push.py:101::taxonomy_version_mismatch::warning
+    api/services/bars_continuous_audit.py:156::bars_store_unhealthy::critical
+    api/services/bars_continuous_audit.py:181::bars_daily_store_stale::critical
+    api/services/bars_continuous_audit.py:222::intraday_hotset_stale::critical
+    api/services/bars_continuous_audit.py:232::intraday_hotset_stale::warning
+    api/services/bars_rail_monitor.py:337::bars_stream_rail_silent::critical
+    api/services/bars_reconciliation.py:387::daily_drift_detected::warning
+    api/services/calendar_week_contract.py:98::<computed>::warning
+    api/services/desk_session_insights.py:1127::<computed>::critical
+    api/services/discord_buzz_digest.py:211::<computed>::critical
+    api/services/discord_render/stall_record.py:196::<computed>::critical
+    api/services/fundamentals_monitor.py:527::fundamentals_regression::critical
+    api/services/journal_two/tweet_capture_sync.py:128::<computed>::critical
+    api/services/perplexity_search.py:184::perplexity_auth_failure::critical
+    api/services/provider_coverage_monitor.py:734::provider_coverage_regression::critical
+    api/services/single_stock_etfs.py:349::ssetf_rebuild_refused::warning
+    api/services/source_circuit_breaker.py:78::<computed>::warning
+    api/services/wire/coverage_monitor.py:109::wire_coverage_unmeasured::warning
+    api/services/wire/coverage_monitor.py:88::wire_coverage_incomplete::critical
+    api/services/wisdom/capture/health.py:86::<computed>::critical
+    api/services/wisdom/extract/batch.py:150::<computed>::critical
+    api/services/wisdom/registry.py:465::<computed>::critical
+assert 28 == 27
+ +  where 28 = len({'api/cream_card.py:181::<computed>::critical': {'key': None, 'lineno': 181, 'name': 'chart_health_alerts', 'rel': 'ap...40::<computed>::warning': {'key': None, 'lineno': 2440, 'name': 'chart_health_alerts', 'rel': 'api/main.py', ...}, ...})
+FAILED tests/test_ci_agent_docs_paths.py::test_every_docs_file_an_agent_suite_reads_is_an_agent_ci_path - AssertionError: docs/ files read by the Agent suites but outside agent-ci.yml's push/pull_request paths (a docs-only change to one never runs Agent CI). Add each to BOTH lists:
+    docs/terminal-research/09-security-licensing-cost/licensing-register.md  <- tests/test_uct_agent_data_terminal_wave5.py, tests/test_uct_agent_data_terminal_wave6.py, tests/test_uct_agent_data_terminal_wave7.py, tests/test_uct_agent_data_terminal_wave8.py, tests/test_uct_agent_data_terminal_wave9.py
+assert not {'docs/terminal-research/09-security-licensing-cost/licensing-register.md': ['tests/test_uct_agent_data_terminal_wave5...data_terminal_wave7.py', 'tests/test_uct_agent_data_terminal_wave8.py', 'tests/test_uct_agent_data_terminal_wave9.py']}
+3 failed, 3208 passed, 1 skipped, 243 warnings in 416.20s (0:06:56)

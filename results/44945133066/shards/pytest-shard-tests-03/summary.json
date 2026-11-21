@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 3280,
+  "passed": 3251,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 28,
+  "wall_s": 644.04,
+  "failed_files": [
+    "tests/test_boot_probe.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 3251 passed, 28 skipped, 7826 warnings in 644.04s (0:10:44)",
+  "ok": true
+}

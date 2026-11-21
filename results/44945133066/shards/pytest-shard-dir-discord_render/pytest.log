@@ -1,0 +1,56 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.....F..........................................                         [100%]
+=================================== FAILURES ===================================
+______________ test_a_preload_failure_never_raises_out_of_startup ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a6874e3bdd0>
+
+    def test_a_preload_failure_never_raises_out_of_startup(monkeypatch):
+        """⛔ NON-VACUITY for the try/except wrapping the call site in api.main's startup block.
+        A cold_start_guard import error, a bad registration, anything — must not take the whole
+        app down at boot. Proven by breaking registration itself and calling the SAME code path
+        api.main's startup calls, inline, the way the real try/except does."""
+        g._reset_for_tests()
+        import api.main as m
+    
+        def _boom():
+            raise RuntimeError("simulated preload wiring failure")
+    
+        monkeypatch.setattr(m, "_start_cold_path_boot_preload", _boom)
+        try:
+            m._start_cold_path_boot_preload()
+        except RuntimeError:
+            pass  # the bare function DOES raise — proving the test's fault injection works
+        else:
+            raise AssertionError("fault injection did not actually break the call")
+    
+        # Now prove api.main's startup wraps it — i.e. the SAME shape of try/except used in
+        # the lifespan is present verbatim around the real call site.
+        import inspect
+        src = inspect.getsource(m)
+        assert "_start_cold_path_boot_preload" in src
+>       idx = src.index("try:\n        _start_cold_path_boot_preload()")
+E       ValueError: substring not found
+
+tests/discord_render/test_cold_path_boot_preload_wiring.py:145: ValueError
+=============================== warnings summary ===============================
+tests/discord_render/test_cold_path_boot_preload_wiring.py::test_start_cold_path_boot_preload_registers_and_warms_cap_universe
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/discord_render/test_cold_path_boot_preload_wiring.py::test_the_two_registered_resources_are_the_real_lru_cached_functions
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/discord_render/test_cold_path_boot_preload_wiring.py::test_the_two_registered_resources_are_the_real_lru_cached_functions
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/discord_render/test_cold_path_boot_preload_wiring.py::test_a_preload_failure_never_raises_out_of_startup - ValueError: substring not found
+1 failed, 47 passed, 3 warnings in 16.24s

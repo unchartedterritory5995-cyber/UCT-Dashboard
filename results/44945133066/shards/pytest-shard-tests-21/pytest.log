@@ -1,0 +1,81 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 41%]
+.................................................s...................... [ 44%]
+........................................................................ [ 46%]
+..............s....................s.................................... [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 63%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+...........................s..................................F......... [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+.................                                                        [100%]
+=================================== FAILURES ===================================
+_ test_every_synthetic_sign_in_goes_through_the_helper_or_signs_out_in_finally _
+
+    def test_every_synthetic_sign_in_goes_through_the_helper_or_signs_out_in_finally():
+        triggered, bad = _scan()
+>       assert not bad, "a tool can leave a live synthetic session behind:\n  " + "\n  ".join(bad)
+E       AssertionError: a tool can leave a live synthetic session behind:
+E           tools/forming_daily_check.py: POSTs /api/auth/login itself -- sign in through tools/synthetic_session.py
+E           tools/forming_daily_check.py: reads a synthetic credential but does not import AND call tools/synthetic_session.py
+E       assert not ['tools/forming_daily_check.py: POSTs /api/auth/login itself -- sign in through tools/synthetic_session.py', 'tools/forming_daily_check.py: reads a synthetic credential but does not import AND call tools/synthetic_session.py']
+
+tests/test_synthetic_session_signout.py:297: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:964
+tests/test_study_flags.py::test_no_default_off_study_gate_is_undeclared
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_study_flags.py::test_no_default_off_study_gate_is_undeclared
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_study_generators.py:163: needs the PRIVATE uct-intelligence checkout (prompts/01_methodology_bible.txt), which is not on this box: looked under ['/home/runner/work/UCT-Dashboard/UCT-Dashboard/external/uct-intelligence', 'C:\\Users\\Patrick\\uct-intelligence', 'C:\\Users\\pgosz\\projects\\uct-intelligence']. Point UCT_INTEL_PATH at a checkout to run it; it runs on the owner's dev box (C:\Users\Patrick\uct-intelligence). Every other bible assertion in this file still ran, on the committed bank's own quotes.
+SKIPPED [1] tests/test_study_index_charts.py:222: the guard is the Windows box's
+SKIPPED [1] tests/test_study_intraday_charts.py:124: the refusal is the Windows box's guard
+SKIPPED [1] tests/test_survivorship_is_declared.py:91: no local screener.db to measure against
+FAILED tests/test_synthetic_session_signout.py::test_every_synthetic_sign_in_goes_through_the_helper_or_signs_out_in_finally - AssertionError: a tool can leave a live synthetic session behind:
+    tools/forming_daily_check.py: POSTs /api/auth/login itself -- sign in through tools/synthetic_session.py
+    tools/forming_daily_check.py: reads a synthetic credential but does not import AND call tools/synthetic_session.py
+assert not ['tools/forming_daily_check.py: POSTs /api/auth/login itself -- sign in through tools/synthetic_session.py', 'tools/forming_daily_check.py: reads a synthetic credential but does not import AND call tools/synthetic_session.py']
+1 failed, 2604 passed, 4 skipped, 5 warnings in 706.45s (0:11:46)

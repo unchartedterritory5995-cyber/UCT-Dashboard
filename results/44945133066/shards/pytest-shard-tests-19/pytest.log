@@ -1,0 +1,304 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  9%]
+........................................................................ [ 19%]
+........................................................................ [ 28%]
+........................................................................ [ 38%]
+........................................................................ [ 48%]
+........................................................................ [ 57%]
+........................................................................ [ 67%]
+..................................................F.....F..........F.s.. [ 76%]
+.FFFFs......s..F........................................................ [ 86%]
+........................................................................ [ 96%]
+.............................                                            [100%]
+=================================== FAILURES ===================================
+_________ test_the_screener_default_would_still_name_the_live_database _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70baa8c23320>
+
+    def test_the_screener_default_would_still_name_the_live_database(monkeypatch):
+        """The pin is load-bearing: remove it and the product resolves production.
+    
+        This is the control for the rail above — without it, "pinned outside the
+        root" could be true because the product never named the root in the first
+        place.
+        """
+        from api.services.screener import snapshot_db
+    
+        monkeypatch.delenv("SCREENER_DB_PATH", raising=False)
+        unisolated = snapshot_db.get_db_path()           # resolution only, no write
+>       assert rootconf._shared_root_hit(unisolated) is not None, (
+            f"expected the un-pinned resolution to name the shared root, "
+            f"got {unisolated!r}")
+E       AssertionError: expected the un-pinned resolution to name the shared root, got './data/screener.db'
+E       assert None is not None
+E        +  where None = <function _shared_root_hit at 0x70baa9c9eca0>('./data/screener.db')
+E        +    where <function _shared_root_hit at 0x70baa9c9eca0> = rootconf._shared_root_hit
+
+tests/test_shared_data_root_guard.py:149: AssertionError
+___ test_each_newly_pinned_path_still_resolves_to_ITS_OLD_LITERAL_when_unset ___
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_each_newly_pinned_path_st0')
+
+    def test_each_newly_pinned_path_still_resolves_to_ITS_OLD_LITERAL_when_unset(tmp_path):
+        """⭐ THE NO-OP HALF: production, with nothing set, must not move an inch.
+    
+        Every expected value is `rootconf.SHARED_DATA_ENV_PINS[var]` — the census's
+        own record of the literal sitting in that env read's default slot — so
+        nothing here is hand-typed.
+    
+        ⚠️ `normpath` on both sides because two of the eight wrap the literal in
+        `pathlib.Path`, and `Path("/data/avatars")` prints `\\data\\avatars` on
+        Windows. That is a property those modules already had; this change did not
+        introduce it, and comparing raw strings would grade `pathlib`, not the
+        default.
+    
+        ⛔ Nothing here points at a live path: the child arms the tripwire before it
+        imports anything, resolution is a string, and `_resolve_in_child` asserts
+        the recorded violation count is zero.
+        """
+        values = _resolve_in_child(tmp_path, {v: None for v in NEWLY_PINNED_PATHS})
+    
+        wrong, not_load_bearing = [], []
+        for var, (_mod, _expr, _why) in sorted(NEWLY_PINNED_PATHS.items()):
+            literal = rootconf.SHARED_DATA_ENV_PINS[var]
+            got = values[var]
+            if os.path.normpath(got) != os.path.normpath(literal):
+                wrong.append(f"{var}: unset resolves {got!r}, literal was {literal!r}")
+            # ⭐ CONTROL — the pin has to be LOAD-BEARING. "Resolves to the literal"
+            # would also be true of a path that never named the shared root, and
+            # then the override would be protecting nothing.
+            if rootconf._shared_root_hit(got) is None:
+                not_load_bearing.append(f"{var}: {got!r}")
+    
+>       assert not wrong, (
+            "an override CHANGED THE PRODUCTION DEFAULT — with nothing set the "
+            "product must resolve exactly what the bare literal did:\n  "
+            + "\n  ".join(wrong))
+E       AssertionError: an override CHANGED THE PRODUCTION DEFAULT — with nothing set the product must resolve exactly what the bare literal did:
+E           SSETF_DB_PATH: unset resolves '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/../../data/single_stock_etfs.db', literal was '/data/single_stock_etfs.db'
+E       assert not ["SSETF_DB_PATH: unset resolves '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/../../data/single_stock_etfs.db', literal was '/data/single_stock_etfs.db'"]
+
+tests/test_shared_data_root_guard.py:559: AssertionError
+________________________ test_every_spelling_is_refused ________________________
+
+fake = (PosixPath('/tmp/pytest-of-runner/pytest-0/test_every_spelling_is_refused0/FAKEDATA'), PosixPath('/tmp/pytest-of-runner/pytest-0/test_every_spelling_is_refused0/FAKEDATA-sandbox'))
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_every_spelling_is_refused0')
+
+    def test_every_spelling_is_refused(fake, tmp_path):
+        root, _ = fake
+        for label, spelling in _spellings(root, tmp_path).items():
+>           assert guard.refuse(spelling, roots=[str(root)]), label
+E           AssertionError: upper
+E           assert None
+E            +  where None = <function refuse at 0x70baa9c9f2e0>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_EVERY_SPELLING_IS_REFUSED0/FAKEDATA', roots=['/tmp/pytest-of-runner/pytest-0/test_every_spelling_is_refused0/FAKEDATA'])
+E            +    where <function refuse at 0x70baa9c9f2e0> = guard.refuse
+
+tests/test_shared_root_guard.py:67: AssertionError
+___________ test_the_tripwire_entry_point_maps_every_string_spelling ___________
+
+fake = (PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_tripwire_entry_point_0/FAKEDATA'), PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_tripwire_entry_point_0/FAKEDATA-sandbox'))
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_tripwire_entry_point_0')
+
+    def test_the_tripwire_entry_point_maps_every_string_spelling(fake, tmp_path):
+        root, _ = fake
+        croots = guard.canonical_roots([str(root)])
+        for label, spelling in _spellings(root, tmp_path).items():
+>           assert guard.hit(os.path.join(spelling, "auth.db") if not spelling.endswith(os.sep) else spelling + "auth.db",
+                             croots), label
+E           AssertionError: upper
+E           assert None
+E            +  where None = <function hit at 0x70baa9c9f4c0>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_THE_TRIPWIRE_ENTRY_POINT_0/FAKEDATA/auth.db', ['/tmp/pytest-of-runner/pytest-0/test_the_tripwire_entry_point_0/FAKEDATA'])
+E            +    where <function hit at 0x70baa9c9f4c0> = guard.hit
+
+tests/test_shared_root_guard.py:119: AssertionError
+_________________ test_the_hub_launcher_refuses_every_spelling _________________
+
+fake = (PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_hub_launcher_refuses_0/FAKEDATA'), PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_hub_launcher_refuses_0/FAKEDATA-sandbox'))
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_hub_launcher_refuses_0')
+capsys = <_pytest.capture.CaptureFixture object at 0x70baa8c4cad0>
+
+    def test_the_hub_launcher_refuses_every_spelling(fake, tmp_path, capsys):
+        root, sandbox = fake
+        for label, spelling in _spellings(root, tmp_path).items():
+>           with pytest.raises(SystemExit):
+E           Failed: DID NOT RAISE <class 'SystemExit'>
+
+tests/test_shared_root_guard.py:128: Failed
+____________________ test_the_seeder_refuses_every_spelling ____________________
+
+fake = (PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_seeder_refuses_every_0/FAKEDATA'), PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_seeder_refuses_every_0/FAKEDATA-sandbox'))
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_seeder_refuses_every_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70baa8b9ee10>
+
+    def test_the_seeder_refuses_every_spelling(fake, tmp_path, monkeypatch):
+        root, sandbox = fake
+        monkeypatch.setattr(seedmod, "SHARED_ROOTS", (str(root),))
+        for label, spelling in _spellings(root, tmp_path).items():
+>           assert seedmod.refuse_shared_root(spelling), label
+E           AssertionError: upper
+E           assert None
+E            +  where None = <function refuse_shared_root at 0x70ba87a6e660>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_THE_SEEDER_REFUSES_EVERY_0/FAKEDATA')
+E            +    where <function refuse_shared_root at 0x70ba87a6e660> = seedmod.refuse_shared_root
+
+tests/test_shared_root_guard.py:138: AssertionError
+_________________ test_the_perf_harness_refuses_every_spelling _________________
+
+fake = (PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_perf_harness_refuses_0/FAKEDATA'), PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_perf_harness_refuses_0/FAKEDATA-sandbox'))
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_perf_harness_refuses_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70baa8c0c140>
+
+    def test_the_perf_harness_refuses_every_spelling(fake, tmp_path, monkeypatch):
+        root, sandbox = fake
+        monkeypatch.setattr(perf, "SHARED_ROOTS", (str(root),))
+        for label, spelling in _spellings(root, tmp_path).items():
+>           assert perf.refuse_shared_root(spelling), label
+E           AssertionError: upper
+E           assert None
+E            +  where None = <function refuse_shared_root at 0x70ba87a6d440>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_THE_PERF_HARNESS_REFUSES_0/FAKEDATA')
+E            +    where <function refuse_shared_root at 0x70ba87a6d440> = perf.refuse_shared_root
+
+tests/test_shared_root_guard.py:146: AssertionError
+__________ test_no_test_module_binds_into_sys_modules_at_import_time ___________
+
+    def test_no_test_module_binds_into_sys_modules_at_import_time():
+        """The stub cannot come back — in any test module, not just the three.
+    
+        A module-level bind into `sys.modules` is global state installed by an
+        import and removable by nobody. Whether it wins is decided by collection
+        order, which is why the same two files passed 27 and failed 7 depending
+        only on which one came first.
+        """
+        offenders = []
+        for path in _test_module_files():
+            for lineno, kind in _module_level_sys_modules_binds(path):
+                offenders.append(f"{path.relative_to(REPO)}:{lineno}  {kind}")
+>       assert offenders == [], (
+            "import-time sys.modules bind(s) — install AND remove it in a fixture, "
+            "or delete the stub if the reason for it has expired:\n  "
+            + "\n  ".join(offenders)
+        )
+E       AssertionError: import-time sys.modules bind(s) — install AND remove it in a fixture, or delete the stub if the reason for it has expired:
+E           tests/test_mobile_audit_route_validity.py:30  sys.modules[...] =
+E           tests/test_oi44_loop_blockers_gate.py:29  sys.modules[...] =
+E           tests/test_discord_render_goldens.py:37  sys.modules[...] =
+E           tests/test_w8_accuracy_audit.py:26  sys.modules[...] =
+E       assert ['tests/test_...dules[...] ='] == []
+E         
+E         Left contains 4 more items, first extra item: 'tests/test_mobile_audit_route_validity.py:30  sys.modules[...] ='
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     'tests/test_mobile_audit_route_validity.py:30  sys.modules[...] =',
+E         +     'tests/test_oi44_loop_blockers_gate.py:29  sys.modules[...] =',
+E         +     'tests/test_discord_render_goldens.py:37  sys.modules[...] =',
+E         +     'tests/test_w8_accuracy_audit.py:26  sys.modules[...] =',
+E         + ]
+
+tests/test_shared_state_landmines.py:116: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_shared_data_root_guard.py::test_the_census_names_every_shared_root_literal_the_product_contains
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_wisdom_bans.py:627: SyntaxWarning: invalid escape sequence '\w'
+    `\w*journal`) would silently exempt every real reference that shares a line with a
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_alert_taxonomy_price_level_projection.py:968: SyntaxWarning: invalid escape sequence '\d'
+    incident reached `C:\data\auth.db` while reporting a clean start. A tool
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_definition_record.py:262: SyntaxWarning: invalid escape sequence '\d'
+    the one thing in the run that touched it. On a box where `C:\data` exists
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_widgets_service.py:3: SyntaxWarning: invalid escape sequence '\d'
+    Every consumed function is monkeypatched: no network, no live data, no C:\data.
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_definition_sharing.py:55: SyntaxWarning: invalid escape sequence '\d'
+    passed only because the shared `C:\data\auth.db` happened to hold a real
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/api/test_ltr_call_request.py:186: SyntaxWarning: invalid escape sequence '\['
+    assert "\[click\](http://x.test) \*\*big\*\* @everyone" in content
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_shared_root_guard.py:77: junctions are a Windows reparse point
+SKIPPED [1] tests/test_shared_root_guard.py:153: device paths are a Windows spelling
+SKIPPED [1] tests/test_shared_root_guard.py:190: the NT prefix is a Windows spelling
+FAILED tests/test_shared_data_root_guard.py::test_the_screener_default_would_still_name_the_live_database - AssertionError: expected the un-pinned resolution to name the shared root, got './data/screener.db'
+assert None is not None
+ +  where None = <function _shared_root_hit at 0x70baa9c9eca0>('./data/screener.db')
+ +    where <function _shared_root_hit at 0x70baa9c9eca0> = rootconf._shared_root_hit
+FAILED tests/test_shared_data_root_guard.py::test_each_newly_pinned_path_still_resolves_to_ITS_OLD_LITERAL_when_unset - AssertionError: an override CHANGED THE PRODUCTION DEFAULT — with nothing set the product must resolve exactly what the bare literal did:
+    SSETF_DB_PATH: unset resolves '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/../../data/single_stock_etfs.db', literal was '/data/single_stock_etfs.db'
+assert not ["SSETF_DB_PATH: unset resolves '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/../../data/single_stock_etfs.db', literal was '/data/single_stock_etfs.db'"]
+FAILED tests/test_shared_root_guard.py::test_every_spelling_is_refused - AssertionError: upper
+assert None
+ +  where None = <function refuse at 0x70baa9c9f2e0>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_EVERY_SPELLING_IS_REFUSED0/FAKEDATA', roots=['/tmp/pytest-of-runner/pytest-0/test_every_spelling_is_refused0/FAKEDATA'])
+ +    where <function refuse at 0x70baa9c9f2e0> = guard.refuse
+FAILED tests/test_shared_root_guard.py::test_the_tripwire_entry_point_maps_every_string_spelling - AssertionError: upper
+assert None
+ +  where None = <function hit at 0x70baa9c9f4c0>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_THE_TRIPWIRE_ENTRY_POINT_0/FAKEDATA/auth.db', ['/tmp/pytest-of-runner/pytest-0/test_the_tripwire_entry_point_0/FAKEDATA'])
+ +    where <function hit at 0x70baa9c9f4c0> = guard.hit
+FAILED tests/test_shared_root_guard.py::test_the_hub_launcher_refuses_every_spelling - Failed: DID NOT RAISE <class 'SystemExit'>
+FAILED tests/test_shared_root_guard.py::test_the_seeder_refuses_every_spelling - AssertionError: upper
+assert None
+ +  where None = <function refuse_shared_root at 0x70ba87a6e660>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_THE_SEEDER_REFUSES_EVERY_0/FAKEDATA')
+ +    where <function refuse_shared_root at 0x70ba87a6e660> = seedmod.refuse_shared_root
+FAILED tests/test_shared_root_guard.py::test_the_perf_harness_refuses_every_spelling - AssertionError: upper
+assert None
+ +  where None = <function refuse_shared_root at 0x70ba87a6d440>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_THE_PERF_HARNESS_REFUSES_0/FAKEDATA')
+ +    where <function refuse_shared_root at 0x70ba87a6d440> = perf.refuse_shared_root
+FAILED tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time - AssertionError: import-time sys.modules bind(s) — install AND remove it in a fixture, or delete the stub if the reason for it has expired:
+    tests/test_mobile_audit_route_validity.py:30  sys.modules[...] =
+    tests/test_oi44_loop_blockers_gate.py:29  sys.modules[...] =
+    tests/test_discord_render_goldens.py:37  sys.modules[...] =
+    tests/test_w8_accuracy_audit.py:26  sys.modules[...] =
+assert ['tests/test_...dules[...] ='] == []
+  
+  Left contains 4 more items, first extra item: 'tests/test_mobile_audit_route_validity.py:30  sys.modules[...] ='
+  
+  Full diff:
+  - []
+  + [
+  +     'tests/test_mobile_audit_route_validity.py:30  sys.modules[...] =',
+  +     'tests/test_oi44_loop_blockers_gate.py:29  sys.modules[...] =',
+  +     'tests/test_discord_render_goldens.py:37  sys.modules[...] =',
+  +     'tests/test_w8_accuracy_audit.py:26  sys.modules[...] =',
+  + ]
+8 failed, 738 passed, 3 skipped, 24 warnings in 656.59s (0:10:56)

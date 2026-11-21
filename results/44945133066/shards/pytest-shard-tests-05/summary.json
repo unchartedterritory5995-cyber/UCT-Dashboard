@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 3212,
+  "passed": 3208,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 416.2,
+  "failed_files": [
+    "tests/test_canonical_indicator_axis.py",
+    "tests/test_chart_health_severity_vocabulary.py",
+    "tests/test_ci_agent_docs_paths.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 3208 passed, 1 skipped, 243 warnings in 416.20s (0:06:56)",
+  "ok": true
+}

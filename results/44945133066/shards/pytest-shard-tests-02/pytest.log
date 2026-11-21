@@ -1,0 +1,217 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+...................................................s.................... [  2%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+.............F.......................................................... [ 18%]
+........................................................................ [ 20%]
+............F........................................................... [ 22%]
+...................s.............F...................................... [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+.......ssss............................................................. [ 59%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+.ss.............ss...s.................................................. [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [100%]
+=================================== FAILURES ===================================
+___________________ test_the_other_thirty_are_not_comparable ___________________
+
+    def test_the_other_thirty_are_not_comparable():
+        census = proj.comparability_census()
+        assert census["n_comparable"] == 1, census["comparable"]
+>       assert census["n_not_comparable"] == 31, sorted(census["not_comparable"])  # 2026-11-04: +ma_cross
+E       AssertionError: ['adx.adx', 'adx.minusDI', 'adx.plusDI', 'atr', 'bb', 'bb.lower', ...]
+E       assert 50 == 31
+
+tests/test_alert_taxonomy_indicator_condition_projection.py:48: AssertionError
+________ test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path ________
+
+    def test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path():
+        """⛔⛔ THE MEASUREMENT THE SCHEMA'S THIRD SEVERITY RESTS ON.
+    
+        An anchored, comment-and-docstring-stripped AST sweep over `api/**` for
+        calls to `portfolio_heat(`. Every hit must be a REQUEST-TIME reader, the
+        module itself, or its sibling test — nothing scheduled, nothing delivering.
+    
+        ⚠️ The anchor matters. A naive substring adds `api/routers/intelligence.py`,
+        which calls `calculate_portfolio_heat` — a different function, from the
+        brain engine. A search that counts its own near-miss is how a "sixth call
+        site" gets reported.
+        """
+        rx = re.compile(r"(?<![A-Za-z0-9_])portfolio_heat\s*\(")
+        naive = re.compile(r"portfolio_heat\s*\(")
+        hits, naive_hits, scanned = [], [], 0
+        for p in (_REPO / "api").rglob("*.py"):
+            try:
+                code = _code_only(p)
+            except SyntaxError:
+                continue
+            scanned += 1
+            rel = str(p.relative_to(_REPO)).replace("\\", "/")
+            if rx.search(code):
+                hits.append(rel)
+            if naive.search(code):
+                naive_hits.append(rel)
+    
+        assert scanned > 100, f"the module walk found almost nothing ({scanned}) — it is broken"
+>       assert sorted(hits) == [
+            # A14 CP1 (feb018022): GET /api/portfolio-heat, the member-facing door -- a
+            # request-time reader like the others, nothing scheduled or delivering.
+            "api/routers/portfolio_heat.py",
+            "api/services/ai_search_personal.py",
+            "api/services/journal_two/coach_chat_tools.py",
+            # Notebook widget myPositionsRisk: built per GET /api/j2/notebook-widgets/{kind} (and the
+            # journal-styles render of the same builder), a request-time reader. Read-only since
+            # 2026-10-23: it passes its own size, so heat's migrating default reader never runs.
+            "api/services/journal_two/notebook_widgets.py",
+            "api/services/portfolio_heat.py",
+            "api/services/test_portfolio_heat.py",
+            "api/services/voice_tool_impls.py",
+        ], f"the portfolio_heat call sites moved: {sorted(hits)}"
+E       AssertionError: the portfolio_heat call sites moved: ['api/routers/portfolio_heat.py', 'api/services/ai_search_personal.py', 'api/services/journal_two/coach_chat_tools.py', 'api/services/journal_two/notebook_widgets.py', 'api/services/journal_two/shelf_discipline.py', 'api/services/portfolio_heat.py', 'api/services/test_portfolio_heat.py', 'api/services/voice_tool_impls.py']
+E       assert ['api/routers...heat.py', ...] == ['api/routers...heat.py', ...]
+E         
+E         At index 4 diff: 'api/services/journal_two/shelf_discipline.py' != 'api/services/portfolio_heat.py'
+E         Left contains one more item: 'api/services/voice_tool_impls.py'
+E         
+E         Full diff:
+E           [
+E               'api/routers/portfolio_heat.py',
+E               'api/services/ai_search_personal.py',
+E               'api/services/journal_two/coach_chat_tools.py',
+E               'api/services/journal_two/notebook_widgets.py',
+E         +     'api/services/journal_two/shelf_discipline.py',
+E               'api/services/portfolio_heat.py',
+E               'api/services/test_portfolio_heat.py',
+E               'api/services/voice_tool_impls.py',
+E           ]
+
+tests/test_alert_taxonomy_position_risk_schema.py:289: AssertionError
+____________ test_flow_worker_does_not_reach_d3_price_level_wiring _____________
+
+    def test_flow_worker_does_not_reach_d3_price_level_wiring():
+        """§3 / §5 non-risk, re-verified as a REGRESSION GUARD rather than trusted
+        from the proposal's own one-time measurement: none of the four modules
+        this checkpoint touches are in flow-worker's static import closure."""
+        from tools import flow_worker_watch_coverage as wc
+    
+        root = wc.repo_root()
+        reachable = wc.reachable_paths(root)
+        touched = {
+            "api/services/alert_taxonomy/price_level_projection.py",
+            "api/services/alert_taxonomy/price_level_compare.py",
+            "api/services/bar_broadcaster.py",
+            "api/services/bar_stream.py",
+        }
+        hit = touched & reachable
+>       assert not hit, f"flow-worker's import closure now reaches: {sorted(hit)}"
+E       AssertionError: flow-worker's import closure now reaches: ['api/services/bar_broadcaster.py', 'api/services/bar_stream.py']
+E       assert not {'api/services/bar_broadcaster.py', 'api/services/bar_stream.py'}
+
+tests/test_alert_taxonomy_price_level_projection.py:1393: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_flow_worker_does_not_reac0/auth.db
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_alert_taxonomy_price_level_projection.py:968
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_alert_taxonomy_price_level_projection.py:968: SyntaxWarning: invalid escape sequence '\d'
+    incident reached `C:\data\auth.db` while reporting a clean start. A tool
+
+tests/test_alert_taxonomy_catalyst_match_compare.py: 1 warning
+tests/test_alert_taxonomy_event_proximity_schema.py: 1 warning
+tests/test_alert_taxonomy_indicator_condition_schema.py: 2 warnings
+tests/test_alert_taxonomy_position_risk_compare.py: 1 warning
+tests/test_alert_taxonomy_position_risk_schema.py: 1 warning
+tests/test_alert_taxonomy_price_level_schema.py: 1 warning
+tests/test_alert_taxonomy_regime_change_compare.py: 1 warning
+tests/test_alert_taxonomy_regime_change_schema.py: 1 warning
+tests/test_alert_taxonomy_scan_membership_change_compare.py: 1 warning
+tests/test_alert_taxonomy_scan_membership_change_schema.py: 1 warning
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_alert_taxonomy_cooldowns.py::TestRoutes::test_cooldowns_requires_auth
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_alpha_gold_eod.py::test_render_card_returns_png
+tests/test_alpha_gold_eod.py::test_render_card_empty_day_ok
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/alpha_gold_eod.py:478: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in _logo.getdata()])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_alert_replay.py:625: walks 1,845 bars; set ALERT_REPLAY_FULL=1 (or run `python tools/alert_replay.py --check`)
+SKIPPED [1] tests/test_alert_taxonomy_price_level_projection.py:982: no live data root on this box to test the refusal against
+SKIPPED [4] tests/test_ast_bar_index_shift_parity.py:50: JS-only: the listing pass
+SKIPPED [1] tests/test_ast_conformance.py:663: Task 4 has landed; this rail is superseded by --check
+SKIPPED [1] tests/test_ast_conformance.py:670: Task 5 has landed; this rail is superseded by --check
+SKIPPED [1] tests/test_ast_conformance.py:785: both lanes exist; Task 5 owns --record from here
+SKIPPED [1] tests/test_ast_conformance.py:791: the conformance log exists; --check is the real gate now
+SKIPPED [1] tests/test_ast_conformance.py:898: a guarded interpreter exists; Task 6 owns this exit code
+FAILED tests/test_alert_taxonomy_indicator_condition_projection.py::test_the_other_thirty_are_not_comparable - AssertionError: ['adx.adx', 'adx.minusDI', 'adx.plusDI', 'atr', 'bb', 'bb.lower', ...]
+assert 50 == 31
+FAILED tests/test_alert_taxonomy_position_risk_schema.py::test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path - AssertionError: the portfolio_heat call sites moved: ['api/routers/portfolio_heat.py', 'api/services/ai_search_personal.py', 'api/services/journal_two/coach_chat_tools.py', 'api/services/journal_two/notebook_widgets.py', 'api/services/journal_two/shelf_discipline.py', 'api/services/portfolio_heat.py', 'api/services/test_portfolio_heat.py', 'api/services/voice_tool_impls.py']
+assert ['api/routers...heat.py', ...] == ['api/routers...heat.py', ...]
+  
+  At index 4 diff: 'api/services/journal_two/shelf_discipline.py' != 'api/services/portfolio_heat.py'
+  Left contains one more item: 'api/services/voice_tool_impls.py'
+  
+  Full diff:
+    [
+        'api/routers/portfolio_heat.py',
+        'api/services/ai_search_personal.py',
+        'api/services/journal_two/coach_chat_tools.py',
+        'api/services/journal_two/notebook_widgets.py',
+  +     'api/services/journal_two/shelf_discipline.py',
+        'api/services/portfolio_heat.py',
+        'api/services/test_portfolio_heat.py',
+        'api/services/voice_tool_impls.py',
+    ]
+FAILED tests/test_alert_taxonomy_price_level_projection.py::test_flow_worker_does_not_reach_d3_price_level_wiring - AssertionError: flow-worker's import closure now reaches: ['api/services/bar_broadcaster.py', 'api/services/bar_stream.py']
+assert not {'api/services/bar_broadcaster.py', 'api/services/bar_stream.py'}
+3 failed, 3154 passed, 11 skipped, 16 warnings in 650.75s (0:10:50)
