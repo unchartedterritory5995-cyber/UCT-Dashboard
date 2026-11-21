@@ -600,6 +600,13 @@ export const FUNCTIONS = [
   // universe), so the code is ECON, which is not.
   { code: 'ECON', label: 'Economy dashboard (CPI, jobs, GDP, spending, housing: last print, prior, next release)', group: 'Market',
     market: { panel: 'Economy' } },
+  // OIL (2026-11-21): the EIA's weekly oil report. The week's crude build or draw (the econ service's own
+  // weekly change, a UCT calculation from the EIA's stock figures), when it came out and the next weekly
+  // report from the release calendar; each series' latest week, the week before, the change and the same
+  // week a year ago; two years of crude stocks (GET /api/econ/latest and /api/econ/series: the econ routes'
+  // own flag and gate). No argument. OIL is not in the site's stock universe.
+  { code: 'OIL', label: 'Weekly oil report (EIA: crude, gasoline, distillate stocks, production, refining, pump prices)', group: 'Market',
+    market: { panel: 'Oil' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -925,6 +932,12 @@ const FUNCTION_WORDS = {
   ECON: { example: 'ECON', keywords: ['economic data', 'cpi', 'inflation', 'jobs report', 'payrolls', 'unemployment', 'gdp',
     'retail sales', 'jobless claims', 'pce', 'housing starts'],
     note: 'Official releases from the agencies, each with the print before and the next release date. No forecasts.' },
+  // None of these words was another code's keyword. 'spr' only reached RATES through "spreads" in its label (the
+  // lowest score); RATES still follows OIL for it. 'gas prices' makes "prices" alone find OIL (it found nothing
+  // before); "price" still finds GP, ANR and ALRT first.
+  OIL: { example: 'OIL', keywords: ['oil', 'crude', 'crude inventories', 'eia', 'oil inventories', 'gasoline', 'distillates',
+    'refinery', 'spr'],
+    note: "The EIA's own weekly figures, with the next report's date. No futures prices and no forecasts." },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

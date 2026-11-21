@@ -99,6 +99,9 @@ export function econSeriesList() {
       points: [p(T.mar17, 3.58, '2031-03-17', '2031-03-17'), p(T.mar18, 3.58, '2031-03-18', '2031-03-18')], next: at('2031-03-21', '09:00') }),
     econSeries('UST10Y', { name: '10Y Treasury Constant Maturity Yield', frequency: 'D', u: PCT2, sa: 'NSA', src: 'fed_board',
       points: [p(T.mar17, 4.21, '2031-03-17', '2031-03-17'), p(T.mar18, 4.17, '2031-03-18', '2031-03-18')], next: at('2031-03-21', '16:15') }),
+    // daily figures, published once a week (Monday) for the week before
+    econSeries('USDOLLARIDX', { name: 'Nominal Broad U.S. Dollar Index', frequency: 'D', u: units('index', 'num1'), sa: 'NSA', src: 'fed_board',
+      points: [p(T.mar17, 121.4, '2031-03-13', '2031-03-13'), p(T.mar17, 121.2, '2031-03-14', '2031-03-14')], next: at('2031-03-24', '16:15') }),
   ]
 }
 

@@ -143,6 +143,11 @@ describe('ECON with every series', () => {
     expect(text('terminal-econ-prior-starts')).toBe('1,402,000change -3.4%')
     expect(text('terminal-econ-prior-ten_year')).toBe('4.21%change -4 bp')
     expect(text('terminal-econ-next-ten_year')).toBe('Released Mar 18Next Mar 21, 4:15 PM ET')
+    // the dollar index, drawn the way the 10-year row is: its level and day, the day before and the change, the dates
+    expect(text('terminal-econ-latest-dollar')).toBe('121.2Mar 14, 2031')
+    expect(text('terminal-econ-prior-dollar')).toBe('121.4change -0.2%')
+    expect(text('terminal-econ-next-dollar')).toBe('Released Mar 17Next Mar 24, 4:15 PM ET')
+    expect(text('terminal-econ-measure-dollar')).toBe('Index level')
     expect(el('terminal-econ-prior-cpi').getAttribute('title')).toBe('The print before: Jan 2031')
     expect(setFreshness).toHaveBeenCalledWith(expect.objectContaining({ source: ECON_SOURCE, observedAt: '2031-03-20T12:30:00.000Z' }))
   })
@@ -154,7 +159,7 @@ describe('ECON with every series', () => {
     expect(link.getAttribute('href')).toBe('/charts?sym=ECON%3AUSNFPCHG')
     expect(link.textContent).toBe('Nonfarm payrolls')
     expect(within(el('terminal-econ-theme-rates')).getAllByRole('link').map((a) => a.getAttribute('href')))
-      .toEqual(['/charts?sym=ECON%3AUSEFFR', '/charts?sym=ECON%3AUST10Y'])
+      .toEqual(['/charts?sym=ECON%3AUSEFFR', '/charts?sym=ECON%3AUST10Y', '/charts?sym=ECON%3AUSDOLLARIDX'])
   })
 
   it('the releases ahead: soonest first, grouped by time, daily rates and later dates left out', async () => {
@@ -168,6 +173,7 @@ describe('ECON with every series', () => {
       'Thu Mar 27, 8:30 AM ET: Initial jobless claims, Real GDP',
     ])
     expect(el('terminal-econ-ahead').querySelector('h3').textContent).toBe('Releases in the next 7 days')
+    expect(text('terminal-econ-ahead')).toContain('The daily series (the rates and the dollar index) are not listed.')
   })
 
   it('every source\'s credit line once, in the order the board shows them, blanks filled', async () => {

@@ -47,7 +47,7 @@ function Ahead({ ahead }) {
           {`No release of these series is held for the next ${STRIP_DAYS} days.`}
         </p>
       )}
-      <p className={styles.muted}>From the release calendar the server holds. The daily rates print every business day and are not listed.</p>
+      <p className={styles.muted}>From the release calendar the server holds. The daily series (the rates and the dollar index) are not listed.</p>
     </section>
   )
 }
