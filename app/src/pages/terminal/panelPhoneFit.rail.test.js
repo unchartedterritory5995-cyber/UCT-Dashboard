@@ -262,6 +262,9 @@ const NOT_MEASURED = ['CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', '
   // FUND (2026-11-21): the period table scrolls sideways in its own box (SidewaysScroll) with the label column
   // pinned, as FA and EE; nothing folds
   'FundMetricsPanel.jsx',
+  // GRPS (2026-11-21): every sector or industry, one row each; the table scrolls sideways in its own box
+  // (SidewaysScroll) with the name column pinned, as FUND; nothing folds
+  'GroupTablePanel.jsx',
   // DVD MARKET, SEG, MNA, IDXC (2026-11-21): two- and three-column tables of two-line cells that wrap between
   // words; SEG's period table folds its two oldest periods and DVD MARKET its declared day through `phoneHide`
   'MarketDividendsPanel.jsx', 'RevenueSegmentsPanel.jsx', 'MergersPanel.jsx', 'IndexChangesPanel.jsx']

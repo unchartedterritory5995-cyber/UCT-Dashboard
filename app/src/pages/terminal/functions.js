@@ -639,6 +639,14 @@ export const FUNCTIONS = [
   // `MKTH NDX` for the Nasdaq-100. MKTH is not in the site's stock universe.
   { code: 'MKTH', label: 'Market history (every correction and bear market, the rallies and their leaders)', group: 'Market',
     market: { panel: 'MarketHistory', args: [{ kind: 'mkthIndex', prop: 'index' }] } },
+  // GRPS (2026-11-21): every sector (or industry) one row, sortable by any column: the median revenue and EPS growth,
+  // margins, ROE and valuation of its stocks from their SEC filings as known that day (point in time), and its breadth
+  // from UCT's stored closes (above the 20, 50 and 200-day averages, near the 52-week high, highs minus lows), worked
+  // out once each evening (GET /api/research/group-stats, paid). GRP shows one sector's or industry's in full above
+  // its ranked stocks. `GRPS INDUSTRIES`, `GRPS VALUATION`. A new code, not a view of SCTR: SCTR ranks the 11 sector
+  // FUNDS by their price over a window. GRPS is not in the site's universe.
+  { code: 'GRPS', label: 'Every sector or industry: median growth, margins, valuation and breadth', group: 'Market',
+    market: { panel: 'GroupTable', args: [{ kind: 'groupsKind', prop: 'kind' }, { kind: 'groupsView', prop: 'view' }] } },
   // SEG (2026-11-21): one stock's revenue by product (or business line) and by region, the newest period ranked with
   // each segment's share and the last four side by side (GET /api/research/revenue-segments/{ticker}, read from
   // Financial Modeling Prep on the server). `NVDA SEG REGION QUARTERLY`. SEG is not in the site's universe.
@@ -1003,6 +1011,10 @@ const FUNCTION_WORDS = {
   MKTH: { example: 'MKTH', keywords: ['market history', 'corrections', 'bear market', 'drawdowns', 'rallies', 'past corrections',
     'rally leaders'],
     note: 'Every decline of 10% or more on closing prices, the rally after each low and its leaders. A record, not a forecast.' },
+  // 'breadth' stays with BRD, 'sectors' with RRG and 'sector performance' with SCTR: each still finds its own first.
+  GRPS: { example: 'GRPS INDUSTRIES', keywords: ['sector fundamentals', 'industry fundamentals', 'sector breadth', 'industry breadth',
+    'sector valuation', 'sector margins', 'group fundamentals', 'sector table', 'industry table'],
+    note: "Medians of each group's stocks from their SEC filings as known that day, and its breadth from stored closes; worked out each evening." },
   // 'revenue' stays with FA and 'geographic'/'regions' had no owner.
   SEG: { example: 'NVDA SEG', keywords: ['revenue by segment', 'segments', 'segment revenue', 'product revenue', 'revenue by product',
     'revenue by region', 'geographic revenue', 'business segments', 'revenue mix'],
