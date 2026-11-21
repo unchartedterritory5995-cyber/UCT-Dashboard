@@ -480,6 +480,8 @@ JS_LIBRARY_FIXTURE_FILES = {
     "app/src/components/chart/engine/runtime/__tests__/libraryImportRefusal.test.js": "a fixture library",
     "app/src/components/chart/builder/memberPane/runtimeLibraryDoor.test.js": "a fixture library",
     "app/src/components/chart/builder/memberPane/runtimeParamDefaults.test.js": "a fixture library",
+    "app/src/components/chart/builder/memberPane/memberDoorOffThread.test.js":
+        "the paste worker's off-thread rail: a three-line fixture library (tester/pwlib/1) written for the rail, imaged into the worker",
     "app/src/components/chart/builder/usePineLibraries.test.jsx": "a fixture library",
     "services/pine_runtime/test/library.test.mjs": "the service rail's fixture library",
     "app/src/components/chart/engine/runtime/__tests__/w4ClassifierHonesty.test.js": "a fixture library",

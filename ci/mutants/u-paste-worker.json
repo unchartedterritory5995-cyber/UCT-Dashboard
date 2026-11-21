@@ -198,7 +198,7 @@
       "from": "  if (!normalise(importer).endsWith(`/app/${MEMBER_DOOR_FILE}`)) return null",
       "to": "  void normalise",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorWorkerGraph.test.js",
-      "expectRed": "nothing else"
+      "expectRed": "BuilderSheet from"
     },
     {
       "id": "W2",
@@ -207,7 +207,7 @@
       "from": "  '../FormulaField': '../evaluateFormula.js',",
       "to": "  '../FormulaField': '../evaluateFormula.js',\n  '../pineParamManifest': '../pineParamManifest.js',",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorWorkerGraph.test.js",
-      "expectRed": "exactly those"
+      "expectRed": "pineParamManifest"
     }
   ]
 }
