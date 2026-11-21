@@ -116,16 +116,18 @@ def test_the_fixture_is_not_vacuous():
     # `time(<timeframe>)` one; tests/test_pine_htf_live_first_period.py exercises it, set aside by name.
     # 2026-11-19 (PERIOD -1): a history read before the chart's first bar (`history:before-chart`,
     # ``history_before_chart_mask``) is not a `time(<timeframe>)` reading either; tests/test_pine_history_before_chart.py.
+    # 2026-11-21 (Q-CLOSURE): a week the exchange's own calendar decides (`request:htf-venue-calendar`,
+    # ``htf_venue_calendar_mask``) is a `request.security` read; tests/test_pine_htf_session_week.py exercises it.
     clock = {c for c in ai.CHART_CLOCK_WITHHELD_CODES
              if not c.startswith(("bar-index:", "running-total:", "var-origin:", "window-extreme:",
-                                  "opening-range:", "request:htf-lookahead-", "history:"))}
+                                  "opening-range:", "request:htf-lookahead-", "history:", "request:htf-venue-"))}
     assert clock - named == {"time-anchor:other-bars"}
     assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {
         "bar-index:window", "bar-index:early-bars", "bar-index:first-bar",
         "running-total:window", "running-total:early-bars", "var-origin:window", "var-origin:bars",
         "window-extreme:left-edge",
         "opening-range:bars-longer", "opening-range:bars-do-not-divide",
-        "request:htf-lookahead-first-period-partial", "history:before-chart"}
+        "request:htf-lookahead-first-period-partial", "history:before-chart", "request:htf-venue-calendar"}
 
 
 def test_the_builders_are_the_fixtures_own_trees():

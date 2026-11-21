@@ -343,6 +343,9 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
         // ⭐ HTF-LIVE-FIRST-PERIOD (2026-11-19) — a look-ahead `request.security` read's first partial period is not a
         // `time(<timeframe>)` reading; `htfLiveFirstPeriod.test.js` / `tests/test_pine_htf_live_first_period.py` rail it
         && !k.startsWith('request:htf-lookahead-')
+        // ⭐⭐ Q-CLOSURE (2026-11-21) — a week the exchange's own calendar decides is a `request.security` read too;
+        // `htfSessionWeek.test.js` / `tests/test_pine_htf_session_week.py` rail it
+        && k !== 'request:htf-venue-calendar'
         // ⭐ PERIOD −1 (2026-11-19) — a history read before the chart's first bar is not a `time(<timeframe>)` reading;
         // `historyBeforeChart.test.js` / `tests/test_pine_history_before_chart.py` rail it
         && !k.startsWith('history:')).sort())

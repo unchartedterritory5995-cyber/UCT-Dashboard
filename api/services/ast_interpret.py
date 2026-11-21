@@ -501,7 +501,25 @@ def _bar_days(bars: List[Any]) -> List[Optional[str]]:
     day of each bar of a series as a resampler keys its week or month. An INTRADAY series' bar (unix seconds, two bars
     less than ``INTRADAY_SPACING_S`` apart) by the exchange's local session date (``_new_york_offset_seconds``), every
     other bar as ``_iso_day`` reads it (a daily series stamped at midnight UTC is a DATE). The series decides, not the
-    bar."""
+    bar. ⭐⭐ Q-CLOSURE (2026-11-21): a daily series whose sessions open the evening before is keyed by the session each
+    bar opens (``_session_keying``)."""
+    return _session_keying(bars)["days"]
+
+
+#: ⭐⭐ Q-CLOSURE (coordinator ruling 2026-11-21) -- ``interpret.js::SESSION_CARRY_WITNESSED_THROUGH``: the last session
+#: date the captures witness a holiday session carried into the next trading day (S2) on; a carry after it is withheld.
+SESSION_CARRY_WITNESSED_THROUGH = "2026-11-20"
+
+
+def _session_keying(bars: List[Any]) -> Dict[str, Any]:
+    """⭐⭐ Q-CLOSURE (coordinator ruling 2026-11-21) -- the port of ``interpret.js::sessionKeying`` (its note carries
+    the rule and the measurement, captures ``vw-req-w-closure-day-{eurusd,es1}-1d-2026-11-20``): ``{days, evening, s0,
+    unwitnessed}``. A daily series holding a Sunday bar and no Friday or Saturday bar opens each session the evening
+    before: S0 keys each bar by the session it opens (the next day); S2 keys a session dated on an NYSE full closure whose
+    next trading day holds no bar of its own by that next trading day; a carry the captures do not witness (after
+    ``SESSION_CARRY_WITNESSED_THROUGH``, the newest bar on a closure, past the calendar's horizon a next weekday with no
+    bar of its own) is listed in ``unwitnessed`` and withheld by ``htf_venue_calendar_mask``. Any other series keeps
+    the days RULING 2 gives it."""
     stamps = [b.get("t") if isinstance(b, Mapping) else None for b in (bars or [])]
     intraday = False
     prev = None
@@ -514,15 +532,79 @@ def _bar_days(bars: List[Any]) -> List[Optional[str]]:
             intraday = True
             break
         prev = e
-    out: List[Optional[str]] = []
+    raw: List[Optional[str]] = []
     for t in stamps:
         e = _epoch_seconds_of(t) if intraday else None
         if e is None:
-            out.append(_iso_day(t))
+            raw.append(_iso_day(t))
         else:
             day = datetime.date(1970, 1, 1) + datetime.timedelta(days=(e + _new_york_offset_seconds(e)) // 86400)
-            out.append(day.strftime("%Y-%m-%d"))
-    return out
+            raw.append(day.strftime("%Y-%m-%d"))
+    if intraday or not _evening_open_shape(raw):
+        return {"days": raw, "evening": False, "s0": raw, "unwitnessed": []}
+    s0 = [_iso_plus(d, 1) if d else d for d in raw]
+    days = list(s0)
+    unwitnessed: List[Dict[str, Any]] = []
+    closures, through = _nyse_closure_days()
+    for i, d in enumerate(s0):
+        if not d:
+            continue
+        newest = i + 1 >= len(s0)
+        nxt = None if newest else s0[i + 1]
+        if not newest and not nxt:
+            continue
+        if d > through:
+            # past the horizon no closure is known: a next weekday with no bar of its own may be a carry
+            wd = datetime.date.fromisoformat(d).isoweekday()
+            to = _iso_plus(d, 8 - wd if wd >= 5 else 1)
+            if newest or nxt > to:
+                unwitnessed.append({"i": i, "from": d, "to": to})
+            continue
+        if d not in closures:
+            continue
+        to = _next_nyse_trading_day(d, closures)
+        if newest:
+            unwitnessed.append({"i": i, "from": d, "to": to})
+            continue
+        if not nxt > to:
+            continue
+        days[i] = to
+        if d > SESSION_CARRY_WITNESSED_THROUGH:
+            unwitnessed.append({"i": i, "from": d, "to": to})
+    return {"days": days, "evening": True, "s0": s0, "unwitnessed": unwitnessed}
+
+
+def _evening_open_shape(days: List[Optional[str]]) -> bool:
+    """``interpret.js::eveningOpenShape``: a Sunday bar and no Friday or Saturday bar (decided at the first Friday)."""
+    sunday = False
+    for d in days:
+        if not d:
+            continue
+        wd = datetime.date.fromisoformat(d).isoweekday()
+        if wd in (5, 6):
+            return False
+        if wd == 7:
+            sunday = True
+    return sunday
+
+
+def _iso_plus(iso: str, days: int) -> str:
+    return (datetime.date.fromisoformat(iso) + datetime.timedelta(days=days)).isoformat()
+
+
+def _nyse_closure_days():
+    """The NYSE's full closures as ISO days and the dataset's horizon (``market_calendar.json``, the JS lane's
+    ``sessionCalendar.js::HOLIDAY_ROWS`` / ``horizon()``)."""
+    from api.services.session_calendar import calendar as _calendar          # noqa: PLC0415
+    cal = _calendar()
+    return frozenset(d.isoformat() for d in cal.holidays), cal.horizon.isoformat()
+
+
+def _next_nyse_trading_day(iso: str, closures) -> str:
+    d = datetime.date.fromisoformat(iso) + datetime.timedelta(days=1)
+    while d.isoweekday() > 5 or d.isoformat() in closures:
+        d += datetime.timedelta(days=1)
+    return d.isoformat()
 
 
 def _new_york_offset_seconds(t: int) -> int:
@@ -616,8 +698,9 @@ def _htf_resampled(bars: List[dict], code: str):
                 else _resample_quarterly_iso if code == "3M"
                 else bars_fetch._resample_monthly_iso)
     # ⭐⭐ RULING 2 -- every bar the series holds, as the JS lane's ``resampleTo`` keeps it: a session the exchange never
-    # held is not dropped from one lane's aggregate only. Whether TradingView's week holds such a bar is unmeasured
-    # (Q-REQ-CLOSURE); no series the store serves holds one (``tests/test_htf_closure_week_unreachable.py``)
+    # held is not dropped from one lane's aggregate only. ⭐⭐ Q-CLOSURE: TradingView's week holds such a bar (captures
+    # ``vw-req-w-closure-day-{eurusd,es1}-1d-2026-11-20``), keyed by its session (``_bar_days``); no series the store
+    # serves holds one (``tests/test_htf_closure_week_unreachable.py``)
     rows = [dict(b, t=d) for b, d in zip(bars, iso) if d]
     htf = resample(rows) if code == "3M" else resample(rows, sessions_only=False)
     return iso, keys, at, order, htf
@@ -4987,6 +5070,10 @@ def interpret(ast: Any, bars: List[dict],
         lived = tf_live_mask(ast, bars, opts, inputs, budget, scalars)
         if lived is not None:
             column = [math.nan if lived[i] else v for i, v in enumerate(column)]
+        # ⭐⭐ Q-CLOSURE -- ...and a week or month the exchange's own calendar decides (``interpret.js::htfVenueCalendarMask``)
+        venue = htf_venue_calendar_mask(ast, bars, opts, inputs, budget, scalars)
+        if venue is not None:
+            column = [math.nan if venue[i] else v for i, v in enumerate(column)]
         # ⭐⭐ PERIOD -1 -- the column a read before the chart is named against (``interpret.js::historyBeforeChartMask``,
         # named where it takes a drawn value away), as it stands here; the mask itself is asked LAST (below)
         named_against = list(column)
@@ -5470,6 +5557,143 @@ def tf_live_mask(tree: Any, bars: List[dict], opts: Optional[Mapping[str, Any]] 
         return None
     _name_chart_clock(opts, [TF_LIVE_FIRST_CODE])
     return mask
+
+
+#: ⭐⭐ Q-CLOSURE (coordinator ruling 2026-11-21) -- ``interpret.js::HTF_VENUE_CALENDAR_CODE``: a weekly / monthly read
+#: whose answer is the exchange's own session calendar, on a series whose sessions open the evening before (the sentence
+#: is the JS lane's).
+HTF_VENUE_CALENDAR_CODE = "request:htf-venue-calendar"
+_HTF_READS = ("tf", "tf_live", "tf_merge")
+
+
+def htf_venue_calendar_mask(tree: Any, bars: List[dict], opts: Optional[Mapping[str, Any]] = None,
+                            inputs: Any = None, budget: Any = None, scalars: Any = None) -> Optional[List[int]]:
+    """⭐⭐ Q-CLOSURE -- the port of ``interpret.js::htfVenueCalendarMask`` (its docstring carries the rule and the
+    measurements): a site is a ``tf`` / ``tf_live`` / ``tf_merge`` read under no other request (its own bars are
+    ``_venue_calendar_bars``'), or a ``sym`` read holding one over a series of the evening-open shape (every bar); which
+    root bars read a site's bars is engine 56's walk. Named ``HTF_VENUE_CALENDAR_CODE`` when it withholds a bar."""
+    n = len(bars or [])
+    if not n:
+        return None
+    direct: List[dict] = []
+    syms: List[dict] = []
+    stack = [(tree, False)]
+    seen: set = set()
+    while stack:
+        node, under = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        kind = node.get("type")
+        if kind in _HTF_READS and not under:
+            direct.append(node)
+        if kind == "sym" and not under and _holds_htf_read(node):
+            syms.append(node)
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, under or kind in _SCOPE_TYPES))
+    if not direct and not syms:
+        return None
+    own: Dict[int, List[int]] = {}
+    supplied = (opts or {}).get("symbols") or {}
+    for node in syms:
+        series = supplied.get(str(node.get("value")).strip().upper())
+        if isinstance(series, (list, tuple)) and series and _session_keying(list(series))["evening"]:
+            own[id(node)] = [1] * n
+    if direct:
+        k = _session_keying(bars)
+        if k["evening"] and all(k["days"]):
+            for node in direct:
+                m = _venue_calendar_bars(node, bars, k)
+                if m:
+                    own[id(node)] = m
+    if not own:
+        return None
+    quiet = dict(opts or {})
+    quiet.pop("chartClockSink", None)
+    quiet.pop("withheldBarsSink", None)
+    mask = _witness_mask(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                         lambda nd: id(nd) in own, lambda nd: list(own[id(nd)]))
+    if not mask or not any(mask):
+        return None
+    _name_chart_clock(opts, [HTF_VENUE_CALENDAR_CODE])
+    return mask
+
+
+def _holds_htf_read(top: Any) -> bool:
+    """``interpret.js::holdsHtfRead``: does a request's subtree hold a weekly / monthly read?"""
+    stack = [top]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node is not top and node.get("type") in _HTF_READS:
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
+def _venue_calendar_bars(node: dict, bars: List[dict], k: Dict[str, Any]) -> Optional[List[int]]:
+    """``interpret.js::venueCalendarBars``: one site's own bars (``k`` is ``_session_keying(bars)`` of an evening-open
+    series), or ``None``."""
+    n = len(bars)
+    code = str(node.get("value"))
+    iso = k["days"]
+    keys = [_tf_bucket(d, code) for d in iso]
+    at: Dict[Any, int] = {}
+    for key in keys:
+        if key not in at:
+            at[key] = len(at)
+    own = [at[key] for key in keys]
+    kind = node.get("type")
+    if kind == "tf_live":
+        reads = list(own)
+    elif kind == "tf_merge":
+        reads = _tf_merge_reads(iso, keys, at, code)
+    else:
+        reads = [b - 1 if b > 0 else -1 for b in own]
+    out: Optional[List[int]] = None
+
+    def flag(i: int) -> None:
+        nonlocal out
+        if out is None:
+            out = [0] * n
+        out[i] = 1
+
+    if kind == "tf_merge" and code in ("W", "M"):
+        held = set(k["s0"])
+        for i in range(n - 1):
+            if own[i + 1] == own[i]:
+                continue
+            key = keys[i]
+            d = _iso_plus(iso[i], 1)
+            while _tf_bucket(d, code) == key:
+                if datetime.date.fromisoformat(d).isoweekday() <= 5 and d not in held:
+                    flag(i)
+                    break
+                d = _iso_plus(d, 1)
+    touched: List[int] = []
+    for c in k["unwitnessed"]:
+        a, b = _tf_bucket(c["from"], code), _tf_bucket(c["to"], code)
+        if a == b:
+            continue
+        for key in (a, b):
+            if key in at:
+                touched.append(at[key])
+    if touched:
+        args = node.get("args") or []
+        child = args[0] if args else None
+        field = isinstance(child, Mapping) and child.get("type") == "series"
+        first = min(touched)
+        for i, r in enumerate(reads):
+            if r >= 0 and (r in touched if field else r >= first):
+                flag(i)
+    return out
 
 
 #: ⭐⭐ PERIOD -1 (HTF-PRE-CHART, coordinator ruling 2026-11-19) -- ``interpret.js::HISTORY_BEFORE_CHART_CODE``: a read
@@ -7057,6 +7281,8 @@ CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "request:htf-first-period-partial",
     # HTF-LIVE-FIRST-PERIOD -- the first period of a ``tf_live`` read, off the listing (``tf_live_mask``)
     "request:htf-lookahead-first-period-partial",
+    # Q-CLOSURE -- a week or month the exchange's own calendar decides (``htf_venue_calendar_mask``)
+    "request:htf-venue-calendar",
     # PERIOD -1 -- a read of the bar, week or month before the chart's first (``history_before_chart_mask``)
     "history:before-chart",
     WINDOW_EXTREME_LEFT_EDGE,
