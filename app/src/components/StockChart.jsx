@@ -1893,6 +1893,13 @@ import {
   useNeighborFrames, deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa,
 } from './chart/useNeighborFrames'
 import { BARSTORE } from './chart/barStoreSwitch'
+// (imperative switch, stage 3; docs/charts/imperative-switch-design.md) the React-free symbol switch
+import { imperativeSwitchOn } from './chart/imperativeSwitch'
+import { switchControllerFor } from './chart/switchController'
+import { buildFrame } from './chart/switchFrame'
+import { chartKeyFor } from './chart/useBarSnapshotBars'
+import { resolveDailyTodaySeed } from './chart/useLegacyChartBars'
+import { getBarStore } from '../data/barStore/index'
 import {
   LEGACY_LIVE, devOnScreenSource, liveAfterSetData, liveAfterVolumeSetData,
   useLegacyGapWatchdog, useLegacyLiveReset, useLegacyWriterA, useLegacyPushWriterB, useLegacyHeldPushFold,
@@ -1903,6 +1910,11 @@ import {
 // module constant, so the hook order of every StockChart render is fixed. Off → the legacy
 // SWR / IDB / mem selector; on → the BarStore snapshot. Same parameters, same 24 bindings.
 const useChartBars = BARSTORE ? useBarSnapshotBars : useLegacyChartBars
+
+// ⭐ THE IMPERATIVE SWITCH, read ONCE at module load like the bar source (chart/imperativeSwitch.js: default OFF,
+// `uct.imperativeSwitch` = '1' turns it on, the server's chart-speed kill wins). OFF, no chart ever makes a switch
+// controller and `updateChart` calls `applyFrame` directly: today's path, statement for statement.
+const IMPERATIVE_SWITCH = imperativeSwitchOn()
 
 // ⭐ RT1 — HOW A SAVED RUNTIME-LANE DOCUMENT GETS ITS LANE on a chart that never
 // opened the member door. The registry asks this loader only when it meets a
@@ -4279,6 +4291,12 @@ function StockChartBody({
   noticeScope = null,
   // The shell's per-chart metadata store (`chart/chartMetaStore.js`): READ in render, never subscribed.
   metaStore,
+  // (imperative switch) `switchPort`: a ref the host shares with its symbol handoff; while the switch is on this
+  // chart puts its controller there, so the handoff can paint a symbol without importing the controller.
+  // `switchHostPlain(sym)`: does the host hand this chart the SAME props for `sym` as for any ordinary ticker (no
+  // breadth series, index, pair, ECON id)? Without it no switch is ever painted imperatively (`no-host`).
+  switchPort = null,
+  switchHostPlain = null,
 }) {
   // ⛔⛔ Heavy locals are read through `__heavy` by every closure below (StockChart.closureChains.test.jsx):
   // a closure that captured them kept them on this render's context, and chained renders kept them all.
@@ -4286,6 +4304,9 @@ function StockChartBody({
   // subscriptions, timers, the paint functions, updateChart) reads `__heavy.committed.x`, so a render React
   // abandoned (an interrupted transition) is never what the chart on screen indexes (chart/latestCallback.js).
   const __heavy = useRenderBox()
+  // (imperative switch, stage 3) this chart's switch controller: null unless the switch is on for this page load,
+  // then one per chart for its life (keyed by the render box above; not a hook, so the hook order is the same).
+  const switchCtl = IMPERATIVE_SWITCH ? switchControllerFor(__heavy, SWITCH_DEPS) : null
   const ownNoticeScope = useId()
   const binderNoticeScope = typeof noticeScope === 'string' && noticeScope ? noticeScope : ownNoticeScope
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
@@ -4403,46 +4424,9 @@ function StockChartBody({
       const typed = ct === csMerged.chartType ? csMerged : { ...csMerged, chartType: ct }
       return econPrimary.symbol ? withPrimaryEconomic(typed, econPrimary.symbol, econPrimary.meta) : typed
     }
-    const fam = canonicalFamily(sym)
-    const _primaryProduct = canonicalProduct(sym)
-    // ⛔⛔ AN UNCLASSIFIED SYMBOL IS NOT CLAMPED, AND THIS IS THE OPPOSITE DIRECTION
-    // FROM THE CANDLE GATE ON PURPOSE.
-    //
-    // `canonicalFamily` withholds `security` until BOTH registries have answered —
-    // fail-closed, because offering candles over a survey is the dangerous error for
-    // an INDICATOR output. On the PRIMARY chart the dangerous error is the mirror
-    // image: clamping an ordinary equity to a line because a catalogue had not
-    // arrived yet. ⚰️ MEASURED: building a capability from `'unknown'` turned every
-    // chart into a line until the registries landed — four StockChart suites went red
-    // with "the chart never created a candle series", which is exactly what a member
-    // would have seen as a flash of line on every load.
-    //
-    // ⚠️ SO `null` MEANS "SAY NOTHING", and `primaryChartTypeFor` returns the member's
-    // own setting untouched. The clamp applies only once the registry has actually
-    // classified the symbol — and the `miReady` dependency above is what re-runs this
-    // the moment it does.
-    // ⚠️ A PRODUCT IS ASKED BEFORE THE FAMILY. It is absent from the SERIES index by
-    // design, so `canonicalFamily` would answer `'security'` for it — the one
-    // classification that grants candles. Resolving as a product is itself proof the
-    // registry has landed, so the `unknown` guard below does not apply to it.
-    const cap = _primaryProduct
-      ? canonicalSourceCapability(sym, false)
-      : fam === 'unknown'
-        ? null
-        // (2026-10-10) breadth + indicator series may draw every chart type (owner ruling;
-        // their bodies are close-to-close). Surveys / economic / products stay scalar.
-        : canonicalSourceCapability(sym, ['security', 'volatility', 'breadth', 'indicator'].includes(fam))
-    const ct = primaryChartTypeFor(csMerged.chartType, cap)
-    const typed = ct === csMerged.chartType ? csMerged : { ...csMerged, chartType: ct }
-    // ⭐⭐ A PRODUCT IDENTITY BRINGS ITS OTHER COMPONENTS WITH IT. The price slot
-    // already holds the product's PRIMARY component (`series.build_bars` serves it
-    // under the product's own ticker); these are the rest, as ordinary `dataSeries`
-    // overlays on the price pane — no new renderer, no multi-bars contract.
-    //
-    // ⛔ DERIVED, NEVER PERSISTED. They live only in the blob the renderer reads, so
-    // charting a product does not write to a member's `chart_settings` and switching
-    // away removes them with no cleanup. Same discipline as the clamp above.
-    return withPrimaryProduct(typed, _primaryProduct)
+    // (imperative switch, stage 3) the rest is `settingsForSymbol` below the component: the switch controller asks
+    // the same question of the NEXT symbol, and paints it only when the answer is these very settings.
+    return settingsForSymbol(csMerged, sym)
   }, [csMerged, sym, miReady, _econId, econPrimary.symbol, econPrimary.meta])
 
   // ── Chart Settings → Canvas → Margins / Scale & time (chartViewOptions.js; absent = today's look) ──
@@ -10898,86 +10882,12 @@ function StockChartBody({
         const wickCol = userCandleColors ? (isUp ? (cs.candles.upWick || bodyCol) : (cs.candles.downWick || bodyCol)) : bodyCol
         arr[i] = { ...c, color: bodyCol, borderColor: borCol, wickColor: wickCol }
       }
-      // Load-anchor whitespace seed (candle series ONLY — filteredBars is untouched, so the live
-      // writers / indicators / crosshair never see it). See _developingBarISO: on a cold first
-      // paint the stale provisional ends at the last SEALED period; today's real bar then appends
-      // a commit later and LWC's shiftVisibleRangeOnNewBar slides the view. Appending a whitespace
-      // at the developing period makes that real bar a REPLACEMENT (same time) → no LWC shift.
-      // Self-cancels once the last real bar IS the developing period (then _lastRaw !< _dev).
-      if (_intradayLoadAnchorEnabled() && !_econId && !exactDateRange && !entryDate && !replayCutoff && arr.length && __heavy.displayBars.length) {
-        const _dev = _developingBarISO(resolvedTf)
-        const _lastRaw = __heavy.displayBars[__heavy.displayBars.length - 1]?.t
-        // ── DAILY: seed EXACTLY the slots the framing reserve holds ─────────────
-        // `_dailyReserveDates` is the same list `_intradayLoadReserve` counts, so the
-        // seed and the frame cannot disagree — the off-by-(reserve − seeded) that
-        // translated the chart is now unrepresentable. The FRONTIER slot gets the real
-        // current-session bar when one is available locally; earlier slots stay
-        // whitespace (their bars exist only on the server, which is exactly why the
-        // paint authority refuses to show such a set in the first place — reaching here
-        // with more than one slot means an unexpected right-edge arrival, and holding
-        // bounded whitespace for it is strictly better than translating the frame).
-        if (resolvedTf === 'D' && typeof _lastRaw === 'string') {
-          const _slots = _dailyReserveDates(_lastRaw)
-          if (_slots.length) {
-            const _seed = _resolveDailyTodaySeed()
-            const _frontier = _slots[_slots.length - 1]
-            for (const _iso of _slots) {
-              arr.push((_iso === _frontier && _seed && _seed.t === _iso)
-                ? { time: adjustTime(_iso), open: _seed.o, high: _seed.h, low: _seed.l, close: _seed.c }
-                : { time: adjustTime(_iso) })
-            }
-          } else {
-            // ── STALE-TODAY REPAIR, IN PLACE ────────────────────────────────────
-            // The set already reaches today, so the GEOMETRY is final — but the bar
-            // itself can be hours old (a cache written at 10:05, painted at 14:00),
-            // and /api/bars' own copy is only as fresh as the store row behind it.
-            // Replacing the values at the SAME date moves nothing and removes the
-            // "body right, wick corrects a beat later" flash.
-            //
-            // ⛔ NOT FABRICATION, AND NOT EXTRAPOLATION. Close is the live price — the
-            // one genuinely real-time field UCT has. High/low come from the provider's
-            // own `day` aggregate, the same object every other door serves; reconciling
-            // the two observations with max/min is valid because a session high never
-            // falls and a session low never rises. Nothing is invented, and no value
-            // moves except toward a later observation of the same quantity.
-            const _seed = dailyRepairTodayRef.current ? _resolveDailyTodaySeed() : null
-            const _i = arr.length - 1
-            const _cur = arr[_i]
-            if (_seed && _cur && _cur.time === adjustTime(_seed.t) && _cur.open !== undefined) {
-              arr[_i] = {
-                ..._cur,
-                high: Math.max(_cur.high, _seed.h),
-                low: Math.min(_cur.low, _seed.l),
-                close: _seed.c,
-              }
-            }
-          }
-        } else if (_dev && typeof _lastRaw === 'string' && _lastRaw < _dev) {
-          // ── WEEKLY / MONTHLY ONLY (daily is handled above) ────────────────────
-          // ⛔ UNCHANGED ON PURPOSE. A week/month period start is not "n sessions
-          // back", so the daily session walk is the wrong instrument here; W/M keep
-          // the single-slot rule until their own period semantics are designed. The
-          // today-PACK arm that used to live here was daily-only and is now
-          // unreachable from this branch, so it is gone rather than left as dead code
-          // that reads like a live path.
-          let _pt = null
-          if (_seedLiveEnabled()) {
-            try {
-              const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
-              const _px = _snap ? _effLivePrice(_snap) : null
-              // ⛔ REGULAR SESSION ONLY. Outside 09:30-16:00 ET `_effLivePrice` returns the
-              // EXTENDED-hours price, but the period candle is settled at the 4pm close.
-              if (_px && !_snap.ext_session && _liveSane(sym, _px)) {
-                const _o = (_snap.day_open && _snap.day_open > 0) ? _snap.day_open : _px
-                const _h = Math.max((_snap.day_high && _snap.day_high > 0) ? _snap.day_high : _px, _px)
-                const _l = Math.min((_snap.day_low && _snap.day_low > 0) ? _snap.day_low : _px, _px)
-                _pt = { time: adjustTime(_dev), open: _o, high: _h, low: _l, close: _px }
-              }
-            } catch { /* fall back to whitespace */ }
-          }
-          arr.push(_pt || { time: adjustTime(_dev) })
-        }
-      }
+      // (imperative switch, stage 3) the load-anchor tail is `ohlcLoadAnchorTail` below the component, comments and
+      // all, so the switch controller composes the very same tail for the next symbol outside a render.
+      ohlcLoadAnchorTail(arr, __heavy.displayBars, {
+        econ: _econId, exactDateRange, entryDate, replayCutoff, resolvedTf, adjustTime, sym,
+        dailySeed: _resolveDailyTodaySeed, repairToday: dailyRepairTodayRef.current, liveSane: _liveSane,
+      })
       return arr
     },
     // NOTE: livePrices is deliberately NOT a dep — the seed reads the live-price store
@@ -11248,13 +11158,9 @@ function StockChartBody({
   }
   useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes })
   const overlayData = useMemo(() => {
-    if (!__heavy.sessionAppliedBars?.length || !resolvedOverlays?.length) return []
-    return resolvedOverlays.map(ov => {
-      const raw = ov.type === 'EMA'
-        ? computeEMA(__heavy.sessionAppliedBars, ov.period, overlaysFromStart)
-        : computeSMA(__heavy.sessionAppliedBars, ov.period, overlaysFromStart)
-      return { data: raw.map(p => ({ time: adjustTime(p.time), value: p.value })), color: ov.color }
-    })
+    // (imperative switch, stage 3) `overlayDataOf` below the component: the switch controller builds the next
+    // symbol's averages with it
+    return overlayDataOf(__heavy.sessionAppliedBars, resolvedOverlays, adjustTime, overlaysFromStart)
   }, [sessionAppliedBars, resolvedOverlays, adjustTime, overlaysFromStart])  /* eslint-disable-line react-hooks/exhaustive-deps -- the box (__heavy) is read at use time; the deps above are the values */
   // Drive the MA tail opacity each frame of the Setup⇄Result crossfade (the
   // overlay loop in updateChart owns the tail DATA; this only re-tints it as the
@@ -11960,6 +11866,9 @@ function StockChartBody({
     // (imperative switch, stage 1) The whole pass is `applyFrame` below the component: `ctx` is this chart's refs and
     // setters (stable for its life), `frame` is everything the pass reads of THIS render. The controller (stage 3)
     // calls the same function with a frame it built, so there is one copy of the series logic.
+    // ⛔ THE STALE-RENDER GUARD (stage 3): a pass of the symbol an imperative switch replaced, while React has not
+    // committed the new one yet, would repaint the old symbol. `switchCtl` is null unless the switch is on.
+    if (switchCtl && switchCtl.staleFor(sym)) return
     const ctx = {
       _drawMetaRef, _metaNowRef, _paintMarkedRef, _timingIdRef, alertLineOptsRef, alertLinesRef, axisWidthRatchetRef,
       barColoursRef, barsPushActiveRef, candleSeriesRef, chartRef, compareSeriesRef, containerRef,
@@ -12002,7 +11911,8 @@ function StockChartBody({
       volumePaneHeightPct, volumeSeparatePane, vwapOverride, watermark, watermarkBrandMark, watermarkCenterX,
       watermarkOpacity, watermarkPad, watermarkPadTop, watermarkX, watermarkY, wmPending,
     }
-    applyFrame(ctx, frame)
+    if (switchCtl) switchCtl.reactPass(ctx, frame)   // notes what was handed over, then runs the same applyFrame
+    else applyFrame(ctx, frame)
   }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, markers, j2.markers, flowMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, _engineSymbolDep, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, listingUnserved, strategyHistoryWindow, strategyWindowPending, strategyListingDepth, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
@@ -12032,6 +11942,9 @@ function StockChartBody({
   // the one already painted / the series tail, is refused. Reassigned each render, so it always
   // closes over this render's settings and base series.
   _storeDevPaintRef.current = (afterSetData = false) => {
+    // ⛔ (imperative switch) this closure is the symbol React shows. While a switch painted another one and React
+    // has not committed it, the old key's subscription still calls here: it must write nothing.
+    if (switchCtl && switchCtl.pendingSym()) return
     const series = candleSeriesRef.current
     if (!series) return
     const sid = `${sym}|${resolvedTf}|${showExtended ? 'eth' : 'rth'}`
@@ -12171,6 +12084,65 @@ function StockChartBody({
     // ⛔ `csIndicatorsRef.current = cs.indicators` stood here — the LEGACY chip
     // lane's inputs. That lane has no producer after B5 Task 6, and the engine
     // lane resolves inputs per INSTANCE inside `engineChips`.
+    // ⭐ (imperative switch, stage 3) WHAT THE SWITCH CONTROLLER MAY READ OF THIS COMMIT (chart/switchController.js).
+    // `refuse`: the first reason THIS chart, as it stands, cannot paint another symbol without a render: one name
+    // per per-symbol layer it cannot clear in the frame and per input it cannot build. ⛔ A new per-symbol layer
+    // gets a line here (a refusal) until the controller can clear it. Nothing below runs with the switch off.
+    if (switchCtl) {
+      const _sources = [secondarySources, lowerTfSources, fundamentalSources, marketCapAuthoritySources, economicSources, calcFrames]
+      switchCtl.noteView({
+        sym, tf: resolvedTf, showExtended, recipes: _nfRecipes,
+        refuse: !BARSTORE ? 'legacy-live'
+          : !_nfRecipes ? 'neighbor-frames-off'
+          : !_nfRecipes.plain ? 'not-plain'
+          : _econId ? 'econ'
+          : typeof switchHostPlain !== 'function' ? 'no-host'
+          : !switchHostPlain(sym) ? 'host-symbol'
+          : cs !== csMerged ? 'settings-clamped'
+          : csView !== cs ? 'instances-follow-symbol'
+          : anchorDate ? 'anchor'
+          : drawings && drawings.length ? 'drawings'
+          : chartIqActive ? 'chart-iq'
+          : showPatterns ? 'patterns'
+          : uctIntelOn ? 'uct-intel'
+          : (dpSettingEnabled || darkPoolBars) ? 'dark-pool'
+          : cs.indicators?.volumeProfile?.enabled ? 'volume-profile'
+          : deskCallLevels ? 'desk-call'
+          : archiveRefLines ? 'archive-lines'
+          : activeSessionTags ? 'session-tags'
+          : (positionTool.entry || positionTool.stop || positionTool.target) ? 'position-tool'
+          // a definition the engine does not compute natively (a member's, a Pine one) may read the symbol's facts
+          // (exchange, sector, first trade date), which only the metadata feed of a render holds
+          : (csView.indicatorInstances || []).some((i) => { const d = i && engineRegistry.getDefinition(i.defId); return !!d && d.compute?.kind !== 'native' }) ? 'non-native-instance'
+          : _sources.some((m) => !switchIsNone(m)) ? 'sources'
+          : null,
+        symbolRefusal: (s) => (isEconomicId(s) ? 'econ'
+          : !switchHostPlain(s) ? 'host-symbol'
+          : settingsForSymbol(csMerged, s) !== csMerged ? 'settings-clamped'
+          : null),
+        snapshot: (s) => switchSnapshotFor(s, resolvedTf, showExtended),
+        tail: (built, s, snap) => switchTailFor(built, s, snap, resolvedTf, adjustTime),
+        overlayData: (bars) => overlayDataOf(bars, resolvedOverlays, adjustTime, overlaysFromStart),
+        shadeBands: (bars) => (_shadeOn ? computeSessionBands(bars, adjustTime) : EMPTY_BANDS),
+        listing: (bars) => {
+          const h = historyFromListingFor(bars, resolvedTf, null)
+          return { historyFromListing: h, listingUnserved: listingUnservedFor(h, bars, resolvedTf, null) }
+        },
+        symbolMeta: (s) => ({ ticker: s, exchange: null, industry: null, sector: null, securityType: null }),
+        emptyMeta: switchEmptyMeta,
+        laneShows: (s) => chartShows(laneSlotRef.current, s, resolvedTf),
+        closeChannel: () => { _storeDevSeriesRef.current = null; _storeDevBarRef.current = null; _storeDevPaintedRef.current = null },
+        clearLayers: () => clearSymbolLayers({
+          markersControllerRef, lastMarkersSrcRef, lastMyTradesSrcRef, nextEarnRef,
+          earnBadgeRef, splitBadgeRef, divBadgeRef, ipoBadgeRef,
+        }),
+      })
+      if (switchPort) switchPort.current = switchCtl
+      if (typeof window !== 'undefined') {
+        window.__uctSwitchDiag = window.__uctSwitchDiag || {}
+        window.__uctSwitchDiag[chartId || 'main'] = switchCtl.diag
+      }
+    }
   })
   const _appliedSymTfRef = useRef(null)
   useLayoutEffect(() => {
@@ -23106,4 +23078,214 @@ function applyFrame(ctx, frame) {
     // reasoning is at the `useInstalledUserDefinitions` call site above.
     // ⭐ (2026-11-18) `data?.newest_bar_is_forming` is read into every run's context (the binder sync above), so it
     // is named here: a flag that lands with the same bars re-syncs, and the binder's memo (keyed on it) recomputes.
+}
+
+// ─── ⭐⭐ THE IMPERATIVE SWITCH'S CHART-SIDE HELPERS (stage 3; chart/switchController.js is the other half) ────────
+//
+// Module-level on purpose: each is the ONE implementation of something a render and the switch controller both
+// do. The memo that used to hold the logic calls the function; the controller calls it for the next symbol.
+
+/** What `StockChartBody` hands every controller it makes. */
+const SWITCH_DEPS = { applyFrame, buildFrame }
+
+/** `isNone`, by another name here (`switchController.isNone`: null / false / empty). */
+function switchIsNone(v) {
+  if (v == null || v === false || v === '') return true
+  if (Array.isArray(v)) return v.length === 0
+  if (v instanceof Map || v instanceof Set) return v.size === 0
+  return typeof v === 'object' ? Object.keys(v).length === 0 : false
+}
+
+/** The settings a chart of `sym` reads (the non-ECON half of the `cs` memo, moved here verbatim). Returns
+ *  `csMerged` ITSELF when `sym` neither clamps the chart type nor brings product components: the test the
+ *  imperative switch makes of both symbols before it carries the settings across. */
+function settingsForSymbol(csMerged, sym) {
+  const fam = canonicalFamily(sym)
+  const _primaryProduct = canonicalProduct(sym)
+  // ⛔⛔ AN UNCLASSIFIED SYMBOL IS NOT CLAMPED, AND THIS IS THE OPPOSITE DIRECTION
+  // FROM THE CANDLE GATE ON PURPOSE.
+  //
+  // `canonicalFamily` withholds `security` until BOTH registries have answered —
+  // fail-closed, because offering candles over a survey is the dangerous error for
+  // an INDICATOR output. On the PRIMARY chart the dangerous error is the mirror
+  // image: clamping an ordinary equity to a line because a catalogue had not
+  // arrived yet. ⚰️ MEASURED: building a capability from `'unknown'` turned every
+  // chart into a line until the registries landed — four StockChart suites went red
+  // with "the chart never created a candle series", which is exactly what a member
+  // would have seen as a flash of line on every load.
+  //
+  // ⚠️ SO `null` MEANS "SAY NOTHING", and `primaryChartTypeFor` returns the member's
+  // own setting untouched. The clamp applies only once the registry has actually
+  // classified the symbol — and the `miReady` dependency above is what re-runs this
+  // the moment it does.
+  // ⚠️ A PRODUCT IS ASKED BEFORE THE FAMILY. It is absent from the SERIES index by
+  // design, so `canonicalFamily` would answer `'security'` for it — the one
+  // classification that grants candles. Resolving as a product is itself proof the
+  // registry has landed, so the `unknown` guard below does not apply to it.
+  const cap = _primaryProduct
+    ? canonicalSourceCapability(sym, false)
+    : fam === 'unknown'
+      ? null
+      // (2026-10-10) breadth + indicator series may draw every chart type (owner ruling;
+      // their bodies are close-to-close). Surveys / economic / products stay scalar.
+      : canonicalSourceCapability(sym, ['security', 'volatility', 'breadth', 'indicator'].includes(fam))
+  const ct = primaryChartTypeFor(csMerged.chartType, cap)
+  const typed = ct === csMerged.chartType ? csMerged : { ...csMerged, chartType: ct }
+  // ⭐⭐ A PRODUCT IDENTITY BRINGS ITS OTHER COMPONENTS WITH IT. The price slot
+  // already holds the product's PRIMARY component (`series.build_bars` serves it
+  // under the product's own ticker); these are the rest, as ordinary `dataSeries`
+  // overlays on the price pane — no new renderer, no multi-bars contract.
+  //
+  // ⛔ DERIVED, NEVER PERSISTED. They live only in the blob the renderer reads, so
+  // charting a product does not write to a member's `chart_settings` and switching
+  // away removes them with no cleanup. Same discipline as the clamp above.
+  return withPrimaryProduct(typed, _primaryProduct)
+}
+
+/** The legacy moving-average overlays over `sessionAppliedBars` (the `overlayData` memo's body). */
+function overlayDataOf(sessionAppliedBars, resolvedOverlays, adjustTime, overlaysFromStart) {
+  if (!sessionAppliedBars?.length || !resolvedOverlays?.length) return []
+  return resolvedOverlays.map(ov => {
+    const raw = ov.type === 'EMA'
+      ? computeEMA(sessionAppliedBars, ov.period, overlaysFromStart)
+      : computeSMA(sessionAppliedBars, ov.period, overlaysFromStart)
+    return { data: raw.map(p => ({ time: adjustTime(p.time), value: p.value })), color: ov.color }
+  })
+}
+
+/** The load-anchor tail of the candles (StockChart's `ohlcData` memo calls this over its own copy; the switch
+ *  controller calls it over the next symbol's, with a seed and a live-sanity it can prove are not needed). */
+function ohlcLoadAnchorTail(arr, displayBars, o) {
+  const { econ, exactDateRange, entryDate, replayCutoff, resolvedTf, adjustTime, sym, dailySeed, repairToday, liveSane } = o
+  // Load-anchor whitespace seed (candle series ONLY — filteredBars is untouched, so the live
+  // writers / indicators / crosshair never see it). See _developingBarISO: on a cold first
+  // paint the stale provisional ends at the last SEALED period; today's real bar then appends
+  // a commit later and LWC's shiftVisibleRangeOnNewBar slides the view. Appending a whitespace
+  // at the developing period makes that real bar a REPLACEMENT (same time) → no LWC shift.
+  // Self-cancels once the last real bar IS the developing period (then _lastRaw !< _dev).
+  if (_intradayLoadAnchorEnabled() && !econ && !exactDateRange && !entryDate && !replayCutoff && arr.length && displayBars.length) {
+    const _dev = _developingBarISO(resolvedTf)
+    const _lastRaw = displayBars[displayBars.length - 1]?.t
+    // ── DAILY: seed EXACTLY the slots the framing reserve holds ─────────────
+    // `_dailyReserveDates` is the same list `_intradayLoadReserve` counts, so the
+    // seed and the frame cannot disagree — the off-by-(reserve − seeded) that
+    // translated the chart is now unrepresentable. The FRONTIER slot gets the real
+    // current-session bar when one is available locally; earlier slots stay
+    // whitespace (their bars exist only on the server, which is exactly why the
+    // paint authority refuses to show such a set in the first place — reaching here
+    // with more than one slot means an unexpected right-edge arrival, and holding
+    // bounded whitespace for it is strictly better than translating the frame).
+    if (resolvedTf === 'D' && typeof _lastRaw === 'string') {
+      const _slots = _dailyReserveDates(_lastRaw)
+      if (_slots.length) {
+        const _seed = dailySeed()
+        const _frontier = _slots[_slots.length - 1]
+        for (const _iso of _slots) {
+          arr.push((_iso === _frontier && _seed && _seed.t === _iso)
+            ? { time: adjustTime(_iso), open: _seed.o, high: _seed.h, low: _seed.l, close: _seed.c }
+            : { time: adjustTime(_iso) })
+        }
+      } else {
+        // ── STALE-TODAY REPAIR, IN PLACE ────────────────────────────────────
+        // The set already reaches today, so the GEOMETRY is final — but the bar
+        // itself can be hours old (a cache written at 10:05, painted at 14:00),
+        // and /api/bars' own copy is only as fresh as the store row behind it.
+        // Replacing the values at the SAME date moves nothing and removes the
+        // "body right, wick corrects a beat later" flash.
+        //
+        // ⛔ NOT FABRICATION, AND NOT EXTRAPOLATION. Close is the live price — the
+        // one genuinely real-time field UCT has. High/low come from the provider's
+        // own `day` aggregate, the same object every other door serves; reconciling
+        // the two observations with max/min is valid because a session high never
+        // falls and a session low never rises. Nothing is invented, and no value
+        // moves except toward a later observation of the same quantity.
+        const _seed = repairToday ? dailySeed() : null
+        const _i = arr.length - 1
+        const _cur = arr[_i]
+        if (_seed && _cur && _cur.time === adjustTime(_seed.t) && _cur.open !== undefined) {
+          arr[_i] = {
+            ..._cur,
+            high: Math.max(_cur.high, _seed.h),
+            low: Math.min(_cur.low, _seed.l),
+            close: _seed.c,
+          }
+        }
+      }
+    } else if (_dev && typeof _lastRaw === 'string' && _lastRaw < _dev) {
+      // ── WEEKLY / MONTHLY ONLY (daily is handled above) ────────────────────
+      // ⛔ UNCHANGED ON PURPOSE. A week/month period start is not "n sessions
+      // back", so the daily session walk is the wrong instrument here; W/M keep
+      // the single-slot rule until their own period semantics are designed. The
+      // today-PACK arm that used to live here was daily-only and is now
+      // unreachable from this branch, so it is gone rather than left as dead code
+      // that reads like a live path.
+      let _pt = null
+      if (_seedLiveEnabled()) {
+        try {
+          const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
+          const _px = _snap ? _effLivePrice(_snap) : null
+          // ⛔ REGULAR SESSION ONLY. Outside 09:30-16:00 ET `_effLivePrice` returns the
+          // EXTENDED-hours price, but the period candle is settled at the 4pm close.
+          if (_px && !_snap.ext_session && liveSane(sym, _px)) {
+            const _o = (_snap.day_open && _snap.day_open > 0) ? _snap.day_open : _px
+            const _h = Math.max((_snap.day_high && _snap.day_high > 0) ? _snap.day_high : _px, _px)
+            const _l = Math.min((_snap.day_low && _snap.day_low > 0) ? _snap.day_low : _px, _px)
+            _pt = { time: adjustTime(_dev), open: _o, high: _h, low: _l, close: _px }
+          }
+        } catch { /* fall back to whitespace */ }
+      }
+      arr.push(_pt || { time: adjustTime(_dev) })
+    }
+  }
+  return arr
+}
+
+/** The bar store's base snapshot of `sym` on this chart's key, or null when the store does not hold it. */
+function switchSnapshotFor(sym, tf, showExtended) {
+  if (!BARSTORE) return null
+  const key = chartKeyFor({ sym, resolvedTf: tf, showExtended, replayCutoff: null, hasOverride: false })
+  if (!key) return null
+  const store = getBarStore()
+  return store.registry.has(key) ? store.getBaseSnapshot(key) : null
+}
+
+/**
+ * The candles of a built frame (chart/switchFrame.js) with the memo's own tail: `{ok, ohlcData, kind}`.
+ * ⛔ NEVER APPROXIMATED. Today's seed and the W/M live point ask the symbol's live-price sanity (`_liveSane`), which
+ * is the symbol's own hook state. The real resolvers run here with a probe in its place: when a resolver reaches
+ * for it, the answer depended on that state, and the switch is refused (`tail`). When it does not, the resolver
+ * returned what it returns for the render too. ⛔ And the points appended must be the framing's reserve
+ * (`_intradayLoadReserve`), or the chart would translate: a disagreement is a refusal as well.
+ */
+function switchTailFor(built, sym, snapshot, resolvedTf, adjustTime) {
+  const arr = built.ohlcBase.slice()
+  const n0 = arr.length
+  let asked = false
+  const liveSane = () => { asked = true; return false }
+  const dailySeed = () => resolveDailyTodaySeed({ sym, resolvedTf, _developingBarISO, _effLivePrice, _liveSane: liveSane })
+  ohlcLoadAnchorTail(arr, built.displayBars, {
+    econ: false, exactDateRange: false, entryDate: null, replayCutoff: null, resolvedTf, adjustTime, sym,
+    dailySeed, repairToday: resolvedTf === 'D' && !!snapshot && !snapshot.restSeen, liveSane,
+  })
+  if (asked) return { ok: false }
+  const appended = arr.length - n0
+  if (appended !== _intradayLoadReserve(built.filteredBars, resolvedTf)) return { ok: false }
+  return { ok: true, ohlcData: arr, kind: appended ? 'whitespace' : 'none' }
+}
+
+/** What the pass reads of the metadata when none has landed (the watermark's name lines). */
+function switchEmptyMeta() { return SWITCH_EMPTY_META }
+const SWITCH_EMPTY_META = Object.freeze({ watermarkMeta: watermarkMetaOf(null, null, null, null) })
+
+/** CLASS C, CLEARED IN THE FRAME: the old symbol's markers (events, news, desk, journal, flow, my trades), its
+ *  next-earnings mark and its E / S / D / IPO badges. Their own code redraws them after the deferred commit: the
+ *  `last…SrcRef`s are reset so that redraw is not skipped as "nothing changed". */
+function clearSymbolLayers(r) {
+  try { r.markersControllerRef.current?.setMarkers?.([]) } catch { /* series gone */ }
+  r.lastMarkersSrcRef.current = undefined
+  r.lastMyTradesSrcRef.current = undefined
+  try { r.nextEarnRef.current?.set(null) } catch { /* primitive optional */ }
+  for (const b of [r.earnBadgeRef, r.splitBadgeRef, r.divBadgeRef, r.ipoBadgeRef]) {
+    try { b.current?.setPoints([]) } catch { /* primitive optional */ }
+  }
 }

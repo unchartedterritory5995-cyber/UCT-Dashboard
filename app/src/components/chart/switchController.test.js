@@ -1,0 +1,342 @@
+// ⭐⭐ THE SWITCH CONTROLLER (imperative switch, stage 3): its rule table is pinned to the pass's own list of
+// names, and its decisions are tested with a pass that only records what it was handed.
+//
+//   1. THE CENSUS. Every name `applyFrame` reads off its frame (StockChart.jsx, read from the syntax tree) has
+//      exactly one rule in FRAME_RULES, and the table has no rule for a name the pass does not read. A new frame
+//      name with no rule fails here by name; at run time the same gap refuses the switch (`unruled:<name>`).
+//   2. THE DECISIONS. All or nothing: a frame is handed over whole or the switch is refused by name; a value is
+//      carried only under its rule; the per-symbol layers are cleared in the pass; a pass of the replaced symbol
+//      paints nothing until React has caught up; the catch-up is counted as a no-op or a repaint.
+import { describe, it, expect, beforeEach } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { Parser } from 'acorn'
+import jsx from 'acorn-jsx'
+import { FRAME_RULES, createSwitchController, switchControllerFor, isNone } from './switchController'
+
+const HERE = dirname(fileURLToPath(import.meta.url))
+const CHART = readFileSync(join(HERE, '..', 'StockChart.jsx'), 'utf8')
+
+/** The names the module-level `applyFrame(ctx, frame)` takes off `frame` (its second statement). */
+function frameNamesOf(src) {
+  const ast = Parser.extend(jsx()).parse(src, { ecmaVersion: 'latest', sourceType: 'module' })
+  const pass = ast.body.find((s) => s.type === 'FunctionDeclaration' && s.id && s.id.name === 'applyFrame')
+  if (!pass) return null
+  const st = pass.body.body.find((x) => x.type === 'VariableDeclaration' && x.declarations[0].init && x.declarations[0].init.name === 'frame')
+  return st ? st.declarations[0].id.properties.map((p) => p.key.name) : null
+}
+
+describe('FRAME_RULES: one rule per name the pass reads off its frame', () => {
+  const names = frameNamesOf(CHART)
+  const KINDS = ['same', 'none', 'built', 'cleared', 'channel']
+
+  it('the pass and its names were found (a census that finds nothing proves nothing)', () => {
+    expect(names).toBeTruthy()
+    expect(names.length).toBeGreaterThan(100)
+    expect(names).toContain('sym')
+    expect(names).toContain('__heavy')
+  })
+
+  it('every frame name has a rule', () => {
+    expect(names.filter((n) => !FRAME_RULES[n])).toEqual([])
+  })
+
+  it('no rule is for a name the pass does not read', () => {
+    expect(Object.keys(FRAME_RULES).filter((n) => !names.includes(n))).toEqual([])
+  })
+
+  it('every rule is one of the five kinds, with what its kind needs', () => {
+    for (const [name, r] of Object.entries(FRAME_RULES)) {
+      expect(KINDS, name).toContain(r.kind)
+      if (r.kind === 'none') expect(typeof r.why, name).toBe('string')
+      if (r.kind === 'built') expect(typeof r.from, name).toBe('function')
+      if (r.kind === 'cleared' || r.kind === 'channel') expect(typeof r.value, name).toBe('function')
+    }
+  })
+
+  it('the symbol, its bars and everything derived from them are BUILT; the per-symbol layers are CLEARED', () => {
+    const kind = (n) => FRAME_RULES[n].kind
+    for (const n of ['sym', '_exKey', '__heavy', 'volMaData', 'overlayData', 'sessionShadeBands', 'historyFromListing', 'listingUnserved', 'symbolMeta']) expect(kind(n), n).toBe('built')
+    for (const n of ['allPriceLines', 'mergedMarkers', 'dpZones', 'swingPoints']) expect(kind(n), n).toBe('cleared')
+    for (const n of ['_paintStoreDev', 'devOnScreen']) expect(kind(n), n).toBe('channel')
+    // an indicator input of the symbol is never carried: it is "nothing", or the switch is refused
+    for (const n of ['secondarySources', 'lowerTfSources', 'fundamentalSources', 'marketCapAuthoritySources', 'economicSources', 'calcFrames', 'comparisonData']) expect(kind(n), n).toBe('none')
+  })
+
+  it('self-check: the scan reads the syntax tree, so a name in a comment or a string is not a frame name', () => {
+    const tiny = `
+      // const { ghostA } = frame
+      function applyFrame(ctx, frame) {
+        const { aRef } = ctx
+        const { sym, /* ghostB, */ cs } = frame
+        const note = 'const { ghostC } = frame'
+      }`
+    expect(frameNamesOf(tiny)).toEqual(['sym', 'cs'])
+    expect(frameNamesOf('function other() {}')).toBe(null)
+  })
+})
+
+describe('isNone', () => {
+  it.each([[null], [undefined], [false], [''], [[]], [new Map()], [new Set()], [{}]])('%j is nothing', (v) => expect(isNone(v)).toBe(true))
+  it.each([[0], [true], ['x'], [[1]], [new Map([[1, 2]])], [new Set([1])], [{ a: 1 }], [() => {}]])('%j is something', (v) => expect(isNone(v)).toBe(false))
+})
+
+// ── the decisions, with a recording pass ─────────────────────────────────────────────────────────────────────
+const ref = (v) => ({ current: v })
+/** A frame as a React pass hands it: every ruled name present, "nothing" where the rule wants nothing. */
+const reactFrame = (sym, over = {}) => {
+  const f = {}
+  for (const [name, r] of Object.entries(FRAME_RULES)) f[name] = r.kind === 'none' ? null : `${name}@${sym}`
+  const bars = [{ t: 1 }, { t: 2 }]
+  return {
+    ...f, sym, resolvedTf: 'D', adjustTime: ADJ, comparisonData: [],
+    __heavy: { committed: { displayBars: bars, filteredBars: bars } },
+    ...over,
+  }
+}
+const ADJ = (t) => t
+let log
+let passes
+let layers
+const fakeApply = (c, f) => {
+  passes.push({ ctx: c, frame: f })
+  log.push(`pass:${f.sym}`)
+  // what the real pass does that the controller relies on
+  c.lastCfgSigRef.current = `sig:${f.sym}:${(f.mergedMarkers || []).length}`
+  c.prevPaintBarsRef.current = f.__heavy.committed.displayBars
+  c._drawMetaRef.current(c._metaNowRef.current(), false, false)
+}
+const built = (sym) => {
+  const bars = [{ t: 1, s: sym }, { t: 2, s: sym }]
+  return {
+    ok: true, sym, tf: 'D', bars, sessionBars: bars, filteredBars: bars, sessionAppliedBars: bars, displayBars: bars,
+    ohlcBase: [{ time: 1 }, { time: 2 }], closeData: ['close', sym], hvcSet: new Set(), volData: ['vol', sym], volMaData: ['volMa', sym],
+    newestBarIsForming: false,
+  }
+}
+const fakeBuild = (snapshot, view) => (snapshot ? built(view.sym) : { ok: false, why: 'snapshot' })
+const makeCtx = () => ({
+  chartRef: ref({}), candleSeriesRef: ref({}), lastCfgSigRef: ref(null), prevPaintBarsRef: ref(null),
+  _drawMetaRef: ref(() => log.push('drawMeta:react')), _metaNowRef: ref(() => ({ watermarkMeta: 'react' })),
+  alertLineOptsRef: ref(['an alert of the old symbol']), wmLogoRef: ref('logo of the old symbol'),
+})
+const makeView = (sym, over = {}) => ({
+  sym, tf: 'D', showExtended: false, recipes: { adjustTime: ADJ, plain: true },
+  refuse: null,
+  symbolRefusal: () => null,
+  snapshot: (s) => ({ status: 'current', sym: s }),
+  tail: (b) => ({ ok: true, ohlcData: [...b.ohlcBase, 'tail'], kind: 'none' }),
+  overlayData: (bars) => ['overlay', bars[0].s],
+  shadeBands: (bars) => ['bands', bars[0].s],
+  listing: () => ({ historyFromListing: false, listingUnserved: false }),
+  symbolMeta: (s) => ({ ticker: s }),
+  emptyMeta: () => ({ watermarkMeta: null }),
+  laneShows: (s) => log.push(`lane:${s}`),
+  closeChannel: () => log.push('channel:closed'),
+  clearLayers: () => { layers += 1; log.push('layers:cleared') },
+  ...over,
+})
+/** A controller whose chart has painted `sym` through React once. */
+const painted = (sym = 'AAA', viewOver = {}, frameOver = {}) => {
+  const c = createSwitchController({ applyFrame: fakeApply, buildFrame: fakeBuild })
+  const ctx = makeCtx()
+  c.noteView(makeView(sym, viewOver))
+  c.reactPass(ctx, reactFrame(sym, frameOver))
+  log.length = 0
+  passes.length = 0
+  return { c, ctx }
+}
+beforeEach(() => { log = []; passes = []; layers = 0 })
+
+describe('apply: the new symbol\'s frame, whole', () => {
+  it('paints in today\'s order: the lane hears the symbol, the old channel closes, the pass runs, the layers are cleared in it', () => {
+    const { c } = painted()
+    expect(c.apply('BBB')).toBe('applied')
+    expect(log).toEqual(['lane:BBB', 'channel:closed', 'pass:BBB', 'layers:cleared'])
+  })
+
+  it('hands the pass a frame of the new symbol: BUILT from its bars, CLEARED layers, a closed channel, the rest carried', () => {
+    const { c } = painted()
+    c.apply('BBB')
+    const f = passes[0].frame
+    expect(f.sym).toBe('BBB')
+    expect(f._exKey).toBe('BBB_D')
+    expect(f.volMaData).toEqual(['volMa', 'BBB'])
+    expect(f.overlayData).toEqual(['overlay', 'BBB'])
+    expect(f.sessionShadeBands).toEqual(['bands', 'BBB'])
+    expect(f.symbolMeta).toEqual({ ticker: 'BBB' })
+    expect(f.__heavy.committed._big).toEqual({ ohlcData: [{ time: 1 }, { time: 2 }, 'tail'], closeData: ['close', 'BBB'], volData: ['vol', 'BBB'] })
+    expect(f.__heavy.committed.filteredBars[0].s).toBe('BBB')
+    expect(f.__heavy.committed.data).toEqual({ newest_bar_is_forming: false })
+    for (const n of ['allPriceLines', 'mergedMarkers', 'dpZones', 'swingPoints']) expect(f[n], n).toEqual([])
+    expect(f.fadeCutoff).toBe(null)
+    expect(f.devOnScreen.tail()).toBe(null)
+    expect(f._paintStoreDev()).toBe(undefined)
+    expect(f.cs).toBe('cs@AAA')            // SAME: the settings object itself
+    expect(f.boldCandles).toBe('boldCandles@AAA')
+  })
+
+  it('the frame has exactly the names the React pass handed over (no name is dropped, none invented)', () => {
+    const { c } = painted()
+    c.apply('BBB')
+    expect(Object.keys(passes[0].frame).sort()).toEqual(Object.keys(FRAME_RULES).sort())
+  })
+
+  it('the pass draws no metadata of the old symbol: its alerts, its logo and its markers are not handed over', () => {
+    const { c, ctx } = painted()
+    c.apply('BBB')
+    const pc = passes[0].ctx
+    expect(pc.alertLineOptsRef.current).toEqual([])
+    expect(pc.wmLogoRef.current).toBe(null)
+    expect(pc._metaNowRef.current()).toEqual({ watermarkMeta: null })
+    expect(layers).toBe(1)
+    expect(log).not.toContain('drawMeta:react')
+    // …and the chart's own refs are untouched (the React effects still own them)
+    expect(ctx.alertLineOptsRef.current).toEqual(['an alert of the old symbol'])
+    expect(ctx.wmLogoRef.current).toBe('logo of the old symbol')
+    expect(pc.chartRef).toBe(ctx.chartRef)
+  })
+
+  it('publishes the applied key to its readers, after the paint', () => {
+    const { c } = painted()
+    const seen = []
+    const off = c.subscribeApplied((k) => seen.push([k, log.includes('pass:BBB')]))
+    c.apply('BBB')
+    expect(seen).toEqual([['BBB_D', true]])
+    expect(c.appliedKey()).toBe('BBB_D')
+    off()
+    c.apply('CCC')
+    expect(seen).toHaveLength(1)
+  })
+
+  it('a token from canApply is used as built (the frame is built once per switch)', () => {
+    let builds = 0
+    const c = createSwitchController({ applyFrame: fakeApply, buildFrame: (s, v) => { builds += 1; return fakeBuild(s, v) } })
+    c.noteView(makeView('AAA'))
+    c.reactPass(makeCtx(), reactFrame('AAA'))
+    const token = c.canApply('BBB')
+    expect(token).toBeTruthy()
+    expect(passes.filter((p) => p.frame.sym === 'BBB')).toHaveLength(0)   // asking paints nothing
+    expect(c.apply('BBB', token)).toBe('applied')
+    expect(builds).toBe(1)
+  })
+})
+
+describe('refusals: named, counted, and nothing is painted', () => {
+  const refused = (c, sym, why) => {
+    expect(c.canApply(sym)).toBe(null)
+    expect(c.apply(sym)).toBe(false)
+    expect(passes).toHaveLength(0)
+    expect(log).toEqual([])
+    expect(c.diag.last).toEqual({ sym, ok: false, why })
+    expect(c.diag.refused[why]).toBe(2)
+  }
+  it('a chart that has never painted', () => {
+    const c = createSwitchController({ applyFrame: fakeApply, buildFrame: fakeBuild })
+    refused(c, 'BBB', 'no-pass')
+  })
+  it('a chart without its series', () => {
+    const { c, ctx } = painted()
+    ctx.candleSeriesRef.current = null
+    refused(c, 'BBB', 'no-chart')
+  })
+  it('the symbol already on screen', () => refused(painted().c, 'AAA', 'same-symbol'))
+  it('what the chart itself refuses (a per-symbol layer it cannot clear)', () => refused(painted('AAA', { refuse: 'drawings' }).c, 'BBB', 'drawings'))
+  it('what the new symbol refuses (the host\'s special kind)', () => refused(painted('AAA', { symbolRefusal: (s) => (s === 'BBB' ? 'host-symbol' : null) }).c, 'BBB', 'host-symbol'))
+  it('a frame that does not build', () => refused(painted('AAA', { snapshot: () => null }).c, 'BBB', 'frame:snapshot'))
+  it('a tail that needs the symbol\'s own state', () => refused(painted('AAA', { tail: () => ({ ok: false }) }).c, 'BBB', 'tail'))
+  it('a commit whose pass has not run (the view is a symbol ahead of the frame)', () => {
+    const { c } = painted()
+    c.noteView(makeView('ZZZ'))
+    refused(c, 'BBB', 'pass-behind')
+  })
+  it('recipes of another render than the frame', () => refused(painted('AAA', { recipes: { adjustTime: () => 0, plain: true } }).c, 'BBB', 'recipes-behind'))
+  it.each([
+    ['secondarySources', new Map([['SPY', {}]]), 'sources'],
+    ['calcFrames', new Map([['f', {}]]), 'sources'],
+    ['comparisonData', [{ time: 1, value: 2 }], 'comparison'],
+    ['replayCutoff', '2026-01-02', 'replay'],
+    ['studioPreview', { instanceId: 'p' }, 'studio-preview'],
+    ['watermark', 'A custom label', 'watermark-label'],
+    ['sessionPreviewLastBar', true, 'session-preview'],
+  ])('a value that is carried only while it is nothing: %s', (name, value, why) => refused(painted('AAA', {}, { [name]: value }).c, 'BBB', why))
+  it('a frame name with no rule refuses the switch by name (it never rides along)', () => refused(painted('AAA', {}, { aNewName: 1 }).c, 'BBB', 'unruled:aNewName'))
+})
+
+describe('the stale-render guard, and the catch-up', () => {
+  it('after a switch, a pass of the replaced symbol is stale; the new symbol\'s pass is not', () => {
+    const { c } = painted()
+    expect(c.staleFor('AAA')).toBe(false)   // nothing pending
+    c.apply('BBB')
+    expect(c.pendingSym()).toBe('BBB')
+    expect(c.pendingFrom()).toBe('AAA')
+    expect(c.staleFor('AAA')).toBe(true)
+    expect(c.staleFor('BBB')).toBe(false)
+    expect(c.staleFor('CCC')).toBe(false)   // React moved to a third symbol: its pass paints
+    expect(c.diag.stale).toBe(1)
+  })
+
+  it('the catch-up pass that changes nothing is counted a no-op, and ends the pending switch', () => {
+    const { c, ctx } = painted()
+    c.apply('BBB')
+    const handed = passes[0].frame
+    // React commits BBB: the same bars array, the same signature
+    c.noteView(makeView('BBB'))
+    c.reactPass(ctx, reactFrame('BBB', { __heavy: { committed: { displayBars: handed.__heavy.committed.displayBars } }, mergedMarkers: [] }))
+    expect(c.diag.catchUp).toEqual({ noop: 1, repaint: 0 })
+    expect(c.pendingSym()).toBe(null)
+    expect(c.staleFor('AAA')).toBe(false)
+  })
+
+  it('a catch-up whose signature differs (the symbol has markers) is counted a repaint', () => {
+    const { c, ctx } = painted()
+    c.apply('BBB')
+    const handed = passes[0].frame
+    c.noteView(makeView('BBB'))
+    c.reactPass(ctx, reactFrame('BBB', { __heavy: { committed: { displayBars: handed.__heavy.committed.displayBars } }, mergedMarkers: [{ time: 1 }] }))
+    expect(c.diag.catchUp).toEqual({ noop: 0, repaint: 1 })
+  })
+
+  it('a catch-up over other bars (the row changed meanwhile) is counted a repaint', () => {
+    const { c, ctx } = painted()
+    c.apply('BBB')
+    c.noteView(makeView('BBB'))
+    c.reactPass(ctx, reactFrame('BBB', { mergedMarkers: [] }))
+    expect(c.diag.catchUp).toEqual({ noop: 0, repaint: 1 })
+  })
+
+  it('a second switch before React caught up: still from the symbol React shows, and the first is forgotten', () => {
+    const { c } = painted()
+    c.apply('BBB')
+    expect(c.apply('CCC')).toBe('applied')
+    expect(c.pendingSym()).toBe('CCC')
+    expect(c.pendingFrom()).toBe('AAA')
+    expect(c.staleFor('AAA')).toBe(true)
+    expect(c.apply('CCC')).toBe(false)      // already on screen
+    expect(c.diag.last.why).toBe('same-symbol')
+  })
+})
+
+describe('the numbers the harness reads', () => {
+  it('asked = applied + refused, each refusal under its reason, each tail under its kind', () => {
+    const { c } = painted('AAA', { tail: (b) => ({ ok: true, ohlcData: b.ohlcBase, kind: 'whitespace' }) })
+    c.apply('BBB')
+    c.canApply('BBB')            // same-symbol
+    c.apply('CCC')
+    const d = c.diag
+    expect(d.applied).toBe(2)
+    expect(d.refused).toEqual({ 'same-symbol': 1 })
+    expect(d.asked).toBe(d.applied + Object.values(d.refused).reduce((a, b) => a + b, 0))
+    expect(d.tail).toEqual({ whitespace: 2 })
+  })
+})
+
+describe('switchControllerFor', () => {
+  it('one controller per owner, for its life', () => {
+    const a = {}
+    const deps = { applyFrame: fakeApply, buildFrame: fakeBuild }
+    expect(switchControllerFor(a, deps)).toBe(switchControllerFor(a, deps))
+    expect(switchControllerFor({}, deps)).not.toBe(switchControllerFor(a, deps))
+  })
+})

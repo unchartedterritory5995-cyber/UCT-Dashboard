@@ -69,7 +69,16 @@ function shapeOf(src) {
       for (const c of kids(n)) walk(c)
     })(fn.body)
   }
-  return { params, taken, handed, calls, statements: fn ? fn.body.body.length : 0 }
+  // the callback's statements, each by what it is (stage 3: the stale-render guard, the two objects, the pass)
+  const text = (n) => src.slice(n.start, n.end)
+  const kinds = (fn ? fn.body.body : []).map((st) => {
+    if (st.type === 'IfStatement' && st.consequent.type === 'ReturnStatement' && !st.alternate) return `guard:${text(st.test)}`
+    if (st.type === 'VariableDeclaration') return `const:${st.declarations[0].id.name}`
+    if (st.type === 'IfStatement' && st.alternate) return `pass:${text(st.test)}?${text(st.consequent)}:${text(st.alternate)}`
+    if (st.type === 'ExpressionStatement') return `call:${text(st.expression)}`
+    return st.type
+  })
+  return { params, taken, handed, calls, statements: fn ? fn.body.body.length : 0, kinds }
 }
 
 describe('StockChart: updateChart hands applyFrame exactly the names it takes apart', () => {
@@ -104,9 +113,18 @@ describe('StockChart: updateChart hands applyFrame exactly the names it takes ap
   })
 
   it('updateChart is the hand-off and nothing else', () => {
-    // `const ctx = {…}`, `const frame = {…}`, `applyFrame(ctx, frame)` (stage 3 adds its guard ahead of them, and
-    // says so here): a statement that paints from inside the callback is a second copy of the series logic
-    expect(shape.statements).toBe(3)
+    // Four statements, each named: the stale-render guard (stage 3: a pass of the symbol an imperative switch
+    // replaced paints nothing), `const ctx = {…}`, `const frame = {…}`, and the pass: through the switch
+    // controller when the chart has one (it runs the same `applyFrame`), `applyFrame(ctx, frame)` when it has
+    // none, which is the switch OFF. A statement that paints from inside the callback would be a second copy
+    // of the series logic.
+    expect(shape.statements).toBe(4)
+    expect(shape.kinds).toEqual([
+      'guard:switchCtl && switchCtl.staleFor(sym)',
+      'const:ctx',
+      'const:frame',
+      'pass:switchCtl?switchCtl.reactPass(ctx, frame):applyFrame(ctx, frame)',
+    ])
   })
 
   describe('self-check: the scan can fail, and a comment or a string is not an entry', () => {
