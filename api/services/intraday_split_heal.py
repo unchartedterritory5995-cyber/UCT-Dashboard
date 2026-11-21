@@ -393,7 +393,18 @@ def plan_series(ticker: str, tf: str, events: Sequence, *, rows=None,
             applied.append((d, r))           # every stored row is already after it
             continue
         anchor = next((i for i, s in enumerate(sessions) if s >= d), None)
-        cliff = _san.unadjusted_splits(closes, [(d, r)])
+        declined: list = []
+        cliff = _san.unadjusted_splits(closes, [(d, r)], declined=declined)
+        if declined:
+            # F3b' declined a step inside the band but not the size of this split, at the split's
+            # own window. That is either a real split whose session also moved (ANAB 2026-04-20: TV
+            # confirms the 1.5, the raw step read 1.325) or an ordinary move on a correct series.
+            # Neither is provable: never rescaled, never "applied" (a stamp would end the re-checks
+            # with a cliff still in the rows). The bar scan's size band (scan_series) must not
+            # turn this case into "applied" (the band-only scan used to call it "hidden-step").
+            refuse(d, r, "declined-not-split-sized", declined[0].get("at"))
+            unknown = True
+            continue
         if cliff:
             b = cliff[0][0]
             out["cliffs"].append((b.isoformat(), r))

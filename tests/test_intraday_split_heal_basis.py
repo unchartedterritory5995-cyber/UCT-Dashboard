@@ -569,6 +569,26 @@ def test_F3b_an_inverse_step_still_blocks_a_mixed_series_the_daily_proof_would_p
     assert _rows("INV", "5") == before and bs.series_meta("INV", "5")["adj_basis"] is None
 
 
+def test_F3b_a_real_split_whose_session_also_moved_is_unknown_never_stamped(store):
+    """A REAL unadjusted 3:2 whose first new-basis session also rallied 13% (ANAB 2026-04-20's
+    shape: TV confirms the 1.5, but the raw step reads 1.325). The step is inside the 15% band
+    and outside F3b''s size band, at the session level (the detector DECLINES it) and at the
+    bar. Nothing can prove it, so nothing is written. But it must stay UNKNOWN (re-checked,
+    logged as refused), never stamped as if the split were applied: a stamp would say the
+    series is on the new basis while it still carries the cliff, and `note_served` would stop
+    re-checking it."""
+    days = _sessions(24)
+    j = _ts(days[12], 9, 30)
+    truth = _move(_truth(random.Random(55), _grid("5", days)), j, 1.13)
+    bs.put_bars("DEC", "5", [_old_basis(b, 1.5) if b["t"] < j else b for b in truth])
+    _put_daily("DEC", truth)
+    before = _rows("DEC", "5")
+    res = ish.heal_series("DEC", "5", splits=[(days[12].isoformat(), 1.5)])
+    assert not res["rescale"] and res["adj_basis"] is None, res
+    assert res["refused"] and res["refused"][0]["why"] == "declined-not-split-sized", res["refused"]
+    assert _rows("DEC", "5") == before and bs.series_meta("DEC", "5")["adj_basis"] is None
+
+
 def test_F3b_a_split_sized_lone_print_still_blocks_a_small_split(store):
     """The size band narrows what counts as a step; it never hides a real one. A lone print
     at 1/r (a bad tick on the old basis, far from the split) still makes the 5:4 unprovable."""
