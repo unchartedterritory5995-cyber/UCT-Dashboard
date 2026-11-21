@@ -277,6 +277,7 @@ import { claimShareState } from '../lib/chartDeepLink'
 import SharedIndicatorsPrompt from './chart/SharedIndicatorsPrompt'
 import UnavailableIndicators from './chart/UnavailableIndicators'
 import useRealtimePrices from '../hooks/useRealtimePrices'
+import useQuietRealtimePrices from '../hooks/useQuietRealtimePrices'
 import { readLiveQuote, readLiveFeed } from '../lib/liveQuote'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
 import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl, registerSymbolWarmer } from '../utils/prefetchBars'
@@ -3387,10 +3388,10 @@ function instanceMenuSuffixes(cs, instIds) {
 // `useRealtimePrices` cost: a fresh `prices` object at every publish, for ANY symbol in the tab (state probe on
 // the owner's layout, 2026-11-20: 19 renders per typed switch after it settled, 6-10 in its first 1.5 s, ~4
 // more from the 2 s poll).
-// So the chart calls the hook in its QUIET mode: its render re-runs only when `liveRenderKey` (the badge, and the
-// ext price where the render draws it) changes, it reads the quote at render time, and the between-render work
+// So the chart reads it through `useQuietRealtimePrices` (`hooks/useQuietRealtimePrices.js`): its render re-runs only
+// when `liveRenderKey` (the badge, and the ext price where the render draws it) changes, it reads the quote at render time, and the between-render work
 // (the session tags, the screenshot refs, `livePricesRef`) runs in `_onLiveTick`.
-// ⛔ The legacy bar path (BARSTORE off) keeps the hook's ordinary mode exactly: its Writer A paints the developing
+// ⛔ The legacy bar path (BARSTORE off) keeps `useRealtimePrices` exactly: its Writer A paints the developing
 // candle FROM `livePrices` on every tick, in an effect, and is what that path is.
 const EMPTY_LIVE_PRICES = Object.freeze({})
 const _extPriceOf = (q) => ((q && q.ext_session && Number.isFinite(q.ext_price) && q.ext_price > 0) ? q.ext_price : null)
@@ -3405,6 +3406,8 @@ function liveRenderKey(sym, wantsExt) {
 function liveQuietOpts(symRef, wantsExtRef, onTickRef) {
   return { onTickRef, renderKey: () => liveRenderKey(symRef.current, wantsExtRef.current) }
 }
+// Chosen once at module load, like every other BARSTORE fork (the ordinary hook ignores the options).
+const useChartRealtimePrices = LEGACY_LIVE ? useRealtimePrices : useQuietRealtimePrices
 
 // ═══ PER-SYMBOL METADATA: WHAT THE CHART DERIVES FROM IT (metadata islands, 2026-11-20) ═════════════════
 // These were `useMemo`s in the chart body. They are plain functions now because the chart computes them in TWO
@@ -9276,7 +9279,7 @@ function StockChartBody({
   const showNoData = _serverNoData && !showFatalError
   const showWarmingTimedOut = _warmingTimedOut && !showNoData
 
-  // Real-time price streaming. Under BARSTORE in the hook's quiet mode (`liveQuietOpts` above): a publish renders
+  // Real-time price streaming. Under BARSTORE through the quiet hook (`liveQuietOpts` above): a publish renders
   // this chart only when what its render shows changed; `_onLiveTick` below does the rest between renders.
   const _liveWantsExtRef = useRef(false)   // the include-mode session candle draws the ext price (set below)
   const _onLiveTickRef = useRef(null)
@@ -9284,7 +9287,7 @@ function StockChartBody({
   _liveSymRef.current = liveUpdates && sym ? sym : null
   const _liveQuietRef = useRef(null)
   if (_liveQuietRef.current === null) _liveQuietRef.current = LEGACY_LIVE ? false : liveQuietOpts(_liveSymRef, _liveWantsExtRef, _onLiveTickRef)
-  const { prices: livePrices, staleSymbols, isStreaming } = useRealtimePrices(liveUpdates && sym ? [sym] : [], _liveQuietRef.current || undefined)
+  const { prices: livePrices, staleSymbols, isStreaming } = useChartRealtimePrices(liveUpdates && sym ? [sym] : [], _liveQuietRef.current || undefined)
   const isStale = !!(sym && staleSymbols && staleSymbols.has(String(sym).toUpperCase()))
   const feed = streamStatus({ isStreaming, isStale })
   // ── BAR CURRENTNESS (2026-09-28) — separate from FEED CONNECTIVITY ─────────────
@@ -15269,7 +15272,7 @@ function StockChartBody({
   useEffect(() => { _applySessionTags(activeSessionTags) },
     [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels, lastBarOff, extTagInline])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ⭐ A PUBLISH BETWEEN RENDERS (2026-11-20, the hook's quiet mode): what it changes that this chart shows without a render.
+  // ⭐ A PUBLISH BETWEEN RENDERS (2026-11-20, `useQuietRealtimePrices`): what it changes that this chart shows without a render.
   // The newest render's function, so it reads that render's settings; the quote is read fresh.
   const _liveExtAppliedRef = useRef(undefined)
   _liveExtAppliedRef.current = sessionExtPrice   // what this render's tags were built from
