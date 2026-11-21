@@ -36,8 +36,8 @@ Kill switch: BARS_SANITIZE_ENABLED=0.
 """
 from __future__ import annotations
 
+import math
 import os
-import random
 import time
 import threading
 import logging
@@ -193,6 +193,19 @@ _WICK = 1.40                 # a wick > body*this AND > neighbor*this is a lone 
 #: not a nicety.
 _SPLIT_BOUNDARY_WINDOW = 7   # sessions either side of the DECLARED split date
 
+#: F3b' (2026-11-20): the observed step must ALSO lie in a band sized by the SPLIT ITSELF,
+#: `|ln(observed / r)| <= _SPLIT_SIZE_TOL * |ln r|`, ANDed with the `_SPLIT_TOL` band (never looser).
+#: ⚰️ MEASURED ON PRODUCTION 2026-11-20. 15% of r admits an ordinary down day for every small r:
+#:   - BBD: 1.2 declared, a 6.4% and a 4.4% day matched, so 2002-2019 were served x1/1.2 and x1/1.44.
+#:   - CIG: 1.25 declared, so 1996-2012 were served x0.8.
+#:   - HUBB: 4:3 declared, a 1.1675 stale-quote step matched, so 1977 was served x0.75.
+#:   The vendor already carried every one of these. The real heals all match their ratio closely:
+#:   DD (0.33501 vs 1/3), ABTC, AXIA (exact), MNST's 2012 2:1.
+#: ⚠️ THE COST, stated: an unadjusted small split whose session ALSO moved more than r ** 0.25
+#: (1.2 -> 4.66%) is declined. It is reported (`declined`) and logged by name, not lost silently.
+#: Rails: tests/test_split_heal_guards.py.
+_SPLIT_SIZE_TOL = 0.25
+
 
 def adjudicable(ratio: float, tol: float = _SPLIT_TOL) -> bool:
     """Can the ratio test tell this corporate action apart from an ORDINARY DAY?
@@ -247,48 +260,12 @@ class MetaUnavailable(RuntimeError):
     """The provider did not ANSWER. Distinct from "it answered: no splits"."""
 
 
-# D5 CP4 — dark. `_fetch_meta`'s FMP splits fetch is dual-computed against D5's
-# `reference_corp_actions.confirmed_splits` ledger for the same ticker: both
-# computed on EVERY call under pytest, and on a SAMPLED FRACTION in production
-# (this sits on a serve-time path — bars_sanitize.py is reachable but NOT
-# watched by flow-worker's deploy list; see D5 CP4's build record for why that
-# makes this an incidental, not a live, inert strand). Log-only, never raises,
-# and never changes what is served — FMP stays the value of record until a
-# later checkpoint (CP7) makes a member-visible call on which source wins.
-_DUAL_COMPUTE_SAMPLE_RATE = float(os.environ.get("D5_CP4_DUAL_COMPUTE_SAMPLE_RATE", "0.05"))
-
-
-def _dual_compute_outcome(fmp_splits: list[tuple[str, float]],
-                           d5_splits: list[tuple[str, float]]) -> str:
-    """Named outcome categories — never a rate (the packet's own scope: "the
-    outcomes the dual-compute enumerates, never a rate"). Pure and total: every
-    pair of split lists maps to exactly one of these five names."""
-    fmp_set, d5_set = set(fmp_splits), set(d5_splits)
-    if not fmp_set and not d5_set:
-        return "BOTH_EMPTY"
-    if fmp_set == d5_set:
-        return "AGREE"
-    if fmp_set and not d5_set:
-        return "FMP_ONLY"
-    if d5_set and not fmp_set:
-        return "D5_ONLY"
-    return "PARTIAL_MISMATCH"
-
-
-def _dual_compute_splits(ticker: str, fmp_splits: list[tuple[str, float]]) -> None:
-    """Best-effort: any failure here is swallowed and logged, never raised into
-    `_fetch_meta`'s caller. Sampling is skipped entirely under pytest so the
-    comparison logic itself is exercised on every test run."""
-    if "PYTEST_CURRENT_TEST" not in os.environ and random.random() >= _DUAL_COMPUTE_SAMPLE_RATE:
-        return
-    try:
-        from api.services import reference_corp_actions as _rca
-        d5_splits = _rca.read_confirmed_splits(ticker)
-        outcome = _dual_compute_outcome(fmp_splits, d5_splits)
-        _log.info("[d5-cp4-dual-compute] %s outcome=%s fmp=%d d5=%d",
-                   ticker, outcome, len(fmp_splits), len(d5_splits))
-    except Exception as e:  # noqa: BLE001
-        _log.info("[d5-cp4-dual-compute] failed for %s: %s", ticker, e)
+# ⚰️ D5 CP4's dual-compute (FMP's split list vs `reference_corp_actions.confirmed_splits`) was REMOVED
+# on 2026-11-20. Its evidence was vacuous: nothing writes that ledger in production
+# (`refresh_confirmed_splits` has no caller), so `read_confirmed_splits` returned [] on the pod and every
+# sampled line read FMP_ONLY. A comparison against an empty table looks like an instrument and measures
+# nothing. The ledger's read/write functions and their tests stay; wiring a vendor split feed is a later
+# unit, not this one.
 
 
 def _fetch_meta(ticker: str) -> dict:
@@ -343,7 +320,6 @@ def _fetch_meta(ticker: str) -> dict:
     except Exception as e:  # noqa: BLE001
         _log.warning("bars_sanitize meta fetch failed for %s: %s", ticker, e)
         raise
-    _dual_compute_splits(ticker, splits)
     return {"ipo": ipo, "splits": splits}
 
 
@@ -454,9 +430,48 @@ def _apply_listing_cutoff(bars: list[dict], meta: dict | None, tf: str = "D") ->
 
 
 # ── Step 2: split-adjustment self-heal ──────────────────────────────────────
+def _within_split_size(observed: float, ratio: float) -> bool:
+    """F3b': is the observed step the size of THIS split? `|ln(observed/r)| <= _SPLIT_SIZE_TOL * |ln r|`.
+    The `_SPLIT_TOL` band is checked separately and both must hold (see `_SPLIT_SIZE_TOL`)."""
+    return abs(math.log(observed / ratio)) <= _SPLIT_SIZE_TOL * abs(math.log(ratio))
+
+
+def _declared_after(splits: list[tuple[str, float]], end) -> list[tuple[str, float]]:
+    """F3a: the declared splits dated after a rebuilt series' `end` (none when `end` is unknown)."""
+    if not end:
+        return []
+    e = str(end)[:10]
+    return [(d, r) for d, r in (splits or ()) if str(d)[:10] > e]
+
+
+#: (ticker, tf, declared, ratio) already logged by `_note_declined` in this process: a chart serves the
+#: same series many times, and the name needs saying once. Bounded: cleared when it grows past the cap.
+_DECLINED_SEEN: set[tuple] = set()
+_DECLINED_SEEN_MAX = 20_000
+
+
+def _note_declined(ticker: str, tf: str, declined: list) -> None:
+    """Log each heal F3b' declined, by name, once per process, so a missed real small split is visible
+    (tools/bars_rescale_check.py reports the same from a store). Never raises."""
+    for d in declined or ():
+        try:
+            key = (str(ticker).upper(), tf, d["declared"], round(float(d["ratio"]), 6))
+            if key in _DECLINED_SEEN:
+                continue
+            if len(_DECLINED_SEEN) >= _DECLINED_SEEN_MAX:
+                _DECLINED_SEEN.clear()
+            _DECLINED_SEEN.add(key)
+            _log.warning("[split-heal declined] %s tf=%s declared %s r=%.4f: the step at %s is %.4f, "
+                         "outside the split-size band (F3b'); not healed", key[0], tf, d["declared"],
+                         float(d["ratio"]), d["at"], float(d["observed"]))
+        except Exception:  # noqa: BLE001 - a log line never breaks a serve
+            continue
+
+
 def unadjusted_splits(bars: list[dict],
                       splits: list[tuple[str, float]],
                       *, window: int = _SPLIT_BOUNDARY_WINDOW,
+                      declined: list | None = None,
                       ) -> list[tuple[date, float]]:
     """`[(boundary_date, ratio)]` — the declared splits this SERIES has NOT had
     applied, each paired with the date of the FIRST bar at the post-split scale.
@@ -479,10 +494,26 @@ def unadjusted_splits(bars: list[dict],
     STORE. The evidence it fires on is the discontinuity itself; once a series is
     adjusted the observed ratio at that boundary is ≈ 1 and no factor matches, so
     a second pass reports nothing and rewrites nothing.
+
+    ⛔ TWO MORE CONDITIONS (2026-11-20, tests/test_split_heal_guards.py):
+      * F3b': the step must also be the size of THIS split (`_within_split_size`). A candidate the
+        `_SPLIT_TOL` band accepts and this rejects is appended to `declined` (when given) as
+        `{"declared", "ratio", "at", "observed"}`, so a caller can name it instead of losing it.
+      * F3c: a zero-volume bar is never evidence. Each bar that traded is compared with the previous bar
+        that TRADED (a filler carries the prior close, so a split right after one is still seen); `v`
+        absent is unknown, not zero (session closes built from intraday bars carry none).
     """
     if not splits or len(bars) < 2:
         return []
     bar_dates = [_pd(b["t"]) for b in bars]
+    # F3c: the previous bar that traded, for every bar (None before the first one).
+    live = [b.get("v") is None or b.get("v") != 0 for b in bars]
+    prev_live: list[int | None] = []
+    last = None
+    for i, ok in enumerate(live):
+        prev_live.append(last)
+        if ok:
+            last = i
     out: list[tuple[date, float]] = []
     for sd_str, ratio in splits:
         sd = _pd(sd_str)
@@ -507,17 +538,32 @@ def unadjusted_splits(bars: list[dict],
             continue  # split outside the data range (after last / before first)
         lo, hi = max(1, anchor - window), min(len(bars) - 1, anchor + window)
         best: tuple[float, date, float] | None = None
+        best_declined: tuple[float, date, float] | None = None
         for i in range(lo, hi + 1):
-            if bar_dates[i] is None or bar_dates[i - 1] is None:
+            j = prev_live[i]
+            # F3c: only a bar that traded, against the previous bar that traded inside the window.
+            if not live[i] or j is None or j < lo - 1:
                 continue
-            c_prev, c_cur = bars[i - 1].get("c"), bars[i].get("c")
+            if bar_dates[i] is None or bar_dates[j] is None:
+                continue
+            c_prev, c_cur = bars[j].get("c"), bars[i].get("c")
             if not c_prev or not c_cur or c_prev <= 0 or c_cur <= 0:
                 continue
-            err = abs((c_prev / c_cur) / ratio - 1.0)
-            if err <= _SPLIT_TOL and (best is None or err < best[0]):
+            observed = c_prev / c_cur
+            err = abs(observed / ratio - 1.0)
+            if err > _SPLIT_TOL:
+                continue
+            if not _within_split_size(observed, ratio):
+                if best_declined is None or err < best_declined[0]:
+                    best_declined = (err, bar_dates[i], observed)
+                continue
+            if best is None or err < best[0]:
                 best = (err, bar_dates[i], ratio)
         if best is not None:
             out.append((best[1], best[2]))
+        elif best_declined is not None and declined is not None:
+            declined.append({"declared": sd.isoformat(), "ratio": ratio,
+                             "at": best_declined[1].isoformat(), "observed": best_declined[2]})
     return out
 
 
@@ -609,12 +655,18 @@ def _apply_split_adjust(bars: list[dict], splits: list[tuple[str, float]],
 
 
 # ── Step 3: lone bad-bar wick clamp (daily only) ────────────────────────────
-def _clamp_wicks(bars: list[dict]) -> list[dict]:
+def _clamp_wicks(bars: list[dict], keep: dict | None = None) -> list[dict]:
     """Clamp a single absurd wick the body AND both neighbors disagree with —
     a provider bad print (e.g. NVDA 2024-06-10 high=195.95 vs body ~121). Very
     rare (≈1 bar in NVDA's 23-year history), so the conservative threshold never
-    touches a genuinely volatile bar (whose neighbors would also be elevated)."""
+    touches a genuinely volatile bar (whose neighbors would also be elevated).
+
+    ⭐ D1 (owner decision 2026-11-20): `keep` = {date: {field: value}} from the corrections ledger
+    (`bars_corrections.keep_wicks`): wicks a second vendor independently shows (PG's 2010-05-06 flash-crash low).
+    The clamp never trims those while the bar still holds that value. Everything else is trimmed as before,
+    including pre-vendor (Yahoo-sourced) bars, which no second vendor can confirm."""
     n = len(bars)
+    keep = keep or {}
     for i in range(n):
         b = bars[i]
         o, h, l, c = b.get("o"), b.get("h"), b.get("l"), b.get("c")
@@ -625,13 +677,24 @@ def _clamp_wicks(bars: list[dict]) -> list[dict]:
         nh = bars[i + 1]["h"] if i < n - 1 else h
         pl = bars[i - 1]["l"] if i > 0 else l
         nl = bars[i + 1]["l"] if i < n - 1 else l
+        kd = keep.get(str(b.get("t"))[:10]) if keep else None
         # Upper wick: high far above the body AND above both neighbors' highs.
         if body_hi > 0 and h > body_hi * _WICK and h > max(ph, nh) * _WICK:
-            b["h"] = round(max(body_hi, ph, nh), 4)
+            if not (kd and _kept(kd.get("h"), h)):
+                b["h"] = round(max(body_hi, ph, nh), 4)
         # Lower wick: low far below the body AND below both neighbors' lows.
         if l > 0 and body_lo > 0 and l < body_lo / _WICK and l < min(pl, nl) / _WICK:
-            b["l"] = round(min(body_lo, pl, nl), 4)
+            if not (kd and _kept(kd.get("l"), l)):
+                b["l"] = round(min(body_lo, pl, nl), 4)
     return bars
+
+
+def _kept(value, current) -> bool:
+    """Does the ledger's keep value still describe this bar's wick?"""
+    if value is None:
+        return False
+    from api.services import bars_corrections as _cor
+    return _cor.same_value(current, value)
 
 
 # ── Store repair hand-off ───────────────────────────────────────────────────
@@ -874,7 +937,9 @@ def _repair_stored(ticker: str, bars: list[dict], tf: str) -> list[dict]:
         # its output is not a kill switch; it is the `lesson_gate_that_cannot_fail`
         # shape, and it cost a repair attempt that looked like a no-op.
         if meta and meta.get("splits") and split_adjust_active():
-            unadjusted = unadjusted_splits(bars, meta["splits"])
+            declined: list = []
+            unadjusted = unadjusted_splits(bars, meta["splits"], declined=declined)
+            _note_declined(ticker, tf, declined)
             if unadjusted:
                 bars = _apply_split_adjust(bars, meta["splits"], unadjusted)
                 # ⭐ THE SERVED COPY IS NOW RIGHT AND THE STORE IS STILL WRONG,
@@ -904,12 +969,21 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     bug here can never blank a chart. Intraday timeframes pass through untouched."""
     if not _ENABLED or not bars or tf not in ("D", "W", "M"):
         return bars
+    # ⭐ THE PUBLISHED CORRECTIONS LEDGER (bars_corrections), FIRST: its entries were measured on the STORED rows, so
+    # they compare-and-set against the rows as stored, before any repair moves them (listing cutoff, identity, split
+    # heal) and before the clamp. A rebuilt series gets its own entries inside bars_rebuild.apply.
+    try:
+        from api.services import bars_corrections as _cor
+        bars = _cor.apply(ticker, tf, bars, "store")
+    except Exception as e:  # noqa: BLE001 - the uncorrected bars still serve
+        _log.warning("corrections skipped for %s tf=%s: %s", ticker, tf, e)
     # ⭐ A ticker whose history was REBUILT from one checked source (bars_rebuild: the vendor's official
     # daily files per company, one split basis, checked day by day against an independent vendor) serves
     # it through the rebuild's last session, and its W / M from it. The stored-patchwork repairs
     # (`_repair_stored`: another security's or another company's bars, unapplied splits) are not run over
     # it again. Not on the served list -> nothing changes here.
     served = None
+    src = "store"
     try:
         from api.services import bars_rebuild as _reb
         if _reb.active(ticker):
@@ -918,12 +992,20 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
                 # ⛔ EXCEPT the split heal. The rebuild is on the basis of the day it was built; a split
                 # after that puts the store's newer bars on a new basis and the rebuilt ones not, and the
                 # chart would draw the cliff. The one detector finds it the same way it does in the store.
+                # ⛔ F3a (2026-11-20): ONLY the splits declared after the rebuild's `end`. The rebuild
+                # already carries every split up to it (one split basis). Re-running the heal over
+                # those rescaled production's HUBB 1977 x0.75 on a stale-quote step (tests/
+                # test_split_heal_guards.py).
                 meta = _meta_cached(ticker)
                 if meta and meta.get("splits") and split_adjust_active():
-                    unadjusted = unadjusted_splits(rebuilt, meta["splits"])
+                    later = _declared_after(meta["splits"], _reb.status().get("end"))
+                    declined: list = []
+                    unadjusted = unadjusted_splits(rebuilt, later, declined=declined) if later else []
+                    _note_declined(ticker, tf, declined)
                     if unadjusted:
-                        rebuilt = _apply_split_adjust(rebuilt, meta["splits"], unadjusted)
+                        rebuilt = _apply_split_adjust(rebuilt, later, unadjusted)
                 served = rebuilt
+                src = "rebuild"
     except Exception as e:  # noqa: BLE001 - the stored path below still serves
         _log.warning("rebuilt history skipped for %s tf=%s: %s", ticker, tf, e)
     if served is None:
@@ -938,7 +1020,13 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     # TestRebuiltSeriesGetsTheOneClamp.
     if tf == "D":
         try:
-            served = _clamp_wicks(served)
+            keep = {}
+            try:
+                from api.services import bars_corrections as _cor_keep
+                keep = _cor_keep.keep_wicks(ticker, src)
+            except Exception:  # noqa: BLE001 - no ledger answer: the clamp trims as before
+                keep = {}
+            served = _clamp_wicks(served, keep)
         except Exception as e:  # noqa: BLE001 - never blank a chart
             _log.warning("wick clamp failed for %s: %s", ticker, e)
     return served

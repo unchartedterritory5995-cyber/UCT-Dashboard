@@ -314,9 +314,9 @@ class TestRebuiltSeriesGetsTheOneClamp:
         rebuilt_volume(self._gross())
         real, seen = bs._clamp_wicks, []
 
-        def spy(bars):
+        def spy(bars, keep=None):                     # keep: D1's ledger verdicts (bars_corrections.keep_wicks)
             seen.append(bars)
-            return real(bars)
+            return real(bars, keep)
 
         monkeypatch.setattr(bs, "_clamp_wicks", spy)
         out_reb = bs.sanitize_daily_bars(REB_SYM, _stored(), "D")
