@@ -14,6 +14,11 @@ Measured 2026-10-30 on `origin/master` @ `dadccbc98d`. Machine-readable twin:
 > page below are the 2026-10-30 ones (185 of 679); the definitions and the re-run procedure here
 > still apply.
 
+> **The full population (2026-11-20): [`COVERAGE-MAP-FULL-2026-11-20.md`](COVERAGE-MAP-FULL-2026-11-20.md)**,
+> the same census over all 5,091 open-source scripts we fetched (engine 87, GitHub runners): members are
+> served 1,831 (36.0%) against 295 of 679 (43.4%) in the same run. It sits BESIDE this line:
+> `coverage-map.json` and `parity-roadmap.json` stay the 679-script comparable series.
+
 Owner goal: paste any open-source Pine script and get the same result as TradingView.
 This page measures the distance to that goal against the **whole** Pine v6 language,
 weights it by what real scripts use, and ranks the work.

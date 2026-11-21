@@ -625,6 +625,16 @@ LANE_PRODUCTION = "production"
 LANE_RUNTIME_ON = "runtime-on"
 
 
+SAMPLE_POPULATIONS = ("committed", "reference", "builtin")
+
+
+def populations_of(scripts):
+    """The populations a map counts: the 679 sample's three, always and in this order (a sample map is unchanged),
+    then any other a census measured (the full population's `ecosystem`, tools/pine_coverage/census_full.py), sorted."""
+    extra = sorted({s["population"] for s in scripts} - set(SAMPLE_POPULATIONS))
+    return list(SAMPLE_POPULATIONS) + extra
+
+
 def read_census(cache, lane, what):
     """census.jsonl as {key: row}, refusing rows of another lane."""
     census = {}
@@ -1001,7 +1011,7 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
         if r.get("reachedAfterPeel"):
             enumerated += 1
     by_pop = {}
-    for pop in ("committed", "reference", "builtin"):
+    for pop in populations_of(scripts):
         ks = [s["key"] for s in scripts if s["population"] == pop]
         by_pop[pop] = {"scripts": len(ks), "transfer": sum(1 for k in ks if k in on)}
     attached_rt = sorted(s["key"] for s in scripts if (rows[s["key"]].get("steps") or [{}])[0].get("lane") == "runtime"
@@ -1349,7 +1359,7 @@ def main():
         return round(100.0 * n / d, 1) if d else None
 
     by_pop = {}
-    for pop in ("committed", "reference", "builtin"):
+    for pop in populations_of(scripts):
         ss = [s for s in scripts if s["population"] == pop]
         by_pop[pop] = {"scripts": len(ss), "transfer": sum(1 for s in ss if s["clean"]),
                        "attached": sum(1 for s in ss if s["attached"]),

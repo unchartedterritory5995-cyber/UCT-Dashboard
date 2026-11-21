@@ -9,10 +9,14 @@
 // puts back if the server refuses (useSavedScreens.setRsAlert). A refusal says so here, in one
 // short sentence, and the switch is back where it was.
 //
-// A native button with role="switch": Tab reaches it, Enter and Space press it, and a screen
-// reader hears the label, "switch", on or off, then what it does. The visible On / Off word is
-// hidden from it (the switch state already says it).
+// The shared switch (components/ui/Switch, a native button with role="switch"): Tab reaches it,
+// Enter and Space press it, and a screen reader hears the label, "switch", on or off, then what it
+// does. The label is a real <label> for the switch (a click on it presses the switch), and the
+// visible On / Off word is hidden from it (the switch state already says it).
+// ⚰️ 2026-11-20: this was a hand-rolled role="switch" button holding its own label, which
+// formControls.census.test.js names as a new hand-rolled switch; the owner's ruling is the one switch.
 import { useId, useState } from 'react'
+import Switch from '../../../components/ui/Switch'
 import { RS_ALERT_LABEL, RS_ALERT_FAILED, rsAlertHint } from './rsAlerts'
 import focus from './FocusScreener.module.css'
 import styles from './RsScreens.module.css'
@@ -23,6 +27,8 @@ export default function RsAlertToggle({ screenName, on, onSet }) {
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const hintId = useId()
+  const switchId = useId()
+  const labelId = useId()
   const hint = rsAlertHint(screenName)
   const press = async () => {
     if (busy) return
@@ -35,11 +41,10 @@ export default function RsAlertToggle({ screenName, on, onSet }) {
   }
   return (
     <span className={styles.alert} data-testid="rs-alert">
-      <button type="button" role="switch" aria-checked={!!on} aria-describedby={hintId} aria-busy={busy || undefined}
-        className={`${focus.linkBtn} ${styles.alertToggle}`} title={hint} onClick={press}>
-        <span className={styles.alertLabel}>{RS_ALERT_LABEL}</span>
-        <span aria-hidden="true" className={on ? styles.alertOn : styles.alertOff}>{on ? 'On' : 'Off'}</span>
-      </button>
+      <Switch id={switchId} checked={!!on} aria-labelledby={labelId} aria-describedby={hintId} aria-busy={busy || undefined}
+        className={`${focus.linkBtn} ${styles.alertToggle}`} knobClassName={styles.alertKnob} title={hint} onClick={press} />
+      <label id={labelId} htmlFor={switchId} className={styles.alertLabel}>{RS_ALERT_LABEL}</label>
+      <span aria-hidden="true" className={on ? styles.alertOn : styles.alertOff}>{on ? 'On' : 'Off'}</span>
       <span id={hintId} className="sr-only">{hint}</span>
       {failed && <span role="alert" className={styles.alertFailed}>{RS_ALERT_FAILED}</span>}
     </span>

@@ -144,8 +144,8 @@ function Field({ name, choices, value, answer, active, state, onPick, onFocus, h
       </div>
       <div className={`${t.choices} ${choices.length === 4 ? t.four : ''}`}>
         {choices.map((c, i) => (
-          <Tile key={c} n={i + 1} i={i} label={c} role="radio" checked={value === i} state={tileState(i)} disabled={!asking}
-            onClick={() => onPick(i)} testId={`ticket-${name}-${i}`} className={t.tile} />
+          <Tile key={c} n={i + 1} i={i} role="radio" checked={value === i} state={tileState(i)} disabled={!asking}
+            onClick={() => onPick(i)} testId={`ticket-${name}-${i}`} className={t.tile}>{c}</Tile>
         ))}
       </div>
     </div>

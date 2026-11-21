@@ -825,6 +825,12 @@ class TestAClaimNobodyCanServeIsNotProcessing:
         assert d["pagesAwaitingOcr"] == 1
         assert d["ocrUnavailable"] is True
 
+    # ⛔ 2026-11-21: the one test in this class that needs the REAL binary (`_TESS_BIN`), so it alone is skipped
+    # where there is none; the class's other tests use the fake adapter and run everywhere. It went red on the
+    # remote tests lane, which has no tesseract. It is still gated: .github/workflows/ocr-linux-cert.yml's
+    # `tesseract-tests` job installs tesseract and refuses a skip (tests/test_ocr_tesseract_lane.py holds both).
+    @pytest.mark.skipif(_TESS_BIN is None,
+                        reason="no tesseract binary on this machine: the member-facing chain needs the real engine")
     def test_the_member_facing_chain_ends_at_a_navigable_page(self, env, monkeypatch):
         # ⛔⛔ A SERVICE RAIL IS NOT A ROUTE RAIL. The test above proves the
         # pipeline; this one proves the DOOR — the member searches, and what

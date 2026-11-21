@@ -130,7 +130,31 @@ def capture_store() -> pathlib.Path:
 CAPTURE_PHASES = ("insession", "postclose-open", "postclose-fresh", "preopen")
 #: The optional `-<phase>` an id may end with, as a regex fragment (every id pattern appends it; built from the tuple).
 PHASE_SUFFIX_RX = "(?:-(?:" + "|".join(re.escape(p) for p in CAPTURE_PHASES) + "))?"
-_ID_RX = re.compile(r"^(.*)-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}(" + PHASE_SUFFIX_RX + ")$")
+
+#: ⭐⭐ THE ONE SESSION VOCABULARY (coordinator rulings 2026-11-21: #2134, and the queue's session dimension). The
+#: session a US listing's chart resolves to, as TradingView reports it (`symbolInfo().session`) and as every capture
+#: records it (`symbol.session`): extended hours 04:00-20:00, regular hours 09:30-16:00. Defined HERE only:
+#: `batch_capture.py` (a row's session, READ after its resolution) and `evidence_engine.py` (a queue target's session,
+#: matched against what each capture RECORDED) import it and never restate it.
+SESSIONS = {"extended": "0400-2000", "regular": "0930-1600"}
+#: What a capture id says of a row's NAMED session (`batch_capture.capture_id_for`), between its timeframe and its date:
+#: `vw-clock-vwap-spy-5-ext-2026-09-28`, `vw-time-session-spy-60-rth-2026-09-28`. One entry per SESSIONS key.
+SESSION_SUFFIX = {"extended": "-ext", "regular": "-rth"}
+#: The optional session suffix of an id, as a regex fragment (built from SESSION_SUFFIX). ⚰️ Until 2026-11-21 no id
+#: pattern had it: `script_key` returned a whole `-rth` id, `capture_phase` lost a phase after one, and the promotion
+#: gate (`evidence_engine.TAIL_RX` / `ID_RX`) refused every capture a regular-hours row would write.
+SESSION_SUFFIX_RX = "(?:" + "|".join(re.escape(s) for s in SESSION_SUFFIX.values()) + ")?"
+_ID_RX = re.compile(r"^(.*)-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])" + SESSION_SUFFIX_RX + r"-\d{4}-\d{2}-\d{2}("
+                    + PHASE_SUFFIX_RX + ")$")
+
+
+def capture_session(capture: dict):
+    """The session a capture RECORDED (`symbol.session`, read by the capture itself), as a SESSIONS key: 'regular',
+    'extended', or None for any other hours ('24x7', '1700-1600', ...) or none recorded. ⛔ Never read off the id or a
+    row label: an id says what was ASKED (`vw-bi-time-close-2arg-spy-60-2026-11-19` was asked for regular hours and
+    recorded 0400-2000)."""
+    sess = ((capture or {}).get("symbol") or {}).get("session") if isinstance(capture, dict) else None
+    return next((k for k, v in SESSIONS.items() if v == sess), None)
 
 
 def script_key(capture_id: str) -> str:

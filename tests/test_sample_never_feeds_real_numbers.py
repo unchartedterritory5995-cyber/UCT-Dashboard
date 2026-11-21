@@ -493,6 +493,13 @@ EXEMPT = {
                                                              "links become in-app links; the note itself",
     "api/services/journal_two/note_connectors/providers/obsidian.py": "the Obsidian sync writes and reconciles the "
                                                                       "member's vault notes; the note itself",
+    # Import a tweet (#987, 8cac747d65 / dd1965db4b, 2026-11-09): unclassified here since, and this file went red on it.
+    "api/services/journal_two/tweet_capture.py": "saves an imported post into the member's own note as a cited "
+                                                 "excerpt (document, page, excerpt) and reads those rows back only to "
+                                                 "de-duplicate and stamp it; the note itself, never a count or fact shown",
+    "api/services/journal_two/tweet_capture_sync.py": "the nightly removal of saved posts that left X: which tweet "
+                                                      "ids are captured and whether a note still holds one; "
+                                                      "bookkeeping on the member's own captures, never a shown number",
 }
 for _name in ("ai_actions", "ask_retrieval", "attachment_gc", "capture_destinations", "document_ocr",
               "document_search", "excerpt_search", "note_computed", "note_connectors/engine", "note_mentions",

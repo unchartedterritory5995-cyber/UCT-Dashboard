@@ -160,7 +160,7 @@ export default function ThemeBoardPanel({ win: winProp = null }) {
       {!board.leaders.length && !board.laggards.length ? (
         <PanelState kind="empty" compact testId="terminal-thms-empty" title={`No theme has a ${period} return yet.`}>Try another period.</PanelState>
       ) : (
-        <div className={styles.split}>
+        <div className={`${styles.split} ${styles.splitRoomy}`}>
           <BoardTable title={`Leading (${board.leaders.length})`} rows={board.leaders} period={period} testId="terminal-thms-leaders" />
           <BoardTable title={`Lagging (${board.laggards.length})`} rows={board.laggards} period={period} testId="terminal-thms-laggards" />
         </div>

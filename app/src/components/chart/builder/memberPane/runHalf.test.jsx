@@ -195,6 +195,10 @@ describe('⭐⭐ the door mints a run half for a host-partial script', () => {
     expect(Number(m[1])).toBe(storedBytesOf(d.definition))
     expect(Number(m[1])).toBeGreaterThan(Number(m[2]))
     expect(Number(m[3])).toBeLessThan(Number(m[1]))
+    // ⭐ ITEM 2 — the preview is still this host answer; what Add keeps is decided on the SAME count
+    // (`oversizeKeep.test.jsx` holds the rest)
+    expect(d.definition.compute.kind).toBe('ast')
+    expect(d.oversize && d.oversize.bytes).toBe(Number(m[1]))
   }, 240000)
   it('A6 CONTROL — where the run half is what passes the cap (dual-view-htf), the sentence still says so', () => {
     const d = door(committed('dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b'))

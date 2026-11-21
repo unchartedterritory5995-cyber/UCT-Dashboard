@@ -62,6 +62,8 @@ import { deviceClassOf } from './presentation/devicePresentation'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToast'
+import CreateIndicatorTopBarButton from './CreateIndicatorTopBarButton'
+import { chartForCreateIndicator, openCreateIndicatorOn } from './createIndicatorEntry'
 import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
 import useDoorParam from '../../hooks/useDoorParam'
 import PoppedLayout from './popout/PoppedLayout'
@@ -93,6 +95,7 @@ import { isSuspendedGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import { planLayoutUndo, layoutUndoDecision } from './layoutUndo'
 import { createGroupSymsStore } from './groupSymsStore'
+import { decideGroupShow, chartGroupKey } from '../../hooks/handoffGroups'
 // Owner 11-16: the "Switched to “X” · Undo" banner on a member's layout switch is OFF.
 const LAYOUT_SWITCH_BANNER = false
 
@@ -995,6 +998,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const setGroupSym = useCallback((color, sym) => {
     const repeat = groupsLastSetRef.current[color] === sym
     groupsLastSetRef.current[color] = sym
+    // ⭐⭐ ONE SYNCHRONOUS PASS FROM THE KEYDOWN (2026-11-21): before the symbol is written, the group's charts are
+    // asked whether every one of them can show it in this task (hooks/handoffGroups.js). When they all can, the
+    // decision goes out with the symbol and the charts take it in the ONE render the symbol arrives in: one
+    // commit, one frame. Otherwise each chart takes today's path (its handoff, then the group round).
+    if (!repeat && groupSymsStore.get()[color] !== sym) decideGroupShow(groupSymsStore, chartGroupKey(color), sym)
     if (!repeat) {
       groupsScanningRef.current = groupsScanTimerRef.current != null
       if (groupsScanTimerRef.current) clearTimeout(groupsScanTimerRef.current)
@@ -1013,7 +1021,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       }, wait)
       return next
     })
-  }, [writeGroups, setGroupSymsState])
+  }, [writeGroups, setGroupSymsState, groupSymsStore])
   useEffect(() => {
     // Leaving the board, or the page going away, saves a pending symbol now (a scan's save
     // can be 1.5 s out; a refresh inside that must still open on the symbol left).
@@ -3623,6 +3631,22 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       setPeriodSortPanel(panel ? { ...panel } : null)
     },
   }
+  // ⭐ THE TOP BAR'S "CREATE INDICATOR" (`createIndicatorEntry.js`). The chart is found AT THE PRESS, from
+  // what the refs hold then: the chart last clicked on this board, else the one the member is on, else the
+  // first in reading order. ⛔ Nothing here is state the board renders from on a chart switch.
+  const [createIndicatorMsg, setCreateIndicatorMsg] = useJournalToast()
+  const openCreateIndicatorFromTopBar = useCallback(() => {
+    closeToolbarMenus()
+    const clicked = selectedChartRef.current
+    const answer = openCreateIndicatorOn(chartForCreateIndicator({
+      apiById: chartApiByIdRef.current,
+      widgets: agentWidgetsRef.current,
+      selectedWidgetId: clicked && clicked.layoutId === dockActiveIdRef.current ? clicked.widgetId : null,
+      activeId: activeChartRef.current,
+    }))
+    if (!answer.ok) setCreateIndicatorMsg(answer.message)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refs and a state setter: all stable
+  }, [closeToolbarMenus])
   const inRouter = useInRouterContext()
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
@@ -4026,6 +4050,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         {/* Workspace-level capture-hotkey hint (fixed: it answers a keypress
             that has no widget anchor). Below the popup band (8500+). */}
         <JournalToast msg={jwHotkeyMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
+        <JournalToast msg={createIndicatorMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
         {/* TERM-001: a refused add, or a board already over the bound, is stated in words.
             Nothing is removed from an over-bound board; it simply cannot grow. */}
         {/* ⭐ A1.3b — a member's layout open, undoable under the Agent's rules. When the
@@ -4301,6 +4326,10 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             )}
           </div>
           )}
+
+          {/* CREATE INDICATOR: the page's one visible door to the builder (`createIndicatorEntry.js`).
+              A direct child of the header and never inside a `toolbarBtnGroup`: it opens no menu. */}
+          {!gridMode && <CreateIndicatorTopBarButton className={styles.tbSoft} onOpen={openCreateIndicatorFromTopBar} />}
 
           {gridMode && (
             <button type="button" className={styles.tbSoft} data-guide="workspace.exitGrid" onClick={mc.exitGrid}>

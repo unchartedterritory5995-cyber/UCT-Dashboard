@@ -261,8 +261,11 @@ describe('S3 — a region holding history is drawn while it has run on every bar
     // `ta.sma` per call site is witnessed (C48 C03 / H03): served for any run pattern
     expect(run(body('ta.sma')).out).toBeTruthy()
     // `ta.stdev` shares its run ring and was served per call site on that ground alone: now refused
+    // ⭐ A4 (feat/a4-param-branch-checked) — at BUILD until A4; now the per-bar `v` compiles a copy whose branch is
+    // CHECKED, so it is never drawn off every call: the run stops by name at the first call the branch skips
     const r = run(body('ta.stdev'))
-    expect(r.refusal && r.refusal.guard).toBe(R4)
+    expect((r.refusal && r.refusal.guard) || (r.stop && r.stop.guard)).toBe(R4)
+    expect(r.out).toBeUndefined()
   })
 
   it('⛔ not in a loop, not in the drawing build', () => {

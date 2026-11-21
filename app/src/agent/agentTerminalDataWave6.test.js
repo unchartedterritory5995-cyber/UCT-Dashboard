@@ -7,7 +7,7 @@
 // notes never echoed), served vs dark (each registers only while the server lists ITS kind), local-only on both sides, the
 // manifest text limits, the one read each answer makes with the member's arguments (a measure, a scope and a side read by
 // the panels' own word maps), and the cross-file facts read from the other file (never retyped).
-// Routing: the five share ONE words-only group (`marketRecords`, the 48th and LAST of the 48 the server keeps). Each
+// Routing: the five share ONE words-only group (`marketRecords`, the 48th, the last of the 48 the server kept then). Each
 // capability's own words are on that group only while it is registered (a dark server's routing is routing.js's own), every
 // plain ask reaches its capability under v1 and v2, the group never rides the fill, and the words stay off other
 // capabilities' language: open interest in futures and positioning (COT), a dividend yield, win rates, a named year's
@@ -34,6 +34,9 @@ import { HORIZONS, SOURCE as RATES_SOURCE, ratesRead } from '../pages/terminal/p
 import { LIVE_WORDS } from './capabilities/terminalDataFormat'
 import { _resetCotForTest, CAPABILITY as COT_CAPABILITY, KIND as COT_KIND } from './capabilities/cot'
 import { _resetTerminalDataForTest } from './capabilities/terminalData'
+import { CAPABILITIES as WAVE7_CAPS } from './capabilities/terminalDataWave7'
+import { CAPABILITIES as WAVE8_CAPS } from './capabilities/terminalDataWave8'
+import { CAPABILITIES as WAVE9_CAPS } from './capabilities/terminalDataWave9'
 import { _resetTerminalLocalForTest, TERMINAL_ROUTE_WORDS } from './capabilities/terminalDataLocal'
 import { _resetTerminalWave2ForTest, WAVE2_ROUTE_WORDS } from './capabilities/terminalDataWave2'
 import { _resetTerminalWave3ForTest, WAVE3_ROUTE_WORDS } from './capabilities/terminalDataWave3'
@@ -771,17 +774,18 @@ describe('routing words', () => {
   beforeEach(() => { reset(); vi.restoreAllMocks() })
   afterEach(() => { reset(); globalThis.fetch = realFetch })
 
-  it('the group is words-only and never a filler, routing.js lists the five by action with no word of its own, and NO group is left', () => {
+  it('the group is words-only and never a filler, routing.js lists the five by action with no word of its own, and it is the 48th group', () => {
     const g = ownGroup()
     expect(g.wordsOnly && g.fillLast).toBe(true)
     expect(g.words).toEqual([])                                      // server-armed: empty until a capability registers
     expect([...g.actions].sort()).toEqual([...ALL].sort())
     expect(g.domains).toEqual([])
     expect(g.title.length).toBeLessThanOrEqual(160)                  // the server cuts a group title at 160 characters (turn.py validate_routing)
-    // the server keeps only MAX_GROUPS groups: this wave's is the 48th of 48, so NONE is left, and the cap is not raised
+    // the server keeps only MAX_GROUPS groups: this wave's is the 48th, the last of the 48 kept when it was built. Wave 7's build
+    // raised the cap to 56 on 2026-11-20 for its own group (agentTerminalDataWave7.test.js pins the count as it stands)
     const max = Number(/^MAX_GROUPS\s*=\s*(\d+)\s*$/m.exec(py('api/services/uct_agent/turn.py'))[1])
-    expect([GROUPS.length, max, max - GROUPS.length]).toEqual([48, 48, 0])
-    expect(GROUPS.map(x => x.id).slice(-3)).toEqual([WAVE4_GROUP, WAVE5_GROUP, ROUTE_GROUP])
+    expect([GROUPS.map(x => x.id).indexOf(ROUTE_GROUP) + 1, max, GROUPS.length <= max]).toEqual([48, 56, true])
+    expect(GROUPS.map(x => x.id).slice(45, 48)).toEqual([WAVE4_GROUP, WAVE5_GROUP, ROUTE_GROUP])
     expect(new Set(GROUPS.map(x => x.id)).size).toBe(GROUPS.length)
     // no action of this wave is in any other group's list
     for (const other of GROUPS.filter(x => x.id !== ROUTE_GROUP)) for (const n of ALL) expect(other.actions || [], `${other.id}: ${n}`).not.toContain(n)
@@ -891,11 +895,15 @@ describe('routing words', () => {
 
   const FIXED_WORDS = ['etfs', 'median', 'seasonality', 'tide', 'treasury', 'yields']
   it('the typo lexicon: registering the five changes no correction of any OTHER capability\'s capreg corpus phrasing', async () => {
-    // A summary's and a hint's lowercase words join the typo lexicon (nl/lexicon.js). This wave's own phrasings are left out.
+    // A summary's and a hint's lowercase words join the typo lexicon (nl/lexicon.js). This wave's own phrasings are left out,
+    // and so are the LATER waves' (7 to 9): they were written with this wave's words already known ("treasury", "yields"),
+    // and each later wave pins its own corrections in its own test file (agentTerminalDataWave7/8/9.test.js).
+    const LATER = new Set([...Object.values(WAVE7_CAPS), ...Object.values(WAVE8_CAPS), ...Object.values(WAVE9_CAPS)])
+    expect(LATER.size).toBe(12)
     wire([])
     await loadAgentConfig()
     registerServerGatedBuiltins()
-    const texts = [...new Set(allPhrasings().filter(p => !ALL.includes(p.intent.id)).map(p => p.ph.text)), 'walk me through the setup on NVDA', 'wipe the Momentum list', 'sort ascending by change', 'ascending order',
+    const texts = [...new Set(allPhrasings().filter(p => !ALL.includes(p.intent.id) && !LATER.has(p.intent.id)).map(p => p.ph.text)), 'walk me through the setup on NVDA', 'wipe the Momentum list', 'sort ascending by change', 'ascending order',
       'show me the leeders', 'chnage the theme', 'make it shorter', 'sorted results', 'hover over it', 'recover the layout', 'floating window', 'rank them', 'interesting names today', 'whats the reprot date',
       'the newst one', 'offen', 'the sme one', 'bset setups', 'frist one', 'munth view', 'each one', 'ago', 'weak names', 'the bord', 'yeild', 'curv', 'sesonal', 'maturity', 'a yaer', 'monts', 'quoet',
       'avrage', 'stoks', 'calender', 'weekdya', 'sesion', 'backfil', 'contrat', 'basis ponts', 'spraed', 'positoning', 'dividned']

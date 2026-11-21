@@ -770,8 +770,11 @@ def _client(user):
 
 
 def test_the_route_is_paid_and_a_refused_caller_never_reaches_the_service(monkeypatch):
+    from api.services import treasury_real_yields as real
     asked = []
     monkeypatch.setattr(ty, "get_yields", lambda: asked.append("yields") or {"status": "ok", "as_of": "2026-11-17"})
+    # the real yield block is its own service (tests/test_treasury_real_yields.py): stood in for here, so no test reaches the Treasury
+    monkeypatch.setattr(real, "get_real", lambda **kw: asked.append("real") or {"status": "computing"})
     paths = {r.path: r for r in route.router.routes}
     assert set(paths) == {URL}
     assert paths[URL].methods == {"GET"}
@@ -779,14 +782,16 @@ def test_the_route_is_paid_and_a_refused_caller_never_reaches_the_service(monkey
     assert _client(None).get(URL).status_code == 401
     assert _client(FREE_USER).get(URL).status_code == 402
     assert asked == []
-    assert _client(PAID_USER).get(URL).json() == {"status": "ok", "as_of": "2026-11-17"}
-    assert asked == ["yields"]
+    assert _client(PAID_USER).get(URL).json() == {"status": "ok", "as_of": "2026-11-17", "real": {"status": "computing"}}
+    assert asked == ["yields", "real"]
 
 
 def test_a_refused_source_is_a_200_answer_not_an_error_status(monkeypatch):
+    from api.services import treasury_real_yields as real
     monkeypatch.setattr(ty, "get_yields", lambda: {"status": "unavailable", "reason": "refused", "http_status": 403})
+    monkeypatch.setattr(real, "get_real", lambda **kw: pytest.fail("the real yield block is asked for only beside an ok nominal answer"))
     resp = _client(PAID_USER).get(URL)
-    assert resp.status_code == 200 and resp.json()["status"] == "unavailable"
+    assert resp.status_code == 200 and resp.json() == {"status": "unavailable", "reason": "refused", "http_status": 403}
 
 
 def test_the_route_is_mounted_on_the_app():

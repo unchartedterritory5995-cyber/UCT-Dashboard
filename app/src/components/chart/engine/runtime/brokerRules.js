@@ -92,7 +92,7 @@ export const BROKER_RULES = Object.freeze({
   // own so that each is pinned by its own witnesses: the evidence table, capture by capture, is
   // `docs/pine/evidence/2026-11-15-strategy-readbacks/EVIDENCE.md`, re-derived from the captures alone by
   // `__tests__/vendorHarness/strategyReadbackWitness.test.js`. Asked only when a run REACHES the case.
-  'B-ROUND': Object.freeze({ capture: 'Q-S1l', what: 'a market order (an entry, strategy.order, strategy.close, strategy.close_all) or a stop order the open reached that fills on a bar open off the tick grid fills at that open rounded to the nearest tick, a tie up' }),
+  'B-ROUND': Object.freeze({ capture: 'Q-S1l', what: 'a market order (an entry, strategy.order, strategy.close, strategy.close_all) or a stop order the open reached that fills on a bar open off the tick grid fills at that open rounded to the nearest tick, a tie up, the tie read on the float quotient open / mintick (a quotient a hair under the half rounds down: AAPL 145.265 fills at 145.26, Q-SU-8)' }),
   'B-ROUND-MARK': Object.freeze({ capture: 'W9-R1i', what: 'strategy.openprofit (and so strategy.equity) marks open trades at the bar close rounded to the nearest tick, a tie up, when that close is off the tick grid' }),
   'B-TXT-CLOSE-ID': Object.freeze({ capture: 'Q-S1p', what: 'strategy.closedtrades.exit_id of a trade strategy.close(id) closed reads "Close entry(s) order <id>"' }),
   'B-TXT-CLOSE-ALL-ID': Object.freeze({ capture: 'Q-S1-core', what: 'strategy.closedtrades.exit_id of a trade strategy.close_all() closed reads "Close position order"' }),
@@ -121,6 +121,8 @@ export const BROKER_RULES = Object.freeze({
   'B-ROUND-LEVEL': Object.freeze({ capture: 'Q-S1l', what: 'a short\'s strategy.exit level off the tick grid (its stop-loss, a buy stop; its take-profit, a buy limit) that the bar\'s path reaches fills at the first tick at or past it in the direction the price travels: the stop the tick above, the limit the tick below' }),
   'B-QTY-REVERSE-M0': Object.freeze({ capture: 'Q-S1a', what: 'a market strategy.entry against every open trade (a reversal) at the percent-of-equity default 100, margins 0: the new size is floor(strategy.equity at the signal close, the open trades\' profit included, / that close); the order fills the open size plus it, and at margin 0 no funds check rejects it' }),
   'B-MARGIN-ZERO': Object.freeze({ capture: 'Q-S1b', what: 'at a margin of 0 for the position\'s direction nothing is margin-called or refused: an equity below zero is carried as it is' }),
+  // ── 2026-11-19, the strategy-only daily window (coordinator ruling D9). APPENDED, never inserted.
+  'B-START-DEEP': Object.freeze({ capture: 'Q-S1n', what: 'a daily chart holding the whole history of a symbol from its listing, deeper than the window a run was served at before (bars_window.HISTORY_WINDOW_BARS): the TradingView backtest starts at the listing, so the run takes every bar from it (capture rows Q-SU-7, AMEX:SPY 1D, and Q-SU-8, NASDAQ:AAPL 1D, docs/pine/capture-queue-2026-11-19-strategy-unit.md)' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))

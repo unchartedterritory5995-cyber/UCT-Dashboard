@@ -260,8 +260,10 @@ export const FUNCTIONS = [
     market: { panel: 'MarketNews' } },
   { code: 'REGM', label: 'Market regime and exposure call', group: 'Market',
     market: { panel: 'Regime' } },
+  // INS CLUSTER (2026-11-21): the stocks 3 or more insiders bought within 10 business days, built
+  // each night from the SEC's own Form 4 filings (GET /api/insider/clusters). Bare INS is unchanged.
   { code: 'INS', label: 'Insider buying (market-wide, last 7 days)', group: 'Market',
-    market: { panel: 'InsiderBuys' } },
+    market: { panel: 'InsiderBuys', args: [{ kind: 'insView', prop: 'view' }] } },
   { code: 'RSL', label: 'RS leaderboard (top names by RS rank)', group: 'Market',
     market: { panel: 'RsLeaders' } },
   // THMS 1W: the UCT theme leaderboard over a window (1D 1W 1M 3M; 1Y and YTD are chips in the panel).
@@ -578,6 +580,60 @@ export const FUNCTIONS = [
     ticker: { panel: 'DividendCalendar' }, market: { panel: 'DividendCalendar' } },
   { code: 'CACT', label: 'Corporate actions (splits, dividends, name changes)', group: 'Security',
     ticker: { panel: 'CorporateActions' } },
+  // AUCT (2026-11-21): the Treasury auctions coming up and the results of the recent ones
+  // (GET /api/research/treasury-auctions, read from the US Treasury's Fiscal Data service; the
+  // server holds one answer and looks for new records once each weekday evening). No argument.
+  // AUCT is not in the site's stock universe.
+  { code: 'AUCT', label: 'Treasury auctions (upcoming and recent results)', group: 'Market',
+    market: { panel: 'TreasuryAuctions' } },
+  // FED (2026-11-21): Fed watch. The newest FOMC statement with a word-level redline against the one
+  // before, live Fed headlines from the news wire's own store, the Board's speeches and testimony,
+  // this week's Fed speakers and the next meeting from the economic calendar, the policy rate, the
+  // officials' median rate projections and the New York Fed's Survey of Market Expectations
+  // (GET /api/research/fed-watch; the server reads the Board's and the New York Fed's public pages
+  // on its own schedule). No odds from futures prices. FED is not in the site's stock universe.
+  { code: 'FED', label: 'Fed watch (statements, speeches, Fed headlines, the next meeting)', group: 'Market',
+    market: { panel: 'FedWatch' } },
+  // ECON (2026-11-21): the economy board. The official prints that move markets, theme by theme
+  // (inflation, jobs, growth and spending, housing, rates), each with the print before, the change,
+  // the period, the release day and the next release from the release calendar, plus the releases
+  // due in the next 7 days (GET /api/econ/latest: the econ routes' own flag and gate, answered from
+  // what the econ service already published). No argument. ECO is a real stock (in the site's
+  // universe), so the code is ECON, which is not.
+  { code: 'ECON', label: 'Economy dashboard (CPI, jobs, GDP, spending, housing: last print, prior, next release)', group: 'Market',
+    market: { panel: 'Economy' } },
+  // LIQ (2026-11-21): liquidity. Net liquidity (the Fed's total assets minus the TGA minus overnight
+  // reverse repo, a UCT calculation on each H.4.1 Wednesday) with its 1, 4, 13 and 52-week change and
+  // two years of it, then the parts (the Fed's assets, the TGA weekly and daily, reverse repo, reserves,
+  // M2, SOFR). GET /api/econ/latest + GET /api/econ/series: the econ routes' own flag and gate, answered
+  // from what the econ service already published. No argument. LIQ is not in the site's universe.
+  { code: 'LIQ', label: 'Liquidity (Fed balance sheet, TGA, reverse repo, net liquidity)', group: 'Market',
+    market: { panel: 'Liquidity' } },
+  // OIL (2026-11-21): the EIA's weekly oil report. The week's crude build or draw (the econ service's own
+  // weekly change, a UCT calculation from the EIA's stock figures), when it came out and the next weekly
+  // report from the release calendar; each series' latest week, the week before, the change and the same
+  // week a year ago; two years of crude stocks (GET /api/econ/latest and /api/econ/series: the econ routes'
+  // own flag and gate). No argument. OIL is not in the site's stock universe.
+  { code: 'OIL', label: 'Weekly oil report (EIA: crude, gasoline, distillate stocks, production, refining, pump prices)', group: 'Market',
+    market: { panel: 'Oil' } },
+  // FUND (2026-11-21): one company's metrics over time, point in time from its SEC filings (revenue, EPS,
+  // margins, cash flow, and the valuation ratios composed with UCT's stored closes), one column per fiscal
+  // quarter, and up to three more companies beside it, lined up by calendar quarter. GET /api/fundamentals/
+  // pit/catalog + /series/{SYM} (FUNDAMENTALS_PIT_ENABLED, the chart-data gate) and, for a valuation row, the
+  // chart's weekly bars. `NVDA FUND AMD AVGO` compares (the tickers are ONE rest argument, so `FUND NVDA AMD`
+  // keeps NVDA as the stock); `NVDA FUND PE` draws P/E as a line; `NVDA FUND REV+EPS+ROE` picks the rows.
+  // FUND is not in the site's universe.
+  { code: 'FUND', label: 'Company metrics over time (revenue, EPS, margins, cash flow, valuation; point in time from SEC filings)', group: 'Security',
+    ticker: { panel: 'FundMetrics', args: [{ kind: 'fundMetric', prop: 'line' }, { kind: 'fundMetrics', prop: 'metrics' },
+      { kind: 'fundPeers', prop: 'peers', rest: true }] } },
+  // MKTH (2026-11-21): market history. Every decline of 10% or more in the S&P 500 or the Nasdaq-100
+  // on closing prices (a correction to 20%, a bear market past it), newest first, each with its peak,
+  // low, sessions down and the day the peak was regained; open one for the index 1, 3, 6 and 12 months
+  // after the low and the 25 stocks that rose most in the 63 sessions after it, with sector medians
+  // (GET /api/research/market-history, worked out by the server from its stored closes each evening).
+  // `MKTH NDX` for the Nasdaq-100. MKTH is not in the site's stock universe.
+  { code: 'MKTH', label: 'Market history (every correction and bear market, the rallies and their leaders)', group: 'Market',
+    market: { panel: 'MarketHistory', args: [{ kind: 'mkthIndex', prop: 'index' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -806,13 +862,14 @@ const FUNCTION_WORDS = {
   COMM: { keywords: ['community', 'chat'] },
   NEWS: { keywords: ['market news', 'news tape', 'headlines'] },
   REGM: { keywords: ['regime', 'market regime', 'exposure', 'market trend'] },
-  INS: { keywords: ['insider', 'insider buying', 'insiders', 'form 4'] },
+  INS: { keywords: ['insider', 'insider buying', 'insiders', 'form 4', 'cluster buys', 'insider clusters', 'insider cluster buys'] },
   RSL: { keywords: ['relative strength', 'rs rank', 'rs leaders', 'leaders'] },
   THMS: { example: 'THMS 1W', keywords: ['theme', 'themes', 'groups', 'industries', 'leading themes'] },
   SENT: { keywords: ['sentiment', 'aaii', 'naaim', 'fear and greed', 'put call', 'macro', 'economy'],
     note: 'The economy rows say so if that feed is switched off.' },
   RATES: { keywords: ['treasury yields', 'yield curve', 'interest rates', 'bond yields', '10 year yield', '2 year yield',
-    'inverted curve', '2s10s'], note: 'End-of-day figures, one a day.' },
+    'inverted curve', '2s10s', 'real yields', 'tips yields', 'breakeven inflation'],
+    note: 'End-of-day figures, one a day. Real yields and breakevens are their own block, with their own date.' },
   SCAT: { keywords: ['scatter', 'scatter plot', 'market map'] },
   HELP: { example: 'HELP CHK', keywords: ['help', 'functions', 'commands'] },
   RRG: { keywords: ['rotation', 'sector rotation', 'sectors'] },
@@ -892,6 +949,34 @@ const FUNCTION_WORDS = {
   CACT: { example: 'NVDA CACT', keywords: ['corporate actions', 'splits', 'stock split', 'dividend history', 'name change',
     'ticker change', 'past dividends'],
     note: 'Only what the server already holds for the stock: splits, dividends by ex-date and ticker changes.' },
+  AUCT: { example: 'AUCT', keywords: ['treasury auctions', 'auctions', 'bond auction', 'auction results', 'bid to cover',
+    'indirect bidders', 'treasury supply'],
+    note: 'Auctions ahead and the last 45 days of results. A result shows the evening of the auction day.' },
+  FED: { example: 'FED', keywords: ['fed', 'fomc', 'federal reserve', 'fed speakers', 'powell', 'fed statement', 'rate decision',
+    'fed headlines', 'dot plot', 'fed minutes'],
+    note: 'Statements, speeches and projections from the Board, live Fed headlines and a survey of market professionals. No odds from futures prices.' },
+  // 'economy' stays with SENT (its own keyword since wave 8).
+  ECON: { example: 'ECON', keywords: ['economic data', 'cpi', 'inflation', 'jobs report', 'payrolls', 'unemployment', 'gdp',
+    'retail sales', 'jobless claims', 'pce', 'housing starts'],
+    note: 'Official releases from the agencies, each with the print before and the next release date. No forecasts.' },
+  // 'fed' and 'federal reserve' stay with FED, 'treasury' with RATES. 'qt' and 'm2' are under the
+  // three-letter floor of the word search: 'quantitative tightening' and 'money supply' find LIQ.
+  LIQ: { example: 'LIQ', keywords: ['liquidity', 'net liquidity', 'fed balance sheet', 'reverse repo', 'rrp', 'tga',
+    'qt', 'quantitative tightening', 'm2', 'money supply', 'reserves'],
+    note: 'Net liquidity is a UCT calculation from the Fed and Treasury figures, each part beside it. No forecasts.' },
+  // None of these words was another code's keyword. 'spr' only reached RATES through "spreads" in its label (the
+  // lowest score); RATES still follows OIL for it. No keyword makes a generic word ("prices") find OIL.
+  OIL: { example: 'OIL', keywords: ['oil', 'crude', 'crude inventories', 'eia', 'oil inventories', 'gasoline', 'distillates',
+    'refinery', 'spr'],
+    note: "The EIA's own weekly figures, with the next report's date. No futures prices and no forecasts." },
+  // 'fundamentals', 'revenue', 'income statement' and 'financials' stay with FA, 'eps' with EE, 'valuation'
+  // with PEER: each of those words still finds its own function first.
+  FUND: { example: 'NVDA FUND', keywords: ['fundamentals history', 'metrics', 'revenue history', 'eps history', 'margins',
+    'fcf', 'roe', 'pe history', 'valuation history', 'financial history'],
+    note: "Point in time from SEC filings: each figure dated by when its filing became public. Valuation is composed with UCT's stored prices." },
+  MKTH: { example: 'MKTH', keywords: ['market history', 'corrections', 'bear market', 'drawdowns', 'rallies', 'past corrections',
+    'rally leaders'],
+    note: 'Every decline of 10% or more on closing prices, the rally after each low and its leaders. A record, not a forecast.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

@@ -4943,3 +4943,40 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
 - **Flow-worker.** Reaches `perplexity_search` through its import graph but never passes the new keyword, so it runs
   byte-identical behaviour on the old code (pinned by `test_RESEARCH_cost_rides_only_on_an_opted_in_call`).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal `ECON` economy dashboard + `GET /api/econ/latest` · `feat/terminal-eco` (PR #2376) · 2026-11-21
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: ADDITIVE, safe; NO marker bump** |
+| stranded file | `api/services/econ/serving.py` |
+
+- **Additive.** `latest()` is new; its only caller is the new `GET /api/econ/latest` route in `api/routers/econ.py`
+  (web). `_series_body()` is new.
+- **Refactor.** `series()` now builds its body through `_series_body()`: the same two reads (`_from_db` /
+  `_from_artifacts`) under the same cache key, moved, with no behaviour change (the econ serving and router suites
+  unchanged and green). The 5 deleted `api/` lines are that move.
+- **Flow-worker.** Reaches `econ.serving` through the market-intel series adapters' lazy imports and never calls
+  `latest()`; the older file it keeps running lacks only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal `OWN` Funds (13F) block: every 13F holder field on the ownership answer · `feat/terminal-holders-13f` · 2026-11-21
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded file | `api/services/research/ownership.py` |
+
+- **Additive.** `_thirteen_f()` passes on more of the FMP holder row it already fetched (the filer's CIK, the
+  filing date, the quarter end, last quarter's shares / value / percent of shares and the change in that percent,
+  the position's weight in the filer's portfolio now / last quarter / the change, the quarter-end price), adds
+  `total_shares` / `total_shares_change` to the summary and `holders_limit` to the block. The holders read's page
+  (`_TF_MAX_HOLDERS`) is 50 rows, was 12: still ONE call per symbol per quarter, same endpoint. Existing keys are
+  unchanged; the only caller that draws the new ones is the OWN panel (`GET /api/research/ownership/{sym}`, web).
+- **Flow-worker.** Reaches `research.ownership` only through a static import chain (`flow_worker_main` ->
+  `auth_surface_check` -> `flow_proxy` -> `auth_service` -> `auth_db` -> `journal_two.db` -> `template_gallery` ->
+  `notebook_widgets` -> `coach_chat_tools` -> `voice_tool_impls` -> `institutional_holdings` -> `research.ownership`,
+  the last hop a function-level import) and serves neither the ownership route nor the Compass tools at its end;
+  the older file it keeps running lacks only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
