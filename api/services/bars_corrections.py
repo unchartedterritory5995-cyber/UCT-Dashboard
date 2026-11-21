@@ -64,7 +64,12 @@ _CACHE_MAX = 64
 _CACHE_ENTRIES_MAX = 200_000
 
 _lock = threading.Lock()
-_state = {"version": 0, "symbols": frozenset(), "retired": frozenset(), "loaded": False}
+
+#: ⭐ PER-TICKER REVS (U5, 2026-11-21). The manifest's `revs` = {SYM: rev} for symbols AND retired: rev is the version
+#: at which THAT ticker last changed (its payload bytes, newly listed, re-listed, retired). Its payload lives at
+#: v<rev>/<SYM>.json.gz and its epoch is rev x EPOCH_STEP, so a publish that changes one ticker moves one ticker's
+#: history_rev, and every term only rises. A manifest without `revs` (the first versions) means rev = version for all.
+_state = {"version": 0, "symbols": frozenset(), "retired": frozenset(), "revs": {}, "loaded": False}
 _cache: dict = {}           # (sym, version) -> ({(tf, src): {date: [compact entry, ...]}}, n_entries)
 _counts: Counter = Counter()
 _thread: Optional[threading.Thread] = None
@@ -82,7 +87,8 @@ def _set_manifest(m: dict) -> None:
     with _lock:
         _state.update(version=int(m.get("version") or 0),
                       symbols=frozenset(str(s).upper() for s in (m.get("symbols") or ())),
-                      retired=frozenset(str(s).upper() for s in (m.get("retired") or ())), loaded=True)
+                      retired=frozenset(str(s).upper() for s in (m.get("retired") or ())),
+                      revs={str(k).upper(): int(v) for k, v in (m.get("revs") or {}).items()}, loaded=True)
         _cache.clear()
 
 
@@ -94,6 +100,12 @@ def load_local() -> bool:
         return False
     _set_manifest(m)
     return True
+
+
+def _rev(sym: str, revs=None, version=None) -> int:
+    """The version a ticker's payload was published at (its file locator and its epoch)."""
+    revs = _state["revs"] if revs is None else revs
+    return int(revs.get(sym) or (_state["version"] if version is None else version))
 
 
 def _write_atomic(path: Path, data: bytes) -> None:
@@ -138,14 +150,15 @@ def sync(client=None, bucket: Optional[str] = None) -> dict:
             _log.warning("[bars-corrections] %s", out["reason"])
             return out
         syms = sorted({str(s).upper() for s in (m.get("symbols") or ())})
-        d = local_dir() / f"v{version}"
+        revs = {str(k).upper(): int(v) for k, v in (m.get("revs") or {}).items()}
         for s in syms:
-            p = d / f"{s}.json.gz"
+            rv = _rev(s, revs, version)
+            p = local_dir() / f"v{rv}" / f"{s}.json.gz"
             if not p.exists():
-                body = client.get_object(Bucket=bucket, Key=f"{PREFIX}v{version}/{s}.json.gz")["Body"].read()
+                body = client.get_object(Bucket=bucket, Key=f"{PREFIX}v{rv}/{s}.json.gz")["Body"].read()
                 doc = decode_payload(body)                     # a body that does not parse is never kept
-                if int(doc.get("version") or -1) != version or str(doc.get("sym") or "").upper() != s:
-                    raise ValueError(f"payload for {s} does not name v{version}/{s}")
+                if int(doc.get("version") or -1) != rv or str(doc.get("sym") or "").upper() != s:
+                    raise ValueError(f"payload for {s} does not name v{rv}/{s}")
                 _write_atomic(p, body)
                 out["fetched"] += 1
         _write_atomic(local_dir() / "manifest.json", json.dumps(m).encode("utf-8"))
@@ -183,13 +196,14 @@ def _index(ticker: str) -> Optional[dict]:
     """{(tf, src): {date: [entry, ...]}} for `ticker`, or None (not listed, not on this volume, unreadable)."""
     if not active(ticker):
         return None
-    sym, version = str(ticker).upper(), _state["version"]
-    key = (sym, version)
+    sym = str(ticker).upper()
+    rv = _rev(sym)
+    key = (sym, rv)
     hit = _cache.get(key)
     if hit is not None:
         return hit[0]
     try:
-        doc = decode_payload((local_dir() / f"v{version}" / f"{sym}.json.gz").read_bytes())
+        doc = decode_payload((local_dir() / f"v{rv}" / f"{sym}.json.gz").read_bytes())
     except Exception:  # noqa: BLE001 - not on the volume (yet): nothing is applied
         return None
     idx: dict = {}
@@ -402,11 +416,11 @@ def history_epoch(ticker: str, tf: str) -> int:
         return 0
     sym = str(ticker or "").upper()
     if sym in _state["retired"]:
-        return int(_state["version"]) * EPOCH_STEP
+        return _rev(sym) * EPOCH_STEP
     # ⛔ Only while the payload is ON THIS VOLUME: a pod still syncing serves uncorrected bars and must not label
     # them with the newer history (a browser would keep them as the new history).
     if sym in _state["symbols"] and _index(sym) is not None:
-        return int(_state["version"]) * EPOCH_STEP
+        return _rev(sym) * EPOCH_STEP
     return 0
 
 
