@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { newAuthoringState } from './index'
+import { newAuthoringState, readback } from './index'
 import { modelTurn } from './authoringSession'
 import { keepAssistantName, keepAssistantLabel } from './readableName'
 import { computeHeadless } from '../../engine/headlessCompute.js'
@@ -53,12 +53,18 @@ describe('the assistant\'s opening range is applied, read back and named', () =>
 
   it('reads back in a member\'s words, and the derived labels are words too', async () => {
     const out = await build(OPENING_RANGE)
+    // ⭐ 2026-11-20 (owner's choice, "names only"): the FIRST answer names the outputs and points at the
+    // summary card; the engine's description of each is the card's (the read-back of the same definition).
+    // Both halves are held here, and neither may carry an engine name.
     const lines = out.entries.flatMap((e) => e.lines || []).join('\n')
-    expect(lines).toContain('the highest price of the first 30 minutes of the regular session')
-    expect(lines).toContain('the lowest price of the first 30 minutes of the regular session')
-    expect(lines).toContain('the highest price of the regular session so far')
-    expect(lines).toContain('the regular session\'s opening price')
+    expect(lines).toContain('Built 5 outputs: Opening range high 30, Opening range low 30, Session high, Session open, Range Breakout. Details below.')
     expect(lines).not.toMatch(/OPENINGRANGE|SESSIONHIGH|openingRangeHigh|sessionHigh/)
+    const card = readback(out.state.working, out.state, {}).outputs.map((o) => o.phrase || o.sentence).join('\n')
+    expect(card).toContain('the highest price of the first 30 minutes of the regular session')
+    expect(card).toContain('the lowest price of the first 30 minutes of the regular session')
+    expect(card).toContain('the highest price of the regular session so far')
+    expect(card).toContain('the regular session\'s opening price')
+    expect(card).not.toMatch(/OPENINGRANGE|SESSIONHIGH|openingRangeHigh|sessionHigh/)
     // readable derived labels stay (they follow the maths); none is formula text
     const labels = Object.fromEntries(out.state.working.plots.map((p) => [p.key, p.label]))
     expect(labels.orLow).toBe('Opening range low 30')
