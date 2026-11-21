@@ -109,6 +109,9 @@ TV_VERIFIED_SPINOFFS = {
     ("NTGR", "2019-01-02"): 1.609536, ("IRWD", "2019-04-02"): 1.194000, ("FTI", "2021-02-16"): 1.221564,
     ("T", "2022-04-11"): 1.324896, ("EHC", "2022-07-01"): 1.257713, ("FLEX", "2024-01-03"): 1.374763,
     ("J", "2024-09-30"): 1.197675, ("FDX", "2026-06-01"): 1.241838,
+    # Q-CLOSE-BASIS-4 and the J follow-up (2026-11-21)
+    ("ATRO", "2013-10-08"): 1.249813, ("CAG", "2016-11-10"): 1.292178, ("CNX", "2017-11-29"): 1.198924,
+    ("ADS", "2021-11-08"): 1.253683, ("J", "2025-05-16"): 1.010307,
 }
 
 
@@ -117,7 +120,8 @@ def test_every_tradingview_verified_spin_off_lives_in_the_supplement_at_tradingv
     for key, factor in TV_VERIFIED_SPINOFFS.items():
         assert key in rows, f"{key}: a TradingView-verified event left to the second vendor and the cliff test"
         assert rows[key] == pytest.approx(factor, rel=1e-6), key
-    assert not any(t == "ATRO" for t, _d in rows), "ATRO 2018 is the vendor's 1.15 (ruled); TradingView does not adjust"
+    assert ("ATRO", "2018-10-10") not in rows and ("ATRO", "2018-10-11") not in rows, \
+        "ATRO 2018 is the vendor's 1.15 (ruled); TradingView does not adjust it"
 
 
 def test_a_verified_event_is_applied_by_the_split_table_never_by_the_cliff_test(tmp_path):
