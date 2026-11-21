@@ -26,6 +26,7 @@
 // rather than inside the chart where half of them live outside its tree.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { settleAction, BURST_SETTLE_MS } from './useSymbolSettle'
 import { memPeek } from '../utils/barsMemCache'
 import * as legacyPrefetch from '../utils/prefetchBars'
 import * as storePrefetch from '../data/barStore/prefetch'
@@ -171,12 +172,17 @@ export function peekDisplayable(sym, tf, { showExtended } = {}) {
  *                     or a ref read when a switch starts (a host that resolves its settings
  *                     after this hook runs); omitted → the view-global fallback
  */
-export default function useSymbolHandoff(requestedSym, tf, { enabled = true, showExtended, group = null } = {}) {
+export default function useSymbolHandoff(requestedSym, tf, { enabled = true, showExtended, group = null, settle = null } = {}) {
   // Seed with the request so a FIRST mount never lags — there is no previous
   // chart to protect, and lagging here would be a blank chart on page load.
   const [displayedSym, setDisplayedSym] = useState(requestedSym)
   // ⭐⭐ ONE FRAME FOR THE GROUP: join the round for the requested symbol in the LAYOUT phase (see
   // GROUP_SYNC_MS), so every sibling of this commit is a member before any of them can be ready.
+  // the settle rule's state (see the effect): read from a ref, so a new `settle` object never re-runs it
+  const settleRef = useRef(settle)
+  settleRef.current = settle
+  const lastRequestAtRef = useRef(-Infinity)
+  const lastAppliedAtRef = useRef(-Infinity)
   const memberIdRef = useRef(0)
   if (!memberIdRef.current) memberIdRef.current = ++_memberIds
   useLayoutEffect(() => {
@@ -204,167 +210,188 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     if (!enabled || !requestedSym || !tf) { setDisplayedSym(requestedSym); return undefined }
     if (requestedSym === displayedSym) return undefined
 
-    const gen = ++genRef.current
-    // the chart is ready: it is SHOWN with its group (groupReady), or alone when it has none
-    const show = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
-    const commitNow = () => { if (genRef.current === gen) groupReady(group, requestedSym, memberIdRef.current, show) }
-    // ⭐ ONE PAINT, PANES INCLUDED (2026-11-17): every path below commits through here, and B is
-    // shown only once the server columns its panes draw have landed (serverCompute.columnsReadyFor),
-    // waiting at most COLUMNS_WAIT_MS. Landed (or stored in this browser) commits in the same tick.
-    const _ext = (showExtended && typeof showExtended === 'object') ? showExtended.current : showExtended
-    const sess = { showExtended: typeof _ext === 'boolean' ? _ext : undefined }
-    // ⭐ DIAGNOSTICS (device store on only): ONE record per switch, at its commit, of what the first frame
-    // is built from and, when it is not the device copy, which rule refused it (data/deviceStore/diag.js).
-    // Read by no decision; a failure here never costs the switch.
-    let noted = false
-    const noteDevice = () => {
-      if (!DEVICE || noted) return
-      noted = true
-      try {
-        const intraday = INTRADAY.has(String(tf))
-        const vtf = intraday ? fetchTf(tf) : tf
-        const v = storePrefetch.deviceVerdict(requestedSym, vtf, intraday ? sess : {})
-        const rec = noteDeviceSwitch({ sym: requestedSym, tf: String(tf), at: performance.now(), outcome: lastOutcomeRef.current, painted: v.held, reason: v.reason, why: null })
-        if (v.held !== 'device') deviceWhy(requestedSym, vtf).then((w) => { rec.why = w }, () => { rec.why = 'error' })
-      } catch { /* diagnostics only */ }
+    // ⭐ (2026-11-20, the trace) THE SETTLE IS DECIDED HERE, IN THE SAME PASS (it was useSymbolSettle, a layout
+    // effect above this hook whose setState forced one more synchronous pass of every chart widget per switch).
+    // A request after a quiet spell (> QUIET_MS) prepares now; one inside a burst prepares now only when its
+    // rows are warm and the last applied one is BURST_SETTLE_MS old, otherwise after BURST_SETTLE_MS (a newer
+    // request replaces it: this effect's cleanup). Exactly useSymbolSettle.settleAction's rule.
+    const st = settleRef.current
+    if (st && st.debounceMs > 0) {
+      const now = Date.now()
+      const action = settleAction({ now, lastRequestAt: lastRequestAtRef.current, lastAppliedAt: lastAppliedAtRef.current, warm: !!st.isWarm?.(requestedSym) })
+      lastRequestAtRef.current = now
+      if (action === 'defer') {
+        let inner
+        const t = setTimeout(() => { lastAppliedAtRef.current = Date.now(); inner = run() }, BURST_SETTLE_MS)
+        return () => { clearTimeout(t); if (typeof inner === 'function') inner() }
+      }
+      lastAppliedAtRef.current = now
     }
-    const commit = () => {
-      if (genRef.current !== gen) return
-      noteDevice()
-      if (columnsReadyFor(requestedSym, tf)) { commitNow(); return }
-      whenColumnsReady(requestedSym, tf, COLUMNS_WAIT_MS).then(commitNow, commitNow)
-    }
+    return run()
 
-    // ⛔ AN ECONOMIC SERIES (`ECON:USCPI`) IS NOT A BARS SYMBOL: nothing to prepare
-    // or prefetch through the bars lane (it would 404) — the chart loads it from
-    // /api/econ itself, so the request commits straight through.
-    if (/^ECON:/i.test(String(requestedSym))) { commitNow(); return undefined }
+    function run() {
+      const gen = ++genRef.current
+      // the chart is ready: it is SHOWN with its group (groupReady), or alone when it has none
+      const show = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
+      const commitNow = () => { if (genRef.current === gen) groupReady(group, requestedSym, memberIdRef.current, show) }
+      // ⭐ ONE PAINT, PANES INCLUDED (2026-11-17): every path below commits through here, and B is
+      // shown only once the server columns its panes draw have landed (serverCompute.columnsReadyFor),
+      // waiting at most COLUMNS_WAIT_MS. Landed (or stored in this browser) commits in the same tick.
+      const _ext = (showExtended && typeof showExtended === 'object') ? showExtended.current : showExtended
+      const sess = { showExtended: typeof _ext === 'boolean' ? _ext : undefined }
+      // ⭐ DIAGNOSTICS (device store on only): ONE record per switch, at its commit, of what the first frame
+      // is built from and, when it is not the device copy, which rule refused it (data/deviceStore/diag.js).
+      // Read by no decision; a failure here never costs the switch.
+      let noted = false
+      const noteDevice = () => {
+        if (!DEVICE || noted) return
+        noted = true
+        try {
+          const intraday = INTRADAY.has(String(tf))
+          const vtf = intraday ? fetchTf(tf) : tf
+          const v = storePrefetch.deviceVerdict(requestedSym, vtf, intraday ? sess : {})
+          const rec = noteDeviceSwitch({ sym: requestedSym, tf: String(tf), at: performance.now(), outcome: lastOutcomeRef.current, painted: v.held, reason: v.reason, why: null })
+          if (v.held !== 'device') deviceWhy(requestedSym, vtf).then((w) => { rec.why = w }, () => { rec.why = 'error' })
+        } catch { /* diagnostics only */ }
+      }
+      const commit = () => {
+        if (genRef.current !== gen) return
+        noteDevice()
+        if (columnsReadyFor(requestedSym, tf)) { commitNow(); return }
+        whenColumnsReady(requestedSym, tf, COLUMNS_WAIT_MS).then(commitNow, commitNow)
+      }
 
-    // The panes' server columns leave NOW, beside the bars (the prepare below, or the daily one), so
-    // the commit's bounded wait (COLUMNS_WAIT_MS) covers only what is left of them.
-    warmColumnsFor(requestedSym, tf)
+      // ⛔ AN ECONOMIC SERIES (`ECON:USCPI`) IS NOT A BARS SYMBOL: nothing to prepare
+      // or prefetch through the bars lane (it would 404) — the chart loads it from
+      // /api/econ itself, so the request commits straight through.
+      if (/^ECON:/i.test(String(requestedSym))) { commitNow(); return undefined }
 
-    // FAST PATH — synchronous, same tick, no scheduling latency added.
-    // ⛔ THE SYNCHRONOUS setState IS THE POINT, NOT AN OVERSIGHT. A neighbour the
-    // warmer already promoted to mem is displayable RIGHT NOW; deferring its
-    // commit to a later tick would convert the measured ~19ms warm switch into a
-    // scheduling round-trip, which is precisely the regression this coordinator
-    // must not cause. One extra render on a switch the member asked for is the
-    // cheap half of that trade.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    // ⛔ D/W/M NEVER WAITS ON THE INTRADAY PREPARE, BUT IT MUST NOT BLANK EITHER.
-    // Measured on production: a daily symbol not yet in memory committed at once and
-    // tore the canvas down, 2 blank frames for a disk-cached name and 6 (~100 ms) for
-    // one never seen, then repainted in the same place. So a daily symbol not already
-    // in memory is promoted (or fetched) first, and A stays whole meanwhile. Bounded:
-    // past DAILY_HOLD_MAX_MS the chart gets the symbol and shows its own loading state.
-    // A pseudo symbol (`$IDX:…`) has no bars lane and commits straight through.
-    // ⭐ ...AND A HELD SET PAINTS AT ONCE ONLY WHEN ITS DEEP HISTORY IS NOT STILL DUE (2026-11-19,
-    // owner: "about 200 bars instantly and then the rest shortly after, definitely in 2 phases").
-    // A shallow held set (the pack's ~300 rows) whose deep history has not joined goes through the
-    // same bounded prepare, which waits for the join, so the first frame is the whole chart.
-    if (isNativeTf(tf) && !INTRADAY.has(String(tf))
-        && /^[A-Z0-9.^-]{1,12}$/i.test(String(requestedSym))
-        && (!holdsDailySet(requestedSym, tf) || (BARSTORE && storePrefetch.deepPending(requestedSym, tf) && !devicePaints(requestedSym, tf)))) {
-      let live = true
-      const land = (outcome) => {
-        if (!live || genRef.current !== gen) return
+      // The panes' server columns leave NOW, beside the bars (the prepare below, or the daily one), so
+      // the commit's bounded wait (COLUMNS_WAIT_MS) covers only what is left of them.
+      warmColumnsFor(requestedSym, tf)
+
+      // FAST PATH — synchronous, same tick, no scheduling latency added.
+      // ⛔ THE SYNCHRONOUS setState IS THE POINT, NOT AN OVERSIGHT. A neighbour the
+      // warmer already promoted to mem is displayable RIGHT NOW; deferring its
+      // commit to a later tick would convert the measured ~19ms warm switch into a
+      // scheduling round-trip, which is precisely the regression this coordinator
+      // must not cause. One extra render on a switch the member asked for is the
+      // cheap half of that trade.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // ⛔ D/W/M NEVER WAITS ON THE INTRADAY PREPARE, BUT IT MUST NOT BLANK EITHER.
+      // Measured on production: a daily symbol not yet in memory committed at once and
+      // tore the canvas down, 2 blank frames for a disk-cached name and 6 (~100 ms) for
+      // one never seen, then repainted in the same place. So a daily symbol not already
+      // in memory is promoted (or fetched) first, and A stays whole meanwhile. Bounded:
+      // past DAILY_HOLD_MAX_MS the chart gets the symbol and shows its own loading state.
+      // A pseudo symbol (`$IDX:…`) has no bars lane and commits straight through.
+      // ⭐ ...AND A HELD SET PAINTS AT ONCE ONLY WHEN ITS DEEP HISTORY IS NOT STILL DUE (2026-11-19,
+      // owner: "about 200 bars instantly and then the rest shortly after, definitely in 2 phases").
+      // A shallow held set (the pack's ~300 rows) whose deep history has not joined goes through the
+      // same bounded prepare, which waits for the join, so the first frame is the whole chart.
+      if (isNativeTf(tf) && !INTRADAY.has(String(tf))
+          && /^[A-Z0-9.^-]{1,12}$/i.test(String(requestedSym))
+          && (!holdsDailySet(requestedSym, tf) || (BARSTORE && storePrefetch.deepPending(requestedSym, tf) && !devicePaints(requestedSym, tf)))) {
+        let live = true
+        const land = (outcome) => {
+          if (!live || genRef.current !== gen) return
+          lastOutcomeRef.current = outcome
+          commit()
+        }
+        // Aborted on any exit: a newer symbol, or past the bound, where the chart owns the fetch.
+        const ctl = new AbortController()
+        P.prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal }).then(land, () => land('error'))
+        const bound = setTimeout(() => land('hold-timeout'), DAILY_HOLD_MAX_MS)
+        // the device's copy lands in ~1 ms (one worker read): paint it the moment it does; and the tail ANSWER's
+        // rows the moment they cover the view (COVER_ROWS), whatever the deep join is still doing. ⛔ An answer
+        // of this key's life, never a saved copy alone: a copy from an earlier day is behind, and the chart
+        // refuses to paint it (useBarSnapshotBars, dailyCachePaintVerdict), so committing on it would show a
+        // loading chart instead of A.
+        let devTimer = null
+        const devPoll = () => {
+          devTimer = null
+          if (!live) return
+          if (devicePaints(requestedSym, tf)) { land('device'); return }
+          if (covers(requestedSym, tf, { answered: true })) { land('covered'); return }
+          devTimer = setTimeout(devPoll, POLL_MS)
+        }
+        if (DEVICE || BARSTORE) devTimer = setTimeout(devPoll, 0)
+        return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); ctl.abort() }
+      }
+
+      // ⭐ ONE PAINT, THE WHOLE CHART (2026-11-17, owner: "a good chunk, then the rest a quick blink
+      // later"). A held key paints at once only when the lake's whole depth is not still due for it;
+      // otherwise the prepare below waits for that join (bounded, prefetch LAKE_JOIN_WAIT_MS) and the
+      // chart's first frame holds it. The warms join it before Enter, so this is the rare case.
+      const paintsWhole = () => peekDisplayable(requestedSym, tf, sess)
+        && !(BARSTORE && INTRADAY.has(String(tf)) && storePrefetch.lakePending(requestedSym, fetchTf(tf), sess)
+          && !devicePaints(requestedSym, fetchTf(tf), sess) && !covers(requestedSym, fetchTf(tf), sess))
+      if (paintsWhole()) { commit(); return undefined }
+
+      // ⛔ THE INTRADAY PREPARE IS FOR INTRADAY ONLY. D/W/M took the bounded branch
+      // above; a custom code (2m, 45m...) fetches its own base, which this coordinator
+      // has no view of, and passes straight through.
+      if (!isNativeTf(tf) || !INTRADAY.has(String(tf))) { commit(); return undefined }
+
+      let alive = true
+      // PREPARE, AND COMMIT ON WHAT IT REPORTS — never on a stopwatch.
+      //
+      // ⛔⛔ THE PREVIOUS VERSION COMMITTED AFTER A FLAT 600ms REGARDLESS. That
+      // handed StockChart a symbol with no data, fired the empty-bars teardown,
+      // and put B's header over a black canvas — the original defect, postponed.
+      // A timeout is not a result, so it can no longer stand in for one.
+      //
+      //   current / authoritative → a real chart exists → COMMIT (success)
+      //   nodata / error          → COMMIT, but DEGRADED: the member clicked and
+      //                             must not be silently pinned to the old chart;
+      //                             the chart then shows its own honest state.
+      //
+      // ⭐ 'authoritative' is the halted / illiquid symbol: we asked with `since=`
+      // and the server has nothing newer, so its cache IS the frontier. Without
+      // this the handoff would wait forever for a bar that will never print.
+      // The prepare is ABORTED when this request is LEFT before it committed (a newer symbol /
+      // unmount): the store's prepare owns its key, so the abort really cancels its request (the
+      // legacy prepare ignores it). Once committed the chart owns the key — never aborted then.
+      const prepCtl = typeof AbortController !== 'undefined' ? new AbortController() : null
+      let committed = false
+      const commitHere = () => { committed = true; commit() }
+      P.prefetchBarsToIDB([requestedSym], fetchTf(tf), { priority: true, immediate: true, ...sess })
+      P.prepareForDisplay(requestedSym, fetchTf(tf), { signal: prepCtl?.signal ?? null, ...sess }).then((outcome) => {
+        if (!alive || genRef.current !== gen) return   // a newer request owns the screen
         lastOutcomeRef.current = outcome
-        commit()
+        commitHere()
+      }).catch(() => { if (alive && genRef.current === gen) commitHere() })
+
+      // A poll alongside it, because the ±6 neighbour warmer may repair this
+      // symbol from the shared queue before our own prepare resolves — committing
+      // the moment the cache is good is strictly better than waiting for our
+      // request to come back.
+      let timer = null
+      const tick = () => {
+        if (!alive || genRef.current !== gen) return
+        if (paintsWhole()) { commitHere(); return }
+        timer = setTimeout(tick, POLL_MS)
       }
-      // Aborted on any exit: a newer symbol, or past the bound, where the chart owns the fetch.
-      const ctl = new AbortController()
-      P.prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal }).then(land, () => land('error'))
-      const bound = setTimeout(() => land('hold-timeout'), DAILY_HOLD_MAX_MS)
-      // the device's copy lands in ~1 ms (one worker read): paint it the moment it does; and the tail ANSWER's
-      // rows the moment they cover the view (COVER_ROWS), whatever the deep join is still doing. ⛔ An answer
-      // of this key's life, never a saved copy alone: a copy from an earlier day is behind, and the chart
-      // refuses to paint it (useBarSnapshotBars, dailyCachePaintVerdict), so committing on it would show a
-      // loading chart instead of A.
-      let devTimer = null
-      const devPoll = () => {
-        devTimer = null
-        if (!live) return
-        if (devicePaints(requestedSym, tf)) { land('device'); return }
-        if (covers(requestedSym, tf, { answered: true })) { land('covered'); return }
-        devTimer = setTimeout(devPoll, POLL_MS)
-      }
-      if (DEVICE || BARSTORE) devTimer = setTimeout(devPoll, 0)
-      return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); ctl.abort() }
-    }
-
-    // ⭐ ONE PAINT, THE WHOLE CHART (2026-11-17, owner: "a good chunk, then the rest a quick blink
-    // later"). A held key paints at once only when the lake's whole depth is not still due for it;
-    // otherwise the prepare below waits for that join (bounded, prefetch LAKE_JOIN_WAIT_MS) and the
-    // chart's first frame holds it. The warms join it before Enter, so this is the rare case.
-    const paintsWhole = () => peekDisplayable(requestedSym, tf, sess)
-      && !(BARSTORE && INTRADAY.has(String(tf)) && storePrefetch.lakePending(requestedSym, fetchTf(tf), sess)
-        && !devicePaints(requestedSym, fetchTf(tf), sess) && !covers(requestedSym, fetchTf(tf), sess))
-    if (paintsWhole()) { commit(); return undefined }
-
-    // ⛔ THE INTRADAY PREPARE IS FOR INTRADAY ONLY. D/W/M took the bounded branch
-    // above; a custom code (2m, 45m...) fetches its own base, which this coordinator
-    // has no view of, and passes straight through.
-    if (!isNativeTf(tf) || !INTRADAY.has(String(tf))) { commit(); return undefined }
-
-    let alive = true
-    // PREPARE, AND COMMIT ON WHAT IT REPORTS — never on a stopwatch.
-    //
-    // ⛔⛔ THE PREVIOUS VERSION COMMITTED AFTER A FLAT 600ms REGARDLESS. That
-    // handed StockChart a symbol with no data, fired the empty-bars teardown,
-    // and put B's header over a black canvas — the original defect, postponed.
-    // A timeout is not a result, so it can no longer stand in for one.
-    //
-    //   current / authoritative → a real chart exists → COMMIT (success)
-    //   nodata / error          → COMMIT, but DEGRADED: the member clicked and
-    //                             must not be silently pinned to the old chart;
-    //                             the chart then shows its own honest state.
-    //
-    // ⭐ 'authoritative' is the halted / illiquid symbol: we asked with `since=`
-    // and the server has nothing newer, so its cache IS the frontier. Without
-    // this the handoff would wait forever for a bar that will never print.
-    // The prepare is ABORTED when this request is LEFT before it committed (a newer symbol /
-    // unmount): the store's prepare owns its key, so the abort really cancels its request (the
-    // legacy prepare ignores it). Once committed the chart owns the key — never aborted then.
-    const prepCtl = typeof AbortController !== 'undefined' ? new AbortController() : null
-    let committed = false
-    const commitHere = () => { committed = true; commit() }
-    P.prefetchBarsToIDB([requestedSym], fetchTf(tf), { priority: true, immediate: true, ...sess })
-    P.prepareForDisplay(requestedSym, fetchTf(tf), { signal: prepCtl?.signal ?? null, ...sess }).then((outcome) => {
-      if (!alive || genRef.current !== gen) return   // a newer request owns the screen
-      lastOutcomeRef.current = outcome
-      commitHere()
-    }).catch(() => { if (alive && genRef.current === gen) commitHere() })
-
-    // A poll alongside it, because the ±6 neighbour warmer may repair this
-    // symbol from the shared queue before our own prepare resolves — committing
-    // the moment the cache is good is strictly better than waiting for our
-    // request to come back.
-    let timer = null
-    const tick = () => {
-      if (!alive || genRef.current !== gen) return
-      if (paintsWhole()) { commitHere(); return }
       timer = setTimeout(tick, POLL_MS)
+
+      // ⚠️ THE BACKSTOP IS A HANG GUARD, NOT A RESULT. `prepareForDisplay` resolves
+      // on success AND on failure, so the only way to reach this is a request that
+      // never settles at all. Committing is still the least-bad answer — a member
+      // staring at the previous symbol forever is worse than a chart that says it
+      // is loading — but it is recorded as degraded, exactly like 'error'.
+      const deadline = setTimeout(() => {
+        if (!alive || genRef.current !== gen) return
+        lastOutcomeRef.current = 'hang'
+        commitHere()
+      }, HANDOFF_HANG_MS)
+
+      return () => { alive = false; if (timer) clearTimeout(timer); clearTimeout(deadline); if (!committed) { try { prepCtl?.abort() } catch { /* ignore */ } } }
+      // ⚠️ `displayedSym` IS A DEPENDENCY, NOT A REF READ DURING RENDER. Reading a
+      // ref while rendering is unsafe under concurrent rendering (and the lint rule
+      // says so). Depending on it re-runs this effect exactly once after a commit,
+      // where the first guard immediately returns — so the extra pass costs one
+      // comparison and correctly tears down the finished prepare.
     }
-    timer = setTimeout(tick, POLL_MS)
-
-    // ⚠️ THE BACKSTOP IS A HANG GUARD, NOT A RESULT. `prepareForDisplay` resolves
-    // on success AND on failure, so the only way to reach this is a request that
-    // never settles at all. Committing is still the least-bad answer — a member
-    // staring at the previous symbol forever is worse than a chart that says it
-    // is loading — but it is recorded as degraded, exactly like 'error'.
-    const deadline = setTimeout(() => {
-      if (!alive || genRef.current !== gen) return
-      lastOutcomeRef.current = 'hang'
-      commitHere()
-    }, HANDOFF_HANG_MS)
-
-    return () => { alive = false; if (timer) clearTimeout(timer); clearTimeout(deadline); if (!committed) { try { prepCtl?.abort() } catch { /* ignore */ } } }
-    // ⚠️ `displayedSym` IS A DEPENDENCY, NOT A REF READ DURING RENDER. Reading a
-    // ref while rendering is unsafe under concurrent rendering (and the lint rule
-    // says so). Depending on it re-runs this effect exactly once after a commit,
-    // where the first guard immediately returns — so the extra pass costs one
-    // comparison and correctly tears down the finished prepare.
   }, [requestedSym, tf, enabled, displayedSym, showExtended, group])
 
   return displayedSym

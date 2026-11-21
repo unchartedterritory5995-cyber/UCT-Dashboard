@@ -26,7 +26,6 @@ import { prefetchReplayTimeframes } from '../../../utils/barsWarm'
 import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
-import useSymbolSettle from '../../../hooks/useSymbolSettle'
 import { memHas } from '../../../utils/barsMemCache'
 import {
   sanitizeChartTabs, chartTabList, addChartTab, closeChartTab,
@@ -119,7 +118,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const panelSlotReady = useContext(PanelSlotContext)
   const symDebounceMs = Number.isFinite(hostOverlay?.symbolDebounceMs) ? hostOverlay.symbolDebounceMs : 90
   const symIsWarm = useCallback((s) => memHas(s, viewCacheTf(fetchTf(tf))), [tf])
-  const requestedSym = useSymbolSettle(groupSym, { debounceMs: symDebounceMs, isWarm: symIsWarm })
+  // ⭐ (2026-11-20) the settle rule is the handoff's own now (one pass of this widget per switch, not two)
+  const requestedSym = groupSym
 
   // ⭐⭐ ATOMIC SYMBOL HANDOFF. `sym` is what the chart DISPLAYS, and it only
   // advances to the request once current-enough data for it exists — so the
@@ -150,7 +150,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const paneExtRef = useRef(true)
   // `group`: the linked colour group shows a new symbol in ONE frame, every chart of it together
   // (useSymbolHandoff GROUP_SYNC_MS; owner's hard rule, 2026-11-20).
-  const sym = useSymbolHandoff(requestedSym, tf, { showExtended: paneExtRef, group: activeColor ? `charts:${activeColor}` : null })
+  const sym = useSymbolHandoff(requestedSym, tf, {
+    showExtended: paneExtRef, group: activeColor ? `charts:${activeColor}` : null,
+    settle: { debounceMs: symDebounceMs, isWarm: symIsWarm },
+  })
   // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
   const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
 
