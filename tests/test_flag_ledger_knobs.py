@@ -47,8 +47,13 @@ def _unread_local(knobs: dict, read: set[str]) -> list[str]:
 
 
 def test_the_three_x16_knobs_are_ledgered():
-    assert {"IMPLIED_ENRICHMENT_CUTOVER", "D5_CP4_DUAL_COMPUTE_SAMPLE_RATE",
-            "WIRE_SURFACE_LINE_ENABLED"} <= set(_knobs())
+    """None of the three may vanish silently. D5_CP4_DUAL_COMPUTE_SAMPLE_RATE was retired 2026-11-20
+    with its reader (the dual-compute read a ledger nothing writes), so it must now sit in `retired`
+    and not in `knobs`."""
+    assert {"IMPLIED_ENRICHMENT_CUTOVER", "WIRE_SURFACE_LINE_ENABLED"} <= set(_knobs())
+    retired = json.loads(LEDGER.read_text(encoding="utf-8")).get("retired", {})
+    assert "D5_CP4_DUAL_COMPUTE_SAMPLE_RATE" in retired
+    assert "D5_CP4_DUAL_COMPUTE_SAMPLE_RATE" not in _knobs()
 
 
 def test_every_local_knob_is_read_by_the_code():
