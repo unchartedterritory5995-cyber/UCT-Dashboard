@@ -421,7 +421,7 @@ def test_held_events_and_identity_review_tickers_carry_no_rows():
 
 
 #: Seam-61 follow-ups (ruled 2026-11-21): TradingView is the reference; each oddity stated by name in the row's evidence.
-TV_VERIFIED_FOLLOWUPS = {("DB", "2008-05-30"): 1.058201, ("KMB", "2014-11-03"): 1.088548}
+TV_VERIFIED_FOLLOWUPS = {("DB", "2008-05-30"): 1.058201, ("KMB", "2004-12-01"): 1.034521, ("KMB", "2014-11-03"): 1.088548}
 
 
 def test_the_db_and_kmb_follow_ups_live_in_the_supplement_at_tradingview_s_step_and_state_their_oddity():
