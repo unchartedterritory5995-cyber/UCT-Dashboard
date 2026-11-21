@@ -39,6 +39,7 @@ import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
 import { pronounReferent } from './chartRail'
+import { activeIndicatorAlertPeers, indicatorAlertPeers } from './capabilities/indicatorAlerts'
 
 export const STATE_RAIL_MARK = 'state-rail'
 
@@ -209,6 +210,25 @@ const READERS = {
     if (ch.drop && ch.put) return [{ state: 'template', type: 'overwrite', via: 'save', name: `your indicator template “${nm(ch.drop.name)}”` }]
     return []
   },
+  // (owner priority 4, #1263) the member's EXISTING indicator alerts: a delete is a HARD delete (UCT cannot restore it), licensed
+  // only by its own words. Pausing / resuming keeps every setting and is undone exactly — an arrangement, as showing or hiding an
+  // indicator is (indicatorOfRequest: setVisible), never an effect. Creating one (indicatorAlertLibrary) only adds.
+  // ⛔ AUDIT #1263: PAUSING an active alert silently stops a live notification the member never sees go — the quiet-harm class:
+  // its own effect, `pause`, licensed only by a pause word on that alert. RESUMING keeps every setting and only turns a
+  // notification back on: no effect.
+  indicatorAlert(p) {
+    const b = p.before || p.snap || {}
+    const label = String(b.label || [b.sym, b.instanceLabel || b.indicator].filter(Boolean).join(' ') || 'an indicator alert')
+    const own = { label, id: `alert:${b.id || p.ref}`, instanceId: b.instanceId || null, inScope: Number(b.activeInScope) || 0,
+      sym: String(b.sym || '').toLowerCase(), peers: (() => { try { return activeIndicatorAlertPeers() } catch { return null } })(),
+      ownWords: [b.sym, b.instanceLabel, b.indicator].filter(Boolean).flatMap(x => String(x).toLowerCase().split(/[^a-z0-9]+/)).filter(t => t.length >= 2) }
+    // ⛔ (AUDIT #1263, wrong-target hard delete) a delete's words are read against EVERY alert, running or paused — "delete the
+    // MACD alert" never deletes the RSI one, whichever of them is running
+    if (p.after?.deleted || p.patch?.delete) return [{ state: 'alert', type: 'delete', name: `your indicator alert “${nm(label)}”`, ...own, peers: (() => { try { return indicatorAlertPeers() } catch { return null } })() }]
+    const pausing = (p.patch?.toggle && p.patch.to === false) || (p.after && p.before && p.before.active === true && p.after.active === false)
+    if (pausing) return [{ state: 'alert', type: 'pause', name: `your indicator alert “${nm(label)}” (it would stop notifying you)`, ...own }]
+    return []
+  },
   // newsLibrary.* (2026-11-15): the member's UCT News library — a headline taken out (its note and collection places go
   // with it), a NON-EMPTY note replaced, a collection renamed or deleted, a headline taken out of a collection. A save, a
   // first note, an appended note, a new collection and putting a headline in one only add.
@@ -279,6 +299,8 @@ export const CLASS = {
   layout: /\b(?:layouts?(?! bar)|arrangements?|workspaces?)\b/i,
   layoutBar: /\b(?:layout bar|the bar|bar)\b/i,
   template: /\btemplates?\b/i,
+  // (#1263) an indicator alert ("the RSI alert", "my alarms")
+  alert: /\b(?:alerts?|alarms?|notifications?)\b/i,
   // newsLibrary.* (2026-11-15): the member's saved UCT News headlines and their collections. A bare "collection" is NOT
   // this class (a watchlist is a collection too: "retire the Momentum collection") — a collection is named by its own name
   newsLibrary: /\b(?:headlines?|stor(?:y|ies)|articles?|bookmarks?|(?:news|headline) collections?|(?:news )?library)\b/i,
@@ -326,8 +348,65 @@ export function indicatorsNamed(clause, peers) {
 const DTYPE_NOUN = { trendline: /\btrend ?lines?\b/i, horizontal: /\bhorizontal(?: lines?)?\b|\bh-?lines?\b/i, vertical: /\bvertical(?: lines?)?\b/i,
   fib: /\bfib\w*\b/i, ray: /\brays?\b/i, rect: /\b(?:box|boxes|rectangles?|rect)\b/i, circle: /\bcircles?\b/i, channel: /\bchannels?\b/i,
   arrow: /\barrows?\b/i, text: /\b(?:notes?|texts?|labels?)\b/i, avwap: /\bavwaps?\b/i, pitchfork: /\bpitchforks?\b/i }
+// (#1263, AUDIT T2) which ACTIVE alerts a pause's words describe: a symbol said (one a running alert is on) and an
+// indicator said (a known indicator name, or a word of an active alert's own) narrow them; nothing said = every active alert.
+// This alert must be among them, and be the only one — or the words are an explicit plural ("all my alerts", "both alerts",
+// "the alerts", "my notifications"). A bare "mute alerts" / "turn off notifications" with several running fails closed.
+const ALERT_STOP = new Set(['the', 'my', 'alert', 'alerts', 'alarm', 'alarms', 'notification', 'notifications', 'on', 'of', 'for', 'and', 'all', 'every', 'each', 'both', 'your', 'that', 'this', 'these', 'those'])
+const ALERT_FILL = new Set(['turn', 'off', 'switch', 'shut', 'it', 'its', 'them', 'please', 'now', 'just', 'an', 'a', 'our', 'any', 'one', 'running', 'active', 'current', 'indicator', 'in', 'at', 'here', 'too', 'also', 'again', 'chart', 'set'])
+const ALERT_ALL = /\b(?:all|every|each|both)\b|\b(?:the|my|these|those|your)\s+(?:[\w.()-]+\s+){0,2}?(?:alerts|alarms|notifications)\b/i
+// (AUDIT #1263) a DELETE's object: its verb words are known, and any plural alert noun is explicit ("delete my NVDA alerts")
+let DELETE_VERB_TOK = null                                    // (built on first use: MORE_DESTROY is declared further down)
+const deleteVerbTok = (t) => (DELETE_VERB_TOK ||= new RegExp(String.raw`^(?:${DESTROY_SRC().slice(3, -1)}|${MORE_DESTROY}|get|gets|getting|rid)$`, 'i')).test(t)
+const ALERT_PLURAL = /\b(?:alerts|alarms|notifications)\b/i
+const ALERT_RULES = { pause: { verb: (t) => PAUSE_ANY.test(t), all: (c) => ALERT_ALL.test(c) }, delete: { verb: deleteVerbTok, all: (c) => ALERT_ALL.test(c) || ALERT_PLURAL.test(c) } }
+/** Do these words COVER exactly this alert (pause or delete) — or an explicit plural that includes it? Fail closed. */
+function namesAlert(e, clause) {
+  const rule = ALERT_RULES[e.type]
+  if (!rule) return false
+  const self = String(e.id || '').replace(/^alert:/, '')
+  const peers = e.peers?.length ? e.peers : [{ id: self, sym: e.sym || '', words: e.ownWords || [] }]
+  const got = tokens(clause)
+  const syms = new Set(peers.map(p => p.sym).filter(Boolean))
+  const peerWords = new Set(peers.flatMap(p => p.words || []))
+  // every word of the object must be one UCT knows (an alert's own, a known indicator, a symbol an alert is on, or the
+  // words of the request itself): "the nvda alert", "the alert on QQQ" while the QQQ one is paused, "my squeeze alert" name no
+  // running alert — fails closed, never the one that happens to be running
+  const known = (t) => ALERT_STOP.has(t) || ALERT_FILL.has(t) || rule.verb(t) || /^\d+$/.test(t) || syms.has(t) || peerWords.has(t) || IND_TYPE.some(([re]) => re.test(t))
+  if (got.some(t => !known(t))) return false
+  const symSaid = new Set(got.filter(t => syms.has(t)))
+  const indRes = IND_TYPE.map(([re]) => re).filter(re => re.test(clause))
+  const indToks = got.filter(t => peerWords.has(t) && !syms.has(t) && !ALERT_STOP.has(t) && !/^\d+$/.test(t))
+  const covers = (p) => {
+    if (symSaid.size && !symSaid.has(p.sym)) return false
+    if (!indRes.length && !indToks.length) return true
+    const ws = (p.words || []).join(' ')
+    return indRes.some(re => re.test(ws)) || indToks.some(t => (p.words || []).includes(t))
+  }
+  const covered = peers.filter(covers)
+  if (!covered.some(p => String(p.id) === self)) return false
+  return covered.length === 1 || rule.all(clause)
+}
+// a DELETE's object may list alerts one by one ("the RSI alert and the MACD alert"): each part must name its alert exactly
+// ("remove the RSI and its alert" with two alerts names neither), or the whole is an explicit plural ("the RSI and MACD alerts")
+const ALERT_JOIN = /\s+(?:and|or|&|plus)\s+|\s*,\s*/i
+function deleteNamesAlert(e, obj) {
+  const parts = String(obj || '').split(ALERT_JOIN).map(x => x.trim()).filter(Boolean)
+  if (parts.length < 2) return namesAlert(e, obj)
+  return (ALERT_RULES.delete.all(obj) && namesAlert(e, obj)) || parts.some(part => CLASS.alert.test(part) && namesAlert(e, part))
+}
 /** Does this clause name the effect's object — its class, or (when it names no OTHER class) its own name? */
-export function namesObject(e, clause, why = null) {
+export function namesObject(e, clause0, why = null) {
+  const mine = classesOf(e)
+  // ⛔ (#1263, AUDIT T2) a pause names an alert only when its words COVER it (namesAlert): "pause the MACD alert" never
+  // pauses the RSI one, even when the RSI one is the only alert running; "pause the alert" with several running names none
+  if (e.state === 'alert' && e.type === 'pause' && CLASS.alert.test(clause0)) return namesAlert(e, clause0)
+  // ⛔ (AUDIT #1263, wrong-target hard delete) a DELETE names an alert only when its words cover EXACTLY it (or an explicit
+  // plural that includes it): "delete the MACD alert" never deletes the RSI one; "delete the alert" with several fails closed
+  if (e.state === 'alert' && e.type === 'delete' && CLASS.alert.test(clause0)) return deleteNamesAlert(e, clause0)
+  // ⛔ (#1263) "delete the RSI alert" names an ALERT, never the RSI: the words naming the alert (up to three before its noun)
+  // are not read as naming anything else ("remove the RSI and its alert" still names the RSI)
+  const clause = mine.includes('alert') ? clause0 : String(clause0 || '').replace(/\b(?:the|my|that|this|your|its|their|an?)\s+(?:(?!(?:and|or|then|but)\b)[\w.()-]+\s+){0,3}?(?:alerts?|alarms?|notifications?)\b|\b[\w.()-]+\s+(?:alerts?|alarms?|notifications?)\b/gi, ' ')
   // ⛔ H14: an indicator is named only UNIQUELY (its own words, or a class with one instance / said as plural)
   if (e.state === 'indicator' && e.instanceId && Array.isArray(e.peers)) {
     const n = indicatorsNamed(clause, e.peers)
@@ -340,7 +419,6 @@ export function namesObject(e, clause, why = null) {
       if (n.typed) return false
     }
   }
-  const mine = classesOf(e)
   if ((e.state === 'drawing' || e.state === 'watchlist') && e.inScope > 1 && mine.some(c => CLASS[c]?.test(clause))) {
     // ⛔ H14: "the line" / "my list" with several in scope names none of them — its own name (below) still does
     const label = labelOf(e)
@@ -358,6 +436,7 @@ export function namesObject(e, clause, why = null) {
     return false
   }
   const label = labelOf(e)
+  if (e.state === 'alert' && e.type === 'delete') return deleteNamesAlert(e, clause)
   return !!label && (has(clause, label) || phrase(label).split(' ').filter(t => t.length >= 3 && /[a-z]/.test(t)).some(t => has(clause, t)))
 }
 // clauses: punctuation, "then", "but", and an "and" that starts a new request ("…, and clear …", "add X and remove Y")
@@ -400,12 +479,19 @@ export function homograph(e, words) {
 const NEG = /\b(?:no|not|nothing|none|never|without|neither|nor|don['’]?t|dont|doesn['’]?t|didn['’]?t|won['’]?t|can['’]?t|cannot|shouldn['’]?t|mustn['’]?t)\b|n['’]t\b/i
 // destroy verbs the member uses for their own things (beyond DESTROY): "drop TSLA from Momentum", "take TSLA off the list",
 // "empty the watchlist", "unflag", "close the news tab" — each only with an EXISTING object of the right class after it
-const MORE_DESTROY = String.raw`retire\w*|prune\w*|trim\w*|ditch\w*|scrap\w*|purge\w*|axe|axed|drop|drops|dropped|dropping|take (?:\S+ ){0,3}?(?:off|out|away|down)|empty|emptied|unflag\w*|close|closes|closing`
+// (#1263) pausing an alert: the ONLY verbs that license an `alert:pause` (multi-word forms first: "turn off", "switch off")
+const PAUSE_SRC = String.raw`turn(?:s|ed|ing)? off|switch(?:es|ed|ing)? off|shut(?:s|ting)? off|paus\w*|mut(?:e|es|ed|ing)|disabl\w*|stop|stops|stopped|stopping|silenc\w*|deactivat\w*|suspend\w*|disarm\w*|snooz\w*`
+const PAUSE_ANY = new RegExp(String.raw`^(?:${PAUSE_SRC})$`, 'i')
+const PAUSE_IN = new RegExp(String.raw`\b(?:${PAUSE_SRC})\b`, 'i')
+// a time said with a pause ("for an hour", "for 30 minutes", "until tomorrow", "till the close", "for the day", "2h")
+const TIMED = /\b(?:for|in)\s+(?:(?:an?|one|two|three|four|five|ten|\d+(?:\.\d+)?|a few|a couple(?: of)?|half an?|several)\s+)?(?:sec(?:ond)?s?|min(?:ute)?s?|h(?:ou)?rs?|days?|weeks?|months?|moments?|(?:a )?while)\b|\b(?:until|till|til|through)\b|\bfor\s+(?:the\s+)?(?:day|today|tonight|week|weekend|session|rest of (?:the )?(?:day|week|session))\b|\b(?:\d+|an?|one|two|three)[\s-]?(?:min(?:ute)?s?|h(?:ou)?rs?|days?)\b|\b\d+\s*[mhd]\b/i
+// (#1263) "cancel the RSI alert": cancel is how a member deletes an alert
+const MORE_DESTROY = String.raw`cancel\w*|retire\w*|prune\w*|trim\w*|ditch\w*|scrap\w*|purge\w*|axe|axed|drop|drops|dropped|dropping|take (?:\S+ ){0,3}?(?:off|out|away|down)|empty|emptied|unflag\w*|close|closes|closing`
 // modify verbs (beyond MODIFY): hide / show a part, drag an anchor, flatten, call it something, thicken
 const MORE_MODIFY = String.raw`stretch\w*|extend\w*|shrink\w*|lengthen\w*|shorten\w*|hide|hides|hid|hidden|unhide|drag|drags|dragged|flatten\w*|call|thick\w*|thin\w*|widen\w*|narrow\w*|darken\w*|lighten\w*|bold|italic\w*|move|nudge\w*|bump\w*|raise|lower`
 // what picks a widget's CONTENT (its list / scan): show, switch, open, load, go / take back to the picker, pick, exit, leave
 const DISPLAY = /^(?:show\w*|switch\w*|open\w*|load\w*|view\w*|display\w*|use|using|apply|change\w*|go(?:es)? back|take (?:\S+ ){0,3}?back|pick\w*|exit\w*|leave\w*|replac\w*|swap\w*|instead)$/i
-const VERBS = new RegExp(String.raw`\b(?:${DESTROY_SRC().slice(3, -1)}|${MORE_DESTROY}|take (?:\S+ ){0,3}?back|${MODIFY_SRC().slice(3, -1)}|${MORE_MODIFY}|apply|applies|applied|applying|show|shows|showing|display\w*|load\w*|open|opens|use|using|view|save|saves|saved|saving|update|updates|updated|go(?:es)? back|pick\w*|exit\w*|leave\w*)\b`, 'gi')
+const VERBS = new RegExp(String.raw`\b(?:${PAUSE_SRC}|${DESTROY_SRC().slice(3, -1)}|${MORE_DESTROY}|take (?:\S+ ){0,3}?back|${MODIFY_SRC().slice(3, -1)}|${MORE_MODIFY}|apply|applies|applied|applying|show|shows|showing|display\w*|load\w*|open|opens|use|using|view|save|saves|saved|saving|update|updates|updated|go(?:es)? back|pick\w*|exit\w*|leave\w*)\b`, 'gi')
 const DESTROY_ANY = new RegExp(String.raw`^(?:${DESTROY_SRC().slice(3, -1)}|${MORE_DESTROY})$`, 'i')
 const MODIFY_ANY = new RegExp(String.raw`^(?:${MODIFY_SRC().slice(3, -1)}|${MORE_MODIFY})$`, 'i')
 const CUT = /\b(?:how|why|what|whether|because|since|so|if|when|while|once|until|unless|in order)\b/i
@@ -415,13 +501,23 @@ const POINTS = /^(?:it|them|both(?= of them|\s*$)|all of them|(?:the|that|this|t
 // ("nvda FROM my tech watchlist", "spy IN my list"); a SAVE keeps "to / into / as" (its container: "save it to my layout",
 // "save these indicators as my Swing Setup template")
 const OBJ_END = /\s(?:with|for|by|using|like|as|and|onto|into|to|at|than)\s/i
+// (#1263) a PAUSE keeps "for / at": "pause my alert for NVDA" names the alert on NVDA (a time said is refused before: TIMED)
+const PAUSE_END = /\s(?:with|by|using|like|as|and|onto|into|to|than)\s/i
+// (AUDIT #1263) an alert DELETE keeps "for / at / and": "delete my alert for NVDA", "the RSI alert and the MACD alert" (each part
+// must then name its alert exactly: deleteNamesAlert); a new request after "and" is its own clause already (CLAUSES)
+const ALERT_DELETE_END = /\s(?:with|by|using|like|as|onto|into|to|than)\s/i
 const SAVE_END = /\s(?:with|for|by|using|like|and|at|than)\s/i
 // a NEW object ("a 20 ema", "another line", "some notes"): never an existing one to destroy or change
 const INDEFINITE = /^(?:a|an|another|some|any|new|one more|more|extra)\b/i
 // a VERBLESS style command on a named / pointed-at object: "the 9 green, the 20 yellow", "fast one green and the slow one yellow"
 const STYLE_VALUE = String.raw`(?:red|green|blue|yellow|orange|purple|pink|white|black|gr[ae]y|teal|cyan|gold|brown|thicker|thinner|dashed|dotted|solid|bolder|bigger|smaller|hidden|visible|\d{1,4})`
 const VERBLESS = new RegExp(String.raw`(?:^|\s)(?:the\s+)?(?:\w+\s+){0,2}?(?:ones?|\d{1,3}|emas?|smas?|rsi|macd|lines?|fib|trendline|vwap)\s+(?:a\s+)?${STYLE_VALUE}\b`, 'i')
-const strengthOf = (verb, e) => {
+const strengthOf = (verb0, e) => {
+  // a pause is asked for by a PAUSE word only — never by a delete, a change or a show of something
+  if (e.type === 'pause') return PAUSE_ANY.test(verb0)
+  // ("turn off the 78.6 fib level": the pause verbs' multi-word forms are read first; for anything else they are the change
+  // verb they always were — "turn" / "switch" / "shut")
+  const verb = /^(?:turn|switch|shut)\w*\s+off$/i.test(String(verb0)) ? String(verb0).replace(/\s+off$/i, '') : verb0
   if (e.type === 'replace' && e.state === 'widget') return DISPLAY.test(verb) || MODIFY_ANY.test(verb)
   // a save-over is asked for by a SAVE (or "overwrite / replace my layout"), never by a delete of something else
   if (e.via === 'save') return SAVE.test(verb) || /^(?:overwrit\w*|replac\w*)$/i.test(verb)
@@ -577,7 +673,7 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
         if (cut >= 0) obj = obj.slice(0, cut)
         // a display verb's object is where it goes ("go back TO the list picker", "take the watchlist back TO its picker")
         if (e.type === 'replace' && e.state === 'widget') obj = obj.replace(/^\s*(?:to|back to|over to|into)\s+/i, ' ')
-        const end = obj.search(saving ? SAVE_END : OBJ_END)
+        const end = obj.search(saving ? SAVE_END : e.type === 'pause' ? PAUSE_END : e.state === 'alert' && e.type === 'delete' ? ALERT_DELETE_END : OBJ_END)
         if (end >= 0) obj = obj.slice(0, end)
         obj = obj.trim().replace(/^(?:up|out|off|away|over|down|of|rid of)\s+/i, '')
         // a widget's content may be switched to a NEW pick ("pick a different list"); nothing else is named by "a …"
@@ -644,7 +740,7 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
 export const isStateAdditive = (words) => STATE_ADDITIVE.test(String(words || ''))
 
 const listOf = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
-const VERB = { remove: 'remove', clear: 'clear', delete: 'delete', replace: 'replace', overwrite: 'change', unreadable: 'change' }
+const VERB = { remove: 'remove', clear: 'clear', delete: 'delete', replace: 'replace', overwrite: 'change', pause: 'pause', unreadable: 'change' }
 const said = (e) => `${VERB[e.type] || 'change'} ${e.name}`
 
 // ⛔ A REFUSED BUNDLE (AUDIT #1247): the parts of the plan that only ADD were not done either — said by name, so a member is
@@ -717,6 +813,11 @@ export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = 
   try {
     const effects = stateEffects(plan, scope)
     if (!effects.length) return null
+    // ⛔ (#1263, AUDIT T2) a pause FOR A TIME ("snooze the RSI alert for an hour"): an alert's switch has no timer — a paused
+    // alert stays paused until it is turned back on. Never paused as if it would come back by itself: nothing is changed, and
+    // pausing it with no time is offered instead
+    if (effects.some(e => e.state === 'alert' && e.type === 'pause') && clausesOf(w).some(c => PAUSE_IN.test(c) && TIMED.test(c)))
+      return `I didn’t change anything: UCT can’t pause an alert for a set time — a paused alert stays paused until you turn it back on (it never resumes by itself). Say “pause the alert” without a time to pause it now, and resume it whenever you like.${notDoneLine(notDoneAdds(plan))}`
     const amb = effects.map(e => homograph(e, w)).find(Boolean)
     if (amb) return `Do you mean your “${amb}” list, or the ticker ${String(amb).toUpperCase()}? Nothing was changed — say “show my ${amb} list” to switch the widget to it, or “add ${String(amb).toUpperCase()} to my watchlist” to add the symbol.${notDoneLine(notDoneAdds(plan))}`
     // (a save-over is never refused here: it goes to its card — stateRailDecision)
