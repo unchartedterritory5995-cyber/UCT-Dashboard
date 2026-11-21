@@ -144,7 +144,9 @@ def test_a_record_is_cut_to_what_is_graded_on_each_lane():
 def test_a_fresh_run_reports_each_cases_verdict_and_answer(tmp_path):
     report = value_eval.grade_run(DATA, _run_folder(tmp_path))
     graded_here = [c["id"] for c in CASES if c["lane"] != "script"]
-    assert set(report["verdicts"]) == set(graded_here) and set(report["verdicts"].values()) == {"right"}
+    # each case's verdict is the one its record holds: right, or the known defect's WRONG (named in the case)
+    assert report["verdicts"] == {c["id"]: c.get("recorded_verdict", "right") for c in CASES if c["lane"] != "script"}
+    assert set(report["verdicts"]) == set(graded_here) and "wrong" in report["verdicts"].values()
     assert set(report["answers"]) == set(graded_here)
 
 
