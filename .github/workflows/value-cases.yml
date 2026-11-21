@@ -10,7 +10,8 @@
 #
 # WHAT IT RUNS. `tests/test_value_cases.py` (formula and wall lanes, the server's own interpreter) and
 # `tests/test_value_cases_scripts.py` (script lane: the shipped engine modules bundled with the esbuild in
-# `app/node_modules` and run in node). On any pull request that touches the door, the interpreter, the script
+# `app/node_modules` and run in node), and `tests/test_value_record.py` (what the live recorder may send and what
+# becomes the record; it sends nothing). On any pull request that touches the door, the interpreter, the script
 # reference or recipes, the engine and member pane the script lane runs, or the cases and their tools.
 # ⛔ A SKIP IS A FAILURE HERE: the script lane skips where node or the app's modules are missing, and a lane
 #   where it skips is a lane that held nothing.
@@ -25,9 +26,11 @@ on:
       - '.github/workflows/value-cases.yml'
       - 'tools/value_cases/**'
       - 'tools/value_eval.py'
+      - 'tools/value_record.py'
       - 'tools/converse_eval.py'
       - 'tests/test_value_cases.py'
       - 'tests/test_value_cases_scripts.py'
+      - 'tests/test_value_record.py'
       - 'tests/fixtures/authoring/value_cases.json'
       # the door, and the interpreter a formula answer is computed by
       - 'api/services/definition_conversation.py'
@@ -81,7 +84,7 @@ jobs:
         run: |
           # pipefail: without it `| tee` hands the step tee's exit code and a red run reads green.
           set -euxo pipefail
-          python -m pytest tests/test_value_cases.py tests/test_value_cases_scripts.py -q -p no:cacheprovider -rs 2>&1 | tee value_cases.log
+          python -m pytest tests/test_value_cases.py tests/test_value_cases_scripts.py tests/test_value_record.py -q -p no:cacheprovider -rs 2>&1 | tee value_cases.log
           # a run is a run only with a totals line, and a skip means this lane lost node or the modules
           grep -qE "^[0-9]+ passed" value_cases.log || { echo "::error::no totals line: the value cases did not run"; exit 1; }
           if grep -qE "[0-9]+ skipped" value_cases.log; then

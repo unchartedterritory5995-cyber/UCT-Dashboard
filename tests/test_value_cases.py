@@ -289,8 +289,9 @@ def _answers_dir(tmp_path, changed=None, missing=()):
 
 def test_a_fresh_run_equal_to_the_record_scores_every_case(tmp_path):
     report = value_eval.grade_run(DATA, _answers_dir(tmp_path))
-    assert report["scores"] == {"formula": {"right": len(FORMULA), "of": len(FORMULA)}, "wall": {"right": len(WALL), "of": len(WALL)}}
-    assert report["full"] is True and report["changed"] == []
+    assert report["scores"] == {"formula": {"right": len(FORMULA), "of": len(FORMULA), "answered": len(FORMULA)},
+                                "wall": {"right": len(WALL), "of": len(WALL), "answered": len(WALL)}}
+    assert report["full"] is True and report["full_lanes"] == ["formula", "wall"] and report["changed"] == []
 
 
 def test_a_fresh_run_names_what_went_wrong_and_what_was_not_answered(tmp_path):
@@ -299,7 +300,7 @@ def test_a_fresh_run_names_what_went_wrong_and_what_was_not_answered(tmp_path):
         o["tree"] = _late(o["tree"])
     report = value_eval.grade_run(DATA, _answers_dir(tmp_path, changed={FORMULA[3]["id"]: late}, missing={WALL[1]["id"]}))
     assert report["scores"]["formula"]["right"] == len(FORMULA) - 1
-    assert report["full"] is False                                    # one request has no answer: not a full run
+    assert report["full"] is False and report["full_lanes"] == ["formula"]      # the wall lane has a request unanswered
     assert [(row["id"], row["was"], row["now"]) for row in report["changed"]] == [(FORMULA[3]["id"], "right", "wrong"), (WALL[1]["id"], "right", "no answer")]
 
 
@@ -319,12 +320,18 @@ def test_THE_RATCHET_the_first_full_run_writes_the_threshold_and_a_later_run_bel
     verdict = value_eval.apply_ratchet(data, worse)
     assert verdict["ok"] is False and "formula" in verdict["below"]
     assert data["thresholds"]["formula"] == len(FORMULA)
-    # a partial run never writes or tests a threshold
+    # LANE BY LANE: a lane with a request unanswered is neither written nor tested; a lane fully answered is
     data2 = copy.deepcopy(DATA)
     (tmp_path / "c").mkdir()
     partial = value_eval.grade_run(data2, _answers_dir(tmp_path / "c", missing={FORMULA[0]["id"]}))
-    assert value_eval.apply_ratchet(data2, partial) == {"ok": True, "below": [], "note": "not a full run: the thresholds are neither written nor tested"}
-    assert data2["thresholds"]["formula"] is None
+    verdict = value_eval.apply_ratchet(data2, partial)
+    assert verdict["ok"] and data2["thresholds"]["formula"] is None and data2["thresholds"]["wall"] == len(WALL)
+    # and a run that answers no lane fully touches nothing
+    data3 = copy.deepcopy(DATA)
+    (tmp_path / "d").mkdir()
+    thin = value_eval.grade_run(data3, _answers_dir(tmp_path / "d", missing={FORMULA[0]["id"], WALL[0]["id"]}))
+    assert value_eval.apply_ratchet(data3, thin) == {"ok": True, "below": [], "note": "no lane was fully answered: the thresholds are neither written nor tested"}
+    assert data3["thresholds"] == DATA["thresholds"]
 
 
 def test_the_thresholds_in_the_repository_were_written_by_a_run_or_are_not_yet_set():
