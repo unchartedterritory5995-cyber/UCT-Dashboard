@@ -136,6 +136,10 @@ const makeView = (sym, over = {}) => ({
   closeChannel: () => log.push('channel:closed'),
   clearLayers: () => { layers += 1; log.push('layers:cleared') },
   clearReadout: () => log.push('readout:cleared'),
+  // (review of #2400) the chart's own pass of the symbol React shows, and the peeked metadata of the next one
+  reactRepaint: () => log.push('react:repaint'),
+  metaFor: (s) => ({ watermarkMeta: { name: `${s} Inc` }, mergedMarkers: [] }),
+  drawMeta: () => { layers += 1; log.push('meta:drawn') },
   ...over,
 })
 /** A controller whose chart has painted `sym` through React once. */
@@ -342,6 +346,100 @@ describe('the body\'s commits are counted (a switch that adds none rendered noth
     expect(c.diag.views).toBe(n)
     c.noteView(makeView('BBB'))
     expect(c.diag.views).toBe(n + 1)
+  })
+})
+
+describe('review finding 1: going back to the symbol React still shows', () => {
+  it('apply(the symbol the switch replaced) is the chart\'s OWN pass of it: the switch ends and nothing stays stripped', () => {
+    const { c, ctx } = painted()
+    c.apply('BBB')
+    log.length = 0
+    passes.length = 0
+    expect(c.apply('AAA')).toBe('applied')
+    expect(log).toEqual(['react:repaint'])     // not a built frame: React's frame of AAA, by the chart's own pass
+    expect(passes).toHaveLength(0)
+    expect(c.pendingSym()).toBe(null)
+    expect(c.staleFor('AAA')).toBe(false)
+    // …and that pass is a full one: the signature and the painted bars were forgotten first
+    expect(ctx.lastCfgSigRef.current).toBe(null)
+    expect(ctx.prevPaintBarsRef.current).toBe(null)
+    expect(c.diag.replayed).toBe(1)
+  })
+  it('canApply says yes to it (it never refuses the symbol React shows)', () => {
+    const { c } = painted('AAA', { refuse: 'drawings' })
+    // (a chart that refuses every other symbol still goes back to its own)
+    const quiet = createSwitchController({ applyFrame: fakeApply, buildFrame: fakeBuild })
+    quiet.noteView(makeView('AAA'))
+    quiet.reactPass(makeCtx(), reactFrame('AAA'))
+    quiet.apply('BBB')
+    quiet.noteView(makeView('AAA', { refuse: 'drawings' }))
+    expect(quiet.canApply('AAA')).toBeTruthy()
+    expect(c.canApply('BBB')).toBe(null)
+  })
+  it('reconcile: the host shows the symbol React still shows while another is painted -> the same replay', () => {
+    const { c } = painted()
+    c.apply('BBB')
+    log.length = 0
+    c.reconcile('AAA')
+    expect(log).toEqual(['react:repaint'])
+    expect(c.pendingSym()).toBe(null)
+  })
+  it('reconcile does nothing when the host shows the painted symbol, a third one, or nothing is pending', () => {
+    const { c } = painted()
+    c.reconcile('AAA')
+    c.apply('BBB')
+    log.length = 0
+    c.reconcile('BBB')
+    c.reconcile('CCC')
+    expect(log).toEqual([])
+    expect(c.pendingSym()).toBe('BBB')
+  })
+})
+
+describe('review finding 5: the numbers add up', () => {
+  const sum = (d) => d.applied + Object.values(d.refused).reduce((a, b) => a + b, 0)
+  it('a frame built for a decision a sibling then vetoed is a refusal, `group-veto`', () => {
+    const { c } = painted()
+    c.canApply('BBB')            // built; the group says no; never painted
+    c.canApply('CCC')            // the next press
+    c.apply('CCC')
+    c.apply('CCC')               // already on screen
+    expect(c.diag.applied).toBe(1)
+    expect(c.diag.refused).toEqual({ 'group-veto': 1, 'same-symbol': 1 })
+    expect(c.diag.asked).toBe(sum(c.diag))
+  })
+  it('a frame built in the decision and painted by the round for the SAME press is one question', () => {
+    const { c } = painted()
+    c.canApply('BBB')
+    c.apply('BBB')               // the round: no token
+    expect(c.diag).toMatchObject({ asked: 1, applied: 1, refused: {} })
+  })
+  it('`released` counts the body\'s releases', () => {
+    const { c } = painted()
+    c.noteReleased()
+    c.noteReleased()
+    expect(c.diag.released).toBe(2)
+  })
+})
+
+describe('review finding 4: a closure that keeps the pass\'s box would be seen', () => {
+  it('reads of the built box after its pass are counted (`lateBoxReads`); reads inside the pass are not', () => {
+    const { c } = painted()
+    c.apply('BBB')
+    expect(c.diag.lateBoxReads).toBe(0)          // the pass itself read it (fakeApply does)
+    const kept = passes[0].frame.__heavy          // what a closure installed in the pass would hold
+    expect(kept.committed.displayBars.length).toBe(2)
+    expect(c.diag.lateBoxReads).toBe(1)
+  })
+})
+
+describe('review finding 2: the new symbol\'s metadata the app already holds is drawn in the frame', () => {
+  it('the pass is handed the peeked metadata (the watermark\'s name), and the layers are drawn from it', () => {
+    const { c } = painted()
+    c.apply('BBB')
+    expect(passes[0].ctx._metaNowRef.current().watermarkMeta).toEqual({ name: 'BBB Inc' })
+    expect(log).toContain('meta:drawn')
+    expect(log).not.toContain('layers:cleared')
   })
 })
 

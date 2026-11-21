@@ -45,6 +45,7 @@ import { decideGroupShow, GROUP_HANG_MS, __resetHandoffGroupsForTests, __resetSc
 const G = 'charts:A'
 let scope
 let events    // `${who}:${what}:${sym}@${tick}`
+let notes     // what the hook tells a controller besides painting: `${who}:reconcile:${sym}`, `${who}:released`
 let tick      // moves once per fake millisecond: two events with the same tick ran in the same task
 let ticker
 beforeEach(() => {
@@ -56,6 +57,7 @@ beforeEach(() => {
   __resetHandoffGroupsForTests()
   scope = { board: 1 }
   events = []
+  notes = []
   tick = 0
   ticker = setInterval(() => { tick += 1 }, 1)
 })
@@ -75,6 +77,8 @@ function fakePainter(who, can = true) {
     },
     pendingSym: () => pending,
     reactCaughtUp() { pending = null },
+    reconcile(sym) { notes.push(`${who}:reconcile:${sym}`) },
+    noteReleased() { notes.push(`${who}:released`) },
   }
 }
 // Two charts of one linked group in one tree (30m + 60m), each with its own painter ref.
@@ -190,6 +194,36 @@ describe('the body\'s hold and its release', () => {
     afterPaint()
     expect(commits.at(-1)).toBe('CCC:CCC/CCC:CCC')
     expect(bodyEver(commits, 'BBB')).toBe(false)
+  })
+})
+
+describe('review of #2400: the release, and what the controller is told', () => {
+  it('finding 5: a release scheduled by an OLDER paint does not release a newer paint\'s hold', () => {
+    const { h, commits } = twoCharts({ a: fakePainter('a'), b: fakePainter('b') })
+    press(h, 'BBB')                                  // its release is due at 16 ms
+    act(() => { vi.advanceTimersByTime(10) })
+    press(h, 'CCC')                                  // painted over the hold; its release is due at 26 ms
+    act(() => { vi.advanceTimersByTime(10) })        // 20 ms: the older release has fired
+    expect(commits.at(-1)).toBe('CCC:AAA/CCC:AAA')   // …and the bodies are still held: CCC is not presented yet
+    act(() => { vi.advanceTimersByTime(20) })        // 40 ms: the newer paint's own release
+    expect(commits.at(-1)).toBe('CCC:CCC/CCC:CCC')
+    expect(notes.filter((n) => /released/.test(n))).toEqual(['a:released', 'b:released'])   // one release per chart
+  })
+  it('finding 1: a symbol the controller did not paint is shown through React, and the controller is told (reconcile)', () => {
+    // BBB painted; AAA (back to the symbol the body is held on) refused by the controller
+    const can = (sym) => sym === 'BBB'
+    const { h } = twoCharts({ a: fakePainter('a', can), b: fakePainter('b', can), withScope: false })
+    press(h, 'BBB')
+    notes.length = 0
+    press(h, 'AAA')
+    expect(notes).toContain('a:reconcile:AAA')
+    expect(notes).toContain('b:reconcile:AAA')
+  })
+  it('finding 1: at the release the controller is told what the host shows then', () => {
+    const { h } = twoCharts({ a: fakePainter('a'), b: fakePainter('b') })
+    press(h, 'BBB')
+    afterPaint()
+    expect(notes).toEqual(expect.arrayContaining(['a:released', 'a:reconcile:BBB', 'b:released', 'b:reconcile:BBB']))
   })
 })
 

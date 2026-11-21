@@ -11,15 +11,21 @@
 //   (g) as far as jsdom shows framing: the paint keeps the member's zoom (the width of the view), the commit
 //       after it does not move the view, and the view is the one the React path sets;
 //   OFF the controller is never made (and StockChart.applyFrameParity is the log of that path).
+// And, after the review of #2400 at 1aba532a17, THE SEAM: the real handoff hook, the real controller and the
+// real chart (memoised as the pane memoises it) together. The body does not render before the paint; going back
+// to the symbol the body is still held on ends the switch and puts that symbol's own frame back, whether the
+// controller takes it or not; the new symbol's own lines and markers come back at the body's render; a hover
+// between the paint and that render reports nothing; W and M are refused; the name the app holds is in the frame.
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { Profiler } from 'react'
 import { render, act, cleanup } from '@testing-library/react'
+import { mutate as swrMutate } from 'swr'
 import { createHash } from 'node:crypto'
 import { pinWallClock } from '../testing/pinnedWallClock'
 import { loadWithBarStore } from '../testing/barStoreModes'
 
 const FLAG = 'uct.imperativeSwitch'
-const S = vi.hoisted(() => ({ log: [], n: 0, commits: 0, range: null, stateful: false }))
+const S = vi.hoisted(() => ({ log: [], n: 0, commits: 0, range: null, stateful: false, crosshair: null, raf: null }))
 const digest = (v) => {
   const json = JSON.stringify(v, (k, x) => (typeof x === 'function' ? 'ƒ' : x && typeof x === 'object' && typeof x.nodeType === 'number' ? '‹node›' : x))
   if (json === undefined) return 'undefined'
@@ -74,7 +80,7 @@ vi.mock('lightweight-charts', async (importOriginal) => {
   const chart = {
     addSeries: (type) => make(type), addCustomSeries: () => make(null), removeSeries: () => {}, applyOptions: () => {},
     priceScale: () => scale(), timeScale: () => ts, paneSize: () => ({ width: 600, height: 300 }),
-    subscribeCrosshairMove: () => {}, unsubscribeCrosshairMove: () => {}, subscribeClick: () => {}, unsubscribeClick: () => {},
+    subscribeCrosshairMove: (fn) => { S.crosshair = fn }, unsubscribeCrosshairMove: () => {}, subscribeClick: () => {}, unsubscribeClick: () => {},
     subscribeDblClick: () => {}, unsubscribeDblClick: () => {}, panes: () => [pane(0)],
     resize: () => {}, remove: () => {}, takeScreenshot: () => document.createElement('canvas'),
     chartElement: () => document.createElement('div'), options: () => ({}),
@@ -85,6 +91,22 @@ vi.mock('lightweight-charts', async (importOriginal) => {
     createSeriesMarkers: (series, markers) => {
       put('markers', 'set', (markers || []).length)
       return { setMarkers: (m) => put('markers', 'set', (m || []).length), detach: () => {}, markers: () => [] }
+    },
+  }
+})
+// the watermark's lines, as the chart hands them to its primitive (the name the member reads over the candles)
+vi.mock('./chart/watermarkPrimitive', async (importOriginal) => {
+  const real = await importOriginal()
+  return {
+    ...real,
+    createWatermarkPrimitive: (o) => {
+      const w = real.createWatermarkPrimitive(o)
+      const set = w.setOptions.bind(w)
+      w.setOptions = (opts) => {
+        if (opts && Array.isArray(opts.lines)) put('watermark', 'lines', opts.lines.map((l) => l.text).join(' | '))
+        return set(opts)
+      }
+      return w
     },
   }
 })
@@ -139,6 +161,8 @@ const stubBars = () => vi.stubGlobal('fetch', vi.fn((url) => {
   const u = String(url)
   const m = /\/api\/bars\/([A-Z]+)/.exec(u)
   const tf = decodeURIComponent((/[?&]tf=([^&]+)/.exec(u) || [])[1] || 'D')
+  const meta = /\/api\/ticker-meta\/([A-Z]+)/.exec(u)
+  if (meta && NAMES[meta[1]]) return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, clone() { return this }, json: async () => NAMES[meta[1]] })
   const k = m ? K[m[1]] : 0
   const body = !k ? {} : /^\d+$/.test(tf) ? { ticker: m[1], tf, bars: fiveRows(k) } : { ticker: m[1], tf, bars: dailyRows(k), newest_bar_is_forming: false }
   return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, clone() { return this }, json: async () => body })
@@ -152,6 +176,17 @@ const SETTINGS = {
 }
 const LINES_A = [{ price: 41.5, color: '#f00', title: 'a line of AAA' }]
 const MARKERS_A = [{ time: '2026-10-01', position: 'aboveBar', color: '#0f0', shape: 'arrowDown', text: 'a marker of AAA' }]
+const LINES_B = [{ price: 82.5, color: '#00f', title: 'a line of BBB' }]
+const MARKERS_B = [{ time: '2026-10-02', position: 'belowBar', color: '#f0f', shape: 'arrowUp', text: 'a marker of BBB' }, { time: '2026-10-05', position: 'belowBar', color: '#f0f', shape: 'arrowUp', text: 'another' }]
+const OF_A = { priceLines: LINES_A, markers: MARKERS_A }
+const OF_B = { priceLines: LINES_B, markers: MARKERS_B }
+// what /api/ticker-meta answers, and what the app's cache holds for a symbol it has met
+const NAMES = {
+  AAA: { name: 'Alpha Incorporated', sector: 'Industrials', industry: 'Machinery', theme: null, exchange: 'NYSE', security_type: 'CS' },
+  BBB: { name: 'Bravo Corporation', sector: 'Technology', industry: 'Software', theme: null, exchange: 'NASDAQ', security_type: 'CS' },
+}
+const PLAIN = () => true
+const until = async (pred, ms = 3000) => { for (let t = 0; t < ms && !pred(); t += 25) await wait(25) }
 
 /** A fresh module graph with the switch as asked (it is read once, at StockChart's module load). */
 async function loadGraph(on) {
@@ -161,6 +196,9 @@ async function loadGraph(on) {
       StockChart: (await import('./StockChart')).default,
       nf: await import('./chart/neighborFrames'),
       store: (await import('../data/barStore/index')).getBarStore(),
+      useSymbolHandoff: (await import('../hooks/useSymbolHandoff')).default,
+      groups: await import('../hooks/handoffGroups'),
+      Stable: (await import('./chart/pane/StableStockChart')).default,
       chartKeyFor: (await import('./chart/useBarSnapshotBars')).chartKeyFor,
       flag: (await import('./chart/imperativeSwitch')).imperativeSwitchOn(),
     }))
@@ -205,6 +243,8 @@ describe('daily: the controller paints BBB over AAA', () => {
   let on    // the imperative run: { mountLog, applyLog, commitsInApply, result, catchUpLog, commitsInCatchUp, diag }
   let off   // the React path, same switch
   let stale // a second imperative run: a render of AAA between the paint and the commit
+  let own   // (review) BBB with layers and a name of its own, and a hover in between
+  let weekly
 
   beforeAll(async () => {
     // ── the imperative switch, then the React commit ──
@@ -255,7 +295,46 @@ describe('daily: the controller paints BBB over AAA', () => {
       stale = { log: S.log.slice(), stale: ctl ? ctl.diag.stale : -1, pending: ctl ? ctl.pendingSym() : null }
       t.done()
     }
-  }, 120_000)
+    // ── (review) BBB has lines and markers of its own, a name the app holds, and the member hovers in between ──
+    {
+      const spy = vi.fn()
+      const t = await mounted(true, 'D', OF_AAA, { onCrosshairMove: spy })
+      const ctl = t.port.current
+      const hover = () => act(async () => {
+        if (S.crosshair) S.crosshair({ time: '2026-11-13', point: { x: 100, y: 100 }, seriesData: { get: () => ({ time: '2026-11-13', open: 1, high: 2, low: 0.5, close: 1.5 }) } })
+        await new Promise((r) => setTimeout(r, 60))
+      })
+      await hover()
+      const hoverBefore = spy.mock.calls.length
+      await act(async () => { await swrMutate('/api/ticker-meta/BBB', NAMES.BBB, false) })   // the app has met BBB
+      S.log.length = 0
+      let result = null
+      act(() => { result = ctl ? ctl.apply('BBB') : null })
+      const paintLog = S.log.slice()
+      spy.mockClear()
+      await hover()
+      const hoverBetween = spy.mock.calls.length
+      S.log.length = 0
+      t.view.rerender(t.el('BBB', OF_B))
+      await wait(600)
+      const commitLog = S.log.slice()
+      spy.mockClear()
+      await hover()
+      own = {
+        result, refusedAs: ctl ? JSON.stringify(ctl.diag.last) : null, paintLog, commitLog,
+        hoverBefore, hoverBetween, hoverAfter: spy.mock.calls.length,
+        lateBoxReads: ctl ? ctl.diag.lateBoxReads : null,
+      }
+      t.done()
+    }
+    // ── (review) a weekly chart is refused by name until its tail has a rail ──
+    {
+      const t = await mounted(true, 'W')
+      const ctl = t.port.current
+      weekly = { token: ctl ? ctl.canApply('BBB') : 'no controller', last: ctl ? ctl.diag.last : null }
+      t.done()
+    }
+  }, 180_000)
 
   it('the graph under test holds the switch (non-vacuity), and the chart made its controller', () => {
     expect(on.flag).toBe(true)
@@ -315,6 +394,39 @@ describe('daily: the controller paints BBB over AAA', () => {
     expect(stale.log.filter((l) => /^markers set [1-9]/.test(l))).toEqual([])
     expect(stale.stale).toBeGreaterThanOrEqual(1)
     expect(stale.pending).toBe('BBB')
+  })
+
+  it('(review 6) the new symbol\'s OWN price line and markers come back at the body\'s render', () => {
+    expect(own.result, `refused as ${own.refusedAs}`).toBe('applied')
+    expect(own.paintLog.filter((l) => / createPriceLine /.test(l))).toEqual([])   // not in the paint (they are the host's, of a render)
+    expect(own.commitLog.some((l) => /^candle#\d+ createPriceLine 82\.5$/.test(l)), 'the line of BBB').toBe(true)
+    expect(own.commitLog.some((l) => /^markers set 2$/.test(l)), 'the two markers of BBB').toBe(true)
+    expect(own.commitLog.some((l) => / createPriceLine 41\.5$/.test(l)), 'no line of AAA').toBe(false)
+  })
+
+  it('(review 2) the watermark carries the name the app already holds, in the frame of the paint', () => {
+    const lines = own.paintLog.filter((l) => /^watermark lines /.test(l))
+    expect(lines.length).toBeGreaterThan(0)
+    expect(lines.at(-1)).toContain('BBB')
+    expect(lines.at(-1)).toContain('Bravo Corporation')
+    expect(lines.some((l) => /Alpha Incorporated/.test(l))).toBe(false)
+    // non-vacuity: the mount drew AAA's name the same way
+    expect(on.mountLog.some((l) => /^watermark lines .*Alpha Incorporated/.test(l))).toBe(true)
+  })
+
+  it('(review 3) a hover between the paint and the body\'s render reports nothing; before and after it reports', () => {
+    expect(own.hoverBefore).toBeGreaterThan(0)
+    expect(own.hoverBetween).toBe(0)
+    expect(own.hoverAfter).toBeGreaterThan(0)
+  })
+
+  it('(review 4) nothing the pass installed kept its throwaway box: no read of it after the pass', () => {
+    expect(own.lateBoxReads).toBe(0)
+  })
+
+  it('(review 4) a weekly chart is refused by name', () => {
+    expect(weekly.token).toBe(null)
+    expect(weekly.last).toMatchObject({ ok: false, why: 'weekly-monthly' })
   })
 
   it('OFF: no controller is made, nothing is put in the port, and the same switch still paints BBB', () => {
@@ -380,6 +492,133 @@ describe('(g) framing, as far as jsdom shows it: the member\'s zoom is kept and 
     expect(want).toBeTruthy()
     expect(Math.abs((want.to - want.from) - ZOOM)).toBeLessThan(1e-6)   // the React path keeps the zoom too (non-vacuity)
     expect(on.end).toEqual(off.end)
+  })
+})
+
+describe('(review) the seam: the real handoff drives the real controller on the real chart', () => {
+  let clock
+  beforeAll(() => { clock = pinWallClock('2026-11-14T16:00:00Z') })
+  afterAll(() => clock.restore())
+  const G = 'charts:T'
+  const EXTRA = { AAA: OF_A, BBB: OF_B }
+  let took     // the controller takes the way back itself
+  let refused  // the controller refuses the way back (its apply answers false): React shows it
+
+  /** AAA -> BBB (painted), then BBB -> AAA before the body's hold is released. */
+  async function run(controllerRefusesTheWayBack) {
+    S.log.length = 0; S.n = 0; S.range = null
+    stubBars()
+    const M = await loadGraph(true)
+    M.nf.__setNeighborFramesForTests(true)
+    const port = { current: null }
+    const scope = { board: 1 }
+    const host = []
+    function Widget({ requested }) {
+      const sym = M.useSymbolHandoff(requested, 'D', { group: G, scope, painter: port })
+      const chartSym = port.bodySym || sym
+      host.push(`${sym}:${chartSym}`)
+      return <M.Stable sym={chartSym} tf="D" backgroundWarm={false} settingsOverride={SETTINGS} onSettingsPersist={noop} switchPort={port} switchHostPlain={PLAIN} {...EXTRA[chartSym]} />
+    }
+    const view = render(<Widget requested="AAA" />)
+    await wait(900)
+    const keyB = M.chartKeyFor({ sym: 'BBB', resolvedTf: 'D', showExtended: false, replayCutoff: null, hasOverride: false })
+    M.store.registry.acquire(keyB)
+    await act(async () => { await M.store.ensure(keyB, { priority: 'urgent' }) })
+    await wait(200)
+    const ctl = port.current
+    const candleOfAAA = lastSetData(S.log)['candle#1']
+    // from here the next frame comes only when the test says so: the hold is not released behind its back
+    const realRaf = globalThis.requestAnimationFrame
+    const frames = []
+    globalThis.requestAnimationFrame = (cb) => { frames.push(cb); return frames.length }
+    const nextFrame = () => act(async () => { const due = frames.splice(0); for (const cb of due) cb(0); await new Promise((r) => setTimeout(r, 30)) })
+    const pressTo = (sym) => act(() => { M.groups.decideGroupShow(scope, G, sym); view.rerender(<Widget requested={sym} />) })
+    let out
+    try {
+      // ── key 1: AAA -> BBB ──
+      const views0 = ctl ? ctl.diag.views : -1
+      S.log.length = 0
+      pressTo('BBB')
+      await until(() => ctl && ctl.diag.applied >= 1)
+      const first = {
+        applied: ctl ? ctl.diag.applied : 0, refusedAs: ctl ? JSON.stringify(ctl.diag.last) : null,
+        views: ctl ? ctl.diag.views - views0 : -1, stale: ctl ? ctl.diag.stale : -1,
+        host: host.at(-1), pending: ctl ? ctl.pendingSym() : null,
+        candles: S.log.some((l) => /^candle#1 setData \[380\]sha:/.test(l)),
+      }
+      // ── key 2: back to AAA, inside the hold ──
+      if (ctl && controllerRefusesTheWayBack) {
+        const apply = ctl.apply
+        const canApply = ctl.canApply
+        ctl.apply = (sym, token) => (sym === 'AAA' ? false : apply(sym, token))
+        ctl.canApply = (sym) => (sym === 'AAA' ? null : canApply(sym))
+      }
+      S.log.length = 0
+      pressTo('AAA')
+      await until(() => host.at(-1).startsWith('AAA:'))
+      await wait(100)
+      const back = {
+        host: host.at(-1), pending: ctl ? ctl.pendingSym() : 'no controller', log: S.log.slice(),
+        candle: lastSetData(S.log)['candle#1'],
+      }
+      // ── the frames come; then something changes that re-creates the pass ──
+      await nextFrame()
+      await nextFrame()
+      S.log.length = 0
+      const stale0 = ctl ? ctl.diag.stale : -1
+      // a tick-like change: the chart's own pass must run again (it was skipped for good before the fix)
+      await act(async () => { await swrMutate('/api/ticker-meta/AAA', { ...NAMES.AAA, name: 'Alpha Renamed' }, false) })
+      await wait(300)
+      out = {
+        first, back, candleOfAAA,
+        later: { log: S.log.slice(), staleAdded: ctl ? ctl.diag.stale - stale0 : -1, pending: ctl ? ctl.pendingSym() : null },
+        diag: ctl ? JSON.parse(JSON.stringify(ctl.diag)) : null,
+      }
+    } finally {
+      globalThis.requestAnimationFrame = realRaf
+      cleanup()
+      M.store.registry.release(keyB)
+      M.nf.__setNeighborFramesForTests(null)
+    }
+    return out
+  }
+  beforeAll(async () => { took = await run(false); refused = await run(true) }, 180_000)
+
+  it('key 1: the real handoff had the real controller paint BBB, and the chart body did not render before the paint', () => {
+    expect(took.first.applied, `refused as ${took.first.refusedAs}`).toBe(1)
+    expect(took.first.candles).toBe(true)
+    expect(took.first.host).toBe('BBB:AAA')        // the host shows BBB; the body is still held on AAA
+    expect(took.first.views).toBe(0)               // no commit of the chart body
+    expect(took.first.stale).toBe(0)               // …and no pass of it was started and skipped
+    expect(took.first.pending).toBe('BBB')
+  })
+
+  describe.each([
+    ['the controller takes the way back itself', () => took],
+    ['the controller refuses the way back, React shows it', () => refused],
+  ])('key 2, back to AAA inside the hold: %s', (_name, get) => {
+    it('the switch is over: nothing is pending', () => {
+      expect(get().back.host).toBe('AAA:AAA')
+      expect(get().back.pending).toBe(null)
+    })
+    it('the canvas is AAA\'s own frame again: its candles, its price line, its markers, its name', () => {
+      const r = get()
+      expect(r.back.candle).toBe(r.candleOfAAA)
+      expect(r.back.log.some((l) => /^candle#1 createPriceLine 41\.5$/.test(l)), 'the line of AAA').toBe(true)
+      expect(r.back.log.filter((l) => /^markers set /.test(l)).at(-1)).toBe('markers set 1')
+      expect(r.back.log.filter((l) => /^watermark lines /.test(l)).at(-1)).toContain('Alpha Incorporated')
+    })
+    it('later passes of AAA run (they were skipped for good): a change that re-draws the watermark reaches the chart', () => {
+      const r = get()
+      expect(r.later.pending).toBe(null)
+      expect(r.later.staleAdded).toBe(0)
+      expect(r.later.log.some((l) => /^watermark lines .*Alpha Renamed/.test(l))).toBe(true)
+    })
+    it('the numbers add up', () => {
+      const d = get().diag
+      expect(d.asked).toBe(d.applied + Object.values(d.refused).reduce((a, b) => a + b, 0))
+      expect(d.lateBoxReads).toBe(0)
+    })
   })
 })
 
