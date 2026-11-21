@@ -104,7 +104,13 @@ describe('L11 — RS Rating on NYSE:RDDT 1W: the RS line equals TradingView\'s o
       // the three averages (off at the defaults) agree on every bar
       for (const p of verdict.plots.filter((x) => x.title !== 'RS Line')) expect(p.stats.steady.divergent, p.title).toBe(0)
       // ⭐ the run half (R2 / R3 / R4 read there) is served on a weekly chart: TradingView's two labels, drawn
-      expect(verdict.objects && verdict.objects.verdict, JSON.stringify(verdict.objects)).toBe('MATCH')
+      // ⭐ RE-PIN (2026-11-21, the objects grader PR, coordinator ruling): was `objects MATCH`. Both labels sit at
+      // `y = rs` on the FORMING week, the bar the RS line above names INCONCLUSIVE (supply behind); v1 compares no y and
+      // read MATCH while v2 read their y as a difference (TradingView's y is its own RS on that bar, 37.8408, read with the
+      // 2026-11-17 SPX). Neither judged that bar, so both labels are now not compared, by the same name: drawn, named,
+      // INCONCLUSIVE, never DIVERGE (`compare.mjs::unsettledBarsOf`, `vendorHarness.objectsV2Verdict.test.js` SB1).
+      expect(verdict.objects && verdict.objects.verdict, JSON.stringify(verdict.objects)).toBe('INCONCLUSIVE')
+      expect(verdict.objects.supplyBehind.map((e) => [e.family, e.bar])).toEqual([['labels', n - 1], ['labels', n - 1]])
       expect(cap.objects.texts.labels).toEqual(['                RS Rating', ''])
     })
   })
@@ -129,7 +135,10 @@ describe('L11 — RS Rating on NASDAQ:NVDA 1W (1453 weeks from 1999)', () => {
       // and the weeks after it are compared (a rail that compares nothing proves nothing)
       const after = cap.bars.rows.filter((r, i) => i < n - 1 && isoOf(r[0]) >= FMP_EXACT_FROM).length
       expect(after).toBeGreaterThan(100)
-      expect(verdict.objects && verdict.objects.verdict, JSON.stringify(verdict.objects)).toBe('MATCH')
+      // ⭐ RE-PIN (2026-11-21): was `objects MATCH`; the two labels on the forming week are not compared, by name
+      // (supply behind), as on RDDT above (TradingView's y 62.2642 is its own RS on that bar)
+      expect(verdict.objects && verdict.objects.verdict, JSON.stringify(verdict.objects)).toBe('INCONCLUSIVE')
+      expect(verdict.objects.supplyBehind.map((e) => [e.family, e.bar])).toEqual([['labels', n - 1], ['labels', n - 1]])
     })
   })
 })

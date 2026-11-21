@@ -63,7 +63,10 @@ KINDS = ("drawn", "withheld", "unpositioned")
 DOORS = ("host", "runtime")
 SCOPES = ("output", "outputColour", "paint", "objectFamily")
 #: the grader's v1 object-family names -> the engine's
+#: ⭐ (2026-11-21) "linefills" is the grader's v2 family name (`compare.mjs` OBJECTS_V2_FIELDS): without it a fill difference
+#: v2 names could not be isolated to the fill family and fell through to a whole-script kill
 _FAMILY = {"lines": "line", "labels": "label", "boxes": "box", "tables": "table", "tableCells": "table",
+           "linefills": "linefill",
            "line": "line", "label": "label", "box": "box", "table": "table", "linefill": "linefill"}
 _ITEM_MAX = 300
 
