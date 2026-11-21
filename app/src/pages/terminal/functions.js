@@ -578,6 +578,12 @@ export const FUNCTIONS = [
     ticker: { panel: 'DividendCalendar' }, market: { panel: 'DividendCalendar' } },
   { code: 'CACT', label: 'Corporate actions (splits, dividends, name changes)', group: 'Security',
     ticker: { panel: 'CorporateActions' } },
+  // AUCT (2026-11-21): the Treasury auctions coming up and the results of the recent ones
+  // (GET /api/research/treasury-auctions, read from the US Treasury's Fiscal Data service; the
+  // server holds one answer and looks for new records once each weekday evening). No argument.
+  // AUCT is not in the site's stock universe.
+  { code: 'AUCT', label: 'Treasury auctions (upcoming and recent results)', group: 'Market',
+    market: { panel: 'TreasuryAuctions' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -812,7 +818,8 @@ const FUNCTION_WORDS = {
   SENT: { keywords: ['sentiment', 'aaii', 'naaim', 'fear and greed', 'put call', 'macro', 'economy'],
     note: 'The economy rows say so if that feed is switched off.' },
   RATES: { keywords: ['treasury yields', 'yield curve', 'interest rates', 'bond yields', '10 year yield', '2 year yield',
-    'inverted curve', '2s10s'], note: 'End-of-day figures, one a day.' },
+    'inverted curve', '2s10s', 'real yields', 'tips yields', 'breakeven inflation'],
+    note: 'End-of-day figures, one a day. Real yields and breakevens are their own block, with their own date.' },
   SCAT: { keywords: ['scatter', 'scatter plot', 'market map'] },
   HELP: { example: 'HELP CHK', keywords: ['help', 'functions', 'commands'] },
   RRG: { keywords: ['rotation', 'sector rotation', 'sectors'] },
@@ -892,6 +899,9 @@ const FUNCTION_WORDS = {
   CACT: { example: 'NVDA CACT', keywords: ['corporate actions', 'splits', 'stock split', 'dividend history', 'name change',
     'ticker change', 'past dividends'],
     note: 'Only what the server already holds for the stock: splits, dividends by ex-date and ticker changes.' },
+  AUCT: { example: 'AUCT', keywords: ['treasury auctions', 'auctions', 'bond auction', 'auction results', 'bid to cover',
+    'indirect bidders', 'treasury supply'],
+    note: 'Auctions ahead and the last 45 days of results. A result shows the evening of the auction day.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
