@@ -45,13 +45,25 @@ const rig = vi.hoisted(() => {
     lastRange: { from: 0, to: 200 },
     axisWidth: 76,
     container: { left: 0, top: 0, width: 900, height: 560 },
+    // ⭐ A LINE ON THE CANDLES' OWN SCALE (an overlay=true script's plot — Fred RS's
+    // RS line parks under the bars). `joins`: whether it takes part in the autoscale,
+    // as an overlay script's plot does on /charts (`placement.joinPriceScale`), or is
+    // excluded (`autoscaleInfoProvider: () => null`) as on a fitPriceToCandles surface.
+    overlay: null,           // { min, max, joins }
   }
   const priceH = () => state.paneHeights[state.pricePaneIndex]
+  // Autoscale over the visible bars AND every series that joins it — what the
+  // library fits into the margin-inset plot area when nothing pins the scale.
+  const autoFit = () => {
+    const o = state.overlay
+    if (!o || !o.joins) return state.autoRange
+    return { min: Math.min(state.autoRange.min, o.min), max: Math.max(state.autoRange.max, o.max) }
+  }
   // The range lightweight-charts would actually use this frame: the provider's
   // answer when it gives one, else whatever an axis drag left behind, else
   // autoscale over the visible bars.
   const effective = () => {
-    const base = state.userRange || state.autoRange
+    const base = state.userRange || autoFit()
     const orig = () => ({ priceRange: { minValue: base.min, maxValue: base.max } })
     let r = null
     try { r = state.provider ? state.provider(orig) : orig() } catch { r = null }
@@ -85,6 +97,7 @@ const rig = vi.hoisted(() => {
       state.autoRange = { min: 100, max: 120 }
       state.marginWrites = 0
       state.lastRange = { from: 0, to: 200 }
+      state.overlay = null
     },
   }
 })
@@ -111,6 +124,19 @@ vi.mock('lightweight-charts', () => {
     setVisibleRange: () => {}, getVisibleRange: () => null, setAutoScale: () => {},
   }
   let candle = null
+  // The overlay line, as the library answers for it: on the candles' scale, its
+  // value at each logical index alternating between its min and max (so every
+  // visible window holds both), and an autoscale provider that EXCLUDES it when
+  // it does not join.
+  const overlaySeries = {
+    options: () => ({
+      priceScaleId: 'right', visible: true,
+      ...(S.overlay && !S.overlay.joins ? { autoscaleInfoProvider: () => null } : {}),
+    }),
+    dataByIndex: (i) => (S.overlay && i >= 0 && i < 200 && Number.isInteger(i)
+      ? { time: i, value: (i % 2 ? S.overlay.min : S.overlay.max) } : null),
+    seriesType: () => 'Line',
+  }
   const panesCache = []
   const panes = () => {
     panesCache.length = 0
@@ -120,7 +146,7 @@ vi.mock('lightweight-charts', () => {
       getStretchFactor: () => S.paneHeights[i],
       setStretchFactor: () => {},
       getHTMLElement: () => document.createElement('div'),
-      getSeries: () => (i === S.pricePaneIndex && candle ? [candle] : []),
+      getSeries: () => (i === S.pricePaneIndex && candle ? (S.overlay ? [candle, overlaySeries] : [candle]) : []),
       priceScale: () => anyScale,
       moveTo: () => {},
     }))
@@ -489,6 +515,89 @@ describe('⛔ PRICE IS SEMANTIC, NOT PHYSICAL — every topology', () => {
     for (let i = 1; i <= 20; i++) { await pan(i); await repaint(rerender) }
     // The band is a FRACTION of whatever the price pane is now — it must not walk.
     expect(margins()).toEqual(mAfterDrag)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ⛔⛔ A LINE THAT JOINS THE AUTOSCALE BREAKS THE FIXED POINT TOO.
+//
+// ⚰️ MEASURED ON PRODUCTION (2026-11-21, smoke@ on the rig, the owner's report "it
+// does not scale the same as the tradingview indicator ... as i move my chart or move
+// the placement of where the candles are"). The same gestures twice — compress the
+// price axis on PEB, switch to KSS, expand, switch to PEB, compress, switch to KSS:
+// without Fred RS the candles landed on every switch exactly where they were left
+// (rows 24.1–77.2% → 24.1–76.6%); with Fred RS they filled 37.3% → 23.8% → 13.5% →
+// 6.5% of the pane, and KSS (~$15–30) ended on a −123 … 73 scale.
+//
+// ⛔ THE CAUSE. `_measureViewLock` measured the CANDLES' band and stored it as the
+// scale margins; the autoscale then fits the candles AND every series that joins it
+// (an overlay=true script's plots since the 11-16 price-scale join, the averages on
+// /charts) into those margins. With the RS line parked under the bars the stored band
+// is short by the line's share — every capture loses it again.
+describe('⛔⛔ A LINE THAT JOINS THE AUTOSCALE — the stored band is everything the autoscale fits', () => {
+  const switchTo = async (rerender, sym) => { rerender(view({ sym })); await frames(); await frames() }
+
+  it('RS line under the candles: compress, switch ticker — the candles land where the member left them', async () => {
+    rig.reset(); rig.state.overlay = { min: 60, max: 70, joins: true }
+    const { rerender } = await mount()
+    await repaint(rerender)
+    await dragPriceAxis(1.6)
+    const afterDrag = occupancy()
+    await switchTo(rerender, 'MSFT')
+    expect(occupancy(), 'the switch re-applied a band the autoscale then over-filled').toBeCloseTo(afterDrag, 4)
+  })
+
+  it('three drag → switch rounds never compound', async () => {
+    rig.reset(); rig.state.overlay = { min: 60, max: 70, joins: true }
+    const { rerender } = await mount()
+    await repaint(rerender)
+    const rounds = [[1.6, 'MSFT'], [0.8, 'AAPL'], [1.3, 'MSFT']]
+    for (const [k, sym] of rounds) {
+      await dragPriceAxis(k)
+      const before = occupancy()
+      await switchTo(rerender, sym)
+      expect(occupancy(), `drag ×${k} then ${sym}`).toBeCloseTo(before, 4)
+    }
+  })
+
+  it('a line ABOVE the candles (an upper band) is counted the same way', async () => {
+    rig.reset(); rig.state.overlay = { min: 125, max: 140, joins: true }
+    const { rerender } = await mount()
+    await repaint(rerender)
+    await dragPriceAxis(1.5)
+    const afterDrag = occupancy()
+    await switchTo(rerender, 'MSFT')
+    expect(occupancy()).toBeCloseTo(afterDrag, 4)
+  })
+
+  it('CONTROL — no overlay: the switch is a fixed point', async () => {
+    rig.reset()
+    const { rerender } = await mount()
+    await repaint(rerender)
+    await dragPriceAxis(1.6)
+    const afterDrag = occupancy()
+    await switchTo(rerender, 'MSFT')
+    expect(occupancy()).toBeCloseTo(afterDrag, 4)
+  })
+
+  it('⛔ a line EXCLUDED from the autoscale is not counted (the band stays the candles\')', async () => {
+    rig.reset(); rig.state.overlay = { min: 60, max: 70, joins: false }
+    const { rerender } = await mount()
+    await repaint(rerender)
+    await dragPriceAxis(1.6)
+    const afterDrag = occupancy()
+    await switchTo(rerender, 'MSFT')
+    expect(occupancy(), 'an excluded line was counted into the band').toBeCloseTo(afterDrag, 4)
+  })
+
+  it('⭐ an untouched chart with a joined line still authors no vertical lock on pan/zoom', async () => {
+    rig.reset(); rig.state.overlay = { min: 60, max: 70, joins: true }
+    const { rerender } = await mount()
+    await repaint(rerender)
+    const occ0 = occupancy()
+    for (let i = 1; i <= 6; i++) { if (i % 2) await pan(i); else await zoom(i); await repaint(rerender) }
+    expect(occupancy()).toBeCloseTo(occ0, 6)
+    expect(storedLock()?.top ?? null).toBeNull()
   })
 })
 
