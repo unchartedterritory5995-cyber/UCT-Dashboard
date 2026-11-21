@@ -4960,6 +4960,26 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   `latest()`; the older file it keeps running lacks only what it never invokes.
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
 
+## Terminal `OWN` Funds (13F) block: every 13F holder field on the ownership answer · `feat/terminal-holders-13f` · 2026-11-21
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded file | `api/services/research/ownership.py` |
+
+- **Additive.** `_thirteen_f()` passes on more of the FMP holder row it already fetched (the filer's CIK, the
+  filing date, the quarter end, last quarter's shares / value / percent of shares and the change in that percent,
+  the position's weight in the filer's portfolio now / last quarter / the change, the quarter-end price), adds
+  `total_shares` / `total_shares_change` to the summary and `holders_limit` to the block. The holders read's page
+  (`_TF_MAX_HOLDERS`) is 50 rows, was 12: still ONE call per symbol per quarter, same endpoint. Existing keys are
+  unchanged; the only caller that draws the new ones is the OWN panel (`GET /api/research/ownership/{sym}`, web).
+- **Flow-worker.** Reaches `research.ownership` only through a static import chain (`flow_worker_main` ->
+  `auth_surface_check` -> `flow_proxy` -> `auth_service` -> `auth_db` -> `journal_two.db` -> `template_gallery` ->
+  `notebook_widgets` -> `coach_chat_tools` -> `voice_tool_impls` -> `institutional_holdings` -> `research.ownership`,
+  the last hop a function-level import) and serves neither the ownership route nor the Compass tools at its end;
+  the older file it keeps running lacks only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
 ## Terminal `DVD MARKET`, `SEG`, `MNA`, `IDXC` + four `GET /api/research/*` routes · `feat/terminal-company-deals` · 2026-11-21
 
 | | |

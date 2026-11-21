@@ -1,8 +1,9 @@
-// Six exact edits to lightweight-charts' production build, applied at BUILD time by
+// Ten exact edits to lightweight-charts' production build, applied at BUILD time by
 // `patchChartLibrary()` in vite.config.js. Nothing in node_modules is changed. Edits 1-3 are the
 // data layer (below); edits 4-5 stop the series markers plugin copying the whole series on every
 // redraw and every data change; edit 6 stops `setData` rebuilding the time scale when no time
-// point was added or removed (see their entries in PATCHES).
+// point was added or removed; edit 7 paints what a draw's own layout raised in that draw, and edits
+// 8-10 stop a canvas the paint resized asking for a second paint (see their entries in PATCHES).
 //
 // WHY. Flipping a chart to another symbol calls `series.setData` on every series. The library's
 // data layer does work proportional to (time points x series) on EACH of those calls, so a chart
@@ -91,6 +92,56 @@ export const PATCHES = [
     name: 'setSeriesData rebuilds the time scale only when a time point is added or removed',
     find: 'else for(const i of this.ng)i.pointData.GM.delete(t)&&(s=!0);let r=[];if(0!==i.length){const n=i.map((t=>t.time)),e=this.xu.createConverterToInternalObj(i),h=os(t.bh()),a=t.ll(),l=t.ol();r=i.map(((i,r)=>{const o=e(i.time),_=this.xu.key(o);let u=this.QM.get(_);void 0===u&&(u=_s(o),this.QM.set(_,u),s=!0);const c=h(o,u.$n,i,n[r],a,l);return u.GM.set(t,c),c}))}n&&this.eg(),this.rg(t,r);',
     replace: 'else for(const i of this.ng)i.pointData.GM.delete(t);let r=[];if(0!==i.length){const n=i.map((t=>t.time)),e=this.xu.createConverterToInternalObj(i),h=os(t.bh()),a=t.ll(),l=t.ol();r=i.map(((i,r)=>{const o=e(i.time),_=this.xu.key(o);let u=this.QM.get(_);void 0===u&&(u=_s(o),this.QM.set(_,u),s=!0);const c=h(o,u.$n,i,n[r],a,l);return u.GM.set(t,c),c}))}n&&(n=this.QM.size,this.eg(),n!==this.QM.size&&(s=!0)),this.rg(t,r);',
+  },
+  // ⭐ ONE CHANGE, ONE PAINT (2026-11-21). The chart widget's draw (`_drawImpl`, `MM` here) lays the
+  // chart out first on a full update (`_updateGui`: pane widgets, then `_adjustSizeImpl`, which
+  // measures every price axis and sets every pane's size), then paints. Laying out RAISES
+  // invalidations of its own: setting a pane's height or the chart's width recalculates every pane
+  // (`recalculateAllPanes` -> `Pane.recalculate` -> `lightUpdate`), and a price axis whose labels
+  // grew asks for a full update (`PriceAxisWidget._onMarksChanged` -> `fullUpdate`). The widget
+  // clears its pending mask at the START of a draw, so each of those schedules ANOTHER frame:
+  //   * the light one always, though the paint that follows in the same draw already shows the
+  //     recalculated panes: a second paint of the same picture;
+  //   * the full one is folded back into the draw (the library's own `3===this.iM?.ls()` step), and
+  //     the relayout that fold runs raises the light one again.
+  // Measured on eight real-Chrome list flips of the production build (2026-11-20, CPU samples):
+  // one switch cost each chart THREE paints in three consecutive frames (full, full, light), about
+  // 13 ms of the flip's 51 ms of chart paint for the second and third. Edits 8-10 take the other
+  // repaint a resized canvas asked for.
+  // The edit keeps the library's draw as it is (its one full fold included) and adds one step before
+  // the paint: a pending update of light level or lower, raised by this draw's own layout and carrying
+  // no time-scale work, is merged into the draw's mask (its autoscale flags applied first, as the next
+  // frame's draw would apply them) and painted by this draw. The frame it asked for then finds nothing
+  // to do. A FULL update still pending there (a relayout that grew an axis again), anything raised
+  // DURING the paint itself, and any pending time-scale work still get their own frame, as before.
+  // (A draw handed the pending mask itself, as `takeScreenshot` does, merges nothing: `iM !== t`.)
+  {
+    name: 'a draw paints what its own layout raised, in the same frame',
+    find: 'MM(t,i){const n=t.ls();3===n&&this.VM(),3!==n&&2!==n||(this.BM(t),this.EM(t,i),this._M.kt(),this.Gw.forEach((t=>{t.sw()})),3===this.iM?.ls()&&(this.iM.Ss(t),this.VM(),this.BM(this.iM),this.EM(this.iM,i),t=this.iM,this.iM=null)),this.km(t)}',
+    replace: 'MM(t,i){const n=t.ls();3===n&&this.VM(),3!==n&&2!==n||(this.BM(t),this.EM(t,i),this._M.kt(),this.Gw.forEach((t=>{t.sw()})),3===this.iM?.ls()&&(this.iM.Ss(t),this.VM(),this.BM(this.iM),this.EM(this.iM,i),t=this.iM,this.iM=null),null!==this.iM&&this.iM!==t&&2>=this.iM.ls()&&0===this.iM.bs().length&&(this.BM(this.iM),this.iM.Ss(t),t=this.iM,this.iM=null)),this.km(t)}',
+  },
+  // ⭐ …AND A CANVAS RESIZED BY THE PAINT ASKS FOR NO SECOND PAINT (2026-11-21). Every widget (a pane, a
+  // price axis, the time axis) listens to its canvases' "suggested bitmap size changed" and asks for a light
+  // update, so a canvas the layout resized is redrawn at its new size. The paint then APPLIES the suggestion
+  // (`applySuggestedBitmapSize`, the first thing each widget's paint does) and fancy-canvas reports that as a
+  // change too: from the size it suggested to none (`_emitSuggestedBitmapSizeChanged(old, null)`). The widget
+  // asked for another light update, and the frame after every resize repainted the picture the paint had just
+  // drawn at the applied size. A report whose new suggestion is NONE has nothing left to show (the bitmap is
+  // already that size, or already the canvas' size) and now asks for nothing; a new suggestion still does.
+  {
+    name: 'an applied canvas size asks for no second paint (price axis)',
+    find: 'this.hm=()=>{this.rm||this.yt.am().Qt().mr()},this.lm=()=>{this.rm||this.yt.am().Qt().mr()}',
+    replace: 'this.hm=(t,i)=>{this.rm||null===i||this.yt.am().Qt().mr()},this.lm=(t,i)=>{this.rm||null===i||this.yt.am().Qt().mr()}',
+  },
+  {
+    name: 'an applied canvas size asks for no second paint (pane)',
+    find: 'this.hm=()=>{this.rm||null===this.Zm||this.sn().mr()},this.lm=()=>{this.rm||null===this.Zm||this.sn().mr()}',
+    replace: 'this.hm=(t,i)=>{this.rm||null===this.Zm||null===i||this.sn().mr()},this.lm=(t,i)=>{this.rm||null===this.Zm||null===i||this.sn().mr()}',
+  },
+  {
+    name: 'an applied canvas size asks for no second paint (time axis)',
+    find: 'this.hm=()=>{this.rm||this.qv.Qt().mr()},this.lm=()=>{this.rm||this.qv.Qt().mr()}',
+    replace: 'this.hm=(t,i)=>{this.rm||null===i||this.qv.Qt().mr()},this.lm=(t,i)=>{this.rm||null===i||this.qv.Qt().mr()}',
   },
 ]
 

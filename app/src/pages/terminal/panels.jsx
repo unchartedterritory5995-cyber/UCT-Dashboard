@@ -160,6 +160,8 @@ export const PANEL_IMPORTERS = {
   Oil: () => import('./panels/OilPanel'),
   // FUND (2026-11-21): one company's metrics over time from its SEC filings, up to three more beside it
   FundMetrics: () => import('./panels/FundMetricsPanel'),
+  // MKTH (2026-11-21): every correction and bear market of the S&P 500 or the Nasdaq-100, the rally after each low, its leaders
+  MarketHistory: () => import('./panels/MarketHistoryPanel'),
   // SEG (2026-11-21): one stock's revenue by product and by region, the newest period ranked and four side by side
   RevenueSegments: () => import('./panels/RevenueSegmentsPanel'),
   // MNA (2026-11-21): the latest M&A deals, or one company's, each with its SEC filing

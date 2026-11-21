@@ -12243,6 +12243,8 @@ from api.routers import corporate_actions as corporate_actions_router  # noqa: E
 app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
 from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
 app.include_router(fed_watch_router.router)  # /api/research/fed-watch
+from api.routers import market_history as market_history_router  # noqa: E402  (MKTH: corrections, bear markets, the rallies and their leaders, paid)
+app.include_router(market_history_router.router)  # /api/research/market-history
 from api.routers import market_dividends as market_dividends_router  # noqa: E402  (DVD MARKET: the market's ex-dividend dates and splits, this week and next, paid)
 app.include_router(market_dividends_router.router)  # /api/research/market-dividends
 from api.routers import revenue_segments as revenue_segments_router  # noqa: E402  (SEG: one stock's revenue by product and by region, paid)

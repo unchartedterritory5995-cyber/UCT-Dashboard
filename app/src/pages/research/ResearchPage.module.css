@@ -105,7 +105,6 @@
 .statBig { font-size: var(--text-2xl); font-weight: 700; font-variant-numeric: tabular-nums; }
 .statChg { font-size: var(--text-base); margin-left: var(--space-xs); }
 .cardDivider { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--border); }
-.holderBadge { font-size: var(--text-xs); font-weight: 700; margin-left: var(--space-xs); }
 /* A card list row: full-width body with a head line of chips beside the title. */
 .rowBody { width: 100%; }
 .rowHead { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
@@ -119,15 +118,8 @@
 .rcgrade { color: var(--text); white-space: nowrap; }
 .rcgrade b { color: var(--text-bright); }
 
-/* ownership tab */
-.ownHolders { margin-top: var(--space-sm); }
-.holderName { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Wave 3 (OWN P2 #24): on a phone the two 5-column holder tables scroll sideways; the holder name
-   stays pinned so a scrolled row still says whose it is. */
-@media (max-width: 640px) {
-  .ownHolders th:first-child, .ownHolders td:first-child { position: sticky; left: 0; z-index: 1; background: var(--bg-surface); }
-  .ownHolders .holderName { max-width: 120px; }
-}
+/* ownership tab. The Funds (13F) holders table is FmpDepth's `.table` inside SidewaysScroll
+   (FundHoldersBlock): its holder column stays in place at every width, not only on a phone. */
 .insrow { display: grid; grid-template-columns: 88px 1fr auto auto auto; gap: var(--space-md); align-items: center; font-size: var(--text-base); padding: var(--space-xs) 0; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
 
 /* filings tab */
@@ -239,7 +231,6 @@
 
 .entityNoteGap { margin-bottom: var(--space-sm); }
 .statRowGap { margin-bottom: var(--space-md); }
-.flowCounts { display: flex; gap: var(--space-lg); flex-wrap: wrap; margin-bottom: var(--space-xs); }
 /* analyst consensus: the stacked bucket bar and its key */
 .segBar { display: flex; height: 10px; border-radius: var(--radius-pill); overflow: hidden; margin: var(--space-md) 0; }
 .segKey { margin-right: var(--space-lg); }

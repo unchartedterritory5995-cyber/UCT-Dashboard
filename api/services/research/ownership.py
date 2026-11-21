@@ -35,6 +35,7 @@ from __future__ import annotations
 import datetime
 import logging
 import math
+import re
 import threading
 
 from api.services import fmp_client
@@ -48,7 +49,13 @@ _logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 43_200  # 12h -- only when both hard legs resolved
 _FAIL_TTL = 300        # 5 min -- a partial/failed fetch self-heals fast
-_TF_MAX_HOLDERS = 12   # top institutional holders to surface
+# Institutional holders kept for the newest filed quarter: the size of the ONE holders read
+# (`limit`, FMP's first page). It was 12; the OWN panel's Funds (13F) block shows 20 and the rest
+# on request, so the page is 50. Still one vendor call per symbol per quarter; `holders_limit`
+# rides on the answer so the panel can say where the list stops.
+_TF_MAX_HOLDERS = 50
+
+_ISO_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}")
 
 
 def _num(v):
@@ -57,6 +64,18 @@ def _num(v):
         return None if math.isnan(f) else f
     except (TypeError, ValueError):
         return None
+
+
+def _day(v):
+    """'YYYY-MM-DD' from a vendor date or timestamp; None for anything else (never a guess)."""
+    s = str(v or "").strip()
+    return s[:10] if _ISO_DAY.match(s) else None
+
+
+def _text(v):
+    """A stripped string, or None for a missing or blank value."""
+    s = str(v).strip() if v is not None else ""
+    return s or None
 
 
 #: Failed provider reads on this thread (a count). `_build_ownership` compares it before and
@@ -401,13 +420,29 @@ def _thirteen_f(symbol):
         for h in hraw[:_TF_MAX_HOLDERS]:
             if not isinstance(h, dict):
                 continue
+            # Every field the holder row carries is passed on, from the row the read already
+            # fetched (no further call): the filer's SEC id, the filing date and the quarter end,
+            # last quarter's shares / value / percent of shares, and the position's weight in the
+            # filer's own 13F portfolio (now, last quarter, the change, in points). A field the
+            # vendor left out is None, never 0.
             holders.append({
                 "name":         h.get("investorName"),
+                "cik":          _text(h.get("cik")),
                 "shares":       _num(h.get("sharesNumber")),
+                "prior_shares": _num(h.get("lastSharesNumber")),
                 "change_shares": _num(h.get("changeInSharesNumber")),
                 "change_pct":   _num(h.get("changeInSharesNumberPercentage")),
                 "ownership":    _num(h.get("ownership")),
+                "prior_ownership": _num(h.get("lastOwnership")),
+                "change_ownership": _num(h.get("changeInOwnership")),
                 "market_value": _num(h.get("marketValue")),
+                "prior_market_value": _num(h.get("lastMarketValue")),
+                "weight":       _num(h.get("weight")),
+                "prior_weight": _num(h.get("lastWeight")),
+                "change_weight": _num(h.get("changeInWeight")),
+                "quarter_end_price": _num(h.get("quarterEndPrice")),
+                "quarter_end":  _day(h.get("date")),
+                "filing_date":  _day(h.get("filingDate")),
                 "is_new":       bool(h.get("isNew")),
                 "is_sold_out":  bool(h.get("isSoldOut")),
             })
@@ -426,8 +461,13 @@ def _thirteen_f(symbol):
             "reduced_positions":   _num(summ.get("reducedPositions")),
             "closed_positions":    _num(summ.get("closedPositions")),
             "put_call_ratio":      _num(summ.get("putCallRatio")),
+            # the shares all 13F filers reported holding, and the change on the quarter
+            "total_shares":        _num(summ.get("numberOf13Fshares")),
+            "total_shares_change": _num(summ.get("numberOf13FsharesChange")),
         },
         "holders": holders,
+        # how many holder rows the read asked for: a list this long may be cut by the vendor
+        "holders_limit": _TF_MAX_HOLDERS,
         "_meta": meta,
     }
 

@@ -4499,6 +4499,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "",
+      "path": "/api/research/market-history",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}, days=90",
       "path": "/api/research/mention-series/{sym}",
       "rate_limit_family": "research",

@@ -77,6 +77,7 @@ on:
       - 'docs/agent/knowledge/policy.json'
       - 'docs/agent/knowledge/setup-criteria.json'
       - 'docs/agent/program/**'
+      - 'docs/terminal-research/09-security-licensing-cost/licensing-register.md'
       - '.github/workflows/agent-ci.yml'
   pull_request:
     branches: [agent/int, master]
@@ -112,6 +113,7 @@ on:
       - 'docs/agent/knowledge/policy.json'
       - 'docs/agent/knowledge/setup-criteria.json'
       - 'docs/agent/program/**'
+      - 'docs/terminal-research/09-security-licensing-cost/licensing-register.md'
       - '.github/workflows/agent-ci.yml'
   # RE-ARM (P2b; P2c 2026-11-18: repository_dispatch, the ONE re-arm path): ONE named PR's evidence run on its current
   # merge commit. Start it only through tools/agent_ci_rearm.py (it refuses a merge conflict, a closed / non-agent /
