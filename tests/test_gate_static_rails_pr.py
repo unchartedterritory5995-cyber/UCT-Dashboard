@@ -53,6 +53,9 @@ PR_ONLY = {
         "tests/test_tools_pin_the_root.py went red on master 2026-11-20 (#2152, #2157) and only the nightly ran it",
     "The capture queue's reviewed dispositions":
         "tests/test_queue_dispositions.py went red on master 2026-11-20 and was found by a train's remote run",
+    "Every corporate-action site is registered with a state":
+        "tests/test_corp_actions_census.py was red on master 2026-09-29..2026-11-20 (13 unregistered sites) and "
+        "only the report-only nightly ran it",
     "This job mirrors the gate's static steps":
         "this file",
 }
