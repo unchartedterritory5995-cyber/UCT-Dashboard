@@ -546,6 +546,23 @@ export const FUNCTIONS = [
   // not in the site's stock universe.
   { code: 'SEASB', label: 'Seasonality board (index and sector funds, month by month)', group: 'Market',
     market: { panel: 'SeasonalityBoard', flag: 'seasonalityEnabled', args: [{ kind: 'seasMeasure', prop: 'measure' }] } },
+  // ── Market wave A (2026-11-20): three market screens over routes the site already serves ──
+  // COT: futures positioning from the CFTC's weekly Commitments of Traders report (GET /api/cot/*,
+  // the routes the COT Data page reads). `COT` = every market, one row each; `COT GOLD` / `COT ES`
+  // / `COT 10Y` = one market, by its code or a plain word (resolved in the panel against the
+  // route's own list). COT is not in the site's stock universe.
+  { code: 'COT', label: 'Futures positioning (Commitments of Traders)', group: 'Market',
+    market: { panel: 'Cot', args: [{ kind: 'cotMarketName', prop: 'market' }] } },
+  // ANLG: the past sessions whose breadth looked most like the newest one, and what the S&P 500
+  // did after each (GET /api/breadth-monitor/analogues, the answer the Analogue Deck on Breadth
+  // draws). `ANLG` = the 5 closest, `ANLG 8` = that many (3 to 10). Not in the stock universe.
+  { code: 'ANLG', label: 'Days like today (breadth analogues)', group: 'Market',
+    market: { panel: 'Analogues', args: [{ kind: 'anlgCount', prop: 'count' }] } },
+  // MKTS: index funds, VIX, Treasury yields and Bitcoin on one board, each with its own source and
+  // as-of (GET /api/snapshot, the Treasury read RATES uses, the crypto quote when switched on).
+  // No argument. MKTS is not in the site's stock universe.
+  { code: 'MKTS', label: 'Markets board (index funds, volatility, rates, Bitcoin)', group: 'Market',
+    market: { panel: 'MarketsBoard' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -844,6 +861,14 @@ const FUNCTION_WORDS = {
   SEASB: { example: 'SEASB', keywords: ['seasonality board', 'sector seasonality', 'best months', 'index seasonality',
     'seasonality by sector', 'monthly seasonality', 'month by month'],
     note: 'How each index and sector fund has done in each calendar month. A record, not a forecast.' },
+  COT: { example: 'COT GOLD', keywords: ['cot', 'commitments of traders', 'futures positioning', 'commercials', 'large speculators',
+    'cftc'],
+    note: 'Weekly: positions as of each Tuesday, published the following Friday. Net positions, not the two sides.' },
+  ANLG: { example: 'ANLG', keywords: ['analogues', 'analogs', 'days like today', 'similar days', 'what happened next',
+    'breadth analogues'],
+    note: 'Past sessions with similar breadth and what the S&P 500 did after each. A record, not a forecast.' },
+  MKTS: { example: 'MKTS', keywords: ['markets', 'cross asset', 'indexes', 'vix', 'bitcoin', 'markets board'],
+    note: 'Index funds, VIX, Treasury yields and Bitcoin, each with its own source and time. No futures or commodity prices.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

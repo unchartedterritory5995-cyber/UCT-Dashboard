@@ -216,7 +216,9 @@ const FITS_THE_BOTTOM = [
 ]
 /** Tables with no sample rows: never measured, so they must not fold on a desktop panel above the bottom of the ladder. */
 const NOT_MEASURED = ['AlertsPanel.jsx', 'BreakoutPanel.jsx', 'CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', 'EtfPanel.jsx',
-  'GroupDrillPanel.jsx', 'InsiderPanel.jsx', 'PeerPanel.jsx', 'SentimentPanel.jsx', 'ThemeBoardPanel.jsx', 'WatchlistPanel.jsx']
+  'GroupDrillPanel.jsx', 'InsiderPanel.jsx', 'PeerPanel.jsx', 'SentimentPanel.jsx', 'ThemeBoardPanel.jsx', 'WatchlistPanel.jsx',
+  // Market wave A (2026-11-20): built without a browser, so not measured yet
+  'AnaloguesPanel.jsx', 'CotPanel.jsx', 'MarketsBoardPanel.jsx']
 const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
 const stepsIn = (src) => [...src.matchAll(/data-fold=(?:"([^"]*)"|\{paired \? undefined : '([^']*)'\})/g)].map((m) => m[1] ?? m[2])
 
