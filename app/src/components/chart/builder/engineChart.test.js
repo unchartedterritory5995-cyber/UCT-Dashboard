@@ -50,6 +50,28 @@ describe('engineChart is the binder\'s own view of the chart', () => {
     expect(deps).toBe('}), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved])')
   })
 
+  // ⭐ 2026-11-21 -- and ONE read-only getter beside the context: what the chart has DRAWN (`binder.bindings()`), for
+  // a reader beside the chart that must compute nothing (`authoring/emptyOnChart.js`).
+  it('it also hands down what the chart has drawn, as a getter over the binder: no new fact, no new dependency', () => {
+    const lines = mine.split(LF).map((l) => l.trim())
+    expect(lines).toContain('bindings: drawnBindingsReader(engineRef),')
+    // a getter, read at call time: it sits OUTSIDE the context (the six facts are still the whole of it, above)
+    // and the dependency list is what it was (the test above), so no tick hands the toolbar a new object for it
+    expect(mine.indexOf('bindings: drawnBindingsReader')).toBeGreaterThan(mine.indexOf('...(listingUnserved ? { listingStart: true } : {}),'))
+    expect(mine.split('engineRef').length - 1).toBe(1)
+    // ⛔ THE CLOSURE IS BUILT AT MODULE LEVEL, not inside the render (a closure written in a render keeps that
+    // render's whole context alive, and this object is held by the toolbar and the dock): no arrow in the memo
+    expect(mine.includes('=>'), 'a closure inside the memo').toBe(mine.split('=>').length - 1 === 1)   // only `useMemo(() => ({`
+    const all = code(CHART)
+    const at = all.indexOf('function drawnBindingsReader(engineRef) {')
+    expect(at).toBeGreaterThan(-1)
+    expect(at).toBeLessThan(all.indexOf('function chartDebugHandle('))           // out with the debug handle, above the component
+    const body = all.slice(at, all.indexOf(LF + '}', at))
+    expect(body.split(LF).map((l) => l.trim())).toEqual(['function drawnBindingsReader(engineRef) {', 'return () => engineRef.current?.binder?.bindings?.() || []'])
+    // it only READS: nothing in it writes, syncs or computes
+    for (const never of ['sync(', 'computeFor', 'set', 'await']) expect(body.includes(never), never).toBe(false)
+  })
+
   it('every toolbar mount is handed it, beside the bars it already had', () => {
     const lines = CHART.split(LF)
     const mounts = lines.map((l, i) => (l.trim() === '<ChartToolbar' ? i : -1)).filter((i) => i >= 0)
