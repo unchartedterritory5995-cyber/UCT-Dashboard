@@ -38,6 +38,8 @@ import { shortDate } from '../../../components/chart/economic/econUi'
 import { isCode } from '../functions'
 import { closesFromBars, isoWeekFriday } from './relativeMath'
 import { pathThrough, spreadGeometry } from './ratesModel'
+import { barsUrl as storeBarsUrl } from '../../../data/barStore/network'
+import { keyOf } from '../../../data/barStore/types'
 
 export const FUND_CODE = 'FUND'
 /** The thing read, as a failed read names it. */
@@ -299,9 +301,11 @@ export function seriesUrl(sym, ids) {
   return `/api/fundamentals/pit/series/${encodeURIComponent(s)}?series=${ids.map(encodeURIComponent).join(',')}`
 }
 
+/** The chart's own weekly-bars read for a symbol, through the bar store's one URL owner (the one-key census:
+ *  `components/chart/rails/oneKey.census.test.js`), so FUND shares the chart's cache entry rather than a second key. */
 export const barsUrl = (sym) => {
   const s = String(sym || '').trim().toUpperCase()
-  return s ? `/api/bars/${encodeURIComponent(s)}?tf=W&bars=${BARS_WEEKS}` : null
+  return s ? storeBarsUrl(keyOf({ sym: s, tf: 'W' })) : null
 }
 
 // ── one company ─────────────────────────────────────────────────────────────────────────────────

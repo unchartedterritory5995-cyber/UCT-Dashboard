@@ -4,6 +4,8 @@ import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { barsUrl as storeBarsUrl } from '../../../data/barStore/network'
+import { keyOf } from '../../../data/barStore/types'
 import {
   ANCHOR_SERIES, DEFAULT_METRICS, FUND_METRIC_ARG_WORDS, FUND_SOURCE_LINE, MAX_METRICS, TABLE_QUARTERS, WORD_OF_METRIC,
   alignmentNote, barsUrl, closeFor, columnsOf, companyOf, companyQuarters, dateText, fiscalYearEnd, fundCommandArgs,
@@ -115,7 +117,9 @@ describe('the catalog', () => {
     expect(all.length).toBeLessThanOrEqual(40)                     // the route reads the first 40
     expect(all).toContain('beta_1y_spy')
     expect(seriesUrl('ZQXA', ['a', 'b'])).toBe('/api/fundamentals/pit/series/ZQXA?series=a,b')
-    expect(barsUrl('zqxa')).toBe('/api/bars/ZQXA?tf=W&bars=600')
+    // the bar store's own weekly key (the chart's cache entry), never a hand-built URL
+    expect(barsUrl('zqxa')).toBe(storeBarsUrl(keyOf({ sym: 'ZQXA', tf: 'W' })))
+    expect(barsUrl('zqxa')).toMatch(/^\/api\/bars\/ZQXA\?tf=W&bars=\d+/)
   })
 })
 
