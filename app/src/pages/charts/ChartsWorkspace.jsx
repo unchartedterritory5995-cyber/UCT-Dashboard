@@ -93,6 +93,7 @@ import { isSuspendedGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import { planLayoutUndo, layoutUndoDecision } from './layoutUndo'
 import { createGroupSymsStore } from './groupSymsStore'
+import { decideGroupShow, chartGroupKey } from '../../hooks/handoffGroups'
 // Owner 11-16: the "Switched to “X” · Undo" banner on a member's layout switch is OFF.
 const LAYOUT_SWITCH_BANNER = false
 
@@ -995,6 +996,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const setGroupSym = useCallback((color, sym) => {
     const repeat = groupsLastSetRef.current[color] === sym
     groupsLastSetRef.current[color] = sym
+    // ⭐⭐ ONE SYNCHRONOUS PASS FROM THE KEYDOWN (2026-11-21): before the symbol is written, the group's charts are
+    // asked whether every one of them can show it in this task (hooks/handoffGroups.js). When they all can, the
+    // decision goes out with the symbol and the charts take it in the ONE render the symbol arrives in: one
+    // commit, one frame. Otherwise each chart takes today's path (its handoff, then the group round).
+    if (!repeat && groupSymsStore.get()[color] !== sym) decideGroupShow(groupSymsStore, chartGroupKey(color), sym)
     if (!repeat) {
       groupsScanningRef.current = groupsScanTimerRef.current != null
       if (groupsScanTimerRef.current) clearTimeout(groupsScanTimerRef.current)
@@ -1013,7 +1019,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       }, wait)
       return next
     })
-  }, [writeGroups, setGroupSymsState])
+  }, [writeGroups, setGroupSymsState, groupSymsStore])
   useEffect(() => {
     // Leaving the board, or the page going away, saves a pending symbol now (a scan's save
     // can be 1.5 s out; a refresh inside that must still open on the symbol left).
