@@ -244,7 +244,14 @@ def scan_series(rows, ratios: Sequence[float], tol: float) -> dict:
     """ONE streamed pass over `(ts, close)` rows (oldest first): per-session last closes,
     per-session last RTH closes, and — per ratio r — `(ts, rows_before)` of every bar whose
     step from the previous bar (`close[k-1] / close[k]`) matches r ("fwd") or 1/r ("inv")
-    to `tol`. O(sessions) memory."""
+    to `tol` AND is the size of that split (F3b', `bars_sanitize._within_split_size`, the
+    same test the daily detector applies). O(sessions) memory.
+
+    ⚰️ 2026-11-21: the band alone took an ordinary bar as a split step for every small r. For
+    a 5:4 that is any bar that drops 6-30% or rises 4-47%. One such bar anywhere in the series
+    made an applied 5:4 "hidden-step" (basis unknown) and a real 5:4 cliff "step-not-unique"
+    (refused). Rails: tests/test_intraday_split_heal_basis.py::test_F3b_*."""
+    from api.services import bars_sanitize as _san
     last: dict[str, float] = {}
     rth: dict[str, float] = {}
     fwd = {r: [] for r in ratios}
@@ -269,10 +276,11 @@ def scan_series(rows, ratios: Sequence[float], tol: float) -> dict:
         if prev is not None:
             q = prev / c
             for r in ratios:
-                if _within(q, r, tol):
+                if _within(q, r, tol) and _san._within_split_size(q, r):
                     if len(fwd[r]) <= _MAX_STEP_MATCHES:
                         fwd[r].append((int(ts), n))
-                elif _within(q, 1.0 / r, tol) and len(inv[r]) <= _MAX_STEP_MATCHES:
+                elif (_within(q, 1.0 / r, tol) and _san._within_split_size(q, 1.0 / r)
+                      and len(inv[r]) <= _MAX_STEP_MATCHES):
                     inv[r].append((int(ts), n))
         n += 1
         prev = c
@@ -385,7 +393,18 @@ def plan_series(ticker: str, tf: str, events: Sequence, *, rows=None,
             applied.append((d, r))           # every stored row is already after it
             continue
         anchor = next((i for i, s in enumerate(sessions) if s >= d), None)
-        cliff = _san.unadjusted_splits(closes, [(d, r)])
+        declined: list = []
+        cliff = _san.unadjusted_splits(closes, [(d, r)], declined=declined)
+        if declined:
+            # F3b' declined a step inside the band but not the size of this split, at the split's
+            # own window. That is either a real split whose session also moved (ANAB 2026-04-20: TV
+            # confirms the 1.5, the raw step read 1.325) or an ordinary move on a correct series.
+            # Neither is provable: never rescaled, never "applied" (a stamp would end the re-checks
+            # with a cliff still in the rows). The bar scan's size band (scan_series) must not
+            # turn this case into "applied" (the band-only scan used to call it "hidden-step").
+            refuse(d, r, "declined-not-split-sized", declined[0].get("at"))
+            unknown = True
+            continue
         if cliff:
             b = cliff[0][0]
             out["cliffs"].append((b.isoformat(), r))
