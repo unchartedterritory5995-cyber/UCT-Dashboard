@@ -59,9 +59,14 @@ def _fetch(ticker: str, tf: str) -> list:
 
 
 def diff(ticker: str, tf: str, bars: list) -> dict:
-    """What `put_bars(bars)` would do to the stored series. Reads only."""
+    """What `put_bars(bars)` would do to the stored series. Reads only.
+
+    ⛔ It reads the rows AS STORED (`raw_reads()`): `put_bars` replaces stored rows, so the diff must compare against
+    what the store holds, never the corrections ledger's served view, or a corrected field would count as a change."""
+    from api.services import bars_corrections as _cor
     from api.services import bars_sqlite as S
-    held = {r[0]: r[1:] for r in S.get_bars(ticker, tf, 10 ** 6)}
+    with _cor.raw_reads():
+        held = {r[0]: r[1:] for r in S.get_bars(ticker, tf, 10 ** 6)}
     out = {"replace": 0, "add": 0, "kept": 0, "unchanged": 0}
     for b in bars:
         try:

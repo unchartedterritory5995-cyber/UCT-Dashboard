@@ -71,7 +71,7 @@ const clipMiddle = (s) => (s.length <= CAPTION_MAX ? s : `${s.slice(0, 38).trimE
  *  ⭐ 2026-11-20: in the settings row's own wording (`derivedName.CAPTION_CALL_WORDS`), which a NAME never uses. */
 function captionOf(parent, node) {
   try {
-    const words = nameOfTree(isObj(parent) ? parent : node, 0, 'caption')
+    const words = nameOfTree(isObj(parent) ? parent : node)
     return typeof words === 'string' && words.trim() ? words.trim() : null
   } catch { return null }
 }
