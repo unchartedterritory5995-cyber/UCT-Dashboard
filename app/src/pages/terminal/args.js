@@ -152,6 +152,11 @@ export const COT_MARKET_SHAPE = /^[A-Z0-9&][A-Z0-9&.-]{0,11}$/
 export const ANLG_COUNT_BOUNDS = Object.freeze([3, 10])
 // INS CLUSTER: a copy of the panel model's words (args.insiderClusters.test.js pins it to its owner)
 export const INS_VIEW_WORDS = Object.freeze({ CLUSTER: 'cluster', CLUSTERS: 'cluster' })
+// MKTH (2026-11-21): a copy of the panel model's index words (functions.marketHistory.test.js pins it to its owner)
+export const MKTH_INDEX_ARG_WORDS = Object.freeze({
+  SPX: 'SPX', SP500: 'SPX', SPY: 'SPX',
+  NDX: 'NDX', NASDAQ: 'NDX', NAS100: 'NDX', QQQ: 'NDX',
+})
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -695,6 +700,16 @@ export const ARG_KINDS = {
       return out
     },
     describe: (v) => `compared with ${v.join(', ')}`,
+  },
+  // ── market history (2026-11-21) ──
+  /** MKTH's index (panels/marketHistoryModel.js MKTH_INDEX_WORDS; pinned by functions.marketHistory.test.js). */
+  mkthIndex: {
+    takes: 'an index (SPX for the S&P 500, NDX for the Nasdaq-100)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(MKTH_INDEX_ARG_WORDS, key) ? MKTH_INDEX_ARG_WORDS[key] : null
+    },
+    describe: (v) => (v === 'NDX' ? 'the Nasdaq-100' : 'the S&P 500'),
   },
 }
 

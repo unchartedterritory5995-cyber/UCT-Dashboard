@@ -210,6 +210,9 @@ const MEASURED = [
   ['AlertsPanel.jsx', 'ALRT', [568], [590]],                 // 538.1 + 29
   ['BreakoutPanel.jsx', 'BRKO', [554], [570]],               // 524.3 + 29, the setup wrapped
   ['SentimentPanel.jsx', 'SENT (its two tables)', [505, 492], [510, 510]],   // 475.9 + 29, 462.9 + 29
+  // MKTH, measured 2026-11-21 in the 462px panel of an 1180px two-panel board: the declines table is 507px with
+  // every column (507 + 29). Below the step "Down" and "3 months on" fold; both are repeated in the open row.
+  ['MarketHistoryPanel.jsx', 'MKTH (the declines table)', [536], [550]],
 ]
 /** RSS draws five screens in one table, each with its own columns: every screen names its own step (rsScreensModel.js). */
 const RSS_MEASURED = { starter_rs_leaders: [552, 570], starter_rs_nh_before_price: [513, 530], starter_rs_new_high: [511, 530],
@@ -314,7 +317,7 @@ describe('the fold ladder: a table folds only from its own step down', () => {
       expect([code, need, step, step - need >= 5]).toEqual([code, need, step, true])
       expect([code, need, step, step - need <= 30]).toEqual([code, need, step, true])
     }
-    expect(pairs.length).toBe(25)   // 25 since INS was measured (2026-11-21)
+    expect(pairs.length).toBe(26)   // 26 since MKTH was measured (2026-11-21; 25 since INS)
   })
 
   it('RSS: each of its five screens names its own step, and a screen nobody measured names none', () => {

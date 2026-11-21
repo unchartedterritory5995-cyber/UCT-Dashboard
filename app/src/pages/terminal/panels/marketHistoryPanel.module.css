@@ -1,0 +1,59 @@
+/* MKTH: the open row and its detail. App tokens only (the terminal wears the member's theme). The
+   table, lists, notes and fold rules come from marketPanels.module.css; nothing here keys on the
+   screen. Gold marks the one row that is open (the chosen item), nothing else. */
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-bright);
+}
+
+.span {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.bear {
+  color: var(--text-bright);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.openRow > td:first-child {
+  box-shadow: inset 2px 0 0 var(--ut-gold);
+}
+
+/* The detail spans the table: its text wraps and reads left to right (a table cell is one line and
+   right-aligned by default). Two classes beat the table's own cell rule. */
+tr.detailRow > td.detailCell {
+  height: auto;
+  padding: var(--space-xs) var(--space-sm) var(--space-md);
+  white-space: normal;
+  text-align: left;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.blockTitle {
+  margin: var(--space-xs) 0 0;
+  color: var(--text-bright);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.check {
+  display: inline-block;
+  margin-left: var(--space-xs);
+  padding: 0 var(--space-xs);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}

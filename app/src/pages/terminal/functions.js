@@ -626,6 +626,14 @@ export const FUNCTIONS = [
   { code: 'FUND', label: 'Company metrics over time (revenue, EPS, margins, cash flow, valuation; point in time from SEC filings)', group: 'Security',
     ticker: { panel: 'FundMetrics', args: [{ kind: 'fundMetric', prop: 'line' }, { kind: 'fundMetrics', prop: 'metrics' },
       { kind: 'fundPeers', prop: 'peers', rest: true }] } },
+  // MKTH (2026-11-21): market history. Every decline of 10% or more in the S&P 500 or the Nasdaq-100
+  // on closing prices (a correction to 20%, a bear market past it), newest first, each with its peak,
+  // low, sessions down and the day the peak was regained; open one for the index 1, 3, 6 and 12 months
+  // after the low and the 25 stocks that rose most in the 63 sessions after it, with sector medians
+  // (GET /api/research/market-history, worked out by the server from its stored closes each evening).
+  // `MKTH NDX` for the Nasdaq-100. MKTH is not in the site's stock universe.
+  { code: 'MKTH', label: 'Market history (every correction and bear market, the rallies and their leaders)', group: 'Market',
+    market: { panel: 'MarketHistory', args: [{ kind: 'mkthIndex', prop: 'index' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -966,6 +974,9 @@ const FUNCTION_WORDS = {
   FUND: { example: 'NVDA FUND', keywords: ['fundamentals history', 'metrics', 'revenue history', 'eps history', 'margins',
     'fcf', 'roe', 'pe history', 'valuation history', 'financial history'],
     note: "Point in time from SEC filings: each figure dated by when its filing became public. Valuation is composed with UCT's stored prices." },
+  MKTH: { example: 'MKTH', keywords: ['market history', 'corrections', 'bear market', 'drawdowns', 'rallies', 'past corrections',
+    'rally leaders'],
+    note: 'Every decline of 10% or more on closing prices, the rally after each low and its leaders. A record, not a forecast.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
