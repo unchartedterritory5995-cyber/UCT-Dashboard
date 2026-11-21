@@ -148,7 +148,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // surface settings (`chartCs`), read by the handoff when a switch starts — so it prepares the
   // key THIS pane reads, never the process-global view session.
   const paneExtRef = useRef(true)
-  const sym = useSymbolHandoff(requestedSym, tf, { showExtended: paneExtRef })
+  // `group`: the linked colour group shows a new symbol in ONE frame, every chart of it together
+  // (useSymbolHandoff GROUP_SYNC_MS; owner's hard rule, 2026-11-20).
+  const sym = useSymbolHandoff(requestedSym, tf, { showExtended: paneExtRef, group: activeColor ? `charts:${activeColor}` : null })
   // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
   const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
 
