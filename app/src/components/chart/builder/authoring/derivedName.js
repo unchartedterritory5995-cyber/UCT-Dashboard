@@ -144,8 +144,9 @@ const fmtNum = (v) => {
   if (!Number.isFinite(v)) return String(v)
   return Number.isInteger(v) ? String(v) : String(Number(v.toPrecision(6)))
 }
-/** Plain-mode words for calls the upper-case chart convention garbles. */
-const PLAIN_CALL_WORDS = Object.freeze({
+/** Plain-mode words for calls the upper-case chart convention garbles. (Exported for the rail that holds
+ *  this table and `CAPTION_CALL_WORDS` to one word per function: `derivedSettings.captions.test.js`.) */
+export const PLAIN_CALL_WORDS = Object.freeze({
   supertrend: 'Supertrend', supertrendDirection: 'Supertrend direction',
   // 2026-10-30 — Parabolic SAR (#523): "Parabolic SAR 0.02,0.2", not "SAR 0.02,0.2".
   sar: 'Parabolic SAR', sarDirection: 'Parabolic SAR trend',
@@ -172,6 +173,17 @@ const PLAIN_CALL_WORDS = Object.freeze({
  * TradingView's), as are `mfi` / `mfiPine` and `stoch` / `stochPine`: the TradingView one says so.
  * A function with no entry here reads as it does in a name (its own plain word, else upper case), which
  * is right for the acronyms a chart already uses (SMA, EMA, RSI, ATR, MACD, VWAP, ADX, CCI).
+ *
+ * ⛔ ONE WORD PER FUNCTION, ACROSS BOTH TABLES. A function is in `PLAIN_CALL_WORDS` (its word in a name AND in
+ * a settings row) or here (its word in a settings row only), never both: with two entries a row and a name
+ * could call one function two different things. `derivedSettings.captions.test.js` holds that the tables
+ * share no function, and that a settings row says a `PLAIN_CALL_WORDS` function with that table's own word.
+ *
+ * ⭐ THIS TABLE IS A LEDGERED ENUMERATION SITE (`engine/__tests__/enumerationSites.test.js`): a short display
+ * word per function is product language the closed table does not declare today (it declares `sentence`,
+ * a whole clause). FOLLOW-UP, recorded 2026-11-21: both word tables move into `closedTable.json` as ONE
+ * `caption` declaration per function, as a unit of a later engine train. One authority over a function's
+ * plain name is the goal; this table and its ledger row are the bridge until then.
  */
 export const CAPTION_CALL_WORDS = Object.freeze({
   williamsR: 'Williams %R',

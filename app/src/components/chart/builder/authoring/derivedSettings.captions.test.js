@@ -10,7 +10,7 @@ import { parseFormula } from '../../engine/ast/parse'
 import TABLE from '../../engine/ast/closedTable.json'
 import { applyPatch } from './index'
 import { settingsOf } from './derivedSettings'
-import { nameOfTree, namingSnapshot, CAPTION_CALL_WORDS } from './derivedName'
+import { nameOfTree, namingSnapshot, CAPTION_CALL_WORDS, PLAIN_CALL_WORDS } from './derivedName'
 import { modelOf } from './model'
 
 const P = (src) => { const r = parseFormula(src); if (!r.ok) throw new Error(`${src}: ${r.error}`); return r.ast }
@@ -76,11 +76,40 @@ describe('a settings row says its function in plain words', () => {
   it('every word is for a function the table really has, and is words (no engine name, no formula symbol)', () => {
     for (const [fn, word] of Object.entries(CAPTION_CALL_WORDS)) {
       expect(TABLE.functions[fn], `${fn} is not a function of the closed table`).toBeTruthy()
-      expect(word).toMatch(/^[A-Z+\-]/)                                   // starts like a caption
-      expect(word, fn).not.toMatch(/[<>=?:\[\]]/)
+      expect(word).toMatch(/^[A-Z+-]/)                                   // starts like a caption
+      expect(word, fn).not.toMatch(/[<>=?:[\]]/)
       expect(word.toUpperCase() === word && word.length > 4, `${fn}: "${word}" is still an upper-cased name`).toBe(false)
     }
     expect(Object.isFrozen(CAPTION_CALL_WORDS)).toBe(true)
+  })
+})
+
+// 2026-11-21 (coordinator ruling on the ledger row): TWO word tables live in `derivedName.js`. `PLAIN_CALL_WORDS`
+// is a function's word in a NAME and in a settings row; `CAPTION_CALL_WORDS` is a function's word in a settings
+// row only. With a function in both, a row and a name could call it two different things.
+describe('one word per function, across both word tables', () => {
+  const call = (fn) => ({ type: 'call', name: fn, args: [{ type: 'num', value: 9 }] })
+
+  it('no function is in both tables, and no word is used by both', () => {
+    expect(Object.keys(PLAIN_CALL_WORDS).length).toBeGreaterThan(5)       // the name table is really read here
+    expect(Object.keys(CAPTION_CALL_WORDS).filter((fn) => fn in PLAIN_CALL_WORDS)).toEqual([])
+    const plainWords = new Set(Object.values(PLAIN_CALL_WORDS))
+    expect(Object.entries(CAPTION_CALL_WORDS).filter(([, word]) => plainWords.has(word)).map(([fn]) => fn)).toEqual([])
+  })
+
+  it('a settings row says a function of the name table with that table\'s own word', () => {
+    for (const [fn, word] of Object.entries(PLAIN_CALL_WORDS)) {
+      const asName = nameOfTree(call(fn), 0, 'plain'), asCaption = nameOfTree(call(fn), 0, 'caption')
+      expect(asName.startsWith(word), `${fn}: the name "${asName}" does not say "${word}"`).toBe(true)
+      expect(asCaption, fn).toBe(asName)
+    }
+  })
+
+  it('and a function of the caption table reads differently in a row than in a name (the table is doing something)', () => {
+    for (const [fn, word] of Object.entries(CAPTION_CALL_WORDS)) {
+      expect(nameOfTree(call(fn), 0, 'caption').startsWith(word), fn).toBe(true)
+      expect(nameOfTree(call(fn), 0, 'plain').startsWith(word), `${fn}: the caption word reached a name`).toBe(false)
+    }
   })
 })
 
