@@ -1,7 +1,7 @@
 // ⭐⭐ THE DEVICE STORE IS DEFAULT ON FOR DESKTOP ONLY (owner, 2026-11-21): desktop browsers and the desktop app.
 // Phones, touch-tier tablets (≤ 1024 px) and metered connections stay OFF; a member's own '0' / '1' always wins;
 // the server's kill switch wins over everything.
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { DEVICE_STORE_KEY, deviceStoreEnabled, deviceStoreDefaultOn } from './switch'
 import { MQ } from '../../styles/breakpoints'
 import { cookieKillsChartSpeed, __resetChartSpeedForTests } from '../../lib/chartSpeed'
