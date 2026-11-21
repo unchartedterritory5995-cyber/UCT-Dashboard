@@ -27,7 +27,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { settleAction, BURST_SETTLE_MS } from './useSymbolSettle'
-import { groupJoin, groupLeave, groupReady, registerMember, settleClock, createSettleClock, decisionFor, subscribeDecisions } from './handoffGroups'
+import { groupJoin, groupLeave, groupReady, registerMember, settleClock, createSettleClock, decisionFor, subscribeDecisions, latestOnly } from './handoffGroups'
 import { memPeek } from '../utils/barsMemCache'
 import * as legacyPrefetch from '../utils/prefetchBars'
 import * as storePrefetch from '../data/barStore/prefetch'
@@ -165,7 +165,10 @@ function noteDeviceFor(sym, tf, sess, outcome) {
     const intraday = INTRADAY.has(String(tf))
     const vtf = intraday ? fetchTf(tf) : tf
     const v = storePrefetch.deviceVerdict(sym, vtf, intraday ? sess : {})
-    const rec = noteDeviceSwitch({ sym, tf: String(tf), at: performance.now(), outcome, painted: v.held, reason: v.reason, why: null })
+    // queue: the device client's reads in flight at this commit (a held arrow's backlog, if any)
+    let queue = null
+    try { queue = deviceSource()?.inFlight?.() ?? null } catch { queue = null }
+    const rec = noteDeviceSwitch({ sym, tf: String(tf), at: performance.now(), outcome, painted: v.held, reason: v.reason, why: null, queue })
     if (v.held !== 'device') deviceWhy(sym, vtf).then((w) => { rec.why = w }, () => { rec.why = 'error' })
   } catch { /* diagnostics only */ }
 }
@@ -184,9 +187,9 @@ function canShowNowFor(sym, tf, sess, st, settle) {
 /** ⭐ (2026-11-21, the cold switch) START THIS CHART'S DEVICE READ for `sym` now (the key press: handoffGroups
  *  primeGroup), on the key its switch will read (the intraday fetch key and session, or the D/W/M key). */
 function primeDeviceFor(sym, tf, sess) {
-  if (!DEVICE || !sym || !tf || !isNativeTf(tf) || /^ECON:/i.test(String(sym))) return
+  if (!DEVICE || !sym || !tf || !isNativeTf(tf) || /^ECON:/i.test(String(sym))) return undefined
   const intraday = INTRADAY.has(String(tf))
-  try { storePrefetch.deviceWarm(sym, intraday ? fetchTf(tf) : tf, intraday ? sess : {}) } catch { /* optional */ }
+  try { return storePrefetch.deviceWarm(sym, intraday ? fetchTf(tf) : tf, intraday ? sess : {}) } catch { return undefined }
 }
 
 /** ⭐ (2026-11-21, the cold switch) Wake `cb` on each change of the entry (sym, tf) shows, instead of polling it
@@ -249,12 +252,16 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   }
   // the member's view, for canShowNow: written each commit, read by the key handler (never during a render)
   const viewRef = useRef({ tf, showExtended })
+  // this chart's device read in the key press, LATEST-ONLY (handoffGroups.latestOnly): a held arrow never queues
+  // a read per row it passes
+  const primeRef = useRef(null)
+  if (!primeRef.current) primeRef.current = latestOnly((sym) => primeDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended)))
   useLayoutEffect(() => { viewRef.current = { tf, showExtended } })
   useLayoutEffect(() => {
     if (!scoped) return undefined
     return registerMember(scope, group, memberIdRef.current, {
       tf: () => viewRef.current.tf,
-      prime: (sym) => primeDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended)),
+      prime: (sym) => primeRef.current(sym),
       canShowNow: (sym, settleNow) => canShowNowFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), settleRef.current, settleNow),
       showDecided: (sym) => {
         lastOutcomeRef.current = null   // the synchronous warm path, as the effect's same-tick commit records it

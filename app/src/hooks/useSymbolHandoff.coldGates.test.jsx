@@ -87,6 +87,34 @@ describe('gate 1: the device read starts in the key press', () => {
   })
 })
 
+describe('a held arrow never queues a device read per row (latest-only, per chart)', () => {
+  it('latestOnly: one call in flight; the newest request waits; the ones it replaced never run', async () => {
+    const calls = []
+    const resolvers = []
+    const run = G.latestOnly((x) => { calls.push(x); return new Promise((r) => resolvers.push(r)) })
+    run(1); run(2); run(3); run(4)
+    expect(calls).toEqual([1])
+    resolvers[0](); await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    expect(calls).toEqual([1, 4])
+    resolvers[1](); await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    expect(calls).toEqual([1, 4])
+  })
+
+  it('twenty rows in a burst: each chart reads the first and the LANDING row only', async () => {
+    const resolvers = []
+    deviceWarm.mockImplementation(() => new Promise((r) => resolvers.push(r)))
+    twoCharts()
+    for (let i = 0; i < 20; i++) G.beginGroupSwitch(scope, 'charts:A', `S${i}`)
+    const of = (tf) => deviceWarm.mock.calls.filter((c) => c[1] === tf).map((c) => c[0])
+    expect(of('D')).toEqual(['S0'])
+    expect(of('30')).toEqual(['S0'])
+    for (const r of resolvers.splice(0)) r(false)
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
+    expect(of('D')).toEqual(['S0', 'S19'])
+    expect(of('30')).toEqual(['S0', 'S19'])
+  })
+})
+
 describe('gate 2: woken by the entry, never a poll', () => {
   it('D hold: no commit however long nothing lands; the device copy landing commits at once', async () => {
     const h = renderHook(({ s }) => useSymbolHandoff(s, 'D', {}), { initialProps: { s: 'AAA' } })

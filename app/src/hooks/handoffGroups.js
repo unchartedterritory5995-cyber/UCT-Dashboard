@@ -64,6 +64,28 @@ export function primeGroup(scope, group, sym) {
   for (const m of members.values()) { try { m.prime?.(sym) } catch { /* optional */ } }
 }
 
+/**
+ * ⛔ A HELD ARROW IS ~25 ROWS A SECOND, PER LINKED CHART. `latestOnly(fn)` runs `fn(arg)` for the newest request
+ * only: while one call is in flight a newer request WAITS (replacing any older waiting one, which is dropped,
+ * never run), and starts the moment the call in flight settles. So a chart's device reads never queue up rows the
+ * member has already left, and the row it lands on is behind at most the one read already in flight.
+ */
+export function latestOnly(fn) {
+  let busy = false
+  let next = null   // { arg } | null: the newest request waiting
+  const run = (arg) => {
+    if (busy) { next = { arg }; return }
+    busy = true
+    let p
+    try { p = Promise.resolve(fn(arg)) } catch { p = Promise.resolve() }
+    p.catch(() => {}).then(() => {
+      busy = false
+      if (next) { const n = next; next = null; run(n.arg) }
+    })
+  }
+  return run
+}
+
 /** THE KEY PRESS, in the order it must run (the board's setGroupSym calls this one function): every member's
  *  device read starts (primeGroup), THEN the group decides (decideGroupShow), so a copy the device already holds
  *  can be shown in this task. Returns the decision's answer. */
