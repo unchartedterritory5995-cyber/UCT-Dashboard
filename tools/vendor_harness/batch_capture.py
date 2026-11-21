@@ -596,7 +596,7 @@ def utcnow() -> str:
 #: ruling (ii) stands: NO session write, ever). The row's session is a PRECONDITION: read after the row's resolution is
 #: set, at that resolution (`SESSION_JS`: `symbolInfo().session`, and `subsession_id` when TradingView reports one),
 #: and a mismatch stops the row by name (`Driver.check_row_session`), nothing captured. A regular-hours row runs on a
-#: layout SAVED with regular hours (ruling B1: a copy of the rig layout, made once), never on a toggled one.
+#: layout SAVED with regular hours (ruling B1: `RIG_REGULAR_LAYOUT_ID`, a copy of the rig made once), never a toggled one.
 #: ⚰️ 2026-11-20: the first version WROTE the session as `setSymbol('={"session":"extended","symbol":"AMEX:SPY"}')`.
 #: That string is TradingView's WIRE encoding (the series' resolve request), not a symbol name: on the live rig the
 #: chart's symbol became the literal string and `symbolInfo()` never arrived (patrick-54, 30 polls), so every session
@@ -613,6 +613,14 @@ SESSION_SUFFIX = {"extended": "-ext", "regular": "-rth"}
 #: row that names another `layout` is skipped (a later batch on that layout takes it, same run dir), and the page must
 #: be on the batch's layout before any step. The layout's hours are never typed here: each row's session is READ.
 RIG_LAYOUT_ID = LAYOUT.rstrip("/").rsplit("/", 1)[-1]
+#: ⭐ THE REGULAR-HOURS COPY (patrick-54, 2026-11-21, owner-approved, made once): "UCT CAPTURE RIG REGULAR HOURS — no
+#: studies", AMEX:SPY 1D, 0 studies, sessionId "regular", resolving 0930-1600 at 60 with 0 of 300 bars off-hours; the rig
+#: `01f1AcIj` read exactly as before afterwards (rig_verify CLEAN). Named here for manifests and `--layout`; a row's
+#: session is still READ on it, never assumed from this name.
+#: ⛔ Measured while making it: TradingView opened the copy in a NEW TAB (so a batch navigates by the id, never follows
+#: a copy), and a direct `sessionId.setValue` is NOT persisted (a fresh load reverts it; only the chart model's
+#: `changeSessionId`, an undo command, is). Selecting a layout is the mechanism, never writing a session.
+RIG_REGULAR_LAYOUT_ID = "MyS1vKSg"
 LAYOUT_ID_RX = re.compile(r"^[A-Za-z0-9]{6,16}$")
 
 
@@ -2085,7 +2093,7 @@ def main(argv=None) -> int:
         sp.add_argument("--title-selector", default=None, help="CSS for the editor's script-title control")
         sp.add_argument("--layout", default=RIG_LAYOUT_ID,
                         help=f"the TradingView layout id to run on (default the rig's {RIG_LAYOUT_ID}, extended hours; "
-                             "regular-hours rows run on its regular-hours copy)")
+                             f"regular-hours rows run on its regular-hours copy {RIG_REGULAR_LAYOUT_ID})")
 
     rc = sub.add_parser("recon", help="sign in + read-only readings")
     common(rc)

@@ -335,8 +335,15 @@ and `subsession_id` when TradingView reports one). It must be `0400-2000` / `093
 (GATE_FAILED) and nothing is captured. The capture id says the named session (`-ext` / `-rth`).
 - A daily, weekly or monthly chart of a US listing resolves `0930-1600` whatever the layout's hours (every daily
   capture on record), so the read is made at the row's own resolution, never on the batch's 1D chart.
-- The rig layout has resolved EXTENDED on every intraday capture since 2026-11-14. A regular-hours row runs on a
-  copy of the layout saved with regular hours (ruling B1, made once), never on a toggled one.
+- The rig layout `01f1AcIj` is saved with EXTENDED hours: probe R1 (2026-11-21) read 0400-2000 at 60, with 186 of
+  300 bars off-hours, and every intraday capture since 2026-11-14 agrees. A regular-hours row runs on its copy
+  **`MyS1vKSg`** ("UCT CAPTURE RIG REGULAR HOURS — no studies"; ruling B1, made once by patrick-54; 0930-1600 at 60,
+  0 of 300 bars off-hours), never on a toggled one: `run --layout MyS1vKSg`, and the row says
+  `"layout": "MyS1vKSg"`. One layout per batch. The page must be on the batch's layout by URL before any read
+  (sign-in ends on the rig, so the batch navigates after it). A row naming another layout is skipped, and the other
+  layout's batch takes it in the same run dir.
+- ⛔ Writing a session is not a mechanism: a direct `sessionId.setValue` is not persisted (a fresh load reverts it),
+  and the chart model's `changeSessionId` pushes an undo command that the layout's autosave keeps.
 - ⚰️ The first version (2026-11-20) wrote the session as `setSymbol('={"session":…,"symbol":…}')`. That string is
   TradingView's wire encoding, not a symbol name: the live chart kept it as a literal symbol and never resolved it.
   Its double parsed the spec and `sym_match` read through it, so the rails agreed with the code, not with

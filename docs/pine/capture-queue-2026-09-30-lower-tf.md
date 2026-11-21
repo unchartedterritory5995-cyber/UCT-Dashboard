@@ -36,9 +36,15 @@ refused at the member door as `lower-tf:unwitnessed`:
 captures recorded **EXTENDED hours** (`symbol.session` `0400-2000`): `vw-lower-tf-bars-rddt-{5,15,60,240}-2026-11-16`.
 The rig layout had resolved extended on every intraday chart since 2026-11-14, and the batch did not read the session.
 Neither row is answered as asked. No committed grade uses them as regular-hours bars: the harness's lower-timeframe
-supply keeps regular captures apart and prefers them. The regular-hours re-takes are owed on the rig's
-regular-hours layout. (The probe's own header still says "extended hours OFF". Its bytes are the captures'
-`source.sha256`, so it is corrected here, not there.)
+supply keeps regular captures apart and prefers them. (The probe's own header still says "extended hours OFF". Its
+bytes are the captures' `source.sha256`, so it is corrected here, not there.)
+
+**The regular-hours re-takes (owed):** batch rows on the regular-hours layout `MyS1vKSg` (`run --layout MyS1vKSg`).
+They carry `"session": "regular"` and `"layout": "MyS1vKSg"`, so their capture ids end `-rth-<date>`.
+- Q-L2-rth: `vw-lower-tf-bars.pine` on NYSE:RDDT **15**, **60** and **240**.
+- Q-L3-rth: the same on NYSE:RDDT **5**.
+⚠️ They are listed here, not as table rows: the queue keys a target by probe, symbol and timeframe, with no session,
+so a table row would read as already answered by the extended captures.
 
 ## Q-L1 — `vw-lower-tf.pine`
 

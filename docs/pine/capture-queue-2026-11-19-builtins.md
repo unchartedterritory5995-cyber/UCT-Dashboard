@@ -56,8 +56,12 @@ multi-timeframe-vwap-v5, orb.
 `vw-bi-time-close-2arg-spy-60-2026-11-19` recorded **EXTENDED hours** (`symbol.session` `0400-2000`). The rig layout
 was extended-hours and the batch did not read the session. TC2-a is not answered as asked: the capture shows
 `time_close(tf, session)` on extended-hours 60m bars only, and no claim about regular-hours bars may be drawn from it.
-The regular-hours re-take is owed on the rig's regular-hours layout. (The probe header says "extended hours off".
-Its bytes are the capture's `source.sha256`, so it is corrected here.)
+(The probe header says "extended hours off". Its bytes are the capture's `source.sha256`, so it is corrected here.)
+**The regular-hours re-take (owed), Q-BI-TC2-a-rth:** `vw-bi-time-close-2arg.pine` on AMEX:SPY 60, >= 400 bars, as a
+batch row on the regular-hours layout `MyS1vKSg`, with `"session": "regular"` and `"layout": "MyS1vKSg"` (capture id
+`vw-bi-time-close-2arg-spy-60-rth-<date>`). TD1c (Q-BI-TD1c) and SFB-b (Q-BI-SFB-b) ask for the regular session
+too, and run on the same layout the same way. ⚠️ These are listed here, not as table rows: the queue keys a target by
+probe, symbol and timeframe, with no session.
 
 ## Not asked here (no capture row)
 
