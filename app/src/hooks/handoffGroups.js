@@ -51,6 +51,49 @@ export function registerMember(scope, group, id, member) {
   }
 }
 
+/**
+ * ⭐ (2026-11-21, the cold switch) START EVERY MEMBER'S DEVICE READ NOW, in the key press, before the decision
+ * and before any chart renders the request (`member.prime(sym)`, optional; a throw is ignored). A copy the device
+ * client already holds lands synchronously, so the decision can show it in this task; otherwise the read is in
+ * flight while React renders, instead of starting in the handoff's effect after it.
+ */
+export function primeGroup(scope, group, sym) {
+  if (!scope || !group || !sym) return
+  const members = _groupsOf(scope).get(group)
+  if (!members) return
+  for (const m of members.values()) { try { m.prime?.(sym) } catch { /* optional */ } }
+}
+
+/**
+ * ⛔ A HELD ARROW IS ~25 ROWS A SECOND, PER LINKED CHART. `latestOnly(fn)` runs `fn(arg)` for the newest request
+ * only: while one call is in flight a newer request WAITS (replacing any older waiting one, which is dropped,
+ * never run), and starts the moment the call in flight settles. So a chart's device reads never queue up rows the
+ * member has already left, and the row it lands on is behind at most the one read already in flight.
+ */
+export function latestOnly(fn) {
+  let busy = false
+  let next = null   // { arg } | null: the newest request waiting
+  const run = (arg) => {
+    if (busy) { next = { arg }; return }
+    busy = true
+    let p
+    try { p = Promise.resolve(fn(arg)) } catch { p = Promise.resolve() }
+    p.catch(() => {}).then(() => {
+      busy = false
+      if (next) { const n = next; next = null; run(n.arg) }
+    })
+  }
+  return run
+}
+
+/** THE KEY PRESS, in the order it must run (the board's setGroupSym calls this one function): every member's
+ *  device read starts (primeGroup), THEN the group decides (decideGroupShow), so a copy the device already holds
+ *  can be shown in this task. Returns the decision's answer. */
+export function beginGroupSwitch(scope, group, sym) {
+  primeGroup(scope, group, sym)
+  return decideGroupShow(scope, group, sym)
+}
+
 // ── the settle clock: the settle rule's state per group, shared by the decision and the round ───────────────
 /**
  * A clock of the settle rule (useSymbolSettle.settleAction). `request(sym, now)` notes a request and returns the
