@@ -3,7 +3,6 @@ import { mergeLiveQuote } from '../lib/liveQuoteMerge'
 import useLivePrices from './useLivePrices'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as priceStreamManager from '../lib/priceStreamManager'
-import { readLiveQuotes, watchLiveQuotes } from '../lib/liveQuote'
 import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
 
 /**
@@ -257,42 +256,4 @@ const POOL_DISABLED = (() => {
   try { return localStorage.getItem('uct.ssePool.disabled') === '1' } catch { return false }
 })()
 
-/**
- * ⭐ QUIET MODE (2026-11-20): `useRealtimePrices(tickers, { renderKey, onTickRef })`. The same quotes, read fresh
- * at each render of the host, and NO host render per publish: the host re-renders only when `renderKey()` (a
- * primitive: what its render shows of the feed) changes; `onTickRef.current()` runs on every publish, between
- * renders, for whatever the host updates without rendering. Built for StockChart (`lib/liveQuote.js` has why); a
- * caller that passes no options gets the hook exactly as before. Under the pool kill-switch the options are
- * ignored (the legacy per-instance hook, as before).
- */
-function useQuietRealtimePrices(tickers = [], opts) {
-  const sorted = [...new Set(tickers.filter(Boolean))].sort().join(',')
-  const onTickRef = opts.onTickRef   // a ref: stable for the host's life
-  const subscribeStore = useCallback((onStoreChange) => {
-    if (!sorted) return () => {}
-    return watchLiveQuotes(sorted.split(','), () => {
-      try { onTickRef?.current?.() } catch { /* the host's next render reads it */ }
-      onStoreChange()
-    })
-  }, [sorted, onTickRef])
-  const getKey = () => (opts.renderKey ? opts.renderKey() : '')
-  useSyncExternalStore(subscribeStore, getKey, getKey)
-  const snap = sorted ? priceStreamManager.getSnapshot() : EMPTY_SNAPSHOT
-  // the newest quotes at THIS render (identity-stable while every quote is)
-  const prices = readLiveQuotes(sorted)
-  const staleSymbols = useMemo(() => {
-    const filtered = new Set()
-    if (sorted) for (const t of sorted.split(',')) if (snap.staleSymbols.has(t)) filtered.add(t)
-    return filtered
-  }, [snap.staleSymbols, sorted])
-  return { prices, isLoading: false, isStreaming: !!snap.connected, staleSymbols }
-}
-
-const _defaultImpl = POOL_DISABLED ? useLegacyRealtimePrices : usePooledRealtimePrices
-const _quietImpl = POOL_DISABLED ? useLegacyRealtimePrices : useQuietRealtimePrices
-/** Every reader's live quotes (see above for the two modes). The mode is a property of the CALL SITE: a caller
- *  passes options always or never, so the hooks each render calls are the same. */
-export default function useRealtimePrices(tickers, opts) {
-  const impl = opts ? _quietImpl : _defaultImpl
-  return impl(tickers, opts)
-}
+export default POOL_DISABLED ? useLegacyRealtimePrices : usePooledRealtimePrices
