@@ -600,6 +600,13 @@ export const FUNCTIONS = [
   // universe), so the code is ECON, which is not.
   { code: 'ECON', label: 'Economy dashboard (CPI, jobs, GDP, spending, housing: last print, prior, next release)', group: 'Market',
     market: { panel: 'Economy' } },
+  // LIQ (2026-11-21): liquidity. Net liquidity (the Fed's total assets minus the TGA minus overnight
+  // reverse repo, a UCT calculation on each H.4.1 Wednesday) with its 1, 4, 13 and 52-week change and
+  // two years of it, then the parts (the Fed's assets, the TGA weekly and daily, reverse repo, reserves,
+  // M2, SOFR). GET /api/econ/latest + GET /api/econ/series: the econ routes' own flag and gate, answered
+  // from what the econ service already published. No argument. LIQ is not in the site's universe.
+  { code: 'LIQ', label: 'Liquidity (Fed balance sheet, TGA, reverse repo, net liquidity)', group: 'Market',
+    market: { panel: 'Liquidity' } },
   // OIL (2026-11-21): the EIA's weekly oil report. The week's crude build or draw (the econ service's own
   // weekly change, a UCT calculation from the EIA's stock figures), when it came out and the next weekly
   // report from the release calendar; each series' latest week, the week before, the change and the same
@@ -932,9 +939,13 @@ const FUNCTION_WORDS = {
   ECON: { example: 'ECON', keywords: ['economic data', 'cpi', 'inflation', 'jobs report', 'payrolls', 'unemployment', 'gdp',
     'retail sales', 'jobless claims', 'pce', 'housing starts'],
     note: 'Official releases from the agencies, each with the print before and the next release date. No forecasts.' },
+  // 'fed' and 'federal reserve' stay with FED, 'treasury' with RATES. 'qt' and 'm2' are under the
+  // three-letter floor of the word search: 'quantitative tightening' and 'money supply' find LIQ.
+  LIQ: { example: 'LIQ', keywords: ['liquidity', 'net liquidity', 'fed balance sheet', 'reverse repo', 'rrp', 'tga',
+    'qt', 'quantitative tightening', 'm2', 'money supply', 'reserves'],
+    note: 'Net liquidity is a UCT calculation from the Fed and Treasury figures, each part beside it. No forecasts.' },
   // None of these words was another code's keyword. 'spr' only reached RATES through "spreads" in its label (the
-  // lowest score); RATES still follows OIL for it. 'gas prices' makes "prices" alone find OIL (it found nothing
-  // before); "price" still finds GP, ANR and ALRT first.
+  // lowest score); RATES still follows OIL for it. No keyword makes a generic word ("prices") find OIL.
   OIL: { example: 'OIL', keywords: ['oil', 'crude', 'crude inventories', 'eia', 'oil inventories', 'gasoline', 'distillates',
     'refinery', 'spr'],
     note: "The EIA's own weekly figures, with the next report's date. No futures prices and no forecasts." },

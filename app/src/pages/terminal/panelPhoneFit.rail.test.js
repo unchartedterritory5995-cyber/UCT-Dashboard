@@ -248,6 +248,8 @@ const NOT_MEASURED = ['CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', '
   'FedWatchPanel.jsx',
   // ECON (2026-11-21): one four-column table of merged two- and three-line cells that wrap between words; nothing folds
   'EconomyPanel.jsx',
+  // LIQ (2026-11-21): one three-column table (the parts) of two-line cells that wrap between words; nothing folds
+  'LiquidityPanel.jsx',
   // OIL (2026-11-21): one four-column table of merged two- and three-line cells that wrap between words; nothing folds
   'OilPanel.jsx']
 const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
