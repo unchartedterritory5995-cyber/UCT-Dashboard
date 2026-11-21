@@ -21,8 +21,9 @@
 //   * `_intradayDeepArmed` (60m): false at the switch, true 250 ms later, for the deep backfill's timer;
 //   * `lastBarOff` true -> false onto a longer row: the old view's right edge read against the new last bar
 //     before the chart framed it.
-// After this change all five cost nothing: 4 renders per switch on both timeframes. The bounds below are the
-// measured counts (each mutation of the change adds one or two).
+// After this change all five cost nothing: 3 renders per switch on D and 4 on 60m (on master after #2278's
+// shell split; 4 and 4 before it). The bounds below are the measured counts (each mutation of the change adds
+// one or two).
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { Profiler } from 'react'
 import { render, act, cleanup } from '@testing-library/react'
@@ -227,5 +228,5 @@ describe('one symbol switch, one chart, on the bar store', () => {
 })
 
 /** The most StockChart renders one switch may cost (measured; see the header). */
-const DAILY_MAX_RENDERS = 4
+const DAILY_MAX_RENDERS = 3
 const INTRADAY_MAX_RENDERS = 4
