@@ -217,6 +217,14 @@ export function retranslateRow(row, memberPaneDefinition) {
   if (!isObj(next) || !isObj(next.compute) || next.compute.kind !== 'ast') {
     return { status: 'inconclusive', reason: 'the script now translates to a different lane' }
   }
+  // ⭐⭐ ITEM 2 (2026-11-21) — A TRANSLATION THE STORE CANNOT HOLD SAYS NOTHING ABOUT THE STORED ONE. Its size is not
+  // the engine learning the old document was wrong, so the stored document is drawn as it is and nothing is written
+  // back (the store would refuse it), with or without the runtime pane. ⚰️ The over-cap translation was drawn for one
+  // session and its write-back refused (`memberPaneDefinition.js::withOversizeKeep` names it, `pine:document-size`).
+  if (built.oversize) {
+    return { status: 'inconclusive',
+      reason: `${built.oversize.guard}: today's translation is ${built.oversize.bytes} bytes, past the store's ${built.oversize.cap}-byte cap` }
+  }
   return { status: 'upgraded', definition: carryOwned(next, stored, row) }
 }
 

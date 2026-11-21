@@ -33,8 +33,8 @@ export default function ReplayPause({ check, onDone, testId = 'replay-pause', la
       </div>
       <div className={s.replayPauseTiles} role="radiogroup" aria-label={check.q}>
         {check.choices.map((c, i) => (
-          <Tile key={c} n={i + 1} i={i} label={c} state={stateOf(i)} disabled={done} role="radio" checked={pick === i}
-            onClick={() => !done && setPick(i)} testId={`${testId}-choice-${i}`} />
+          <Tile key={c} n={i + 1} i={i} state={stateOf(i)} disabled={done} role="radio" checked={pick === i}
+            onClick={() => !done && setPick(i)} testId={`${testId}-choice-${i}`}>{c}</Tile>
         ))}
       </div>
       {done ? (

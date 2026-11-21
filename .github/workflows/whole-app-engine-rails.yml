@@ -70,6 +70,7 @@ on:
       - 'corpus/committed/pa-zigzag-fibonacci-fan__2001.pine'
       - 'corpus/committed/strong-start-rvol-dashboard__36140b1cbe.pine'
       - 'corpus/committed/supertrend-strategy__rcRbtoBiKG.pine'
+      - 'corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine'
       - 'docs/agent/CHARTS_COVERAGE_MATRIX.md'
       - 'docs/agent/CHARTS_TEACH_STATUS.md'
       - 'docs/agent/COMPATIBILITY-DECISIONS.md'

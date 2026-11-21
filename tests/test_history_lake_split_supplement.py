@@ -12,6 +12,7 @@ TradingView's listed 2008-05-06 103:100 is NOT here: its prices imply 1.0363, so
 from __future__ import annotations
 
 import json
+import math
 
 import pytest
 
@@ -415,9 +416,22 @@ def test_held_events_and_identity_review_tickers_carry_no_rows():
     """Stated, not served: CASS (the vendor's raw prints, not corporate actions), KMB (no TradingView capture yet), DB's
     unplaced 1.0582 (its three placed events are rows; nothing else for DB), and the identity-review tickers."""
     rows = S.load()
-    assert not any(r["ticker"] in {"CASS", "KMB"} for r in rows)
-    assert sorted(r["execution_date"] for r in rows if r["ticker"] == "DB") == ["2010-09-22", "2014-06-06", "2017-03-21"]
+    assert not any(r["ticker"] == "CASS" for r in rows)
+    assert sorted(r["execution_date"] for r in rows if r["ticker"] == "DB") == ["2008-05-30", "2010-09-22", "2014-06-06", "2017-03-21"]
     assert not any(r["ticker"] in IDENTITY_REVIEW for r in rows)
+
+
+#: Seam-61 follow-ups (ruled 2026-11-21): TradingView is the reference; each oddity stated by name in the row's evidence.
+TV_VERIFIED_FOLLOWUPS = {("DB", "2008-05-30"): 1.058201, ("KMB", "2004-12-01"): 1.034521, ("KMB", "2014-11-03"): 1.088548}
+
+
+def test_the_db_and_kmb_follow_ups_live_in_the_supplement_at_tradingview_s_step_and_state_their_oddity():
+    rows = {(r["ticker"], r["execution_date"]): r for r in S.load() if "drop" not in r}
+    for key, factor in TV_VERIFIED_FOLLOWUPS.items():
+        assert key in rows, key
+        assert F.split_ratio(rows[key]["split_from"], rows[key]["split_to"]) == pytest.approx(factor, rel=1e-6), key
+    assert "dividend ex-date" in rows[("DB", "2008-05-30")]["evidence"]["check"]
+    assert "SQUARED" in rows[("KMB", "2014-11-03")]["evidence"]["check"]
 
 
 def test_the_vz_2008_fairpoint_row_follows_tradingview_s_own_inverse_step():
@@ -433,3 +447,113 @@ def test_every_small_event_drop_is_dividend_sized_and_names_both_references():
     for r in small:
         f = F.split_ratio(r["drop"]["split_from"], r["drop"]["split_to"])
         assert abs(f - 1) <= S.DROP_SMALL_CAP and abs(r["evidence"]["second_vendor_step"] - 1) <= S.DROP_TV_TOL, r
+
+
+# ── Re-dated rows (2026-11-21, heal569): the vendor files a split ONE SESSION BEFORE the prices step ─────────────────
+# HCSG 2010: the vendor files the 3:2 on 2010-11-12 (a Friday) and the raw day files step on 11-15 (the Monday). The table
+# divides only the bars BEFORE an execution date, so the 11-12 bar stays on the old basis: a one-bar x1.5 spike that never
+# traded. An add row on 11-15 would be skipped (the vendor's 11-12 row is the same event), so the row names the vendor's
+# row in `replaces` and re-dates it onto the session TradingView steps (its step against the raw day files across
+# 11-12 -> 11-15 is 1.499992: 3:2). Ruled (patrick-2b): a re-date stays inside the same-event window
+# (S.REPLACE_NEAR_DAYS), and its evidence records the raw day files continuous across the vendor's date
+# (`vendor_date_raw_move`), the continuity test a DROP passes: the vendor's date carries no event.
+
+MISDATED = {"ticker": "ZZ", "execution_date": "2010-11-12", "split_from": 2, "split_to": 3}
+
+
+def _redate(**over):
+    r = {"ticker": "ZZ", "execution_date": "2010-11-15", "split_from": 2, "split_to": 3,
+         "replaces": {"execution_date": "2010-11-12", "split_from": 2, "split_to": 3},
+         "evidence": {"capture": "Q-HEAL569-TV test capture", "price_verified": True, "vendor_date_raw_move": 0.983258,
+                      "check": "test"}}
+    r.update(over)
+    return r
+
+
+def _redate_ev(**over):
+    ev = dict(_redate()["evidence"])
+    ev.update(over)
+    return {k: v for k, v in ev.items() if v is not None}
+
+
+def test_a_redated_row_moves_the_vendor_s_misdated_split_onto_the_session_the_prices_step(tmp_path):
+    """End to end: raw closes 24 then 16 (a 3:2) from session 30, the vendor's row on session 29. Without the re-date
+    session 29 is a one-bar x1.5 spike; with it every bar is 16 and the table holds the event once, on session 30."""
+    import sqlite3
+    days = [f"2010-{9 + i // 28:02d}-{1 + i % 28:02d}" for i in range(60)]
+    con = sqlite3.connect(":memory:")
+    con.execute("CREATE TABLE day (ticker TEXT, ymd INTEGER, o REAL, h REAL, l REAL, c REAL, v REAL)")
+    con.executemany("INSERT INTO day VALUES ('ZZ', ?, ?, ?, ?, ?, 1000)",
+                    [(int(d.replace("-", "")), *([24.0 if i < 30 else 16.0] * 4)) for i, d in enumerate(days)])
+    vendor = {**MISDATED, "execution_date": days[29]}
+    lin = {"since": None, "segments": [], "cut": False}
+    bad = B.build_one(con, "ZZ", lin, F.build_factor_tables([vendor], "2026-11-21"))
+    assert [b[4] for b in bad["bars"][28:31]] == [16.0, 24.0, 16.0], "the fixture must draw the one-bar spike"
+    row = _redate(execution_date=days[30], replaces={k: v for k, v in vendor.items() if k != "ticker"},
+                  evidence=_redate_ev(vendor_date_raw_move=1.0))
+    merged = S.merge([vendor], S.load(_write(tmp_path, [row])))
+    table = F.build_factor_tables(merged, "2026-11-21")["ZZ"]
+    assert table == [[days[30], 1.5]], "the vendor's row must be gone, not merely outranked"
+    good = B.build_one(con, "ZZ", lin, F.build_factor_tables(merged, "2026-11-21"))
+    assert {b[4] for b in good["bars"]} == {16.0}
+
+
+def test_a_redate_must_stay_inside_the_same_event_window(tmp_path):
+    """Three calendar days (a Friday row re-dated to the Monday) is one event; four is another event, refused."""
+    assert S.REPLACE_NEAR_DAYS == S.DROP_NEAR_DAYS == 3
+    ok = S.load(_write(tmp_path, [_redate()]))[0]
+    assert ok["replaces"] == {"execution_date": "2010-11-12", "split_from": 2, "split_to": 3}
+    for d in ("2010-11-16", "2010-11-08", "2010-12-15"):
+        with pytest.raises(S.SupplementError, match="same-event window"):
+            S.load(_write(tmp_path, [_redate(execution_date=d)]))
+
+
+@pytest.mark.parametrize("ev", [
+    _redate_ev(vendor_date_raw_move=None),     # no raw-continuity reading across the vendor's date
+    _redate_ev(vendor_date_raw_move=1.5),      # the raw prints DO step on the vendor's date: its date is right
+    _redate_ev(vendor_date_raw_move=0.66),     # the same, downward
+    _redate_ev(vendor_date_raw_move=1.08),     # a real move: not continuous
+    _redate_ev(vendor_date_raw_move="1.0"),    # not a number
+])
+def test_a_redate_needs_the_raw_day_files_continuous_across_the_vendor_s_date(tmp_path, ev):
+    with pytest.raises(S.SupplementError, match="vendor_date_raw_move"):
+        S.load(_write(tmp_path, [_redate(evidence=ev)]))
+
+
+def test_a_small_redate_needs_a_raw_move_under_half_the_vendor_s_factor(tmp_path):
+    """A 5% stock dividend re-dated: a 3% raw move on the vendor's date is too close to 1.05 to call continuous."""
+    small = {"split_from": 20, "split_to": 21}
+    row = _redate(**small, replaces={"execution_date": "2010-11-12", **small})
+    with pytest.raises(S.SupplementError, match="vendor_date_raw_move"):
+        S.load(_write(tmp_path, [{**row, "evidence": _redate_ev(vendor_date_raw_move=1.03)}]))
+    assert S.load(_write(tmp_path, [{**row, "evidence": _redate_ev(vendor_date_raw_move=1.005)}]))
+
+
+def test_a_same_date_replace_needs_no_redate_evidence(tmp_path):
+    """TKC / CENT name the vendor's row on their own date (a size correction, not a re-date): unchanged."""
+    row = _row(execution_date="2006-06-26", split_from=1, split_to=1.186057,
+               replaces={"execution_date": "2006-06-26", "split_from": 100, "split_to": 102.78})
+    assert S.load(_write(tmp_path, [row]))[0]["replaces"]["execution_date"] == "2006-06-26"
+
+
+#: The vendor's misdated rows (public facts: date and ratio) under the date TradingView steps on. heal569
+#: (Q-HEAL569-TV): TradingView's step against the RAW day files across (the vendor's date -> the next session) pins
+#: each fraction within 0.001%.
+VENDOR_MISDATED = {
+    ("HCSG", "2010-11-15"): {"ticker": "HCSG", "execution_date": "2010-11-12", "split_from": 2, "split_to": 3},
+    ("BRBS", "2021-05-03"): {"ticker": "BRBS", "execution_date": "2021-04-30", "split_from": 1, "split_to": 1.5},
+    ("BMI", "2016-09-16"): {"ticker": "BMI", "execution_date": "2016-09-15", "split_from": 1, "split_to": 2},
+}
+TV_VERIFIED_REDATES = {("HCSG", "2010-11-15"): 1.5, ("BRBS", "2021-05-03"): 1.5, ("BMI", "2016-09-16"): 2.0}
+
+
+def test_every_tradingview_verified_redate_lives_in_the_supplement_and_replaces_the_vendor_s_row():
+    rows = {(r["ticker"], r["execution_date"]): r for r in S.load() if "replaces" in r}
+    for key, factor in TV_VERIFIED_REDATES.items():
+        assert key in rows, f"{key}: a misdated vendor split left as a one-bar spike"
+        r, v = rows[key], VENDOR_MISDATED[key]
+        assert F.split_ratio(r["split_from"], r["split_to"]) == pytest.approx(factor, rel=1e-6), key
+        assert r["replaces"] == {k: v[k] for k in ("execution_date", "split_from", "split_to")}, key
+        table = F.build_factor_tables(S.merge(_with_dropped([v]), S.load()), "2026-11-21")[key[0]]
+        assert [d for d, _ in table] == [key[1]], f"{key}: the vendor's {v['execution_date']} row must be re-dated, once"
+        assert 0 < abs(math.log(r["evidence"]["vendor_date_raw_move"])) < S.DROP_RAW_CONTINUOUS, key

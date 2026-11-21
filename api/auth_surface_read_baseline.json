@@ -21,6 +21,13 @@
   },
   {
    "method": "GET",
+   "path": "/api/admin/bars/regraft-status",
+   "kind": "inline",
+   "marker": "_check_admin_auth",
+   "reason": "Gated INLINE in the handler body by _check_admin_auth (not a Depends), module api.routers.bars: the deep re-graft job status (api/services/bars_regraft.py), 2026-11-21."
+  },
+  {
+   "method": "GET",
    "path": "/api/admin/threads-dump",
    "kind": "inline",
    "marker": "_require_push_secret",

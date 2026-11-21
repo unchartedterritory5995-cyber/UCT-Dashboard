@@ -23,7 +23,7 @@
 //
 // The bodies below are MOVED from StockChart.jsx unchanged (each hook takes the exact names it
 // closed over, in one `ctx` object built at its call site; module-scope helpers ride on `ctx.H`).
-import { useEffect, useCallback, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useCallback, useMemo, useState } from 'react'
 import { BARSTORE } from './barStoreSwitch'
 import useRealtimeBars from '../../hooks/useRealtimeBars'
 import * as realtimeCandle from '../../lib/realtimeCandle'
@@ -140,7 +140,14 @@ function useLiveReset(ctx) {
   // tick from the previous ticker (e.g. AAPL price) gets re-applied to the new
   // ticker's first bar in the post-setData re-apply at the bottom of updateChart,
   // producing a wrong wick on the first candle of the new ticker.
-  useEffect(() => {
+  // (2026-11-21) A LAYOUT EFFECT, CALLED ABOVE updateChart's: THE RESET RUNS BEFORE THE SEED IT RESETS FOR.
+  // updateChart seeds these refs in its own layout effect on a symbol / timeframe change (`legacyAfterSetData`:
+  // `lastBarSymRef = sym`). As a passive effect this reset ran AFTER that seed in the same commit and threw it
+  // away, so `lastBarSymRef` stayed null and every push frame failed Writer B's symbol guard until some LATER
+  // render re-ran updateChart. A late metadata answer used to be that render; since #2278 it renders nothing,
+  // and the live candle never moved (StockChart.liveCandle.test.jsx: twelve red, a bucket's volume stuck).
+  // Layout effects run in call order, and StockChart calls this hook before updateChart's layout effect.
+  useLayoutEffect(() => {
     lastBarRef.current = null
     lastBarSymRef.current = null   // developing bar no longer belongs to any sym until updateChart re-seeds it
     liveBarRef.current = null
