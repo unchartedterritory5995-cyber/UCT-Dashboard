@@ -1387,6 +1387,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "symbols (required)",
+      "path": "/api/econ/latest",
+      "rate_limit_family": "market-analytics",
+      "tier": "member"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{symbol}, asof, start, end",
       "path": "/api/econ/series/{symbol}",
       "rate_limit_family": "market-analytics",

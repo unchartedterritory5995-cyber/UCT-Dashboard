@@ -592,6 +592,14 @@ export const FUNCTIONS = [
   // on its own schedule). No odds from futures prices. FED is not in the site's stock universe.
   { code: 'FED', label: 'Fed watch (statements, speeches, Fed headlines, the next meeting)', group: 'Market',
     market: { panel: 'FedWatch' } },
+  // ECON (2026-11-21): the economy board. The official prints that move markets, theme by theme
+  // (inflation, jobs, growth and spending, housing, rates), each with the print before, the change,
+  // the period, the release day and the next release from the release calendar, plus the releases
+  // due in the next 7 days (GET /api/econ/latest: the econ routes' own flag and gate, answered from
+  // what the econ service already published). No argument. ECO is a real stock (in the site's
+  // universe), so the code is ECON, which is not.
+  { code: 'ECON', label: 'Economy dashboard (CPI, jobs, GDP, spending, housing: last print, prior, next release)', group: 'Market',
+    market: { panel: 'Economy' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -913,6 +921,10 @@ const FUNCTION_WORDS = {
   FED: { example: 'FED', keywords: ['fed', 'fomc', 'federal reserve', 'fed speakers', 'powell', 'fed statement', 'rate decision',
     'fed headlines', 'dot plot', 'fed minutes'],
     note: 'Statements, speeches and projections from the Board, live Fed headlines and a survey of market professionals. No odds from futures prices.' },
+  // 'economy' stays with SENT (its own keyword since wave 8).
+  ECON: { example: 'ECON', keywords: ['economic data', 'cpi', 'inflation', 'jobs report', 'payrolls', 'unemployment', 'gdp',
+    'retail sales', 'jobless claims', 'pce', 'housing starts'],
+    note: 'Official releases from the agencies, each with the print before and the next release date. No forecasts.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
