@@ -578,6 +578,14 @@ export const FUNCTIONS = [
     ticker: { panel: 'DividendCalendar' }, market: { panel: 'DividendCalendar' } },
   { code: 'CACT', label: 'Corporate actions (splits, dividends, name changes)', group: 'Security',
     ticker: { panel: 'CorporateActions' } },
+  // FED (2026-11-21): Fed watch. The newest FOMC statement with a word-level redline against the one
+  // before, live Fed headlines from the news wire's own store, the Board's speeches and testimony,
+  // this week's Fed speakers and the next meeting from the economic calendar, the policy rate, the
+  // officials' median rate projections and the New York Fed's Survey of Market Expectations
+  // (GET /api/research/fed-watch; the server reads the Board's and the New York Fed's public pages
+  // on its own schedule). No odds from futures prices. FED is not in the site's stock universe.
+  { code: 'FED', label: 'Fed watch (statements, speeches, Fed headlines, the next meeting)', group: 'Market',
+    market: { panel: 'FedWatch' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -892,6 +900,9 @@ const FUNCTION_WORDS = {
   CACT: { example: 'NVDA CACT', keywords: ['corporate actions', 'splits', 'stock split', 'dividend history', 'name change',
     'ticker change', 'past dividends'],
     note: 'Only what the server already holds for the stock: splits, dividends by ex-date and ticker changes.' },
+  FED: { example: 'FED', keywords: ['fed', 'fomc', 'federal reserve', 'fed speakers', 'powell', 'fed statement', 'rate decision',
+    'fed headlines', 'dot plot', 'fed minutes'],
+    note: 'Statements, speeches and projections from the Board, live Fed headlines and a survey of market professionals. No odds from futures prices.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

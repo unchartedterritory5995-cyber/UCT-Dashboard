@@ -148,6 +148,8 @@ export const PANEL_IMPORTERS = {
   IpoCalendar: () => import('./panels/IpoCalendarPanel'),
   DividendCalendar: () => import('./panels/DividendCalendarPanel'),
   CorporateActions: () => import('./panels/CorporateActionsPanel'),
+  // FED (2026-11-21): the FOMC statement and its redline, Fed headlines, speeches, the next meeting, the rate, projections, the survey
+  FedWatch: () => import('./panels/FedWatchPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),

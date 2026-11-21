@@ -12216,6 +12216,8 @@ from api.routers import dilution_watch as dilution_watch_router  # noqa: E402  (
 app.include_router(dilution_watch_router.router)  # /api/research/dilution-watch/{ticker}
 from api.routers import corporate_actions as corporate_actions_router  # noqa: E402  (CACT: splits and dividends the server already holds, paid)
 app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
+from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
+app.include_router(fed_watch_router.router)  # /api/research/fed-watch
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
