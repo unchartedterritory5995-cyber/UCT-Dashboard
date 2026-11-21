@@ -2018,6 +2018,25 @@ def _recon(page, args) -> int:
     return 0
 
 
+def prepare_run_manifest(manifest_path, run_dir, log=print) -> dict:
+    """The manifest a `run` uses, loaded and normalized (`_load_manifest`), compared with the one the run dir already
+    holds (a resume), and written there. ⛔ The run dir's copy is NORMALIZED before the compare: it may be the very file
+    named by `--manifest` (patrick-54's scratch convention, `--manifest $RUN/manifest.json --run-dir $RUN`), hand-written,
+    with a built-in row that carries no sha256 (2026-11-21, review of #2284: `KeyError: 'sha256'` before any page step)."""
+    manifest = _load_manifest(manifest_path)
+    mpath = pathlib.Path(run_dir) / "manifest.json"
+    if mpath.exists():
+        old = json.loads(mpath.read_text(encoding="utf-8"))
+        try:
+            normalize_builtin_rows(old.get("scripts", []))
+        except StepOutcome:
+            pass             # an old copy that no longer normalizes simply differs: the NOTE below says so
+        if [s.get("sha256") for s in old.get("scripts", [])] != [s["sha256"] for s in manifest["scripts"]]:
+            log(f"[batch] NOTE: resuming {run_dir} with a manifest that differs from the one it started with")
+    write_json_atomic(mpath, manifest)
+    return manifest
+
+
 def _load_manifest(path) -> dict:
     m = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
     if m.get("schema") != "uct.vendor-batch-manifest/v1" or not isinstance(m.get("scripts"), list):
@@ -2124,16 +2143,10 @@ def main(argv=None) -> int:
         if why:
             print(f"[batch] REFUSED: {why}")
             return 2
-        manifest = _load_manifest(args.manifest)
         run_id = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         run_dir = pathlib.Path(args.run_dir) if args.run_dir else DEFAULT_RUN_ROOT / run_id
         rd = RunDir(run_dir, run_id)
-        mpath = run_dir / "manifest.json"
-        if mpath.exists():
-            old = json.loads(mpath.read_text(encoding="utf-8"))
-            if [s["sha256"] for s in old.get("scripts", [])] != [s["sha256"] for s in manifest["scripts"]]:
-                print(f"[batch] NOTE: resuming {run_dir} with a manifest that differs from the one it started with")
-        write_json_atomic(mpath, manifest)
+        manifest = prepare_run_manifest(args.manifest, run_dir)
         opts = Opts(symbol=args.symbol, tf=args.tf,
                     listing_date=args.listing_date or KNOWN_LISTING.get(args.symbol.upper()),
                     throttle_s=args.throttle_s, compute_timeout_s=args.compute_timeout_s,
