@@ -2699,11 +2699,20 @@ _NAME_GRAMMAR = frozenset("a an the of on in to for with and or but vs at by fro
 #: capital ("Add Bollinger Bands"). Any other first word is read as part of the name, so a name
 #: typed alone ("Klinger Volume Oscillator") is still caught. A closed list on purpose: a missing
 #: opener costs one request a rephrase; excusing every first word let every bare name through.
+#: ⭐ 2026-11-21 -- THE LAST LINE WAS MEASURED IN, WORD BY WORD: each of those seven verbs, added alone,
+#: freed at least one verb-first request typed in Title Case ("Signal When RSI Crosses 30", "Detect
+#: Higher Highs", "Check Whether ...") and un-refused NO name: a name after one of them is still
+#: refused, by the name without the verb ("Detect Brannock Wave" -> "Brannock Wave"). Thirteen other
+#: verbs were tried and left out because, alone, they freed nothing (`count`, `rank`, `flag`, `sum` ...).
+#: ⛔ AND `average` IS LEFT OUT ALTHOUGH IT FREED ONE: an opener is never a word a NAME is made of
+#: ("Average True Range"; `tests/test_named_indicators_held.py` holds that), and `_foreign_words` skips an
+#: opener wherever it stands. "Average Range over 20 days", typed in Title Case, is still read as a name.
 _SENTENCE_OPENERS = frozenset("""add show plot draw create make build give put use display highlight mark get want
 need try set turn change switch apply overlay graph chart include insert load open see view find calculate compute
 track watch compare replace remove delete hide rename color colour paint shade label call name please can could
 would let i we also and then now just ok okay yes no hey hi with for when if on in the a an my this that what how
-why does do is are explain tell describe""".split())
+why does do is are explain tell describe
+signal detect measure alert check identify scan""".split())
 _VOCABULARY: Dict[int, Tuple[Any, frozenset]] = {}
 
 
