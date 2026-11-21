@@ -35,6 +35,7 @@ import { stampET } from './marketDataFacts'
 import { amountWords, splitWords } from '../../pages/terminal/panels/corporateActionsModel'
 import { priceWords, statusWords, NOT_GIVEN } from '../../pages/terminal/panels/ipoCalendarModel'
 import { kindServed, usable, noRead, whole, plural, andList, dayText, NO_TURN } from './terminalDataFormat'
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 
 export const KINDS = Object.freeze({ actions: 'stock.corporateActions', ipos: 'calendar.ipos', dividends: 'calendar.dividends' })
 export const CAPABILITIES = Object.freeze({ actions: 'stock.splitsDividends', ipos: 'stock.ipoCalendar', dividends: 'stock.dividendsCalendar' })
@@ -151,7 +152,10 @@ export const IPO_SOURCE_LINE = `Source: two vendors' IPO calendars, merged by UC
 export const IPO_VALUE_WORDS = 'Value is the dollar value of the shares offered where a calendar gives it; for some deals a calendar gives the company\'s expected market value in its place, and the answer does not say which.'
 const IPO_NONE = 'No IPO is stated. That is not the same as no IPOs.'
 const lc = (s) => (s === NOT_GIVEN ? 'not given' : s)
-const compact = (v) => (v >= 1e9 ? `${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : whole(v))
+// A share count or dollar value: one decimal in millions or billions through the app's own formatter (a value that
+// rounds up to the next tier prints there: 999,950,000 is 1.0B), the whole number below a million.
+const IPO_TIERS = Object.freeze([{ at: 1e9, suffix: 'B', decimals: 1 }, { at: 1e6, suffix: 'M', decimals: 1 }])
+const compact = (v) => (Math.abs(v) >= 1e6 ? formatCompact(v, { tiers: IPO_TIERS }) : whole(v))
 
 /** Pure: a `calendar.ipos` envelope → the answer. */
 export function answerFromIpos(envl) {
