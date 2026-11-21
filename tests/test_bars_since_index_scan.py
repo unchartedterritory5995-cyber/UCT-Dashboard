@@ -33,10 +33,38 @@ def _drain_background_writers(timeout_s: float = 10.0) -> None:
     raise AssertionError(f"background bars jobs still in flight after {timeout_s}s: cold={cold} heals={heals}")
 
 
+def _drain_warm_pool(timeout_s: float = 10.0) -> None:
+    """The warm pool keeps no in-flight registry, so wait for it the only exact way a FIFO pool allows: one barrier
+    task per worker. They can all run at once only when every task accepted BEFORE them has finished."""
+    import threading
+    pool = bars_fetch._bars_warm_pool
+    n = pool._max_workers
+    barrier = threading.Barrier(n + 1, timeout=timeout_s)
+    futs = [pool.submit(barrier.wait) for _ in range(n)]
+    barrier.wait()                                  # raises BrokenBarrierError on timeout: a stuck task is a red
+    for f in futs:
+        f.result(timeout_s)
+
+
+class _WarmRecorder:
+    """Stands in for the warm pool while a test owns the store: records what would have run, runs nothing."""
+    def __init__(self):
+        self.submitted = []
+
+    def submit(self, fn, *a, **k):
+        from concurrent.futures import Future
+        self.submitted.append((fn, a, k))
+        f = Future()
+        f.set_result(None)
+        return f
+
+
 @pytest.fixture
 def fresh_db(tmp_path, monkeypatch):
     from api.services.cache import cache as _cache
     _drain_background_writers()                    # BEFORE re-pointing: a late job lands in the OLD store
+    _drain_warm_pool()
+    monkeypatch.setattr(bars_fetch, "_bars_warm_pool", _WarmRecorder())
     # ...and nothing new may start while this test owns the store (these tests read; none needs a kick).
     monkeypatch.setattr(bars_fetch, "_kick_cold_fetch", lambda *a, **k: None)
     monkeypatch.setattr(bars_fetch, "_enqueue_since_bg_heal", lambda *a, **k: None)
@@ -154,3 +182,27 @@ def test_degenerate_since_falls_back_to_bounded_window(fresh_db):
     # Degenerate since → bounded get_bars fallback (not the unbounded since-scan).
     assert spy_full.called
     assert len(_body(resp)["bars"]) == 10
+
+
+def test_a_late_warm_pool_job_cannot_land_in_this_tests_store(tmp_path, monkeypatch, request):
+    """The same leak through the warm pool, which keeps no in-flight registry: a task it accepted earlier replaces
+    AAPL D a moment later. The barrier drain waits it out before the store is re-pointed."""
+    first = tmp_path / "earlier"
+    first.mkdir()
+    monkeypatch.setattr(bars_sqlite, "_DB_PATH", str(first / "bars.db"))
+    bars_sqlite.bump_db_epoch()
+    bars_sqlite.init_db()
+
+    def _late_task():
+        time.sleep(0.3)
+        bars_sqlite.replace_ticker_tf_rows("AAPL", "D", [{"t": 20261120, "o": 9, "h": 9.5, "l": 8.5, "c": 9, "v": 1}])
+    bars_fetch._bars_warm_pool.submit(_late_task)
+
+    own = request.getfixturevalue("fresh_db")
+    daily = [{"t": f"2026-06-{d:02d}", "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10} for d in (10, 11, 12, 15, 16)]
+    bars_sqlite.put_bars("AAPL", "D", daily, date_tf=True)
+    time.sleep(0.4)
+    with patch.object(bars_fetch, "_needs_fresh", return_value=False):
+        body = _body(bars_fetch._get_bars_since_response("AAPL", "D", 5000, "2026-06-12"))
+    assert [b["t"] for b in body["bars"]] == ["2026-06-15", "2026-06-16"], _own_rows(own, "AAPL", "D")
+    assert isinstance(bars_fetch._bars_warm_pool, _WarmRecorder)    # and nothing new runs while the test owns it
