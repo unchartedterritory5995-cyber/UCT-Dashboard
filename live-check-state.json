@@ -1,5 +1,5 @@
 {
-  "fingerprint": "tests:nightly NEW failures=run 44568753938 found 58 NEW failures against the previous valid master run|tests:nightly full suite=no VALID master run for over 36 h (newest valid is run 44568753938)",
-  "posted_at": "2026-11-21T18:39:51.909087+00:00",
-  "reason": "morning summary"
+  "fingerprint": "tests:nightly NEW failures=run 44945133066 found 6 NEW failures against the previous valid master run",
+  "posted_at": "2026-11-21T22:26:59.545226+00:00",
+  "reason": "new stuck item"
 }
