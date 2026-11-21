@@ -14036,6 +14036,288 @@
         "is the yield curve inverted",
         "where are bond yields"
       ]
+    },
+    {
+      "id": "stock.marketRegime",
+      "source": "Terminal data wave 7 (11-20): the Agent half of the REGM, TECH, EVTS, IVH and DILU terminal panels and the UCT 20 page (market regime, confirmed setups, events timeline, the UCT 20 list, IV history, dilution watch), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.marketRegime"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.marketRegime"
+      ],
+      "ownWords": [
+        "marketReads"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.marketRegime",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.regime.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "UCT's market regime read: Made-up regime, sizing band YELLOW, confidence 60%\\.",
+          "• New lows: not available to the classifier",
+          "that is not a figure of 0",
+          "this answer never recomputes",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what is the market regime",
+        "which regime are we in",
+        "UCT regime read",
+        "market regime check"
+      ]
+    },
+    {
+      "id": "stock.setups",
+      "source": "Terminal data wave 7 (11-20): the Agent half of the REGM, TECH, EVTS, IVH and DILU terminal panels and the UCT 20 page (market regime, confirmed setups, events timeline, the UCT 20 list, IV history, dilution watch), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.setups"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.setups"
+      ],
+      "ownWords": [
+        "marketReads"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.setups",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*stock\\.setups.*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":10\\}"
+        ],
+        "says": [
+          "Setups UCT's chart judge confirmed on NVDA's daily chart, newest bar first \\(5 setups judged in the last 10 days\\):",
+          "• Made-up base: judged on the daily bar of Oct 30, 2026, confidence 82%, key level \\$105\\.50, 5 of 6 checks passed",
+          "• Made-up flag: judged on the daily bar of Oct 28, 2026, confidence 64%, no key level stored, 3 of 4 checks passed",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "confirmed setups on NVDA",
+        "which setups did the judge confirm for NVDA",
+        "any setups on NVDA",
+        "setup verdicts for NVDA"
+      ]
+    },
+    {
+      "id": "stock.eventsTimeline",
+      "source": "Terminal data wave 7 (11-20): the Agent half of the REGM, TECH, EVTS, IVH and DILU terminal panels and the UCT 20 page (market regime, confirmed setups, events timeline, the UCT 20 list, IV history, dilution watch), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.eventsTimeline"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.eventsTimeline"
+      ],
+      "ownWords": [
+        "marketReads"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.eventsTimeline",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*stock\\.eventsTimeline.*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":20\\}"
+        ],
+        "says": [
+          "Dated events UCT's stores hold for NVDA, newest first; the newest that is not in the future is Thu, Oct 29, 2026:",
+          "• Oct 29, 2026: Made-up filing \\(Form 8-K\\), T-10 against the Nov 12, 2026 report",
+          "1 of the 4 sources did not answer, so events from there are missing here, which is not the same as no event there: the room's mention counts \\(not held on the server\\)\\.",
+          "a scheduled report is listed and is never the as-of date"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA events timeline",
+        "timeline of events for NVDA",
+        "dated events on NVDA",
+        "events timeline for NVDA"
+      ]
+    },
+    {
+      "id": "stock.uct20List",
+      "source": "Terminal data wave 7 (11-20): the Agent half of the REGM, TECH, EVTS, IVH and DILU terminal panels and the UCT 20 page (market regime, confirmed setups, events timeline, the UCT 20 list, IV history, dilution watch), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.uct20List"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.uct20List"
+      ],
+      "ownWords": [
+        "marketReads"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.uct20List",
+            "target": "$stockData",
+            "args": {
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*uct20\\.list.*\"params\":\\{\"rows\":20\\}"
+        ],
+        "says": [
+          "The UCT 20 leadership list from the morning wire run of Tue, Nov 3, 2026, in the list's own order:",
+          "• 2\\. BBB: RS 95, rating 84\\.0, 1 month -2\\.0%, 3 months \\+18\\.0%",
+          "• 3\\. CCC: RS not given, rating 80\\.0, 1 month not given, 3 months not given",
+          "1 name with a pending acquisition is left off the list, as on the UCT 20 page\\.",
+          "never the time of this answer"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "the UCT 20",
+        "what is on the UCT 20 list",
+        "top five of the UCT 20",
+        "the UCT 20 leadership list"
+      ]
+    },
+    {
+      "id": "stock.ivHistory",
+      "source": "Terminal data wave 7 (11-20): the Agent half of the REGM, TECH, EVTS, IVH and DILU terminal panels and the UCT 20 page (market regime, confirmed setups, events timeline, the UCT 20 list, IV history, dilution watch), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.ivHistory"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.ivHistory"
+      ],
+      "ownWords": [
+        "marketReads"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.ivHistory",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*options\\.ivHistory.*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":20\\}"
+        ],
+        "says": [
+          "NVDA at-the-money implied volatility by logged session, newest first, from UCT's options log \\(3 sessions logged since Oct 28, 2026\\):",
+          "• Oct 30, 2026: 42\\.5% at 28 days to expiry",
+          "• Oct 29, 2026: no at-the-money implied volatility logged",
+          "No IV rank is stated: 3 sessions logged, rank needs 20\\. That is not a rank of 0\\.",
+          "The newest session in this answer is Fri, Oct 30, 2026"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA IV history",
+        "IV rank for NVDA",
+        "how has NVDA implied volatility trended",
+        "NVDA implied volatility history"
+      ]
+    },
+    {
+      "id": "stock.dilutionWatch",
+      "source": "Terminal data wave 7 (11-20): the Agent half of the REGM, TECH, EVTS, IVH and DILU terminal panels and the UCT 20 page (market regime, confirmed setups, events timeline, the UCT 20 list, IV history, dilution watch), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.dilutionWatch"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.dilutionWatch"
+      ],
+      "ownWords": [
+        "marketReads"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.dilutionWatch",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*dilution\\.watch.*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":15\\}"
+        ],
+        "says": [
+          "NVDA \\(Made-up Company Inc\\): share-issuance filings in the SEC's filing index over the last 3 years, as UCT classified them:",
+          "• Offerings: 1 in the last 12 months, 1 in the last 3 years, the latest on Oct 21, 2026",
+          "• Shelf registrations: 1 in effect by UCT's estimate, 0 not yet effective",
+          "The newest filing of any form in the SEC's index for NVDA is dated Tue, Oct 27, 2026",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA dilution",
+        "does NVDA have a shelf registration",
+        "share offerings NVDA filed",
+        "NVDA share issuance filings"
+      ]
     }
   ],
   "refusals": [
