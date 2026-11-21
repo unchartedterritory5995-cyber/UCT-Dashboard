@@ -110,6 +110,22 @@ construction:
 A member that cannot take the imperative path (section 3.6) joins the round as today. Its React `show` runs in
 the same task, so mixed groups still paint together.
 
+**The trigger is shared with the sync-switch work** (`app/src/hooks/handoffGroups.js`, the other agent's design 3,
+approved for /charts). The coordinator made its one decision the switch trigger for both designs:
+
+- The board's `setGroupSym` calls `decideGroupShow(scope, group, sym)` in the key handler. The scope is the board's
+  `groupSymsStore`. A chart without a scope (the drill, the terminal) never registers and takes the round only. The
+  decision is `{sym, seq, tfs, applied}`, and the round calls `show({sym, tf})` with the tf checked at ready.
+- It asks every member's `canShowNow`. For an imperative member, that means the frame builds whole, sources included.
+- If every member says yes, it calls each `showDecided(sym, decision, token)` in the same task. An imperative member
+  runs `controller.apply` there and returns `'applied'`.
+- Any other answer, or a throw, adopts the symbol in render 1, which is still before paint.
+- If any member says no, today's path runs (prepare, poll, the 150 ms round), and the round's `show` is
+  `controller.apply` for an imperative member.
+
+The stale-render guard keys on the controller's own apply counter (`pendingCommit`), because the round has no
+decision `seq`. The deferred commit checks `decisionFor(group)` so that a newer decision supersedes it.
+
 ### 3.5 The stale-render guard
 
 Between `apply` and the deferred commit, any React render of StockChartBody (a tick, a hover island, a
@@ -127,7 +143,40 @@ The imperative path covers the case neighbour frames already call `plain`: no re
 timeframe, exact date range, session candle or ECON id. Every other case falls back to today's React path. A
 census rail lists the fallbacks, so adding a feature to the plain path is a conscious edit.
 
-### 3.7 Leaks
+### 3.7 Per-symbol indicator sources: one paint
+
+These are the sources that belong to the chart's own symbol, so they change on a switch. Module caches already hold
+each one per symbol:
+
+- the own daily rows (`ownDailyNeeded`, through `secondaryBars.ensureSecondaryBars(sym, 'D', ...)`);
+- the lower-timeframe rows (`useLowerTfSources`, the same cache at the lower tf);
+- historical fundamentals (`fundamentalSeries.ensureAllFundamentals`);
+- the Market Cap authority;
+- the server-lane envelopes (RS line / rating / phases / exit, `serverCompute`).
+
+Today `binder.prepare` hands a neighbour row the CURRENT chart's secondary and lower-tf maps, and a server column only
+when its envelope has already landed (`landedEnvelopeFor`). So a near switch can still draw these a frame or more
+after the candles. The plan:
+
+1. **`prepareRow` asks the row's own sources** in idle time, ranks ±1 only, one request per source per row, through
+   the same `ensure*` entry points the hooks call. The URLs, backoff and in-flight maps stay as they are.
+2. **`binder.prepare` gets the ROW's source maps**, built from those caches by the same builders the hooks use.
+   It never files a column computed over a pending source, so no empty frame is ever filed.
+3. **The controller builds the new symbol's source maps synchronously** from the caches, so `binder.sync` in the
+   switch frame draws them.
+4. **A switch whose frame is missing a source** (cold, or a source still in flight) holds the old symbol's frame
+   until the source lands. It does not paint candles first, so it is still one paint, just later. The wait is capped, as GROUP_SYNC_MS
+   caps the group round; Stage 4 measures the wait on a cold switch and sets the cap from that measurement.
+5. **Cold supply.** The own daily and lower-tf rows can come from the bar store / device store (the device daily
+   frames, #2291) instead of their own URL. Fundamentals and the server envelopes have no device copy, so a cold
+   switch of a layout that carries them waits for one request. Measured in Stage 4.
+
+The owner's real layouts are not in the canary harness: it writes its own board (`--set=base` is the four averages;
+`--set=mixed` adds bb, vwap, rsi, macd, relative volume and the rs* server set). Which of these sources his layouts
+carry is therefore not known from the harness. Stage 0's mixed run measures how late the rs* set draws today on a
+near switch.
+
+### 3.8 Leaks
 
 The controller keeps exactly the current frame (the applied arrays), released on the next apply. It is built
 outside any render. The strict closure-chain rail (#2307) and the 150-switch soak are the checks at every stage.
@@ -168,8 +217,11 @@ The C set covers:
 The indicator-input hooks (secondary / lower-tf / fundamental / market-cap / economic sources, calc frames)
 are **P**:
 
-- The controller syncs the indicators whose inputs are held.
-- Indicators that wait on per-symbol sources draw after paint, as they already do when those sources land late.
+- The owner's rule is ONE paint (coordinator, 2026-11-20). So an indicator whose per-symbol source lands after the
+  candles is a second visible paint. That is not allowed on the imperative path, and it is already a defect of
+  today's path whenever the source is not cached.
+- Stage 4 therefore prepares those sources with the row (section 3.7). The controller draws only when every source
+  the frame needs is held.
 - The developing-bar channel (useBarSnapshotBars' store subscription) is the one live path that must move in
   the frame. Otherwise the old symbol's ticks could paint onto the new chart.
 
@@ -193,7 +245,7 @@ are **P**:
 | **1** | Extract `applyFrame` from updateChart. No behaviour change | a CALL-LOG parity test: every series setData / applyOptions / binder.sync on a switch is identical before/after (D, 60, custom tf, replay, Heikin-Ashi, comparison); the existing StockChart suites + dailyFirstPaintAcceptance | log identical; ship gate |
 | **2** | `buildFrame` | for fixtures (prepared and cold), every array of the frame is the memo's array (identity when prepared, deep-equal when cold) | rail green |
 | **3** | The controller behind the flag (plain path only, default off) | (a) 0 StockChartBody renders before paint, ≥ 1 after, and the final series log equals the React path's; (b) linked group: every member's setData in one task; (c) a render between apply and commit never repaints the old symbol; (d) every C layer of the old symbol is gone in the frame (series / DOM asserts); (e) neighbour-frame identity hits (no copies); (f) the dev channel ticks only the new key; (g) framing: VISIBLE_RANGE_DRIFT 0, ZOOM_CHANGED 0; (h) strict closure-chain rail + 150-switch soak | flag-on runs pass the ship gate on the canary |
-| **4** | Widen: the cold path builds synchronously; census of fallbacks | fallback census rail; the same rails as 3 for cold | ship gate, cold and near |
+| **4** | Widen: the cold path builds synchronously; per-symbol sources prepared with the row (3.7); census of fallbacks | ONE-PAINT rail: for a near switch with the mixed set plus a lower-tf and a `fund:` fixture, every indicator's first drawn frame is the candles' frame (harness: 0 frames of indicator lag); `binder.prepare` never files a column over a pending source; fallback census rail; the same rails as 3 for cold | ship gate, cold and near; mixed-set lag 0 frames near |
 | **5** | Rollout: owner's browser, then a server cohort, then default on | the ship gate on production at each step; 0 page errors in the canary | each step |
 
 ## 7. Risks and open questions
@@ -204,8 +256,9 @@ are **P**:
   recolours, layering, focus) move into the controller in the same order.
 - **Islands.** They must take their symbol from the controller in the imperative path: header, legend, readout
   (#2278) and the drawings overlay.
-- **Indicators with per-symbol inputs** draw after paint in the imperative path (as on a late source today).
-  If the owner wants them in the frame, neighbour frames must also prepare their sources.
+- **Per-symbol sources** (section 3.7): one paint means a frame that lacks one waits. Preparing sources costs one
+  request per source per neighbour row. That is bounded to ranks ±1, but it is new traffic, and Stage 4 reports it
+  beside the ship gate.
 - **A held arrow key** can make deferred commits pile up. They are low priority and superseded, but Stage 3
   measures a 30-flip held key as well.
 - **Open:** whether to defer the React commit with a transition or a post-paint task. Stage 3 picks by
