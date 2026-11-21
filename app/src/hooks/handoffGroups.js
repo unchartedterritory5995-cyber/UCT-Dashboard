@@ -10,7 +10,7 @@
 //      construction. No passive effect, no poll, no group round, no second render.
 //   2. THE ROUND, the fallback (a cold, deferred or mixed switch: today's path). Each member's handoff decides
 //      when ITS chart is ready; a ready member waits for its siblings that asked for the same symbol, and the
-//      last one ready shows them all in one task. Bounded by GROUP_SYNC_MS.
+//      last one ready shows them all in one task. It never shows a part of the group (GROUP_HANG_MS).
 //
 // A member shows through its own function in both: the React path sets its displayed symbol; the imperative
 // switch's controller (docs/charts/imperative-switch-design.md) paints the chart itself and answers 'applied'.
@@ -144,16 +144,22 @@ export function subscribeDecisions(fn) { _subs.add(fn); return () => { _subs.del
 /**
  * ⭐⭐ ONE FRAME FOR THE WHOLE GROUP, WHEN THE DECISION SAID NO. Each chart's handoff decides when ITS chart is
  * ready; a chart that is ready waits for its siblings that asked for the same symbol, and the last one to be
- * ready shows them all in one synchronous pass (one React render, one frame). Bounded: once GROUP_SYNC_MS has
- * passed since the first sibling was ready, the ready ones are shown and each straggler shows itself when it is
- * ready, so nothing hangs on a slow sibling.
+ * ready shows them all in one synchronous pass (one React render, one frame).
+ * ⛔⛔ (2026-11-21, owner: every linked chart in ONE frame, non-negotiable) IT NEVER SHOWS A PART OF THE GROUP. It
+ * was bounded at 150 ms (GROUP_SYNC_MS), after which the ready ones were shown alone: measured on cold 70-row jumps,
+ * 5 of 15 switches split by 7-9 frames (the 30m chart shown, its D sibling still on its daily hold). Every member is
+ * bounded by its OWN rule (the daily hold DAILY_HOLD_MAX_MS, the panes' COLUMNS_WAIT_MS, the intraday prepare's hang
+ * guard HANDOFF_HANG_MS), so the round waits for the last of them; the old symbol stays whole meanwhile. Only a member
+ * that never gets ready at all (a defect, not a slow answer) is let go, past GROUP_HANG_MS: then the ready ones show.
  *  - A member is a chart of the group whose request moved to `sym` and is not showing it yet; it joins in a
  *    LAYOUT effect, so every sibling of one commit has joined before any of them can be ready.
  *  - A chart leaving the round (a newer symbol, unmounted) never holds the others.
  *  - No group (a host that passes none): the chart shows itself, as before.
  *  - `show` is called with { sym, tf }: the symbol and the timeframe the member had when it became ready.
  */
-export const GROUP_SYNC_MS = 150
+export const GROUP_SYNC_MS = 150   // (kept: the name the tests and the decision docs cite; no longer a split point)
+/** The round's ONLY bound: past every member's own (HANDOFF_HANG_MS 4000 + COLUMNS_WAIT_MS 300 is the longest). */
+export const GROUP_HANG_MS = 4500
 const _rounds = new Map()   // group -> { sym, members: Map<id, {ready, show, tf}>, timer, expired }
 function _flushRound(group, round) {
   if (round.timer) { clearTimeout(round.timer); round.timer = null }
@@ -189,7 +195,7 @@ export function groupReady(group, sym, id, show, tf = null) {
       round.timer = null
       round.expired = true
       _flushRound(group, round)
-    }, GROUP_SYNC_MS)
+    }, GROUP_HANG_MS)
   }
 }
 
