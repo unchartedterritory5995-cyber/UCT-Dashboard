@@ -15,7 +15,9 @@
     "HELD kills (2026-11-18): an entry with `status: \"pending\"` is recorded here and NOT served (runtime_definitions.kill_entry_is_served is the one rule: committed_kills and the coverage census both skip it; the script still draws); it names its evidence capture, its liftWhen and a hard `expires` date (YYYY-MM-DD), and the REACH rail accepts that one capture as a stop only until then. Past `expires` the rails are red on their own. LIFTED 2026-11-18 on its liftWhen: adx-and-di-for-v4 (Q-FCMP ruled TOLERANCE, packet 56330c15e071; engine 78 #1858 compares within 1e-10; adx-and-di-for-v4-spy-1d-2026-11-17 re-graded MATCH on the runtime-on lane). The list holds no held kill now; the rails show the rule on a synthetic one.",
     "U-STMT PR 1 (#1930, engine 82, 2026-11-18): machine-learning-moving-average-backquant is killed by the REACH stop rule. `ta.change(source, length)` on the runtime lane builds it, and under admission the door now draws it on that lane; its RDDT captures grade MATCH, its SPY capture DIVERGE (the run stops at the array-operation limit and draws nothing). Records spliced from that PR's pine-heavy run 44427583401.",
     "CO-2 (#1984, engine 84, 2026-11-19): volatility-coil-edge-bullbyte is killed by the REACH stop rule. Theme colours on the runtime lane (`chart.fg_color` / `chart.bg_color`) build it, and under admission the door now draws it on that lane; all three of its captures grade DIVERGE (TradingView paints its \"Signal Bar BG\" background, ours does not). Records spliced from that PR's pine-heavy run 44482355116.",
-    "admit:request-other (engine 84 snapshot, 2026-11-19): request-other is admitted (scope closed-bar-history), so the 11 sources it newly admits with a committed capture grading DIVERGE on either lane are killed by source hash (the DRAW-1 rule): artemis-oscillator-pro, average-day-range-adr-pivots, dual-view-htf-candlestick-patterns-theultimator5, ema-ribbon-trend-filter-strixedge, htf-liquidity-dashboard-tfo, pmax-explorer, position-size-calc, vold-market-breadth and the probes request-realtime-alignment, rs-seed-rsrating, vw-other-symbol. NOT rs-rating-fred6724: it is served through its own sha allowlist entry (coordinator ruling; its four runtime-on differences are named in tests/test_pine_capability_admission.py SERVED_BY_OWN_SHA). Rail: test_REQOTHER_every_newly_admitted_request_script_with_a_DIVERGE_capture_is_killed."
+    "admit:request-other (engine 84 snapshot, 2026-11-19): request-other is admitted (scope closed-bar-history), so the 11 sources it newly admits with a committed capture grading DIVERGE on either lane are killed by source hash (the DRAW-1 rule): artemis-oscillator-pro, average-day-range-adr-pivots, dual-view-htf-candlestick-patterns-theultimator5, ema-ribbon-trend-filter-strixedge, htf-liquidity-dashboard-tfo, pmax-explorer, position-size-calc, vold-market-breadth and the probes request-realtime-alignment, rs-seed-rsrating, vw-other-symbol. NOT rs-rating-fred6724: it is served through its own sha allowlist entry (coordinator ruling; its four runtime-on differences are named in tests/test_pine_capability_admission.py SERVED_BY_OWN_SHA). Rail: test_REQOTHER_every_newly_admitted_request_script_with_a_DIVERGE_capture_is_killed.",
+    "Lifted (engine 92 follow-up, coordinator ruling 2026-11-21, both on their own liftWhen, after the engine-92 snapshot regen): vw-v6-bool-history-bar0 (Q-BH0, #2250 in train e92: both captures grade MATCH on both lanes at 92) and vw-bi-str-tonumber (#2182, e90: its evidence lane, runtime-on, grades MATCH at 92; production stays INCONCLUSIVE, the host refuses str.tonumber by name).",
+    "engine 92 follow-up (2026-11-21, coordinator pre-approval): the engine-92 snapshot regen's reach rails name 11 probe sources, killed by source hash (REACH stop: vw-bi-asin, vw-bt-toradians, vw-cf-const-fold, vw-lastbar-forming; admit:request-other: vw-req-w-closure-day; DRAW-1: the six vw-tf-* table probes). All 11 are UCT probes; no member-side source (census or production library store) carries their shas. KEPT, on standing evidence (coordinator ruling B1): htf-candle-footprint-cartel-console, whose named captures now read MATCH on the runtime-on lane by the v1 objects grade while the field-by-field grade DIVERGEs (a label 2.66 off); its entry declares evidence.standing = objectsV2 (rail: _kill_standing_holds). rs-rating-fred6724's four named runtime-on differences no longer DIVERGE at engine 92 and are removed from SERVED_BY_OWN_SHA (ruling B2); the rail now holds every runtime-on DIVERGE of the allowlisted sha to be named."
   ],
   "scripts": [
     {
@@ -50,14 +52,17 @@
       "slug": "htf-candle-footprint-cartel-console",
       "sha256": "e0db92075b2e1421b0c47c26b26de7ad5fe52fd6313971d6edbf6a28c9d4b538",
       "source": "corpus/committed/htf-candle-footprint-cartel-console__ca3ff4e904.pine",
-      "reason": "it draws 3 of TradingView's 13 boxes (11 on SPY) and none of its lines or labels yet, and where its boxes sit has not been checked against TradingView",
+      "reason": "its boxes now draw and agree with TradingView in count, text and colour, but at least one of its labels sits at another price (RDDT daily, label #10: TradingView 147.06, ours 144.41), and where its boxes sit has not been checked against TradingView",
       "evidence": {
-        "capture": "htf-candle-footprint-cartel-console-spy-1d-2026-10-03",
-        "verdict": "INCONCLUSIVE",
-        "production": "DIVERGE",
-        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: pine:function"
+        "capture": "htf-candle-footprint-cartel-console-rddt-1d-2026-09-28",
+        "verdict": "MATCH",
+        "production": "INCONCLUSIVE",
+        "standing": "objectsV2",
+        "objectsV2": "labels y",
+        "lanes": "member's runtime lane MATCH by the v1 objects grade only (counts, texts and colours agree; v1 compares no coordinates) while the field-by-field grade (objectsV2) DIVERGEs: label #10 y, TradingView 147.06, ours 144.41; -spy-1d-2026-10-03 reads MATCH by v1 and its objectsV2 is INCONCLUSIVE only for want of an x table (taken before U13); host lane INCONCLUSIVE on both, DRAW-1's partial-unpositioned grade (objects:not-carried, objects:partial-unpositioned)",
+        "session": "vendor harness snapshots regenerated at engine 92 (the engine-92 follow-up to train e92); kept on STANDING evidence by coordinator ruling 2026-11-21 (B1: lifting would serve a label 2.66 off)"
       },
-      "liftWhen": "an engine fix to the box top, then a runtime-on re-grade to MATCH on htf-candle-footprint-cartel-console-rddt-1d-2026-09-28 and -spy-1d-2026-10-03",
+      "liftWhen": "an engine fix to the label y (label #10 on -rddt-1d-2026-09-28: TradingView 147.06, ours 144.41), then a runtime-on re-grade whose field-by-field objects grade (objectsV2) also agrees on htf-candle-footprint-cartel-console-rddt-1d-2026-09-28 and -spy-1d-2026-10-03 (the spy capture needs a re-take with an x table, or its objectsV2 stays INCONCLUSIVE)",
       "addedBy": "DRAW-1 (2026-11-16, coordinator ruling): a script newly admitted by obj:box / obj:table with a committed capture grading DIVERGE"
     },
     {
@@ -410,34 +415,169 @@
       "addedBy": "DRAW-1 (2026-11-20, coordinator ruling on A1): the per-bar offset copy (objects unit A1) lets its values build stand, so it is newly drawn by the runtime lane with a committed capture grading DIVERGE"
     },
     {
-      "slug": "vw-bi-str-tonumber",
-      "sha256": "5360e5fc15ce646b8a9b483d59a8b9cfc354eb3cec27a387fc5be068d6425d5e",
-      "source": "tools/visual_conformance/probes/vw-bi-str-tonumber.pine",
-      "reason": "str.tonumber padded/exponent strings diverge at engine 89 (N05-N08)",
+      "slug": "vw-bi-asin",
+      "sha256": "c0d0271e39bb0fbdee2885fbfbb2b6e6fa3a7710df92b2696f4009992e266519",
+      "source": "tools/visual_conformance/probes/vw-bi-asin.pine",
+      "reason": "its A5 identity residual `(math.sin(math.asin(0.999y)) - 0.999y) * 1e18` reads -111 / -55 (one ulp of math.sin) where TradingView reads 0, on 123 of 8,511 bars; math.asin itself (A1) agrees bit for bit",
       "evidence": {
-        "capture": "vw-bi-str-tonumber-spy-1d-2026-11-19",
-        "verdict": "DIVERGE",
-        "production": "INCONCLUSIVE",
-        "lanes": "member's runtime lane DIVERGE on N05_lead_space and N06_trail_space (ours -999, TradingView 3) and N07_exponent and N08_exponent_neg (ours 1000 / 0.01, TradingView -999); host lane draws no plot (INCONCLUSIVE)",
-        "session": "vendor harness runtime-on lane at engine 89, #2184's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json); the member door (CAPADMIT_MODE=admission) draws it on the runtime lane, a REACH stop"
-      },
-      "liftWhen": "a snapshot regen at engine >= 90 grades it MATCH: #2182 (e90, on master) fixes str.tonumber",
-      "addedBy": "#2184 snapshot regen (coordinator ruling 2026-11-20): a probe the registry admits whose new capture the member door draws on the runtime lane and grades DIVERGE (a REACH stop) is killed by source hash"
-    },
-    {
-      "slug": "vw-v6-bool-history-bar0",
-      "sha256": "07212c5896ff3e5cb517bb43b283d4ad27b73a3705c3bb5783d19b31b6e95040",
-      "source": "tools/visual_conformance/probes/vw-v6-bool-history-bar0.pine",
-      "reason": "v6 bool history before bar 0 reads false in TradingView; ours na (Q-BH0)",
-      "evidence": {
-        "capture": "vw-v6-bool-history-bar0-rddt-1d-2026-11-19",
+        "capture": "vw-bi-asin-spy-1d-2026-11-19",
         "verdict": "DIVERGE",
         "production": "DIVERGE",
-        "lanes": "both lanes DIVERGE on bar 0 only, on both captures (vw-v6-bool-history-bar0-rddt-1d-2026-11-19 and vw-v6-bool-history-bar0-spy-1d-2026-11-19): H01_b1_eq_false, H03_not_b1 and H04_b1_ne_true read 0 where TradingView reads 1; the host lane refuses it by name (host known-divergence list), so the member door draws it on the runtime lane",
-        "session": "vendor harness runtime-on lane at engine 89, #2184's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json); a REACH stop on both captures"
+        "lanes": "member's runtime lane DIVERGE on A5_identity_residual_1e18 only (123 scattered bars, first at bar 113); host lane DIVERGE on the same plot; every other plot MATCH",
+        "session": "vendor harness snapshots regenerated at engine 92 (the engine-92 follow-up to train e92; docs/pine/vendor-harness/{runtime-on,production}/verdicts.json)"
       },
-      "liftWhen": "the Q-BH0 fix PR lands and a regrade MATCHes both captures",
-      "addedBy": "#2184 snapshot regen (coordinator ruling 2026-11-20): a probe the registry admits whose new capture the member door draws on the runtime lane and grades DIVERGE (a REACH stop) is killed by source hash"
+      "liftWhen": "the math.sin last-bit capture (Q-BI-SIN-a, docs/pine/capture-queue-2026-11-21-sin.md) decides it and a math.sin fix lands, then a runtime-on re-grade to MATCH on vw-bi-asin-spy-1d-2026-11-19",
+      "addedBy": "engine-92 snapshot regen (coordinator ruling 2026-11-21, pre-approved): a probe the registry admits whose capture the member door draws on the runtime lane and grades DIVERGE (a REACH stop) is killed by source hash"
+    },
+    {
+      "slug": "vw-bt-toradians",
+      "sha256": "42501f8097cf7211ce429f367e2239188c52484a5d0ec3f4c62a9cf644611738",
+      "source": "tools/visual_conformance/probes/vw-bt-toradians.pine",
+      "reason": "its D3 residual `(math.toradians(x) - x * (math.pi / 180)) * 1e18` reads 0 where TradingView reads -888.18 on every bar: TradingView folds the literal `math.pi / 180` at compile time (Q-CF) and we do not; math.toradians itself agrees bit for bit",
+      "evidence": {
+        "capture": "vw-bt-toradians-spy-1d-2026-11-16",
+        "verdict": "DIVERGE",
+        "production": "DIVERGE",
+        "lanes": "member's runtime lane DIVERGE on D3_minus_x_times_pi_180 (8,457 bars, from bar 0, persistent); host lane DIVERGE on the same plot",
+        "session": "vendor harness snapshots regenerated at engine 92 (the engine-92 follow-up to train e92; docs/pine/vendor-harness/{runtime-on,production}/verdicts.json)"
+      },
+      "liftWhen": "Q-CF (TradingView's compile-time constant folding, e93 NUMBER PENDING) lands, then a runtime-on re-grade to MATCH on vw-bt-toradians-spy-1d-2026-11-16",
+      "addedBy": "engine-92 snapshot regen (coordinator ruling 2026-11-21, pre-approved): a probe the registry admits whose capture the member door draws on the runtime lane and grades DIVERGE (a REACH stop) is killed by source hash"
+    },
+    {
+      "slug": "vw-cf-const-fold",
+      "sha256": "a5f161ba1370586df40a999049e4ddaf0c8f5cb956f6636fc8817f4ec6f8c81e",
+      "source": "tools/visual_conformance/probes/vw-cf-const-fold.pine",
+      "reason": "its constant-folding residuals read 0 where TradingView reads the folded constant's last bits (D1 `pi/180 - series`, scaled 1e18: TradingView 3.47, ours 0, from bar 0): TradingView folds literal-only subexpressions at compile time (Q-CF) and we do not",
+      "evidence": {
+        "capture": "vw-cf-const-fold-spy-1d-2026-11-20",
+        "verdict": "DIVERGE",
+        "production": "DIVERGE",
+        "lanes": "member's runtime lane DIVERGE on vw-cf-const-fold-rddt-1d-2026-11-20 and vw-cf-const-fold-spy-1d-2026-11-20 (persistent from bar 0); host lane DIVERGE on both",
+        "session": "vendor harness snapshots regenerated at engine 92 (the engine-92 follow-up to train e92; docs/pine/vendor-harness/{runtime-on,production}/verdicts.json)"
+      },
+      "liftWhen": "Q-CF (e93 NUMBER PENDING) lands, then a runtime-on re-grade to MATCH on vw-cf-const-fold-rddt-1d-2026-11-20 and vw-cf-const-fold-spy-1d-2026-11-20",
+      "addedBy": "engine-92 snapshot regen (coordinator ruling 2026-11-21, pre-approved): a probe the registry admits whose capture the member door draws on the runtime lane and grades DIVERGE (a REACH stop) is killed by source hash"
+    },
+    {
+      "slug": "vw-lastbar-forming",
+      "sha256": "494cefde42fc27095f24caeaab11269223e12520634d674f5a5193f37b162f95",
+      "source": "tools/visual_conformance/probes/vw-lastbar-forming.pine",
+      "reason": "on a chart opened before the session opens it reads the forming last bar's state wrong (isrealtime 0 where TradingView reads 1, isconfirmed 1 where it reads 0, islastconfirmedhistory one bar late) and puts its last label one bar to the right; on every capture its table text is our default colour, not TradingView's #363a45",
+      "evidence": {
+        "capture": "vw-lastbar-forming-spy-1d-2026-11-20-preopen",
+        "verdict": "DIVERGE",
+        "production": "DIVERGE",
+        "lanes": "member's runtime lane DIVERGE on the four 1D captures (preopen: F02-F04 plots, label x, cell text colour; insession: cell text colour only); host lane DIVERGE on all five, -spy-5-2026-11-20-insession included",
+        "session": "vendor harness snapshots regenerated at engine 92 (the engine-92 follow-up to train e92; docs/pine/vendor-harness/{runtime-on,production}/verdicts.json)"
+      },
+      "liftWhen": "an engine fix to the forming last bar's barstate before the open (F02-F04) and the label x there, and the e93 table-colour unit (NUMBER PENDING: TradingView's unset cell text colour is color.black #363A45 in v4, v5 and v6; ours is witnessed for v5 only), then runtime-on re-grades to MATCH on vw-lastbar-forming-{rddt,spy}-1d-2026-11-20-{preopen,insession}",
+      "addedBy": "engine-92 snapshot regen (coordinator ruling 2026-11-21, pre-approved): a probe the registry admits whose capture the member door draws on the runtime lane and grades DIVERGE (a REACH stop) is killed by source hash"
+    },
+    {
+      "slug": "vw-req-w-closure-day",
+      "sha256": "fec9dba6afb28f47372973a4f81f6f2a769bf5cad3004e6af7dff63ffb3d0dc6",
+      "source": "tools/visual_conformance/probes/vw-req-w-closure-day.pine",
+      "reason": "its weekly request.security (lookahead off) reads na, or another week's value, where TradingView reads the week's open, high, low and close on a chart with closure days (CME_MINI:ES1! 1D: W_open_off na where TradingView reads 933.75, from bar 5; OANDA:EURUSD 1D: 0.5365 where TradingView reads 0.5368), on 11 of 15 plots",
+      "evidence": {
+        "capture": "vw-req-w-closure-day-es1-1d-2026-11-20",
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE on 11 of 15 plots on both captures; member's runtime lane INCONCLUSIVE (14 of 15 items not compared)",
+        "session": "vendor harness snapshots regenerated at engine 92 (the engine-92 follow-up to train e92; docs/pine/vendor-harness/{runtime-on,production}/verdicts.json)"
+      },
+      "liftWhen": "an engine fix to the weekly request's week on a closure-day chart (Q-REQ-CLOSURE), then a re-grade to MATCH on vw-req-w-closure-day-es1-1d-2026-11-20 and vw-req-w-closure-day-eurusd-1d-2026-11-20 on both lanes",
+      "addedBy": "engine-92 snapshot regen (coordinator ruling 2026-11-21, pre-approved): a source admitted with request-other with a committed capture grading DIVERGE (the admit:request-other rule) is killed by source hash"
+    },
+    {
+      "slug": "vw-tf-format-date-rare",
+      "sha256": "2193a657191929f164cc070e4a56abfbfa809d078cfea7bfc1aa3d81479d0f16",
+      "source": "tools/visual_conformance/probes/vw-tf-format-date-rare.pine",
+      "reason": "its date-format table draws in our default text colour (#d1d4dc) where TradingView's unset cell text is #363a45, and by the v1 grade two object families differ in count or text",
+      "evidence": {
+        "capture": "vw-tf-format-date-rare-spy-1d-2026-11-20",
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE (tableCells text_color of cell (0,0), and v1 count/text); member's runtime lane INCONCLUSIVE (the member door refuses it by name, pine:known-divergence)",
+        "session": "vendor harness snapshots regenerated at engine 92 (the engine-92 follow-up to train e92; docs/pine/vendor-harness/{runtime-on,production}/verdicts.json)"
+      },
+      "liftWhen": "the e93 table-colour unit (NUMBER PENDING: TradingView's unset cell text colour is color.black #363A45 in v4, v5 and v6; ours is witnessed for v5 only) and an engine fix to the table text the v1 grade names, then a re-grade to MATCH on vw-tf-format-date-rare-spy-1d-2026-11-20 on the production lane",
+      "addedBy": "engine-92 snapshot regen (coordinator ruling 2026-11-21, pre-approved): a source newly admitted by obj:table with a committed capture grading DIVERGE (the DRAW-1 rule) is killed by source hash"
+    },
+    {
+      "slug": "vw-tf-format-date-styles",
+      "sha256": "b4ffafb7ac50f61fa18eae3c7130f23a6fce6ae6d556348241ca02ed36ea4c33",
+      "source": "tools/visual_conformance/probes/vw-tf-format-date-styles.pine",
+      "reason": "its date-style table draws in our default text colour (#d1d4dc) where TradingView's unset cell text is #363a45, and by the v1 grade two object families differ in count or text",
+      "evidence": {
+        "capture": "vw-tf-format-date-styles-spy-1d-2026-11-20",
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE (tableCells text_color of cell (0,0), and v1 count/text); member's runtime lane INCONCLUSIVE (the member door refuses it by name, pine:known-divergence)",
+        "session": "vendor harness snapshots regenerated at engine 92 (the engine-92 follow-up to train e92; docs/pine/vendor-harness/{runtime-on,production}/verdicts.json)"
+      },
+      "liftWhen": "the e93 table-colour unit (NUMBER PENDING: TradingView's unset cell text colour is color.black #363A45 in v4, v5 and v6; ours is witnessed for v5 only) and an engine fix to the table text the v1 grade names, then a re-grade to MATCH on vw-tf-format-date-styles-spy-1d-2026-11-20 on the production lane",
+      "addedBy": "engine-92 snapshot regen (coordinator ruling 2026-11-21, pre-approved): a source newly admitted by obj:table with a committed capture grading DIVERGE (the DRAW-1 rule) is killed by source hash"
+    },
+    {
+      "slug": "vw-tf-format-number-patterns",
+      "sha256": "b1ec65396c8a7f41521533a7e2b48ced05d280aeedcb444412ed4ecda89ebc06",
+      "source": "tools/visual_conformance/probes/vw-tf-format-number-patterns.pine",
+      "reason": "its number-pattern table draws in our default text colour (#d1d4dc) where TradingView's unset cell text is #363a45, and by the v1 grade two object families differ in count or text",
+      "evidence": {
+        "capture": "vw-tf-format-number-patterns-spy-1d-2026-11-20",
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE (tableCells text_color of cell (0,0), and v1 count/text); member's runtime lane INCONCLUSIVE (the member door refuses it by name, pine:known-divergence)",
+        "session": "vendor harness snapshots regenerated at engine 92 (the engine-92 follow-up to train e92; docs/pine/vendor-harness/{runtime-on,production}/verdicts.json)"
+      },
+      "liftWhen": "the e93 table-colour unit (NUMBER PENDING: TradingView's unset cell text colour is color.black #363A45 in v4, v5 and v6; ours is witnessed for v5 only) and an engine fix to the table text the v1 grade names, then a re-grade to MATCH on vw-tf-format-number-patterns-spy-1d-2026-11-20 on the production lane",
+      "addedBy": "engine-92 snapshot regen (coordinator ruling 2026-11-21, pre-approved): a source newly admitted by obj:table with a committed capture grading DIVERGE (the DRAW-1 rule) is killed by source hash"
+    },
+    {
+      "slug": "vw-tf-tick-format-idiom",
+      "sha256": "54b9b25bba21f77a2a730f113fc9be3ca1d4761521426211303cfcf8d95543a7",
+      "source": "tools/visual_conformance/probes/vw-tf-tick-format-idiom.pine",
+      "reason": "its tick-format table draws in our default text colour (#d1d4dc) where TradingView's unset cell text is #363a45, and by the v1 grade two object families differ in count or text",
+      "evidence": {
+        "capture": "vw-tf-tick-format-idiom-spy-1d-2026-11-20",
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE (tableCells text_color of cell (0,0), and v1 count/text); member's runtime lane INCONCLUSIVE (the member door refuses it by name, pine:known-divergence)",
+        "session": "vendor harness snapshots regenerated at engine 92 (the engine-92 follow-up to train e92; docs/pine/vendor-harness/{runtime-on,production}/verdicts.json)"
+      },
+      "liftWhen": "the e93 table-colour unit (NUMBER PENDING: TradingView's unset cell text colour is color.black #363A45 in v4, v5 and v6; ours is witnessed for v5 only) and an engine fix to the table text the v1 grade names, then a re-grade to MATCH on vw-tf-tick-format-idiom-spy-1d-2026-11-20 on the production lane",
+      "addedBy": "engine-92 snapshot regen (coordinator ruling 2026-11-21, pre-approved): a source newly admitted by obj:table with a committed capture grading DIVERGE (the DRAW-1 rule) is killed by source hash"
+    },
+    {
+      "slug": "vw-tf-tick-format-idiom-v4",
+      "sha256": "d2e3a43eddbb4ac5329bb243455662943dc6db98a6d364a9604816f6100be10b",
+      "source": "tools/visual_conformance/probes/vw-tf-tick-format-idiom-v4.pine",
+      "reason": "its v4 tick-format table draws in our default text colour (#d1d4dc) where TradingView's unset cell text is #363a45, and by the v1 grade two object families differ in count or text",
+      "evidence": {
+        "capture": "vw-tf-tick-format-idiom-v4-spy-1d-2026-11-20",
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE (tableCells text_color of cell (0,0), and v1 count/text); member's runtime lane INCONCLUSIVE (the member door refuses it by name, pine:known-divergence)",
+        "session": "vendor harness snapshots regenerated at engine 92 (the engine-92 follow-up to train e92; docs/pine/vendor-harness/{runtime-on,production}/verdicts.json)"
+      },
+      "liftWhen": "the e93 table-colour unit (NUMBER PENDING: TradingView's unset cell text colour is color.black #363A45 in v4, v5 and v6; ours is witnessed for v5 only) and an engine fix to the table text the v1 grade names, then a re-grade to MATCH on vw-tf-tick-format-idiom-v4-spy-1d-2026-11-20 on the production lane",
+      "addedBy": "engine-92 snapshot regen (coordinator ruling 2026-11-21, pre-approved): a source newly admitted by obj:table with a committed capture grading DIVERGE (the DRAW-1 rule) is killed by source hash"
+    },
+    {
+      "slug": "vw-tf-tostring-built-fmt",
+      "sha256": "5c3a537f7dca6aa8e459fe99afb5f15131772e11b871c73db2228906cafd5e86",
+      "source": "tools/visual_conformance/probes/vw-tf-tostring-built-fmt.pine",
+      "reason": "its built-format str.tostring table draws in our default text colour (#d1d4dc) where TradingView's unset cell text is #363a45, and by the v1 grade two object families differ in count or text",
+      "evidence": {
+        "capture": "vw-tf-tostring-built-fmt-spy-1d-2026-11-20",
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE (tableCells text_color of cell (0,0), and v1 count/text); member's runtime lane INCONCLUSIVE (the member door refuses it by name, pine:known-divergence)",
+        "session": "vendor harness snapshots regenerated at engine 92 (the engine-92 follow-up to train e92; docs/pine/vendor-harness/{runtime-on,production}/verdicts.json)"
+      },
+      "liftWhen": "the e93 table-colour unit (NUMBER PENDING: TradingView's unset cell text colour is color.black #363A45 in v4, v5 and v6; ours is witnessed for v5 only) and an engine fix to the table text the v1 grade names, then a re-grade to MATCH on vw-tf-tostring-built-fmt-spy-1d-2026-11-20 on the production lane",
+      "addedBy": "engine-92 snapshot regen (coordinator ruling 2026-11-21, pre-approved): a source newly admitted by obj:table with a committed capture grading DIVERGE (the DRAW-1 rule) is killed by source hash"
     }
   ]
 }
