@@ -12,6 +12,13 @@
 // blank and when its last value was, or that it has no value on any bar, with the reason in numbers when the
 // formula's own reach is longer than the chart's history.
 //
+// ⭐ AND WHEN THE CHART IS SHORTER THAN THE FORMULA READS (2026-11-21). A count of "days above the 200 day
+// average" on a 150-bar history has a value on the newest bar, and it is not the number that was asked for:
+// a comparison against an average that does not exist yet is false, so the count is of less than it says. About
+// one built output in five behaves this way at the start of history (measured), most of them on a bar or two,
+// so nothing is refused. But where the chart has FEWER BARS THAN THE FORMULA'S OWN REACH, every value on it is
+// from less history than the formula asks for, and UCT says so here, in the same block.
+//
 // ⛔ IT STATES, IT NEVER REFUSES, AND THAT WAS MEASURED. A pivot high has a value on a few bars in a hundred
 // and none on the newest ones; "the close only on a new closing high" is blank since its last event; a level
 // held from an event that has not happened on this chart is blank everywhere. All are right answers. Nothing
@@ -49,6 +56,7 @@ export const EMPTY_ON_CHART = Object.freeze({
   NONE_DRAWN: 'none-drawn',  // no value on any row the chart drew (a long chart draws its recent rows)
   NEWEST: 'newest',          // no value on the newest K bars; a value before them
   NEWEST_BAR: 'newest-bar',  // no value on the newest bar; how far back is not read (see the limits above)
+  SHORT_HISTORY: 'short-history', // a value on the newest bar, from a chart with fewer bars than the formula reads
 })
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v)
@@ -105,6 +113,15 @@ function lastDayOfRuns(binding) {
   return best ? dayWords(best.time) : null
 }
 
+/** The formula's own reach in bars when the chart has fewer bars than that, else null. */
+function reachBeyond(definition, key, bars) {
+  try {
+    const tree = outputTreeOf(definition, key)
+    const reach = tree ? maxLookback(tree, { inputs: declaredInputs(definition) }) : null
+    return finite(reach) && bars > 0 && reach >= bars ? reach : null
+  } catch { return null }                                    // no reason is better than a wrong one
+}
+
 /**
  * What the preview's drawn outputs do not show on this chart.
  * @param {object} p
@@ -124,7 +141,12 @@ export function emptyOnThisChart({ bindings, definition, barCount, defId = STUDI
   for (const b of mine) {
     if (seen.has(b.plotKey)) continue
     seen.add(b.plotKey)
-    if (finite(b.lastValue)) continue                       // the newest bar has a value: nothing to say
+    if (finite(b.lastValue)) {
+      // the newest bar has a value. Nothing to say, unless the chart is shorter than the formula reads
+      const reach = reachBeyond(definition, b.plotKey, bars)
+      if (reach !== null) items.push({ key: b.plotKey, code: EMPTY_ON_CHART.SHORT_HISTORY, reach, bars })
+      continue
+    }
     const item = { key: b.plotKey, code: EMPTY_ON_CHART.NEWEST_BAR, bars }
     const split = Array.isArray(b.runSeries) && b.runSeries.length > 0
     const points = split ? null : pointsOf(b)
@@ -148,13 +170,11 @@ export function emptyOnThisChart({ bindings, definition, barCount, defId = STUDI
       const day = lastDayOfRuns(b)                           // when, never how many (see the limits above)
       if (day) item.lastDay = day
     }
-    // the reason, when it is a number: the formula's own reach is longer than this chart's history
+    // the reason, when it is a number: the formula's own reach is longer than this chart's history. ⛔ Said ONCE:
+    // an output with no value has it in its own sentence, and gets no second one about short history.
     if (item.code === EMPTY_ON_CHART.NEVER || item.code === EMPTY_ON_CHART.NEWEST_BAR) {
-      try {
-        const tree = outputTreeOf(definition, b.plotKey)
-        const reach = tree ? maxLookback(tree, { inputs: declaredInputs(definition) }) : null
-        if (finite(reach) && bars > 0 && reach >= bars) item.reach = reach
-      } catch { /* no reason is better than a wrong one */ }
+      const reach = reachBeyond(definition, b.plotKey, bars)
+      if (reach !== null) item.reach = reach
     }
     items.push(item)
   }
@@ -178,6 +198,10 @@ export function emptyOnChartWords(item, { name = null } = {}) {
       return item.blankBars === 1
         ? `${lead} has no value on the newest bar${item.lastDay ? `; its last value is on ${item.lastDay}` : ''}.`
         : `${lead} has no value on the newest ${count(item.blankBars)} bars${item.lastDay ? `; its last value is on ${item.lastDay}` : ''}.`
+    case EMPTY_ON_CHART.SHORT_HISTORY:
+      return name
+        ? `${name}: this chart has ${count(item.bars)} bars and its formula reads ${count(item.reach)}; values here come from less history than it asks for.`
+        : `This chart has ${count(item.bars)} bars and the formula reads ${count(item.reach)}; values here come from less history than it asks for.`
     case EMPTY_ON_CHART.NEWEST_BAR:
       return `${lead} has no value on the newest bar${item.lastDay ? `; its last value is on ${item.lastDay}` : ''}.${reach}`
     default:
