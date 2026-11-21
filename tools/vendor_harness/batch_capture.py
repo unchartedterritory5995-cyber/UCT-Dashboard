@@ -466,9 +466,12 @@ SESSION_JS = r"""() => {
   if (!si) return { ok: false, why: 'no symbolInfo yet' };
   let interval = null; try { interval = ms.interval() } catch (e) {}
   if (!interval) { try { interval = ms.properties().childs().interval.value() } catch (e) {} }
-  let bars = 0; try { const b = ms.bars(); if (b && typeof b.each === 'function') b.each((i, v) => { if (i > -1000000 && v) bars += 1; return false }) } catch (e) {}
+  let bars = 0; const times = [];
+  try { const b = ms.bars(); if (b && typeof b.each === 'function') b.each((i, v) => { if (i > -1000000 && v) { bars += 1; times.push(v[0]); if (times.length > 11) times.shift() } return false }) } catch (e) {}
+  let step = null;
+  for (let k = 1; k < times.length; k += 1) { const d = times[k] - times[k - 1]; if (d > 0 && (step === null || d < step)) step = d }
   return { ok: true, session: si.session || null, subsession: si.subsession_id || null,
-           interval: interval == null ? null : String(interval), bars };
+           interval: interval == null ? null : String(interval), bars, step, last: times.length ? times[times.length - 1] : null };
 }"""
 
 #: Ask for more history (n > 0) and read the loaded depth. Read-only at n = 0.
@@ -622,6 +625,19 @@ RIG_LAYOUT_ID = LAYOUT.rstrip("/").rsplit("/", 1)[-1]
 #: `changeSessionId`, an undo command, is). Selecting a layout is the mechanism, never writing a session.
 RIG_REGULAR_LAYOUT_ID = "MyS1vKSg"
 LAYOUT_ID_RX = re.compile(r"^[A-Za-z0-9]{6,16}$")
+
+
+def bar_step_range(tf):
+    """The spacing, in seconds, that consecutive bars of a chart at `tf` have: (low, high). None when unknown.
+    A month spans 28-31 days; everything else has one exact spacing."""
+    r = res_norm(tf)
+    if r.isdigit():
+        return (int(r) * 60, int(r) * 60)
+    m = re.fullmatch(r"(\d*)([DWM])", r)
+    if not m:
+        return None
+    n = int(m.group(1) or 1)
+    return {"D": (86400 * n, 86400 * n), "W": (604800 * n, 604800 * n), "M": (28 * 86400 * n, 31 * 86400 * n)}[m.group(2)]
 
 
 def layout_url(layout_id) -> str:
@@ -853,6 +869,21 @@ def capture_id_for(script: dict, o: Opts) -> str:
     sess = SESSION_SUFFIX.get(getattr(o, "session", None), "")
     capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}{sess}-{o.date}"
     return f"{capture_id}-{phase}" if phase else capture_id
+
+
+def session_row_refusal(scripts, opts_for) -> str | None:
+    """None, or why a row's named session can never read back: a daily, weekly or monthly chart of a US listing
+    resolves 0930-1600 whatever the layout's hours (every daily capture on record; probe R0), so an `extended` row there
+    can never pass. Refused at batch start, before any page step (patrick-54's review of #2289)."""
+    for s in scripts:
+        try:
+            o = opts_for(s)
+        except StepOutcome as so:
+            return so.reason
+        if o.session == "extended" and re.search(r"[DWM]$", res_norm(o.tf)):
+            return (f"{s.get('slug')}: an extended-hours row on a {o.tf} chart can never pass (a daily, weekly or monthly "
+                    "chart resolves 0930-1600): give it an intraday timeframe or drop its session")
+    return None
 
 
 def capture_id_refusal(scripts, opts_for) -> str | None:
@@ -1166,27 +1197,36 @@ class Driver:
         """⭐⭐ THE ROW'S SESSION, READ, NEVER SET (rulings 2026-11-21, #2134): at the row's own resolution (the caller
         has set and read it back), the chart's RESOLVED session must be the row's, `ROW_SESSIONS[o.session]`, and a
         `subsession_id` TradingView reports must name it too. The reading is taken only once it SETTLES (polled up to
-        30 s: `symbolInfo()` answers, the series is at the row's interval with bars loaded, two equal reads); never
+        30 s: `symbolInfo()` answers, the loaded bars are spaced as the row's resolution, two equal reads); never
         settled: INCONCLUSIVE (could not measure). Settled and not the row's: the ROW stops by name (GateFailed),
         nothing captured, nothing written. Returns the read."""
         o = self.opts
         name, want = o.session, ROW_SESSIONS[o.session]
         last = {"key": None}
 
+        step_range = bar_step_range(o.tf)
+
         def settled(s):
-            # ⛔ a reading only once the ROW'S resolution has loaded: symbolInfo answers, the series' interval is the
-            # row's, bars are loaded, and two reads in a row agree (R4: right after a resolution change it read null)
-            if not (isinstance(s, dict) and s.get("ok") and res_norm(s.get("interval")) == res_norm(o.tf)
-                    and isinstance(s.get("bars"), int) and s["bars"] > 0):
+            # ⛔ a reading only once the ROW'S resolution has loaded: symbolInfo answers, and the BARS are the row's
+            # resolution's: the smallest spacing among the last 10 bars is the row's bar spacing (`bar_step_range`).
+            # Then two reads in a row agree. R4: right after a resolution change symbolInfo read null. And the series'
+            # interval property is NOT the freshness test: it can read the new resolution while the previous one's
+            # bars and session are still held (`test_a_stale_read_..._interval_already_new`), and 1D and 60 both held
+            # 300 bars in the probe, so a bar count cannot tell them apart either (patrick-54's review of #2289).
+            # The last 10 bars, not the last two: a newest bar that opens a session sits a session gap after the one
+            # before it.
+            st = s.get("step") if isinstance(s, dict) else None
+            if not (isinstance(s, dict) and s.get("ok") and step_range and isinstance(st, (int, float))
+                    and step_range[0] <= st <= step_range[1] and isinstance(s.get("bars"), int) and s["bars"] > 1):
                 last["key"] = None
                 return False
-            key = (s.get("session"), s.get("subsession"), s.get("bars"))
+            key = (s.get("session"), s.get("subsession"), s.get("bars"), s.get("last"))
             same, last["key"] = key == last["key"], key
             return same
         got, ok = self.poll(label, SESSION_JS, None, settled, 30)
         if not ok:
             raise Inconclusive(f"{o.symbol} {o.tf}: the chart's session never settled in 30 s (symbolInfo answering, the "
-                               f"series at {o.tf}, bars loaded, two equal reads); last read {got!r}", got)
+                               f"bars spaced as {o.tf}, two equal reads); last read {got!r}", got)
         if got.get("session") != want or got.get("subsession") not in (None, name):
             seen = f"session {got.get('session')!r}" + (f", subsession {got.get('subsession')!r}" if got.get("subsession") else "")
             raise GateFailed(f"{o.symbol} {o.tf}: the chart resolves {seen}, not the {name} session {want!r}. The batch "
@@ -1838,6 +1878,10 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
         try:
             # ⛔ BEFORE ANY PAGE STEP: every built-in row's search, identity kind and generated source (by name)
             normalize_builtin_rows(manifest["scripts"])
+            # ⛔ BEFORE ANY PAGE STEP: no row names a session its chart can never resolve
+            why = session_row_refusal(manifest["scripts"], drv.opts_for)
+            if why:
+                raise GateFailed(why, abort=True)
             # ⛔ BEFORE ANY PAGE STEP: every script's capture id, and no two the same (nothing is captured otherwise)
             clash = capture_id_refusal(manifest["scripts"], drv.opts_for)
             if clash:

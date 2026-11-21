@@ -228,6 +228,14 @@ class RecordingTVPage:
         self.reload_s = 0.0
         self.res_changed_at = None
         self.url = LAYOUT
+        # ⭐ (2026-11-21, patrick-54's review of #2289) a STALE read after a resolution change: for `stale_polls` session
+        # reads the PREVIOUS resolution's bars and session are still what the series holds. `stale_mode` "held": its
+        # interval too (patrick-54's spec); "bars": the interval property already reads the NEW resolution.
+        self.stale_polls = 0
+        self.stale_mode = "held"
+        self.prev_resolution = None
+        self._stale_left = 0
+        self.stale_served = 0                   # how many stale reads the batch was actually offered
         # ⭐ (2026-11-20, item 2) the Indicators dialog: what each search lists (`measured_dialog`), whether it is open,
         # and `lands_on` {data-id: metaInfo id}: an element whose click adds ANOTHER study (a moved label)
         self.dialog = measured_dialog()
@@ -378,8 +386,8 @@ class RecordingTVPage:
         self.symbol = s
         return {"ok": True}
 
-    def _resolved_session(self):
-        if re.search(r"[DWM]$", bc.res_norm(self.resolution)):
+    def _resolved_session(self, res=None):
+        if re.search(r"[DWM]$", bc.res_norm(self.resolution if res is None else res)):
             return bc.ROW_SESSIONS["regular"]      # every daily / weekly capture on record reads 0930-1600
         return bc.ROW_SESSIONS[self.session_id]
 
@@ -388,11 +396,20 @@ class RecordingTVPage:
             return {"ok": False, "why": "no symbolInfo yet"}
         if self.res_changed_at is not None and self.t - self.res_changed_at < self.reload_s:
             return {"ok": False, "why": "no symbolInfo yet"}      # the new resolution's bars are still loading
-        return {"ok": True, "session": self._resolved_session(), "subsession": self.subsession,
-                "interval": str(self.resolution), "bars": BARS}
+        held = self.resolution
+        if self._stale_left > 0 and self.prev_resolution is not None:
+            self._stale_left -= 1
+            self.stale_served += 1
+            held = self.prev_resolution                            # the previous resolution's bars and session
+        step = (bc.bar_step_range(held) or (None, None))[0]
+        interval = held if (held == self.resolution or self.stale_mode == "held") else self.resolution
+        return {"ok": True, "session": self._resolved_session(held), "subsession": self.subsession,
+                "interval": str(interval), "bars": BARS, "step": step, "last": FIRST_BAR + (BARS - 1) * (step or 0)}
 
     def _set_resolution(self, r):
         self.res_changed_at = self.t
+        if r != self.resolution:
+            self.prev_resolution, self._stale_left = self.resolution, self.stale_polls
         self.resolution = r
         return {"ok": True}
 

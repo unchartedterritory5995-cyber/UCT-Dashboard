@@ -894,6 +894,42 @@ def test_the_session_is_read_only_once_the_rows_resolution_has_loaded(tmp_path):
     assert len(reads) >= 3 and res["steps"].count("row:session") == len(reads)      # it waited, then two equal reads
 
 
+@pytest.mark.parametrize("mode", ["held", "bars"])
+def test_a_stale_read_of_the_previous_resolution_never_captures_a_regular_row_on_the_extended_rig(tmp_path, mode):
+    # ⚰️ patrick-54's review of #2289 (N1): the dangerous case. The rig is extended-hours and sits at 1D; a regular row at
+    # 60 would be CAPTURED as regular if a stale 1D read (0930-1600) held for two polls were taken as the 60m answer.
+    # "held": the previous resolution's session, interval and bars; "bars": the interval property already reads 60
+    # while the 1D bars and session are still held, the case an interval test lets through.
+    manifest, beh = bd.make_manifest(tmp_path, [("reg", 'indicator("X")\nplot(close)\n', {})])
+    manifest["scripts"][0].update({"symbol": "AMEX:SPY", "tf": "60", "session": "regular", "captureStem": "s"})
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()}, resolution="1D")
+    page.session_id, page.stale_polls, page.stale_mode = "extended", 4, mode
+    _, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    res = rd.results()["reg"]
+    assert res["outcome"] == bc.GATE_FAILED, res                       # never CAPTURED from the stale 1D read
+    assert "resolves session '0400-2000', not the regular session '0930-1600'" in res["reason"]
+    assert page.stale_served == 4 and not _captures(tmp_path)         # all 4 stale reads were offered, and waited out
+
+
+def test_an_extended_row_on_a_daily_chart_is_refused_at_load(tmp_path):
+    manifest, beh = bd.make_manifest(tmp_path, [("ext", 'indicator("X")\nplot(close)\n', {})])
+    manifest["scripts"][0].update({"symbol": "AMEX:SPY", "tf": "1D", "session": "extended", "captureStem": "s"})
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
+    code, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    abort = [e for e in _ledger(tmp_path / "run") if e["event"] == "abort"]
+    assert code == 1 and abort and "can never pass" in abort[0]["reason"], abort
+    assert "STATE" not in page.names() and not rd.results()
+    assert bc.session_row_refusal([{"slug": "r", "session": "regular", "tf": "1D"}], lambda s: bd.fast_opts(
+        tf=s["tf"], session=s["session"])) is None                    # a regular row on a daily chart is fine
+
+
+def test_the_bar_spacing_of_a_resolution():
+    assert bc.bar_step_range("60") == (3600, 3600) and bc.bar_step_range("5") == (300, 300)
+    assert bc.bar_step_range("1D") == bc.bar_step_range("D") == (86400, 86400)
+    assert bc.bar_step_range("W") == (604800, 604800) and bc.bar_step_range("M") == (28 * 86400, 31 * 86400)
+    assert bc.bar_step_range("1S") is None
+
+
 def test_a_session_that_never_settles_is_inconclusive_not_a_verdict(tmp_path):
     manifest, beh = bd.make_manifest(tmp_path, [("ext", 'indicator("X")\nplot(close)\n', {})])
     manifest["scripts"][0].update({"symbol": "AMEX:SPY", "tf": "60", "session": "extended", "captureStem": "s"})
