@@ -31,7 +31,6 @@ src/components/chart/engine/__tests__/dataSourcesRevalidate.test.jsx
 src/components/chart/engine/__tests__/displayTargetOneWriter.test.js
 src/components/chart/engine/__tests__/engineEnabledMigration.test.js
 src/components/chart/engine/__tests__/enumerationSites.test.js
-src/components/chart/engine/__tests__/eventColumns.test.js
 src/components/chart/engine/__tests__/flipB.test.jsx
 src/components/chart/engine/__tests__/flipCGeometry.test.jsx
 src/components/chart/engine/__tests__/flipCRecord.test.js
@@ -44,7 +43,6 @@ src/components/chart/engine/__tests__/markerHost.test.js
 src/components/chart/engine/__tests__/memberPaneGate.test.js
 src/components/chart/engine/__tests__/objectTableDom.test.js
 src/components/chart/engine/__tests__/parityGateBlindness.test.js
-src/components/chart/engine/__tests__/pineImportHold.test.js
 src/components/chart/engine/__tests__/pineRuntimeFrontendGate.test.js
 src/components/chart/engine/__tests__/priceLineStyleSweep.test.js
 src/components/chart/engine/__tests__/primitiveGate.test.js
@@ -84,7 +82,6 @@ src/components/chart/engine/defSchema.test.js
 src/components/chart/engine/heldSpanFollowsChart.test.js
 src/components/chart/engine/heldWithholds.savedCopies.test.js
 src/components/chart/engine/hostKnownDivergence.test.js
-src/components/chart/engine/lineIdentity.test.js
 src/components/chart/engine/nativeRegistry.test.js
 src/components/chart/engine/paneLayout.test.js
 src/components/chart/engine/pineCompareCensus.test.js

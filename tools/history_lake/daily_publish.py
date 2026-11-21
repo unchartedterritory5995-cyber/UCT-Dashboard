@@ -30,10 +30,37 @@ from tools.history_lake.publish import s3_client_from_env  # noqa: E402
 PREFIX = "daily-rebuild/"
 
 
-def payload(rec: dict) -> bytes:
+def payload_body(rec: dict) -> bytes:
     bars = rec["bars"]
     body = {"sym": rec["sym"], "end": bars[-1][0] if bars else None, "bars": bars}
-    return gzip.compress(json.dumps(body, separators=(",", ":")).encode("utf-8"), 6)
+    return json.dumps(body, separators=(",", ":")).encode("utf-8")
+
+
+def payload(rec: dict) -> bytes:
+    return gzip.compress(payload_body(rec), 6)
+
+
+def plan(prev: dict | None, version: int, names, hashes: dict) -> dict:
+    """revs / retired / hashes for a manifest (U5): a ticker whose series bytes equal the previous manifest's keeps its
+    rev (its file stays at v<rev>, its epoch does not move); new, re-listed, changed and newly retired tickers get
+    `version`. Versions only rise. Derived from the previous manifest, never typed."""
+    prev = prev or {}
+    pv = int(prev.get("version") or 0)
+    if version <= pv:
+        raise SystemExit(f"refused: version {version} is not above the published v{pv} (versions only rise)")
+    names = sorted({str(s).upper() for s in names})
+    p_syms = {str(s).upper() for s in (prev.get("symbols") or ())}
+    p_ret = {str(s).upper() for s in (prev.get("retired") or ())}
+    p_revs = {str(k).upper(): int(v) for k, v in (prev.get("revs") or {}).items()}
+    p_hash = prev.get("hashes") or {}
+    retired = sorted((p_syms | p_ret) - set(names))
+    revs = {}
+    for s in names:
+        same = s in p_syms and hashes.get(s) is not None and hashes.get(s) == p_hash.get(s)
+        revs[s] = int(p_revs.get(s) or pv) if same else version
+    for s in retired:
+        revs[s] = int(p_revs.get(s) or pv) if s in p_ret else version
+    return {"symbols": names, "retired": retired, "revs": revs, "hashes": {s: hashes[s] for s in names if s in hashes}}
 
 
 def main(argv=None) -> int:
@@ -49,21 +76,30 @@ def main(argv=None) -> int:
     serve = json.loads((root / "serve_list.json").read_text(encoding="utf-8"))
     bucket = os.environ["DATA_SYNC_BUCKET"]
     s3 = s3_client_from_env()
+    import hashlib
     vp = f"{PREFIX}v{a.version}/"
+    try:
+        prev = json.loads(s3.get_object(Bucket=bucket, Key=f"{PREFIX}manifest.json")["Body"].read())
+    except Exception:  # noqa: BLE001 - the first manifest
+        prev = None
+    names = serve if a.stage == "all" else [s for s in a.test.split(",") if s in serve]
+    recs = {sym: json.loads((root / "joined" / f"{sym}.json").read_text(encoding="utf-8")) for sym in serve}
+    hashes = {sym: hashlib.sha256(payload_body(recs[sym])).hexdigest() for sym in names}
+    p = plan(prev, a.version, names, hashes)
     end = None
     t0 = time.time()
     for k, sym in enumerate(serve):
-        rec = json.loads((root / "joined" / f"{sym}.json").read_text(encoding="utf-8"))
+        rec = recs[sym]
         if rec["bars"]:
             end = max(end or "", rec["bars"][-1][0])
-        if not a.skip_upload:
+        # Only a ticker whose rev is this version uploads: an unchanged one is already at v<rev>.
+        if not a.skip_upload and p["revs"].get(sym) == a.version:
             s3.put_object(Bucket=bucket, Key=f"{vp}{sym}.json.gz", Body=payload(rec),
                           ContentType="application/json", ContentEncoding="gzip")
         if k % 100 == 0:
             print(f"{k}/{len(serve)} {sym} {time.time() - t0:.0f}s", flush=True)
-    names = serve if a.stage == "all" else [s for s in a.test.split(",") if s in serve]
     manifest = {"version": a.version, "end": end, "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "stage": a.stage, "symbols": sorted(names)}
+                "stage": a.stage, **p}
     s3.put_object(Bucket=bucket, Key=f"{PREFIX}manifest.json", Body=json.dumps(manifest).encode("utf-8"),
                   ContentType="application/json", CacheControl="no-store")
     print("manifest", {k: (v if k != "symbols" else len(v)) for k, v in manifest.items()}, "serving", names[:12])

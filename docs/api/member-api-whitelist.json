@@ -4332,6 +4332,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "{ticker}",
+      "path": "/api/research/corporate-actions/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{ticker}",
       "path": "/api/research/dilution-watch/{ticker}",
       "rate_limit_family": "research",
       "tier": "paid"

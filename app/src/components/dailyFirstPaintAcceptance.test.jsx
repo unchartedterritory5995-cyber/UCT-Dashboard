@@ -110,6 +110,8 @@ vi.mock('../context/AuthContext', () => ({
 vi.mock('../hooks/livePriceStore', () => ({
   getSnapshot: () => (world.liveSnap ? { [world.sym]: world.liveSnap } : {}),
   subscribe: () => () => {},
+  // the chart's live quote (`lib/liveQuote.js`) keeps its symbol in the poll
+  registerTickers: () => () => {},
 }))
 vi.mock('../lib/todayPackClient', () => ({
   getTodayBar: () => world.packBar,
