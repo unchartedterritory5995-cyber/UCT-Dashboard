@@ -6921,6 +6921,8 @@ export function barIndexMask(tree, bars, inputs, budget, scalars, opts) {
   const mask = new Float64Array(n)
   let any = false
   const codes = new Set()
+  // ⭐⭐ (A) audit — each code's own bars, for the per-bar channel (`sinkPerBar`)
+  const byCode = new Map()
   const rootReach = maxLookback(tree)
   for (const { t, nested, unbounded } of found) {
     if (nested || readsRecurrenceBinding(t.node)) return whole()
@@ -6938,11 +6940,16 @@ export function barIndexMask(tree, bars, inputs, budget, scalars, opts) {
     let last = -Infinity
     for (let i = 0; i < n; i++) {
       if (thresholdUnknown(cmp.name, t.sign, gap[i])) last = unbounded && last !== -Infinity ? last : i
-      if (last !== -Infinity && (unbounded || i - last <= reach)) { mask[i] = 1; any = true; codes.add(code) }
+      if (last !== -Infinity && (unbounded || i - last <= reach)) {
+        mask[i] = 1; any = true; codes.add(code)
+        if (!byCode.has(code)) byCode.set(code, new Float64Array(n))
+        byCode.get(code)[i] = 1
+      }
     }
   }
   if (!any) return null
   nameChartClock(opts, [...codes].sort(), opts.tf)
+  for (const [code, bars0] of byCode) sinkPerBar(opts, code, bars0)
   return mask
 }
 
@@ -7374,6 +7381,8 @@ export function windowHoleMask(tree, bars, inputs, budget, scalars, opts) {
   }
   if (!any) return null
   nameChartClock(opts, [...codes].sort(), opts && opts.tf)
+  // ⭐⭐ (A) audit — its bars in the per-bar channel (`sinkPerBar`): one code
+  for (const code of codes) sinkPerBar(opts, code, mask)
   return mask
 }
 
@@ -7628,7 +7637,12 @@ export function tfMergeMask(tree, bars, opts, inputs = {}, budget = undefined, s
   }
   let any = false
   for (let i = 0; i < n; i++) if (mask[i]) { any = true; break }
-  if (any) nameChartClock(opts, [TF_MERGE_NEWEST_CODE], opts && opts.tf)
+  if (any) {
+    nameChartClock(opts, [TF_MERGE_NEWEST_CODE], opts && opts.tf)
+    // ⭐⭐ (A) audit — the newest bars it withholds, in the per-bar channel (`sinkPerBar`); the first period's code
+    // stays a whole refusal in the headless lane (not measured taking a picture away)
+    sinkPerBar(opts, TF_MERGE_NEWEST_CODE, mask)
+  }
   if (firstMask) {
     for (let i = 0; i < n; i++) if (firstMask[i]) mask[i] = 1
     nameChartClock(opts, [TF_MERGE_FIRST_CODE], opts && opts.tf)
@@ -8421,6 +8435,24 @@ function walkTwoStarts(tree, bars, inputs, budget, scalars, opts, isSite, flagge
 /** ⭐⭐ PERIOD −1 (HTF-PRE-CHART, coordinator ruling 2026-11-19) — A READ OF THE BAR, OR THE WEEK OR MONTH, BEFORE THE
  *  CHART'S FIRST: the code and the sentence (`CHART_CLOCK_WITHHELD`; Python twin `ast_interpret.HISTORY_BEFORE_CHART_CODE`). */
 export const HISTORY_BEFORE_CHART_CODE = 'history:before-chart'
+/** ⭐⭐ (A) and its audit (coordinator rulings, 2026-11-20) — THE CHART-CLOCK CODES A PLOT CARRIES PER BAR: each one
+ *  withholds only the bars it names and writes them to the plot's per-bar channel (`opts.withheldBarsSink`, the plot's
+ *  `__withheldBars`), so the headless lane (`headlessCompute.js::hostRefusalOf`) computes the script and reports them
+ *  per output instead of refusing it whole, and the vendor harness grades them "not compared". Measured taking a
+ *  picture away in "Inspect a bar" off the listing (each refused whole while the chart drew 589-599 of 600 bars):
+ *  `bar_index > 10 ? close : na`, `barstate.isfirst ? 1 : 0`, `ta.cum(1) > 5 ? close : na`,
+ *  `ta.highest(close > open ? high : na, 5)`, `request.security(…, "W", close)` on a chart ending mid-week. ⛔ Every
+ *  other code stays a whole refusal there. */
+export const PER_BAR_CLOCK_CODES = Object.freeze([HISTORY_BEFORE_CHART_CODE, 'bar-index:early-bars', 'bar-index:first-bar',
+  'running-total:early-bars', WINDOW_EXTREME_LEFT_EDGE, TF_MERGE_NEWEST_CODE])
+/** OR a code's bars into the plot's per-bar channel, when the caller hands one. */
+function sinkPerBar(opts, code, bars0) {
+  const sink = opts && opts.withheldBarsSink
+  if (!sink || typeof sink.set !== 'function' || !bars0) return
+  const had = sink.get(code)
+  if (had && had.length === bars0.length) for (let i = 0; i < bars0.length; i++) had[i] = had[i] || bars0[i]
+  else sink.set(code, Float64Array.from(bars0))
+}
 export const HISTORY_BEFORE_CHART_SENTENCE = 'This indicator reads a bar before the one it is drawn on — `close[1]`, a '
   + 'value from a few bars back, or a weekly or monthly value of the week or month before. On the first bars this chart '
   + 'holds, that bar is one it does not hold: TradingView\'s history of the symbol begins at its listing and reads a '
