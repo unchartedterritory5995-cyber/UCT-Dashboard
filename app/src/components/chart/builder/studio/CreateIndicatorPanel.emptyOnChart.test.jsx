@@ -199,6 +199,26 @@ describe('the dock says what a built line does not show on this chart', () => {
     expect(entries().at(-1).textContent).toContain('Built 1 ')
   })
 
+  it('A CHART SHORTER THAN THE FORMULA READS gets the note, and a chart with history to spare gets nothing', async () => {
+    const DAYS_ABOVE = [{ op: 'create', name: 'Days above', outputs: [{ key: 'v', tree: P('sum(close > sma(close, 200) ? 1 : 0, 20)') }] }]
+    const young = chart()
+    young.bars = BARS.slice(-150)
+    young.drawn = [binding('v', WHOLE)]                           // a value on the newest bar
+    mount(young, [DAYS_ABOVE])
+    await say('how many of the last 20 days closed above the 200 day average')
+    await tick(0)
+    expect(block()).not.toBeNull()
+    expect(block().textContent).toMatch(/This chart has 150 bars and the formula reads \d+; values here come from less history than it asks for\./)
+    cleanup()
+    _resetSessions()
+    const long = chart()                                         // 300 bars: more than the formula reads
+    long.drawn = [binding('v', WHOLE)]
+    mount(long, [DAYS_ABOVE])
+    await say('how many of the last 20 days closed above the 200 day average')
+    await tick(LAST_DELAY)
+    expect(block()).toBeNull()
+  })
+
   it('with several outputs, the one that is empty is named', async () => {
     const c = chart()
     const two = [{ op: 'create', name: 'Two', outputs: [{ key: 'fast', tree: P('ema(close, 10)') }, { key: 'slow', tree: P('ema(close, 21)') }] }]

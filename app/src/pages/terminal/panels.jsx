@@ -158,6 +158,8 @@ export const PANEL_IMPORTERS = {
   Liquidity: () => import('./panels/LiquidityPanel'),
   // OIL (2026-11-21): the EIA's weekly oil report, the next report's date and two years of crude stocks
   Oil: () => import('./panels/OilPanel'),
+  // FUND (2026-11-21): one company's metrics over time from its SEC filings, up to three more beside it
+  FundMetrics: () => import('./panels/FundMetricsPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
