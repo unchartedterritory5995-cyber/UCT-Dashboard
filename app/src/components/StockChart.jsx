@@ -3969,7 +3969,9 @@ export default function StockChart(props) {
         nextEarningsHint={nextEarningsHint}
         hintChannel={nextEarningsHintChannel || null}
       />
-      <StockChartBody {...props} metaStore={metaStore} />
+      {/* `viewLockKey` by name as well as in the spread (the same value, a no-op): the persistence census reads a
+          storage key through named props only (StableStockChart.jsx says the same; persistenceManifest.test.js). */}
+      <StockChartBody {...props} viewLockKey={props.viewLockKey} metaStore={metaStore} />
     </>
   )
 }

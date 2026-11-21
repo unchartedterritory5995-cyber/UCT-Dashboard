@@ -66,5 +66,9 @@ export default function StableStockChart(props) {
   // StockChart (the memo) and reaches its metadata feed when the channel publishes.
   holder.hint.stage(props.nextEarningsHint ?? null)
   useLayoutEffect(() => { holder.hint.publish() })
-  return <MemoStockChart {...stableProps(props, holder)} />
+  // `viewLockKey` again, by name: the same value the spread already carries (a no-op at runtime), written out
+  // because the persistence census (tools/persistence_census.mjs) cannot see through `stableProps`'s copy, and
+  // the key StockChart persists the view lock under must resolve to the callers' literal
+  // (src/lib/persistence/persistenceManifest.test.js, "resolves every key").
+  return <MemoStockChart {...stableProps(props, holder)} viewLockKey={props.viewLockKey} />
 }
