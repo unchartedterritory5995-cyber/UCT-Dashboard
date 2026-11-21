@@ -470,11 +470,15 @@ JS_LIBRARY_FIXTURE_FILES = {
     "app/src/components/chart/engine/ast/pineLibraryPinning.test.js": "the pinning rail's fixture libraries",
     "app/src/components/chart/engine/ast/pineLibraryValueFnName.test.js": "a fixture library",
     "app/src/components/chart/engine/ast/pineLibraryVersion.test.js": "the cross-version rail's fixture libraries (U15 Phase B)",
+    "app/src/components/chart/engine/ast/runtimePaletteScope.test.js":
+        "the palette-scope rail's fixture library (tester/palettelib/1, a v5 colour component inside the version island)",
     "app/src/components/chart/engine/__tests__/libraryLinkParity.test.js": "the splice check's fixture library",
     "app/src/components/chart/engine/__tests__/vendorHarness/storeHeld.test.js":
         "two fixture libraries written for the store-held rail (tester/inner/1, tester/outer/1)",
     "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.capRound4.test.js":
         "a stand-in written for the rail; the real version is read from the out-of-git store, opt-in",
+    "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0Controls.test.js":
+        "the Q-BH0 island control's fixture library (tester/qbh0island/1, a v5 bool's history inside a v6 script)",
     "app/src/components/chart/engine/runtime/__tests__/libraryImportRefusal.test.js": "a fixture library",
     "app/src/components/chart/builder/memberPane/runtimeLibraryDoor.test.js": "a fixture library",
     "app/src/components/chart/builder/memberPane/runtimeParamDefaults.test.js": "a fixture library",

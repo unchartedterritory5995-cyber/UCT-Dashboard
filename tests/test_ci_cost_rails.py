@@ -40,6 +40,9 @@ UNFILTERED_PR_OK = {
     # 2026-11-12: must post its status on EVERY PR into agent/int|master (a path filter = no status = a required check
     # that never arrives); the job is a few API calls on a two-file sparse checkout, no node, no tests, <1 min
     "agent-ci-required.yml": "the one required Agent status must exist on every PR; a few API calls, <1 min",
+    # 2026-11-20: the master deploy gate's static checks, before the merge (three gate reds in one day on checks only
+    # the gate ran). PRs into master only, no push trigger; ~3 min, mostly the 80 s shadow sweep
+    "gate-static-rails-pr.yml": "the hygiene check's subject is every tracked file and the shadow sweep's every module",
 }
 
 
@@ -155,6 +158,7 @@ LIGHT_PR_CHECKOUT = {
 WHOLE_TREE_CHECKS = {
     "wisdom-rails.yml": "the ban rails scan every folder",
     "secret-scan.yml": "a key can land in any file",
+    "gate-static-rails-pr.yml": "the hygiene check skips a file that is not on disk; the shadow sweep parses every module",
 }
 #: What every event other than a pull request checks out: the shape these jobs had before 2026-11-17.
 FULL_CHECKOUT = {"fetch-depth": 0}

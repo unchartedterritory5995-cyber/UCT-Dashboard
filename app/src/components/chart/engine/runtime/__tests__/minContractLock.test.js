@@ -70,7 +70,9 @@ describe('W9-T4-F1 lock: one writer of ctx.minContract, derived from the symbol'
     // and the service's wire ctx is a CLOSED set without it (`protocol.mjs` refuses any other key)
     const proto = read(path.join(REPO, 'services/pine_runtime/protocol.mjs'))
     const closedCtx = proto.match(/closed\(v\.ctx, [^\n]+/)
-    expect(closedCtx && closedCtx[0]).toMatch(/\['newestBarIsForming', 'historyFromListing'\], \['runtimeInputs', 'historyWindowBars'\]/)
+    // (2026-11-20) + listingDepthBars, the strategy-only daily window's served depth (HP-7 parity with the browser worker)
+    expect(closedCtx && closedCtx[0]).toMatch(/\['newestBarIsForming', 'historyFromListing'\], \['runtimeInputs', 'historyWindowBars', 'listingDepthBars'\]/)
+    expect(closedCtx[0]).not.toMatch(/minContract/)
   })
   it('the source is a witness table: bind.js serves a row only with value, witnesses, captured, how AND captures', () => {
     const bind = read(path.join(SRC, 'components/chart/engine/ast/bind.js'))

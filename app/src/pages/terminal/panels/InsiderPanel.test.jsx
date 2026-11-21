@@ -45,6 +45,12 @@ describe('INS panel', () => {
     expect(symsInTable()).toEqual(['NVDA', 'AMD'])
     const nvda = screen.getByTestId('terminal-insider-row-NVDA').textContent
     for (const s of ['Jane Doe', 'director', '$1.5M', '10,000', '$150.00', '2026-10-06']) expect(nvda).toContain(s)
+    // the role is a second line in the insider's own cell, not a column: six columns, the role under the name
+    const headers = within(screen.getByTestId('terminal-insider-table')).getAllByRole('columnheader').map((h) => h.textContent.trim().split(/\s/)[0])   // a sort caret may follow the label
+    expect(headers).toEqual(['Symbol', 'Insider', 'Value', 'Shares', 'Price', 'Traded'])
+    const role = screen.getByTestId('terminal-insider-role-NVDA')
+    expect(role.textContent).toBe('director')
+    expect(role.closest('td').textContent).toContain('Jane Doe')
     fireEvent.click(screen.getByTestId('panel-symbol-AMD'))
     expect(run).toHaveBeenCalledWith('$AMD')
     expect(publishRows).toHaveBeenLastCalledWith(['$NVDA', '$AMD'])

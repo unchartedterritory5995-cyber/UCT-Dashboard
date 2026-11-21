@@ -214,6 +214,9 @@ ALLOWED_OPEN: dict[tuple[str, str], str] = {
         "Gated INLINE by _check_admin_auth(request) (Bearer PUSH_SECRET).",
     ("POST", "/api/admin/refresh-bars/{ticker}"):
         "Gated INLINE by _check_admin_auth(request) (Bearer PUSH_SECRET).",
+    # 2026-11-21, the deep re-graft (api/services/bars_regraft.py): a curl-driven ops endpoint like the five above.
+    ("POST", "/api/admin/bars/regraft"):
+        "Gated INLINE by _check_admin_auth(request) (Bearer PUSH_SECRET).",
 
     # ── TERM-086, 2026-09-28 ─────────────────────────────────────────────────
     # TradingView posts to a URL and can carry no other credential, so the

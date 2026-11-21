@@ -54,6 +54,9 @@ function inertWorkspaceMembers() {
     // Replay Mode is a whole-board mode driven by the workspace's Replay panel.
     replayCutoff: null,
     exitReplay: () => {},
+    // No "Exit Replay Mode" pill in the drill (owner 2026-11-20): the header's Replay chip is the
+    // one switch. ChartWidget shows the pill unless a host sets this false.
+    showReplayExit: false,
     replayArmPick: false,
     onReplayCutoffPicked: () => {},
     onReplayPickCancel: () => {},
@@ -117,6 +120,9 @@ export function drillWorkspaceValue({
   return {
     // ── LIVE: the drill is an interactive host ──
     groupSyms,
+    // A plain `groupSyms` and no store (the /charts board's `groupSymsStore`, 2026-11-20): useWorkspace()
+    // hands this value to its readers as it is.
+    groupSymsStore: null,
     setGroupSym,
     // LIVE, not inert: the drill board pairs a Watchlists widget with a REAL
     // ChartWidget, which is exactly the pairing `groupTfs` exists for — the list

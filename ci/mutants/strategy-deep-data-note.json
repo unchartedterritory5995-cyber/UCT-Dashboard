@@ -1,0 +1,33 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "The strategy-only daily window's data-source note (feat/strategy-deep-daily-window, coordinator ruling 2026-11-20): every deep-window strategy report (its run asked [B-START-DEEP]) says it runs on UCT's own price history; no other report does. Each break must turn its rail red.",
+ "mutants": [
+  {
+   "id": "D12",
+   "mutant": "a deep-window report carries no data-source note",
+   "file": "app/src/components/chart/engine/runtime/brokerReport.js",
+   "from": "    ...(Array.isArray(rulesUsed) && rulesUsed.includes(DEEP_HISTORY_RULE) ? { dataSentence: DATA_SOURCE_SENTENCE } : {}) }",
+   "to": "    }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9T13aBrokerReport.test.js src/components/chart/pane/strategyReportPanel.test.jsx -t deep-window",
+   "expectRed": "deep-window run"
+  },
+  {
+   "id": "D13",
+   "mutant": "the panel does not show the note",
+   "file": "app/src/components/chart/pane/StrategyReportPanel.jsx",
+   "from": "      {w.dataSentence\n        ? <p className={styles.startSentence} role=\"note\" data-testid=\"strategy-report-data-sentence\">{w.dataSentence}</p>\n        : null}",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/pane/strategyReportPanel.test.jsx -t deep-window",
+   "expectRed": "strategy-report-data-sentence"
+  },
+  {
+   "id": "D14",
+   "mutant": "every report carries the note, a shallow run too",
+   "file": "app/src/components/chart/engine/runtime/brokerReport.js",
+   "from": "    ...(Array.isArray(rulesUsed) && rulesUsed.includes(DEEP_HISTORY_RULE) ? { dataSentence: DATA_SOURCE_SENTENCE } : {}) }",
+   "to": "    dataSentence: DATA_SOURCE_SENTENCE }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9T13aBrokerReport.test.js src/components/chart/pane/strategyReportPanel.test.jsx -t deep-window",
+   "expectRed": "deep-window run"
+  }
+ ]
+}

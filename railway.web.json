@@ -29,6 +29,7 @@
       "app/src/components/chart/engine/ast/callExpansions.js",
       "app/src/components/chart/engine/ast/closedTable.json",
       "app/src/components/chart/engine/ast/conceptVocabulary.json",
+      "app/src/components/chart/engine/ast/doorDeadline.js",
       "app/src/components/chart/engine/ast/guardIdText.js",
       "app/src/components/chart/engine/ast/interpret.js",
       "app/src/components/chart/engine/ast/parse.js",

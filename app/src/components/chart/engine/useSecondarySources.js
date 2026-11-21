@@ -21,8 +21,9 @@
 // network traffic for series that will never be bound.
 import { useEffect, useMemo, useState } from 'react'
 import { symbolsNeeded } from './sourceRef'
-import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf, OWN_DAILY_KEY } from './otherSymbols'
+import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf, OWN_DAILY_KEY, BARS_ASK_MAX } from './otherSymbols'
 import { runtimeReadsOwnDaily } from './runtime/runtimeColumns'
+import { runtimeReadsOwnDailyOffThread, ownDailyKeyOf, onOwnDailyAnswer } from './runtime/ownDailyAsync'
 import { instanceDocumentForFetch } from './symbolInputs'
 import { ensureAll, ensureSecondaryBars, subscribe, cachedBars, refreshSecondaryTail } from './secondaryBars'
 
@@ -40,8 +41,9 @@ import { ensureAll, ensureSecondaryBars, subscribe, cachedBars, refreshSecondary
  *  caps each answer at what our store holds (the store's depth), and `heldDepthOf` keeps its daily cap. This one
  *  number is what `ensureChartSources`, the held daily depths and `liveTailTick` all read. */
 /** ⛔ The top rung is `/api/bars`'s own ceiling (`bars: Query(le=60000)`, `api/routers/bars.py`): a deeper ask is a
- *  422, never a deeper answer. */
-export const HELD_SPAN_MAX = 60000
+ *  422, never a deeper answer. Read from `otherSymbols.js::BARS_ASK_MAX`, which the run's
+ *  "a deeper page is coming" test reads too (`runtime/requestSupply.js`). */
+export const HELD_SPAN_MAX = BARS_ASK_MAX
 export const HELD_SPAN_LADDER = Object.freeze([600, 2000, 5000, 10000, 20000, 40000, HELD_SPAN_MAX])
 export function heldSpanFor(loaded, requested) {
   const req = Number.isFinite(requested) && requested > 0 ? Math.floor(requested) : 0
@@ -50,20 +52,20 @@ export function heldSpanFor(loaded, requested) {
   return Math.min(HELD_SPAN_MAX, Math.max(rung, req))
 }
 
-export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = null) {
+export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = null, heldSessions = 0) {
   const list = Array.isArray(keys) ? keys : []
   const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY), tf, barCount, fetcher)
   for (const k of list) {
     // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows (`OWN_DAILY_KEY`), as deep as a held daily read
     if (k === OWN_DAILY_KEY) {
       if (!chartSymbol) continue
-      const own = ensureSecondaryBars(String(chartSymbol).trim().toUpperCase(), 'D', heldDepthOf(barCount, tf), fetcher)
+      const own = ensureSecondaryBars(String(chartSymbol).trim().toUpperCase(), 'D', heldDepthOf(barCount, tf, heldSessions), fetcher)
       if (own) out.set(k, own)
       continue
     }
     const held = heldKeyParts(k)
     if (!held) continue
-    const entry = ensureSecondaryBars(held.symbol, held.tf, heldDepthOf(barCount, tf), fetcher)
+    const entry = ensureSecondaryBars(held.symbol, held.tf, heldDepthOf(barCount, tf, heldSessions), fetcher)
     if (entry) out.set(k, entry)
   }
   return out
@@ -80,7 +82,7 @@ export const LIVE_TAIL_MS = 60000
  *  re-read finds today's), re-reads its newest rows. Nothing while the member cannot see the app
  *  (`deskVisibility.isAppVisible`: a hidden tab, or the desktop desk hidden, where a minimized window still
  *  reports `visible`; speed rule 6). Exported for its rail. */
-export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSymbol = null) {
+export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSymbol = null, heldSessions = 0) {
   if (!isAppVisible()) return 0
   let started = 0
   for (const k of Array.isArray(keys) ? keys : []) {
@@ -89,7 +91,7 @@ export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSym
     const held = k === OWN_DAILY_KEY ? { symbol: String(chartSymbol).trim().toUpperCase(), tf: 'D' } : heldKeyParts(k)
     const symbol = held ? held.symbol : k
     const at = held ? held.tf : tf
-    const depth = held ? heldDepthOf(barCount, tf) : barCount
+    const depth = held ? heldDepthOf(barCount, tf, heldSessions) : barCount
     const e = cachedBars(symbol, at, depth)
     if (!e || e.status !== 'available') continue
     if (e.newestBarIsForming !== true && chartForming !== true) continue
@@ -128,31 +130,53 @@ function sameEntries(a, b) {
 // ⭐⭐ RS RATING (2026-11-19, the e83 live capture) — built with the chart's SYMBOL (`symbol`, the chart's
 // `symbolMeta`: the same binding the run is handed), so a script that branches on `syminfo.*` answers as its run
 // does. ⚰️ Without it Fred RS's build refused at `syminfo.industry` and this said no on every intraday chart.
-export function ownDailyNeeded(instances, defOf, tf, symbol = null) {
+// ⭐⭐ (switch smoothness, 2026-11-20) `ask` answers each question: `runtimeReadsOwnDaily` (the default, on this
+// thread), or the chart's off-thread door (`ownDailyAsync.runtimeReadsOwnDailyOffThread`), whose `null` (asked, not
+// answered yet) reads NEEDED. Every instance is asked (a `null` does not stop the walk), so one switch asks the
+// worker every question it has at once; a `true` still answers at once.
+export function ownDailyNeeded(instances, defOf, tf, symbol = null, ask = runtimeReadsOwnDaily) {
+  let unknown = false
   for (const inst of Array.isArray(instances) ? instances : []) {
     const def = inst && defOf ? defOf(inst.defId) : null
     const c = def && def.compute
     if (!c) continue
     const src = c.runtimeObjects && typeof c.runtimeObjects.source === 'string' ? c.runtimeObjects.source
       : (c.kind === 'runtime' && typeof c.source === 'string' ? c.source : null)
-    if (src && runtimeReadsOwnDaily(src, tf, symbol)) return true
+    if (!src) continue
+    const a = ask(src, tf, symbol)
+    if (a === true) return true
+    if (a === null) unknown = true
   }
-  return false
+  return unknown
 }
 
 export function useSecondarySources(instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol = null,
-  chartSymbolMeta = null) {
+  chartSymbolMeta = null, heldSessions = 0) {
   const [state, setState] = useState(EMPTY)
+  // ⭐⭐ (switch smoothness) bumped when a question asked off this thread answers NO: the needed set is read again
+  const [ownDailyGen, setOwnDailyGen] = useState(0)
 
   useEffect(() => {
+    let alive = true
     // ⭐ RS RATING L11 — named for THIS chart's timeframe (a weekly chart holds SP:SPX and the seed at D)
     const listed = instances ? instances() : null
     const symbols = symbolsNeeded(listed, defOf, tf)
     // ⭐ RS RATING L12 PR 2 — and this chart symbol's own daily rows, for a run that reads them above the chart
     // (asked with the chart's symbol binding, `chartSymbolMeta`: the run's own, so a `syminfo.*` branch settles)
-    if (chartSymbol && ownDailyNeeded(listed, defOf, tf, chartSymbolMeta)) symbols.push(OWN_DAILY_KEY)
-    const key = `${symbols.join(',')}|${tf}|${barCount}`
-    let alive = true
+    // ⭐⭐ (switch smoothness, 2026-11-20) ASKED OFF THIS THREAD (`ownDailyAsync.js`): the answer builds the script's
+    // runtime program, measured 51-74 ms inside the click's task on a 1D -> 5m switch with Fred RS. Not answered yet
+    // reads NEEDED (the rows are asked for on the click, as before); a NO, when it lands, re-reads the set.
+    const askedOff = new Set()
+    const ask = (src, t, sym) => {
+      const a = runtimeReadsOwnDailyOffThread(src, t, sym)
+      if (a === null) askedOff.add(ownDailyKeyOf(src, t, sym))
+      return a
+    }
+    if (chartSymbol && ownDailyNeeded(listed, defOf, tf, chartSymbolMeta, ask)) symbols.push(OWN_DAILY_KEY)
+    const offAnswer = askedOff.size
+      ? onOwnDailyAnswer((k, yes) => { if (alive && yes === false && askedOff.has(k)) setOwnDailyGen((n) => n + 1) })
+      : null
+    const key = `${symbols.join(',')}|${tf}|${barCount}|${heldSessions}`
 
     const apply = () => {
       if (!alive) return
@@ -161,7 +185,7 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
       // null-key-means-no-traffic idiom `compareSwrUrl` and
       // `useSignatureIndicators` already use. It returns the SHARED empty state,
       // so "needs nothing" is one stable identity rather than a new object.
-      const map = symbols.length ? ensureChartSources(symbols, tf, barCount, fetcher, chartSymbol) : null
+      const map = symbols.length ? ensureChartSources(symbols, tf, barCount, fetcher, chartSymbol, heldSessions) : null
       setState((prev) => {
         if (!map) return prev.map === null ? prev : EMPTY
         return prev.key === key && sameEntries(prev.map, map) ? prev : { key, map }
@@ -169,7 +193,7 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
     }
 
     apply()
-    if (!symbols.length) return () => { alive = false }
+    if (!symbols.length) return () => { alive = false; if (offAnswer) offAnswer() }
     // ⚠️ SUBSCRIBE, DO NOT POLL. `ensureAll` fires the request; the notification
     // is what tells this chart a response landed, and re-reading the cache is
     // cheap because the fetch is already deduped per URL.
@@ -177,10 +201,11 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
     // ⭐⭐ RS RATING L11 PR 2 — a forming series is re-read while this chart is up (`liveTailTick`); a
     // changed entry notifies, and `apply` above hands the chart the new one
     const timer = setInterval(() => {
-      liveTailTick(symbols, tf, barCount, fetcher, typeof chartFormingOf === 'function' ? chartFormingOf() : null, chartSymbol)
+      liveTailTick(symbols, tf, barCount, fetcher, typeof chartFormingOf === 'function' ? chartFormingOf() : null, chartSymbol,
+        heldSessions)
     }, LIVE_TAIL_MS)
-    return () => { alive = false; unsub(); clearInterval(timer) }
-  }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol, chartSymbolMeta])
+    return () => { alive = false; unsub(); clearInterval(timer); if (offAnswer) offAnswer() }
+  }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol, chartSymbolMeta, ownDailyGen, heldSessions])
 
   return state.map
 }

@@ -1,0 +1,28 @@
+//@version=6
+indicator("UCTPROBE_VW_BI_SIN", overlay = false)
+
+// U-BUILTIN (2026-11-21, coordinator ruling after the engine-92 regrade). THE LAST BIT OF `math.sin`.
+//
+// vw-bi-asin's A5 (`(math.sin(math.asin(0.999y)) - 0.999y) * 1e18`) grades DIVERGE on 123 of 8,511 bars (TradingView
+// 0, ours -111 / -55: one ulp), while asin itself (A1) agrees with TradingView bit for bit on every bar. So the ulp is
+// math.sin's, or the round trip's. This probe reads math.sin alone. Every argument is a SERIES (no literal-only
+// subexpression), so TradingView's compile-time constant folding (Q-CF) cannot enter any row.
+//
+// S1 is a plain sin series (graded exactly, bar for bar); S2 the asin round trip of vw-bi-asin A5, unchanged; S3 the
+// round trip's value itself; S4-S6 sin at exact points (pi, pi/2, pi/6) built from a series, scaled 1e18, which
+// separate two sines that differ in the last bit; S7 sin of the asin probe's own argument.
+//
+// CAPTURE: AMEX:SPY 1D from the listing. Inputs at defaults.
+
+z = close * 0.01 + bar_index * 0.37
+y = math.sin(bar_index * 0.7319) * 1.0000001
+p = close * 0 + math.pi
+plot(bar_index, "S0_bar_index_CONTROL")
+plot(z, "Z_argument")
+plot(math.sin(z), "S1_sin_z")
+plot((math.sin(math.asin(y * 0.999)) - y * 0.999) * 1e18, "S2_sin_asin_round_trip_1e18")
+plot(math.sin(math.asin(y * 0.999)), "S3_sin_asin_value")
+plot(math.sin(p) * 1e18, "S4_sin_pi_1e18")
+plot((math.sin(p / 2) - 1) * 1e18, "S5_sin_half_pi_minus_1_1e18")
+plot((math.sin(p / 6) * 2 - 1) * 1e18, "S6_sin_sixth_pi_times_2_minus_1_1e18")
+plot(math.sin(y), "S7_sin_y")

@@ -92,6 +92,33 @@ def test_every_exemption_and_known_red_names_a_reader(census):
         assert len(why.strip()) >= 40, t
 
 
+# ⚰️ (2026-11-20) dailyDeepHistoryClock read no other folder, so the census never saw it and no PR job ran it: the
+# render window (#2142) turned 14 of its rows red with every PR check green. DECLARED puts it, and the daily first-paint
+# siblings, on the home list with the code they guard as their triggers.
+DEEP_CLOCK = "app/src/components/dailyDeepHistoryClock.test.jsx"
+
+
+def test_the_declared_daily_rails_run_on_the_prs_that_change_the_chart_or_its_bars(model, census, all_tests):
+    home = V.print_list(ROOT, census, all_tests)
+    assert DEEP_CLOCK in V.DECLARED and len(V.DECLARED) >= 5
+    for need in ("app/src/components/StockChart.jsx", "app/src/components/chart/windowedChart.js",
+                 "app/src/utils/barsHistorySplit.js", "app/src/data/barStore"):
+        assert need in V.DECLARED[DEEP_CLOCK][0], f"{need} must trigger the deep-history rail"
+    for t, (paths, _why) in V.DECLARED.items():
+        assert t in home, f"{t} is DECLARED but not on the home list: no PR job would run it"
+        for p in paths:
+            changed = f"{p}/prefetch.js" if (ROOT / p).is_dir() else p
+            assert t in V.select(home, census, [changed], model)[0], f"a PR changing {changed} must run {t}"
+        assert t not in V.select(home, census, ["docs/somewhere/notes.md"], model)[0], "nothing it guards: not run"
+
+
+def test_every_declared_rail_and_trigger_exists_with_a_reason():
+    for t, (paths, why) in V.DECLARED.items():
+        assert (ROOT / t).is_file(), t
+        assert paths and all((ROOT / p).exists() for p in paths), (t, [p for p in paths if not (ROOT / p).exists()])
+        assert len(why.strip()) >= 40, t
+
+
 # ── the job ───────────────────────────────────────────────────────────────────
 
 def _jobs():
@@ -246,7 +273,7 @@ def _repo(tmp: pathlib.Path, *, home: bool, paths=("app/**",), extra=None) -> pa
 
 def _judge(repo, **kw):
     m = V.Census(repo)
-    return V.judge(repo, m.census(), m.test_files(), **{"exempt": {}, "known_red": {}, **kw})
+    return V.judge(repo, m.census(), m.test_files(), **{"exempt": {}, "known_red": {}, "declared": {}, **kw})
 
 
 def test_a_reader_with_no_step_is_not_run_and_with_the_step_is_green(tmp_path):

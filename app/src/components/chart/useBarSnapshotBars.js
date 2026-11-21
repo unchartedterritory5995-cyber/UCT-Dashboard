@@ -25,6 +25,7 @@
 // body and docs/architecture/barstore.md §P3-S1.
 import { useEffect, useRef, useState, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useBarSnapshot } from '../../data/barStore/useBarSnapshot'
+import { useLatestCallback } from './latestCallback'
 import { getBarStore } from '../../data/barStore/index'
 import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
 import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS } from '../../data/barStore/prefetch'
@@ -55,8 +56,16 @@ export const DEEP_RETRIES = 3
 export function chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOverride }) {
   if (!sym || !resolvedTf || hasOverride) return null
   const custom = !isNativeTf(resolvedTf)
-  // Replay: the window ENDING at the cutoff (`to=` its ET date; noon UTC is that ET date).
-  const to = (replayCutoff && !custom) ? dateLabelToUnix(String(replayCutoff).slice(0, 10)) + 43200 : null
+  // Replay, INTRADAY: the window ENDING at the cutoff (`to=` its ET date; noon UTC is that ET date) —
+  // an intraday set ending today holds only recent sessions, so an old cutoff needs its own window.
+  // ⭐ D/W/M READ THE PLAIN KEY (2026-11-20). Its full-depth set already holds every bar up to any
+  // cutoff, and StockChart cuts every bar after `replayCutoff`. The windowed key was a SECOND copy
+  // of the same bars that no list warm held: each Breadth drill flip in replay waited on its own
+  // 12,500-bar `to=` request (~1 s on production), and a Grid of them asked ~15 at once, which
+  // stalled the web server for 6-12 s (measured on production). Replay now scans exactly like
+  // the plain view.
+  const to = (replayCutoff && !custom && !isDateTf(resolvedTf))
+    ? dateLabelToUnix(String(replayCutoff).slice(0, 10)) + 43200 : null
   return viewKeyFor(sym, resolvedTf, { showExtended: !!showExtended, window: Number.isFinite(to) ? { to } : null })
 }
 
@@ -148,9 +157,20 @@ export function useBarSnapshotBars({
   const tailT = all?.length ? all[all.length - 1].t : null
 
   // ── the daily paint authority for a LOCAL copy ───────────────────────────────
-  const _resolveDailyTodaySeed = () => resolveDailyTodaySeed({ sym, resolvedTf, _developingBarISO, _effLivePrice, _liveSane })
+  // ⛔ (2026-11-20) STABLE, as are `mutate` below: StockChart's closures hold what this hook returns, and a
+  // function made in this render points at this render's context, which holds `snap` (and through it the
+  // store's bars and the legacy copy). Every old StockChart render a closure chain kept alive reached its
+  // own old snapshot this way (StockChart.closureChains.test.jsx). One function for the hook's life, calling
+  // the newest implementation, reaches only the current render.
+  const _resolveDailyTodaySeed = useLatestCallback(() => resolveDailyTodaySeed({ sym, resolvedTf, _developingBarISO, _effLivePrice, _liveSane }))
   const _dailyTodaySeed = resolvedTf === 'D' ? _resolveDailyTodaySeed() : null
-  const _dailyLocalRefused = resolvedTf === 'D' && _localOnly && !!all?.length && (
+  // ⭐ REPLAY ON A PAST DAY NEEDS NO CURRENT TAIL (2026-11-20). The verdict below asks "is this
+  // copy's right edge current?", which during a session a copy from the last close never is — so
+  // a replay chart waited on its own request for bars it would cut off anyway (StockChart hides
+  // every bar after `replayCutoff`). A copy that reaches the cutoff day holds everything shown.
+  const _replayCovered = !!replayCutoff && typeof tailT === 'string'
+    && tailT.slice(0, 10) >= String(replayCutoff).slice(0, 10)
+  const _dailyLocalRefused = resolvedTf === 'D' && _localOnly && !!all?.length && !_replayCovered && (
     dailyCachePaintVerdict(tailT, savedAt, { hasSeed: !!_dailyTodaySeed, breadth: !!breadthSeries }) !== 'ok'
     || lastDailyBarInsane(all))
 
@@ -172,7 +192,6 @@ export function useBarSnapshotBars({
     const d = _dSnap ? legacyBars(_dSnap) : null
     return d?.length ? resample(d, 'D', resolvedTf) : null
   }, [_dSnap, resolvedTf])
-
   let chosen = null
   if (_overrideArr) chosen = barsOverride
   else if (barsOverridePending || _econId) chosen = null
@@ -288,10 +307,10 @@ export function useBarSnapshotBars({
   // A revalidate is a KICK of the key's single slot (≤ 1 request per key). A payload handed in
   // (the frozen-chart watchdog's own full fetch) is NOT merged here: the store's next answer
   // is the one merge path (reducer), so the kick is what heals it.
-  const mutate = useCallback(() => {
+  const mutate = useLatestCallback(() => {
     if (key) { try { store.network.kick(key) } catch { /* not subscribed yet */ } }
     return Promise.resolve(undefined)
-  }, [key, store])
+  })
   barsMutateRef.current = mutate
   const isValidating = key ? store.network.inflight(key) > 0 : false
   const _histMutateRef = useRef(null)

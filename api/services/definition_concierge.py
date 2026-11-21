@@ -1867,6 +1867,64 @@ def model_failure_gate(exc: Optional[BaseException]) -> str:
     return "model:transport"
 
 
+#: WHY the provider refused the account, as a CLOSED set of words. The first whose pattern the provider's text
+#: matches is the class; a refusal by status alone is classed by the status.
+_ACCOUNT_REFUSAL_CLASSES: Tuple[Tuple[str, "re.Pattern"], ...] = (
+    ("credit balance", re.compile(r"credit balance", re.I)),
+    ("billing or payment", re.compile(r"billing|payment", re.I)),
+    ("key or sign-in", re.compile(r"api[ _-]?key|authentication", re.I)),
+)
+_ACCOUNT_REFUSAL_BY_STATUS = {401: "key or sign-in", 402: "billing or payment", 403: "permission"}
+
+
+def account_refusal_class(exc: Optional[BaseException]) -> str:
+    """Which kind of account refusal this is: "credit balance", "billing or payment", "key or sign-in",
+    "permission", or "unclassified". ⭐ 2026-11-20: the provider refused the account for half an hour and the
+    log said only `BadRequestError`, so nobody reading it could tell an empty balance from a dead key, and
+    those are fixed in two different places by a person.
+    ⛔ ONE OF THESE WORDS, NEVER THE PROVIDER'S TEXT: a provider's error text is not ours to copy into a log
+    (it can carry request ids, and nothing guarantees what else). Never raises."""
+    try:
+        text = str(exc) or ""
+        for name, pattern in _ACCOUNT_REFUSAL_CLASSES:
+            if pattern.search(text):
+                return name
+        status = int(getattr(exc, "status_code", 0) or 0)
+        return _ACCOUNT_REFUSAL_BY_STATUS.get(status, "unclassified")
+    except Exception:                               # noqa: BLE001
+        return "unclassified"
+
+
+def log_account_refusal(log: Any, door: str, exc: Optional[BaseException]) -> str:
+    """The ONE log line for a provider that refused our account, said the same at every door: ERROR (it does
+    not heal by itself, O7), with the status and the kind of refusal. Returns the kind. Never raises."""
+    kind = account_refusal_class(exc)
+    try:
+        status = int(getattr(exc, "status_code", 0) or 0)
+        log.error("[%s] the provider refused the account: %s (status %s, %s)", door, type(exc).__name__,
+                  status or "?", kind)
+    except Exception:                               # noqa: BLE001
+        pass
+    # ⭐ AND A PERSON IS TOLD (2026-11-20: the first such outage was found half an hour in, by a test run).
+    # Only the KIND goes out, never `exc`: `llm_provider_alert` cannot be handed the provider's text.
+    try:
+        from api.services import llm_provider_alert
+        llm_provider_alert.refused(kind, door)
+    except Exception:                               # noqa: BLE001 -- a page is never the turn's failure
+        pass
+    return kind
+
+
+def note_model_answered() -> None:
+    """A model call SUCCEEDED, at any door: if the provider had been refusing the account, the ops channel
+    is told it is back (once). One value read in the common case. Never raises."""
+    try:
+        from api.services import llm_provider_alert
+        llm_provider_alert.answered()
+    except Exception:                               # noqa: BLE001
+        pass
+
+
 def charge_unreported(exc: Optional[BaseException], user_id: Any, market_date: str, model: str,
                       max_tokens: int, request: Dict[str, Any]) -> float:
     """A call that reports no usage is charged its WORST CASE on the shared ledger and the member's allowance.
@@ -2615,6 +2673,22 @@ def _is_name_word(word: str) -> bool:
     return len(word) > 1 and word[0].isupper() and not word.isupper()
 
 
+def _acronym_possessive(word: str) -> bool:
+    """"SPY's", "QQQ's", "RSI's": the possessive of an all-caps word is that all-caps word.
+
+    ⭐ FOUND IN A LIVE ROUND, 2026-11-21. `_is_name_word` excludes an acronym by `isupper()`, and the
+    possessive's lowercase "s" made "SPY's" fail that test: so a request that opened with a verb the
+    opener list does not hold, followed by a symbol's possessive ("Count SPY's distribution days over
+    the last 25 bars"), read as an indicator NAMED "Count SPY's". The clause was withheld from the
+    assistant, which then asked the member for the symbol and the window they had already given.
+    A symbol or an acronym that owns the next words is a reference, never a word of a proper name.
+
+    ⛔ ONLY AN ALL-CAPS STEM. "Wilder's Smoothing" and "Brannock's Volume Oscillator" are a PERSON's
+    possessive and stay the first word of a name; a single capital ("A's") is not an acronym."""
+    stem, apostrophe, tail = word.partition("'")
+    return bool(apostrophe) and tail.lower() == "s" and len(stem) > 1 and stem.isupper()
+
+
 #: ⭐ 2026-11-18 -- THE WHOLE-PHRASE RULE (opt-in, `plan(strict_names=True)`; the chart door uses it).
 #: A NAME is short: a Title-Case run longer than this is a sentence typed in capitals, and keeps
 #: the older rule.
@@ -2625,11 +2699,20 @@ _NAME_GRAMMAR = frozenset("a an the of on in to for with and or but vs at by fro
 #: capital ("Add Bollinger Bands"). Any other first word is read as part of the name, so a name
 #: typed alone ("Klinger Volume Oscillator") is still caught. A closed list on purpose: a missing
 #: opener costs one request a rephrase; excusing every first word let every bare name through.
+#: ⭐ 2026-11-21 -- THE LAST LINE WAS MEASURED IN, WORD BY WORD: each of those seven verbs, added alone,
+#: freed at least one verb-first request typed in Title Case ("Signal When RSI Crosses 30", "Detect
+#: Higher Highs", "Check Whether ...") and un-refused NO name: a name after one of them is still
+#: refused, by the name without the verb ("Detect Brannock Wave" -> "Brannock Wave"). Thirteen other
+#: verbs were tried and left out because, alone, they freed nothing (`count`, `rank`, `flag`, `sum` ...).
+#: ⛔ AND `average` IS LEFT OUT ALTHOUGH IT FREED ONE: an opener is never a word a NAME is made of
+#: ("Average True Range"; `tests/test_named_indicators_held.py` holds that), and `_foreign_words` skips an
+#: opener wherever it stands. "Average Range over 20 days", typed in Title Case, is still read as a name.
 _SENTENCE_OPENERS = frozenset("""add show plot draw create make build give put use display highlight mark get want
 need try set turn change switch apply overlay graph chart include insert load open see view find calculate compute
 track watch compare replace remove delete hide rename color colour paint shade label call name please can could
 would let i we also and then now just ok okay yes no hey hi with for when if on in the a an my this that what how
-why does do is are explain tell describe""".split())
+why does do is are explain tell describe
+signal detect measure alert check identify scan""".split())
 _VOCABULARY: Dict[int, Tuple[Any, frozenset]] = {}
 
 
@@ -2644,6 +2727,73 @@ def _lexicon_vocabulary(lexicon: Mapping[str, Any]) -> frozenset:
         held = (lexicon, frozenset(stem_ for key in lexicon["index"] if key not in names_only for stem_ in key))
         _VOCABULARY[id(lexicon)] = held
     return held[1]
+
+
+_RELATION_STEMS: Dict[int, Tuple[Any, Any, frozenset]] = {}
+_SENTENCE_SLOT = re.compile(r"\{\d+\}")
+
+
+def _relation_stems(lexicon: Mapping[str, Any], table: Optional[Mapping[str, Any]] = None) -> frozenset:
+    """The door's own RELATION words, by stem. ⛔ DERIVED, NEVER LISTED, from two declarations:
+
+      1. the closed table's `sentence` for every function that YIELDS TRUE OR FALSE: the table's relations and
+         events ("{0} crossing above {1}", "{0} rising for {1} bars"), with the argument slots taken out;
+      2. this lexicon's own phrases for those same functions ("cross over", "cross under"). The table says
+         "crossing" and a member writes "crosses", and the stemmer does not join the two: measured, with (1)
+         alone only "Crossing Above" was freed.
+
+    A function added to the table that yields true/false, or a phrase the lexicon gains for one, extends this
+    set with no edit here (`tests/test_relation_words_are_not_a_name.py` holds that, and that a hand list is red)."""
+    t = table if table is not None else ast_table.TABLE
+    held = _RELATION_STEMS.get(id(lexicon))
+    if held is None or held[0] is not lexicon or held[1] is not t:
+        functions = t.get(ast_table.FUNCTIONS_SECTION) or {}
+        # ⛔ WHETHER A FUNCTION YIELDS TRUE OR FALSE IS ASKED, NEVER RE-DERIVED: `scan_definition.is_boolean_tree`
+        # owns the manifest's kind declaration (one fact, one implementation), so it is asked about a call
+        # to each function. A name it cannot answer for is no relation.
+        relations = {name for name in functions if _yields_true_or_false(name, t)}
+        stems: set = set()
+        for name in relations:
+            spec = functions[name]
+            gloss = _SENTENCE_SLOT.sub(" ", str((spec.get("sentence") if isinstance(spec, Mapping) else "") or ""))
+            for word in _WORD_TOKEN.findall(gloss):
+                stems.update(_stem_key(_form_tokens(word))[0])
+        for key, entries in (lexicon.get("index") or {}).items():
+            if any(e.get("kind") == TABLE_ENTRY and e.get("key") in relations for e in entries):
+                stems.update(key)
+        held = (lexicon, t, frozenset(stems))
+        _RELATION_STEMS[id(lexicon)] = held
+    return held[2]
+
+
+def _yields_true_or_false(function: str, table: Mapping[str, Any]) -> bool:
+    """Does a call to this table function produce true/false? Asked of the one classifier that owns it."""
+    try:
+        return bool(scan_definition.is_boolean_tree({"type": "call", "name": function, "args": []}, table))
+    except Exception:                                   # noqa: BLE001 -- a name it cannot answer for is no relation
+        return False
+
+
+def _only_relation_words(words: List[Any], lexicon: Mapping[str, Any]) -> bool:
+    """Is every word of this Title-Case run one of the door's own relation words ("Crosses Above")?
+
+    ⭐ FOUND IN A LIVE ROUND, 2026-11-21: "Signal When RSI 14 Crosses Above 70" was refused before any model call
+    as an unknown indicator NAMED "Crosses Above". A relation is what the request ASKS, not what something is
+    called. ⛔ EVERY word must be one: "Falling Wedge", "Above The Stomach" and "Crossing Guard Oscillator" hold
+    a relation word beside other words and stay names.
+
+    ⛔ MEASURED BEFORE IT WAS WRITTEN, and the broader rule was measured too and REFUSED: reading a short run
+    as a name only when it holds a word the product does not know also un-refused real named indicators
+    nobody here has a formula for (Range Filter, Volatility Stop, Pivot Points, Three Line Break, Arms Index,
+    Bullish Percent Index, Put Call Ratio, Count Back Line). This rule un-refuses none of them."""
+    relation = _relation_stems(lexicon)
+    seen = False
+    for w in words:
+        stems = _stem_key(_form_tokens(w.group(0)))[0]
+        if not stems or not set(stems) <= relation:
+            return False
+        seen = True
+    return seen
 
 
 def _opens_a_sentence(text: str, w: Any) -> bool:
@@ -2710,12 +2860,17 @@ def _named_phrases(prompt: str, already_found: List[dict],
     words = list(_WORD_TOKEN.finditer(text))
     out: List[dict] = []
     i, n = 0, len(words)
+
+    def name_word(word: str) -> bool:
+        # ⭐ `strict_lexicon` only (the chart door): an acronym's or a symbol's possessive is no part of a
+        # name, so it ends the run. The other planner keeps the older reading (`_acronym_possessive`).
+        return _is_name_word(word) and not (strict_lexicon is not None and _acronym_possessive(word))
     while i < n:
-        if not _is_name_word(words[i].group(0)):
+        if not name_word(words[i].group(0)):
             i += 1
             continue
         j = i + 1
-        while (j < n and _is_name_word(words[j].group(0))
+        while (j < n and name_word(words[j].group(0))
                and text[words[j - 1].end():words[j].start()].isspace()):
             j += 1
         # ⭐ A REQUEST OPENER IS NOT PART OF A NAME (`strict_lexicon` only): "Add Inside bar" is the
@@ -2734,8 +2889,10 @@ def _named_phrases(prompt: str, already_found: List[dict],
             rest = [w for w in words[first:j]
                     if not (whole and any(f.get("section") == whole and f["start"] <= w.start() and w.end() <= f["end"]
                                           for f in already_found))]
-            if not overlaps or (strict_lexicon is not None and j - first <= NAME_MAX_WORDS
-                                and _foreign_words(rest, strict_lexicon)):
+            # ⭐ 2026-11-21 -- A RUN MADE ONLY OF RELATION WORDS IS A RELATION, never a name (`strict_lexicon` only).
+            only_relations = strict_lexicon is not None and _only_relation_words(words[first:j], strict_lexicon)
+            if (not overlaps or (strict_lexicon is not None and j - first <= NAME_MAX_WORDS
+                                 and _foreign_words(rest, strict_lexicon))) and not only_relations:
                 out.append({"kind": NAMED_ENTRY, "key": phrase, "section": None,
                             "start": start, "end": end, "matched_as": phrase})
             i = j
@@ -3414,11 +3571,12 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
         attempts += 1
         try:
             msg, in_tokens, out_tokens = _call_model(messages, kind)
+            note_model_answered()
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             gate = model_failure_gate(exc)
             if gate == "model:unavailable":
-                # ERROR, not WARNING: this does not heal by itself (O7)
-                logger.error("[concierge] the provider refused the account: %s", type(exc).__name__)
+                # ERROR, not WARNING: this does not heal by itself (O7); with the kind of refusal
+                log_account_refusal(logger, "concierge", exc)
             else:
                 logger.warning("[concierge] model call failed: %s", exc)
             charge_unreported(exc, user_id, market_date, MODEL, MAX_TOKENS, _request_for(messages, kind))

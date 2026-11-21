@@ -248,7 +248,7 @@ export default function UpgradesPanel({ kind: kindProp = null }) {
                   </td>
                   <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{r.firm || 'Not given'}</td>
                   <td className={r.tone === 'up' ? styles.up : r.tone === 'down' ? styles.down : undefined}>{r.action}</td>
-                  <td className={styles.wrapCell}>{r.rating || 'Not given'}</td>
+                  <td className={`${styles.wrapCell} ${styles.phoneTight}`}>{r.rating || 'Not given'}</td>
                   <td>{r.target != null ? formatCurrency(r.target) : r.targetText || 'Not given'}</td>
                 </tr>
               ))}

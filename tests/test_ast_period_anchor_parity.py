@@ -60,6 +60,24 @@ def test_the_python_lane_reproduces_the_js_lane(case):
     assert codes == case["codes"], case["name"]
 
 
+def test_t_d_ext_the_fixture_is_not_vacuous():
+    """U-BUILTIN T-D EXT (2026-11-20): an extended-hours chart reads 04:00 for a Pine evaluation and withholds its
+    overnight bars by name; a chart that trades around the clock is withheld whole (``interpret.js``)."""
+    doc = _doc()
+    cases = {c["name"]: c for c in doc["cases"]}
+    bars = doc["bars"]["ext60"]
+    served = cases["D · extended 60m · 60 · pine"]
+    assert served["codes"] == []
+    assert served["expected"] == [(b["t"] - ((b["t"] - 32400) % 86400)) * 1000 for b in bars]
+    assert cases["D · extended 60m · 60"]["codes"] == ["time-day:off-session"]
+    night = cases["change(D) · extended 60m, overnight bars · 60 · pine"]
+    assert night["codes"] == ["time-day:overnight"]
+    assert 0 < sum(1 for v in night["expected"] if v is None) < len(night["expected"])
+    assert 1 in night["expected"]
+    assert cases["D · around the clock 60m · 60 · pine"]["codes"] == ["time-day:exchange-zone"]
+    assert all(v is None for v in cases["D · around the clock 60m · 60 · pine"]["expected"])
+
+
 def test_the_fixture_is_not_vacuous():
     cases = {c["name"]: c for c in _doc()["cases"]}
     # C49 -- a session chart is answered from the vendor's calendar on EVERY bar,
@@ -114,16 +132,20 @@ def test_the_fixture_is_not_vacuous():
     # 2026-11-19 (HTF-LIVE-FIRST-PERIOD): the look-ahead read's first partial period
     # (`request:htf-lookahead-first-period-partial`, ``tf_live_mask``) is a `request.security` read, not a
     # `time(<timeframe>)` one; tests/test_pine_htf_live_first_period.py exercises it, set aside by name.
+    # 2026-11-19 (PERIOD -1): a history read before the chart's first bar (`history:before-chart`,
+    # ``history_before_chart_mask``) is not a `time(<timeframe>)` reading either; tests/test_pine_history_before_chart.py.
     clock = {c for c in ai.CHART_CLOCK_WITHHELD_CODES
              if not c.startswith(("bar-index:", "running-total:", "var-origin:", "window-extreme:",
-                                  "opening-range:", "request:htf-lookahead-"))}
+                                  "opening-range:", "request:htf-lookahead-", "history:"))}
     assert clock - named == {"time-anchor:other-bars"}
     assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {
         "bar-index:window", "bar-index:early-bars", "bar-index:first-bar",
         "running-total:window", "running-total:early-bars", "var-origin:window", "var-origin:bars",
+        # 2026-11-20, ruling (i): from the listing a recurrence is the chart lane's (tests/test_pine_listing_recurrence_fail_closed.py)
+        "var-origin:listing-pass",
         "window-extreme:left-edge",
         "opening-range:bars-longer", "opening-range:bars-do-not-divide",
-        "request:htf-lookahead-first-period-partial"}
+        "request:htf-lookahead-first-period-partial", "history:before-chart"}
 
 
 def test_the_builders_are_the_fixtures_own_trees():

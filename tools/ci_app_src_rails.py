@@ -99,8 +99,6 @@ KNOWN_RED: dict[str, str] = {
         "cannot be COLLECTED: _ohlcv_ddl() asserts one ohlcv DDL in CODE and finds 0 (the parametrize runs at import)",
     "tests/test_a12_s6_consistency_rail.py::test_column_presets_have_a_typed_store_now":
         "AssertionError: the write side is gone (the column-presets store this rail pins moved)",
-    "tests/test_entitlements_manifest.py::test_the_checked_in_manifest_IS_what_the_declarations_derive":
-        "the checked-in entitlements manifest is not what the declarations derive: regenerate it",
     "tests/test_gate_box_lock.py::test_a_DEAD_holder_is_reclaimed_AND_the_reclaim_is_recorded":
         "dev-PC lock (scripts/gate_shards.py's box lock): on a runner a live pid reads as the holder (LockHeld)",
     "tests/test_gate_box_lock.py::test_R3_a_bypassed_run_under_a_live_holder_still_lands_INCONCLUSIVE_CONTENDED":
@@ -129,10 +127,6 @@ KNOWN_RED: dict[str, str] = {
         "AttributeError: api.services.journal_two.template_gallery has no attribute 'FLAG' (the door's flag moved)",
     "tests/test_persistence_manifest_server_keys.py::test_every_server_preference_is_declared_in_the_manifest":
         "5 server preference keys missing from the persistence manifest: `node tools/persistence_census.mjs --write`",
-    "tests/test_scan_not_computable_inputs.py::test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST":
-        "openingRangeHigh: the 'computable' fixture produced no value, so the 'holed' assertions would pass vacuously",
-    "tests/test_terminal_next_kill_switch.py::test_every_frontend_gate_answers_from_the_payload_the_switch_empties":
-        "a new frontend Terminal-Next gate exists and is not acknowledged in ACKNOWLEDGED_FRONTEND_GATES",
     "tests/test_voice_client_request_shapes.py::test_the_declared_exceptions_are_exactly_the_ones_that_exist":
         "the declared request-shape exceptions no longer equal the client's actual exceptions (the set moved)",
     "tests/test_widget_definitions_router.py::test_w10_plans_run_at_every_door_while_w10_is_on":

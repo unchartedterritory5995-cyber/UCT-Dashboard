@@ -1,0 +1,98 @@
+/* ECON: the economy board. App tokens only (the terminal wears the member's theme). The table, notes,
+   chips and the fold helpers come from marketPanels.module.css; this sheet adds the release strip,
+   the theme rows, the two- and three-line cells and the credit footer. No green or red: a rising
+   print is not good or bad on its own. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.strip {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stripItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.when {
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+
+.what {
+  min-width: 0;
+  color: var(--text-muted);
+  overflow-wrap: break-word;
+}
+
+/* A theme's own heading row inside the one table, so the columns line up from theme to theme. */
+.board th.themeHead {
+  padding-top: var(--space-sm);
+  color: var(--text-bright);
+  font-weight: 600;
+  text-align: left;
+}
+
+.board th.textCol,
+.board td.textCol {
+  text-align: left;
+}
+
+.name {
+  color: var(--text-bright);
+  text-decoration: none;
+}
+
+.name:hover,
+.name:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.value {
+  display: block;
+  color: var(--text-bright);
+}
+
+.sub {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+.footer p {
+  margin: 0;
+  overflow-wrap: break-word;
+}

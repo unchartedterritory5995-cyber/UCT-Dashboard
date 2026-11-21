@@ -15,8 +15,8 @@ export default function SandboxSignIn({ onDone }) {
       button={<StartButton icon="lock" label="Sign the sandbox in" sub="one click, nothing to type" onClick={() => { window.location.href = `http://127.0.0.1:8793/signin?back=${encodeURIComponent(window.location.href)}` }} hotkey={false} />}>
       <details className={d5.whyCard}><summary>Or type the local account</summary>
       <div className={d5.signForm}>
-        <input className={d5.priceIn} type="email" placeholder="email" value={email} autoComplete="username" onChange={(e) => setEmail(e.target.value)} />
-        <input className={d5.priceIn} type="password" placeholder="password" value={pw} autoComplete="current-password" onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') go() }} />
+        <input className={d5.priceIn} type="email" aria-label="Email" placeholder="email" value={email} autoComplete="username" onChange={(e) => setEmail(e.target.value)} />
+        <input className={d5.priceIn} type="password" aria-label="Password" placeholder="password" value={pw} autoComplete="current-password" onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') go() }} />
         <button type="button" className={d5.wayBtn} onClick={go}>{bad ? 'that did not work, try again' : 'sign in'}</button>
       </div></details>
     </StartCard>

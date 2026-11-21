@@ -229,10 +229,12 @@ export const FAMILIES = Object.freeze([
   {
     id: 'limits',
     exact: ['pine:window', 'pine:window-dependent', 'pine:budget', 'pine:timeout', 'runtime:limit',
-      'runtime:time-budget', 'runtime:history-start', 'runtime:warmup-never-converges',
+      'runtime:time-budget', 'runtime:history-start', 'runtime:warmup-never-converges', 'runtime:listing-unverified',
       'chart:scalar-current-only',
       // door robustness: a plot past a host-lane compute budget, refused by the member door by name
-      'budget:lookback', 'budget:series', 'budget:nodes'],
+      'budget:lookback', 'budget:series', 'budget:nodes',
+      // ITEM 2: a previewed document past the store's size cap, whose Add is refused up front (`withOversizeKeep`)
+      'pine:document-size'],
     prefix: ['runtime:calc-bars-', 'pine:calc-bars-'],
     label: 'History and compute limits',
     why: 'This needs more history or more computing than a chart here allows, so it is withheld.',

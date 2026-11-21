@@ -22,7 +22,7 @@ import { applyParamEdit, reconcileParams } from '../paramEdit.js'
 import { treesHash } from '../../engine/ast/trees.js'
 import { validateDefinition } from '../../engine/defSchema.js'
 import { installUserDefinitions, uninstallUserDefinition } from '../../engine/nativeRegistry.js'
-import { PINE_CALL_SHAPES, printFormula } from '../../engine/ast/pine.js'
+import { PINE_CALL_SHAPES, printFormula, __v6BoolHistoryForTests } from '../../engine/ast/pine.js'
 import { CALL_EXPANSIONS } from '../../engine/ast/callExpansions.js'
 import { supertrendTreesEngine56 } from '../../engine/ast/__fixtures__/supertrendTreesEngine56.js'
 
@@ -189,6 +189,11 @@ const MOVED_BY_ENGINE = Object.freeze({
     why: 'engine 56-v2 (P12b): a `bool` that can be `na` keeps its operator, so `show_mid and timeframe.isintraday` is no longer folded to its right side and `show_mid` (input default true) is a knob the document gains (an append)',
     undo: 'engine56',
   },
+  // ⭐⭐ Q-BH0 (engine 92) — the one saved document whose script reads a v6 bool's history
+  'corpus/committed/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine': {
+    why: 'Q-BH0: a Pine v6 bool\'s history before history begins reads false (captures vw-v6-bool-history-bar0-{spy,rddt}), so `not isBullish[1]`, `isSqueeze[1]` and the like are `na(close[1]) ? 0 : x[1]` (`pine.js::v6BoolHistory`); the inputs inside sit one `?:` deeper',
+    undo: 'qbh0',
+  },
 })
 const movedKind = (script) => (Object.prototype.hasOwnProperty.call(MOVED_BY_ENGINE, script) ? MOVED_BY_ENGINE[script].undo : null)
 
@@ -208,6 +213,20 @@ const withEngine57Undone = (fn) => {
     return fn()
   } finally {
     [stoch.table, st.build, sd.build] = was
+  }
+}
+
+/** The test Q-BH0 writes before a v6 bool's one-bar history (`na(close[1])`), as a tree. */
+const QBH0_PROBE = '"name":"na","args":[{"type":"offset","value":1,"args":[{"type":"series","name":"close"}]}]'
+/** ⭐⭐ Q-BH0 — THE CLAIMED MOVE UNDONE BY REBUILDING: `fn` runs with the rule off (`__v6BoolHistoryForTests`, a
+ *  v6 bool's history read as before Q-BH0), restored in `finally`. A document built inside must EQUAL the saved one,
+ *  so the move can carry nothing else. */
+const withQbh0Undone = (fn) => {
+  __v6BoolHistoryForTests(false)
+  try {
+    return fn()
+  } finally {
+    __v6BoolHistoryForTests(true)
   }
 }
 
@@ -333,6 +352,14 @@ describe('ENGINE 55 / 56-v2 / 57 — a computation moved on purpose is named, an
       const undone = undoEngine56(built.definition, SAVED[script].params)
       expect(JSON.stringify(undone.compute)).not.toBe(JSON.stringify(built.definition.compute))
       expect(sha(JSON.stringify(asSaved(undone)))).toBe(SAVED[script].computeSha)
+    } else if (movedKind(script) === 'qbh0') {
+      expect(JSON.stringify(built.definition.compute)).toContain(QBH0_PROBE)
+      const undone = withQbh0Undone(() => build(script))
+      expect(undone.ok, undone.reason).toBe(true)
+      expect(JSON.stringify(undone.definition.compute)).not.toContain(QBH0_PROBE)
+      expect(sha(JSON.stringify(asSaved(undone.definition)))).toBe(SAVED[script].computeSha)
+      // and the rule is back on: a plain build after it is today's document again
+      expect(sha(JSON.stringify(asSaved(build(script).definition)))).toBe(sha(JSON.stringify(asSaved(built.definition))))
     } else {
       expect(movedKind(script)).toBe('engine57')
       const undone = withEngine57Undone(() => build(script))
@@ -374,7 +401,10 @@ describe('C46 — documents saved under the walk-order ids', () => {
       if (!built.ok) { moved.push({ script, problem: `the door no longer builds it: ${built.reason}` }); continue }
       // ⭐ landing train 1 — engine 56-v2's moves re-address a locator (a node appears on its path), so
       // the manifest is read off the document with that claimed move undone, as its digest is below
-      const held = movedKind(script) === 'engine56' ? undoEngine56(built.definition, was.params) : built.definition
+      // (and Q-BH0's: an input inside a v6 bool's history read sits one `?:` deeper, so its locator moves with the
+      // claimed move, and is read off the document rebuilt with that move undone)
+      const held = movedKind(script) === 'engine56' ? undoEngine56(built.definition, was.params)
+        : movedKind(script) === 'qbh0' ? withQbh0Undone(() => build(script)).definition : built.definition
       const manifest = held.compute.paramManifest || {}
       for (const id of new Set([...Object.keys(was.params), ...Object.keys(manifest)])) {
         const a = was.params[id]
@@ -394,7 +424,7 @@ describe('C46 — documents saved under the walk-order ids', () => {
       // ⭐ review M2 — a document an engine moved on purpose is compared with that move undone
       const kind = movedKind(script)
       const compared = kind === 'tf_merge' ? undoTfMerge(built.definition)
-        : kind === 'engine56' ? held
+        : kind === 'engine56' || kind === 'qbh0' ? held
           : kind === 'engine57' ? withEngine57Undone(() => build(script)).definition : built.definition
       if (sha(JSON.stringify(asSaved(compared))) !== was.computeSha) {
         moved.push({ script, problem: 'the saved computation changed' })
@@ -429,9 +459,9 @@ describe('C46 — documents saved under the walk-order ids', () => {
       let [docNow, unedited] = [doc, built.definition]
       if (kind === 'tf_merge') [docNow, unedited] = [undoTfMerge(doc), undoTfMerge(built.definition)]
       if (kind === 'engine56') [docNow, unedited] = [undoEngine56(doc, was.params), undoEngine56(built.definition, was.params)]
-      if (kind === 'engine57') {
+      if (kind === 'engine57' || kind === 'qbh0') {
         // rebuild AND replay inside the undo: an edit may re-translate
-        [docNow, unedited] = withEngine57Undone(() => {
+        [docNow, unedited] = (kind === 'qbh0' ? withQbh0Undone : withEngine57Undone)(() => {
           const b = build(script).definition
           let d = b
           for (const id of Object.keys(was.values)) {

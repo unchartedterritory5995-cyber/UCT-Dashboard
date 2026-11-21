@@ -853,6 +853,18 @@ CONVERSE_SYSTEM_PROMPT = (
     "An opening range needs bars that divide it (30 minutes on a 1, 5, 15 or 30-minute chart); on "
     "longer bars it is withheld and says so, so mention that an opening range is for intraday "
     "charts.\n"
+    "  A VALUE THAT RESTARTS WITH THE CALENDAR on every year, quarter, month or week (\"year to date "
+    "percent change\", \"month to date\", \"this year's high\", \"the high so far this month\", \"since the "
+    "start of each month\") is built from the bar's OWN calendar and NEVER from a date, so it is right on "
+    "every year of the chart and stays right after the year turns. The restart is `year != offset 1 of "
+    "year` for a year, `monthfirst` for a month, `weekfirst` for a week, and `monthfirst && (month == 1 || "
+    "month == 4 || month == 7 || month == 10)` for a quarter. The year to date percent change is the close "
+    "against the prior year's last close: valuewhen(year != offset 1 of year, offset 1 of close, 300). This "
+    "year's running high is accum(high, year != offset 1 of year ? high : max(self, high), 300). The last "
+    "argument of `valuewhen` is a WINDOW in bars and must reach back past the event (a year of daily bars "
+    "is about 252): never 1, which is blank on every bar but the event's own. These need no date, so never "
+    "ask for one. The dates of the next paragraph are for an ANCHOR only (an anchored VWAP from the start "
+    "of this year).\n"
     "  A DATE THE MEMBER NAMES BY THE CALENDAR (\"this year\", \"year to date\", \"this quarter\", \"since the start of the month\", \"this week\"): you do NOT know today's date, so never work out "
     "the year, quarter, month or week yourself. `uct_language_notes.calendar` gives today's date and the exact "
     "start of each, in New York time, as the number `avwap(...)` takes. Use that number as it is and say the "
@@ -869,9 +881,39 @@ CONVERSE_SYSTEM_PROMPT = (
     "for one, so a bar given no value (0 / 0, or any division by zero: there is no infinity here) turns "
     "the window into the last N bars THAT QUALIFY, which is a different number. Give the bars to leave out "
     "a number that cannot win or count: 0 inside highest and inside a sum, a number far above any real one "
-    "inside lowest (lowest(close > offset 1 of close ? volume : 1000000000000000, 10)). Only when the member "
-    "asks for the last N bars that qualify (\"the average volume of the last 10 up days\") is no value "
-    "right, written 0 / 0, and then say in `assumptions` that the window reaches back past other bars.\n"
+    "inside lowest (lowest(close > offset 1 of close ? volume : 1000000000000000, 10)). That number is a "
+    "STAND-IN, never an answer: on a bar whose window holds no qualifying bar the stand-in itself comes "
+    "back. Where the extreme is only COMPARED (volume > offset 1 of highest(...)) that is fine. Where it is "
+    "DRAWN or used in arithmetic, make it no value on those bars: sum(cond ? 1 : 0, N) > 0 ? "
+    "lowest(cond ? low : 1000000000000000, N) : 0 / 0. An AVERAGE of only some bars of the last N has no "
+    "stand-in: write it as sum(cond ? x : 0, N) / sum(cond ? 1 : 0, N), which is no value by itself when "
+    "none qualify (an average given no value on the other bars is the average of the last N that "
+    "qualify). Only when the member asks for the last N bars that qualify (\"the average volume of the last "
+    "10 up days\") is no value right, written 0 / 0, and then say in `assumptions` that the window reaches "
+    "back past other bars.\n"
+    "  A COUNT, A SUM OR AN AVERAGE OVER A WINDOW OF A CONDITION THAT READS SOMETHING WITH ITS OWN WARM-UP "
+    "(\"the percent of the last 50 days the close was above its 20 day average\", \"how many of the last 20 "
+    "days closed above the 200 day average\"): a comparison with a value that does not exist yet is FALSE "
+    "here, so on the bars where that average has no value the count would add a 0 and show a NUMBER for "
+    "something that is not known. On a symbol with less history than the average needs, that number is 0 "
+    "on every bar. The count must have NO VALUE until the thing the condition reads (X: the average, the "
+    "highest, the RSI) has a value on the window's OLDEST bar: na(offset N - 1 of X) ? 0 / 0 : <the "
+    "count>. For the last 50 bars above a 20-bar average: na(offset 49 of sma(close, 20)) ? 0 / 0 : "
+    "sum(close > sma(close, 20) ? 1 : 0, 50) * 100 / 50. A condition that reads only this bar and the one "
+    "before it (close > offset 1 of close) needs no such guard.\n"
+    "  A COUNT OF BARS SINCE something, when the count itself is what the member wants to see: give "
+    "`barssince` a window far longer than the thing being measured (500 unless the member names one), "
+    "never the event's own length (\"bars since the last 50-bar high\" is barssince(cond, 500), not 50: "
+    "at 50 the line would stop at 50 and read 50 for 51, 80 or 300 bars). Say in `assumptions` where the "
+    "count stops.\n"
+    "  A RANK, or a count of the bars of a window measured against TODAY's value (\"where does today's "
+    "volume rank among the last 20 bars\", \"how many of the last 50 closes were above today's\"): inside "
+    "sum(..., N) and every other window, each series is read at ITS OWN bar, so nothing written there "
+    "means today's value, and volume > volume compares each bar with itself and is never true. Use "
+    "percentrank: percentrank(x, N) is the percent of the N bars BEFORE this one whose x is at or below "
+    "today's. So among the last N bars with this one, the bars above today's are (N - 1) - percentrank(x, "
+    "N - 1) * (N - 1) / 100, and the rank with 1 for the highest is N - percentrank(x, N - 1) * (N - 1) / "
+    "100 (the last 20 bars: 20 - percentrank(volume, 19) * 19 / 100).\n"
     "  A RUNNING VALUE reads its own previous value: an adaptive average, a stop that ratchets, a "
     "streak or a count. It is accum(seed, update, warmup): it starts at `seed` and becomes "
     "`update` on each of the last `warmup` bars, and inside `update` the series named `self` is "
@@ -880,7 +922,12 @@ CONVERSE_SYSTEM_PROMPT = (
     "300). An adaptive average: accum(close, self + k * (close - self), 300) with k any formula "
     "between 0 and 1. `warmup` is a plain whole number up to 960: use 300 unless the member "
     "asks. `self` exists ONLY inside an accum's update; one accum never sits inside another "
-    "(give the inner one its own output's formula instead).\n"
+    "(give the inner one its own output's formula instead). A TOTAL THAT NEVER FORGETS (on-balance "
+    "volume, an accumulation and distribution line, any \"running total\" or \"cumulative\" value with no "
+    "window) is cum(x): the running total of x over every bar of the loaded history. On-balance volume is "
+    "cum(close > offset 1 of close ? volume : close < offset 1 of close ? 0 - volume : 0). It is NEVER an "
+    "accum: an accum over W bars is that total's CHANGE across the last W bars, a different line. Only "
+    "when the member names a window (\"over the last 300 bars\") is it sum(x, N).\n"
     "  SEVERAL RUNNING VALUES THAT FEED EACH OTHER are accum2, accum3 or accum4: accumK(which, "
     "warmup, start1..startK, update1..updateK). All K values are replaced together on each bar. "
     "Inside the updates `state1`..`stateK` are their PREVIOUS values, and `which` (a plain whole "
@@ -1006,9 +1053,13 @@ DATA_PREAMBLE = dc.DATA_PREAMBLE
 #: the member's words name a calendar start, the turn carries today's date and the exact start of
 #: this year, quarter, month and week (`calendar_notes`), and the instructions forbid working any of
 #: them out. Any other turn is byte for byte what it was (nothing is added, the clock is not read).
+#: ⭐ 2026-11-21 -- "this CALENDAR year" names one too (it was unmatched, so the assistant asked for a
+#: date the door had). And the dates are for an ANCHOR only: a value that RESTARTS each year, month or
+#: week is built from the bar's own calendar (the instructions' paragraph above the dated one), since a
+#: date written into such a value is blank or wrong on every other year and goes stale when the year turns.
 _CALENDAR_WORDS = re.compile(
-    r"\b(?:this|current)\s+(?:year|quarter|month|week)\b|\byear[\s-]+to[\s-]+date\b|\bytd\b|\bqtd\b|\bmtd\b|"
-    r"\bstart\s+of\s+(?:the\s+|this\s+)?(?:year|quarter|month|week)\b|\b(?:yearly|quarterly|monthly|weekly)\s+(?:anchored\s+)?vwap\b",
+    r"\b(?:this|current)\s+(?:calendar\s+)?(?:year|quarter|month|week)\b|\byear[\s-]+to[\s-]+date\b|\bytd\b|\bqtd\b|\bmtd\b|"
+    r"\bstart\s+of\s+(?:the\s+|this\s+)?(?:calendar\s+)?(?:year|quarter|month|week)\b|\b(?:yearly|quarterly|monthly|weekly)\s+(?:anchored\s+)?vwap\b",
     re.I)
 CALENDAR_TZ = "America/New_York"
 
@@ -2093,10 +2144,19 @@ def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
     twin = chart_twins.house_formula(t.get("name")) if isinstance(t.get("name"), str) else None
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
+        # ⭐ 2026-11-21 (ruling) -- THE MEMBER'S OWN RULE WINS. Found live: asked to mark inside bars "where the
+        # high is below the prior high and the low is above the prior low", the assistant built the firm's
+        # formula (a touch allowed, on a bar that traded) and said so. Nothing was hidden, but the member had
+        # stated the rule and got ours. A house term settles what the WORD means when the member only names
+        # it (the 2026-11-18 ruling: never a question, never two formulas for one word); a member who spells
+        # the rule out has asked for that rule.
         out["rule"] = ("the firm's meaning of this term on a chart: use this formula and "
                        "disclose its numbers in `assumptions`. If the member gave their own "
                        "number for it (a different length or window), keep this formula's shape "
-                       "with the member's number")
+                       "with the member's number. If the member spells out the RULE itself in the "
+                       "same request (what is compared with what, and whether a touch counts), "
+                       "build THEIR rule exactly and say in `assumptions` how it differs from the "
+                       "firm's")
         subject = chart_twins.PATTERN_SUBJECT.get(t.get("name"))
         if subject:
             out["rule"] += ". " + subject
@@ -2424,6 +2484,172 @@ def _refuse_infinity_in_a_window(trees: List[Tuple[str, Any]]) -> None:
                     "sum, a number far above any real one inside lowest (1000000000000000). If the last N "
                     "qualifying bars is what the member asked for, write the no value as 0 / 0 and say in "
                     "`assumptions` that the window reaches back past other bars.")
+
+
+#: The call whose last argument is how far BACK it looks for the bar it reads from, and the smallest window
+#: that can reach a bar other than this one.
+_VALUE_AT_AN_EVENT = "valuewhen"
+_SMALLEST_WINDOW_THAT_LOOKS_BACK = 2
+
+
+def _refuse_a_value_at_an_event_that_cannot_look_back(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-21 -- `valuewhen(cond, value, 1)` READS ONLY THIS BAR.
+
+    Found by a value check. Asked for the year to date change, the assistant read "the prior year's last
+    close" as ``valuewhen(<a bar of an earlier year>, close, 1)``. The last argument is a WINDOW in bars: the
+    value comes from the most recent of the last N bars where the condition was true. With N = 1 that is this
+    bar or nothing, so the line had a value only where the condition itself was true and was blank on every
+    bar after the event it was meant to remember, under a reply that described a held level.
+
+    Refused: a literal window below 2. Written honestly that formula is ``cond ? value : 0 / 0``, which is
+    not refused, so nothing a member can ask for is lost. A window that is too short for the event's spacing
+    cannot be seen from the formula; the window's own statement of what is empty on the chart answers that.
+    """
+    for where, tree in trees:
+        for node in _walk(tree):
+            if node.get("type") != "call" or node.get("name") != _VALUE_AT_AN_EVENT:
+                continue
+            args = node.get("args")
+            window = _is_literal_number(args[-1]) if isinstance(args, list) and len(args) == 3 else None
+            if window is not None and window < _SMALLEST_WINDOW_THAT_LOOKS_BACK:
+                raise _Refused(
+                    "envelope:reference",
+                    f"{where}: `{_VALUE_AT_AN_EVENT}` is given a window of {window:g} bar. Its last argument is how "
+                    "many bars it looks BACK for the most recent bar where the condition was true, so this reads "
+                    "only the bar itself: a value where the condition is true and NO VALUE on every bar after "
+                    "it. To hold the value from the last time the condition was true, give it a window that "
+                    "reaches back past that event (500 unless the member names one; a year of daily bars is "
+                    "about 252). If a value on only the bars where the condition is true is what the member "
+                    "asked for, write that as a choice: cond ? value : 0 / 0.")
+
+
+_EXTREMES_OF_A_WINDOW = frozenset({"highest", "lowest"})
+
+
+def _same_tree(a: Any, b: Any) -> bool:
+    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+def _stand_in_of(arg: Any) -> Optional[float]:
+    """The stand-in number of ``cond ? value : NUMBER`` (or ``cond ? NUMBER : value``), or None. A CLAMP is
+    not a stand-in: ``x > 0 ? x : 0`` keeps a real number on every bar (the comparison is of the kept branch
+    with the very number the other branch gives)."""
+    if not (isinstance(arg, Mapping) and arg.get("type") == "op" and arg.get("name") == "?:"
+            and isinstance(arg.get("args"), list) and len(arg["args"]) == 3):
+        return None
+    cond, yes, no = arg["args"]
+    for kept, other in ((yes, no), (no, yes)):
+        number = _is_literal_number(other)
+        if number is None or _is_literal_number(kept) is not None:
+            continue
+        if (isinstance(cond, Mapping) and cond.get("type") == "op" and cond.get("name") in _COMPARISONS
+                and isinstance(cond.get("args"), list) and len(cond["args"]) == 2):
+            left, right = cond["args"]
+            for series, literal in ((left, right), (right, left)):
+                if _same_tree(series, kept) and _is_literal_number(literal) == number:
+                    return None
+        return number
+    return None
+
+
+def _refuse_a_stand_in_drawn_as_a_value(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-20 -- THE STAND-IN FOR "LEAVE THIS BAR OUT" COMES BACK AS THE ANSWER WHEN NO BAR QUALIFIES.
+
+    Found by a value check, the day the rule above it shipped. For the highest or lowest of only SOME bars of
+    a window the other bars are given a number that cannot win: 0 inside ``highest``, a huge number inside
+    ``lowest``. On a bar whose window holds NO qualifying bar that number is the answer. Compared with
+    something it is harmless. DRAWN, it is a price of 0, or a line at a million billion, on every such bar:
+    built, read back plausibly, and wrong (dozens of bars in a few hundred on real daily bars, over a short
+    window).
+
+    Refused: ``highest`` / ``lowest`` of ``cond ? value : NUMBER`` whose answer reaches the output without
+    passing through a comparison or a ``?:`` (which is how it is made no value when none qualify:
+    ``sum(cond ? 1 : 0, N) > 0 ? lowest(...) : 0 / 0``). A clamp (``x > 0 ? x : 0``) is not a stand-in.
+    """
+    def visit(node: Any, guarded: bool, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, guarded, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        args = node.get("args")
+        if (not guarded and node.get("type") == "call" and node.get("name") in _EXTREMES_OF_A_WINDOW
+                and isinstance(args, list) and args):
+            stand_in = _stand_in_of(args[0])
+            if stand_in is not None:
+                name = node["name"]
+                raise _Refused(
+                    "envelope:reference",
+                    f"{where}: `{name}` leaves bars out by giving them the number {stand_in:g}, and its answer "
+                    "is drawn (or used in arithmetic) as it is. On a bar whose window holds no qualifying bar "
+                    f"that stand-in is the answer, so {stand_in:g} would be drawn as if it were a real value. "
+                    f"Make it no value on those bars: `sum(cond ? 1 : 0, N) > 0 ? {name}(...) : 0 / 0`. "
+                    "A stand-in needs no such guard only where the answer is just compared with something.")
+        inside = guarded or (node.get("type") == "op" and (node.get("name") in _COMPARISONS or node.get("name") == "?:"))
+        if isinstance(args, list):
+            visit(args, inside, where)
+
+    for where, tree in trees:
+        visit(tree, False, where)
+
+
+_ORDERINGS = frozenset({"<", "<=", ">", ">="})
+
+
+def _same_bar_reading(node: Any) -> Any:
+    """`node` with every read of "0 bars back" taken away: `barsAgo(x, 0, n)` and `offset 0 of x` are `x`."""
+    if isinstance(node, list):
+        return [_same_bar_reading(child) for child in node]
+    if not isinstance(node, Mapping):
+        return node
+    args = node.get("args")
+    if isinstance(args, list) and args:
+        zero = lambda a: isinstance(a, Mapping) and a.get("type") == "num" and a.get("value") == 0  # noqa: E731
+        if node.get("type") == "call" and node.get("name") == "barsAgo" and len(args) == 3 and zero(args[1]):
+            return _same_bar_reading(args[0])
+        if node.get("type") == "offset" and node.get("value") == 0 and len(args) == 1:
+            return _same_bar_reading(args[0])
+    return {key: _same_bar_reading(value) for key, value in node.items()}
+
+
+def _refuse_a_reading_compared_with_itself(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-20 -- A RANK THAT IS 1 ON EVERY BAR. Found by a value check on real bars.
+
+    Asked where today's value ranks among the last N bars, the model counted `x > x` inside a window (once
+    plainly, once as `barsAgo(x, 0, N) > x`, which reads 0 bars back and is `x`). Inside a window each series
+    is read at its own bar, so that compares every bar with itself: never true, the count is 0, and the rank
+    reads 1 on every bar. Built, described confidently, and wrong on nearly every bar.
+
+    Refused: `<`, `<=`, `>`, `>=` whose two sides are the same reading on the same bar. It is never an answer
+    (`==` and `!=` are left alone: `x == x` is how a formula asks "is this a number"). The note says how a
+    window is measured against today's value.
+    """
+    def visit(node: Any, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        args = node.get("args")
+        if (node.get("type") == "op" and node.get("name") in _ORDERINGS and isinstance(args, list) and len(args) == 2
+                and _same_bar_reading(args[0]) == _same_bar_reading(args[1])):
+            name = node["name"]
+            raise _Refused(
+                "envelope:reference",
+                f"{where}: `a {name} b` compares a reading with ITSELF (both sides are the same value on the same "
+                "bar), so it says nothing. Inside sum(..., N) and every other window each series is read at its "
+                "own bar: nothing written there means today's value. To measure the bars of a window against "
+                "TODAY's value use percentrank: percentrank(x, N) is the percent of the N bars before this one "
+                "whose x is at or below today's, so among the last N bars with this one the bars above today's "
+                "are (N - 1) - percentrank(x, N - 1) * (N - 1) / 100, and the rank with 1 for the highest is "
+                "N - percentrank(x, N - 1) * (N - 1) / 100.")
+        if isinstance(args, list):
+            visit(args, where)
+
+    for where, tree in trees:
+        visit(tree, where)
 
 
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
@@ -3717,6 +3943,9 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     _refuse_unsupported_nodes(_trees_of(envelope))
     _refuse_negative_bars_back(_trees_of(envelope))
     _refuse_infinity_in_a_window(_trees_of(envelope))
+    _refuse_a_value_at_an_event_that_cannot_look_back(_trees_of(envelope))
+    _refuse_a_stand_in_drawn_as_a_value(_trees_of(envelope))
+    _refuse_a_reading_compared_with_itself(_trees_of(envelope))
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
@@ -4206,7 +4435,43 @@ def running_value_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
                         f"and levels restart {window} bars back. A chart computed from the symbol's "
                         "first bar can differ.")
             notes.append({"output": key, "text": text})
-    return notes[:RUNNING_VALUE_NOTE_MAX]
+    return (notes + running_total_notes(envelope))[:RUNNING_VALUE_NOTE_MAX]
+
+
+#: A total over every bar of the loaded history (the table's own function; `ta.cum` on the Pine lane is this call).
+RUNNING_TOTAL_FN = "cum"
+RUNNING_TOTAL_NOTE = ("This is a running total from the first bar of the loaded history, so its level depends on "
+                      "where that history starts. Its bar-to-bar changes do not.")
+
+
+def running_total_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    """2026-11-20 -- One assumption per output this patch builds from a TRUE running total (`cum`): where it
+    starts, in the member's words. The same honesty by shape as a running value's note, and for the same
+    reason: the door says it itself, the model is not trusted to remember to. The level of such a total moves
+    when more history is loaded (the table's `window_dependent` tag); its changes from bar to bar do not."""
+    notes: List[Dict[str, Any]] = []
+    for op in envelope.get("ops") or []:
+        if not isinstance(op, Mapping):
+            continue
+        if op.get("op") == "create":
+            outputs = [(o.get("key"), o.get("tree")) for o in op.get("outputs") or [] if isinstance(o, Mapping)]
+        elif op.get("op") == "add_output":
+            outputs = [(op.get("key"), op.get("tree"))]
+        elif op.get("op") == "set_output_tree":
+            outputs = [(op.get("output"), op.get("tree"))]
+        else:
+            continue
+        for key, tree in outputs:
+            stack, total = [tree], False
+            while stack and not total:
+                node = stack.pop()
+                if isinstance(node, dict):
+                    total = _is_call(node, (RUNNING_TOTAL_FN,))
+                    if isinstance(node.get("args"), list):
+                        stack.extend(node["args"])
+            if total and isinstance(key, str):
+                notes.append({"output": key, "text": RUNNING_TOTAL_NOTE})
+    return notes
 
 
 def with_running_value_notes(envelope: Dict[str, Any]) -> Dict[str, Any]:
@@ -5030,11 +5295,12 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         attempts += 1
         try:
             msg, in_tokens, out_tokens = _call_model(messages)
+            dc.note_model_answered()
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             gate = dc.model_failure_gate(exc)
             if gate == "model:unavailable":
-                # ERROR, not WARNING: this does not heal by itself (O7)
-                logger.error("[converse] the provider refused the account: %s", type(exc).__name__)
+                # ERROR, not WARNING: this does not heal by itself (O7); with the kind of refusal
+                dc.log_account_refusal(logger, "converse", exc)
             else:
                 logger.warning("[converse] model call failed: %s", exc)
             dc.charge_unreported(exc, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, _request_for(messages))

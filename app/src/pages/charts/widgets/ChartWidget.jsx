@@ -58,7 +58,7 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, setGroupTf, registerGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare, markDay, markDayColor, replayWarmIntraday } = useWorkspace()
+  const { groupSyms, setGroupSym, setGroupTf, registerGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare, markDay, markDayColor, replayWarmIntraday, showReplayExit } = useWorkspace()
   const navigate = useNavigate()
   // T3 integrated header: non-null only for a single chart on the /charts board grid.
   const widgetChrome = useContext(WidgetChromeContext)
@@ -148,7 +148,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // surface settings (`chartCs`), read by the handoff when a switch starts — so it prepares the
   // key THIS pane reads, never the process-global view session.
   const paneExtRef = useRef(true)
-  const sym = useSymbolHandoff(requestedSym, tf, { showExtended: paneExtRef })
+  // `group`: the linked colour group shows a new symbol in ONE frame, every chart of it together
+  // (useSymbolHandoff GROUP_SYNC_MS; owner's hard rule, 2026-11-20).
+  const sym = useSymbolHandoff(requestedSym, tf, { showExtended: paneExtRef, group: activeColor ? `charts:${activeColor}` : null })
   // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
   const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
 
@@ -795,7 +797,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           // chart every ~100ms — candles flickering off/on + a laggy crosshair). Same as Model
           // Book's static charts. null cutoff → undefined → StockChart's live default (true).
           liveUpdates: replayCutoff ? false : undefined,
-          onExitReplay: (replayCutoff || startMarker) ? exitReplay : undefined,
+          // A host whose own control turns replay off (the Breadth drill's header chip) sets
+          // `showReplayExit: false`: the chart then shows no pill. Absent = shown (/charts).
+          onExitReplay: ((replayCutoff || startMarker) && showReplayExit !== false) ? exitReplay : undefined,
           // Custom-Period Sort "Mark start date": either a thin gold vertical LINE (overlay)
           // or paint the start-date CANDLE gold (highlightBarTime). Only one is active.
           startMarker: startMarker && startMarkerStyle === 'line' ? startMarker : null,

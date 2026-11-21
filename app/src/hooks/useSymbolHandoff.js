@@ -25,7 +25,7 @@
 // legend) by being applied at the ChartWidget boundary — above every consumer —
 // rather than inside the chart where half of them live outside its tree.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { memPeek } from '../utils/barsMemCache'
 import * as legacyPrefetch from '../utils/prefetchBars'
 import * as storePrefetch from '../data/barStore/prefetch'
@@ -34,6 +34,9 @@ import { viewCacheTf } from '../utils/viewSession'
 import { isCurrentEnoughForPaint } from '../utils/marketSession'
 import { isNativeTf, fetchTf } from '../components/chart/timeframes'
 import { columnsReadyFor, whenColumnsReady, warmColumnsFor } from '../components/chart/engine/serverCompute'
+import { deviceStoreEnabled } from '../data/deviceStore/switch'
+import { deviceSource } from '../data/deviceStore/source'
+import { noteDeviceSwitch, exposeDeviceDiag } from '../data/deviceStore/diag'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 /** The longest a switch waits for its panes' server columns before it commits anyway. */
@@ -45,6 +48,84 @@ export const COLUMNS_WAIT_MS = 300
 // its peek is the store's status, and the held-set test reads the store (`peekBars`) instead of
 // the mem cache alone.
 const P = BARSTORE ? storePrefetch : legacyPrefetch
+// ⭐ The on-device store (data/deviceStore, per-browser switch 'uct.deviceStore', read once like the
+// store's own): a CURRENT device copy paints at once (storePrefetch.devicePaints), not after the deep
+// joins the switch otherwise waits for.
+const DEVICE = BARSTORE && deviceStoreEnabled()
+const devicePaints = (sym, tf, opts) => DEVICE && storePrefetch.devicePaints(sym, tf, opts)
+// the worker's rule for a switch the device did not paint (diag.js); the source loads nothing new
+const deviceWhy = (sym, tf) => { const src = deviceSource(); return src ? src.why(sym, tf) : Promise.resolve('no-client') }
+if (DEVICE) exposeDeviceDiag()
+/**
+ * ⭐ (2026-11-20, the owner's cold path) ROWS THAT COVER THE VIEW PAINT AT ONCE. A cold switch reproduced in
+ * the owner's layout (D + 30m, four averages): every 30m handoff took the intraday prepare with the lake's
+ * depth still due, and waited median 564 ms (p90 711) for it AFTER the server's 1,120 rows had landed
+ * (~110 ms); the 30m chart showed the previous ticker that long. The daily side waited the deep join the
+ * same way. A view needs its visible bars (~200 at the default zoom) plus the longest lookback the averages
+ * use (200 bars) to draw exactly what the whole history would draw there; COVER_ROWS is that with a margin,
+ * and the chart's render window (newest >= 600 rows) holds no more. So a held key with this many rows paints
+ * now, and the depth joins behind the view (it moves no right-edge geometry; the first-paint rails hold it).
+ */
+export const COVER_ROWS = 600
+const covers = (sym, tf, opts = {}) => BARSTORE && (storePrefetch.heldRows?.(sym, tf, opts) ?? 0) >= COVER_ROWS
+
+/**
+ * ⭐⭐ ONE FRAME FOR THE WHOLE GROUP (owner, hard rule, 2026-11-20: "scanning is impossible on the eyes
+ * otherwise"). Every chart of a linked colour group shows the new symbol in the SAME frame. Each chart's
+ * handoff still decides when ITS chart is ready (the rules above and below); the group only decides when
+ * they are SHOWN: a chart that is ready waits for its siblings that asked for the same symbol, and the
+ * last one to be ready shows them all in one synchronous pass (one React render, one frame). Bounded: once
+ * GROUP_SYNC_MS has passed since the first sibling was ready, the ready ones are shown and each straggler
+ * shows itself when it is ready, so nothing hangs on a slow sibling.
+ *  - A member is a chart of the group whose request moved to `sym` and is not showing it yet; it joins in
+ *    a LAYOUT effect, so every sibling of one commit has joined before any of them (a passive effect, or
+ *    a prepare resolving later) can be ready.
+ *  - A chart leaving the round (a newer symbol, unmounted) never holds the others.
+ *  - No group (a host that passes none): the chart shows itself, as before.
+ */
+export const GROUP_SYNC_MS = 150
+const _rounds = new Map()   // group -> { sym, members: Map<id, {ready, show}>, timer, expired }
+let _memberIds = 0
+function _flushRound(group, round) {
+  if (round.timer) { clearTimeout(round.timer); round.timer = null }
+  const ready = [...round.members.entries()].filter(([, m]) => m.ready)
+  for (const [id, m] of ready) { round.members.delete(id); try { m.show() } catch { /* one member never blocks the rest */ } }
+  if (!round.members.size && _rounds.get(group) === round) _rounds.delete(group)
+}
+function groupJoin(group, sym, id) {
+  let round = _rounds.get(group)
+  if (!round || round.sym !== sym) {
+    if (round?.timer) clearTimeout(round.timer)
+    round = { sym, members: new Map(), timer: null, expired: false }
+    _rounds.set(group, round)
+  }
+  if (!round.members.has(id)) round.members.set(id, { ready: false, show: null })
+}
+function groupLeave(group, sym, id) {
+  const round = _rounds.get(group)
+  if (!round || round.sym !== sym || !round.members.delete(id)) return
+  if (!round.members.size) { if (round.timer) clearTimeout(round.timer); _rounds.delete(group); return }
+  // the siblings left may all be ready now
+  if ([...round.members.values()].every((m) => m.ready)) _flushRound(group, round)
+}
+function groupReady(group, sym, id, show) {
+  const round = group ? _rounds.get(group) : null
+  const m = round && round.sym === sym ? round.members.get(id) : null
+  if (!m) { show(); return }                       // no group, or not a member of this round: show now
+  m.ready = true; m.show = show
+  if (round.expired) { _flushRound(group, round); return }
+  if ([...round.members.values()].every((x) => x.ready)) { _flushRound(group, round); return }
+  if (!round.timer) {
+    round.timer = setTimeout(() => {
+      round.timer = null
+      round.expired = true
+      _flushRound(group, round)
+    }, GROUP_SYNC_MS)
+  }
+}
+/** @internal tests: forget every round. */
+export function __resetGroupRoundsForTests() { for (const r of _rounds.values()) if (r.timer) clearTimeout(r.timer); _rounds.clear() }
+
 /** Does the chart's source already hold a D/W/M set for (sym, tf)? */
 function holdsDailySet(sym, tf) {
   if (BARSTORE && storePrefetch.holdsBars(sym, tf)) return true   // count only: no legacy array per switch
@@ -90,10 +171,20 @@ export function peekDisplayable(sym, tf, { showExtended } = {}) {
  *                     or a ref read when a switch starts (a host that resolves its settings
  *                     after this hook runs); omitted → the view-global fallback
  */
-export default function useSymbolHandoff(requestedSym, tf, { enabled = true, showExtended } = {}) {
+export default function useSymbolHandoff(requestedSym, tf, { enabled = true, showExtended, group = null } = {}) {
   // Seed with the request so a FIRST mount never lags — there is no previous
   // chart to protect, and lagging here would be a blank chart on page load.
   const [displayedSym, setDisplayedSym] = useState(requestedSym)
+  // ⭐⭐ ONE FRAME FOR THE GROUP: join the round for the requested symbol in the LAYOUT phase (see
+  // GROUP_SYNC_MS), so every sibling of this commit is a member before any of them can be ready.
+  const memberIdRef = useRef(0)
+  if (!memberIdRef.current) memberIdRef.current = ++_memberIds
+  useLayoutEffect(() => {
+    if (!group || !enabled || !requestedSym || !tf || requestedSym === displayedSym) return undefined
+    const id = memberIdRef.current
+    groupJoin(group, requestedSym, id)
+    return () => groupLeave(group, requestedSym, id)
+  }, [group, enabled, requestedSym, tf, displayedSym])
 
   // ⛔ LATEST REQUEST WINS, AND A CANCELLED PREPARE MUST NEVER LATE-COMMIT.
   // Scanning A→B→C→D outruns any single prepare, so every async resolution is
@@ -114,13 +205,33 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     if (requestedSym === displayedSym) return undefined
 
     const gen = ++genRef.current
-    const commitNow = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
+    // the chart is ready: it is SHOWN with its group (groupReady), or alone when it has none
+    const show = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
+    const commitNow = () => { if (genRef.current === gen) groupReady(group, requestedSym, memberIdRef.current, show) }
     // ⭐ ONE PAINT, PANES INCLUDED (2026-11-17): every path below commits through here, and B is
     // shown only once the server columns its panes draw have landed (serverCompute.columnsReadyFor),
     // waiting at most COLUMNS_WAIT_MS. Landed (or stored in this browser) commits in the same tick.
+    const _ext = (showExtended && typeof showExtended === 'object') ? showExtended.current : showExtended
+    const sess = { showExtended: typeof _ext === 'boolean' ? _ext : undefined }
+    // ⭐ DIAGNOSTICS (device store on only): ONE record per switch, at its commit, of what the first frame
+    // is built from and, when it is not the device copy, which rule refused it (data/deviceStore/diag.js).
+    // Read by no decision; a failure here never costs the switch.
+    let noted = false
+    const noteDevice = () => {
+      if (!DEVICE || noted) return
+      noted = true
+      try {
+        const intraday = INTRADAY.has(String(tf))
+        const vtf = intraday ? fetchTf(tf) : tf
+        const v = storePrefetch.deviceVerdict(requestedSym, vtf, intraday ? sess : {})
+        const rec = noteDeviceSwitch({ sym: requestedSym, tf: String(tf), at: performance.now(), outcome: lastOutcomeRef.current, painted: v.held, reason: v.reason, why: null })
+        if (v.held !== 'device') deviceWhy(requestedSym, vtf).then((w) => { rec.why = w }, () => { rec.why = 'error' })
+      } catch { /* diagnostics only */ }
+    }
     const commit = () => {
       if (genRef.current !== gen) return
-      if (columnsReadyFor(requestedSym, tf)) { setDisplayedSym(requestedSym); return }
+      noteDevice()
+      if (columnsReadyFor(requestedSym, tf)) { commitNow(); return }
       whenColumnsReady(requestedSym, tf, COLUMNS_WAIT_MS).then(commitNow, commitNow)
     }
 
@@ -154,7 +265,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     // same bounded prepare, which waits for the join, so the first frame is the whole chart.
     if (isNativeTf(tf) && !INTRADAY.has(String(tf))
         && /^[A-Z0-9.^-]{1,12}$/i.test(String(requestedSym))
-        && (!holdsDailySet(requestedSym, tf) || (BARSTORE && storePrefetch.deepPending(requestedSym, tf)))) {
+        && (!holdsDailySet(requestedSym, tf) || (BARSTORE && storePrefetch.deepPending(requestedSym, tf) && !devicePaints(requestedSym, tf)))) {
       let live = true
       const land = (outcome) => {
         if (!live || genRef.current !== gen) return
@@ -165,17 +276,30 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       const ctl = new AbortController()
       P.prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal }).then(land, () => land('error'))
       const bound = setTimeout(() => land('hold-timeout'), DAILY_HOLD_MAX_MS)
-      return () => { live = false; clearTimeout(bound); ctl.abort() }
+      // the device's copy lands in ~1 ms (one worker read): paint it the moment it does; and the tail ANSWER's
+      // rows the moment they cover the view (COVER_ROWS), whatever the deep join is still doing. ⛔ An answer
+      // of this key's life, never a saved copy alone: a copy from an earlier day is behind, and the chart
+      // refuses to paint it (useBarSnapshotBars, dailyCachePaintVerdict), so committing on it would show a
+      // loading chart instead of A.
+      let devTimer = null
+      const devPoll = () => {
+        devTimer = null
+        if (!live) return
+        if (devicePaints(requestedSym, tf)) { land('device'); return }
+        if (covers(requestedSym, tf, { answered: true })) { land('covered'); return }
+        devTimer = setTimeout(devPoll, POLL_MS)
+      }
+      if (DEVICE || BARSTORE) devTimer = setTimeout(devPoll, 0)
+      return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); ctl.abort() }
     }
 
-    const _ext = (showExtended && typeof showExtended === 'object') ? showExtended.current : showExtended
-    const sess = { showExtended: typeof _ext === 'boolean' ? _ext : undefined }
     // ⭐ ONE PAINT, THE WHOLE CHART (2026-11-17, owner: "a good chunk, then the rest a quick blink
     // later"). A held key paints at once only when the lake's whole depth is not still due for it;
     // otherwise the prepare below waits for that join (bounded, prefetch LAKE_JOIN_WAIT_MS) and the
     // chart's first frame holds it. The warms join it before Enter, so this is the rare case.
     const paintsWhole = () => peekDisplayable(requestedSym, tf, sess)
-      && !(BARSTORE && INTRADAY.has(String(tf)) && storePrefetch.lakePending(requestedSym, fetchTf(tf), sess))
+      && !(BARSTORE && INTRADAY.has(String(tf)) && storePrefetch.lakePending(requestedSym, fetchTf(tf), sess)
+        && !devicePaints(requestedSym, fetchTf(tf), sess) && !covers(requestedSym, fetchTf(tf), sess))
     if (paintsWhole()) { commit(); return undefined }
 
     // ⛔ THE INTRADAY PREPARE IS FOR INTRADAY ONLY. D/W/M took the bounded branch
@@ -241,7 +365,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     // says so). Depending on it re-runs this effect exactly once after a commit,
     // where the first guard immediately returns — so the extra pass costs one
     // comparison and correctly tears down the finished prepare.
-  }, [requestedSym, tf, enabled, displayedSym, showExtended])
+  }, [requestedSym, tf, enabled, displayedSym, showExtended, group])
 
   return displayedSym
 }

@@ -169,13 +169,32 @@ describe('useBarSnapshotBars — status → frame (intraday)', () => {
 })
 
 describe('useBarSnapshotBars — keys and the daily paint authority', () => {
-  it('the chart key: session-aware 60m, custom tf on its native base, replay windowed, override none', () => {
+  it('the chart key: session-aware 60m, custom tf on its native base, intraday replay windowed, override none', () => {
     expect(chartKeyFor({ sym: 'aaa', resolvedTf: '60', showExtended: true })).toBe('AAA_60e')
     expect(chartKeyFor({ sym: 'aaa', resolvedTf: '60', showExtended: false })).toBe('AAA_60')
     expect(chartKeyFor({ sym: 'aaa', resolvedTf: '5', showExtended: true })).toBe('AAA_5')
     expect(chartKeyFor({ sym: 'aaa', resolvedTf: 'D' })).toBe('AAA_D')
-    expect(chartKeyFor({ sym: 'aaa', resolvedTf: 'D', replayCutoff: '2026-03-02' })).toMatch(/^AAA_D@to=\d+$/)
+    expect(chartKeyFor({ sym: 'aaa', resolvedTf: '5', replayCutoff: '2026-03-02' })).toMatch(/^AAA_5@to=\d+$/)
     expect(chartKeyFor({ sym: 'aaa', resolvedTf: 'D', hasOverride: true })).toBeNull()
+  })
+
+  // 2026-11-20 — Breadth drill Replay: the D/W/M windowed key was a second copy of bars the plain
+  // key already holds; every flip waited on its own 12,500-bar `to=` request and a Grid of them
+  // stalled the server. D/W/M replay reads the plain key (StockChart cuts after the cutoff).
+  it('D/W/M replay reads the PLAIN key — no windowed second copy', () => {
+    for (const tf of ['D', 'W', 'M']) {
+      expect(chartKeyFor({ sym: 'aaa', resolvedTf: tf, replayCutoff: '2026-03-02' })).toBe(`AAA_${tf}`)
+    }
+  })
+
+  it('D replay: a held daily set paints on the first frame, with no request of its own', () => {
+    const KD = keyOf({ sym: 'SIMR', tf: 'D' })
+    const days = ['2026-09-16', '2026-09-17', '2026-09-18', '2026-09-21', '2026-09-22'].map((d) => ({ t: d, o: 10, h: 11, l: 9, c: 10.5, v: 100 }))
+    act(() => { const st = getBarStore(); st.registry.dispatch(KD, { type: 'rest-full', key: KD, gen: st.getSnapshot(KD).gen, payload: { ticker: 'SIMR', tf: 'D', bars: days } }) })
+    const p = params({ sym: 'SIMR', resolvedTf: 'D', _barsTf: 'D', isIntraday: false, replayCutoff: '2026-09-17' })
+    const { result } = renderHook(() => useBarSnapshotBars(p))
+    expect(result.current.bars?.length).toBe(days.length)   // StockChart cuts after the cutoff
+    expect(fetch.mock.calls.some(([u]) => /[?&]to=/.test(String(u)))).toBe(false)
   })
 
   it('D local copy: painted only when the daily paint verdict is ok (here: two sessions behind → refused)', () => {
@@ -187,6 +206,19 @@ describe('useBarSnapshotBars — keys and the daily paint authority', () => {
     expect(result.current.bars).toBeNull()
     act(() => { const st = getBarStore(); st.registry.dispatch(KD, { type: 'rest-full', key: KD, gen: st.getSnapshot(KD).gen, payload: { ticker: 'SIMD', tf: 'D', bars: [...days, { t: '2026-09-21', o: 10, h: 11, l: 9, c: 10.5, v: 1 }, { t: '2026-09-22', o: 10, h: 11, l: 9, c: 10.5, v: 1 }] } }) })
     expect(result.current.bars?.[result.current.bars.length - 1]?.t).toBe('2026-09-22')
+  })
+
+  it('D replay: the SAME stale local copy paints at once when it reaches the replay day (no current tail needed)', () => {
+    const KD = keyOf({ sym: 'SIMQ', tf: 'D' })
+    const days = ['2026-09-16', '2026-09-17', '2026-09-18'].map((d) => ({ t: d, o: 10, h: 11, l: 9, c: 10.5, v: 100 }))
+    const reach = renderHook(() => useBarSnapshotBars(params({ sym: 'SIMQ', resolvedTf: 'D', _barsTf: 'D', isIntraday: false, replayCutoff: '2026-09-17' })))
+    act(() => { const st = getBarStore(); st.registry.dispatch(KD, { type: 'idb-hit', key: KD, gen: st.getSnapshot(KD).gen, payload: { bars: days } }) })
+    expect(reach.result.current.bars?.length).toBe(days.length)
+    // a replay day the copy does not reach still waits for the server
+    const KS = keyOf({ sym: 'SIMS', tf: 'D' })
+    const short = renderHook(() => useBarSnapshotBars(params({ sym: 'SIMS', resolvedTf: 'D', _barsTf: 'D', isIntraday: false, replayCutoff: '2026-09-21' })))
+    act(() => { const st = getBarStore(); st.registry.dispatch(KS, { type: 'idb-hit', key: KS, gen: st.getSnapshot(KS).gen, payload: { bars: days } }) })
+    expect(short.result.current.bars).toBeNull()
   })
 })
 

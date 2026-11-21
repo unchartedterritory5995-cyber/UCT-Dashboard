@@ -68,16 +68,48 @@ EXEMPT: dict[str, str] = {}
 #: 44618956890): drift and ratchet rails that other PRs broke while no PR job ran them, the class this file closes.
 #: ⚰️ formulaReference.route and AdoptSheet left the same day: #2077's own run found them PASSING (the strict step).
 KNOWN_RED: dict[str, str] = {
-    "app/src/pages/command/keyListenerCensus.test.js":
-        "TERM-063 ratchet: raw key listeners added outside the shortcut registry, and the baseline (164) is over CEILING 111",
     "app/src/lib/swallowedFetch.census.test.js":
         "TERM-033 shrink-only census: 3 new `.catch(() => null)` sites (use sectionFetcher, which throws)",
-    "app/src/components/ui/formControls.census.test.js":
-        "new hand-rolled role=switch files (NoteSharePanel.jsx, ...) and unnamed control sites grew 0 -> 12",
     "app/src/pages/terminal/a11y/terminalReachableContrast.test.js":
         "new inline --loss/--gain colours and new text under WCAG AA (NavBar.module.css .brandNameTop, ...)",
     "app/src/pages/terminal/themeColours.rail.test.js":
         "hardcoded colours in terminal-mounted code: NavBar.module.css has 4 literals where the ledger allows 1",
+}
+
+#: DECLARED rails: vitest files that read NO other folder (so the census cannot see them) but guard code a PR can change
+#: without touching them. {test file: (the paths whose change must run it, the reason)}. Each joins the census with
+#: those paths as its reads, so it is on the home list and selected like a reader (a changed path under one, the file
+#: itself, or a module it imports directly), and `--check` fails when a file or a trigger path no longer exists.
+#: ⚰️ WHY (2026-11-20): dailyDeepHistoryClock ran on no PR job. The render window (#2142) changed what it observed and
+#: 14 of its rows went red with every PR check green; only the report-only nightly suite recorded it.
+_DAILY_FIRST_PAINT_CODE = (
+    "app/src/components/StockChart.jsx",
+    "app/src/components/chart/windowedChart.js",            # the render window the library is handed
+    "app/src/components/chart/useLegacyChartBars.js",       # the split selection: tail vs deep set
+    "app/src/utils/barsHistorySplit.js",                    # the bars-history split
+    "app/src/data/barStore",                                # the store's daily paths
+)
+DECLARED: dict[str, tuple[tuple[str, ...], str]] = {
+    # 2026-11-20: the form-control census walks EVERY app/src file (`git ls-files`, then a read of each), which the
+    # static scan sees only as three paths, so a PR adding an unnamed control or a hand-rolled switch anywhere else
+    # never ran it: it was red from 11-03 (#559's unnamed lab inputs) to 11-20 with every PR check green
+    "app/src/components/ui/formControls.census.test.js": (("app/src",),
+        "the form-control census (TERM-067): every app/src file is a control site it counts, so any app/src change runs it"),
+    "app/src/components/dailyDeepHistoryClock.test.jsx": (_DAILY_FIRST_PAINT_CODE,
+        "daily deep history in every session window: the chart holds the deep set, the library its newest rows, Origin bar 0"),
+    "app/src/components/dailyFirstPaintAcceptance.test.jsx": (_DAILY_FIRST_PAINT_CODE,
+        "the daily first-paint acceptance matrix: source, frontier, right-edge insertions, the settling guard, range buttons"),
+    "app/src/components/dailyFirstPaint.probe.test.jsx": (_DAILY_FIRST_PAINT_CODE,
+        "the daily first-paint probe: what a stale cache paints first and whether the frame moves after it"),
+    "app/src/components/dailyFirstPaintIncidental.test.jsx": (_DAILY_FIRST_PAINT_CODE,
+        "the incidental daily first-paint cases (the ones outside the matrix) on the same chart and bar paths"),
+    "app/src/components/dailyFirstPaintPerf.test.jsx": (_DAILY_FIRST_PAINT_CODE,
+        "the daily first-paint latency budgets: a cached daily chart paints inside its budget, never behind the server"),
+    # 2026-11-21 (ruled): out of KNOWN_RED, where a strict xfail by FILE let it grow 164 -> 166 unseen, onto an interim
+    # baseline (151, the dev-only Study workbench left out where the member app cannot reach it). It walks every
+    # app/src file, so any app/src change runs it: the 152nd raw key listener fails that PR.
+    "app/src/pages/command/keyListenerCensus.test.js": (("app/src",),
+        "the raw key-listener ratchet (TERM-063): every app/src file is a listener site it counts, so any app/src change runs it"),
 }
 
 #: A PR that changes one of these runs every listed reader: each can change how all of them run.
@@ -879,9 +911,11 @@ class Census:
         return self._module(rel)[2]
 
     def census(self) -> dict:
-        """{test file: {cross-folder read: how}} for every vitest file that reads outside its own directory."""
+        """{test file: {cross-folder read: how}} for every vitest file that reads outside its own directory, plus each
+        DECLARED rail with its trigger paths as its reads (how = 'declared')."""
         out = {}
-        for t in self.test_files():
+        tests = self.test_files()
+        for t in tests:
             own = posixpath.dirname(t)
             if not self._module(t)[3] and not self._module(t)[1]:
                 continue
@@ -889,6 +923,10 @@ class Census:
                      if not (r == own or r.startswith(own + "/")) and "node_modules" not in r.split("/")}
             if cross:
                 out[t] = cross
+        present = set(tests)
+        for t, (paths, _why) in DECLARED.items():
+            if t in present:                                    # a missing one is reported by judge()
+                out[t] = {**out.get(t, {}), **{p: "declared" for p in paths}}
         return out
 
 
@@ -1019,9 +1057,10 @@ def home_step(repo: pathlib.Path) -> dict | None:
 
 
 def judge(repo: pathlib.Path, census: dict, all_tests: list[str], exempt: dict | None = None,
-          known_red: dict | None = None) -> list[str]:
+          known_red: dict | None = None, declared: dict | None = None) -> list[str]:
     exempt = EXEMPT if exempt is None else exempt
     known_red = KNOWN_RED if known_red is None else known_red
+    declared = DECLARED if declared is None else declared
     bad = []
     step = home_step(repo)
     home = print_list(repo, census, all_tests, exempt, known_red)
@@ -1044,6 +1083,14 @@ def judge(repo: pathlib.Path, census: dict, all_tests: list[str], exempt: dict |
         for g in missing_paths(repo, census, home):
             bad.append(f"UNTRIGGERED READ: a listed rail reads {g}, which no `paths:` glob of {HOME_WORKFLOW} covers: "
                        "add it (python tools/ci_app_src_vitest_rails.py --print-paths lists them all)")
+    for t, (paths, why) in sorted(declared.items()):
+        if not (repo / t).is_file():
+            bad.append(f"DECLARED names {t}, which does not exist (renamed, deleted?): fix or drop it")
+        for p in paths:
+            if not (repo / p).exists():
+                bad.append(f"DECLARED trigger {p} of {t} does not exist (renamed?): the rail would never be selected by it")
+        if len(why.strip()) < 40:
+            bad.append(f"DECLARED without a reason a reviewer can argue with: {t}: {why!r}")
     for t, why in sorted({**exempt, **known_red}.items()):
         if t not in census:
             bad.append(f"EXEMPT/KNOWN_RED names {t}, which reads no other folder (renamed, deleted?): drop it")

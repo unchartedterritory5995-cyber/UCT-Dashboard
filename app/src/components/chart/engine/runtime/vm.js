@@ -640,6 +640,10 @@ export function execute(program, ctx, limits, opts) {
     if (ctx.bars > win) {
       throw new BrokerStart(`a strategy run takes the most recent ${win} bars, and this run holds ${ctx.bars}`)
     }
+    // ⭐⭐ [B-START-DEEP] (2026-11-19, the strategy-only daily window) the depth a run from the listing is served at
+    // without the deep-start rule: the context's `listingDepthBars` (the chart's shared window, from the server), and
+    // absent, the window itself (every caller that hands no second value runs exactly as before)
+    const depth = Number.isInteger(ctx.listingDepthBars) && ctx.listingDepthBars > 0 ? ctx.listingDepthBars : win
     // W9-T4 r1 — `ctx.minContract`: the symbol's `syminfo.mincontract`. W9-T4-F1: the one product caller
     // (`runtimeColumns.js`) derives it from the symbol's witnessed `symbolScope.json::min_contract` row, the
     // value a script's own `syminfo.mincontract` folds to; no row ⇒ undefined ⇒ a cash / percent-of-equity
@@ -651,6 +655,8 @@ export function execute(program, ctx, limits, opts) {
       tradingDays: ctx.tradingDays,
       // [B-EXEC] the forming newest bar this run does not execute (below), or none: the broker asks the rule
       formingBar: ctx.confirmed === false && ctx.bars > 0 ? ctx.bars - 1 : null,
+      // [B-START-DEEP] the bar past the served depth, when the run covers more (the broker asks the rule)
+      deepFrom: ctx.bars > depth ? ctx.bars - depth : null,
     })
   }
   // ⭐⭐ S1 — [B-EXEC] a default strategy executes once per CLOSED bar: on a forming bar
@@ -1136,6 +1142,12 @@ export function execute(program, ctx, limits, opts) {
           // (`close[na]` is `close` on all 100 na-offset bars, no error).
           const raw = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
+          // ⭐ A1 — a STRICT read (operand -1, a copy that reads a parameter per bar) stops by name on a negative or
+          // fractional offset, as `READ_HIST_SLOT_DYN`'s strict ring does: what Pine answers there is not captured
+          if (b < 0 && (!Number.isInteger(n) || n < 0)) {
+            throw new VmError(`pc ${pc - 1}: runtime:history-dynamic-offset — [${n}]: a history offset read on this bar `
+              + 'is negative or not a whole number, and what Pine answers for one is not captured')
+          }
           // ⭐⭐ WS-C — PAST PINE'S HISTORY BUFFER IS AN ERROR, NEVER AN ANSWER.
           // `b` is a DECLARED `max_bars_back` (0 = Pine's 5,000 ceiling). The
           // chart here may hold 32,768 bars, so without this a read 6,000 back
@@ -1158,7 +1170,19 @@ export function execute(program, ctx, limits, opts) {
           const raw = stack[--sp]
           const live = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
-          if (!Number.isInteger(n) || n < 0) { stack[sp++] = NaN; break }
+          if (!Number.isInteger(n) || n < 0) {
+            // ⭐⭐ A1 — A STRICT RING (an offset read per bar from a call site's argument, whose bottom
+            // and wholeness nothing proved before bar 0) STOPS BY NAME here: what Pine answers for a
+            // negative or fractional history offset is not captured (DY1 covers the fractional half),
+            // and `na` would be this lane's guess drawn as an answer.
+            if (histPlan[historyBase + a].strict === true) {
+              throw new VmError(`pc ${pc - 1}: runtime:history-dynamic-offset — \`${histPlan[historyBase + a].name}\`[${n}]: `
+                + 'a history offset read on this bar is negative or not a whole number, and what Pine '
+                + 'answers for one is not captured')
+            }
+            stack[sp++] = NaN
+            break
+          }
           if (n === 0) { stack[sp++] = live; break }
           // WS-C — past Pine's history buffer stops the run (see READ_HIST_DYN).
           if (n > (b > 0 ? b : 5000)) {

@@ -260,8 +260,10 @@ export const FUNCTIONS = [
     market: { panel: 'MarketNews' } },
   { code: 'REGM', label: 'Market regime and exposure call', group: 'Market',
     market: { panel: 'Regime' } },
+  // INS CLUSTER (2026-11-21): the stocks 3 or more insiders bought within 10 business days, built
+  // each night from the SEC's own Form 4 filings (GET /api/insider/clusters). Bare INS is unchanged.
   { code: 'INS', label: 'Insider buying (market-wide, last 7 days)', group: 'Market',
-    market: { panel: 'InsiderBuys' } },
+    market: { panel: 'InsiderBuys', args: [{ kind: 'insView', prop: 'view' }] } },
   { code: 'RSL', label: 'RS leaderboard (top names by RS rank)', group: 'Market',
     market: { panel: 'RsLeaders' } },
   // THMS 1W: the UCT theme leaderboard over a window (1D 1W 1M 3M; 1Y and YTD are chips in the panel).
@@ -539,6 +541,81 @@ export const FUNCTIONS = [
   // together, `TIDEH STOCKS` / `TIDEH ETFS` = one side. TIDEH is not in the site's stock universe.
   { code: 'TIDEH', label: 'Market Tide by day (net premium, each session)', group: 'Options',
     market: { panel: 'TideHistory', args: [{ kind: 'tideScope', prop: 'scope' }] } },
+  // SEASB: the seasonality board. SEAS is ONE stock's record by calendar month; this is the
+  // market's: the four index funds and the eleven sector funds, month by month, from the daily
+  // bars we hold (GET /api/research/seasonality-board, behind Seasonality's own switch, so it
+  // carries SEAS's flag). `SEASB` = the median month, `SEASB AVG` = the average month. SEASB is
+  // not in the site's stock universe.
+  { code: 'SEASB', label: 'Seasonality board (index and sector funds, month by month)', group: 'Market',
+    market: { panel: 'SeasonalityBoard', flag: 'seasonalityEnabled', args: [{ kind: 'seasMeasure', prop: 'measure' }] } },
+  // ── Market wave A (2026-11-20): three market screens over routes the site already serves ──
+  // COT: futures positioning from the CFTC's weekly Commitments of Traders report (GET /api/cot/*,
+  // the routes the COT Data page reads). `COT` = every market, one row each; `COT GOLD` / `COT ES`
+  // / `COT 10Y` = one market, by its code or a plain word (resolved in the panel against the
+  // route's own list). COT is not in the site's stock universe. `open: true`: the market name is
+  // any word of the right shape, so it never outranks another function's code (`COT CAL` keeps the
+  // canonical order; parseCommand.js, the `LEAD IPO` branch).
+  { code: 'COT', label: 'Futures positioning (Commitments of Traders)', group: 'Market',
+    market: { panel: 'Cot', args: [{ kind: 'cotMarketName', prop: 'market', open: true }] } },
+  // ANLG: the past sessions whose breadth looked most like the newest one, and what the S&P 500
+  // did after each (GET /api/breadth-monitor/analogues, the answer the Analogue Deck on Breadth
+  // draws). `ANLG` = the 5 closest, `ANLG 8` = that many (3 to 10). Not in the stock universe.
+  { code: 'ANLG', label: 'Days like today (breadth analogues)', group: 'Market',
+    market: { panel: 'Analogues', args: [{ kind: 'anlgCount', prop: 'count' }] } },
+  // MKTS: index funds, VIX, Treasury yields and Bitcoin on one board, each with its own source and
+  // as-of (GET /api/snapshot, the Treasury read RATES uses, the crypto quote when switched on).
+  // No argument. MKTS is not in the site's stock universe.
+  { code: 'MKTS', label: 'Markets board (index funds, volatility, rates, Bitcoin)', group: 'Market',
+    market: { panel: 'MarketsBoard' } },
+  // IPO / DVD / CACT (2026-11-20): three reads of what the calendar and the chart already hold.
+  // IPO: the IPO calendar day by day (GET /api/calendar/ipos, the Calendar page's own route). The
+  // stocks listed in the last year stay on LEAD's lens (`LEAD IPO`), which the panel links to.
+  // DVD: the declared dividends and splits AHEAD. The route answers for a list of stocks, not the
+  // whole market: bare `DVD` = the member's own stocks, `NVDA DVD` = one stock. It holds nothing past.
+  // CACT: one stock's held splits and dividends (GET /api/research/corporate-actions/{ticker}, which
+  // never asks a vendor) and its name or ticker changes. None of the three is in the stock universe.
+  { code: 'IPO', label: 'IPO calendar (upcoming and priced deals)', group: 'Calendar',
+    market: { panel: 'IpoCalendar' } },
+  { code: 'DVD', label: 'Dividend calendar (next ex-dates and splits ahead)', group: 'Calendar',
+    ticker: { panel: 'DividendCalendar' }, market: { panel: 'DividendCalendar' } },
+  { code: 'CACT', label: 'Corporate actions (splits, dividends, name changes)', group: 'Security',
+    ticker: { panel: 'CorporateActions' } },
+  // AUCT (2026-11-21): the Treasury auctions coming up and the results of the recent ones
+  // (GET /api/research/treasury-auctions, read from the US Treasury's Fiscal Data service; the
+  // server holds one answer and looks for new records once each weekday evening). No argument.
+  // AUCT is not in the site's stock universe.
+  { code: 'AUCT', label: 'Treasury auctions (upcoming and recent results)', group: 'Market',
+    market: { panel: 'TreasuryAuctions' } },
+  // FED (2026-11-21): Fed watch. The newest FOMC statement with a word-level redline against the one
+  // before, live Fed headlines from the news wire's own store, the Board's speeches and testimony,
+  // this week's Fed speakers and the next meeting from the economic calendar, the policy rate, the
+  // officials' median rate projections and the New York Fed's Survey of Market Expectations
+  // (GET /api/research/fed-watch; the server reads the Board's and the New York Fed's public pages
+  // on its own schedule). No odds from futures prices. FED is not in the site's stock universe.
+  { code: 'FED', label: 'Fed watch (statements, speeches, Fed headlines, the next meeting)', group: 'Market',
+    market: { panel: 'FedWatch' } },
+  // ECON (2026-11-21): the economy board. The official prints that move markets, theme by theme
+  // (inflation, jobs, growth and spending, housing, rates), each with the print before, the change,
+  // the period, the release day and the next release from the release calendar, plus the releases
+  // due in the next 7 days (GET /api/econ/latest: the econ routes' own flag and gate, answered from
+  // what the econ service already published). No argument. ECO is a real stock (in the site's
+  // universe), so the code is ECON, which is not.
+  { code: 'ECON', label: 'Economy dashboard (CPI, jobs, GDP, spending, housing: last print, prior, next release)', group: 'Market',
+    market: { panel: 'Economy' } },
+  // LIQ (2026-11-21): liquidity. Net liquidity (the Fed's total assets minus the TGA minus overnight
+  // reverse repo, a UCT calculation on each H.4.1 Wednesday) with its 1, 4, 13 and 52-week change and
+  // two years of it, then the parts (the Fed's assets, the TGA weekly and daily, reverse repo, reserves,
+  // M2, SOFR). GET /api/econ/latest + GET /api/econ/series: the econ routes' own flag and gate, answered
+  // from what the econ service already published. No argument. LIQ is not in the site's universe.
+  { code: 'LIQ', label: 'Liquidity (Fed balance sheet, TGA, reverse repo, net liquidity)', group: 'Market',
+    market: { panel: 'Liquidity' } },
+  // OIL (2026-11-21): the EIA's weekly oil report. The week's crude build or draw (the econ service's own
+  // weekly change, a UCT calculation from the EIA's stock figures), when it came out and the next weekly
+  // report from the release calendar; each series' latest week, the week before, the change and the same
+  // week a year ago; two years of crude stocks (GET /api/econ/latest and /api/econ/series: the econ routes'
+  // own flag and gate). No argument. OIL is not in the site's stock universe.
+  { code: 'OIL', label: 'Weekly oil report (EIA: crude, gasoline, distillate stocks, production, refining, pump prices)', group: 'Market',
+    market: { panel: 'Oil' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -767,13 +844,14 @@ const FUNCTION_WORDS = {
   COMM: { keywords: ['community', 'chat'] },
   NEWS: { keywords: ['market news', 'news tape', 'headlines'] },
   REGM: { keywords: ['regime', 'market regime', 'exposure', 'market trend'] },
-  INS: { keywords: ['insider', 'insider buying', 'insiders', 'form 4'] },
+  INS: { keywords: ['insider', 'insider buying', 'insiders', 'form 4', 'cluster buys', 'insider clusters', 'insider cluster buys'] },
   RSL: { keywords: ['relative strength', 'rs rank', 'rs leaders', 'leaders'] },
   THMS: { example: 'THMS 1W', keywords: ['theme', 'themes', 'groups', 'industries', 'leading themes'] },
   SENT: { keywords: ['sentiment', 'aaii', 'naaim', 'fear and greed', 'put call', 'macro', 'economy'],
     note: 'The economy rows say so if that feed is switched off.' },
   RATES: { keywords: ['treasury yields', 'yield curve', 'interest rates', 'bond yields', '10 year yield', '2 year yield',
-    'inverted curve', '2s10s'], note: 'End-of-day figures, one a day.' },
+    'inverted curve', '2s10s', 'real yields', 'tips yields', 'breakeven inflation'],
+    note: 'End-of-day figures, one a day. Real yields and breakevens are their own block, with their own date.' },
   SCAT: { keywords: ['scatter', 'scatter plot', 'market map'] },
   HELP: { example: 'HELP CHK', keywords: ['help', 'functions', 'commands'] },
   RRG: { keywords: ['rotation', 'sector rotation', 'sectors'] },
@@ -834,6 +912,45 @@ const FUNCTION_WORDS = {
   TIDEH: { example: 'TIDEH', keywords: ['market tide by day', 'tide history', 'daily net premium', 'net premium by day',
     'net premium history', 'options premium by day'],
     note: 'One row per finished session, stored once after the close; history starts at the first stored day.' },
+  SEASB: { example: 'SEASB', keywords: ['seasonality board', 'sector seasonality', 'best months', 'index seasonality',
+    'seasonality by sector', 'monthly seasonality', 'month by month'],
+    note: 'How each index and sector fund has done in each calendar month. A record, not a forecast.' },
+  COT: { example: 'COT GOLD', keywords: ['cot', 'commitments of traders', 'futures positioning', 'commercials', 'large speculators',
+    'cftc'],
+    note: 'Weekly: positions as of each Tuesday, published the following Friday. Net positions, not the two sides.' },
+  ANLG: { example: 'ANLG', keywords: ['analogues', 'analogs', 'days like today', 'similar days', 'what happened next',
+    'breadth analogues'],
+    note: 'Past sessions with similar breadth and what the S&P 500 did after each. A record, not a forecast.' },
+  MKTS: { example: 'MKTS', keywords: ['markets', 'cross asset', 'indexes', 'vix', 'bitcoin', 'markets board'],
+    note: 'Index funds, VIX, Treasury yields and Bitcoin, each with its own source and time. No futures or commodity prices.' },
+  IPO: { example: 'IPO', keywords: ['ipo', 'ipos', 'ipo calendar', 'new issues', 'upcoming ipos', 'priced ipos'],
+    note: 'Deals from last week to next week, day by day. Stocks listed in the last year are on LEAD IPO.' },
+  DVD: { example: 'DVD', keywords: ['dividend', 'dividends', 'dividend calendar', 'ex dividend', 'ex-date', 'upcoming dividends',
+    'upcoming splits'],
+    note: 'Declared dividends and splits ahead for your stocks, or for one stock (NVDA DVD). Nothing past.' },
+  CACT: { example: 'NVDA CACT', keywords: ['corporate actions', 'splits', 'stock split', 'dividend history', 'name change',
+    'ticker change', 'past dividends'],
+    note: 'Only what the server already holds for the stock: splits, dividends by ex-date and ticker changes.' },
+  AUCT: { example: 'AUCT', keywords: ['treasury auctions', 'auctions', 'bond auction', 'auction results', 'bid to cover',
+    'indirect bidders', 'treasury supply'],
+    note: 'Auctions ahead and the last 45 days of results. A result shows the evening of the auction day.' },
+  FED: { example: 'FED', keywords: ['fed', 'fomc', 'federal reserve', 'fed speakers', 'powell', 'fed statement', 'rate decision',
+    'fed headlines', 'dot plot', 'fed minutes'],
+    note: 'Statements, speeches and projections from the Board, live Fed headlines and a survey of market professionals. No odds from futures prices.' },
+  // 'economy' stays with SENT (its own keyword since wave 8).
+  ECON: { example: 'ECON', keywords: ['economic data', 'cpi', 'inflation', 'jobs report', 'payrolls', 'unemployment', 'gdp',
+    'retail sales', 'jobless claims', 'pce', 'housing starts'],
+    note: 'Official releases from the agencies, each with the print before and the next release date. No forecasts.' },
+  // 'fed' and 'federal reserve' stay with FED, 'treasury' with RATES. 'qt' and 'm2' are under the
+  // three-letter floor of the word search: 'quantitative tightening' and 'money supply' find LIQ.
+  LIQ: { example: 'LIQ', keywords: ['liquidity', 'net liquidity', 'fed balance sheet', 'reverse repo', 'rrp', 'tga',
+    'qt', 'quantitative tightening', 'm2', 'money supply', 'reserves'],
+    note: 'Net liquidity is a UCT calculation from the Fed and Treasury figures, each part beside it. No forecasts.' },
+  // None of these words was another code's keyword. 'spr' only reached RATES through "spreads" in its label (the
+  // lowest score); RATES still follows OIL for it. No keyword makes a generic word ("prices") find OIL.
+  OIL: { example: 'OIL', keywords: ['oil', 'crude', 'crude inventories', 'eia', 'oil inventories', 'gasoline', 'distillates',
+    'refinery', 'spr'],
+    note: "The EIA's own weekly figures, with the next report's date. No futures prices and no forecasts." },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

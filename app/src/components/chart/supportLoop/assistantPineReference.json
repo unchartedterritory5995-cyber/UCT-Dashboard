@@ -1057,6 +1057,10 @@
    "call": "math.acos(close)"
   },
   {
+   "name": "math.asin",
+   "call": "math.asin(close)"
+  },
+  {
    "name": "math.atan",
    "call": "math.atan(close)"
   },
@@ -1123,6 +1127,14 @@
   {
    "name": "math.tan",
    "call": "math.tan(close)"
+  },
+  {
+   "name": "math.todegrees",
+   "call": "math.todegrees(close)"
+  },
+  {
+   "name": "math.toradians",
+   "call": "math.toradians(close)"
   },
   {
    "name": "max",
@@ -1812,8 +1824,8 @@
    "source": "//@version=5\nindicator(\"RS vs SPY\")\ns = request.security(\"SPY\", timeframe.period, close)\nrs = close / s\nplot(rs, \"RS line\")\nplot(ta.ema(rs, 21), \"RS 21 EMA\", color=color.orange)\n",
    "ok": true,
    "lane": "host",
-   "state": "runs",
-   "headline": "Runs on the chart and in alerts; screens and scans need a threshold"
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart and in alerts, with 1 note"
   },
   {
    "id": "levels-from-a-list",

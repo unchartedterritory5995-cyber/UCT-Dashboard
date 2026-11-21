@@ -1,0 +1,81 @@
+# promotion-gate: no — ADVISORY. A red here names a checked-in inventory that no longer matches the source it is
+#   derived from; it must never hold a promotion (a new workflow is advisory until seen red once and green once).
+# ─── THE WHOLE-API DERIVATION RAILS, ON THE PULL REQUEST ─────────────────────
+#
+# ⚰️ WHY (2026-11-20). Four rails re-derive a checked-in inventory, or a declared set, from the WHOLE api/ tree,
+# and every one of them was red on master for days to months with every check green, because nothing ran them on
+# the PR that changed what they read:
+#   * tests/test_alert_taxonomy_indicator_condition_schema.py  (the type module's callers; red since 2026-09-20)
+#   * tests/test_entitlements_manifest.py                      (every "may this member" site; red since #1893, 11-18)
+#   * tests/test_bars_ordinal_census.py                        (every bars-row reader; red since #1709, 11-17)
+#   * tests/test_canonical_address_book.py                     (the bar store's own DDL; red since #1102, 11-11)
+# Each reads modules it does not import (a walk of api/**), so no path-aware lane ever selected it for a PR that
+# changed one of them. This job runs all four on any PR that touches api/ or what they read. One job, ~4 minutes.
+# The master deploy gate's bars-rails job also runs the last two after the merge (tools/bars_gate_rails.py).
+# tests/test_ci_derived_inventories.py rails this file.
+name: derived inventories (PR)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'api/**'
+      - 'tools/build_entitlements_manifest.py'
+      - 'tools/bars_ordinal_census.py'
+      - 'tools/build_canonical_address_book.py'
+      - 'app/src/components/chart/engine/ast/closedTable.json'
+      - 'app/src/components/chart/engine/ast/timeframeLabels.json'
+      - 'tests/test_alert_taxonomy_indicator_condition_schema.py'
+      - 'tests/test_entitlements_manifest.py'
+      - 'tests/test_bars_ordinal_census.py'
+      - 'tests/test_canonical_address_book.py'
+      - 'tests/test_ci_derived_inventories.py'
+      - '.github/workflows/derived-inventories.yml'
+
+permissions:
+  contents: read
+
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
+# workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
+# is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  inventories:
+    name: whole-api derivation rails
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: The production dependency set + pytest
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet -r requirements.txt pytest httpx pyyaml
+
+      - name: The whole-api derivation rails
+        run: >-
+          python -m pytest -q -p no:cacheprovider -rfE --continue-on-collection-errors
+          tests/test_alert_taxonomy_indicator_condition_schema.py
+          tests/test_entitlements_manifest.py
+          tests/test_bars_ordinal_census.py
+          tests/test_canonical_address_book.py
+          tests/test_ci_derived_inventories.py
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::A checked-in inventory no longer matches the api/ source it is derived from."
+          echo "Regenerate the one the log names, read its diff, and commit it with the change that moved it:"
+          echo "  python tools/build_entitlements_manifest.py"
+          echo "  python tools/bars_ordinal_census.py"
+          echo "  python tools/build_canonical_address_book.py"
+          echo "A caller-set red (indicator_condition) is a new wire to the type module: classify it in the test."

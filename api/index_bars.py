@@ -23,8 +23,10 @@ WHY THIS EXISTS
          answers incompletely is filled from FMP's own bars, never invented; sidecar
          <DATA_DIR>/index_bars_cache/{YAHOO}_{tf}.repair.json
   STALE-WHILE-REVALIDATE: if we have ANY cached series it is served IMMEDIATELY and a
-  refresh is kicked to a bounded background pool — a request NEVER blocks on yfinance
-  when we already have data. The proxy ratio is cached (it drifts ~quarterly), so the
+  refresh is kicked to a bounded background pool — a request never blocks on yfinance
+  when we already have data, EXCEPT the two intraday copies `_cached_series` refreshes in the
+  request (one over an hour old; one whose newest bar has ended since it was stored, 2026-11-20).
+  The proxy ratio is cached (it drifts ~quarterly), so the
   intraday proxy no longer pays 2 extra downloads per request.
 
   A warm loop (`start_index_warm`) keeps all 7 indices hot in the disk store so even the
@@ -115,6 +117,24 @@ _DISK_DIR = os.environ.get("INDEX_BARS_CACHE_DIR", os.path.join(_DATA_DIR, "inde
 _bg_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="index-bars-refresh")
 _bg_inflight: set[str] = set()
 _bg_lock = threading.Lock()
+#: "SYM_tf" -> set when the refresh holding that key in `_bg_inflight` finishes, so a request that finds the
+#: refresh running can wait for it (`_await_refresh`) instead of answering the copy it is replacing.
+_inflight_done: Dict[str, threading.Event] = {}
+
+
+def _claim_locked(key: str) -> None:
+    """Mark `key` refreshing. The caller holds `_bg_lock`."""
+    _bg_inflight.add(key)
+    _inflight_done[key] = threading.Event()
+
+
+def _release(key: str) -> None:
+    """The refresh holding `key` is done (stored, empty or failed): free the key and wake its waiters."""
+    with _bg_lock:
+        _bg_inflight.discard(key)
+        done = _inflight_done.pop(key, None)
+    if done is not None:
+        done.set()
 
 
 def is_index(ticker: str) -> bool:
@@ -830,7 +850,7 @@ def _kick_bg_refresh(sym: str, tf: str) -> None:
     with _bg_lock:
         if key in _bg_inflight or len(_bg_inflight) >= 8:
             return
-        _bg_inflight.add(key)
+        _claim_locked(key)
 
     def _job():
         try:
@@ -838,13 +858,11 @@ def _kick_bg_refresh(sym: str, tf: str) -> None:
         except Exception as e:
             logger.info(f"[index_bars] bg refresh {sym} {tf} failed: {e}")
         finally:
-            with _bg_lock:
-                _bg_inflight.discard(key)
+            _release(key)
     try:
         _bg_pool.submit(_job)
     except Exception:
-        with _bg_lock:
-            _bg_inflight.discard(key)
+        _release(key)
 
 
 #: ⭐ RS RATING L12 (2026-11-18): an INTRADAY copy this old, answered stale-while-revalidate, hands a chart an index a
@@ -856,8 +874,21 @@ def _kick_bg_refresh(sym: str, tf: str) -> None:
 #: is served when the vendor answers nothing or another request is already refreshing it. A daily / weekly / monthly
 #: copy, and a short miss of an intraday TTL, keep stale-while-revalidate.
 COLD_STALE_S = 3600
-_now = time.time                    # the serve clock (a rail pins it)
 _INTRADAY_UI_TFS = frozenset({"1", "5", "15", "30", "60", "1h"})
+
+
+def _now() -> float:
+    """THE serve clock: `_cached_series` judges a copy's age by it and `fetch_index_bars` withholds by it, so the
+    two can never disagree about what time it is (a rail pins it). It reads this module's `time`, so a rail that
+    pins `index_bars.time` pins it too. ⚰️ It was `time.time` bound at import while `_cached_series` read
+    `time.time()`: two clocks, and a rail pinning one saw the other."""
+    return time.time()
+
+
+#: ⭐ 2026-11-20, production: how long a request that finds the refresh of its copy already running waits for that
+#: refresh before answering the copy it holds. A cold ^GSPC read is ~0.2 s (measured above); the edge hedges a tier
+#: answer slower than 1.2 s to web (`edge/bars-edge-router/worker.js` BARS_HEDGE_MS), so the wait stays under it.
+REFRESH_WAIT_S = 1.0
 
 
 #: ⭐ RS RATING L12 (2026-11-18) — A NEWEST BAR STORED WHILE IT WAS FORMING IS A PARTIAL PRINT. A refresh in session
@@ -890,28 +921,83 @@ def _intraday_bar_end(t, tf: str):
     return end
 
 
+def _tail_ended_since_saved(series: list, tf: str, saved_at, now: float) -> bool:
+    """True when the newest bar of an intraday copy was still forming when the copy was stored and has ended by
+    `now` (see above). ONE rule, two readers: `_settled_partial_withheld` withholds that bar, and `_cached_series`
+    refreshes the copy in the request, so the serve never answers a tail shorter than the one it answered before."""
+    if not series or saved_at is None or not isinstance(series[-1], dict):
+        return False
+    end = _intraday_bar_end(series[-1].get("t"), tf)
+    return end is not None and float(saved_at) < end <= float(now)
+
+
+def _session_close_ts(t) -> Optional[float]:
+    """Unix seconds at which the regular session of the ET day holding instant `t` closes (half-day aware), or None
+    (no session that day, or an unreadable calendar: abstain)."""
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from api.services.session_calendar import close_time
+        close = close_time(datetime.fromtimestamp(float(t), ZoneInfo("America/New_York")).date())
+        return close.timestamp() if close is not None else None
+    except Exception:  # noqa: BLE001 - abstain, never guess
+        return None
+
+
+def _missing_bar_ended_since_saved(series: list, tf: str, saved_at, now: float) -> bool:
+    """True when the bar AFTER an intraday copy's newest has ended since the copy was stored, inside the session.
+
+    ⭐ 2026-11-20, production re-probe after D8: the tier's 1m refresh at 18:36:01Z got a series whose newest
+    bar was 18:35, because the vendor had not published the new minute one second in. A signed-in probe saw the
+    same at 13:36 ET. That copy's newest bar had already ENDED when it was stored, so `_tail_ended_since_saved`
+    (correctly) does not fire, and the copy was answered "fresh" 1, then 2, bars behind until its TTL ran out.
+    The copy never held the bar that has ended since, so it is behind; once per bar it is asked again.
+
+    ⛔ NEVER OUTSIDE THE SESSION: a newest bar that ends at its session's close has no next bar to wait for
+    until the next open (TTL and the cold-stale rule cover the night)."""
+    if not series or saved_at is None or not isinstance(series[-1], dict):
+        return False
+    nxt = _intraday_bar_end(series[-1].get("t"), tf)        # the next bar opens where the newest ends
+    if nxt is None:
+        return False
+    close = _session_close_ts(nxt)
+    if close is None or nxt >= close:
+        return False
+    end = _intraday_bar_end(nxt, tf)
+    return end is not None and float(saved_at) < end <= float(now)
+
+
+def _copy_behind_since_saved(series: list, tf: str, saved_at, now: float) -> bool:
+    """A bar boundary has passed since the copy was stored, inside the session: its newest bar was forming and has
+    ended (`_tail_ended_since_saved`, which D7 also withholds), or the bar after it has ended and the copy never
+    held it (`_missing_bar_ended_since_saved`). Such a copy is refreshed in the request (`_cached_series`)."""
+    return (_tail_ended_since_saved(series, tf, saved_at, now)
+            or _missing_bar_ended_since_saved(series, tf, saved_at, now))
+
+
 def _settled_partial_withheld(series: list, tf: str, saved_at, now: float) -> list:
     """`series` without a newest bar that was still forming when the copy was stored and has ended since (see above)."""
-    if not series or saved_at is None or not isinstance(series[-1], dict):
-        return series
-    end = _intraday_bar_end(series[-1].get("t"), tf)
-    if end is not None and float(saved_at) < end <= float(now):
-        return series[:-1]
-    return series
+    return series[:-1] if _tail_ended_since_saved(series, tf, saved_at, now) else series
 
 
 def _cold_stale(tf: str, saved_at, now: float) -> bool:
     return tf in _INTRADAY_UI_TFS and now - float(saved_at or 0) > COLD_STALE_S
 
 
-def _refresh_in_request(sym: str, tf: str) -> list:
-    """The series refreshed inside this request, or [] (another request holds the refresh, or no vendor answered:
-    the caller serves its stale copy). Shares `_bg_inflight` with the background refresh, so one fetch runs at a time."""
+def _refresh_in_request(sym: str, tf: str, held_saved_at=None) -> list:
+    """The series refreshed inside this request, or [] (no vendor answered, or another request holds the refresh and
+    stored nothing newer than `held_saved_at` within `REFRESH_WAIT_S`: the caller serves its stale copy). Shares
+    `_bg_inflight` with the background refresh, so one fetch runs at a time; a request that finds one running waits
+    for it (`_await_refresh`) rather than answering the copy it is replacing."""
     key = f"{sym}_{tf}"
     with _bg_lock:
-        if key in _bg_inflight:
-            return []
-        _bg_inflight.add(key)
+        busy = key in _bg_inflight
+        if busy:
+            done = _inflight_done.get(key)
+        else:
+            _claim_locked(key)
+    if busy:
+        return _await_refresh(sym, tf, done, held_saved_at)
     try:
         with _on_request_thread():         # the hole repair asks no vendor on a request
             return _refresh(sym, tf) or []
@@ -919,9 +1005,23 @@ def _refresh_in_request(sym: str, tf: str) -> list:
         logger.info(f"[index_bars] in-request refresh {sym} {tf} failed: {e}")
         return []
     finally:
-        with _bg_lock:
-            _bg_inflight.discard(key)
+        _release(key)
         _kick_pending_repair(sym, tf)
+
+
+def _await_refresh(sym: str, tf: str, done: Optional[threading.Event], held_saved_at) -> list:
+    """Another thread holds the refresh of (sym, tf): wait for it, at most `REFRESH_WAIT_S`, and answer the series it
+    stored if that is newer than the copy this request holds (`held_saved_at`); else [] (the refresh got nothing, or
+    is still running: the caller serves its stale copy). `done` is None for a refresh this module did not claim."""
+    if done is None or not done.wait(REFRESH_WAIT_S):
+        return []
+    from api.services.cache import cache
+    entry = cache.get(f"idxbars_{sym}_{tf}") or {}
+    try:
+        newer = float(entry.get("saved_at") or 0) > float(held_saved_at or 0)
+    except (TypeError, ValueError):
+        newer = False
+    return (entry.get("series") or []) if newer else []
 
 
 def _kick_pending_repair(sym: str, tf: str) -> None:
@@ -935,13 +1035,29 @@ def _kick_pending_repair(sym: str, tf: str) -> None:
 
 def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
     """Return (series, tier). Never blocks on yfinance when ANY cached data exists —
-    stale data is served immediately and a background refresh is kicked — EXCEPT an intraday copy older than
-    `COLD_STALE_S`, refreshed in the request (RS RATING L12). `info`, when given, is told when the served copy
+    stale data is served immediately and a background refresh is kicked — EXCEPT two intraday copies, refreshed in
+    the request: one older than `COLD_STALE_S` (RS RATING L12), and one whose newest bar has ended since it was
+    stored (`_tail_ended_since_saved`). `info`, when given, is told when the served copy
     was stored (`info["saved_at"]`, None if none) and the hole repair's record of that copy (`info["repair"]`,
-    None for a copy without one: D/W/M, the ETF proxy, another grid, or a copy stored before the repair existed)."""
+    None for a copy without one: D/W/M, the ETF proxy, another grid, or a copy stored before the repair existed).
+
+    ⛔⛔ 2026-11-20, production: A COPY INSIDE ITS TTL IS NOT FRESH ONCE ITS NEWEST BAR HAS ENDED. `fetch_index_bars`
+    withholds that bar (D7), so serving the copy answers a tail one bar SHORTER than the answer before it: the bars-api
+    tier answered `/api/bars/SPX?tf=5` with the 15:00 bar forming at 15:04:47Z and only 14:55 at 15:05:07Z, from one copy
+    stored 15:04:04 (its TTL is 300 s and the warm loop refreshes it every ~304 s, never at a bar's end). 16 of 21 tf=5
+    answers were two bars behind the clock, and a Pine script reading SPX from an intraday chart sat pending. Such a
+    copy is refreshed in the request; the copy that refresh stores holds the new bar and stays fresh until THAT bar
+    ends, so a read pays one vendor call per bar. A vendor that answers nothing leaves the withheld copy, answered as
+    stale, and the next request asks again, one vendor read at a time like the cold-stale rule (rails D8a-D8d,
+    tests/test_index_bars_depth.py).
+
+    ⭐ AND ONE STORED WITHOUT THE BAR NOW FORMING (2026-11-20, the re-probe after D8, rails D9a-D9b): a refresh the
+    vendor answered one second into a minute, before it published that minute, is behind once that bar ends, though
+    its own newest bar had ended before it was stored (`_missing_bar_ended_since_saved`, inside the session only).
+    Both cases are one test, `_copy_behind_since_saved`."""
     from api.services.cache import cache
     ttl = _TTL.get(tf, 300)
-    now = time.time()
+    now = _now()
     mkey = f"idxbars_{sym}_{tf}"
     if info is None:
         info = {}
@@ -957,10 +1073,11 @@ def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
     if mem and mem.get("series"):
         info["saved_at"] = mem.get("saved_at")
         info["repair"] = mem.get("repair")
-        if now - mem.get("saved_at", 0) <= ttl:
+        ended = _copy_behind_since_saved(mem["series"], tf, mem.get("saved_at"), now)
+        if now - mem.get("saved_at", 0) <= ttl and not ended:
             return mem["series"], "index-mem"
-        if _cold_stale(tf, mem.get("saved_at"), now):
-            fresh = _refresh_in_request(sym, tf)
+        if ended or _cold_stale(tf, mem.get("saved_at"), now):
+            fresh = _refresh_in_request(sym, tf, mem.get("saved_at"))
             if fresh:
                 _stored()
                 return fresh, "index-yf"
@@ -972,10 +1089,11 @@ def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
         info["saved_at"] = disk.get("saved_at")
         info["repair"] = disk.get("repair")
         cache.set(mkey, disk, ttl=max(ttl, 60))
-        if now - disk.get("saved_at", 0) <= ttl:
+        ended = _copy_behind_since_saved(disk["series"], tf, disk.get("saved_at"), now)
+        if now - disk.get("saved_at", 0) <= ttl and not ended:
             return disk["series"], "index-disk"
-        if _cold_stale(tf, disk.get("saved_at"), now):
-            fresh = _refresh_in_request(sym, tf)
+        if ended or _cold_stale(tf, disk.get("saved_at"), now):
+            fresh = _refresh_in_request(sym, tf, disk.get("saved_at"))
             if fresh:
                 _stored()
                 return fresh, "index-yf"

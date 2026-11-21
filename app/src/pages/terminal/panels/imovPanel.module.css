@@ -46,6 +46,10 @@
 .filter {
   display: inline-flex;
   align-items: center;
+  /* Never wider than the toolbar: the theme picker is as wide as its longest theme name and ran
+     64px past a 340px screen (2026-11-20, part 2). */
+  min-width: 0;
+  max-width: 100%;
   gap: var(--space-xs);
   color: var(--text-muted);
   font-size: var(--text-xs);
@@ -53,6 +57,7 @@
 
 .filter select {
   font: inherit;
+  min-width: 0;
   max-width: 22em;
   padding: 1px var(--space-xs);
   border: 1px solid var(--border);

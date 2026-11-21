@@ -1,0 +1,105 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "objects unit A1: a function parameter that sizes a history offset, passed a value read per bar, is read per bar in the copy compiled for its call site (pineRuntimeFrontend.js::seriesParamOf), from a strict ring of Pine's 5,000; every dynamic read in that copy stops by name on a negative or fractional offset; an argument built with `/` is refused (DY1).",
+ "mutants": [
+  {
+   "id": "A1-1",
+   "mutant": "the per-bar copy is never compiled (the old refusal stands)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if (!seriesOk(culprit, held)) throw unfixed(held)",
+   "to": "      throw unfixed(held)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
+   "expectRed": "the close `n` bars back, every bar"
+  },
+  {
+   "id": "A1-2",
+   "mutant": "a caller's own parameter is no longer left to its call site (the C35 chain is skipped)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if (blockedParam && !blockedSeries) return false",
+   "to": "      if (false) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
+   "expectRed": "a caller's own parameter is still fixed by ITS call site"
+  },
+  {
+   "id": "A1-3",
+   "mutant": "an argument built with `/` is read per bar instead of refused (DY1)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (div !== null) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
+   "expectRed": "an argument built with `/` is refused by name"
+  },
+  {
+   "id": "A1-4",
+   "mutant": "the ring a per-bar offset reads is not marked strict",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (strict) fn.historyLocals[h].strict = true",
+   "to": "    if (false) fn.historyLocals[h].strict = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
+   "expectRed": "a negative offset read on a bar STOPS the run by name"
+  },
+  {
+   "id": "A1-5",
+   "mutant": "the lowering drops the strict ring flag",
+   "file": "app/src/components/chart/engine/runtime/lowerIr.js",
+   "from": "      ...(h.strict === true ? { strict: true } : {}),",
+   "to": "      ...({}),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
+   "expectRed": "a fractional offset read on a bar STOPS the run by name"
+  },
+  {
+   "id": "A1-6",
+   "mutant": "the VM answers `na` for a negative or fractional read of a strict ring",
+   "file": "app/src/components/chart/engine/runtime/vm.js",
+   "from": "            if (histPlan[historyBase + a].strict === true) {",
+   "to": "            if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
+   "expectRed": "the function's own series (the strict ring)"
+  },
+  {
+   "id": "A1-7",
+   "mutant": "a chart-series read inside the per-bar copy is not strict",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          return frameSeries && owner !== null ? { ...hd, strict: true } : hd",
+   "to": "          return hd",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
+   "expectRed": "a STRICT column read, the real history"
+  },
+  {
+   "id": "A1-8",
+   "mutant": "the VM answers `na` for a negative or fractional strict column read",
+   "file": "app/src/components/chart/engine/runtime/vm.js",
+   "from": "          if (b < 0 && (!Number.isInteger(n) || n < 0)) {",
+   "to": "          if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
+   "expectRed": "a chart series inside the copy (the strict column read, read first)"
+  },
+  {
+   "id": "A1-9",
+   "mutant": "the ring is sized below Pine's 5,000 when nothing proves the top",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        ? Math.ceil(r.hi) : MAX_BARS_BACK_CEILING",
+   "to": "        ? Math.ceil(r.hi) : 50",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
+   "expectRed": "past Pine's 5,000-bar buffer the run stops by name"
+  },
+  {
+   "id": "A1-10",
+   "mutant": "a per-bar parameter's range is taken as bounded (any number, `na` included, is what it may hold)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (frameSeries.has(s)) return { lo: -Infinity, hi: Infinity, na: true, series: true }",
+   "to": "        if (frameSeries.has(s)) return { lo: 0, hi: 3, series: true }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
+   "expectRed": "the close `n` bars back, every bar"
+  },
+  {
+   "id": "A1-11",
+   "mutant": "a main-body block local bound once no longer sizes an offset by its expression's range",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (def && def.scope && def.scope !== root) return offsetRange(def.expr, at, def.scope, depth + 1, refine)",
+   "to": "        if (false) return offsetRange(def.expr, at, def.scope, depth + 1, refine)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
+   "expectRed": "in a block (a slot: it reads one)"
+  }
+ ]
+}

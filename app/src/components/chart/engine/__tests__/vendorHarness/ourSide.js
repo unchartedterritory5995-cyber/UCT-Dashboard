@@ -67,7 +67,7 @@ import { instanceDocumentForFetch } from '../../symbolInputs.js'
 // read back off the columns (`strategyRecord.js::runtimeStrategyOf`), never re-run here.
 import { isStrategyWindowDefinition } from '../../strategyWindow'
 import { runtimeStrategyOf } from '../../runtime/strategyRecord.js'
-import { historyWindowBarsOf } from '../../runtime/__tests__/strategyArmed.js'
+import { chartStrategyWindowOf } from '../../runtime/__tests__/strategyArmed.js'
 
 // ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
 //
@@ -91,6 +91,19 @@ let otherIndex = null
 let intradayIndex = null
 const REGULAR_SESSION = '0930-1600'
 
+/** ⭐⭐ THE ONE SESSION PARTITION of every INTRADAY supply built from committed captures: the chart's own
+ *  lower-timeframe bars (`intradayIndex`) and another symbol's (`otherIndex`). `regular` when the capture recorded
+ *  `symbol.session` 0930-1600, else `other`. Two partitions are never merged; a supply takes `regular` when one is
+ *  held, else `other` (`sessionPartPick`).
+ *  ⚰️ 2026-11-21 (#2134 audit): `otherIndex` merged every capture of a listing at an intraday timeframe by bar time,
+ *  whatever its session: SPY 60's 13 extended captures (bars on the clock hour, 04:00-20:00) with its 7 regular ones
+ *  (the 09:30 grid), and RDDT 5/15/60/240 likewise. No graded capture read such a supply at e91 (measured, both
+ *  lanes); `otherSymbolSession.test.js` keeps it so.
+ *  ⚠️ Which session TradingView serves ANOTHER symbol on an extended-hours chart is unmeasured: the supply names the
+ *  partition it used and every capture it set aside. */
+function sessionPartOf(cap) { return cap && cap.symbol && cap.symbol.session === REGULAR_SESSION ? 'regular' : 'other' }
+function sessionPartPick(slot) { return slot.regular ? 'regular' : slot.other ? 'other' : null }
+
 /** `TICKER|tf` → `{bars, exchange, file, last}` over the committed native
  *  captures (receipt-verified). Where two captures hold one listing at one
  *  timeframe, the one reaching the later bar wins (then the deeper one). */
@@ -98,6 +111,7 @@ function otherCaptureIndex() {
   if (otherIndex) return otherIndex
   otherIndex = new Map()
   intradayIndex = new Map()
+  const otherParts = new Map() // `TICKER|minutes|part` → an intraday union of ONE session partition
   if (!fs.existsSync(OTHER_CAPTURE_DIR)) return otherIndex
   for (const name of fs.readdirSync(OTHER_CAPTURE_DIR).sort()) {
     if (!name.endsWith('.json')) continue
@@ -110,8 +124,9 @@ function otherCaptureIndex() {
     const key = `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`
     const bars = toProductBars(cap)
     const last = bars.length ? String(bars[bars.length - 1].t) : ''
-    if (/^[0-9]+$/.test(tfCodeOf(cap.timeframe))) {
-      const session = cap.symbol && cap.symbol.session === REGULAR_SESSION ? 'regular' : 'other'
+    const intraday = /^[0-9]+$/.test(tfCodeOf(cap.timeframe))
+    if (intraday) {
+      const session = sessionPartOf(cap)
       if (!intradayIndex.has(key)) intradayIndex.set(key, { regular: null, other: null })
       const slot = intradayIndex.get(key)
       if (!slot[session]) slot[session] = { byT: new Map(), files: [] }
@@ -128,9 +143,12 @@ function otherCaptureIndex() {
     // older one instead of replacing it (which left C26's 632 RDDT dates short —
     // red at base `bcac5dd34`). A date two captures share keeps the capture
     // reaching the later bar (its newest bar may have closed since).
-    const held = otherIndex.get(key)
+    // ⭐⭐ (2026-11-21) at an INTRADAY timeframe the union is per session partition (`sessionPartOf`), never across
+    const into = intraday ? otherParts : otherIndex
+    const ikey = intraday ? `${key}|${sessionPartOf(cap)}` : key
+    const held = into.get(ikey)
     if (!held) {
-      otherIndex.set(key, { byT: new Map(bars.map((b) => [String(b.t), { b, last }])),
+      into.set(ikey, { byT: new Map(bars.map((b) => [String(b.t), { b, last }])),
         exchange: storeExchangeOfCapture(cap, exchange), files: [name], last })
       continue
     }
@@ -141,6 +159,21 @@ function otherCaptureIndex() {
     }
     held.files.push(name)
     if (last > held.last) held.last = last
+  }
+  // each intraday listing's supply is ONE partition (`sessionPartPick`); the other one is named, never merged
+  const slots = new Map()
+  for (const [pkey, entry] of otherParts) {
+    const cut = pkey.lastIndexOf('|')
+    const key = pkey.slice(0, cut)
+    if (!slots.has(key)) slots.set(key, { regular: null, other: null })
+    slots.get(key)[pkey.slice(cut + 1)] = entry
+  }
+  for (const [key, slot] of slots) {
+    const part = sessionPartPick(slot)
+    const entry = slot[part]
+    entry.session = part
+    entry.setAside = part === 'regular' && slot.other ? [...slot.other.files] : []
+    otherIndex.set(key, entry)
   }
   for (const entry of otherIndex.values()) {
     entry.bars = [...entry.byT.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, v]) => v.b)
@@ -168,7 +201,7 @@ function lowerTfSupply(def, capture) {
   for (const [key, slot] of intradayIndex) {
     const [t, tf] = key.split('|')
     if (t !== String(ticker).toUpperCase()) continue
-    const pick = slot.regular || slot.other
+    const pick = slot[sessionPartPick(slot)]
     if (!pick.bars) {
       pick.bars = [...pick.byT.entries()].sort(([a], [b]) => a - b).map(([, v]) => v.b)
     }
@@ -403,6 +436,9 @@ function recordedClassificationOf(capture) {
   return { fields, from }
 }
 
+/** The committed-capture index another symbol's bars are supplied from (`otherSymbolSupply`), for its rails. */
+export function __otherCaptureIndexForTests() { return otherCaptureIndex() }
+
 /** The secondary supply a capture's script asks for, and the notes naming what
  *  could not be supplied. (Exported for RS RATING L11's rail, which grades a probe's daily reads
  *  below a weekly chart on the runtime lane with this same supply.) */
@@ -471,6 +507,10 @@ export function otherSymbolSupply(def, capture) {
       // ⭐ C29 — keyed as the product keys it: our store's ticker (`BRK-B`).
       secondary.set(storeTickerOf(ticker), { bars: hit.bars, status: 'available', exchange: hit.exchange })
       for (const f of hit.files) notes.push(`other symbol ${ticker}: bars from the committed capture ${f}`)
+      if (hit.setAside && hit.setAside.length) {
+        notes.push(`other symbol ${ticker}: the ${hit.session}-session captures only; ${hit.setAside.join(', ')} `
+          + 'hold another session and are never merged with them')
+      }
     } else {
       secondary.set(storeTickerOf(ticker), { bars: [], status: 'no_data' })
       notes.push(`other symbol ${ticker}: no committed capture of ${ticker} at ${capture.timeframe} — `
@@ -1168,6 +1208,7 @@ function drawnColours(def, bars, ctx, inputs = undefined) {
     // ⭐⭐ (2026-11-17) — a broker document's window, as StockChart hands the binder `strategyHistoryWindow`
     // (absent for every other document, whose ctx carries none)
     ...(ctx.historyWindowBars != null ? { historyWindowBars: ctx.historyWindowBars } : {}),
+    ...(ctx.listingDepthBars != null ? { listingDepthBars: ctx.listingDepthBars } : {}),
     adjustTime: (t) => t,
     applyData: (series, data) => series.setData(data),
     plan: { fresh: true },
@@ -1696,7 +1737,9 @@ function runOurSideOnTheParityClock(capture) {
     // server's `bars_window.HISTORY_WINDOW_BARS` (what `GET /api/pine/history-window` answers a member's tab);
     // every other document is handed nothing, so an indicator's ctx is unchanged.
     const strategyDoc = isStrategyWindowDefinition(def)
-    if (strategyDoc) ctx.historyWindowBars = historyWindowBarsOf(path.resolve(process.cwd(), '..'))
+    // ⭐⭐ (2026-11-19, the strategy-only daily window) as the endpoint answers it today: the strategy window, and the
+    // shared window as the depth a run from the listing is served at without [B-START-DEEP]
+    if (strategyDoc) Object.assign(ctx, chartStrategyWindowOf(path.resolve(process.cwd(), '..')))
     // ⭐ C26 — another symbol's bars, from committed captures only.
     // ⭐ SETTINGS PARITY (symbol): the supply the capture's own symbol choice asks for (the chart fetches
     // the instance's chosen comparison symbol, `symbolInputs.instanceDocumentForFetch`)

@@ -5,6 +5,8 @@ WHY (2026-11-16, GitHub Pro rollout): every session's heavy test run queues on O
 public, so standard runners are free and the account now runs 40 jobs at once. This sends a session's tests there.
 
 HOW (what the tool does, in order):
+  0. waits for CI room (see the admission section): while the deploy gate has a job waiting for a runner, the
+     request waits on this PC instead of in GitHub's queue; capped (--max-wait-min), fails open, before any push;
   1. tests the COMMITTED state of HEAD (uncommitted edits are NOT included; the tool says so if the tree is dirty);
   2. pushes HEAD to `refs/remote-tests/<id>`: a ref OUTSIDE refs/heads, so no push-triggered workflow fires and
      nothing deploys. The repo is PUBLIC, so the commit is readable like any branch push (push protection still runs);
@@ -31,6 +33,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -38,12 +41,15 @@ import sys
 import tempfile
 import time
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 WORKFLOW = "remote-tests.yml"
 REF_PREFIX = "refs/remote-tests/"
 #: at most 6 shards per request, and the workflow runs at most 4 of them at once (`max-parallel`): the 40-job pool is
-#: shared with the master deploy gate (14 jobs), and session runs must not starve deploys.
+#: shared with the master deploy gate (read the gate's own job list; this comment does not restate its size), and
+#: session runs must not starve deploys.
 MAX_SHARDS = 6
 #: a path or a pytest node id: no spaces, no shell metacharacters. (What keeps a path from being an OPTION is the
 #: required `PYTEST_ROOTS` / `src/` prefix in validate(), the one rule for that; a second leading-character rule here
@@ -403,6 +409,184 @@ def quota_line(core: dict | None) -> str:
     return f"{core.get('remaining')}/{core.get('limit')} left, resets {reset}"
 
 
+# ---- admission: wait for room before enqueueing (2026-11-20) ----------------------------------------------------------
+#: ⚰️ 2026-11-20 the account's 40-job pool was full for hours: master deploy gate jobs waited up to 21.6 min for a
+#: runner (run 44857170200: a ~16 min gate took 44) while session runs sat in the same queue. GitHub has no job
+#: priority, so the only lever is not to enqueue: before pushing its ref this tool waits while the gate has a job
+#: waiting for a runner (rule A), or while MAX_REMOTE_IN_FLIGHT remote runs are going and other runs are queued
+#: (rule B). It fails open and is capped (wait_for_room). Plan: docs/superpowers/plans/2026-11-20-remote-tests-admission.md
+#: each remote run holds at most 4 vitest runners (`max-parallel`) plus pytest, so 4 runs hold at most 20 of 40 slots
+MAX_REMOTE_IN_FLIGHT = 4
+#: a run created longer ago than this is ignored: GitHub keeps 11 runs from 2026-11-11 "queued" with 0 jobs (cancel
+#: answers 409, delete 403), one a master deploy gate run, which would otherwise hold rule A shut forever
+FRESH_RUN_S = 6 * 3600
+#: (review 2026-11-20) a gate run that reads `queued` with NO job listed counts as waiting only this long after its
+#: last change: a real one lists its jobs seconds after it leaves `pending`; a FRESH ghost like 11/11's must not hold
+#: every session's request for the whole cap
+GATE_NO_JOBS_GRACE_S = 600
+#: (review 2026-11-20) rule B's "the pool is full" signal reads only runs queued this recently: a full pool always has
+#: newer queued runs, and a fresh ghost of ANY workflow must not read as a full pool
+QUEUED_SIGNAL_S = 2 * 3600
+#: (review 2026-11-20) below this many REST requests left in the shared hour, stop checking and dispatch: 11/19 the
+#: 5,000/h quota hit 0 and blocked every session's merges, the deploys this wait exists to speed up
+ADMISSION_QUOTA_FLOOR = 500
+
+
+def _epoch(iso: str | None) -> float | None:
+    """GitHub's `2026-11-21T03:00:00Z` -> epoch seconds; None when missing or unparseable."""
+    try:
+        return datetime.fromisoformat(str(iso).replace("Z", "+00:00")).timestamp() if iso else None
+    except ValueError:
+        return None
+
+
+def _fresh(runs: list[dict], now: float, window_s: float = FRESH_RUN_S) -> list[dict]:
+    out = []
+    for r in runs or []:
+        t = _epoch(r.get("created_at"))
+        if t is not None and now - t <= window_s:
+            out.append(r)
+    return out
+
+
+def _live_gate_runs(gate_runs: list[dict], now: float) -> list[dict]:
+    """The gate runs rule A judges, and whose jobs read_load fetches: ONE filter for both, so they cannot drift."""
+    return [r for r in _fresh(gate_runs, now) if r.get("status") in ("queued", "in_progress")]
+
+
+def _gate_waiting(gate_runs: list[dict], gate_jobs: dict[str, list[dict]], now: float) -> str | None:
+    """Rule A's reason, or None. Decided on the JOBS (live 2026-11-21 03:51Z, run 44861476002: the run read `queued`
+    while 5 of its jobs ran and 7 waited); jobs are created only once their `needs:` finish, so a listed `queued` job
+    IS waiting for a runner. The run's label decides only when no job is listed yet, and only while the run is young
+    (GATE_NO_JOBS_GRACE_S). Jobs never fetched are unknown: never a reason to wait."""
+    for run in _live_gate_runs(gate_runs, now):
+        jobs = gate_jobs.get(str(run.get("id")))
+        if jobs is None:
+            continue
+        waiting = sum(1 for j in jobs if j.get("status") == "queued")
+        if waiting:
+            return f"deploy gate run {run.get('id')} has {waiting} job(s) waiting for a runner"
+        changed = _epoch(run.get("updated_at")) or _epoch(run.get("created_at"))
+        young = changed is not None and now - changed <= GATE_NO_JOBS_GRACE_S
+        if run.get("status") == "queued" and not jobs and young:
+            return f"deploy gate run {run.get('id')} is queued"
+    return None
+
+
+def _remote_in_flight(remote_runs: list[dict], now: float) -> int:
+    return sum(1 for r in _fresh(remote_runs, now) if r.get("status") in ("queued", "in_progress"))
+
+
+def room_to_dispatch(gate_runs: list[dict], gate_jobs: dict[str, list[dict]], remote_runs: list[dict],
+                     queued_runs: list[dict], now: float) -> tuple[bool, str]:
+    """(may we enqueue now, why). A: a live deploy gate run has a job waiting for a runner (_gate_waiting).
+    B: MAX_REMOTE_IN_FLIGHT fresh remote runs are queued or in progress AND some run was queued within
+    QUEUED_SIGNAL_S (the pool is full). `pending` gate runs wait on the previous gate, not on a runner."""
+    why = _gate_waiting(gate_runs, gate_jobs, now)
+    if why:
+        return False, why
+    in_flight = _remote_in_flight(remote_runs, now)
+    queued = [r for r in _fresh(queued_runs, now, QUEUED_SIGNAL_S) if r.get("status") == "queued"]
+    if in_flight >= MAX_REMOTE_IN_FLIGHT and queued:
+        return False, f"{in_flight} remote runs in flight and {len(queued)} run(s) queued"
+    return True, "room"
+
+
+GATE_WORKFLOW = "master-deploy-gate.yml"
+
+
+@dataclass
+class Load:
+    gate_runs: list[dict]
+    gate_jobs: dict[str, list[dict]]
+    remote_runs: list[dict]
+    queued_runs: list[dict]
+
+
+def read_load(api: GitHubApi) -> Load | None:
+    """What room_to_dispatch needs, read LAZILY in conditional requests (a 304 is free), stopping as soon as the
+    answer is known (review 2026-11-20: quota): the gate's recent runs and the jobs of a live one (rule A says wait:
+    stop, 1-2 requests); the recent remote runs (fewer than MAX_REMOTE_IN_FLIGHT in flight: rule B cannot fire,
+    stop); only then the queued runs. At most 4. None on ANY answer it cannot use: the caller then dispatches (fail
+    open), and a rate limit is never slept on here."""
+    def get(path: str, key: str) -> list | None:
+        status, data = api.request("GET", path, conditional=True, wait_out_limits=False)
+        if status != 200 or not isinstance(data, dict) or not isinstance(data.get(key), list):
+            return None
+        return data[key]
+
+    try:
+        gate_runs = get(f"{_REPO}/actions/workflows/{GATE_WORKFLOW}/runs?per_page=10", "workflow_runs")
+        if gate_runs is None:
+            return None
+        gate_jobs: dict[str, list[dict]] = {}
+        for run in _live_gate_runs(gate_runs, api.now()):
+            jobs = get(f"{_REPO}/actions/runs/{run.get('id')}/jobs?per_page=100", "jobs")
+            if jobs is None:
+                return None
+            gate_jobs[str(run.get("id"))] = jobs
+        if _gate_waiting(gate_runs, gate_jobs, api.now()):
+            return Load(gate_runs, gate_jobs, [], [])
+        remote_runs = get(f"{_REPO}/actions/workflows/{WORKFLOW}/runs?per_page=50", "workflow_runs")
+        if remote_runs is None:
+            return None
+        if _remote_in_flight(remote_runs, api.now()) < MAX_REMOTE_IN_FLIGHT:
+            return Load(gate_runs, gate_jobs, remote_runs, [])
+        queued_runs = get(f"{_REPO}/actions/runs?status=queued&per_page=100", "workflow_runs")
+        if queued_runs is None:
+            return None
+    except (RuntimeError, OSError):
+        return None
+    return Load(gate_runs, gate_jobs, remote_runs, queued_runs)
+
+
+#: (review 2026-11-20: quota) the wait backs off like poll_interval: 60 s for 5 min, 90 s to 15 min, 120 s after
+ROOM_POLL_STEPS = ((300, 60), (900, 90))
+ROOM_POLL_LATE_S = 120
+#: up to this much extra per poll, so sessions waiting at once do not all re-check (and dispatch) in lockstep
+ROOM_JITTER_S = 15
+
+
+def room_poll_s(elapsed_s: float) -> int:
+    for until, every in ROOM_POLL_STEPS:
+        if elapsed_s < until:
+            return every
+    return ROOM_POLL_LATE_S
+
+
+def wait_for_room(api: GitHubApi, max_wait_s: float, log=print, rand=random.random) -> str:
+    """Wait until room_to_dispatch says yes. 'room', 'skipped' (max_wait_s <= 0: no request at all), 'unreadable'
+    (fail open: any error reading the load dispatches now), 'quota-low' (the shared API quota is below
+    ADMISSION_QUOTA_FLOOR: dispatch rather than spend it) or 'waited-out' (the cap: the request is never dropped).
+    Called BEFORE the ref is pushed, so a wait that is stopped leaves no ref and no run behind."""
+    if max_wait_s <= 0:
+        return "skipped"
+    start, last = api.now(), ""
+    while True:
+        if api.remaining is not None and api.remaining < ADMISSION_QUOTA_FLOOR:
+            log(f"remote tests: only {api.remaining} API requests left this hour; dispatching without waiting")
+            return "quota-low"
+        try:
+            load = read_load(api)
+            if load is None:
+                log("remote tests: CI load unreadable; dispatching now")
+                return "unreadable"
+            ok, why = room_to_dispatch(load.gate_runs, load.gate_jobs, load.remote_runs, load.queued_runs, api.now())
+        except Exception as e:  # noqa: BLE001 -- fail open: a bug here must never hold a session's tests back
+            log(f"remote tests: CI load check failed ({type(e).__name__}: {e}); dispatching now")
+            return "unreadable"
+        if ok:
+            return "room"
+        waited = api.now() - start
+        if why != last:
+            log(f"remote tests: waiting for CI room ({why}); {waited / 60:.0f} of up to {max_wait_s / 60:.0f} min")
+            last = why
+        if waited >= max_wait_s:
+            log(f"remote tests: waited {waited / 60:.0f} min for room; dispatching anyway")
+            return "waited-out"
+        api.sleep(room_poll_s(waited) + rand() * ROOM_JITTER_S)
+
+
 _REPO = "repos/{owner}/{repo}"
 
 
@@ -565,6 +749,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--label", default="", help="free text in the run name")
     ap.add_argument("--keep-ref", action="store_true", help="do not delete refs/remote-tests/<id> afterwards")
     ap.add_argument("--timeout-min", type=int, default=60)
+    ap.add_argument("--max-wait-min", type=int, default=30,
+                    help="wait up to N min for CI room before dispatching (0 = do not wait; production incidents only)")
     ap.add_argument("--env", action="append", default=[], metavar="KEY=VALUE",
                     help=f"an allowlisted measurement variable for the tests (repeatable; *_OUT must be under {OUT_DIR}/)")
     ap.add_argument("--download", metavar="DIR", help=f"copy what the tests wrote under {OUT_DIR}/ into DIR")
@@ -586,6 +772,8 @@ def main(argv: list[str] | None = None) -> int:
 
     api = GitHubApi()
     print(f"remote tests: GitHub API {quota_line(api.quota())} (shared by every session on this account)")
+    # BEFORE the push (S1): a wait that is stopped leaves no ref and no run behind
+    print(f"remote tests: admission {wait_for_room(api, a.max_wait_min * 60)}")
     print(f"remote tests: pushing {sha[:10]} to {ref} (no workflow triggers on this ref)")
     state = RunState()
     try:

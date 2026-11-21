@@ -1,0 +1,37 @@
+//@version=6
+indicator("UCTPROBE_VW_BI_STR_TONUMBER_2", overlay = false)
+
+// STR-TONUMBER (2026-11-20). WHAT `str.tonumber` DOES WITH THE BLANKS AND EDGES Q-BI-STN DID NOT ASK.
+//
+// Graded (vw-bi-str-tonumber-spy-1d-2026-11-19, every row, every bar): " 3" and "3 " are 3, "1e3" / "1E-2" are
+// na, "+2" is 2, ".5" / "5." / "007" are numbers, and "", "abc", "12abc", "1,000", "1_000", "0x10", "NaN", "inf"
+// are na. The engine now drops the SPACES around the text; a tab, a line break or another blank at either end
+// stops the run by name, because nothing measured says whether TradingView drops those too. Each row is one
+// literal; na reads -999. T13 / T14 hold a no-break space (U+00A0) and a full-width digit (U+FF15) written as
+// the characters themselves.
+//
+// CAPTURE: AMEX:SPY 1D (>= 50 bars). Inputs at defaults.
+
+v(s) => na(str.tonumber(s)) ? -999.0 : str.tonumber(s)
+
+plot(bar_index, "T00_bar_index_CONTROL")
+plot(v("  5  "), "T01_two_spaces_each_side")
+plot(v("\t5"), "T02_lead_tab")
+plot(v("5\t"), "T03_trail_tab")
+plot(v("\n5"), "T04_lead_newline")
+plot(v("5\n"), "T05_trail_newline")
+plot(v("1 2"), "T06_inner_space")
+plot(v("- 2"), "T07_sign_then_space")
+plot(v("+-2"), "T08_two_signs")
+plot(v("-.5"), "T09_minus_lead_dot")
+plot(v("+5."), "T10_plus_trail_dot")
+plot(v("1.2.3"), "T11_two_points")
+plot(v("."), "T12_point_alone")
+plot(v(" 5"), "T13_lead_no_break_space")
+plot(v("５"), "T14_full_width_digit")
+plot(v("1e"), "T15_e_without_digits")
+plot(v("-"), "T16_sign_alone")
+plot(v(" "), "T17_space_alone")
+plot(v("-0") == 0 ? (1 / v("-0") < 0 ? -1 : 1) : -999, "T18_minus_zero_sign")
+plot(v("1.50"), "T19_trailing_zero")
+plot(v("0.1"), "T20_tenth")

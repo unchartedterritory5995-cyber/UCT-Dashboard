@@ -15,6 +15,13 @@
 //     `runtime:request-lag`, with a sentence that says the newest bars have not arrived;
 //   * a hole inside the series' history keeps its rule (refused, no `knownFrom`), a depth gap its `knownFrom`, and no
 //     refusal carries another class's sentence.
+// ⭐⭐ (e91, coordinator ruling 2026-11-20 (2b), option A) — THE WAIT BECAME A CUT. ⚰️ CAPTURED (production e88 in session,
+// Fred RS on RDDT 5m): /api/bars/SPX answered 0-2 bars behind, every reply WAITED, and a freshly opened pane stayed BLANK
+// all session (a wait keeps a picture only where there is one). Now the run is CUT at the first bar past the series'
+// newest held bar: the values are drawn up to it and the bars from it withheld by name (the strip's row); the DRAWINGS
+// wait, named, until the series lands (never on the cut bar: TradingView draws a last-bar label on the TRUE last bar).
+// A lag past the bound is cut the same way, named `runtime:request-lag`: never blank. The e85 rails below that asserted
+// the whole-run wait now assert the cut; the whole-run wait is reproduced with the cut switched off.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -30,7 +37,10 @@ import {
 } from './runtime/runtimeColumns'
 import {
   runtimeRequestSupply, tailLagIntervals, REQUEST_GUARD, REQUEST_LAG_GUARD, TAIL_LAG_BOUND_INTERVALS,
+  tailCutSentence, __tailCutOffForTests,
 } from './runtime/requestSupply'
+import { runtimeOvernightOf } from './runtime/overnightTail.js'
+import { chartClockReport } from './astColumns'
 import { buildRuntimeIr } from './ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from './runtime/lowerIr.js'
 import { workerRunner, resetRuntimeAsync } from './runtime/runtimeAsync'
@@ -94,26 +104,43 @@ beforeEach(() => {
 })
 afterEach(() => {
   __newestTailWaitOffForTests(false)
+  __tailCutOffForTests(false)
   setRuntimeRunner(null); resetRuntimeAsync(); setRunHalfObjectEvidence([]); setRuntimeKillList([])
   resetRuntimeSessions(); resetRuntimeLedgers(); clearSecondaryBars(); resetRuntimeErrorNotices(); resetObjectRenderDrops()
   vi.unstubAllEnvs(); vi.unstubAllGlobals()
 })
 
-describe('the supply: a live-tail lag is a WAIT, and each refusal names its own cause', () => {
-  it('⚰️ THE CAPTURED CASE: a chart deeper than our SPX, SPX two bars behind the newest -> PENDING (was: refused, depth sentence)', () => {
+/** the chart's first bar past SPX's newest held bar (`hh:mm` ET of D2): where the run is cut */
+const cutOf = (rows, hh, mm) => rows.findIndex((b) => b.t > ET(D2, hh, mm))
+/** a supply's answer is a TAIL CUT at `at`: within the bound (pending) or past it (the lag's name) */
+const expectTailCut = (sup, at, pending) => {
+  expect(sup.pending).toBe(false)
+  expect(sup.refusal.cutAt).toBe(at)
+  expect(sup.refusal.series).toEqual(['SPX'])
+  expect(sup.refusal.tailWait).toBe(true)
+  expect(sup.refusal.tailPending).toBe(pending)
+  expect(sup.refusal.knownFrom).toBeUndefined()
+  expect(sup.refusal.guard).toBe(pending ? REQUEST_GUARD : REQUEST_LAG_GUARD)
+}
+
+describe('the supply: a live-tail lag is a CUT (e91 (2b)), and each refusal names its own cause', () => {
+  it('⚰️ THE CAPTURED CASE: a chart deeper than our SPX, SPX two bars behind the newest -> CUT at the first bar past it, pending (e85: a whole-run wait)', () => {
+    const sup = supplyOf(DEEP, spxThrough(13, 40))
+    expectTailCut(sup, cutOf(DEEP, 13, 40), true)
+    expect(sup.refusal.message).toBe(tailCutSentence(['SPX']))
+    for (const re of Object.values(SAYS)) expect(sup.refusal.message).not.toMatch(re)
+  })
+  it('⚰️ REPRODUCED, the cut switched off: the same lag is a whole-run WAIT (what left a freshly opened pane blank)', () => {
+    __tailCutOffForTests(true)
     const sup = supplyOf(DEEP, spxThrough(13, 40))
     expect(sup.refusal).toBeNull()
     expect(sup.pending).toBe(true)
     expect(sup.supply).toBeNull()
     expect(sup.waiting.series).toEqual(['SPX'])
     expect(sup.waiting.sentence).toMatch(/`SPX`, whose newest bars have not arrived yet/)
-    for (const re of Object.values(SAYS)) expect(sup.waiting.sentence).not.toMatch(re)
   })
-  it('the same lag on a chart with no depth gap: PENDING', () => {
-    const sup = supplyOf(SHALLOW, spxThrough(13, 40))
-    expect(sup.refusal).toBeNull()
-    expect(sup.pending).toBe(true)
-    expect(sup.waiting.series).toEqual(['SPX'])
+  it('the same lag on a chart with no depth gap: CUT, pending', () => {
+    expectTailCut(supplyOf(SHALLOW, spxThrough(13, 40)), cutOf(SHALLOW, 13, 40), true)
   })
   it('⛔ CONTROL: SPX caught up, the depth gap alone -> refused with the DEPTH sentence and its knownFrom (unchanged)', () => {
     const sup = supplyOf(DEEP, spxThrough(13, 50))
@@ -122,9 +149,10 @@ describe('the supply: a live-tail lag is a WAIT, and each refusal names its own 
     expect(sup.refusal.knownFrom).toBe(DEPTH_STARTS_AT)
     expect(sup.refusal.message).toMatch(SAYS.depth)
   })
-  it(`a lag past ${TAIL_LAG_BOUND_INTERVALS} bar intervals -> REFUSED by name, \`runtime:request-lag\`, never the depth sentence`, () => {
+  it(`a lag past ${TAIL_LAG_BOUND_INTERVALS} bar intervals -> CUT by name, \`runtime:request-lag\`, never the depth sentence`, () => {
     for (const rows of [DEEP, SHALLOW]) {
       const sup = supplyOf(rows, spxThrough(13, 35))
+      expectTailCut(sup, cutOf(rows, 13, 35), false)
       expect(sup.pending).toBe(false)
       expect(sup.refusal.guard).toBe(REQUEST_LAG_GUARD)
       expect(sup.refusal.knownFrom).toBeUndefined()
@@ -133,9 +161,9 @@ describe('the supply: a live-tail lag is a WAIT, and each refusal names its own 
       expect(sup.refusal.message).not.toMatch(SAYS.hole)
     }
   })
-  it('a lag on a chart whose newest bar is FINISHED is no wait: refused by name, `runtime:request-lag`', () => {
+  it('a lag on a chart whose newest bar is FINISHED is no wait: cut by name, `runtime:request-lag`', () => {
     const sup = supplyOf(SHALLOW, spxThrough(13, 40), { newestBarIsForming: false })
-    expect(sup.pending).toBe(false)
+    expectTailCut(sup, cutOf(SHALLOW, 13, 40), false)
     expect(sup.refusal.guard).toBe(REQUEST_LAG_GUARD)
     expect(sup.refusal.message).toMatch(/before this chart's finished newest bar/)
   })
@@ -162,8 +190,7 @@ describe('the supply: a live-tail lag is a WAIT, and each refusal names its own 
     const settled = new Map([['SPX', { bars: spxThrough(13, 40), status: 'available' }],
       ['SPX@D', { bars: SPX_D, status: 'available', newestBarIsForming: false }]])
     const sup = runtimeRequestSupply(requestsOf(SRC, SHALLOW), SHALLOW, ctx5(settled))
-    expect(sup.refusal).toBeNull()
-    expect(sup.pending).toBe(true)
+    expectTailCut(sup, cutOf(SHALLOW, 13, 40), true)
   })
   it('tailLagIntervals: the chart\'s own clock on an intraday chart, its bars on a daily one', () => {
     const rows = [{ t: 1000 }, { t: 1300 }, { t: 1600 }]
@@ -196,10 +223,10 @@ describe('⛔⛔ ATTRIBUTION: every refusal class says its own cause and no othe
       expect(Number.isInteger(sup.refusal.knownFrom), 'only a depth gap alone carries knownFrom').toBe(c.says === 'depth')
     })
   }
-  it('and a WAIT says none of them', () => {
+  it('and a pending CUT says none of them', () => {
     const sup = supplyOf(DEEP, spxThrough(13, 40))
-    expect(sup.refusal).toBeNull()
-    for (const re of Object.values(SAYS)) expect(sup.waiting.sentence).not.toMatch(re)
+    expect(sup.refusal.tailPending).toBe(true)
+    for (const re of Object.values(SAYS)) expect(sup.refusal.message).not.toMatch(re)
   })
 })
 
@@ -242,7 +269,8 @@ describe('the lane: the newest bar alone on the tail, in a run that draws (the e
     expect(obj.guard).toBe(REQUEST_LAG_GUARD)
     expect(obj.reason).toMatch(SAYS.lag)
   })
-  it('the whole run waits on a two-bar lag: a pending throw, named, crossing as plain fields', () => {
+  it('⚰️ REPRODUCED, the cut switched off: the whole run waits on a two-bar lag (a pending throw: no values at all)', () => {
+    __tailCutOffForTests(true)
     let err = null
     try { run(spxThrough(13, 40)) } catch (e) { err = e }
     expect(err).not.toBeNull()
@@ -250,6 +278,85 @@ describe('the lane: the newest bar alone on the tail, in a run that draws (the e
     expect(err.waitingFor).toBe('SPX')
     expect(err.guard).toBe(REQUEST_GUARD)
     expect(String(err.message)).not.toMatch(SAYS.depth)
+  })
+})
+
+// ── ⭐⭐ (e91, coordinator ruling (2b), option A) THE CUT IN THE LANE ─────────────────────────────────────────────────
+const plainDef = { ...runDef(SRC), id: 'u_tl-plain', compute: { ...runDef(SRC).compute, fn: 'runtime:u_tl-plain', objects: undefined } }
+const runOf = (def, rows, intraday, over = {}) => computeRuntimeColumns(def, rows, ctx5(secondaryOf(intraday), over), { now: () => 0 })
+const lastDrawn = (col) => { let k = -1; for (let i = 0; i < col.length; i += 1) if (Number.isFinite(col[i])) k = i; return k }
+
+describe('(e91 (2b)) THE CUT: the values are drawn up to SPX\'s newest held bar, the bars past it named, the drawings wait', () => {
+  it('⭐ two bars behind, a plain script: drawn THROUGH 13:40, the two newer bars withheld, the strip names them (never blank)', () => {
+    const at = cutOf(SHALLOW, 13, 40)
+    const cols = runOf(plainDef, SHALLOW, spxThrough(13, 40))
+    expect(cols.x.length).toBe(SHALLOW.length)
+    expect(cols.x[at - 1]).toBe(spxThrough(13, 40).at(-1).c)
+    expect(lastDrawn(cols.x)).toBe(at - 1)
+    for (let i = at; i < SHALLOW.length; i += 1) expect(Number.isNaN(cols.x[i]), `bar ${i} withheld`).toBe(true)
+    const rec = runtimeOvernightOf(cols)
+    expect(rec).toMatchObject({ from: at, bars: SHALLOW.length - at, tail: true })
+    expect(rec.rows).toEqual([{ code: REQUEST_GUARD, reason: tailCutSentence(['SPX']) }])
+    const strip = chartClockReport(cols)
+    expect(strip.withheld.map((r) => r.reason)).toContain(tailCutSentence(['SPX']))
+    for (const re of Object.values(SAYS)) expect(rec.rows[0].reason).not.toMatch(re)
+  })
+  it('a chart deeper than our SPX too: drawn from where SPX begins (`knownFrom`) up to the cut, withheld on both sides', () => {
+    const at = cutOf(DEEP, 13, 40)
+    const cols = runOf(plainDef, DEEP, spxThrough(13, 40))
+    for (let i = 0; i < DEPTH_STARTS_AT; i += 1) expect(Number.isNaN(cols.x[i]), `depth bar ${i}`).toBe(true)
+    expect(Number.isFinite(cols.x[at - 1])).toBe(true)
+    expect(lastDrawn(cols.x)).toBe(at - 1)
+    expect(runtimeOvernightOf(cols)).toMatchObject({ from: at, tail: true })
+  })
+  it('⛔ past the bound: CUT the same way, named `runtime:request-lag` with the lag\'s sentence; drawn, never a stop', () => {
+    const at = cutOf(SHALLOW, 13, 35)
+    const cols = runOf(plainDef, SHALLOW, spxThrough(13, 35))
+    expect(lastDrawn(cols.x)).toBe(at - 1)
+    const rec = runtimeOvernightOf(cols)
+    expect(rec.rows[0].code).toBe(REQUEST_LAG_GUARD)
+    expect(rec.rows[0].reason).toMatch(SAYS.lag)
+    expect(rec.rows[0].reason).not.toMatch(SAYS.depth)
+  })
+  it('⭐ a script that draws: values drawn up to the cut, the drawings WITHHELD and WAITING, named SPX; none on the cut bar', () => {
+    const at = cutOf(SHALLOW, 13, 40)
+    const cols = runOf(runDef(DRAW), SHALLOW, spxThrough(13, 40))
+    expect(lastDrawn(cols.x)).toBe(at - 1)
+    const obj = cols[RUNTIME_OBJECTS_KEY]
+    expect(obj.status).toBe('WITHHELD')
+    expect(obj.pending).toBe(true)
+    expect(obj.waitingFor).toBe('SPX')
+    expect(obj.guard).toBe(REQUEST_GUARD)
+    expect(obj.reason).toBe(tailCutSentence(['SPX']))
+    expect(obj.live).toEqual([])
+  })
+  it('⭐ …and SPX lands: the label stands on the TRUE last bar (never the cut bar), the cut gone', () => {
+    const cols = runOf(runDef(DRAW), SHALLOW, spxThrough(13, 50))
+    const obj = runtimeObjectsOf(cols)
+    expect(obj.status).toBe('ok')
+    const labels = obj.live.filter((o) => o.family === 'label')
+    expect(labels.map((o) => o.createdBar)).toEqual([SHALLOW.length - 1])
+    expect(runtimeOvernightOf(cols)).toBeNull()
+    expect(cols.x[SHALLOW.length - 1]).toBe(spxThrough(13, 50).at(-1).c)
+  })
+  it('⛔ past the bound, a script that draws: the drawings withheld BY NAME (`runtime:request-lag`), not waiting', () => {
+    const obj = runOf(runDef(DRAW), SHALLOW, spxThrough(13, 35))[RUNTIME_OBJECTS_KEY]
+    expect(obj.status).toBe('WITHHELD')
+    expect(obj.pending).toBeUndefined()
+    expect(obj.guard).toBe(REQUEST_LAG_GUARD)
+    expect(obj.reason).toMatch(SAYS.lag)
+  })
+  it('⭐ the newest bar alone on the tail is cut too: drawn up to it, the drawings waiting (e85\'s answer, now never the whole run)', () => {
+    const n = SHALLOW.length
+    const cols = runOf(runDef(DRAW), SHALLOW, spxThrough(13, 45))
+    expect(lastDrawn(cols.x)).toBe(n - 2)
+    expect(runtimeOvernightOf(cols)).toMatchObject({ from: n - 1, bars: 1, tail: true })
+    expect(cols[RUNTIME_OBJECTS_KEY]).toMatchObject({ status: 'WITHHELD', pending: true, waitingFor: 'SPX', guard: REQUEST_GUARD })
+  })
+  it('⛔ CONTROL: SPX caught up, nothing is cut', () => {
+    const cols = runOf(plainDef, SHALLOW, spxThrough(13, 50))
+    expect(lastDrawn(cols.x)).toBe(SHALLOW.length - 1)
+    expect(runtimeOvernightOf(cols)).toBeNull()
   })
 })
 
@@ -342,8 +449,21 @@ async function fredOnAChart() {
   /** one paint, the run in the worker answering, and the paint its landing asks for */
   const settle = (bars, secondary, symbol) => { sync(bars, secondary, symbol); if (worker) worker.flush(); sync(bars, secondary, symbol) }
   const reply = () => w.replies[w.replies.length - 1]
+  /** the newest bar time any plotted series was last set to with a finite value (-1: none), and how many points */
+  const drawn = () => {
+    const last = new Map()
+    for (const c of fake.callsOf('setData')) last.set(c.id, c.args[0])
+    let newest = -1
+    let points = 0
+    for (const data of last.values()) {
+      for (const p of data || []) {
+        if (p && (Number.isFinite(p.value) || Number.isFinite(p.close))) { points += 1; if (p.time > newest) newest = p.time }
+      }
+    }
+    return { newest, points }
+  }
   return {
-    def, id, log, sync, settle, reply, w,
+    def, id, log, sync, settle, reply, w, drawn,
     flush: () => worker && worker.flush(),
     notice: () => runtimeErrorNoticeFor(id),
     servedByRun: () => !!(objectRenderDropsFor(id) && objectRenderDropsFor(id).servedByRun === true),
@@ -354,7 +474,48 @@ async function fredOnAChart() {
 const WAITING = /^waiting for `SPX`'s newest bar, which has not arrived yet; this script's drawings are drawn when it does$/
 
 describe('the product path: Fred RS on a live 5m chart whose SPX lags its newest bars', () => {
-  it('⭐ two bars behind: PENDING, the served picture KEPT (in the worker and while waiting), the strip names SPX; SPX\'s update runs it ONCE and it serves', async () => {
+  it('⭐⭐ (e91 (2b)) THE CAPTURED CASE, a FRESH pane, SPX two bars behind: the RS values DRAWN up to SPX\'s newest, the drawings waiting, named; SPX lands and all of it serves', async () => {
+    const f = await fredOnAChart()
+    try {
+      const chart = rsChartThrough(13, 50)
+      f.settle(chart, rsSecondary(spx5Through(13, 40)))
+      const r = f.reply()
+      expect(r.ok, JSON.stringify(r).slice(0, 600)).toBe(true)
+      expect(r.objects).toMatchObject({ status: 'WITHHELD', pending: true, waitingFor: 'SPX', guard: REQUEST_GUARD })
+      const d = f.drawn()
+      expect(d.points, 'the pane is NOT blank: the RS values are drawn').toBeGreaterThan(100)
+      expect(d.newest, 'drawn up to SPX\'s newest held bar, never past it').toBe(ET(LAST, 13, 40))
+      expect(f.log.filter((x) => x.startsWith('run:')), 'no drawing on the cut bar').toEqual([])
+      expect(f.notice()).toMatch(WAITING)
+      f.settle(chart, rsSecondary(spx5Through(13, 50)))
+      expect(f.reply().objects.status).toBe('ok')
+      expect(f.servedByRun()).toBe(true)
+      expect(f.drawn().newest).toBe(ET(LAST, 13, 50))
+      expect(f.notice()).toBeNull()
+    } finally { f.done() }
+  })
+  it('⭐⭐ (e91 (2b)) a FRESH pane one bar ahead of SPX: the same (e85 waited the whole run, MEASURED below: blank)', async () => {
+    const f = await fredOnAChart()
+    try {
+      f.settle(rsChartThrough(13, 50), rsSecondary(spx5Through(13, 45)))
+      expect(f.reply().ok).toBe(true)
+      expect(f.reply().objects).toMatchObject({ status: 'WITHHELD', pending: true, waitingFor: 'SPX' })
+      expect(f.drawn().newest).toBe(ET(LAST, 13, 45))
+      expect(f.notice()).toMatch(WAITING)
+    } finally { f.done() }
+  })
+  it('⚰️ REPRODUCED, the cut switched off: a FRESH pane, SPX two bars behind, the run half never answers (a whole-run wait)', async () => {
+    __tailCutOffForTests(true)
+    const f = await fredOnAChart()
+    try {
+      f.settle(rsChartThrough(13, 50), rsSecondary(spx5Through(13, 40)))
+      const r = f.reply()
+      expect(r.ok).toBe(false)
+      expect(r.error.pending).toBe(true)
+      expect(f.log.filter((x) => x.startsWith('run:'))).toEqual([])
+    } finally { f.done() }
+  })
+  it('⭐ two bars behind a SERVED pane: the values drawn up to SPX\'s newest, the served drawings KEPT, the strip names SPX; SPX\'s update runs it ONCE and it serves', async () => {
     const f = await fredOnAChart()
     try {
       // served, SPX caught up
@@ -371,11 +532,10 @@ describe('the product path: Fred RS on a live 5m chart whose SPX lags its newest
       f.flush()
       f.sync(chart, lagging)
       const r = f.reply()
-      expect(r.ok).toBe(false)
-      expect(r.error.pending).toBe(true)
-      expect(r.error.waitingFor).toBe('SPX')
-      expect(r.error.guard).toBe(REQUEST_GUARD)
-      for (const re of Object.values(SAYS)) expect(r.error.message).not.toMatch(re)
+      expect(r.ok).toBe(true)
+      expect(r.objects).toMatchObject({ status: 'WITHHELD', pending: true, waitingFor: 'SPX', guard: REQUEST_GUARD })
+      for (const re of Object.values(SAYS)) expect(r.objects.reason).not.toMatch(re)
+      expect(f.drawn().newest).toBe(ET(LAST, 13, 40))
       expect(f.log[f.log.length - 1], 'waiting: the served picture stays').toBe(served)
       expect(f.log.slice(f.log.lastIndexOf(served))).not.toContain('EMPTY')
       expect(f.notice()).toMatch(WAITING)
@@ -402,19 +562,20 @@ describe('the product path: Fred RS on a live 5m chart whose SPX lags its newest
     } finally { f.done() }
   })
 
-  it('⛔ a lag that persists past two bar intervals is REFUSED by name (`runtime:request-lag`), the drawing note says why, never the depth sentence', async () => {
+  it('⛔ a lag that persists past two bar intervals: the values CUT and drawn, the drawings withheld by name (`runtime:request-lag`), the drawing note says why, never the depth sentence', async () => {
     const f = await fredOnAChart()
     try {
       f.settle(rsChartThrough(13, 40), rsSecondary(spx5Through(13, 40)))
       expect(f.servedByRun()).toBe(true)
       f.settle(rsChartThrough(13, 55), rsSecondary(spx5Through(13, 40)))
       const r = f.reply()
-      expect(r.ok).toBe(false)
-      expect(r.error.pending).toBeUndefined()
-      expect(r.error.guard).toBe(REQUEST_LAG_GUARD)
-      expect(r.error.message).toMatch(SAYS.lag)
-      expect(r.error.message).not.toMatch(SAYS.depth)
-      expect(r.error.message).not.toMatch(SAYS.hole)
+      expect(r.ok).toBe(true)
+      expect(r.objects.pending).toBeUndefined()
+      expect(r.objects.guard).toBe(REQUEST_LAG_GUARD)
+      expect(r.objects.reason).toMatch(SAYS.lag)
+      expect(r.objects.reason).not.toMatch(SAYS.depth)
+      expect(r.objects.reason).not.toMatch(SAYS.hole)
+      expect(f.drawn().newest).toBe(ET(LAST, 13, 40))
       expect(f.servedByRun()).toBe(false)
       expect(f.why()).toMatch(/the newest bars of another symbol the script reads haven't arrived on this chart/)
       expect(f.notice()).toBeNull()
@@ -565,21 +726,31 @@ describe('(engine 87 train) #2076 x #2044: "still computing" is never said over 
   })
 })
 
-describe('a RUNTIME document waits by name too: a status, never a stop sentence', () => {
+describe('a RUNTIME document is CUT too (e91 (2b)): drawn up to the lag, the newer bars named on the strip; never a stop', () => {
   const def = { ...runDef(SRC), id: 'u_tl-rt', compute: { ...runDef(SRC).compute, fn: 'runtime:u_tl-rt', objects: false } }
-  it('two bars behind: no columns, the wait named (`runtimeRunWaitingOf`), no stop (`runtimeRunStopOf`)', () => {
+  it('two bars behind: the values drawn up to SPX\'s newest, no stop and no whole-run wait; the strip names the newer bars', () => {
     const cols = registry.computeFor(def, SHALLOW, {}, ctx5(secondaryOf(spxThrough(13, 40))))
     expect(registry.runtimeRunStopOf(def, cols)).toBeNull()
-    const wait = registry.runtimeRunWaitingOf(def, cols)
+    expect(registry.runtimeRunWaitingOf(def, cols)).toBeNull()
+    expect(lastDrawn(cols.x)).toBe(cutOf(SHALLOW, 13, 40) - 1)
+    expect(chartClockReport(cols).withheld.map((r) => r.reason)).toContain(tailCutSentence(['SPX']))
+  })
+  it('⚰️ REPRODUCED, the cut switched off: no columns, the whole run waits (`runtimeRunWaitingOf`)', () => {
+    __tailCutOffForTests(true)
+    // its own document (the registry keeps the answer of the cut run above by document)
+    const off = { ...def, id: 'u_tl-rt-off', compute: { ...def.compute, fn: 'runtime:u_tl-rt-off' } }
+    const cols = registry.computeFor(off, SHALLOW, {}, ctx5(secondaryOf(spxThrough(13, 40))))
+    const wait = registry.runtimeRunWaitingOf(off, cols)
     expect(wait).toMatchObject({ waitingFor: 'SPX', what: 'values' })
     expect(wait.sentence).toBe("waiting for `SPX`'s newest bar, which has not arrived yet; this script is drawn bar by bar when it does")
   })
-  it('⛔ CONTROL: past the bound it is a stop, said with its own sentence, and no wait', () => {
+  it('⛔ past the bound: cut by name too (the lag\'s code and sentence on the strip), never a stop', () => {
     const cols = registry.computeFor(def, SHALLOW, {}, ctx5(secondaryOf(spxThrough(13, 35))))
     expect(registry.runtimeRunWaitingOf(def, cols)).toBeNull()
-    const stop = registry.runtimeRunStopOf(def, cols)
-    expect(stop.guard).toBe(REQUEST_LAG_GUARD)
-    expect(stop.sentence).toMatch(SAYS.lag)
+    expect(registry.runtimeRunStopOf(def, cols)).toBeNull()
+    expect(lastDrawn(cols.x)).toBe(cutOf(SHALLOW, 13, 35) - 1)
+    const row = chartClockReport(cols).withheld.find((r) => r.code === REQUEST_LAG_GUARD)
+    expect(row.reason).toMatch(SAYS.lag)
   })
   it('two series named: the newest bars of both', () => {
     expect(registry.runtimeDrawingsWaitingSentence('SPX,QQQ')).toBe('waiting for the newest bars of `SPX` and `QQQ`, which have '

@@ -59,7 +59,7 @@ import {
 import { loadCapture } from '../../__tests__/vendorHarness/harness.js'
 import { barsOfCapture } from '../../__tests__/vendorHarness/strategyHarness.js'
 import { toProductBars } from '../../__tests__/vendorHarness/ourSide.js'
-import { historyWindowBarsOf, STRATEGY_DECLARATION } from './strategyArmed.js'
+import { chartStrategyWindowOf, STRATEGY_DECLARATION } from './strategyArmed.js'
 // the ONE pin reader production's broker run reads (`vm.js` `ledgerPinned`, `brokerPins.resolved.json`)
 import { pinned } from '../brokerPins.js'
 import { strategyServeOutcome } from './strategyServe.js'
@@ -78,10 +78,17 @@ const flagOf = (src) => (src.match(/(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
 const FLAGS = ['objectsOnlyPaneGate.js', 'runtimePaneGate.js', 'strategyBrokerGate.js'].map((f) => flagOf(GATE(f)))
 
 /** ⭐ DATED 2026-11-17: the committed rows the coverage map counts `wouldTransferIfArmed` (docs/pine/coverage-map.json
- *  of 2026-11-17, PR #1645; 7 of 70 over the whole sample, 3 of them committed). A change here is a re-measure. */
+ *  of 2026-11-17, PR #1645; 7 of 70 over the whole sample, 3 of them committed). A change here is a re-measure.
+ *  ⭐ RE-MEASURED 2026-11-19 (the strategy unit, docs/pine/evidence/2026-11-19-strategy-unit/EVIDENCE.md): 3 more, each
+ *  on rules committed report captures now pin (MATCH): highlow-channel-swing (B-V4-MARGIN0 for its v4 shape, read back
+ *  0 by w9-q-s1b-v4-shape-a), macd-shortlong (B-EXIT-NA, B-QTY-REVERSE-M0, B-ROUND-LEVEL, its own in-session capture
+ *  macd-shortlong-strategy-is-rddt-1d-2026-11-18) and stop-loss-and-take-profit (B-EXIT-NA). */
 const ARMED_COMMITTED = Object.freeze([
   'buy-monday-exit-tuesday__8f2f69cc99',
+  'highlow-channel-swing__e3692e253c',
+  'macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99',
   'scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471',
+  'stop-loss-and-take-profit-in-example__YlblCbts4x',
   'supertrend-strategy__rcRbtoBiKG',
 ])
 
@@ -190,7 +197,9 @@ beforeAll(() => {
   const reference = loadCapture(REFERENCE).capture
   bars = barsOfCapture(reference)
   dailyBars = toProductBars(reference)
-  ctx = { tf: 'D', symbol: SYMBOL, newestBarIsForming: false, historyFromListing: true, historyWindowBars: historyWindowBarsOf(ROOT) }
+  // ⭐⭐ (2026-11-19, the strategy-only daily window) the window the chart hands today: the strategy window, and the
+  // shared one as the depth served without [B-START-DEEP] (RDDT's 632 bars are below both: nothing here moves)
+  ctx = { tf: 'D', symbol: SYMBOL, newestBarIsForming: false, historyFromListing: true, ...chartStrategyWindowOf(ROOT) }
   results.granted = runAll('granted')
   results.production = runAll('production')
   results.grantedDaily = runAll('granted', dailyBars)
@@ -243,18 +252,18 @@ describe('the serve census over corpus/committed, broker gate on', () => {
       expect(r.served.panel.rows, r.key).toBeGreaterThan(0)
     }
     // ⛔ CONTROL: admission is a door, not a pin. A strategy the SERVER ADMITS whose backtest rests on a broker rule no
-    // MATCHing capture pins (B-EXIT-NA, not in brokerPins.resolved.json) is still refused BY NAME, by the same guard
-    // and rule, at one of two places (engine 76 #1803, engine 77 #1833 fix/strategy-disarmed-taint):
-    //   macd-shortlong   its backtest ALONE, at the report: its six MACD plots read no broker value (its ORDER logic
-    //                    reads `strategy.position_size`), so they are drawn beside the refused backtest;
-    //   stop-loss-and-take-profit   at its run: its three plots all draw broker values (`strategy.position_avg_price`),
-    //                    so a stand-in would draw nothing and the broker's refusal stands, as before.
-    for (const [k, at] of [['macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99', 'report'],
-      ['stop-loss-and-take-profit-in-example__YlblCbts4x', 'run']]) {
-      expect(SERVER_ADMITS, k).toContain(k)
-      expect(rows.find((r) => r.key === k), k).toMatchObject({ state: 'refused', at, guard: 'runtime:strategy-unpinned', rule: 'B-EXIT-NA' })
-    }
-    expect(rows.find((r) => r.key === 'macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99').plotsDrawn).toBe(6)
+    // MATCHing capture pins (B-EXIT-QTY, not in brokerPins.resolved.json) is still refused BY NAME, by the same guard
+    // and rule, at its report: its plots read no broker value, so they are drawn beside the refused backtest
+    // (engine 76 #1803, engine 77 #1833). ⚰️ Until 2026-11-19 the control was B-EXIT-NA (macd-shortlong at its report,
+    // stop-loss-and-take-profit at its run); macd-shortlong's own report capture pins it now, and both are served.
+    const forex = 'tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy'
+    expect(SERVER_ADMITS, forex).toContain(forex)
+    expect(pinned('B-EXIT-QTY')).toBe(false)
+    expect(rows.find((r) => r.key === forex)).toMatchObject({ state: 'refused', at: 'report', guard: 'runtime:strategy-unpinned', rule: 'B-EXIT-QTY' })
+    expect(rows.find((r) => r.key === forex).plotsDrawn).toBeGreaterThan(0)
+    // what the two former controls show now: served, every number on a pinned rule (checked for every served row above)
+    expect(rows.find((r) => r.key === 'macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99').served.trades).toBeGreaterThan(5)
+    expect(rows.find((r) => r.key === 'stop-loss-and-take-profit-in-example__YlblCbts4x').served.trades).toBeGreaterThan(5)
     // ⛔ CONTROL: a strategy the server does NOT admit is never served (3 of 25: a capability with no registry row;
     // 8 until #2016 admitted `request-other`)
     expect(rows.filter((r) => !SERVER_ADMITS.includes(r.key)).map((r) => r.state).filter((s) => s !== 'refused')).toEqual([])

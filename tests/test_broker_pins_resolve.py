@@ -253,11 +253,15 @@ def test_u14_rule_vocabulary_is_read_off_brokerRules():
     # 58 since 2026-11-17: B-QTY-REVERSE, B-FUNDS-REVERSE, B-MARGIN-CALL-ALL, B-ENTRY-ORDER (w9-q-s1b-defaults-v6)
     # 59 since 2026-11-17: B-V3 (Pine v2 / v3, w9-q-s1a-size-v2 and w9-g1-v3-properties)
     # 60 since 2026-11-17: B-V4-MARGIN0 (ruling D12b, the two v4 captures)
-    assert len(BROKER_RULE_IDS) == 60 and "B-MARKET" in RULE_IDS and "MK-LOOK" in RULE_IDS
+    # 63 since 2026-11-19 (the strategy unit): B-ROUND-LEVEL and B-QTY-REVERSE-M0 (the community capture
+    # macd-shortlong-strategy-is-rddt-1d-2026-11-18), B-MARGIN-ZERO (w9-q-s1b-v4-shape-b)
+    # 64 since 2026-11-19 (the strategy-only daily window): B-START-DEEP (unpinned until Q-SU-7 / Q-SU-8)
+    assert len(BROKER_RULE_IDS) == 64 and "B-MARKET" in RULE_IDS and "MK-LOOK" in RULE_IDS
     assert "B-ROUND" in RULE_IDS and "B-TXT-CLOSE-ID" in RULE_IDS and "B-PYR-PRICE" in RULE_IDS
     assert "B-FUNDS" in RULE_IDS
     assert "B-FUNDS-SHORT" in RULE_IDS and "B-MARGIN-CALL" in RULE_IDS
     assert {"B-QTY-REVERSE", "B-FUNDS-REVERSE", "B-MARGIN-CALL-ALL", "B-ENTRY-ORDER", "B-V3", "B-V4-MARGIN0"} <= set(RULE_IDS)
+    assert {"B-ROUND-LEVEL", "B-QTY-REVERSE-M0", "B-MARGIN-ZERO", "B-START-DEEP"} <= set(RULE_IDS)
 
 
 def test_u14_a_match_that_exercised_the_rule_pins_it():
