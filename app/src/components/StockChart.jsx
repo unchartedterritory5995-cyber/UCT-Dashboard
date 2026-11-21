@@ -9957,10 +9957,19 @@ function StockChartBody({
   // candle / volume / MA / live series, and the default range still computes from the
   // real bar count, so nothing that keys off barsLen is disturbed. All ops try/caught.
   // (a function, so a landed earnings estimate between renders extends the axis too: `_onMetaLanded`)
+  // ⭐ (2026-11-21, the post-paint backlog) ONLY WHEN WHAT IT HOLDS CHANGES. This ran on every render that moved
+  // `filteredBars` / `earningsEvents` and handed the series the same points each time: two or three identical
+  // `setData` per switch, each one a repaint of the whole chart after its first paint. `_futureWsAppliedRef` is
+  // what the series holds (its identity and the points' content), so a recreated series is always filled.
   const _applyFutureWs = (events) => {
     const chart = chartRef.current
     if (!chart) return
-    const clear = () => { try { futureWsSeriesRef.current?.setData([]) } catch { /* series gone */ } }
+    const applied = _futureWsAppliedRef.current
+    const clear = () => {
+      const s = futureWsSeriesRef.current
+      if (!s || (applied && applied.series === s && applied.key === '')) return
+      try { s.setData([]); _futureWsAppliedRef.current = { series: s, key: '' } } catch { /* series gone */ }
+    }
     if (!filteredBars?.length) { clear(); return }
     const lastLwc = adjustTime(filteredBars[filteredBars.length - 1].t)
     const est = events.find(e => e.estimate)
@@ -9978,8 +9987,13 @@ function StockChartBody({
         })
       } catch { futureWsSeriesRef.current = null }
     }
-    try { futureWsSeriesRef.current?.setData(pts) } catch { /* series removed (chart recreate) */ }
+    const s = futureWsSeriesRef.current
+    if (!s) return
+    const key = `${pts.length}|${pts[0].time}|${pts[pts.length - 1].time}`
+    if (applied && applied.series === s && applied.key === key) return
+    try { s.setData(pts); _futureWsAppliedRef.current = { series: s, key } } catch { /* series removed (chart recreate) */ }
   }
+  const _futureWsAppliedRef = useRef(null)
   const _applyFutureWsRef = useRef(null)
   _applyFutureWsRef.current = _applyFutureWs
   useEffect(() => { _applyFutureWs(earningsEvents) }, [earningsEvents, resolvedTf, filteredBars, adjustTime])  // eslint-disable-line react-hooks/exhaustive-deps
