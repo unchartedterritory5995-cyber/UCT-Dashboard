@@ -14,6 +14,7 @@ import { currentWeekMonday, mondayOf } from '../calendar/weekAnchor'
 import { canonicalCode, isCode } from './functions'
 import { parseAlertPrice } from './alertModel'
 import { parseScatMetric, parseScatUniverse, scatMetricLabel } from './scatterArgs'
+import { COT_WORDS } from './panels/cotModel'
 
 /** The chart's timeframe codes (StockChart `tf`), with the spellings a member types. */
 export const TIMEFRAMES = {
@@ -149,6 +150,8 @@ export const SEAS_MEASURE_WORDS = Object.freeze({ AVG: 'average', AVERAGE: 'aver
 // Market wave A: copies of the panel models' argument rules (args.marketWaveA.test.js pins each to its owner)
 export const COT_MARKET_SHAPE = /^[A-Z0-9&][A-Z0-9&.-]{0,11}$/
 export const ANLG_COUNT_BOUNDS = Object.freeze([3, 10])
+// INS CLUSTER: a copy of the panel model's words (args.insiderClusters.test.js pins it to its owner)
+export const INS_VIEW_WORDS = Object.freeze({ CLUSTER: 'cluster', CLUSTERS: 'cluster' })
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -627,6 +630,9 @@ export const ARG_KINDS = {
       return COT_MARKET_SHAPE.test(t) ? t : null
     },
     describe: (v) => `market "${v}"`,
+    // a word in COT's own market dictionary (OIL, GOLD, WTI…) is COT's even when it is also a function code
+    // (`OIL`, the weekly oil report): `COT OIL` is crude positioning; any other code after COT stays that code
+    known: (tok) => Object.prototype.hasOwnProperty.call(COT_WORDS, String(tok ?? '').trim().toUpperCase()),
   },
   /** ANLG's count: how many similar sessions, a whole number from 3 to 10 (the route's own bounds;
    *  a pinned copy of panels/analoguesModel.js, args.marketWaveA.test.js). */
@@ -640,6 +646,16 @@ export const ARG_KINDS = {
     },
     describe: (v) => `${v} similar sessions`,
   },
+  // ── INS CLUSTER (2026-11-21) ──
+  /** INS's view (panels/insiderClustersModel.js INS_VIEW_ARG_WORDS; pinned by args.insiderClusters.test.js):
+   *  `INS CLUSTER` is the cluster list from the SEC's Form 4 filings; bare `INS` stays all buys. */
+  insView: {
+    takes: 'CLUSTER',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(INS_VIEW_WORDS, key) ? INS_VIEW_WORDS[key] : null
+    },
+    describe: (v) => (v === 'cluster' ? 'insider cluster buys' : v),
   // ── FUND (2026-11-21): the panel model's words (panels/fundMetricsModel.js; pinned by functions.fundMetrics.test.js) ──
   /** FUND's line: ONE metric word draws that metric as a line (parseFundMetric). */
   fundMetric: {

@@ -260,8 +260,10 @@ export const FUNCTIONS = [
     market: { panel: 'MarketNews' } },
   { code: 'REGM', label: 'Market regime and exposure call', group: 'Market',
     market: { panel: 'Regime' } },
+  // INS CLUSTER (2026-11-21): the stocks 3 or more insiders bought within 10 business days, built
+  // each night from the SEC's own Form 4 filings (GET /api/insider/clusters). Bare INS is unchanged.
   { code: 'INS', label: 'Insider buying (market-wide, last 7 days)', group: 'Market',
-    market: { panel: 'InsiderBuys' } },
+    market: { panel: 'InsiderBuys', args: [{ kind: 'insView', prop: 'view' }] } },
   { code: 'RSL', label: 'RS leaderboard (top names by RS rank)', group: 'Market',
     market: { panel: 'RsLeaders' } },
   // THMS 1W: the UCT theme leaderboard over a window (1D 1W 1M 3M; 1Y and YTD are chips in the panel).
@@ -607,6 +609,13 @@ export const FUNCTIONS = [
   // from what the econ service already published. No argument. LIQ is not in the site's universe.
   { code: 'LIQ', label: 'Liquidity (Fed balance sheet, TGA, reverse repo, net liquidity)', group: 'Market',
     market: { panel: 'Liquidity' } },
+  // OIL (2026-11-21): the EIA's weekly oil report. The week's crude build or draw (the econ service's own
+  // weekly change, a UCT calculation from the EIA's stock figures), when it came out and the next weekly
+  // report from the release calendar; each series' latest week, the week before, the change and the same
+  // week a year ago; two years of crude stocks (GET /api/econ/latest and /api/econ/series: the econ routes'
+  // own flag and gate). No argument. OIL is not in the site's stock universe.
+  { code: 'OIL', label: 'Weekly oil report (EIA: crude, gasoline, distillate stocks, production, refining, pump prices)', group: 'Market',
+    market: { panel: 'Oil' } },
   // FUND (2026-11-21): one company's metrics over time, point in time from its SEC filings (revenue, EPS,
   // margins, cash flow, and the valuation ratios composed with UCT's stored closes), one column per fiscal
   // quarter, and up to three more companies beside it, lined up by calendar quarter. GET /api/fundamentals/
@@ -845,7 +854,7 @@ const FUNCTION_WORDS = {
   COMM: { keywords: ['community', 'chat'] },
   NEWS: { keywords: ['market news', 'news tape', 'headlines'] },
   REGM: { keywords: ['regime', 'market regime', 'exposure', 'market trend'] },
-  INS: { keywords: ['insider', 'insider buying', 'insiders', 'form 4'] },
+  INS: { keywords: ['insider', 'insider buying', 'insiders', 'form 4', 'cluster buys', 'insider clusters', 'insider cluster buys'] },
   RSL: { keywords: ['relative strength', 'rs rank', 'rs leaders', 'leaders'] },
   THMS: { example: 'THMS 1W', keywords: ['theme', 'themes', 'groups', 'industries', 'leading themes'] },
   SENT: { keywords: ['sentiment', 'aaii', 'naaim', 'fear and greed', 'put call', 'macro', 'economy'],
@@ -947,6 +956,11 @@ const FUNCTION_WORDS = {
   LIQ: { example: 'LIQ', keywords: ['liquidity', 'net liquidity', 'fed balance sheet', 'reverse repo', 'rrp', 'tga',
     'qt', 'quantitative tightening', 'm2', 'money supply', 'reserves'],
     note: 'Net liquidity is a UCT calculation from the Fed and Treasury figures, each part beside it. No forecasts.' },
+  // None of these words was another code's keyword. 'spr' only reached RATES through "spreads" in its label (the
+  // lowest score); RATES still follows OIL for it. No keyword makes a generic word ("prices") find OIL.
+  OIL: { example: 'OIL', keywords: ['oil', 'crude', 'crude inventories', 'eia', 'oil inventories', 'gasoline', 'distillates',
+    'refinery', 'spr'],
+    note: "The EIA's own weekly figures, with the next report's date. No futures prices and no forecasts." },
   // 'fundamentals', 'revenue', 'income statement' and 'financials' stay with FA, 'eps' with EE, 'valuation'
   // with PEER: each of those words still finds its own function first.
   FUND: { example: 'NVDA FUND', keywords: ['fundamentals history', 'metrics', 'revenue history', 'eps history', 'margins',

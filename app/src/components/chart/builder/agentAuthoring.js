@@ -279,6 +279,9 @@ function outcomeOf(out, snapBefore, snapAfter) {
   if (out.ok && out.changed) {
     return { ok: true, kind: 'applied', ...base, stepId: stepIdOf(st.lineage, st.revision), reply: null, questions: [],
       changes: (out.changes || []).map((c) => ({ ...c })),
+      // UCT's OWN notes about this build (`authoringSession.notesOf`: `by: 'uct'` on the wire), for the Agent to
+      // show under its one line. The assistant's assumptions are NOT carried: the dock and the box show those.
+      ...(entry.notes && Array.isArray(entry.notes.uct) && entry.notes.uct.length ? { uctNotes: entry.notes.uct.slice() } : {}),
       // ⭐ M3 typed rename — ONLY the deterministic name-only path sets these (`renameTurn`);
       // a model-applied turn never does, even when its changes include a 'renamed' entry
       ...(out.renameOnly ? { renameOnly: true, rename: out.rename ? { ...out.rename } : null } : {}) }

@@ -1931,6 +1931,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "",
+      "path": "/api/insider/clusters",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "scope",
       "path": "/api/insider/feed",
       "rate_limit_family": "research",

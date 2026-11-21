@@ -13,9 +13,10 @@ describe('the board it asks for', () => {
   it('five themes in the brief\'s order, each series once, in one request', () => {
     expect(ECON_CODE).toBe('ECON')
     expect(ECON_THEMES.map((t) => t.title)).toEqual(['Inflation', 'Jobs', 'Growth and spending', 'Housing', 'Rates and money'])
-    expect(ECON_THEMES.map((t) => t.rows.length)).toEqual([5, 5, 4, 4, 2])
+    expect(ECON_THEMES.map((t) => t.rows.length)).toEqual([5, 5, 4, 4, 3])
     expect(new Set(ECON_SYMBOLS).size).toBe(ECON_SYMBOLS.length)
-    expect(ECON_SYMBOLS).toHaveLength(25)
+    expect(ECON_SYMBOLS).toHaveLength(26)
+    expect(ECON_THEMES.find((t) => t.key === 'rates').rows.map((r) => r.symbol)).toEqual(['USEFFR', 'UST10Y', 'USDOLLARIDX'])
     expect(ECON_LATEST_URL).toBe(`/api/econ/latest?symbols=${ECON_SYMBOLS.join(',')}`)
     expect(ECON_SYMBOLS.slice(0, 2)).toEqual(['USCPIYOY', 'USCPIMOM'])
     expect(ECON_THEMES.find((t) => t.key === 'growth').missing).toEqual(['Retail sales'])
@@ -62,6 +63,17 @@ describe('a row: value in its own units, the print before, the change, the perio
     expect(rowOf(v, 'gdp').change.text).toBe('-0.7 pts')
   })
 
+  it('the dollar index is drawn the way the 10-year is: its level on its day, the day before, the change (percent of a level)', () => {
+    const d = rowOf(view(), 'dollar')
+    expect(d).toMatchObject({ state: 'ok', label: 'Broad dollar index (Fed)', symbol: 'USDOLLARIDX', derived: false, frequency: 'D' })
+    expect(d.latest).toMatchObject({ value: 121.2, text: '121.2', period: 'Mar 14, 2031', released: 'Mar 17' })
+    expect(d.prior).toMatchObject({ value: 121.4, text: '121.4', period: 'Mar 13, 2031' })
+    expect(d.change).toMatchObject({ kind: 'pct', text: '-0.2%', dir: -1 })
+    expect(d.measure).toBe('Index level')
+    expect(d.next).toMatchObject({ state: 'ok', date: '2031-03-24', text: 'Mar 24, 4:15 PM ET' })
+    expect(d.chartHref).toBe('/charts?sym=ECON%3AUSDOLLARIDX')
+  })
+
   it('says what each number is', () => {
     const v = view()
     expect(rowOf(v, 'gdp').measure).toBe('Change from the quarter before, at an annual rate')
@@ -97,8 +109,8 @@ describe('a missing value is words, never 0', () => {
     expect(nh).toMatchObject({ state: 'no_data', words: 'No reading published here yet.' })
     expect(nh.next).toMatchObject({ state: 'ok', date: '2031-03-25' })
     expect(rowOf(v, 'ppi').alt).toBeNull()                     // its month-over-month has nothing published
-    expect(v.held).toBe(17)
-    expect(view().held).toBe(19)
+    expect(v.held).toBe(18)
+    expect(view().held).toBe(20)
   })
 
   it('points: a null value is kept, a broken point dropped, the order is by release time', () => {
@@ -147,6 +159,7 @@ describe('the releases ahead', () => {
     ])
     expect(ahead.flatMap((g) => g.labels)).not.toContain('PPI')                   // eight days away
     expect(ahead.flatMap((g) => g.labels)).not.toContain('Effective fed funds rate') // daily
+    expect(ahead.flatMap((g) => g.labels)).not.toContain('Broad dollar index (Fed)') // daily figures (released weekly, Mar 24: in range)
   })
 
   it('a release later today says today; no date held lists nothing', () => {
@@ -179,6 +192,21 @@ describe('the credit lines', () => {
     expect(v.credits.find((c) => c.key === 'fhfa').text).toBe('Source: FHFA.')
     const noDate = creditLines([{ state: 'ok', meta: { name: 'X', source: { attribution_key: 'bls' } }, retrievedAt: null }], ECON_ATTRIBUTIONS, { today: ECON_TODAY })
     expect(noDate[0].text).toBe('Invented BLS line, read on a date not held here.')
+  })
+
+  it('a line that asks for the publication date gets the newest release day of that source\'s figures shown, with its year', () => {
+    const atts = { eia: { agency: 'U.S. Energy Information Administration', text: 'Invented EIA line ({publication_date}).' } }
+    const meta = (name) => ({ name, source: { agency: 'U.S. Energy Information Administration', attribution_key: 'eia' } })
+    // released Tue Mar 18 and Wed Mar 19, 2031 (New York): the newer one is the publication date
+    const rows = [
+      { state: 'ok', meta: meta('A'), retrievedAt: null, latest: { t: 1931606100 } },
+      { state: 'ok', meta: meta('B'), retrievedAt: null, latest: { t: 1931692500 } },
+      { state: 'not_found', meta: meta('C'), latest: { t: 1999999999 } },
+    ]
+    expect(creditLines(rows, atts, { today: ECON_TODAY })[0].text).toBe('Invented EIA line (Mar 19, 2031).')
+    expect(creditLines([{ ...rows[0], latest: { t: null } }], atts, { today: ECON_TODAY })[0].text).toBe('Invented EIA line (a date not held here).')
+    // a line without the blank is untouched
+    expect(creditLines(rows, { eia: { text: 'No blank here.' } }, { today: ECON_TODAY })[0].text).toBe('No blank here.')
   })
 })
 
