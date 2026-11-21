@@ -723,6 +723,31 @@ export function createPrefetch(o = {}) {
     return { paints: true, reason: 'paints', held }
   }
 
+  /**
+   * ⭐ (2026-11-21, the cold switch) START THE DEVICE READ NOW: the key handler's, before the chart has rendered
+   * the request (hooks/handoffGroups.primeGroup). A copy the device client already holds lands synchronously (its
+   * recently-read cache); otherwise one worker read leaves now and lands when it lands, instead of after the
+   * render and the handoff's effect (persist.refreshDevice: only an entry with no server answer). Resolves true
+   * when the entry moved. Nothing when the device store is off (no source).
+   */
+  function deviceWarm(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    if (!key) return Promise.resolve(false)
+    try { return Promise.resolve(S().persist?.refreshDevice?.(key)).catch(() => false) } catch { return Promise.resolve(false) }
+  }
+
+  /**
+   * ⭐ (2026-11-21) Call `cb` on every change of the entry `sym` / `tf` would show, WITHOUT starting its life cycle
+   * (the registry's own subscription: no hydrate, no network). For a waiter that used to poll the entry (the
+   * handoff's POLL_MS). Returns the unsubscribe, or null when this store has no registry to watch.
+   */
+  function watch(sym, tf, { showExtended } = {}, cb) {
+    const key = keyFor(sym, tf, { showExtended })
+    const reg = S().registry
+    if (!key || !reg?.subscribe) return null
+    try { return reg.subscribe(key, () => { try { cb() } catch { /* the watcher's */ } }, { wake: 'all' }) } catch { return null }
+  }
+
   /** Is the lake's whole depth still due for the chart `sym` / `tf` would show (store.lakePending)?
    *  The handoff paints a held key at once only when it is not: otherwise it prepares, and the
    *  prepare waits for the join (bounded) so the first paint is the whole chart. */
@@ -1218,7 +1243,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
@@ -1244,6 +1269,8 @@ export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, t
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
 export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
 export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }
+export function deviceWarm(sym, tf, opts = {}) { return _f().deviceWarm(sym, tf, opts) }
+export function watch(sym, tf, opts = {}, cb) { return _f().watch(sym, tf, opts, cb) }
 export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepareDailyForDisplay(sym, tf, opts) }
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
 export function prefetchBar(sym, tf = 'D') { return _f().prefetchBar(sym, tf) }

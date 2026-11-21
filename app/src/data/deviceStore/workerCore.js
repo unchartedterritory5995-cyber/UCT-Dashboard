@@ -44,6 +44,7 @@ export function transferablesOf(res) {
 export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, tabId, timeoutMs = 300, setTimer, clearTimer, liveOpts = {}, engineOpts = {} } = {}) {
   let engine = null
   let ready = null
+  let made = null            // resolves once the engine exists (a read then waits only for its timeframe's open)
   let ingesting = null
   let lastIngest = null      // the last ingest's per-timeframe outcome (diagnostics: `info`)
   let feed = null            // liveFeed.js, the leader's, created on the first 'live' ask
@@ -97,11 +98,16 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
 
   // The leader's handler: this worker's own page and every follower tab come through here.
   async function serve(req) {
+    // ⭐ (2026-11-21, the cold switch) a READ waits for its own timeframe's open, never for all six (engine.openTf)
+    if (req && (req.op === 'read' || req.op === 'readMany')) {
+      await made
+      if (!engine) return null
+      try { await engine.openTf(req.tf) } catch { /* an unreadable timeframe serves nothing */ }
+      return req.op === 'read' ? _withBuild(engine.read(req.sym, req.tf), req.tf) : (req.syms || []).map((s) => _withBuild(engine.read(s, req.tf), req.tf))
+    }
     await ready
     if (!engine || !req) return null
     switch (req.op) {
-      case 'read': return _withBuild(engine.read(req.sym, req.tf), req.tf)
-      case 'readMany': return (req.syms || []).map((s) => _withBuild(engine.read(s, req.tf), req.tf))
       case 'info': return { ...engine.info(), lastIngest, live: feed?.status() ?? null }
       case 'ingest': return _kickIngest(req.manifestUrl)
       case 'live': return _live(req.visible)
@@ -114,17 +120,23 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
   const xt = createCrossTab({
     locks, makeChannel, tabId, timeoutMs, setTimer, clearTimer, serve,
     onLeader: () => {
-      ready = (async () => {
+      made = (async () => {
         const io = await makeIO()
         if (!io) { post({ type: 'status', role: 'leader', supported: false }); return }
         engine = createDeviceEngine({
           io, fetchFn, ...engineOpts,
           onEvent: (ev) => { xt.broadcast(ev); post({ type: 'event', event: ev }) },
         })
+      })()
+      ready = (async () => {
+        await made
+        if (!engine) return
         try { await engine.open() } catch { /* an unreadable store serves nothing until the next ingest */ }
         post({ type: 'status', role: 'leader', supported: true, info: engine.info() })
       })()
-      return ready
+      // the cross-tab layer serves every request after this resolves (crossTab leaderReady): the ENGINE, not the
+      // whole open, so a read waits only for its own timeframe (serve: engine.openTf) and the rest await `ready`
+      return made
     },
     onEvent: (ev) => post({ type: 'event', event: ev }),
   })

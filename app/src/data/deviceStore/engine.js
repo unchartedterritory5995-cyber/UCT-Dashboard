@@ -112,6 +112,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
   let names = null
   const inflight = new Map()   // tf → ingest promise
   let opening = null
+  const tfOpening = new Map()  // stored tf → the promise of its own open (openTf)
 
   // A handle the previous leader's worker still held is released when that worker goes away; the new
   // leader may get there a moment first.
@@ -165,6 +166,23 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     const dataEnd = size - PACK_TAIL_BYTES - tlen
     h.read(tb, dataEnd)
     return parseTrailer(tb, dataEnd, { tf })
+  }
+  /** Open the newest valid generation of one stored timeframe (`gens`: _scan's map for it). */
+  async function _openTf(tf, gens) {
+    if (!gens) return
+    const ready = [...gens.keys()].filter((g) => gens.get(g).has('ok') && gens.get(g).has('pack')).sort((a, b) => b - a)
+    for (const gen of ready) {
+      let h = null
+      try {
+        const ok = await _readJson(okName(tf, gen))
+        h = await _open(packName(tf, gen))
+        if (h.size() !== ok.bytes) throw new DeviceFormatError('pack: size does not match its marker')
+        const index = _indexOf(h, tf)
+        _install(tf, { gen, build: ok.build, handle: h, index, bytes: ok.bytes, src: _srcOf(ok), via: ok.via === 'delta' ? 'delta' : 'full' })
+        h = null
+        return
+      } catch { /* unreadable: the next older generation */ } finally { if (h) h.close() }
+    }
   }
   function _install(tf, entry) {
     names = null
@@ -255,35 +273,30 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
   }
 
   const api = {
-    /** Open every committed generation (newest valid one per timeframe). Idempotent. */
+    /**
+     * Open every committed generation (newest valid one per timeframe). Idempotent.
+     * ⭐ (2026-11-21, the cold switch) EVERY TIMEFRAME OPENS AT ONCE: one listing, then each timeframe's marker,
+     * pack and trailer read in parallel (they were read one after another, 1m last, and a page's first read
+     * waited for all six). A read waits only for its own timeframe (openTf).
+     */
     open() {
       if (opening) return opening
-      opening = (async () => {
+      const listing = (async () => {
         const all = await io.list()
         if (all.includes(SPLITS_FILE)) {
           try { const j = await _readJson(SPLITS_FILE); splits = _splitsOf({ splits: j && { session: j.session, symbols: Object.fromEntries((j.symbols || []).map((x) => [x, 1])) } }) } catch { splits = null }
         }
-        const by = _scan(all)
-        for (const tf of STORED_TFS) {
-          const gens = by.get(tf)
-          if (!gens) continue
-          const ready = [...gens.keys()].filter((g) => gens.get(g).has('ok') && gens.get(g).has('pack')).sort((a, b) => b - a)
-          for (const gen of ready) {
-            let h = null
-            try {
-              const ok = await _readJson(okName(tf, gen))
-              h = await _open(packName(tf, gen))
-              if (h.size() !== ok.bytes) throw new DeviceFormatError('pack: size does not match its marker')
-              const index = _indexOf(h, tf)
-              _install(tf, { gen, build: ok.build, handle: h, index, bytes: ok.bytes, src: _srcOf(ok), via: ok.via === 'delta' ? 'delta' : 'full' })
-              h = null
-              break
-            } catch { /* unreadable: the next older generation */ } finally { if (h) h.close() }
-          }
-        }
-        return api.info()
+        return _scan(all)
       })()
+      for (const tf of STORED_TFS) tfOpening.set(tf, listing.then((by) => _openTf(tf, by.get(tf)), () => {}))
+      opening = Promise.all([listing, ...tfOpening.values()]).then(() => api.info())
       return opening
+    },
+
+    /** Resolves once the timeframe `tf` serves from (a derived W/M: its D) is open; opens the store if needed. */
+    openTf(tf) {
+      const o = api.open()
+      return tfOpening.get(DERIVED_TFS[tf] ?? String(tf)) || o
     },
 
     /**
@@ -375,6 +388,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       for (const L of live.values()) { try { L.handle.close() } catch { /* gone */ } }
       live.clear()
       opening = null
+      tfOpening.clear()
     },
   }
 

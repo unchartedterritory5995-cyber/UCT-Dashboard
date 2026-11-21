@@ -93,7 +93,7 @@ import { isSuspendedGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import { planLayoutUndo, layoutUndoDecision } from './layoutUndo'
 import { createGroupSymsStore } from './groupSymsStore'
-import { decideGroupShow, chartGroupKey } from '../../hooks/handoffGroups'
+import { beginGroupSwitch, chartGroupKey } from '../../hooks/handoffGroups'
 // Owner 11-16: the "Switched to “X” · Undo" banner on a member's layout switch is OFF.
 const LAYOUT_SWITCH_BANNER = false
 
@@ -1000,7 +1000,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // asked whether every one of them can show it in this task (hooks/handoffGroups.js). When they all can, the
     // decision goes out with the symbol and the charts take it in the ONE render the symbol arrives in: one
     // commit, one frame. Otherwise each chart takes today's path (its handoff, then the group round).
-    if (!repeat && groupSymsStore.get()[color] !== sym) decideGroupShow(groupSymsStore, chartGroupKey(color), sym)
+    // ⭐ (2026-11-21, the cold switch) and first, every chart's device read starts here, in the press
+    // (beginGroupSwitch: primeGroup, then decideGroupShow)
+    if (!repeat && groupSymsStore.get()[color] !== sym) beginGroupSwitch(groupSymsStore, chartGroupKey(color), sym)
     if (!repeat) {
       groupsScanningRef.current = groupsScanTimerRef.current != null
       if (groupsScanTimerRef.current) clearTimeout(groupsScanTimerRef.current)

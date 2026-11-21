@@ -181,6 +181,21 @@ function canShowNowFor(sym, tf, sess, st, settle) {
   return route === 'now' && columnsReadyFor(sym, tf)
 }
 
+/** ⭐ (2026-11-21, the cold switch) START THIS CHART'S DEVICE READ for `sym` now (the key press: handoffGroups
+ *  primeGroup), on the key its switch will read (the intraday fetch key and session, or the D/W/M key). */
+function primeDeviceFor(sym, tf, sess) {
+  if (!DEVICE || !sym || !tf || !isNativeTf(tf) || /^ECON:/i.test(String(sym))) return
+  const intraday = INTRADAY.has(String(tf))
+  try { storePrefetch.deviceWarm(sym, intraday ? fetchTf(tf) : tf, intraday ? sess : {}) } catch { /* optional */ }
+}
+
+/** ⭐ (2026-11-21, the cold switch) Wake `cb` on each change of the entry (sym, tf) shows, instead of polling it
+ *  every POLL_MS; null under the legacy source (no store to watch: the caller polls). */
+const watchEntry = (sym, tf, opts, cb) => {
+  if (!BARSTORE) return null
+  try { return storePrefetch.watch?.(sym, tf, opts, cb) || null } catch { return null }
+}
+
 const NO_SUBSCRIPTION = () => () => {}
 const NO_DECISION = () => null
 
@@ -239,6 +254,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     if (!scoped) return undefined
     return registerMember(scope, group, memberIdRef.current, {
       tf: () => viewRef.current.tf,
+      prime: (sym) => primeDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended)),
       canShowNow: (sym, settleNow) => canShowNowFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), settleRef.current, settleNow),
       showDecided: (sym) => {
         lastOutcomeRef.current = null   // the synchronous warm path, as the effect's same-tick commit records it
@@ -354,16 +370,23 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         // of this key's life, never a saved copy alone: a copy from an earlier day is behind, and the chart
         // refuses to paint it (useBarSnapshotBars, dailyCachePaintVerdict), so committing on it would show a
         // loading chart instead of A.
+        // ⭐ (2026-11-21) woken by the entry's own changes (the device copy landing, the tail's answer), never a poll
         let devTimer = null
-        const devPoll = () => {
-          devTimer = null
-          if (!live) return
-          if (devicePaints(requestedSym, tf)) { land('device'); return }
-          if (covers(requestedSym, tf, { answered: true })) { land('covered'); return }
-          devTimer = setTimeout(devPoll, POLL_MS)
+        let unwatch = null
+        const ready = () => {
+          if (!live) return true
+          if (devicePaints(requestedSym, tf)) { land('device'); return true }
+          if (covers(requestedSym, tf, { answered: true })) { land('covered'); return true }
+          return false
         }
-        if (DEVICE || BARSTORE) devTimer = setTimeout(devPoll, 0)
-        return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); ctl.abort() }
+        if (DEVICE || BARSTORE) {
+          unwatch = watchEntry(requestedSym, tf, {}, () => { if (unwatch && ready()) { unwatch(); unwatch = null } })
+          if (unwatch) { if (ready()) { unwatch(); unwatch = null } } else {
+            const devPoll = () => { devTimer = null; if (!ready()) devTimer = setTimeout(devPoll, POLL_MS) }
+            devTimer = setTimeout(devPoll, 0)
+          }
+        }
+        return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); if (unwatch) unwatch(); ctl.abort() }
       }
 
       // displayable and whole (paintsWholeNow), or a code this coordinator does not govern: commit now. The
@@ -404,13 +427,20 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // symbol from the shared queue before our own prepare resolves — committing
       // the moment the cache is good is strictly better than waiting for our
       // request to come back.
+      // ⭐ (2026-11-21) under the BarStore it is woken by the entry's own changes (a repair, a device copy, the
+      // answer), never a POLL_MS poll; the legacy source has no store to watch and keeps the poll.
       let timer = null
+      let unwatchI = null
       const tick = () => {
         if (!alive || genRef.current !== gen) return
         if (paintsWholeNow(requestedSym, tf, sess)) { commitHere(); return }
         timer = setTimeout(tick, POLL_MS)
       }
-      timer = setTimeout(tick, POLL_MS)
+      unwatchI = watchEntry(requestedSym, fetchTf(tf), sess, () => {
+        if (!unwatchI || !alive || genRef.current !== gen || committed) return
+        if (paintsWholeNow(requestedSym, tf, sess)) { unwatchI(); unwatchI = null; commitHere() }
+      })
+      if (!unwatchI) timer = setTimeout(tick, POLL_MS)
 
       // ⚠️ THE BACKSTOP IS A HANG GUARD, NOT A RESULT. `prepareForDisplay` resolves
       // on success AND on failure, so the only way to reach this is a request that
@@ -423,7 +453,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         commitHere()
       }, HANDOFF_HANG_MS)
 
-      return () => { alive = false; if (timer) clearTimeout(timer); clearTimeout(deadline); if (!committed) { try { prepCtl?.abort() } catch { /* ignore */ } } }
+      return () => { alive = false; if (timer) clearTimeout(timer); if (unwatchI) unwatchI(); clearTimeout(deadline); if (!committed) { try { prepCtl?.abort() } catch { /* ignore */ } } }
       // ⚠️ `displayedSym` IS A DEPENDENCY, NOT A REF READ DURING RENDER. Reading a
       // ref while rendering is unsafe under concurrent rendering (and the lint rule
       // says so). Depending on it re-runs this effect exactly once after a commit,
