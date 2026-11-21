@@ -253,4 +253,29 @@ describe('on lightweight-charts itself: the same chart as writing every set, ste
     expect(labelsOf(held)).toEqual(labelsOf(ctrl))
     for (const r of [held, ctrl]) { r.binder.teardown(); r.chart.remove(); r.el.remove() }
   })
+  it('the work: a sync restyles the items of each series once for its data, not once more for an unchanged set', () => {
+    queue.length = 0 // the frames the last test's charts still asked for: those charts are gone
+    // every per-item restyle goes through the series' bar colourer (`SeriesBarColorer.barStyle`, 5.2.0 dev build): a data
+    // change restyles every item of the series (its pane view rebuilds), and so did every `applyOptions`
+    const held = rig(false)
+    const ctrl = rig(true)
+    held.sync(priced(300, 100)); ctrl.sync(priced(300, 100)); frames()
+    const one = held.binder.bindings()[0].series
+    const proto = Object.getPrototypeOf(one._internal__series._internal_barColorer())
+    const own = proto._internal_barStyle
+    let n = 0
+    proto._internal_barStyle = function counted(...a) { n += 1; return own.apply(this, a) }
+    try {
+      const work = (r, b) => { n = 0; r.sync(b); frames(); return n }
+      const resync = { held: work(held, priced(300, 100)), ctrl: work(ctrl, priced(300, 100)) }
+      const sw = { held: work(held, priced(300, 0.1)), ctrl: work(ctrl, priced(300, 0.1)) }
+      console.log(`[options held] restyled items: re-sync ${JSON.stringify(resync)}, switch ${JSON.stringify(sw)}`)
+      expect(resync.ctrl, 'the control restyled nothing: vacuous').toBeGreaterThan(1000)
+      expect(resync.held, 'a re-sync (new bars, the same sets)').toBeLessThan(resync.ctrl * 0.7)
+      expect(sw.held, 'a switch').toBeLessThan(sw.ctrl * 0.7)
+    } finally {
+      proto._internal_barStyle = own
+      for (const r of [held, ctrl]) { r.binder.teardown(); r.chart.remove(); r.el.remove() }
+    }
+  })
 })
