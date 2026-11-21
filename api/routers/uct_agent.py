@@ -783,6 +783,10 @@ def agent_record(body: RecordIn, user: dict = Depends(require_admin_dark)):
         t: dict[str, Any] = dict(body.telemetry)
         t.setdefault("path", "local")
         store.record_telemetry(uid, cid, t)
+        # ticker-lookup counts (owner #1283): a log line of counts / ms / verdict-kind counts only -- no words, symbols or ids
+        line = store.ticker_log_line(t)
+        if line:
+            log.info("[uct-agent] ticker lookups %s", line)
     return {"conversationId": cid}
 
 
