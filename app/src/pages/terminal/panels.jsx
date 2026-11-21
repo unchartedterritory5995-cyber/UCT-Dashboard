@@ -152,6 +152,8 @@ export const PANEL_IMPORTERS = {
   TreasuryAuctions: () => import('./panels/TreasuryAuctionsPanel'),
   // FED (2026-11-21): the FOMC statement and its redline, Fed headlines, speeches, the next meeting, the rate, projections, the survey
   FedWatch: () => import('./panels/FedWatchPanel'),
+  // ECON (2026-11-21): the economy board, theme by theme, with the releases due in the next 7 days
+  Economy: () => import('./panels/EconomyPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
