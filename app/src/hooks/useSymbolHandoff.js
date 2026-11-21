@@ -159,7 +159,7 @@ function sameTaskRoute(sym, tf, sess) {
 /** ⭐ DIAGNOSTICS (device store on only): ONE record per switch, at its commit, of what the first frame is built
  *  from and, when it is not the device copy, which rule refused it (data/deviceStore/diag.js). Read by no
  *  decision; a failure here never costs the switch. */
-function noteDeviceFor(sym, tf, sess, outcome) {
+function noteDeviceFor(sym, tf, sess, outcome, pre = null) {
   if (!DEVICE) return
   try {
     const intraday = INTRADAY.has(String(tf))
@@ -168,9 +168,22 @@ function noteDeviceFor(sym, tf, sess, outcome) {
     // queue: the device client's reads in flight at this commit (a held arrow's backlog, if any)
     let queue = null
     try { queue = deviceSource()?.inFlight?.() ?? null } catch { queue = null }
-    const rec = noteDeviceSwitch({ sym, tf: String(tf), at: performance.now(), outcome, painted: v.held, reason: v.reason, why: null, queue })
+    const rec = noteDeviceSwitch({ sym, tf: String(tf), at: performance.now(), outcome, painted: v.held, reason: v.reason, why: null, queue, pre })
     if (v.held !== 'device') deviceWhy(sym, vtf).then((w) => { rec.why = w }, () => { rec.why = 'error' })
   } catch { /* diagnostics only */ }
+}
+
+/** ⭐ DIAGNOSTICS (2026-11-21): the device rule's answer for this chart's key NOW, while no server answer holds it
+ *  (null once one does, and with the device store off). A switch that waited commits after the server answered, and
+ *  its record's own verdict then reads 'held:rest' whatever kept the device copy from painting in the meantime
+ *  (devgates 2026-11-21: 107 of 116 typed and 70-row records said only that). The last answer seen here is the record's `pre`. */
+function deviceRuleBeforeAnswer(sym, tf, sess) {
+  if (!DEVICE) return null
+  try {
+    const intraday = INTRADAY.has(String(tf))
+    const v = storePrefetch.deviceVerdict(sym, intraday ? fetchTf(tf) : tf, intraday ? sess : {})
+    return v && v.held !== 'rest' && v.held !== 'server' ? v.reason : null
+  } catch { return null }
 }
 
 /** ⭐ CAN THIS CHART SHOW `sym` IN THIS TASK (the key handler's decision, handoffGroups.decideGroupShow)? The same
@@ -333,10 +346,14 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       const sess = sessOf(showExtended)
       // one device diagnostics record per switch, at its commit (noteDeviceFor)
       let noted = false
+      // `pre`: the device rule's last answer while this switch waited with no server answer on the key
+      // (deviceRuleBeforeAnswer); asked wherever the switch itself asks the rule, never on a timer of its own
+      let pre = null
+      const seePre = () => { const r = deviceRuleBeforeAnswer(requestedSym, tf, sess); if (r) pre = r }
       const noteDevice = () => {
         if (noted) return
         noted = true
-        noteDeviceFor(requestedSym, tf, sess, lastOutcomeRef.current)
+        noteDeviceFor(requestedSym, tf, sess, lastOutcomeRef.current, pre)
       }
       const commit = () => {
         if (genRef.current !== gen) return
@@ -385,6 +402,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         let unwatch = null
         const ready = () => {
           if (!live) return true
+          seePre()
           if (devicePaints(requestedSym, tf)) { land('device'); return true }
           if (covers(requestedSym, tf, { answered: true })) { land('covered'); return true }
           return false
@@ -443,11 +461,14 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       let unwatchI = null
       const tick = () => {
         if (!alive || genRef.current !== gen) return
+        seePre()
         if (paintsWholeNow(requestedSym, tf, sess)) { commitHere(); return }
         timer = setTimeout(tick, POLL_MS)
       }
+      seePre()   // (the route was just decided on this entry: what the device rule said of it then)
       unwatchI = watchEntry(requestedSym, fetchTf(tf), sess, () => {
         if (!unwatchI || !alive || genRef.current !== gen || committed) return
+        seePre()
         if (paintsWholeNow(requestedSym, tf, sess)) { unwatchI(); unwatchI = null; commitHere() }
       })
       if (!unwatchI) timer = setTimeout(tick, POLL_MS)

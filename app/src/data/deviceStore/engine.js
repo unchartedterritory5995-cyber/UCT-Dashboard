@@ -40,7 +40,8 @@ import { parseDelta, applyDelta, newSetOf } from './delta'
 import { createSha256 } from './sha256'
 import { deriveFromDaily } from './resample'
 import { isoOfYmd, nextSessionISO } from './sessions'
-import { etDateLabel } from '../../components/chart/barTime'
+import { closeMinuteOf } from './fresh'
+import { etDateLabel, etMinuteOfDay } from '../../components/chart/barTime'
 
 import { STORED_TFS, DERIVED_TFS } from './tfs'
 
@@ -204,6 +205,24 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     if (!splits || splits.session !== next || today > next) return false
     return !splits.symbols.has(sym.replace(/\./g, '-'))
   }
+  /**
+   * ⛔ A SEED COPY THAT STOPS BEFORE ITS AS-OF SESSION'S LAST BUCKET IS NOT COMPLETE THROUGH THAT SESSION
+   * (2026-11-21). The file says `asof`, and the builder checks only that the newest row is OF that day
+   * (api/services/ffseed.py build_tf `stale`): it packs whatever intraday rows the worker's store holds. Measured
+   * on the published build 20261121T0137Z (as of Friday 2026-11-20): 3,535 of 3,541 30m rows stopped short, 3,530 of them by 13:00 ET
+   * of that day (60m and 15m alike, 5m mostly ~12:10), their last row a bucket caught while it was forming; the
+   * build before it was the same for Thursday. Stamped through the end of the as-of day, such a copy passed
+   * fresh.js, and with today's bars appended it read current mid-session: a chart with a hole in yesterday.
+   * True for an intraday copy whose last row is not the last bucket of `asof`'s regular session (the page's own
+   * completeness rule, marketSession.classifyIntradayTail). D is one bar a day: never short.
+   */
+  function _shortOfClose(seed, tf, asof) {
+    const mins = Number(tf)
+    if (!Number.isFinite(mins) || mins <= 0 || !seed.t.length) return false
+    const last = seed.t[seed.t.length - 1]
+    if (etDateLabel(last) !== asof) return true
+    return etMinuteOfDay(last) < closeMinuteOf(asof) - mins
+  }
   /** The key `sym` is held under in L ('BRK-B' or its 'BRK.B' spelling), or null. */
   function _rowName(L, sym) {
     const S = sym.toUpperCase()
@@ -236,6 +255,13 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     if (!seed) return { out: null, why: 'bad' }
     // the seed is complete through the end of its as-of day (built after that day's 20:00 ET close)
     seed.through = Date.UTC(+asof.slice(0, 4), +asof.slice(5, 7) - 1, +asof.slice(8, 10)) / 1000 + 86400
+    // ...unless its rows stop before that session's last bucket (_shortOfClose): then it is complete, at most,
+    // to the START of its last row (which may itself be partial), every rule that reads `through` refuses it,
+    // and today is NEVER appended to it (the join would hide the missing hours behind a current tail).
+    if (_shortOfClose(seed, String(tf), asof)) {
+      seed.through = seed.t[seed.t.length - 1]
+      return { out: seed, why: 'seed-short' }
+    }
     if (!overlay) return { out: seed, why: 'seed-only:no-overlay' }
     // TODAY, to the last COMPLETE minute (live.js): appended only where the overlay vouches for every
     // bar and continues this symbol's window across exactly one night.
@@ -307,7 +333,8 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
 
     /**
      * Diagnostics: why read(sym, tf) answers what it does. 'ok' (seed and today's overlay), 'seed-only:<rule>'
-     * (the seed alone: the overlay is absent or refused, live.js why()), or the rule that made it null:
+     * (the seed alone: the overlay is absent or refused, live.js why()), 'seed-short' (the seed alone and not
+     * complete through its as-of session: its rows stop before that session's last bucket), or the rule that made it null:
      * no-file (that timeframe is not held) | missing (not in the seed) | split (the split guard) | bad (the
      * row failed its checks).
      */

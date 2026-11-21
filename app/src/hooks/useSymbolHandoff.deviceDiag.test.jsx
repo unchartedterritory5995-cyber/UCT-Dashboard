@@ -82,7 +82,7 @@ describe('the switch records whether the device painted it', () => {
     expect(window.__uctDeviceDiag.log()).toHaveLength(1)
   })
 
-  it('a switch that WAITED keeps the device rule's answer from before the server answered (pre)', async () => {
+  it('a switch that WAITED keeps what the device rule answered before the server did (pre)', async () => {
     // D, its deep history due, the device not painting: the daily hold waits. At the commit the server's answer
     // holds the key, so the commit's own verdict can only say 'held:rest'; `pre` is the rule that refused the
     // device copy while the switch was still waiting.

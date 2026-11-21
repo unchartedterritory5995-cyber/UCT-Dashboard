@@ -36,8 +36,9 @@ function seedRows() {
 
 /** 20:30 ET on 2026-11-18, after the replayed day's last frame. */
 const AFTER_DAY = Date.UTC(2026, 10, 19, 1, 30)
-async function engineWithToday({ asof = '2026-11-17', nowMs = AFTER_DAY, splits = { session: '2026-11-18', symbols: {} } } = {}) {
-  const { m5, D } = seedRows()
+async function engineWithToday({ asof = '2026-11-17', nowMs = AFTER_DAY, splits = { session: '2026-11-18', symbols: {} }, seedBars = null } = {}) {
+  const { m5: whole, D } = seedRows()
+  const m5 = seedBars == null ? whole : whole.slice(0, seedBars)   // (a seed whose rows stop early: seedBars < 78)
   const disk = new Map()
   const packs = { '5': seedPackOf({ [SYM]: m5 }, { tf: '5', asof, build: 'b1' }), D: seedPackOf({ [SYM]: D }, { tf: 'D', asof, build: 'b1' }) }
   const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: async (u) => new Response(packs[u]), now: () => nowMs })
@@ -84,6 +85,25 @@ describe('engine read with today', () => {
     const got = eng.read(SYM, '5')                                        // 21:00 ET on the as-of day
     expect(got.t.length).toBe(m5.length)
     expect(got.through).toBe(Date.UTC(2026, 10, 18) / 1000)
+  })
+
+  // The published builds of 2026-11-20 and 2026-11-21: 99.8% of the 30m rows (60m, 15m alike) stopped hours before the close of
+  // the as-of day. Such a copy is not complete through its as-of day, and today must never be joined to it.
+  it("A SEED THAT STOPS BEFORE ITS AS-OF SESSION'S LAST BUCKET: stamped where it stops, today never appended", async () => {
+    const { eng, m5 } = await engineWithToday({ seedBars: 8 })           // yesterday's 09:30 ... 10:05 only
+    expect(eng.why(SYM, '5')).toBe('seed-short')
+    const got = eng.read(SYM, '5')
+    expect(got.t.length).toBe(8)                                          // today NOT joined across the missing hours
+    expect(got.t.at(-1)).toBe(m5[7].t)
+    expect(got.through).toBe(m5[7].t)                                     // complete, at most, to its last row's start
+    expect(eng.why(SYM, 'D')).toBe('ok')                                  // D is one bar a day: never short
+    // the boundary: the bucket before the session's last (15:50) is short, the last one (15:55) is whole
+    const near = await engineWithToday({ seedBars: 77 })
+    expect(near.eng.why(SYM, '5')).toBe('seed-short')
+    expect(near.eng.read(SYM, '5').t.length).toBe(77)
+    const whole = await engineWithToday({ seedBars: 78 })
+    expect(whole.eng.why(SYM, '5')).toBe('ok')
+    expect(whole.eng.read(SYM, '5').t.length).toBeGreaterThan(78)         // today joined
   })
 
   it("THE SPLIT GUARD: past its as-of day a copy needs the next session's split list, without the symbol", async () => {

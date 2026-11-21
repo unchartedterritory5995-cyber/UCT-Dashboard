@@ -94,6 +94,7 @@ describe('the wake of a landing device copy', () => {
     await vi.advanceTimersByTimeAsync(5)
     expect(seen.length).toBeGreaterThan(0)
     // the FIRST wake: the only one a switch gets before the server answers
+    expect(seen[0].reason).toBe('paints')                 // (it read 'stale': the stamp was not written yet)
     expect(seen[0]).toMatchObject({ paints: true, reason: 'paints', held: 'device', through: THROUGH, savedAt: THROUGH * 1000 })
     off()
     store.dispose()
