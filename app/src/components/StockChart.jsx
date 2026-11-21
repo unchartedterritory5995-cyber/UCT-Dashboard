@@ -1793,7 +1793,8 @@ import { createHistoryLoader, wantsOlder, PREFETCH_WINDOWS, HISTORY_PREFETCH_TAR
 import { memPeek } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
 import { makeLiveSane } from './chart/liveTickBaseline'
-import { isCurrentEnoughForPaint, dailyMissingSessionsForPaint, DAILY_PAINT_MAX_GAP, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { isCurrentEnoughForPaint, dailyMissingSessionsForPaint, DAILY_PAINT_MAX_GAP, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { tradingSessionTodayET } from './chart/tradingTodayMemo'   // isTradingSessionTodayET, one answer per minute
 import { tailRetriesExhausted, liveBadgeState } from '../utils/intradayTailPoll'
 import { parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -2848,7 +2849,7 @@ export function _intradayLoadReserve(bars, tf) {
     // session walk is the wrong instrument here; W/M keep the single-slot rule until
     // their own period semantics are designed. The scope of this change is DAILY.
     if (typeof lt !== 'string' || lt.length < 10) return 0
-    if (!isTradingSessionTodayET()) return 0
+    if (!tradingSessionTodayET()) return 0
     const ps = _etPeriodStartISO(tf)
     return (ps && lt < ps) ? 1 : 0
   }
@@ -2891,7 +2892,7 @@ export { DAILY_PAINT_MAX_GAP }   // owned by marketSession (dailyCachePaintVerdi
 // stops the "today's candle opens on tomorrow, then snaps back" slide.
 export function _developingBarISO(tf) {
   if (!(tf === 'D' || tf === 'W' || tf === 'M')) return null
-  if (!isTradingSessionTodayET()) return null
+  if (!tradingSessionTodayET()) return null
   try {
     const iso = computeBarTime(tf, Date.now() / 1000)
     return (typeof iso === 'string' && iso.length >= 10) ? iso : null
