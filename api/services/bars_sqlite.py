@@ -3227,6 +3227,78 @@ def _drop_stale_sealed(c, ticker: str, tf: str, rows: list, snapped: list, check
     return k_rows, k_snap
 
 
+class AddOnlyBar(dict):
+    """A bar a writer may ADD to the store but must never let REPLACE a row the store already holds:
+    `put_bars` writes it INSERT OR IGNORE even inside a replacing write. It is the plain dict it wraps
+    (JSON, `.get`, comparisons), so a reader that is not a writer never notices it.
+
+    ⚰️ 2026-11-21, web's CX: a deep fetch's yfinance graft (bars older than Massive's 2003-09-10 floor)
+    written on Yahoo's basis, which is 1.04^4 below the vendor's for CX, REPLACED the 1,001 stored rows
+    before the floor. That put a x1.16 cliff at 2003-09-10, an overnight move that never traded. A graft
+    whose join cannot be proven (`bars_fetch._yf_join_factor` None) is AddOnlyBar
+    (`bars_fetch._merge_daily_bars`). Rails: tests/test_deep_merge_join.py."""
+    __slots__ = ()
+
+
+#: ⭐ PROVENANCE OF UNJOINED ROWS (ruling 2026-11-21). Every write that FILLED dates from an AddOnlyBar
+#: (an unjoined source: no proven join factor, or an empty Massive answer) logs the span it filled, so
+#: rows on an unproven basis can be found and rebased. A later proven join rebases them on its own: it
+#: is a plain, replacing write. Best effort: the log never fails the bar write.
+_UNJOINED_DDL = ("CREATE TABLE IF NOT EXISTS unjoined_writes (ticker TEXT NOT NULL, tf TEXT NOT NULL, "
+                 "ts_min INTEGER NOT NULL, ts_max INTEGER NOT NULL, rows INTEGER NOT NULL, "
+                 "written_at_ms INTEGER NOT NULL, source TEXT NOT NULL)")
+
+
+def _bar_key(b: dict, date_tf: bool) -> int | None:
+    try:
+        t = b.get("t")
+        return int(str(t).replace("-", "")) if date_tf else int(t)
+    except (TypeError, ValueError):
+        return None
+
+
+def _held_keys(ticker: str, tf: str, bars: list, date_tf: bool) -> set:
+    """The stored keys among `bars`' key range (one PK range seek), read just before an add-only write."""
+    keys = [k for k in (_bar_key(b, date_tf) for b in bars) if k is not None]
+    if not keys:
+        return set()
+    try:
+        rows = _conn().execute("SELECT ts FROM ohlcv WHERE ticker=? AND tf=? AND ts BETWEEN ? AND ?",
+                               (ticker.upper(), tf, min(keys), max(keys))).fetchall()
+    except sqlite3.Error:
+        return set(keys)                  # unknown: claim nothing was filled
+    return {r[0] for r in rows}
+
+
+def _note_unjoined(ticker: str, tf: str, bars: list, date_tf: bool, held_before: set) -> None:
+    filled = sorted(k for k in {_bar_key(b, date_tf) for b in bars} - set(held_before) if k is not None)
+    if not filled:
+        return
+    try:
+        present = _held_keys(ticker, tf, [{"t": k} for k in filled], False)
+        filled = [k for k in filled if k in present]   # refused bars (validation, calendar) were not written
+        if not filled:
+            return
+        with _WRITE_LOCK:
+            c = _conn()
+            c.execute(_UNJOINED_DDL)
+            c.execute("INSERT INTO unjoined_writes VALUES (?, ?, ?, ?, ?, ?, ?)",
+                      (ticker.upper(), tf, filled[0], filled[-1], len(filled), _now_ms(), "unjoined-yfinance"))
+            c.commit()
+    except Exception:  # noqa: BLE001 — provenance never fails the write
+        _logger.warning("[sqlite] %s tf=%s: unjoined-provenance log failed", ticker, tf)
+
+
+def unjoined_writes(ticker: str, tf: str) -> list[dict]:
+    """The logged unjoined fills of one series, oldest first."""
+    try:
+        rows = _conn().execute("SELECT ts_min, ts_max, rows, written_at_ms, source FROM unjoined_writes "
+                               "WHERE ticker=? AND tf=? ORDER BY written_at_ms", (ticker.upper(), tf)).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return [dict(zip(("ts_min", "ts_max", "rows", "written_at_ms", "source"), r)) for r in rows]
+
+
 def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
              on_conflict: str = "replace", checked_at: float | None = None) -> int:
     """Upsert bars.  date_tf=True means bar["t"] is 'YYYY-MM-DD' → YYYYMMDD int.
@@ -3245,9 +3317,20 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
     On ``DatabaseError: disk image is malformed`` schedules a background
     recovery (snapshot re-pull from R2) and re-raises so the caller's
     exception handler can return an empty result for this single request.
+
+    An ``AddOnlyBar`` in a replacing write is written ADD-ONLY (its own INSERT OR IGNORE
+    write): it may fill a date the store lacks, never replace a row the store holds.
     """
     if not bars:
         return 0
+    if on_conflict != "ignore" and any(isinstance(b, AddOnlyBar) for b in bars):
+        plain = [b for b in bars if not isinstance(b, AddOnlyBar)]
+        add = [b for b in bars if isinstance(b, AddOnlyBar)]
+        n = put_bars(ticker, tf, plain, date_tf, on_conflict, checked_at) if plain else 0
+        held = _held_keys(ticker, tf, add, date_tf)
+        n += put_bars(ticker, tf, add, date_tf, "ignore", checked_at)
+        _note_unjoined(ticker, tf, add, date_tf, held)
+        return n
     ticker = ticker.upper()
     bars, _rejected = _writable_bars(ticker, tf, bars)
     bars, snapped = _grid_rows(ticker, tf, bars, date_tf)
