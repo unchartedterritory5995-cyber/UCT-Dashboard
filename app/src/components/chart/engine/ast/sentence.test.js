@@ -3260,13 +3260,20 @@ describe('sentence.js is a pure function of (ast, inputs) — by AST over its ow
     // allowlist widened until it means nothing.
     expect(got.imports).toEqual(['./parse.js'])
     const parseImports = scan(acorn.parse(readSource('parse.js'), { ecmaVersion: 2023, sourceType: 'module' })).imports
-    expect(parseImports).toEqual(['./callExpansions.js', './closedTable.json', 'jsep'])
+    expect(parseImports).toEqual(['./callExpansions.js', './closedTable.json', './doorDeadline.js', 'jsep'])
     // ⭐ BATCH 2 — `parse.js` expands the exact-identity functions with
     // `callExpansions.js`, which is SCANNED here rather than allowed: no findings
     // and no imports of its own, so the closure stays exactly as narrow as before.
     const expansions = scan(acorn.parse(readSource('callExpansions.js'), { ecmaVersion: 2023, sourceType: 'module' }))
     expect(expansions.findings, 'callExpansions.js reached something outside a pure derivation').toEqual([])
     expect(expansions.imports).toEqual([])
+    // ⭐ door-deadline (2026-11-20) — `parse.js` ticks the member door's window (`doorDeadline.js`) from its tree walks,
+    // and that module is SCANNED too: no findings, no imports. It reads no clock of its own (a window carries the clock
+    // it was opened with), with no window open every tick is one null test, and inside one a tick can only STOP a walk
+    // (a throw), never change a value it returns: a derived sentence is still a function of (ast, inputs) alone.
+    const door = scan(acorn.parse(readSource('doorDeadline.js'), { ecmaVersion: 2023, sourceType: 'module' }))
+    expect(door.findings, 'doorDeadline.js reached something outside a pure derivation').toEqual([])
+    expect(door.imports).toEqual([])
   })
 
   it('…and the detector can FAIL — the positive control', async () => {

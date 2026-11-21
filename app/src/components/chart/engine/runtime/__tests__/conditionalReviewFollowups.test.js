@@ -172,12 +172,20 @@ describe('H1b — the held-body scan is an ALLOWLIST: any non-pointwise call or 
 })
 
 describe('L3b — a parameter branch refusal names the real cause', () => {
+  // ⭐⭐ A4 (feat/a4-param-branch-checked) — a per-bar argument for an UNDECLARED parameter now compiles a copy
+  // whose branch is checked to run on every call (`a4ParamBranchChecked.test.js`), so the build refusal this pinned
+  // is asked where it still stands: a parameter declared `simple` (Pine does not compile a per-bar value there).
   it('`(close - open)[1]` in a parameter branch says an expression\'s history, not a `ta.*` call', () => {
-    const src = v6('f(mode) =>\n    float r = na\n    if mode == "A"\n        r := (close - open)[1]\n    else\n        r := 0.0\n    r\n'
+    const src = v6('f(simple string mode) =>\n    float r = na\n    if mode == "A"\n        r := (close - open)[1]\n    else\n        r := 0.0\n    r\n'
       + 'plot(f(close > open ? "A" : "B"))\n')
     const r = refusalOf(src)
     expect(r && r.guard).toBe(R4)
     expect(r.message).not.toMatch(/a `ta\.\*` call/)
     expect(r.message).toMatch(/reads a series with history/)
+  })
+  it('A4 — the undeclared parameter: never drawn off every call, stopped by name where the branch skips', () => {
+    const src = v6('f(mode) =>\n    float r = na\n    if mode == "A"\n        r := (close - open)[1]\n    else\n        r := 0.0\n    r\n'
+      + 'plot(f(close > open ? "A" : "B"))\n')
+    expect(runGuardOf(src, { bars: BARS })).toBe(R4)
   })
 })

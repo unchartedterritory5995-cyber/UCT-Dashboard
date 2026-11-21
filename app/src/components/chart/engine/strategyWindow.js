@@ -37,6 +37,7 @@ export const FAILURE_RETRY_MS = 60_000
 export const REQUEST_TIMEOUT_MS = 10_000
 
 let _window = null
+let _depth = null
 let _failedAt = null
 let _inflight = null
 
@@ -46,10 +47,42 @@ export function isStrategyWindowDefinition(def) {
   return !!(def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
 }
 
-/** The window in a payload, or null (only a positive safe integer is a window). */
+const positive = (v) => (Number.isSafeInteger(v) && v > 0 ? v : null)
+
+/**
+ * ⭐⭐ (2026-11-19, the strategy-only daily window, coordinator ruling D9) DOES THIS CHART FETCH ITS FULL DAILY HISTORY
+ * FOR A STRATEGY? A DAILY chart that holds a strategy document, with the broker gate on: its strategy runs from the
+ * listing over the strategy window, so the chart asks for every daily bar it can hold (`barsBackfill.js::fullBarsFor`,
+ * pinned equal to `bars_window.STRATEGY_HISTORY_WINDOW_BARS`), wherever it sits (a grid cell too, which otherwise
+ * paints a shallow window first). Every other chart: false, its request unchanged.
+ * @param {{tf: string, instances: object[], defOf: (id: string) => object}} p
+ */
+export function strategyNeedsFullDailyHistory({ tf, instances, defOf } = {}) {
+  if (tf !== 'D' || !strategyBrokerEnabled() || typeof defOf !== 'function') return false
+  return (instances || []).some((i) => isStrategyWindowDefinition(defOf(i && i.defId)))
+}
+
+/** The window in a payload, or null (only a positive safe integer is a window).
+ *  ⭐⭐ (2026-11-19, the strategy-only daily window, coordinator ruling D9) the payload's `strategyHistoryWindowBars`
+ *  (`bars_window.STRATEGY_HISTORY_WINDOW_BARS`) when it states one, else its `historyWindowBars`, so a server from
+ *  before that field answers exactly as before. */
 export function windowOfPayload(payload) {
-  const w = payload && typeof payload === 'object' ? payload.historyWindowBars : undefined
-  return Number.isSafeInteger(w) && w > 0 ? w : null
+  const p = payload && typeof payload === 'object' ? payload : {}
+  const strategy = positive(p.strategyHistoryWindowBars)
+  return strategy !== null && positive(p.historyWindowBars) !== null ? strategy : positive(p.historyWindowBars)
+}
+
+/** ⭐⭐ (2026-11-19) The depth a run from the listing is served at without the deep-start rule ([B-START-DEEP]), or
+ *  null: the payload's `historyWindowBars` (the shared window) when it states a strategy window beside it, else null
+ *  (no second value: the window itself, so the VM runs exactly as before). */
+export function listingDepthOfPayload(payload) {
+  const p = payload && typeof payload === 'object' ? payload : {}
+  return positive(p.strategyHistoryWindowBars) !== null ? positive(p.historyWindowBars) : null
+}
+
+/** The served depth this tab already holds beside its window, or null (no fetch). */
+export function strategyListingDepthNow() {
+  return strategyBrokerEnabled() && _window !== null ? _depth : null
 }
 
 /** The window this tab already holds, or null (no fetch). */
@@ -78,12 +111,15 @@ export function loadStrategyHistoryWindow(fetchImpl, now = Date.now) {
     const asked = Promise.resolve()
       .then(() => (f ? f(STRATEGY_WINDOW_URL, { credentials: 'include', ...(ctl ? { signal: ctl.signal } : {}) }) : null))
       .then((r) => (r && r.ok ? r.json() : null))
-      .then(windowOfPayload, () => null)
+      .then((p) => {
+        const w = windowOfPayload(p)
+        return w === null ? null : { w, depth: listingDepthOfPayload(p) }
+      }, () => null)
     _inflight = Promise.race([asked, timedOut])
-      .then((w) => {
+      .then((got) => {
         clearTimeout(timer)
         _inflight = null
-        if (w !== null) { _window = w; _failedAt = null } else _failedAt = now()
+        if (got) { _window = got.w; _depth = got.depth; _failedAt = null } else _failedAt = now()
         return _window
       })
   }
@@ -93,6 +129,7 @@ export function loadStrategyHistoryWindow(fetchImpl, now = Date.now) {
 /** Tests only: forget the tab's window and any remembered failure. */
 export function resetStrategyHistoryWindow() {
   _window = null
+  _depth = null
   _failedAt = null
   _inflight = null
 }

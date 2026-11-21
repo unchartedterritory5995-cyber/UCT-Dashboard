@@ -112,6 +112,9 @@ describe('B1 — paints graded against the captures that record them', () => {
     'renko-candles-overlay-spy-1d-2026-10-03.json': ['refused pine:collection'],
     'renko-candles-overlay-crwv-1d-2026-11-16.json': ['refused pine:collection'],
     'supertrend-strategy-alab-1d-2026-11-17.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
+    // 2026-11-20 (PR #2146's rig run, Q-SU-7 / Q-SU-8): each chart scrolled back to its listing
+    'supertrend-strategy-deep-aapl-1d-2026-11-19.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
+    'supertrend-strategy-deep-spy-1d-2026-11-19.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
     'supertrend-strategy-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
     'supertrend-strategy-rddt-1d-2026-11-17.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
     'supertrend-strategy-is-rddt-1d-2026-11-18.json': ['supply bar0 warmup=0', 'plot_9 withheld'],

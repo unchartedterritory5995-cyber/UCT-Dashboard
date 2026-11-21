@@ -1,0 +1,39 @@
+{
+ "about": "Q-BH0 (engine 92): the trees the columnar lane writes for a Pine v6 bool's written history `(close > open)[k]` (pine.js::v6BoolHistory: `na(close[k]) ? 0 : x[k]`, false exactly on the first k bars, the read after) and the plain read a v5 script keeps, with the values both lanes must compute on these bars. ONE AUTHORITY: app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.qbh0BoolHistory.test.js checks that the translator writes these very trees and that interpret.js computes these values; tests/test_ast_v6_bool_history_parity.py checks that ast_interpret.py computes the same values. `null` is na.",
+ "bars": [
+  {"o": 10, "h": 12, "l": 9, "c": 11, "v": 100},
+  {"o": 11, "h": 12, "l": 9, "c": 10, "v": 100},
+  {"o": 10, "h": 13, "l": 9, "c": 12, "v": 100},
+  {"o": 12, "h": 14, "l": 11, "c": 13, "v": 100},
+  {"o": 13, "h": 14, "l": 11, "c": 12, "v": 100},
+  {"o": 12, "h": 15, "l": 11, "c": 14, "v": 100}
+ ],
+ "cases": {
+  "v6_k1": {
+   "pine": "(close > open)[1]",
+   "version": 6,
+   "ast": {"type": "op", "name": "?:", "args": [
+    {"type": "call", "name": "na", "args": [{"type": "offset", "value": 1, "args": [{"type": "series", "name": "close"}]}]},
+    {"type": "num", "value": 0},
+    {"type": "offset", "value": 1, "args": [{"type": "op", "name": ">", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "open"}]}]}
+   ]},
+   "expected": [0, 1, 0, 1, 1, 0]
+  },
+  "v6_k2": {
+   "pine": "(close > open)[2]",
+   "version": 6,
+   "ast": {"type": "op", "name": "?:", "args": [
+    {"type": "call", "name": "na", "args": [{"type": "offset", "value": 2, "args": [{"type": "series", "name": "close"}]}]},
+    {"type": "num", "value": 0},
+    {"type": "offset", "value": 2, "args": [{"type": "op", "name": ">", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "open"}]}]}
+   ]},
+   "expected": [0, 0, 1, 0, 1, 1]
+  },
+  "v5_k1": {
+   "pine": "(close > open)[1]",
+   "version": 5,
+   "ast": {"type": "offset", "value": 1, "args": [{"type": "op", "name": ">", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "open"}]}]},
+   "expected": [null, 1, 0, 1, 1, 0]
+  }
+ }
+}
