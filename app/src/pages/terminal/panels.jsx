@@ -156,6 +156,10 @@ export const PANEL_IMPORTERS = {
   Economy: () => import('./panels/EconomyPanel'),
   // LIQ (2026-11-21): net liquidity (a UCT calculation from the Fed and Treasury figures), its changes, two years of it, the parts
   Liquidity: () => import('./panels/LiquidityPanel'),
+  // OIL (2026-11-21): the EIA's weekly oil report, the next report's date and two years of crude stocks
+  Oil: () => import('./panels/OilPanel'),
+  // FUND (2026-11-21): one company's metrics over time from its SEC filings, up to three more beside it
+  FundMetrics: () => import('./panels/FundMetricsPanel'),
   // MKTH (2026-11-21): every correction and bear market of the S&P 500 or the Nasdaq-100, the rally after each low, its leaders
   MarketHistory: () => import('./panels/MarketHistoryPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
