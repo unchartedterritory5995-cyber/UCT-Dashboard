@@ -656,6 +656,7 @@ export const ARG_KINDS = {
       return Object.prototype.hasOwnProperty.call(INS_VIEW_WORDS, key) ? INS_VIEW_WORDS[key] : null
     },
     describe: (v) => (v === 'cluster' ? 'insider cluster buys' : v),
+  },
   // ── FUND (2026-11-21): the panel model's words (panels/fundMetricsModel.js; pinned by functions.fundMetrics.test.js) ──
   /** FUND's line: ONE metric word draws that metric as a line (parseFundMetric). */
   fundMetric: {
