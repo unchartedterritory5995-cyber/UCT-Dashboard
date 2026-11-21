@@ -1706,6 +1706,7 @@ All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key com
 ### Chart Performance Architecture
 - **Chart instance reuse**: no DOM destroy on ticker switch — `setData()` on existing series, `applyOptions()` for settings. Only `chart.remove()` on unmount.
 - **Memoized data**: `ohlcData`, `closeData`, `volData`, `overlayData`, `resolvedOverlays` all wrapped in `useMemo`. Prevents recomputation on non-data changes.
+- **A live price tick never renders the chart** (2026-11-20): under BARSTORE StockChart calls `useRealtimePrices` in its quiet mode (`useRealtimePrices(tickers, { renderKey, onTickRef })`, `lib/liveQuote.js`): the render re-runs only when the feed badge or the include-mode session candle's ext price changes; the Pre/Post tags, the screenshot price and `livePricesRef` update between renders. Never read the quote through a hook that re-renders per publish in the chart body. Rail: `StockChart.liveTicks.test.jsx`.
 - **GZip compression**: `GZipMiddleware` on FastAPI (skips `/api/stream/*` SSE endpoints), ~6x smaller payloads
 - **3-layer cache**: in-memory TTLCache (~1ms, 5-15min) → persistent disk `/data/bars_cache/` (~10ms, 2-72hr) → Massive API (4-30s)
 - **Disk cache TTLs**: D=48hr, W=72hr, 60m=8hr, 30m=4hr, 5m=2hr. Empty results never cached.
