@@ -146,7 +146,9 @@ def test_the_daily_child_report_updates_the_parent_state(live):
 
 
 def test_the_daily_poll_writes_only_moved_bars_and_reports_every_ticker(live, monkeypatch):
-    from api.services import massive_adapter
+    from api.services import massive, massive_adapter
+    # the session gate is a clock check: pin it open, or this test is a function of the hour it runs
+    monkeypatch.setattr(massive, "_regular_session_has_opened_today", lambda: True)
 
     class _R:
         value = {"tickers": [{"ticker": "AAA", "day": {"o": 1, "h": 2, "l": 1, "c": 2, "v": 9}},
@@ -156,6 +158,53 @@ def test_the_daily_poll_writes_only_moved_bars_and_reports_every_ticker(live, mo
     n1, seen = live._daily_poll_once(last)
     n2, _ = live._daily_poll_once(last)
     assert (n1, n2) == (1, 0) and seen == {"AAA", "PRE"}
+
+
+def _freeze_et(monkeypatch, iso_datetime):
+    """Freeze ET 'now' for the session gate (it imports `datetime` inside its body)."""
+    import datetime as _dt_mod
+    real = _dt_mod.datetime
+
+    class _Frozen(real):
+        @classmethod
+        def now(cls, tz=None):
+            return real.fromisoformat(iso_datetime).replace(tzinfo=tz)
+    monkeypatch.setattr(_dt_mod, "datetime", _Frozen)
+
+
+def test_no_daily_row_before_the_regular_session_opens_the_2026_09_11_shape(live, monkeypatch):
+    """07:00 ET on a trading day, and the snapshot's `day` still holds YESTERDAY's settled bar
+    (2026-09-11, seen pre-market): it must not be written as today's row. From the open on, the
+    same poll writes today's bar again; every ticker is reported either way."""
+    from api.services import massive, massive_adapter
+    yesterday_final = {"o": 101.0, "h": 104.5, "l": 100.25, "c": 103.75, "v": 41_250_000}
+    snap = {"tickers": [{"ticker": "AAA", "day": dict(yesterday_final),
+                         "prevDay": {"o": 99.0, "h": 101.5, "l": 98.0, "c": 100.5, "v": 38_000_000}}]}
+
+    class _R:
+        value = snap
+    monkeypatch.setattr(massive_adapter, "get", lambda *a, **k: _R())
+    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: True)
+    written = []
+    monkeypatch.setattr(bars_sqlite, "put_bars_many",
+                        lambda tf, by: written.append((tf, by)) or sum(len(v) for v in by.values()))
+    for when in ("2026-09-11T00:30:00", "2026-09-11T04:00:00", "2026-09-11T07:00:00", "2026-09-11T09:29:00"):
+        _freeze_et(monkeypatch, when)
+        n, seen = live._daily_poll_once({})
+        assert (n, seen, written) == (0, {"AAA"}, []), when
+    snap["tickers"][0]["day"] = {"o": 104.0, "h": 104.9, "l": 103.6, "c": 104.2, "v": 1_200_000}
+    for when in ("2026-09-11T09:30:00", "2026-09-11T16:30:00"):
+        _freeze_et(monkeypatch, when)
+        n, _ = live._daily_poll_once({})
+        assert n == 1, when
+    assert [tf for tf, _ in written] == ["D", "D"]
+
+
+def test_the_daily_poll_asks_the_one_session_gate_not_a_copy():
+    import inspect
+    src = inspect.getsource(bls._daily_poll_once)
+    assert "massive._regular_session_has_opened_today()" in src
+    assert "930" not in src and "9 * 60 + 30" not in src      # no second, hand-typed clock rule
 
 
 # ── reconnect continuity (2026-10-14 evening) ────────────────────────────────

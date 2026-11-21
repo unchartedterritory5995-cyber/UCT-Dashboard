@@ -199,6 +199,36 @@
   font-size: var(--text-xs);
 }
 
+/* FOLD (2026-11-20, part 2): the RRG table ran 295px past a 340px screen. On a phone screen or in a
+   panel at most 460px wide (the fold ladder, see marketPanels.module.css and ../panelFit.js) a
+   table's cells sit 4px a side in place of 8, the two outer cells give up their outer padding, a
+   cell marked `phoneWrap` may wrap, and a column marked `phoneHide` folds away. `:where()` adds no
+   specificity. A wide panel is unchanged. */
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .phoneHide {
+  display: none;
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td {
+  padding-inline: var(--space-xs);
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th:first-child,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td:first-child {
+  padding-left: 0;
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th:last-child,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td:last-child {
+  padding-right: 0;
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td.phoneWrap,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th.phoneWrap {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
 /* ── TOUCH TIER (phone + tablet): finger targets ──
    The window chips and the row buttons were 18-22px tall on touch; <=1024px is touch in this
    repo, so the floor is the shared --tap-min at that boundary (styles/tapFloor.test.js;

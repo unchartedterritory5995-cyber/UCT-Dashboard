@@ -808,6 +808,28 @@ label and dots are withheld by name (the RS line is not). TradingView never stop
 REAL history past a declared buffer, constant or dynamic, early or late, and past 5,000 for a constant offset. The
 rule change touches L4b's ring budget, so it is the engine lane's (coordinator, 2026-11-18).
 
+**✅ LIFTED in engine 81** (#1917, `e7cb9086ff`, "a dynamic history read past a declared max_bars_back is the real
+history"). A dynamic read now stops only past Pine's 5,000. Its acceptance used TradingView's Fred RS RDDT 5m / 60m captures
+over the product's windows: run half SERVED, with "RS Rating" and the empty rating text, as TradingView drew them. Live on
+production engine 90 (2026-11-20 18:42Z, smoke@, RDDT, the e90 live sweep):
+- every step of 1M / 1W / 1D / 1h / 30m / 5m drew Fred RS's legend;
+- the "RS Rating" text was drawn on each step, including 5m;
+- a 5m runtime reply served 8,110 values with both drawings (`live=2`).
+
+## Status, 2026-11-20 (what is left)
+
+- **e91** (train running, both PRs green, mutants posted):
+  - #2198: an intraday chart whose own daily rows begin after its first session was refused whole as a "hole". It is
+    now DEPTH, and the rows are asked to the chart's span. Measured on production e88/e90: RDDT 5m replies refusing
+    "`this symbol's daily bars` has no bar on …".
+  - #2200: SPX's newest bars not yet arrived CUT the run instead of waiting it whole. Values are drawn up to SPX's newest
+    bar; the drawings wait by name.
+  - After e91 is served: the RDDT 5m sweep, under `tools/live_verdict.py`, and an in-session check of the cut.
+- **The index tail** (#2195, live 2026-11-20): SPX 5m is never behind and never goes back (signed-in probe
+  13:35-13:41 ET). SPX 1m missed two boundaries (13:36, 13:37 ET); the bars investigator is fixing that case.
+- **SPY's bad lows** (2005-10-05, 2006-10-05): the owner confirmed D1-D6 on 2026-11-20 (coordinator's record). One private correction ledger,
+  applied at serve time and reversible. Its read-only dry run is in review before anything is written.
+
 ## Owner rulings
 
 - **2026-11-16, the S&P 500 history difference (Q-RS9):** told that the RS line on bars before
@@ -820,6 +842,10 @@ rule change touches L4b's ring budget, so it is the engine lane's (coordinator, 
   switch (it turns the per-bar pane on for every admitted script for the accounts in that
   stage), so it is put back to the owner in those words, with the ladder (`admins` -> `cohort`
   -> `all`), before anyone changes it.
+  **Since acted on:** `PINE_RUNTIME_STAGE=all` on web, under the 2026-10-02 ruling D1 ("admins first, then everyone",
+  with the kill list as the safety net). It was read live by the coordinator on 2026-11-17 ~20:40Z, with
+  `VITE_PINE_RUNTIME_PANE_ENABLED=1` and `VITE_PINE_MEMBER_PANE_ENABLED=1` on web and web-front; the record is
+  `docs/feature_flags.json` → `PINE_RUNTIME_STAGE`. Members get Fred RS's run half (label and dots).
 
 - **2026-11-14, SPX source for members:** "We have the highest plan for FMP, I am fine using
   Yahoo, and only want to upgrade to massive if it is needed."
@@ -834,6 +860,22 @@ rule change touches L4b's ring budget, so it is the engine lane's (coordinator, 
     moves by 1 (63 against TradingView's 64).
   - No committed verdict implies a pass or a fail for it. Its supply record says `notRecorded`, so
     the harness refuses to grade it (`ourSide.js::recordedSupplyOf`).
+- **2026-11-21, the three post-close captures (coordinator ruling, Fred RS parity audit at engine 91, option (b)):**
+  - `rs-rating-fred6724-pc-{agl,nvda,rddt}-1d-2026-11-17` are not graded. Each was taken at 21:10Z with its newest bar
+    that day's settled close, and none has a record of what our server served for SPX or RSRATING on 2026-11-17.
+    Before their records they read DIVERGE on no bars (`other-symbol:no-bars`), which said nothing about Fred RS.
+  - Recording SPX for them needs the owner's FMP credential run (`record_rs_supply.py --spx` under `railway run`),
+    and the post-close state they test is already graded MATCH by `rs-rating-fred6724-pm-rddt-1d-2026-11-16`.
+    So each supply record says `notRecorded` for both symbols, and the harness refuses them by name
+    (rail: `vendorHarness.l8RecordedSupply.test.js`).
+- **The same audit's other findings (engine 91, the member lane runtime-on):**
+  - 23 of the 29 committed Fred RS captures are MATCH_SUBSTITUTED: every item agrees, with TradingView's own industry.
+  - `m-rddt-1m` matches all 33 of its bars, but all sit inside warm-up, so it stays INCONCLUSIVE.
+  - `pm-alab`'s one diverging item is the RS label on its newest bar (TradingView y 91.668, ours 89.909), the bar the
+    plot grader withholds by name (TradingView's own captures disagree on SPX there). The whole difference is the
+    2026-11-16 SPX close: ours (FMP) 7416.59, TradingView's at capture time 7561.67, which is FMP's 2026-11-13 close
+    (TradingView's series a day behind). ours/TV = 0.98081 = 7416.59/7561.67. Not an engine defect: the objects grader
+    is to honour the plot grader's per-bar withhold (assigned 2026-11-21).
   - Admission evidence comes from RDDT and NVDA only.
   - Before this ruling the repo recorded Massive Indices as `U` (403 for this key) and yfinance as
     `X` ("never a member path"), while `/api/bars/SPX` already served yfinance

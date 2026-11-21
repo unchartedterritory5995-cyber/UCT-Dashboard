@@ -1546,6 +1546,9 @@ if not _INERT_IN_PRODUCTION:
 # against its own tmp directory.
 if not _INERT_IN_PRODUCTION:
     os.environ.setdefault("BARS_REBUILD_SERVE", "0")
+    # The same for the published corrections ledger (api/services/bars_corrections.py): opt-IN per test
+    # (tests/test_bars_corrections.py), never picked up from a real volume.
+    os.environ.setdefault("BARS_CORRECTIONS_SERVE", "0")
 
 
 # ─── prebuilt catalogue memo: cleared between tests ────────────────────────

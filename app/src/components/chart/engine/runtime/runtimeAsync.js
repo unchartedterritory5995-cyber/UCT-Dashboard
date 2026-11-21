@@ -386,6 +386,8 @@ function messageOf(id, def, rows, ctx) {
     ...(ctx && ctx.framed === true ? { framed: true } : {}),
     // ⭐⭐ W9-T11 — the window a broker run takes (design 3.4), as the context holds it
     ...(ctx && ctx.historyWindowBars !== undefined ? { historyWindowBars: ctx.historyWindowBars } : {}),
+    // ⭐⭐ (2026-11-19, the strategy-only daily window) the depth a run from the listing is served at without [B-START-DEEP]
+    ...(ctx && ctx.listingDepthBars !== undefined ? { listingDepthBars: ctx.listingDepthBars } : {}),
     // ⭐⭐ RS RATING L5 — the chart's other-symbol cache, for a run that reads another symbol
     // (`requestSupply.js` decides from it by the host bind's rules): plain entries, each with
     // the store exchange the bind matches a spelling against (`exchangeOf` is a function and

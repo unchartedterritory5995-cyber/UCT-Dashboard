@@ -304,3 +304,68 @@ export function viewLockFractions(paneHeight, yHi, yLo) {
   if (top + bottom > 0.95) { const k = 0.95 / (top + bottom); top *= k; bottom *= k }
   return { top: +top.toFixed(4), bottom: +bottom.toFixed(4) }
 }
+
+/**
+ * The price extent of every OTHER series the autoscale fits on the candles' scale,
+ * over the logical bars `[from, to]`, so a stored view lock describes what the
+ * autoscale actually fills and not the candles alone.
+ *
+ * ⚰️⚰️ THE BAND WAS THE CANDLES', AND THE AUTOSCALE FILLS MORE THAN THE CANDLES.
+ * `_measureViewLock` turned the candles' pixel band into the scale margins; on the
+ * next ticker the autoscale fits the candles AND every series that joins it (an
+ * overlay=true script's plots since the 11-16 price-scale join, the averages on
+ * /charts) into those margins. With Fred RS's line parked under the bars the band is
+ * short by the line's share, every capture loses it again, and the candles shrank
+ * 37% → 24% → 13.5% → 6.5% of the pane across drag/switch rounds (production,
+ * 2026-11-21; KSS ended on a −123 … 73 scale). Without the line they held.
+ *
+ * ⭐ THE LIBRARY'S OWN RULE, NOT A GUESS AT IT. A series counts when it is in the
+ * candles' pane, visible, and on the candles' price scale; its data over the visible
+ * bars is handed to its OWN `autoscaleInfoProvider` when it has one — `null` (or a
+ * null `priceRange`) means it leaves the autoscale, a pinned or widened range is
+ * what it answers — exactly as lightweight-charts asks it. A volume histogram on
+ * its own overlay scale, a series in another pane and an excluded overlay are
+ * therefore never counted.
+ *
+ * @param {object} candleSeries  the candle series (`getPane`, `options`)
+ * @param {number} from          first logical index (inclusive)
+ * @param {number} to            last logical index (inclusive)
+ * @returns {{hi:number,lo:number}|null} null when nothing else joins
+ */
+export function joinedAutoscaleExtent(candleSeries, from, to) {
+  if (!candleSeries || !Number.isFinite(from) || !Number.isFinite(to) || to < from) return null
+  let list = []
+  try { list = candleSeries.getPane?.()?.getSeries?.() || [] } catch { list = [] }
+  if (!Array.isArray(list) || list.length < 2) return null
+  const scaleOf = (o) => (o && typeof o.priceScaleId === 'string' ? o.priceScaleId : 'right')
+  let candleScale = 'right'
+  try { candleScale = scaleOf(candleSeries.options?.()) } catch { /* the default scale */ }
+  let hi = -Infinity
+  let lo = Infinity
+  for (const s of list) {
+    if (!s || s === candleSeries) continue
+    let o = null
+    try { o = s.options?.() || {} } catch { continue }
+    if (o.visible === false || scaleOf(o) !== candleScale) continue
+    let sHi = -Infinity
+    let sLo = Infinity
+    for (let i = Math.ceil(from); i <= to; i += 1) {
+      let d = null
+      try { d = s.dataByIndex?.(i) } catch { d = null }
+      if (!d) continue
+      const h = Number.isFinite(d.high) ? d.high : d.value
+      const l = Number.isFinite(d.low) ? d.low : d.value
+      if (Number.isFinite(h) && h > sHi) sHi = h
+      if (Number.isFinite(l) && l < sLo) sLo = l
+    }
+    const base = () => (sHi >= sLo ? { priceRange: { minValue: sLo, maxValue: sHi } } : null)
+    let info = null
+    try { info = typeof o.autoscaleInfoProvider === 'function' ? o.autoscaleInfoProvider(base) : base() } catch { info = null }
+    const pr = info && info.priceRange
+    if (pr && Number.isFinite(pr.minValue) && Number.isFinite(pr.maxValue) && pr.maxValue >= pr.minValue) {
+      if (pr.maxValue > hi) hi = pr.maxValue
+      if (pr.minValue < lo) lo = pr.minValue
+    }
+  }
+  return hi >= lo ? { hi, lo } : null
+}

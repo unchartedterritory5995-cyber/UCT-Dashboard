@@ -120,6 +120,9 @@ export function drillWorkspaceValue({
   return {
     // ── LIVE: the drill is an interactive host ──
     groupSyms,
+    // A plain `groupSyms` and no store (the /charts board's `groupSymsStore`, 2026-11-20): useWorkspace()
+    // hands this value to its readers as it is.
+    groupSymsStore: null,
     setGroupSym,
     // LIVE, not inert: the drill board pairs a Watchlists widget with a REAL
     // ChartWidget, which is exactly the pairing `groupTfs` exists for — the list

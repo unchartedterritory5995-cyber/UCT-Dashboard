@@ -4943,3 +4943,20 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
 - **Flow-worker.** Reaches `perplexity_search` through its import graph but never passes the new keyword, so it runs
   byte-identical behaviour on the old code (pinned by `test_RESEARCH_cost_rides_only_on_an_opted_in_call`).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal `ECON` economy dashboard + `GET /api/econ/latest` · `feat/terminal-eco` (PR #2376) · 2026-11-21
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: ADDITIVE, safe; NO marker bump** |
+| stranded file | `api/services/econ/serving.py` |
+
+- **Additive.** `latest()` is new; its only caller is the new `GET /api/econ/latest` route in `api/routers/econ.py`
+  (web). `_series_body()` is new.
+- **Refactor.** `series()` now builds its body through `_series_body()`: the same two reads (`_from_db` /
+  `_from_artifacts`) under the same cache key, moved, with no behaviour change (the econ serving and router suites
+  unchanged and green). The 5 deleted `api/` lines are that move.
+- **Flow-worker.** Reaches `econ.serving` through the market-intel series adapters' lazy imports and never calls
+  `latest()`; the older file it keeps running lacks only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+

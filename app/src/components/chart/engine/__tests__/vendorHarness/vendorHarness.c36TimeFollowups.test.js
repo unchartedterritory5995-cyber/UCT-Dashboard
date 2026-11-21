@@ -523,7 +523,9 @@ describe('C36 · 3 — `time(timeframe.period)` and `time("60")`: the bar\'s own
         expect(byTitle.get(title).stats, title).toMatchObject({ matching: 300, valueMismatches: 0, naMismatches: 0 })
       }
       for (const title of ['T07_newWeek', 'T08_newMonth', 'T09_newQuarter']) {
-        expect(byTitle.get(title).stats, title).toMatchObject({ matching: 299, valueMismatches: 0, naMismatches: 1 })
+        // ⭐ (A) + RULING 1: bar 0 reads `time(tf)` on the bar before the chart, withheld by name (`history:before-chart`)
+        // and graded "not compared"; it was the one `na` mismatch
+        expect(byTitle.get(title).stats, title).toMatchObject({ compared: 299, matching: 299, valueMismatches: 0, naMismatches: 0 })
       }
     })
   })

@@ -92,7 +92,7 @@ export default function Piece56DrawItV3() {
         <div className={d5.stopRow}>
           <div className={d5.liveStrip}>
             <div><small>Entry · stop-buy</small><b>{money(entry)}</b></div>
-            <div><small>Your stop</small><input type="number" step="0.01" min="0" placeholder="tap the chart or type" value={myPrice ?? ''} onChange={(e) => setMyPrice(e.target.value === '' ? null : r2(Number(e.target.value)))} /></div>
+            <div><small>Your stop</small><input type="number" aria-label="Your stop" step="0.01" min="0" placeholder="tap the chart or type" value={myPrice ?? ''} onChange={(e) => setMyPrice(e.target.value === '' ? null : r2(Number(e.target.value)))} /></div>
             {risk != null ? <div><small>Risk</small><b>{risk.toFixed(1)}%</b></div> : null}
           </div>
           <div className={d5.nudge}>

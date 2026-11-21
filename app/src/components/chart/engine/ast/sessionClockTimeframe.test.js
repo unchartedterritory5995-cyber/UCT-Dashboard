@@ -159,8 +159,9 @@ describe('⭐ U-BUILTIN T-D (2026-11-19) — a LITERAL "D": its 09:30 window is 
   // ⚰️ This block said `time("D", …)` "is `na` on hourly bars — a daily question on bars that are not daily".
   // TradingView answers it there: R2 of `vw-bt-time-1440-spy-60-2026-11-16` (`time("D", "0930-1600")`) is the
   // 09:30 session open on every regular-hours hourly bar, and our `na` was drawn by the script's own
-  // `na(t) ? … : …` as a confident answer. A window that opens at 09:30 is now the day anchor inside it; any
-  // other window is withheld by name off a daily chart (`time-session:day-on-other-chart`).
+  // `na(t) ? … : …` as a confident answer. A window that opens at 09:30 is now read on a regular-hours chart;
+  // any other window is withheld by name there (`time-session:day-on-other-chart`) until Q-BI-TD1c grades it.
+  // ⭐ T-D EXT (2026-11-20): every window is the gated daily tree (its start), read through the gate where measured.
   const SRC = '//@version=6\nindicator("literal period")\n'
     + 'plot(na(time("D", "0930-1600")) ? 0 : 1, "literal_D")\n'
     + 'plot(na(time(timeframe.period, "0930-1600")) ? 0 : 1, "own")\n'

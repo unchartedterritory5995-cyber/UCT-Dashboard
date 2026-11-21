@@ -4,7 +4,8 @@ import {
 import useHistoryUserId from '../useHistoryUserId'
 import { recordIndicatorChange } from '../indicatorHistoryStore'
 import { anyLabelFor as indicatorLabelFor } from '../indicatorCatalog'
-import StockChart from '../../StockChart'
+// The pane's StockChart, memoised: a parent render that only re-creates callbacks skips it (StableStockChart.jsx).
+import StableStockChart from './StableStockChart'
 import { sendSeedFrom, agentOpenOpts } from '../builder/agentSeams'
 import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
@@ -1096,7 +1097,7 @@ function ChartPane({
     goToYear: (y) => dateNavApiRef.current?.goToYear?.(y),
     stepBar: (dir) => dateNavApiRef.current?.stepBar?.(dir),
     ensureFullHistory: () => dateNavApiRef.current?.ensureFullHistory?.(),
-    getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
+    getDateMeta: (opts) => (dateNavApiRef.current?.getDateMeta?.(opts) || null),
     // ⭐ UCT Agent: the range bar (and its Undo), Reset view, hide-all-indicators, the ◀ / ▶ step, Auto-scale and the + / - zoom, read back through getDateMeta. A VIEW; nothing saved here.
     viewDo: (op, arg) => {
       const fn = ['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden', 'stepBar', 'autoScale', 'zoom', 'positionCalc'].includes(op) ? dateNavApiRef.current?.[op]
@@ -1325,7 +1326,7 @@ function ChartPane({
         onClick={handleChartClick}
         onKeyDown={handleChartKeyDown}
       >
-        <StockChart
+        <StableStockChart
           sym={sym}
           nextEarningsHint={nextEarningsHintDate}
           headerCustomStats={shownCustomStats}
@@ -1461,10 +1462,11 @@ function ChartPane({
           {...(stockChartProps || {})}
           /* AFTER the host spread on purpose (the last prop wins): record the
              visible time-range for journal capture, CHAINING any host-supplied
-             handler so the multi-chart sync path keeps firing. Deliberately an
-             inline arrow — its per-render identity makes StockChart's
-             subscription effect re-run, which self-heals a lost subscription
-             if the underlying chart instance is ever recreated. */
+             handler so the multi-chart sync path keeps firing. ⭐ (2026-11-20) Its
+             per-render identity no longer reaches StockChart (StableStockChart hands
+             it one stable function, so a pane render does not re-render the chart);
+             a re-created chart instance re-subscribes through StockChart's own
+             `chartGen` instead of through this arrow's churn. */
           onTimeRangeChange={(r) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r) }}
           onDateNavApi={(api) => { dateNavApiRef.current = api; stockChartProps?.onDateNavApi?.(api) }}
           onDrawnBarCount={(n) => { noteDrawnBars(n); stockChartProps?.onDrawnBarCount?.(n) }}

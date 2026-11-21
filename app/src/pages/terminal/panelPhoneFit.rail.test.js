@@ -35,6 +35,19 @@
 // words "by size" sit under "% Chg" and the gapper tag starts at the row's left edge; the UPDG
 // rating and the EXMV actual move give back their 6rem floor. After it all eight fit 340px.
 //
+// 2026-11-20, part 2: the 49 commands that sweep could not measure (no sample answers), at 340, 360
+// and 390px. Five tables were wider than a 340px screen: RRG (295px over; 245 at 390px), ALRT (277;
+// 227), BRKO (73; 23), SENT (37 and 235; 185) and PEER (26). The two stylesheets those sweeps never
+// reached (myNamesPanel, comparePanels) got the fold rules marketPanels already had (4px cells, no
+// outer padding, `phoneWrap`). ALRT wraps its rule and its "Triggered" time; SENT wraps a series name
+// and an economy print's period. Two tables lose columns, because wrapping alone left them wider than
+// a 340px screen. RRG wraps the sector's name under its symbol and two headers, and folds RS-Ratio
+// and RS-Momentum: the graph above the table already draws those two numbers as each sector's place.
+// BRKO wraps "To pivot", its setup gives back its floor, and Tightness folds (it was still 38px over
+// with "Plan" cut off; every listed name already passed the tightness test). Two pickers ran past the
+// panel's right edge (SCAT's universe by 229px, IMOV's theme by 64px): a picker now shrinks to its
+// toolbar. After it all of them fit 340px.
+//
 // jsdom computes no layout, so this reads SOURCE (like panelPhoneLayout.rail.test.js): it holds the
 // mechanism, the helpers' rules and each panel's use of them. The tiers themselves are tested in
 // panelFit.test.js, and the rendered widths are measured by the sweep.
@@ -144,7 +157,8 @@ describe('the one mechanism: the shell marks each panel body, the stylesheets ke
       const outside = css.replace(/:where\((?:[^()]|\([^()]*\))*\)/g, '')
       expect([path.basename(f), /data-fit|data-fold/.test(outside)]).toEqual([path.basename(f), false])
     }
-    expect(seen).toBe(31 * (FOLD_STEPS.length + 1) + 10)
+    // + 12 (2026-11-20, part 4): the snug cells rules, six selectors in marketPanels and six in myNamesPanel
+    expect(seen).toBe(48 * (FOLD_STEPS.length + 1) + 22)
   })
 
   it('no fit rule is left on the SCREEN, and there is no second mechanism (one rule serves a phone and a narrow panel)', () => {
@@ -183,10 +197,19 @@ const MEASURED = [
   ['MoversPanel.jsx', 'MOST', [524], [550]],
   ['RepeatContractsPanel.jsx', 'ACCUM', [522], [550]],
   ['ConfluencePanel.jsx', 'CONFL', [513], [530]],
+  // INS, measured 2026-11-21 with the role as a second line under the insider's name (it was its own column,
+  // 911px of table in a 567px box): 513.3 + 29. Below the step Shares and Price fold, the same two a phone hides;
+  // Value and Traded always show.
+  ['InsiderPanel.jsx', 'INS', [543], [550]],
   ['FlowListsPanel.jsx', 'FLWL, FLWL OPEN', [499, 458], [510, 480]],
   ['UnusualVolumePanel.jsx', 'UNVOL', [499], [510]],
   ['ShortListPanel.jsx', 'SHRTS (all four ranks)', [492], [510]],
   ['Highs52Panel.jsx', 'H52 HIGHS / H52 LOWS (the one-list view; the paired lists fit and name none)', [488], [510]],
+  // measured 2026-11-20 (part 4) with the snug cells on: the table's least width with every column
+  // showing, plus the 24px the panel body insets it and the 5px scrollbar
+  ['AlertsPanel.jsx', 'ALRT', [568], [590]],                 // 538.1 + 29
+  ['BreakoutPanel.jsx', 'BRKO', [554], [570]],               // 524.3 + 29, the setup wrapped
+  ['SentimentPanel.jsx', 'SENT (its two tables)', [505, 492], [510, 510]],   // 475.9 + 29, 462.9 + 29
 ]
 /** RSS draws five screens in one table, each with its own columns: every screen names its own step (rsScreensModel.js). */
 const RSS_MEASURED = { starter_rs_leaders: [552, 570], starter_rs_nh_before_price: [513, 530], starter_rs_new_high: [511, 530],
@@ -200,11 +223,40 @@ const FITS_THE_BOTTOM = [
   ['ThemeRotationPanel.jsx', 'TROT', 448], ['CheckPanel.jsx', 'CHK', 444], ['LevelsPanel.jsx', 'LVL', 440],
   ['CallThemesPanel.jsx', 'CEOS', 418], ['LongRunPanel.jsx', 'LEAD', 418], ['PeriodChangePanel.jsx', 'PCHG', 418],
   ['CallSearchPanel.jsx', 'TSRC', 346],
+  // market waves A and B, measured 2026-11-21 (part 5) at 592, 512, 500, 467, 390 and 340px, the same way (least
+  // width with every column showing, plus 24 + 5px). Two of them needed more than a 461px panel and ran past
+  // their box on a laptop's two-panel board: the COT board needed 526px (20px over in a 500px panel, 53px in a
+  // 467px one) and IPO 505px (33px over in a 467px one). Both now wrap in a snug panel instead of folding, as
+  // CEOS: the COT board's four value headers and its two net cells, IPO's price range and company name
+  // (snugWrap, snugTight). Wrapped, each keeps every column down to the bottom of the ladder. The other four
+  // never overflowed.
+  ['CotPanel.jsx', 'COT (the board 401; one market, COT ES, 428 and 449)', 449],
+  ['IpoCalendarPanel.jsx', 'IPO (today and ahead 404; earlier 355)', 404],
+  ['AnaloguesPanel.jsx', 'ANLG', 388], ['MarketsBoardPanel.jsx', 'MKTS', 315],
+  ['DividendCalendarPanel.jsx', 'DVD', 284], ['CorporateActionsPanel.jsx', 'CACT', 252],
+  // THMS, measured 2026-11-21 (part 5) in the 592px panel: its two tables sat side by side in 278px each and the
+  // 1D column was cut (7 and 11px). They now stack until each has about 311px (splitRoomy, as HILO): 314 and 318.
+  ['ThemeBoardPanel.jsx', 'THMS (leaders, laggards)', 318],
+  // INS CLUSTER, measured 2026-11-21 at 1536, 1180 and 340px (sample data): one-line rows in the 640px panel; in a
+  // 462px one the stock and insider cells give back their floor and the money and close words wrap (snugTight,
+  // snugWrap), 338px with every column showing + 29. On a phone the close column folds (phoneHide).
+  ['InsiderClustersPanel.jsx', 'INS CLUSTER', 367],
 ]
-/** Tables with no sample rows: never measured, so they must not fold on a desktop panel above the bottom of the ladder. */
-const NOT_MEASURED = ['AlertsPanel.jsx', 'BreakoutPanel.jsx', 'CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', 'EtfPanel.jsx',
-  'GroupDrillPanel.jsx', 'InsiderPanel.jsx', 'PeerPanel.jsx', 'SentimentPanel.jsx', 'ThemeBoardPanel.jsx', 'WatchlistPanel.jsx']
-const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css']
+/** Tables with no sample rows: never measured, so they must not fold on a desktop panel above the bottom of the ladder.
+ *  (InsiderPanel.jsx left this list on 2026-11-21: see INS in MEASURED.) */
+const NOT_MEASURED = ['CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', 'EtfPanel.jsx',
+  'GroupDrillPanel.jsx', 'PeerPanel.jsx', 'WatchlistPanel.jsx',
+  // Market wave C (2026-11-21): no fold step measured; the phone columns fold through `phoneHide`
+  'TreasuryAuctionsPanel.jsx',
+  // FED (2026-11-21): three small tables (the survey's path and its probabilities), two or three short columns each
+  'FedWatchPanel.jsx',
+  // ECON (2026-11-21): one four-column table of merged two- and three-line cells that wrap between words; nothing folds
+  'EconomyPanel.jsx',
+  // LIQ (2026-11-21): one three-column table (the parts) of two-line cells that wrap between words; nothing folds
+  'LiquidityPanel.jsx',
+  // OIL (2026-11-21): one four-column table of merged two- and three-line cells that wrap between words; nothing folds
+  'OilPanel.jsx']
+const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
 const stepsIn = (src) => [...src.matchAll(/data-fold=(?:"([^"]*)"|\{paired \? undefined : '([^']*)'\})/g)].map((m) => m[1] ?? m[2])
 
 describe('the fold ladder: a table folds only from its own step down', () => {
@@ -219,7 +271,7 @@ describe('the fold ladder: a table folds only from its own step down', () => {
         }
       }
     }
-    expect(rules).toBe(31)
+    expect(rules).toBe(48)
   })
 
   it('a step word never stands alone: it folds only the table that names that step (no table folds by default above the bottom)', () => {
@@ -259,7 +311,7 @@ describe('the fold ladder: a table folds only from its own step down', () => {
       expect([code, need, step, step - need >= 5]).toEqual([code, need, step, true])
       expect([code, need, step, step - need <= 30]).toEqual([code, need, step, true])
     }
-    expect(pairs.length).toBe(20)
+    expect(pairs.length).toBe(25)   // 25 since INS was measured (2026-11-21)
   })
 
   it('RSS: each of its five screens names its own step, and a screen nobody measured names none', () => {
@@ -289,6 +341,39 @@ describe('the fold ladder: a table folds only from its own step down', () => {
       expect([code, stepsIn(read(file))]).toEqual([code, []])
       expect([code, need, NARROW_MAX - need >= 10]).toEqual([code, need, true])
     }
+  })
+
+  it('COT: none of its three tables names a step; wrapped, each fits the bottom of the ladder', () => {
+    const boxes = read('CotPanel.jsx').split('\n').map((l, i, all) => [l, all[i + 1] || '']).filter(([l]) => l.includes('styles.tableBox'))
+    expect(boxes.map(([box, table]) => [/data-testid="([\w-]+)"/.exec(table)?.[1], /data-fold="(\d+)"/.exec(box)?.[1]]))
+      .toEqual([['terminal-cot-board', undefined], ['terminal-cot-classes', undefined], ['terminal-cot-history', undefined]])
+    // each is measured: the board 401px with its headers wrapped, one market's two tables 428 and 449px
+    for (const need of [401, 428, 449]) expect([need, NARROW_MAX - need >= 10]).toEqual([need, true])
+  })
+
+  it('COT and IPO wrap before they fold: the net cells and value headers, the price range and the company name take the squeeze in a snug panel', () => {
+    const count = (src, cls) => (src.match(new RegExp(`styles\\.${cls}\\b`, 'g')) || []).length
+    const cot = read('CotPanel.jsx')
+    expect(cot).toContain('testId="terminal-cot-board-large" className={`${styles.phoneWrap} ${styles.snugWrap}`} />')
+    expect(cot).toContain('testId="terminal-cot-board-comm" className={`${styles.phoneHide} ${styles.snugWrap}`} />')
+    // and the board's four value headers may take a second line: with only its net cells wrapped the board
+    // needed 501px and folded a column in a 461 to 510px panel
+    const start = cot.indexOf('data-testid="terminal-cot-board"')
+    const heads = [...cot.slice(start, cot.indexOf('</thead>', start)).matchAll(/<th scope="col"([^>]*)>([^<]+)<\/th>/g)]
+      .map((m) => [m[2], /styles\.snugWrap\b/.test(m[1])])
+    expect(heads).toEqual([['Market', false], ['Large specs, net', true], ['Commercials, net', true], ['Week&apos;s move', true], ['3-year range', true]])
+    expect([count(cot, 'snugWrap'), count(cot, 'snugTight')]).toEqual([6, 0])
+    const ipo = read('IpoCalendarPanel.jsx')
+    expect(ipo).toContain('<td className={`${styles.wrapCell} ${styles.snugTight}`}>')
+    expect(ipo).toContain('<td className={`${styles.phoneWrap} ${styles.snugWrap}`}>{priceWords(r.price)}</td>')
+    expect([count(ipo, 'snugWrap'), count(ipo, 'snugTight')]).toEqual([1, 1])
+    // wrapped, IPO fits the bottom of the ladder with every column: its one box (both lists) names no step
+    expect([count(ipo, 'tableBox'), stepsIn(ipo)]).toEqual([1, []])
+    // the column each gives up on a phone goes header and cell together, and it is never a price or a money column
+    expect(cot).toMatch(/<th scope="col" className=\{`\$\{styles\.phoneHide\} \$\{styles\.snugWrap\}`\} title="Net position of the CFTC's commercial traders[^"]*">Commercials, net<\/th>/)
+    expect(ipo).toContain('<th scope="col" className={styles.phoneHide} title="Shares offered">Shares</th>')
+    expect(ipo).toContain('<td className={styles.phoneHide}>{sharesWords(r.shares)}</td>')
+    expect(count(ipo, 'phoneHide')).toBe(2)
   })
 
   it('H52: its two four-column tables stack until each has 280px, so no column has to fold for them to fit', () => {
@@ -409,6 +494,7 @@ describe('each fitted panel still opts in', () => {
     ['CallThemesPanel.jsx', { phoneTight: 4, phoneWrap: 2 }],
     ['UpgradesPanel.jsx', { phoneTight: 1, phoneWrap: 0 }],        // UPDG: the rating (340 and 360px, 2026-11-20)
     ['ExpectedMovePanel.jsx', { phoneTight: 2, phoneWrap: 0 }],    // EXMV: the actual move, header and cell (340px)
+    ['InsiderClustersPanel.jsx', { phoneTight: 2, phoneWrap: 3 }], // INS CLUSTER: stock, insiders; the money and close words
   ])('fold: %s', (file, want) => {
     const src = read(file)
     for (const [cls, n] of Object.entries(want)) expect([file, cls, uses(src, cls)]).toEqual([file, cls, n])
@@ -424,6 +510,9 @@ describe('each fitted panel still opts in', () => {
     ['FlowListsPanel.jsx', { snugTight: 8, snugWrap: 2, mediumTight: 0, mediumWrap: 0 }],         // FLWL and FLWL OPEN
     ['RsScreensPanel.jsx', { snugTight: 0, snugWrap: 0, mediumTight: 2, mediumWrap: 1 }],         // RSS (its columns are mapped)
     ['CallThemesPanel.jsx', { snugTight: 4, snugWrap: 0, mediumTight: 0, mediumWrap: 0 }],        // CEOS: Phrase, Companies (it then fits a 461px panel and never folds on a laptop)
+    ['CotPanel.jsx', { snugTight: 0, snugWrap: 6, mediumTight: 0, mediumWrap: 0 }],               // COT: the board's four value headers and two net cells
+    ['IpoCalendarPanel.jsx', { snugTight: 1, snugWrap: 1, mediumTight: 0, mediumWrap: 0 }],       // IPO: Company, Price (it then fits a 461px panel too)
+    ['InsiderClustersPanel.jsx', { snugTight: 2, snugWrap: 3, mediumTight: 0, mediumWrap: 0 }],   // INS CLUSTER: stock, insiders; money, close
   ])('snug and medium: %s', (file, want) => {
     const src = read(file)
     for (const [cls, n] of Object.entries(want)) expect([file, cls, uses(src, cls)]).toEqual([file, cls, n])
@@ -444,7 +533,8 @@ describe('each fitted panel still opts in', () => {
   })
 
   it('every phoneTight, snugTight or mediumTight cell is a wrap cell (the helper only loosens a cell that already wraps)', () => {
-    const files = ['PerformancePanel.jsx', 'ConfluencePanel.jsx', 'RepeatContractsPanel.jsx', 'CallThemesPanel.jsx', 'FlowListsPanel.jsx', 'RsScreensPanel.jsx']
+    const files = ['PerformancePanel.jsx', 'ConfluencePanel.jsx', 'RepeatContractsPanel.jsx', 'CallThemesPanel.jsx', 'FlowListsPanel.jsx', 'RsScreensPanel.jsx',
+      'IpoCalendarPanel.jsx', 'InsiderClustersPanel.jsx']
     let cells = 0
     for (const file of files) {
       for (const line of read(file).split('\n').filter((l) => /styles\.(phone|snug|medium)Tight\b/.test(l))) {
@@ -453,6 +543,12 @@ describe('each fitted panel still opts in', () => {
       }
     }
     expect(cells).toBeGreaterThanOrEqual(20)
+  })
+
+  it('THMS: its two four-column tables stack until each has about 311px, so neither is cut in a 592px panel', () => {
+    const src = read('ThemeBoardPanel.jsx')
+    expect(src).toContain('<div className={`${styles.split} ${styles.splitRoomy}`}>')
+    expect((src.match(/styles\.split\b/g) || []).length).toBe(1)
   })
 
   it('HILO: its two five-column tables stack until each has about 311px', () => {
@@ -503,5 +599,226 @@ describe('MOST where it folds (moversPanel.module.css)', () => {
         if (/\.(phoneHide|whyCell|asideTag|bySize)\b/.test(s)) expect([s, s.startsWith(`${FOLD} `)]).toEqual([s, true])
       }
     }
+  })
+})
+
+describe('small phones, part 2: the tables the first sweeps could not measure', () => {
+  const uses = (src, cls) => (src.match(new RegExp(`styles\\.${cls}\\b`, 'g')) || []).length
+  const market = sheet(read('marketPanels.module.css'))
+
+  it.each(['myNamesPanel.module.css', 'comparePanels.module.css'])('%s: a folded table sits 4px a side, its outer cells give up their outer padding and a phoneWrap cell may wrap', (f) => {
+    const css = read(f)
+    const sh = sheet(css)
+    const cells = ruleFor(sh, `${FOLD} .table td`)
+    expect(cells).toBe('padding-inline: var(--space-xs);')
+    expect(ruleFor(sh, `${FOLD} .table th`)).toBe(cells)
+    for (const cell of ['th', 'td']) {
+      expect([cell, ruleFor(sh, `${FOLD} .table ${cell}:first-child`)]).toEqual([cell, 'padding-left: 0;'])
+      expect([cell, ruleFor(sh, `${FOLD} .table ${cell}:last-child`)]).toEqual([cell, 'padding-right: 0;'])
+    }
+    // the same wrap as marketPanels: between words, never inside one
+    const wrap = ruleFor(sh, `${FOLD} .table td.phoneWrap`)
+    expect(wrap).toBe('white-space: normal; overflow-wrap: break-word;')
+    expect(wrap).toBe(ruleFor(market, `${FOLD} .table td.phoneWrap`))
+    expect(ruleFor(sh, `${FOLD} .table th.phoneWrap`)).toBe(wrap)
+    expect(ruleFor(sh, `${FOLD} .phoneHide`)).toBe('display: none;')
+    // a wide panel keeps its 8px: the base rule is still there, and the fold rules come after it
+    expect(ruleFor(sh, '.table td')).toMatch(/padding:[^;]*var\(--space-sm\)/)
+    const base = css.indexOf('.table th,\n.table td {')
+    expect(base).toBeGreaterThan(-1)
+    expect(css.indexOf(`${FOLD} .table td {`)).toBeGreaterThan(base)
+    // and nothing here touches a wide panel: every helper and every closer cell is a fold rule
+    let seen = 0
+    for (const r of sh.rules) {
+      for (const s of r.selectors) {
+        const closer = /\.table t[hd](:(first|last)-child)?$/.test(s) && /padding-(inline|left|right):/.test(r.body)
+        if (!closer && !/\.phone(Hide|Wrap|Tight)\b/.test(s)) continue
+        seen += 1
+        expect([f, s.slice(s.lastIndexOf(')') + 1), s.startsWith(`${FOLD} `)]).toEqual([f, s.slice(s.lastIndexOf(')') + 1), true])
+      }
+    }
+    expect([f, seen]).toEqual([f, 9])
+  })
+
+  it('ALRT: the alert rule and its status may take a second line (the table ran 277px past a 340px screen)', () => {
+    const src = read('AlertsPanel.jsx')
+    expect([uses(src, 'phoneWrap'), uses(src, 'phoneHide')]).toEqual([2, 2])
+    expect(src).toMatch(/<td className=\{styles\.phoneWrap\}>\s*\{r\.direction === 'above' \? 'Above' : 'Below'\}/)
+    expect(src).toMatch(/<td className=\{styles\.phoneWrap\}>\s*\{r\.active \? 'Active'/)
+  })
+
+  it('RRG: the name wraps under its symbol, two headers wrap, and the two numbers the graph already draws fold away, header and cell together', () => {
+    const src = read('RrgPanel.jsx')
+    expect([uses(src, 'phoneWrap'), uses(src, 'phoneHide')]).toEqual([3, 4])
+    expect(src).toContain('<th scope="col" className={styles.phoneHide}>RS-Ratio</th><th scope="col" className={styles.phoneHide}>RS-Momentum</th>')
+    expect(src).toContain('<td className={styles.phoneHide}>{formatNumber(r.ratio, { decimals: 2 })}</td>')
+    expect(src).toContain('<td className={styles.phoneHide}>{formatNumber(r.momentum, { decimals: 2 })}</td>')
+    expect(src).toMatch(/<td className=\{styles\.phoneWrap\}>\s*<button type="button" className=\{styles\.rowBtn\}/)
+    expect(src).toContain("<th scope=\"col\" className={styles.phoneWrap}>{unit === 'week' ? 'Weeks' : 'Sessions'} in it</th>")
+    expect(src).toContain('<th scope="col" className={styles.phoneWrap}>vs {RRG_BENCHMARK}, last {RRG_METHOD.tail} {unit}s</th>')
+    // the quadrant, the time in it and the return against the benchmark never fold
+    expect(src).toContain('<th scope="col">Symbol</th><th scope="col">Quadrant</th>')
+    // the graph that draws the two folded numbers is still drawn above the table
+    expect(src.indexOf('<RrgGraph')).toBeGreaterThan(-1)
+    expect(src.indexOf('<RrgGraph')).toBeLessThan(src.indexOf('RS-Ratio</th>'))
+  })
+
+  it('BRKO: the setup gives back its floor, the distance to the pivot may wrap, and Tightness folds, header and cell', () => {
+    const src = read('BreakoutPanel.jsx')
+    expect([uses(src, 'phoneWrap'), uses(src, 'phoneTight'), uses(src, 'phoneHide')]).toEqual([2, 1, 4])
+    expect(src).toMatch(/key: 'tight', label: 'Tightness', phoneHide: true/)
+    expect(src).toContain("<td className={styles.phoneHide}>{formatPercent(x.tight, { decimals: 1, absent: 'n/a' })}</td>")
+    // what a phone keeps: the symbol, the setup, the distance to the pivot, the RS rank and the Plan link
+    for (const key of ['order', 'sym', 'setup', 'near', 'rs']) {
+      expect([key, new RegExp(`key: '${key}'[^}]*phoneHide`).test(src)]).toEqual([key, false])
+    }
+    expect(src).toMatch(/<td><PanelCommand cmd=\{planCmd\(x\)\}/)
+    expect(src).toContain('<td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>{x.setup}</td>')
+    expect(src).toContain('<td className={styles.phoneWrap}>{pivotText(x.dist)}</td>')
+    expect(src).toMatch(/key: 'near', label: 'To pivot', phoneWrap: true/)
+    expect(src).toContain('className={c.phoneHide ? styles.phoneHide : c.phoneWrap ? styles.phoneWrap : undefined}')
+    expect(ruleFor(market, `${FOLD} .table td.phoneTight`)).toMatch(/min-width:\s*0/)
+  })
+
+  it('SENT: a series name and an economy print\'s period may take a second line', () => {
+    const src = read('SentimentPanel.jsx')
+    expect(uses(src, 'phoneWrap')).toBe(3)
+    expect(src).toContain('<td className={styles.phoneWrap}>{r.label} <span className={styles.muted}>{r.cadence}</span></td>')
+    expect(src).toContain('<td className={`${styles.phoneWrap} ${styles.snugWrap}`}>{name}</td>')
+    expect(src).toContain('<td className={styles.phoneWrap}>{out.period}{out.released ?')
+  })
+
+  it('SCAT and IMOV: a labelled picker is never wider than its toolbar, in any panel (no fold rule: a picker can be too wide anywhere)', () => {
+    expect(ruleFor(market, '.pick')).toBe('min-width: 0; max-width: 100%;')
+    expect(ruleFor(market, '.pick select')).toBe('min-width: 0; max-width: 100%;')
+    expect(ruleFor(market, '.toolbar')).toMatch(/flex-wrap:\s*wrap/)
+    const scat = read('ScatterPanel.jsx')
+    expect(uses(scat, 'pick')).toBe(2)
+    expect((scat.match(/<label className=\{`\$\{styles\.muted\} \$\{styles\.pick\}`\}>/g) || []).length).toBe(2)
+    expect(scat).not.toContain('<label className={styles.muted}>')
+    const imov = sheet(read('imovPanel.module.css'))
+    expect(ruleFor(imov, '.filter')).toMatch(/min-width:\s*0;\s*max-width:\s*100%;/)
+    expect(ruleFor(imov, '.filter select')).toMatch(/min-width:\s*0;/)
+    expect(ruleFor(imov, '.filter select')).toMatch(/max-width:\s*22em;/)
+    expect(ruleFor(imov, '.toolbar')).toMatch(/flex-wrap:\s*wrap/)
+  })
+})
+
+// ── Part 4 (2026-11-20): the 592px panel a 1440px desktop board gives each of two panels ──────────
+// That panel carries only `snug medium`: no fold rule reaches it. Measured there before: ALRT 26px
+// past its panel (the delete link cut off), BRKO 55px (the Plan link gone), the economy table of
+// SENT 76px (the trend column cut), the BRKO watch star 3px from the setup text (5px INTO it on a
+// phone), the SCAT chart 100px tall in a 626px panel, and on a phone the last lines of every panel
+// under the two floating buttons.
+describe('desktop panels, part 4: ALRT, BRKO, SENT and SCAT in a snug panel, and the end of a phone panel', () => {
+  const uses = (src, cls) => (src.match(new RegExp(`styles\\.${cls}\\b`, 'g')) || []).length
+  const marketRaw = read('marketPanels.module.css')
+  const market = sheet(marketRaw)
+  const names = sheet(read('myNamesPanel.module.css'))
+  const shell = stripComments(readAbs(path.join(TERMINAL, 'TerminalShell.module.css')))
+  const src = (rel) => readAbs(path.join(TERMINAL, '..', '..', rel))
+
+  it('snug cells: a table that opts in gets the closer cells in a snug panel, the same in both sheets, and nowhere else', () => {
+    for (const sh of [market, names]) {
+      for (const cell of ['th', 'td']) {
+        expect(ruleFor(sh, `${SNUG} .snugCells ${cell}`)).toBe('padding-inline: var(--space-xs);')
+        expect(ruleFor(sh, `${SNUG} .snugCells ${cell}:first-child`)).toBe('padding-left: 0;')
+        expect(ruleFor(sh, `${SNUG} .snugCells ${cell}:last-child`)).toBe('padding-right: 0;')
+      }
+      const named = sh.rules.flatMap((r) => r.selectors.map((s) => [s, r.body])).filter(([s]) => /\.snugCells\b/.test(s))
+      expect(named.length).toBe(6)
+      for (const [s, body] of named) {
+        expect([s, s.startsWith(`${SNUG} `)]).toEqual([s, true])
+        // a snug rule only moves padding: it hides nothing and wraps nothing
+        expect([s, /^padding-(inline|left|right): [^;]+;$/.test(body)]).toEqual([s, true])
+      }
+      expect(/\.snugCells\b/.test(sh.atBlocks)).toBe(false)
+    }
+    // the same closer cell the fold tier uses
+    expect(ruleFor(market, `${SNUG} .snugCells td`)).toBe(ruleFor(names, `${FOLD} .table td`).match(/padding-inline: [^;]+;/)?.[0])
+  })
+
+  it('the three panels opt in on the <table>, and nobody who was not measured does', () => {
+    const want = { 'AlertsPanel.jsx': 1, 'BreakoutPanel.jsx': 1, 'SentimentPanel.jsx': 2 }
+    for (const f of fs.readdirSync(PANELS).filter((n) => /\.jsx$/.test(n) && !/\.test\./.test(n))) {
+      expect([f, uses(read(f), 'snugCells')]).toEqual([f, want[f] || 0])
+    }
+    expect(read('AlertsPanel.jsx')).toContain('<table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-alerts-table"')
+    expect(read('BreakoutPanel.jsx')).toContain('<table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-brko-table"')
+    expect(read('SentimentPanel.jsx')).toContain('<table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-sent-table">')
+    expect(read('SentimentPanel.jsx')).toContain('<table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-sent-econ">')
+  })
+
+  it('each of them names the step measured for it, so a panel between the phone tier and its need folds instead of overflowing', () => {
+    expect(read('AlertsPanel.jsx')).toContain('<div className={styles.tableBox} data-fold="590">')
+    expect(read('BreakoutPanel.jsx')).toContain('<div className={styles.tableBox} data-fold="570">')
+    expect((read('SentimentPanel.jsx').match(/<div className=\{styles\.tableBox\} data-fold="510">/g) || []).length).toBe(2)
+    // and none of the three steps reaches the 592px panel: there every column shows
+    for (const [file, , , steps] of MEASURED.filter(([f]) => ['AlertsPanel.jsx', 'BreakoutPanel.jsx', 'SentimentPanel.jsx'].includes(f))) {
+      for (const step of steps) expect([file, step, step < 592]).toEqual([file, step, true])
+    }
+  })
+
+  it('BRKO: in a snug panel the setup gives back its floor, so nine columns fit with room for the scrollbar; no column folds', () => {
+    const brko = read('BreakoutPanel.jsx')
+    expect(brko).toContain('<td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>{x.setup}</td>')
+    expect(uses(brko, 'snugTight')).toBe(1)
+    expect(ruleFor(market, `${SNUG} .table td.snugTight`)).toMatch(/min-width:\s*0/)
+    expect(uses(brko, 'phoneHide')).toBe(4)
+  })
+
+  it('SENT: an economy series name may take a second line in a snug panel; no column folds', () => {
+    const sent = read('SentimentPanel.jsx')
+    expect(sent).toContain('<td className={`${styles.phoneWrap} ${styles.snugWrap}`}>{name}</td>')
+    expect(uses(sent, 'snugWrap')).toBe(1)
+    expect(ruleFor(market, `${SNUG} .table td.snugWrap`)).toBe('white-space: normal; overflow-wrap: break-word;')
+  })
+
+  it('BRKO: the symbol cell keeps room for the watch star at every width (it sat 3px from the setup text, 5px into it on a phone)', () => {
+    const brko = read('BreakoutPanel.jsx')
+    expect(brko).toContain('<td className={styles.markRoom}><PanelSymbol sym={x.sym} className={styles.sym} /></td>')
+    // the star hangs 13px past the symbol (3px gap + 10px star) and takes no width as a cell's last thing
+    const mark = stripComments(src('components/terminal/WatchMark.module.css')).replace(/\s+/g, ' ')
+    expect(mark).toMatch(/\.mark \{[^}]*width: 13px/)
+    // 13px of star + 6px: with the next cell's 4px that is the 10px other panels' stars have
+    expect(ruleFor(market, '.table td.markRoom')).toBe('padding-right: calc(var(--space-sm) * 2 + 3px);')
+    // one class more than any closer-cell rule (`:where()` weighs nothing), so the room survives the fold and snug tiers
+    const named = market.rules.flatMap((r) => r.selectors).filter((s) => /\.markRoom\b/.test(s))
+    expect(named).toEqual(['.table td.markRoom'])
+    expect(/\.markRoom\b/.test(market.atBlocks)).toBe(false)
+  })
+
+  it('SCAT: the chart takes the height the panel gives it (it was 100px in a 626px panel), with a floor', () => {
+    const scat = read('ScatterPanel.jsx')
+    // the block is at least the panel body's height, so the stage has something to grow into
+    expect(scat).toContain("<div className={`${styles.wrap} ${inPanel ? `${styles.inPanel} ${styles.scatFill}` : ''}`} data-testid=\"terminal-scat\">")
+    expect(ruleFor(market, '.scatFill')).toBe('min-height: 100%;')
+    expect(ruleFor(market, '.wrap')).toMatch(/display: flex; flex-direction: column;/)
+    // the stage grows, has a floor, and no fixed height of its own
+    const stage = ruleFor(market, '.scatStage')
+    expect(stage).toBe('flex: 1 1 auto; min-height: 16rem; position: relative;')
+    // the chart is pinned to the stage's edges: a percentage height of a flexed box resolved to the library's 100px
+    expect(scat).toContain('<ReactECharts option={option} notMerge className={styles.scatChart} style={{ height: \'100%\', width: \'100%\' }}')
+    expect(ruleFor(market, '.scatChart')).toBe('position: absolute; inset: 0;')
+    // a phone screen lowers the floor to 220px and sets no height either
+    const phone = stripComments(marketRaw).replace(/\s+/g, ' ')
+    expect(phone).toContain('@media (max-width: 640px) { .scatStage { min-height: 13.75rem; } }')
+    expect((phone.match(/\.scatStage \{/g) || []).length).toBe(2)
+  })
+
+  it('a phone panel ends above the floating buttons: its body keeps their height free under the last line', () => {
+    expect(shell).toMatch(/@media \(max-width: 640px\) \{\s*\.panelBody:not\(\.panelBodyFlush\) \{/)
+    const rule = /\.panelBody:not\(\.panelBodyFlush\) \{\s*padding-bottom: ([^;]+);\s*\}/.exec(shell)?.[1]
+    // 16px off the edge + the taller button (the 64px orb) + 8px of air
+    expect(rule).toBe('calc(16px + 64px + var(--space-sm))')
+    // only on a phone: the rule appears once, inside the phone block, and a flush panel (chart, calendar) is left alone
+    expect((shell.match(/\.panelBody:not\(/g) || []).length).toBe(1)
+    expect(shell).toMatch(/\.panelBodyFlush\s*\{[^}]*padding:\s*0/)
+    // the two numbers are the buttons' own: if either moves, measure again
+    const orb = stripComments(src('components/voice/FloatingOrb.module.css')).replace(/\s+/g, ' ')
+    expect(orb).toMatch(/\.orb \{[^}]*width: 64px; height: 64px;/)
+    expect(orb).toContain('bottom: calc(16px + env(safe-area-inset-bottom, 0px));')
+    const fab = stripComments(src('components/FeedbackWidget.module.css')).replace(/\s+/g, ' ')
+    expect(fab).toContain('bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;')
   })
 })

@@ -467,5 +467,80 @@ def read_served(data: bytes, symbol: str, trailer: Optional[dict] = None) -> Opt
     return None if cols is None else ints_to_served(cols, tr["tf"])
 
 
+def _varint_decode_np(buf: bytes, count: int) -> np.ndarray:
+    """Exactly `count` canonical varints (<= 8 bytes each) filling `buf` (vectorized)."""
+    b = np.frombuffer(buf, dtype=np.uint8)
+    if b.size == 0 or count <= 0:
+        raise SeedError("body is empty")
+    is_last = (b & 0x80) == 0
+    if not is_last[-1]:
+        raise SeedError("body ends inside a varint")
+    ends = np.flatnonzero(is_last)
+    if ends.size != count:
+        raise SeedError(f"body holds {ends.size} values, expected {count}")
+    starts = np.empty_like(ends)
+    starts[0] = 0
+    starts[1:] = ends[:-1] + 1
+    lens = ends - starts + 1
+    if int(lens.max()) > 8:
+        raise SeedError("varint longer than 8 bytes")
+    if ((b[ends] == 0) & (lens > 1)).any():
+        raise SeedError("non-canonical varint")
+    pos = np.arange(b.size, dtype=np.int64) - np.repeat(starts, lens)
+    contrib = (b & 0x7F).astype(np.uint64) << (pos * 7).astype(np.uint64)
+    vals = np.add.reduceat(contrib, starts)
+    if int(vals.max()) > MAX_VALUE:
+        raise SeedError("value above 2**53 - 1")
+    return vals
+
+
+def _unzz(u: np.ndarray) -> np.ndarray:
+    u = u.astype(np.uint64)
+    return (u >> np.uint64(1)).astype(np.int64) ^ -(u & np.uint64(1)).astype(np.int64)
+
+
+def decode_body_fast(body: bytes, *, bars: int, first: int, last: int, crc: int, body_len: int,
+                     tunit: int, pscale: int, vscale: int) -> dict:
+    """`decode_body`, vectorized (the builder decodes whole packs). Same checks, same result;
+    tests hold the two equal."""
+    if len(body) != body_len:
+        raise SeedError(f"body is {len(body)} bytes, the entry says {body_len}")
+    n = bars
+    v8 = _varint_decode_np(body, 8 * n)
+    T, O, H, L, C, V, VF, N = (v8[i * n:(i + 1) * n] for i in range(8))
+    t = np.cumsum(T).astype(np.int64) * tunit
+    d_open, d_close = _unzz(O), _unzz(C)
+    c = np.cumsum(d_open + d_close)
+    o = c - d_close
+    h = np.maximum(o, c) + _unzz(H)
+    low = np.minimum(o, c) - _unzz(L)
+    if int(VF.max()) >= vscale:
+        raise SeedError("fractional volume is not below vscale")
+    v = V.astype(np.int64) * vscale + VF.astype(np.int64)
+    cols = {"t": t, "o": o, "h": h, "l": low, "c": c, "v": v, "n": N.astype(np.int64)}
+    for k, col in cols.items():
+        if int(col.min()) < 0 or int(col.max()) > MAX_VALUE:
+            raise SeedError(f"decoded column {k!r} is out of range")
+    if n > 1 and (np.diff(t) <= 0).any():
+        raise SeedError("decoded bar times are not strictly increasing")
+    if int(t[0]) != first or int(t[-1]) != last:
+        raise SeedError("first/last bar time does not match the entry")
+    if columns_crc(cols) != crc:
+        raise SeedError("column CRC mismatch")
+    cols["pscale"], cols["vscale"] = pscale, vscale
+    return cols
+
+
+def decode_symbol_fast(data: bytes, trailer: dict, symbol: str) -> Optional[dict]:
+    """`decode_symbol` through the vectorized decoder."""
+    e = trailer["symbols"].get(symbol)
+    if e is None:
+        return None
+    off, ln, bars, first, last, _asof, crc, body_len, pscale, vscale = e
+    body = decompress(bytes(memoryview(data)[off:off + ln]), trailer["comp"])
+    return decode_body_fast(body, bars=bars, first=first, last=last, crc=crc, body_len=body_len,
+                            tunit=trailer["tunit"], pscale=pscale, vscale=vscale)
+
+
 def iter_symbols(trailer: dict) -> Iterable[str]:
     return iter(trailer["symbols"])

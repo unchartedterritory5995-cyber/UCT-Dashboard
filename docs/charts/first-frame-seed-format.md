@@ -59,13 +59,55 @@ newest builds are kept.
  "tfs":{"5":{"bars":1085400,"bytes":5839102,"depth":300,"key":"ffseed/20261119T0131Z/5.ffs",
              "sha256":"9f2c...","short":12,"symbols":3618,"tunit":300,
              "skipped":{"error":0,"inexact":0,"no_bars":9,"old_grid":0,"stale":12},
-             "url":"/api/seed/v1/20261119T0131Z/5.ffs"}, "...": {}}}
+             "url":"/api/seed/v1/20261119T0131Z/5.ffs"}, "...": {}},
+ "splits":{"session":"2026-11-19","symbols":{"BRK-B":2.0,"ZZREV":0.1}}}
 ```
 
 (Numbers in this example are illustrative; section 7 has measured sizes.) A client compares
 `build` with what it holds, downloads each changed `url`, checks `bytes` and `sha256`
 (`crypto.subtle.digest('SHA-256', ...)`), and only then swaps the file in. A pack that fails the
 check is discarded whole.
+
+### `splits`: the next session's basis changes (the device's split guard)
+
+The packs are split-adjusted AS OF `asof`. On the next session the server's answer for a symbol
+that splits that day is on a new basis (every older bar rescaled), so a device copy of that symbol
+must not be joined to it. `splits` tells the device which symbols those are:
+
+```json
+"splits": {"session": "2026-11-19", "symbols": {"BRK-B": 2.0, "ZZREV": 0.1, "ZZODD": null}}
+```
+
+| key       | meaning                                                                          |
+|-----------|----------------------------------------------------------------------------------|
+| `session` | the first NYSE trading day after `asof` (`nextSessionISO(asof)` on the device)   |
+| `symbols` | an OBJECT: seed symbol (seed spelling, `BRK-B`) -> ratio, shares after per share before (`2.0` a 2-for-1, `0.1` a 1-for-10 reverse), `null` when the vendor gave no usable ratio. Every seed symbol with a split executing on `session`. |
+
+* `symbols` is an object, not an array, because the device reads `Object.keys(splits.symbols)`
+  (`app/src/data/deviceStore/engine.js` `_splitsOf`): an array there would yield the keys `"0"`,
+  `"1"`, ... and name nobody, i.e. fail OPEN.
+* **Field present** = the source answered completely for `session`. `{}` therefore means "no seed
+  symbol splits next session", never "could not ask". **Field absent** = the source could not
+  answer (no key, an error on any page, a truncated answer): the device keeps its guard closed and
+  uses no copy past `asof`. A build never fails for want of this list; it publishes without it.
+* **Source.** The store's bars are Massive aggregates fetched `adjusted=true`, which adjust for
+  splits only (forward and reverse; never dividends or spin-offs), and the serve path heals a split
+  factor the store missed from FMP's split list (`bars_sanitize._fetch_meta`). So a split is the
+  only corporate action that rebases a served series. The list is:
+  1. Massive `/v3/reference/splits` with `execution_date` = `session`, one paginated read for the
+     whole market (`reference_corp_actions.fetch_confirmed_splits_strict`, the D5 confirmed
+     source). Announced splits carry their future execution date, so this can answer at build time
+     (20:15 ET on `asof`). It is the only source whose answer can produce the field.
+  2. plus any seed symbol whose split list in the serve path's FMP cache dates a split on `session`
+     (cache only: the build never calls the vendor). It can add a name, never remove one, and its
+     silence proves nothing (the cache can be cold or a week old), which is why it cannot be the
+     source of the field on its own.
+* **What it cannot know.** A split announced after the build (after 20:15 ET on `asof`) and executed
+  the next morning, or one Massive has not recorded by then. Exchanges require notice well ahead of
+  a split's execution date, so this is the residual case, not the common one; the server's own
+  answer still reaches the chart and repaints it.
+* Only the session after `asof` is covered. A device whose seed is older than that (no build for a
+  session) has no list for today and keeps its guard closed.
 
 ## 3. Pack layout
 
@@ -258,7 +300,8 @@ split-adjusts intraday), not by enough to move these sizes.
   know and falls back to the network. Adding a trailer key is not a version change (readers ignore
   unknown keys); changing `fields` is.
 * The manifest's `v` versions the manifest; `build` changes every build and is the only cache key a
-  client needs.
+  client needs. `splits` was added to manifest v1 on 2026-11-20 (a new key: older readers ignore it,
+  and a reader that needs it treats its absence as "unknown").
 
 ## 9. Freshness: the nightly build and a daily delta (design)
 
@@ -269,18 +312,157 @@ has ended and the regular-session bars' repair window has had hours to land), it
 timeframe, uploading each pack as soon as it is built (one pack in memory at a time) and the
 manifest last. Worker deploys are manual (`docs/runbooks/worker-deploys.md`).
 
-**Daily delta (not built).** A returning device holds yesterday's packs. The new session adds, per
-symbol, at most 390 / 78 / 26 / 13 / 7 / 1 bars (1 / 5 / 15 / 30 / 60 / D) and drops as many old
-ones. A delta pack per timeframe, same format, `ffseed/<build>/<tf>.delta-<base build>.ffs`, would
-hold per symbol either:
+**1m for the whole universe** (`api/services/ffseed_onemin.py`). The worker's prewarm keeps 1m current only
+for its ACTIVE intraday set (watchlists, breadth drill lists, UCT20, candidates, theme holdings;
+`PREWARM_1M_CAP`), so the first builds seeded 1m for 1,270 symbols against ~3,545 elsewhere. Each nightly
+build (`ffseed.nightly`) therefore runs, in order:
 
-* `append`: only the bars after the base build's `last` (the overlap with the base was compared
-  value for value at build time and is unchanged), or
-* `replace`: the whole window, when any overlapping bar changed (a split re-based the history, a
-  repair rewrote a bar) or the symbol is new.
+1. **the 1m pass** (it also runs on its own as soon as the session has closed: from 16:20 ET,
+   `FFSEED_1M_AFTER_MIN`, and on the first builder tick after a worker boot past that point, recorded in
+   `<DATA_DIR>/.last_ffseed_1m_pass` once it completed; the run inside the build then costs nothing for
+   the symbols it already brought current, and the build never starts before it): every cap_universe
+   symbol whose stored 1m does not reach the as-of session's last
+   regular minute gets that session's 1m (plus the session before when the store lacks it too) from the
+   provider's split-adjusted range read, written the way the serve path's range repairs write
+   (`provider_check` + `put_bars`). Symbols the prewarm keeps current cost no call. 2 threads
+   (`FFSEED_1M_WORKERS`), at most 45 min (`FFSEED_1M_DEADLINE_S`, past it the build goes ahead with what
+   it has); `FFSEED_1M_BACKFILL=0` turns it off;
+2. the build and publish (unchanged), then the marker;
+3. **the 1m retention**: a symbol keeps its newest 5 sessions of 1m (`FFSEED_1M_KEEP_SESSIONS`, 0 = off;
+   `bars_sqlite.prune_before`, a prefix trim that bumps the series' history revision) ONLY when the pass
+   itself filled it (the long-tail ledger `<DATA_DIR>/ffseed_1m_longtail.json`: per symbol the first
+   session the pass ever fetched and the newest day it was in the active set), it is not in today's
+   active set and has not been for `FFSEED_1M_INACTIVE_DAYS` (default 10) days, and it holds no 1m older
+   than the pass's first fetch for it (so rows the pass could not have written, e.g. a once-active
+   symbol's deep history, are never touched). Nothing is trimmed while the active set is unknown (no
+   prewarm pass in this process yet). A trim does not travel through the R2 deltas (a serving pod merges
+   them by INSERT only); web and bars-api keep the rows until they install a whole snapshot. Neither 1
+   nor 3 can stop a publish.
 
-The entry gains a `mode` and the base build id. The device applies it by decoding the base window,
-appending, keeping the newest N, and re-encoding locally (or keeping two blobs until the next full
-download). Because a 1m delta is 390 of 600 bars, the saving is largest on 5m-60m and D: by section 7's
-numbers a nightly delta would be ~7 MB (1m) + ~2 MB (5m) + ~1.4 MB (15m, 30m and 60m together) + ~0.04 MB (D)
-plus `replace` entries, about 10-12 MB against 79.5 MB for the full set.
+**Forcing a rebuild of a session already built** (e.g. to rebuild 2026-11-20 with full 1m over the weekend):
+set `FFSEED_FORCE_ASOF=2026-11-20` on the worker (a variable change needs the worker to restart to be read:
+deploy it as usual). On its next tick (at most 30 min after boot plus `FFSEED_BOOT_DELAY`) the builder runs
+the whole nightly sequence for that session once and records it in `<DATA_DIR>/.last_ffseed_forced`, so
+the variable may stay set; unset it at your convenience. It is refused (logged, nothing built) unless the
+session IS the newest closed session: publishing an older build after a newer one would roll every device
+back. `status()` reports `forced_session`.
+
+**Daily delta**: built, section 10.
+
+## 10. The daily delta (`UFFSDLT2`)
+
+A device that holds build N of a timeframe downloads only what changed to reach build N+1; anyone else
+(no copy, another base, a failed check) downloads the full pack, which is always published. Builder:
+`api/services/ffseed_delta.py`; reference applier: `ffseed_delta.apply_delta_iter`.
+
+### Files and manifest
+
+```
+R2 ffseed/<build>/<tf>.delta.ffs          edge /api/seed/v1/<build>/<tf>.delta.ffs   private, immutable
+```
+
+The manifest's timeframe entry gains, ONLY when the delta was proven (below):
+
+```json
+"delta": {"base": "20261120T1430Z", "base_asof": "2026-11-19", "bytes": 2034411,
+          "key": "ffseed/20261121T0131Z/5.delta.ffs", "ops": {"keep": 3, "merge": 3480, "remove": 4, "replace": 61},
+          "sha256": "...", "symbols": 3548, "url": "/api/seed/v1/20261121T0131Z/5.delta.ffs"}
+```
+
+A client holding exactly build `base` of that timeframe (and nothing else) may apply it; it checks
+`bytes` and `sha256` as for a pack. No `delta` key: take the full pack.
+
+### Layout
+
+The pack framing of section 3 with its own magic, so neither reader can take one for the other, and the
+trailer GZIP-compressed (one gzip member, mtime 0; the u64 is the compressed length):
+
+```
+blob 0 | ... | blob k-1 | gzip(trailer, ASCII JSON) | u64 trailer length | "UFFSDLT2"
+```
+
+Version 1 (`"UFFSDLT1"`, the same JSON trailer uncompressed, `v` 1) is still read by the server's reader and
+the device's, never written. Why version 2: the trailer is ~0.3 MB per timeframe whatever the night changed
+(one 12-number entry per symbol), 1.75 MB of the first real nightly delta's 16.2 MB (2026-11-21; D: 0.14 MB
+of bars in a 0.43 MB delta); gzip takes it to 20-28% (0.42 MB for all six).
+
+Trailer: `v` 2 (1 under `"UFFSDLT1"`), `kind` `"ffseed-delta"`, `tf`, `tunit`, `basis`, `grid`, `comp`, `depth`, `asof` and
+`build` (the NEW build), `base` and `base_asof` (the build it applies to), `fields`, `symbols`.
+`fields` = `["op","off","len","rows","bars","first","last","asof","crc","body","pscale","vscale"]`:
+
+| field           | meaning                                                                          |
+|-----------------|----------------------------------------------------------------------------------|
+| `op`            | 0 keep, 1 merge, 2 replace, 3 remove                                             |
+| `off`, `len`    | the blob in the file (0, 0 for keep and remove)                                  |
+| `rows`          | bars in the blob                                                                 |
+| `bars` `first` `last` `crc` | the NEW window, exactly as its full-pack entry states them (section 3) |
+| `asof`          | the new as-of session, YYYYMMDD                                                  |
+| `body`          | the blob's decompressed length                                                   |
+| `pscale` `vscale` | the NEW window's scales; a blob is encoded at them                             |
+
+Every symbol of the base and of the new build has exactly one entry. A blob is a body (section 4) at the
+entry's scales, raw or gzip per `comp`; a merge blob's own rows carry no CRC: the applied window's does.
+
+### Applying one symbol (the device)
+
+* **remove** (3): drop the symbol.
+* **replace** (2): the blob is the whole new window: decode it exactly as a pack entry (section 5).
+* **keep** (0) and **merge** (1):
+  1. take the base window's rows with `first <= t <= last` (base entry, decoded as in section 5);
+  2. rescale them to the entry's `pscale`/`vscale`: multiply by `new / old` when the new scale is larger,
+     divide when smaller (exact by construction: every kept row is part of the new window);
+  3. merge only: decode the blob's `rows` rows (section 5 step 5, without its CRC check) and put each one
+     in place of the kept row with the same `t`, or add it;
+  4. the result must have `bars` rows, start at `first`, end at `last`, and its column CRC (section 4)
+     must equal `crc`. Anything else: discard the delta and download the full pack.
+
+### Which op the builder picks
+
+`replace` for a symbol new in the build, for every symbol the BASE manifest's next-session `splits`
+names for this as-of session (its basis changed), and whenever a merge cannot reproduce the new window
+(a bar the server removed inside the overlap, a base row that is not exact at the new scales) or would
+not be smaller than the full window. `keep` when the kept base rows ARE the new window. Otherwise
+`merge`, whose blob holds the new session's bars plus every overlapping bar whose values changed.
+
+### Fail-safe
+
+Before a delta is uploaded the builder applies it to the base with the independent reference applier
+and compares the result with the new pack, every symbol, every column, both scales, and the symbol set.
+Any difference, a base whose bytes do not match the base manifest's `sha256` (it is read from the
+worker's own copy of the last build, `<DATA_DIR>/ffseed_cache/`, else from R2), or any error: no delta
+for that timeframe, and the manifest carries none. The full packs are uploaded first and never depend on
+it.
+
+### The device (`app/src/data/deviceStore/delta.js`, `engine.js` `_ingestDelta`)
+
+The device store tries the delta first when the generation it holds for a timeframe IS `delta.base` (by its
+commit marker and by its own trailer's `build`), and takes the full pack otherwise. In order:
+
+1. **Download** `delta.url` (resolved against the manifest like the pack's) whole, into memory: exactly
+   `delta.bytes`, its sha256 equal to `delta.sha256`. No Range, no resume: a broken download is a fallback.
+2. **Parse** it (`parseDelta`: magic, `v`, `kind`, `fields`, `tf`/`tunit`, `comp`, every entry's shape). Its
+   `build` must be the manifest's, its `base` the held build and the manifest's `delta.base`. Every symbol of
+   the held build must have an entry; the new set (every entry but `remove`) must be non-empty and match the
+   manifest's `symbols` and `bars`.
+3. **Rebuild** the new pack, one symbol at a time, in code-point order, into a NEW generation file
+   (`<tf>.<gen>.pack`, no `.prog`): `replace` copies the delta's blob; an unchanged `keep` copies the held
+   blob; any other `keep` or `merge` decodes the held rows, keeps `first <= t <= last`, rescales them
+   exactly, upserts the merge rows (a tie: the blob's row), re-encodes the body (section 4) and gzips it with
+   fflate. The trailer is the pack trailer of section 3 with the new build's `asof`/`build` and each symbol's
+   NEW entry (`bars first last asof crc pscale vscale` from the delta; `off len body` where this file holds
+   it), plus the keys `via: "delta"` and `base`.
+4. **Read it all back** through the reader: the trailer parses, every symbol is there with the entry written,
+   and every record decodes (`decodeRecord`) to the new build's `bars`, `first`, `last` and column `crc`.
+   This is section 10's apply step 4 on the bytes as stored, and the device's ONE check of the result: the
+   rebuilt file is not byte-identical to the server's (another gzip encoder), so the manifest's full-pack
+   `sha256` cannot be compared.
+5. **Commit** as for a download: the marker `<tf>.<gen>.ok` (`bytes` = this file's size, `src` = the
+   manifest's full-pack `{sha256, bytes}` this generation stands for, `via: "delta"`), the swap, the older
+   generations removed. A later manifest naming the same build and full-pack `bytes` is `current`.
+
+Any failure at any step removes the new generation's file and downloads the full pack; the held
+generation serves every read until a new one is committed. A crash mid-write leaves an unmarked file no
+reader opens, removed by the next ingest. Measured (Node, this repository's dev PC, synthetic 60m records of
+1,000 bars): ~1.5-2.5 ms of worker time per symbol, the worker handing back control every 12 ms so other
+tabs' reads keep being answered. Tests: `app/src/data/deviceStore/delta.test.js` against deltas the server
+built (`tools/ffseed_make_delta_js_fixture.py`, pinned by `tests/test_ffseed_delta_js_fixture.py`).

@@ -59,7 +59,7 @@ import {
 import { loadCapture } from '../../__tests__/vendorHarness/harness.js'
 import { barsOfCapture } from '../../__tests__/vendorHarness/strategyHarness.js'
 import { toProductBars } from '../../__tests__/vendorHarness/ourSide.js'
-import { historyWindowBarsOf, STRATEGY_DECLARATION } from './strategyArmed.js'
+import { chartStrategyWindowOf, STRATEGY_DECLARATION } from './strategyArmed.js'
 // the ONE pin reader production's broker run reads (`vm.js` `ledgerPinned`, `brokerPins.resolved.json`)
 import { pinned } from '../brokerPins.js'
 import { strategyServeOutcome } from './strategyServe.js'
@@ -197,7 +197,9 @@ beforeAll(() => {
   const reference = loadCapture(REFERENCE).capture
   bars = barsOfCapture(reference)
   dailyBars = toProductBars(reference)
-  ctx = { tf: 'D', symbol: SYMBOL, newestBarIsForming: false, historyFromListing: true, historyWindowBars: historyWindowBarsOf(ROOT) }
+  // ⭐⭐ (2026-11-19, the strategy-only daily window) the window the chart hands today: the strategy window, and the
+  // shared one as the depth served without [B-START-DEEP] (RDDT's 632 bars are below both: nothing here moves)
+  ctx = { tf: 'D', symbol: SYMBOL, newestBarIsForming: false, historyFromListing: true, ...chartStrategyWindowOf(ROOT) }
   results.granted = runAll('granted')
   results.production = runAll('production')
   results.grantedDaily = runAll('granted', dailyBars)

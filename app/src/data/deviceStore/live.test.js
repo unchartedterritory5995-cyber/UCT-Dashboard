@@ -17,8 +17,8 @@ const fixture = (name) => new Uint8Array(fs.readFileSync(new URL(`../../../../te
 const DAY = JSON.parse(Buffer.from(fixture('day_regular.json')).toString('utf8'))
 const PREV = prevSessionISO(DAY.day)
 
-function replay({ nameOf = (s) => s, upto = Infinity, frames = null } = {}) {
-  const overlay = createLiveOverlay({ nameOf })
+function replay({ nameOf = (s) => s, upto = Infinity, frames = null, forming = {} } = {}) {
+  const overlay = createLiveOverlay({ nameOf, ...forming })
   const r = createMinuteRollup({ sink: overlay.sink, tfs: [...STORED_TFS] })
   overlay.sink.reset({ day: DAY.day })
   for (const f of frames ?? todayFrames(fixture('day_regular.today.bin'))) {
@@ -68,7 +68,8 @@ describe('the live overlay', () => {
   it("mid-session: only COMPLETE buckets (whose last minute has landed), each the server's; and `through`", () => {
     // frames up to the 10:11 ET minute (seq = minutes since 04:00): complete through 10:12:00
     const seq = 10 * 60 + 11 - 240
-    const { overlay } = replay({ upto: seq })
+    // the COMPLETE-bucket rule, with the forming bucket off (forming.js turns it on: forming.test.js)
+    const { overlay } = replay({ upto: seq, forming: { formingIntraday: false } })
     const sym = Object.keys(DAY.expected)[0]
     const got = overlay.read(sym, '5', PREV)
     expect(got.through).toBe(Math.floor(Date.UTC(2026, 10, 18, 15, 12) / 1000))
@@ -121,6 +122,24 @@ describe('the live overlay', () => {
     expect(overlay.read(sym, '5', '2026-11-18')).toBeNull()            // nothing held for the new day yet
     expect(overlay.state().series).toBe(0)
   })
+  it('why() names the rule behind every read() answer, and agrees with it', () => {
+    const sym = Object.keys(DAY.expected)[0]
+    expect(createLiveOverlay().why(sym, '5', PREV)).toBe('no-day')
+    const { overlay } = replay()
+    expect(overlay.why(sym, '5', PREV)).toBe('ok')
+    expect(overlay.read(sym, '5', PREV)).not.toBeNull()
+    expect(overlay.why(sym, '5', '2026-11-10')).toBe('other-session')
+    expect(overlay.read(sym, '5', '2026-11-10')).toBeNull()
+    expect(overlay.why(sym, '2', PREV)).toBe('tf')
+    overlay.sink.stale(sym, '5')
+    expect(overlay.why(sym, '5', PREV)).toBe('bad-series')
+    expect(overlay.read(sym, '5', PREV)).toBeNull()
+    const t = Math.floor(Date.UTC(2026, 10, 18, 15, 0) / 60000)          // 10:00 ET, inside the session
+    overlay.sink.gap({ fromMinute: t, toMinute: t + 2 })
+    expect(overlay.why(sym, '15', PREV)).toBe('gap')
+    expect(overlay.read(sym, '15', PREV)).toBeNull()
+  })
+
   it('the rollup filtered to the seed\u2019s symbols holds state for those alone', () => {
     const keep = Object.keys(DAY.expected)[0]
     const overlay = createLiveOverlay({ nameOf: (x) => (x === keep ? x : null) })

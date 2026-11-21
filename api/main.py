@@ -7083,6 +7083,13 @@ async def lifespan(app: FastAPI):
         _bars_rebuild.start_background_sync()
     except Exception as e:  # noqa: BLE001
         print(f"[startup] rebuilt-history sync start failed (non-fatal): {e}")
+    # The published corrections ledger for served D/W/M bars (bars_corrections); inert with no manifest.
+    # BARS_CORRECTIONS_SERVE=0 = off.
+    try:
+        from api.services import bars_corrections as _bars_corrections
+        _bars_corrections.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        print(f"[startup] bars-corrections sync start failed (non-fatal): {e}")
 
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
@@ -10827,6 +10834,29 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] research depth job registration failed (non-fatal): {e}")
 
+        # INS CLUSTER (2026-11-21): insider cluster buys read from the SEC's own Form 4 filings
+        # (api/services/insider_clusters_sec.py). EDGAR's daily indexes are "updated nightly starting
+        # about 10:00 p.m., ET; the process is usually completed within a few hours" (the SEC's
+        # "Accessing EDGAR Data" page), so the read runs at 01:20 ET Tuesday to Saturday, the night
+        # after each weekday, clear of the 01:47 and 02:00 jobs. The job only starts the module's own
+        # thread (one run at a time) and returns; nothing on a member's request ever starts it.
+        _boot_mark("S10236")
+        try:
+            def _insider_clusters_sec_job():
+                from api.services import insider_clusters_sec as _ics
+                print(f"[scheduler] insider clusters (SEC Form 4) read: {_ics.run_nightly()}")
+
+            from api.services import insider_clusters_sec as _ics_mod
+            _scheduler.add_job(
+                _insider_clusters_sec_job,
+                trigger=CronTrigger(day_of_week="tue-sat", hour=_ics_mod.RUN_AT_ET[0],
+                                    minute=_ics_mod.RUN_AT_ET[1], timezone=_ET),
+                id="insider_clusters_sec_nightly", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            print("[startup] insider clusters (SEC Form 4) scheduled -- Tue-Sat 01:20 ET")
+        except Exception as e:
+            print(f"[startup] insider clusters job registration failed (non-fatal): {e}")
+
         # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
         # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
         # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).
@@ -12113,6 +12143,8 @@ app.include_router(analyst_revisions_router.router)  # /api/research/analyst-rev
 app.include_router(iv_history_router.router)  # /api/research/iv-history/{sym}[/implied-vs-realized] — our own options log, paid, read-only, DARK (IV_HISTORY_ENABLED)
 from api.routers import treasury_yields as treasury_yields_router  # noqa: E402  (RATES: Treasury yields and the curve, paid)
 app.include_router(treasury_yields_router.router)  # /api/research/treasury-yields
+from api.routers import treasury_auctions as treasury_auctions_router  # noqa: E402  (AUCT: Treasury auctions, upcoming and results, paid)
+app.include_router(treasury_auctions_router.router)  # /api/research/treasury-auctions
 app.include_router(options_screener_router.router)  # /api/options-screener/{screen,unusual-volume,iv-percentile} — COV-02/03 over our own options log, paid, read-only, DARK (OPTIONS_SCREENER_ENABLED)
 app.include_router(yf_guard_router.router, dependencies=_OPEN_READS)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
@@ -12207,6 +12239,10 @@ from api.routers import short_data as short_data_router  # noqa: E402  (SHINT / 
 app.include_router(short_data_router.router)
 from api.routers import dilution_watch as dilution_watch_router  # noqa: E402  (DILU: share-issuance filings from SEC EDGAR, paid)
 app.include_router(dilution_watch_router.router)  # /api/research/dilution-watch/{ticker}
+from api.routers import corporate_actions as corporate_actions_router  # noqa: E402  (CACT: splits and dividends the server already holds, paid)
+app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
+from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
+app.include_router(fed_watch_router.router)  # /api/research/fed-watch
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)

@@ -66,6 +66,12 @@ export function createDeviceSource({ load = _load, current = () => _client } = {
         .then((c) => (c ? c.getBars(sym, String(tf)) : null))
         .then(_hit, () => null)
     },
+    /** Diagnostics: the worker's rule for (sym, tf) (client.why); 'no-client' when the store never loaded. */
+    why(sym, tf) {
+      return Promise.resolve(current() || load())
+        .then((c) => (c?.why ? c.why(sym, String(tf)) : 'no-client'))
+        .then((w) => w ?? 'no-engine', () => 'error')
+    },
   }
 }
 

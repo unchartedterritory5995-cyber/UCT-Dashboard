@@ -63,6 +63,7 @@ on:
       - 'tools/vendor_harness/**'
       - 'tests/test_ast_*.py'
       - 'tests/test_pine_*.py'
+      - 'tests/test_c45_withheld_doors.py'
       - 'tests/test_ci_pine_heavy.py'
       - 'tools/ci_offline.sh'
       - 'tools/ci_vitest_union.py'
@@ -79,6 +80,28 @@ on:
       - 'tools/pine_survey/corpus_licence.py'
       - 'corpus/**'
       - 'api/services/pine_capabilities.py'
+      # ⭐ (2026-11-20) the census legs (pine-consumers-N): every other test file importing the Pine engine. What they
+      # import triggers them: the engine (ast_* above, pine_*, the Pine routers, services/pine_runtime above), the scan,
+      # alert and definition families, and each module that imports the engine itself and a census file imports.
+      # tests/test_ci_pine_heavy.py DERIVES that set from the census files' imports and fails on a module it misses.
+      - 'api/services/pine_*.py'
+      - 'api/routers/*pine*.py'
+      - 'api/services/scan_*.py'
+      - 'api/services/screener/scan_*.py'
+      - 'api/services/alert_*.py'
+      - 'api/services/user_definition*.py'
+      - 'api/routers/user_definitions.py'
+      - 'api/routers/screener_backtest.py'
+      - 'api/services/concept_vocabulary.py'
+      - 'api/services/definition_*.py'
+      - 'api/services/indicator_compute.py'
+      - 'api/services/running_values.py'
+      - 'api/services/runtime_*.py'
+      - 'api/services/screener/backtest.py'
+      - 'api/services/script_conversation.py'
+      - 'api/services/starter_library.py'
+      - 'api/routers/bars.py'
+      - 'tools/pine_test_census.py'
       - 'app/src/components/chart/builder/memberPane/**'
       # ⭐ (2026-11-17) the Pine fixtures, tools outputs and docs the engine tests READ, measured by the read
       # capture over every engine test file: a PR changing one of these now runs the tests that read it.
@@ -319,7 +342,15 @@ jobs:
           - { leg: ast-twins,  tests: 'tests/test_ast_*.py' }
           # tests/test_w9_probes.py: the W9 queue doc's rows <-> the generated strategy probes (2026-11-17, #1554:
           # W9-NB1 reached master red because no leg ran it)
-          - { leg: pine-twins, tests: 'tests/test_pine_*.py tests/test_w9_probes.py' }
+          # tests/test_c45_withheld_doors.py: the C45 doors ask ast_interpret's own whole-series decision (2026-11-20:
+          # red since engine 78 #1888 and engine 90 #2194 with every check green, because no leg ran it)
+          - { leg: pine-twins, tests: 'tests/test_pine_*.py tests/test_w9_probes.py tests/test_c45_withheld_doors.py' }
+          # ⭐ (2026-11-20) THE CENSUS LEGS: every OTHER tests/test_*.py that imports the Pine engine, 99 files of which
+          # 67 ran in no lane at all (five were red on master for days). tools/pine_test_census.py DERIVES the list from
+          # the files' own imports, minus what a `tests:` leg above names, and splits it by recorded time: a new file
+          # joins a leg the day it lands. tests/test_ci_pine_heavy.py fails when a Pine-importing file is in no leg.
+          - { leg: pine-consumers-1, census: '1/2' }
+          - { leg: pine-consumers-2, census: '2/2' }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -346,14 +377,23 @@ jobs:
       - name: The Pine runtime server bundle (the section-8 rails import it)
         working-directory: app
         run: node scripts/build-pine-runtime.mjs
-      - name: pytest ${{ matrix.tests }} (offline)
+      - name: pytest ${{ matrix.tests || format('the Pine census, shard {0}', matrix.census) }} (offline)
         env:
           TESTS: ${{ matrix.tests }}
+          CENSUS: ${{ matrix.census }}
         run: |
           set -euo pipefail
           start=$(date +%s); rc=0
+          # a census leg's files are DERIVED from the ref under test (the CI tooling's copy of the tool, so a ref cut
+          # before the tool still runs); an empty census or shard exits 2 and fails the leg
+          if [ -n "$CENSUS" ]; then
+            TESTS="$(python "$CI_TOOLS/tools/pine_test_census.py" --root . --shard "$CENSUS")"
+            echo "census shard $CENSUS: $(echo $TESTS | wc -w) files" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          # --continue-on-collection-errors: one file that fails to IMPORT is reported and the leg still fails, but it no
+          # longer stops every other file in the leg (2026-11-20: a collection error in census shard 1 ran 0 of its 49)
           # shellcheck disable=SC2086
-          bash "$CI_TOOLS/tools/ci_offline.sh" python -m pytest $TESTS -q -p no:cacheprovider -rfE || rc=$?
+          bash "$CI_TOOLS/tools/ci_offline.sh" python -m pytest $TESTS -q -p no:cacheprovider -rfE --continue-on-collection-errors || rc=$?
           echo "LEG pytest-${{ matrix.leg }} wall: $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $rc
 
@@ -485,13 +525,23 @@ jobs:
             tools
       - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
       - name: evidence_engine.py queue --check and pins --check (offline)
+        env:
+          # ⭐ (2026-11-21) the PR's base: `queue --check --against` also fails when a row that asked for a capture
+          # there derives nothing here while still in the docs (a split table dropped 3 targets with this check green)
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          q=0; p=0
-          bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/vendor_harness/evidence_engine.py queue --check || q=$?
+          q=0; p=0; against=""
+          if [ -n "${BASE_SHA:-}" ]; then
+            if git fetch --no-tags --depth=1 origin "$BASE_SHA"; then against="--against $BASE_SHA"
+            else echo "::error::could not fetch the PR base $BASE_SHA that queue --check --against compares with"; q=1; fi
+          fi
+          if [ "$q" -eq 0 ]; then
+            bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/vendor_harness/evidence_engine.py queue --check $against || q=$?
+          fi
           bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/vendor_harness/evidence_engine.py pins --check || p=$?
           echo "derived evidence: queue --check exit $q, pins --check exit $p" | tee -a "$GITHUB_STEP_SUMMARY"
-          if [ "$q" -ne 0 ]; then echo "::error::the capture queue does not derive from the docs, or docs/pine/vendor-harness/capture-queue.json is committed again (a local view since 2026-11-16: 'git rm --cached' it, never commit it). The log above says which; run 'python tools/vendor_harness/evidence_engine.py queue --check'"; fi
+          if [ "$q" -ne 0 ]; then echo "::error::the capture queue does not derive from the docs, a row that asked for a capture at the PR's base derives nothing now (LOST lines above), or docs/pine/vendor-harness/capture-queue.json is committed again (a local view since 2026-11-16: 'git rm --cached' it, never commit it). The log above says which; run 'python tools/vendor_harness/evidence_engine.py queue --check --against origin/master'"; fi
           if [ "$p" -ne 0 ]; then echo "::error::brokerPins.resolved.json is not the resolution of its sources: run 'python tools/vendor_harness/evidence_engine.py pins' and commit the file in this PR"; fi
           [ "$q" -eq 0 ] && [ "$p" -eq 0 ]
 

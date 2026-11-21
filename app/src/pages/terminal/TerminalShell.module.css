@@ -1138,6 +1138,18 @@
 
 /* ── PHONE: one panel, the command line pinned at the top, the rail lives in a Sheet ── */
 @media (max-width: 640px) {
+  /* The end of a panel clears the floating buttons (2026-11-20, part 4). On a phone the one panel
+     runs to the bottom of the screen, and the feedback "?" (44px tall) and the voice orb (64px)
+     float 16px above that edge (FeedbackWidget.module.css, voice/FloatingOrb.module.css; both lift
+     by the same amount over the bottom command box). The only bottom rule was the home-indicator
+     padding on .body, so scrolled to its end a panel's last lines sat under them: measured in EE
+     ("Source: FMP grades." and the last firm), and the same in ANR, FA, BRKO and SCAT. The scroll
+     end now stops 8px above the taller button. A flush panel (the chart, the calendar) lays out
+     its own frame and is left alone. */
+  .panelBody:not(.panelBodyFlush) {
+    padding-bottom: calc(16px + 64px + var(--space-sm));
+  }
+
   /* TERM-019: the panel's source line gives way first on a phone. */
   .panelSource {
     max-width: 12ch;

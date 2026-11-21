@@ -32,6 +32,19 @@ refused at the member door as `lower-tf:unwitnessed`:
 | Q-L2 | `vw-lower-tf-bars.pine` (the trivial bars study) on NYSE:RDDT **15**, **60**, **240** (extended hours OFF, as much history as loads) | the intraday bars the harness would hand ema-ribbon's rows | `ema-ribbon-trend-filter-strixedge` rows 6–8 + bias/confluence cells, graded value for value |
 | Q-L3 | `vw-lower-tf-bars.pine` (the trivial bars study) on NYSE:RDDT **5** (extended OFF, full history) | the bars for `liquidity-heatmap`'s `"5"` pivots — only after its `resolutionInMinutes` (`timeframe.*` inside a request) and `lookahead_on` walls clear | liquidity-heatmap labels |
 
+⚠️ **WHAT WAS RECORDED (2026-11-21 audit, #2134):** Q-L2 and Q-L3 asked for extended hours OFF, and all four
+captures recorded **EXTENDED hours** (`symbol.session` `0400-2000`): `vw-lower-tf-bars-rddt-{5,15,60,240}-2026-11-16`.
+The rig layout had resolved extended on every intraday chart since 2026-11-14, and the batch did not read the session.
+Neither row is answered as asked. No committed grade uses them as regular-hours bars: the harness's lower-timeframe
+supply keeps regular captures apart and prefers them. (The probe's own header still says "extended hours OFF". Its
+bytes are the captures' `source.sha256`, so it is corrected here, not there.)
+
+**The regular-hours re-takes (owed) are the Q-L2 and Q-L3 rows themselves.** The queue reads a row's session beside
+its chart ("extended hours OFF" / "extended OFF": regular) and answers it only with a capture that RECORDED that session
+(the session dimension, 2026-11-21), so the four targets `vw-lower-tf-bars@NYSE:RDDT@{5,15,60,240}@regular` are
+QUEUED and the four extended captures no longer answer them. Their manifest rows carry `"session": "regular"` and
+`"layout": "MyS1vKSg"` (the regular-hours rig layout, `run --layout MyS1vKSg`), so their capture ids end `-rth-<date>`.
+
 ## Q-L1 — `vw-lower-tf.pine`
 
 **Capture:** AMEX:SPY **1D**, inputs at defaults, as much history as loads (the dates graded are

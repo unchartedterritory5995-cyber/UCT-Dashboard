@@ -197,7 +197,8 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
     found = set()
     for f in (REPO / "app/src/agent/capabilities").glob("*.js"):
         src = f.read_text(encoding="utf-8")
-        for m in re.finditer(r"name: '([a-zA-Z]+\.[a-zA-Z]+)'", src):
+        # letters AND digits, the alphabet turn._CAP_NAME allows: a letters-only pattern could not see stock.uct20List
+        for m in re.finditer(r"name: '([a-zA-Z][a-zA-Z0-9]*\.[a-zA-Z][a-zA-Z0-9]*)'", src):
             nxt = src.find("registerCapability(", m.end())
             if "localOnly: true" in src[m.end(): nxt if nxt != -1 else len(src)]:
                 found.add(m.group(1))
@@ -213,6 +214,11 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
     # Terminal data wave 5: the two capabilities over the isolated kinds short.interest / short.list
     # Terminal data wave 6: the five capabilities over the isolated kinds seasonality.stock / seasonality.board /
     # options.tideHistory / options.oiChange / rates.treasury
+    # Terminal data wave 7: the six capabilities over the isolated kinds market.regime / stock.setups / stock.eventsTimeline /
+    # uct20.list / options.ivHistory / dilution.watch
+    # Terminal data wave 8: the three capabilities over the isolated kinds stock.corporateActions / calendar.ipos /
+    # calendar.dividends
+    # Terminal data wave 9: the three capabilities over the isolated kinds rates.auctions / rates.realYields / fed.watch
     assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades",
                                                      "news.movers", "rs.compare", "stock.analystActions", "stock.sessionHighsLows",
                                                      "stock.longRunLeaders", "stock.darkPoolLevels", "stock.yearlyHighsLows",
@@ -222,7 +228,11 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
                                                      "stock.earningsSeason", "stock.callThemes", "stock.groupDrill",
                                                      "stock.shortInterest", "stock.shortList",
                                                      "stock.seasonality", "stock.seasonalityBoard", "stock.tideHistory",
-                                                     "stock.oiChange", "stock.treasuryYields"}
+                                                     "stock.oiChange", "stock.treasuryYields",
+                                                     "stock.marketRegime", "stock.setups", "stock.eventsTimeline",
+                                                     "stock.uct20List", "stock.ivHistory", "stock.dilutionWatch",
+                                                     "stock.splitsDividends", "stock.ipoCalendar", "stock.dividendsCalendar",
+                                                     "stock.auctionCalendar", "stock.realCurve", "stock.fomcWatch"}
 
 
 # ═══ 3. the one door: what a stored row may say to a model ══════════════════════════════════════════

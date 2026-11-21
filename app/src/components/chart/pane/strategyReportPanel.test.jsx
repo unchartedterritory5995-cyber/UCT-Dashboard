@@ -27,6 +27,7 @@ import { withoutGuardIds } from '../engine/ast/guardIdText'
 import {
   strategyReportOf, SERVED_METRICS, REFUSED_METRICS,
   REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD, REPORT_UNDEFINED_GUARD, REPORT_RECORD_GUARD,
+  DATA_SOURCE_SENTENCE, DEEP_HISTORY_RULE,
 } from '../engine/runtime/brokerReport.js'
 import { strategyRecordOf } from '../engine/runtime/strategyRecord.js'
 import { orderLogFor } from '../engine/runtime/__tests__/orderLogFixture.js'
@@ -271,6 +272,24 @@ describe('W9-T13b ruling D2: the start sentence is always visible', () => {
     }
     expect(screen.getByTestId('strategy-report-asof').textContent)
       .toBe(`Starts 2024-03-21 (UTC) · As of the bar closed ${FIXTURES.allServed.window.asOfDate} (UTC)`)
+  })
+
+  // ⭐⭐ (2026-11-20, coordinator ruling) the data-source note of a deep-window run: verbatim, a note, on every tab
+  it('a deep-window run (it asked [B-START-DEEP]) shows the data-source sentence verbatim on every tab; control: none on any other run', () => {
+    const deep = strategyReportOf(recordOf([], { fromListing: true, rulesUsed: [...USED, DEEP_HISTORY_RULE] }), { isPinned: ALL })
+    expect(deep.window.dataSentence).toBe(DATA_SOURCE_SENTENCE)
+    render(<StrategyReportPanel report={deep} />)
+    for (const t of TABS) {
+      clickTab(t.label)
+      const s = screen.getByTestId('strategy-report-data-sentence')
+      expect(s.textContent).toBe(DATA_SOURCE_SENTENCE)
+      expect(s.getAttribute('role')).toBe('note')
+      expect(s.closest('[role="tabpanel"]')).toBe(null)
+    }
+    cleanup()
+    render(<StrategyReportPanel report={FIXTURES.fromListing} />)
+    expect(screen.getByTestId('strategy-report-start-sentence').textContent).toBe(START_SENTENCE)
+    expect(screen.queryByTestId('strategy-report-data-sentence')).toBe(null)
   })
 
   it('r1, D2 ALWAYS: a run from the listing shows the same sentence on every tab (the plan bar limit can move the TradingView start)', () => {

@@ -187,6 +187,11 @@ test("only the two exact path forms reach the bucket", async () => {
     assert.deepEqual(env.SEED.asked, [], p);
   }
   assert.deepEqual(parseSeedPath(`/api/seed/v1/${FIX.build}/60.ffs`), { kind: "pack", key: `${FIX.build}/60.ffs`, build: FIX.build, tf: "60" });
+  assert.deepEqual(parseSeedPath(`/api/seed/v1/${FIX.build}/D.delta.ffs`),
+    { kind: "pack", key: `${FIX.build}/D.delta.ffs`, build: FIX.build, tf: "D", delta: true });
+  for (const bad of ["W.delta.ffs", "D.delta", "D.deltas.ffs", ".delta.ffs", "D.delta.delta.ffs", "D.full.ffs"]) {
+    assert.equal(parseSeedPath(`/api/seed/v1/${FIX.build}/${bad}`), null, bad);
+  }
 });
 
 test("method, configuration and a missing object", async () => {
@@ -224,6 +229,17 @@ test("a resumed download: single ranges answer 206 from R2, unsatisfiable ones 4
   assert.equal(parseRange("bytes=0-1,5-6", 100), null, "multi-range: the whole object");
   assert.equal(parseRange(null, 100), null);
   assert.deepEqual(parseRange("bytes=90-500", 100), { offset: 90, length: 10 });
+});
+
+test("a daily delta is served from its own key, like a pack", async () => {
+  const env = { CHART_EDGE_SECRET: SECRET, SEED: bucket() };
+  const delta = new Uint8Array([1, 2, 3, 4, 5]);
+  env.SEED.store.set(`ffseed/${FIX.build}/5.delta.ffs`, delta);
+  const { res, body } = await ask(`/api/seed/v1/${FIX.build}/5.delta.ffs`, { env });
+  assert.equal(res.status, 200);
+  assert.deepEqual(body, delta);
+  assert.deepEqual(env.SEED.asked, [`get ffseed/${FIX.build}/5.delta.ffs`]);
+  assert.equal(res.headers.get("cache-control"), "private, max-age=31536000, immutable");
 });
 
 test("HEAD answers the size without a body", async () => {

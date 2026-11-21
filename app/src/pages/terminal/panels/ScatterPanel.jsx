@@ -246,7 +246,7 @@ export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey
   }
 
   const axisSelect = (label, value, set, testId) => (
-    <label className={styles.muted}>
+    <label className={`${styles.muted} ${styles.pick}`}>
       {label}{' '}
       <Select value={value} onChange={(e) => set(e.target.value)} data-testid={testId} className={styles.chip}>
         {[...new Set(catalog.map((m) => m.group || ''))].map((g) => (
@@ -279,15 +279,15 @@ export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey
   } else {
     body = (
       <div className={styles.scatStage} data-testid="terminal-scat-chart" role="img" aria-label={summary}>
-        <ReactECharts option={option} notMerge style={{ height: '100%', width: '100%' }} onEvents={{ click: onPoint }} />
+        <ReactECharts option={option} notMerge className={styles.scatChart} style={{ height: '100%', width: '100%' }} onEvents={{ click: onPoint }} />
       </div>
     )
   }
 
   return (
-    <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-scat">
+    <div className={`${styles.wrap} ${inPanel ? `${styles.inPanel} ${styles.scatFill}` : ''}`} data-testid="terminal-scat">
       <div className={styles.toolbar}>
-        <label className={styles.muted}>
+        <label className={`${styles.muted} ${styles.pick}`}>
           Universe{' '}
           <Select value={`${pick.source}:${pick.value ?? ''}`} onChange={onUniverse} data-testid="terminal-scat-universe" className={styles.chip}>
             {groups.map((g, gi) => (

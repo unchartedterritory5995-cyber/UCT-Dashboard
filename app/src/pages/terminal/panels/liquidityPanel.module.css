@@ -1,0 +1,166 @@
+/* LIQ: net liquidity and its parts. App tokens only (the terminal wears the member's theme). The table,
+   notes, chips and the fold helpers come from marketPanels.module.css; this sheet adds the headline,
+   the four changes, the two-year line (drawn the way RATES draws its spread history) and the credit
+   footer. No green or red: rising liquidity is not good or bad on its own, so a change is a sign and
+   a number. No screen query: a panel fits its own width through the shell's fit tier. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.headline {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.big {
+  color: var(--text-bright);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.when {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  overflow-wrap: break-word;
+}
+
+.changes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.change {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.changeSpan {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.changeValue {
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+
+.sentence {
+  margin: 0;
+  color: var(--text-bright);
+  line-height: var(--lh-normal);
+  overflow-wrap: break-word;
+}
+
+.figure {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.figTitle {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: 7.5rem;
+  overflow: visible;
+  color: var(--text-bright);
+}
+
+.line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.parts th.textCol,
+.parts td.textCol {
+  text-align: left;
+}
+
+.name {
+  color: var(--text-bright);
+  text-decoration: none;
+}
+
+.name:hover,
+.name:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.value {
+  display: block;
+  color: var(--text-bright);
+}
+
+.sub {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+.footer p {
+  margin: 0;
+  overflow-wrap: break-word;
+}

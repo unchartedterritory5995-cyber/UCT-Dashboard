@@ -2,6 +2,7 @@
 
 GET /api/insider/feed         — notable insider buys across the market (last 7 days)
 GET /api/insider/feed?scope=market - open-market purchases market-wide (Form 4, last 7 days)
+GET /api/insider/clusters     — insider cluster buys from the SEC's own Form 4 filings (INS CLUSTER)
 GET /api/insider/{ticker}     — insider transactions for a single stock
 GET /api/insider/{ticker}/has-buy — quick boolean check for recent insider buy
 
@@ -60,6 +61,19 @@ def insider_feed(scope: Optional[str] = None, _user: dict = Depends(require_paid
     if scope == "market":
         return get_market_insider_buys()
     raise HTTPException(status_code=400, detail="scope must be 'market' or absent")
+
+
+# ⛔ Declared ABOVE `/{ticker}`: FastAPI answers on the first match, so below it `clusters` would
+# be read as a ticker symbol.
+@router.get("/clusters")
+def insider_clusters(_user: dict = Depends(require_paid)):
+    """Insider cluster buys (the Terminal's `INS CLUSTER`): stocks in which three or more insiders
+    bought on the open market within ten business days, built from the SEC's own Form 4 filings
+    (`api/services/insider_clusters_sec.py`). Answers ONLY from what the nightly read holds: the SEC
+    is never asked on a member's request. `status: not_built` until the first night has run. Plain
+    `def`: memory, a lock and (once per process) one local file."""
+    from api.services import insider_clusters_sec
+    return insider_clusters_sec.get_clusters()
 
 
 @router.get("/{ticker}")
