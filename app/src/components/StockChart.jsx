@@ -1451,6 +1451,13 @@ function zoomLimitsOf(chart) {
 // path or data state produced the frame. `reserve` is non-zero only for D/W/M (a slot seeded
 // into the candle series, _intradayLoadReserve); intraday never reserves future-session slots.
 
+// ⭐ 2026-11-21 -- THE READER OF WHAT THE CHART HAS DRAWN (`engineChart.bindings`), BUILT OUT HERE for the reason
+// the debug handle below is: a closure written inside a render keeps that render's whole context alive, and
+// `engineChart` is held by the toolbar and the dock. This closure holds the ref and nothing else. Read-only.
+function drawnBindingsReader(engineRef) {
+  return () => engineRef.current?.binder?.bindings?.() || []
+}
+
 // ⛔⛔ THE DEBUG HANDLE IS BUILT OUT HERE, NOT INSIDE THE CHART (2026-11-20). A closure written inside a
 // render keeps that render's whole V8 context alive: every local any closure captures (`bars`,
 // `filteredBars`, the bar hook's callbacks and through them that render's snapshot, the memoized
@@ -9885,6 +9892,10 @@ export default function StockChart({
       historyFromListing,
       ...(listingUnserved ? { listingStart: true } : {}),
     },
+    // ⭐ 2026-11-21 -- WHAT THE CHART HAS DRAWN for its indicators right now (`binder.bindings()`), for a reader
+    // beside the chart that must compute nothing (`chart/builder/authoring/emptyOnChart.js`). A getter over the
+    // ref: this object's identity and its dependency list are what they were. Read-only, `[]` with no binder.
+    bindings: drawnBindingsReader(engineRef),
   }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved])
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
