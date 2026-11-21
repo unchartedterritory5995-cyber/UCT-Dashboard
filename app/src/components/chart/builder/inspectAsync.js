@@ -139,6 +139,15 @@ function onReportWorkerMessage(m) {
 
 const PAGE_REFS = new WeakMap()
 let pageDoorSeq = 0
+// ⭐ The door answers this page made, the last PAGE_KEEP, as they were handed over: sent again to every new report
+// worker (`linkHub`), so a status is still made with one when the worker it was first handed to was replaced
+// before it read it (or no report worker was alive at that moment)
+const PAGE_SENT = new Map()
+const PAGE_KEEP = 3
+/** Each page-made door answer, again, to a report worker that has just started. */
+function resendPageAnswers(worker) {
+  for (const msg of PAGE_SENT.values()) { try { worker.postMessage(msg) } catch { /* a worker that will not take it */ } }
+}
 /** The hub's name for a door answer this page made (a refusal: small), handed to the report's worker once, so its status
  *  is made there with the report it goes with. Null when there is no report worker to hand it to. */
 export function pageDoorRefOf(pane, source) {
@@ -149,7 +158,11 @@ export function pageDoorRefOf(pane, source) {
   if (!svc.offThread) return null
   const ref = { key: `page:${++pageDoorSeq}`, version: 0 }
   const crossing = faithfulAnswerOf(pane)
-  if (!svc.notify({ type: 'door-answer', key: ref.key, version: ref.version, source, answer: crossing.value, hidden: crossing.hidden })) return null
+  const msg = { type: 'door-answer', key: ref.key, version: ref.version, source, answer: crossing.value, hidden: crossing.hidden }
+  PAGE_SENT.set(ref.key, msg)
+  while (PAGE_SENT.size > PAGE_KEEP) PAGE_SENT.delete(PAGE_SENT.keys().next().value)
+  // to the report worker alive now, if there is one; every report worker started later is sent it too
+  svc.notify(msg)
   PAGE_REFS.set(pane, ref)
   return ref
 }
@@ -181,7 +194,7 @@ export function linkHub() {
     } catch { paired = null }
   }
   const offDoor = door.onWorker((w) => { dw = w; if (!w) paired = null; else pair() })
-  const offReport = report.onWorker((w) => { rw = w; if (!w) paired = null; else pair() })
+  const offReport = report.onWorker((w) => { rw = w; if (!w) paired = null; else { resendPageAnswers(w); pair() } })
   linked = { door, report, off: () => { offDoor(); offReport() } }
 }
 
@@ -224,6 +237,7 @@ export function __setInspectServicesForTests({ inspect = null, library = null } 
   _inspect = inspect
   _library = library
   if (linked) { linked.off(); linked = null }
+  PAGE_SENT.clear()
 }
 /** ⛔ Rails only: the report service's message handler, for a stand-in made by a rail. */
 export const hubMessageForTests = onReportWorkerMessage
