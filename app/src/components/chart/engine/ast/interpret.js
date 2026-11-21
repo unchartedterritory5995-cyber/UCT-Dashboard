@@ -8025,13 +8025,18 @@ export function tfMergeMask(tree, bars, opts, inputs = {}, budget = undefined, s
   for (let i = 0; i < n; i++) if (mask[i]) { any = true; break }
   if (any) {
     nameChartClock(opts, [TF_MERGE_NEWEST_CODE], opts && opts.tf)
-    // ⭐⭐ (A) audit — the newest bars it withholds, in the per-bar channel (`sinkPerBar`); the first period's code
-    // stays a whole refusal in the headless lane (not measured taking a picture away)
+    // ⭐⭐ (A) audit — the newest bars it withholds, in the per-bar channel (`sinkPerBar`); the first period's code is
+    // on the channel too (below, for the vendor harness) and stays a whole refusal in the headless lane (not in
+    // `PER_BAR_CLOCK_CODES`: not measured taking a picture away)
     sinkPerBar(opts, TF_MERGE_NEWEST_CODE, mask)
   }
   if (firstMask) {
     for (let i = 0; i < n; i++) if (firstMask[i]) mask[i] = 1
     nameChartClock(opts, [TF_MERGE_FIRST_CODE], opts && opts.tf)
+    // ⭐⭐ (coordinator ruling 2026-11-21, after #2280) — and its bars in the per-bar channel (`sinkPerBar`): a bar withheld
+    // by name is "not compared" in the vendor harness, never a DIVERGE (ES1's first week graded 4 plots DIVERGE on bars
+    // this mask blanks). The headless lane still refuses it whole: the code is not in `PER_BAR_CLOCK_CODES`.
+    sinkPerBar(opts, TF_MERGE_FIRST_CODE, firstMask)
     any = true
   }
   return any ? mask : null
@@ -8376,6 +8381,8 @@ export function tfLiveMask(tree, bars, opts, inputs = {}, budget = undefined, sc
   const mask = tfLiveFirstPeriodReadMask(tree, bars, opts, inputs, budget, scalars)
   if (!mask) return null
   nameChartClock(opts, [TF_LIVE_FIRST_CODE], opts && opts.tf)
+  // ⭐⭐ (coordinator ruling 2026-11-21, after #2280) — its bars in the per-bar channel too (`sinkPerBar`, see `tfMergeMask`)
+  sinkPerBar(opts, TF_LIVE_FIRST_CODE, mask)
   return mask
 }
 
