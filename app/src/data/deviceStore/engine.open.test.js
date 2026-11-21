@@ -15,14 +15,19 @@ const DAY = 86400
 const D0 = Date.UTC(2025, 0, 6) / 1000
 const daily = (n, seed) => synthBars(n, { seed }).map((r, i) => ({ ...r, t: D0 + i * DAY }))
 const ROWS = { AAA: daily(300, 1), BBB: daily(300, 2) }
+/** 1m rows ending at the as-of session's last minute (15:59 ET on 2026-11-18): a whole seed (engine._shortOfClose). */
+const LAST_1M = Date.UTC(2026, 10, 18, 20, 59) / 1000
+const minutes = (n, seed) => synthBars(n, { seed, step: 60, t0: LAST_1M - (n - 1) * 60 })
+const ROWS_1M = { AAA: minutes(300, 1), BBB: minutes(300, 2) }
 const sha = (b) => createHash('sha256').update(b).digest('hex')
 
-/** A disk holding a D file and a 1m file. */
-async function disk() {
+/** A disk holding a D file and a 1m file (and, with `splits`, the manifest's split list for the next session). */
+async function disk({ splits = null } = {}) {
   const d = new Map()
-  const packs = { D: seedPackOf(ROWS, { tf: 'D', build: 'b1' }), 1: seedPackOf(ROWS, { tf: '1', build: 'b1' }) }
+  const packs = { D: seedPackOf(ROWS, { tf: 'D', build: 'b1' }), 1: seedPackOf(ROWS_1M, { tf: '1', build: 'b1' }) }
   const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(d), fetchFn: async (u) => new Response(packs[u]) })
   for (const tf of ['D', '1']) await eng.ingest({ tf, url: tf, bytes: packs[tf].length, sha256: sha(packs[tf]), build: 'b1' })
+  if (splits) await eng.setSplits({ splits })
   eng.close()
   return d
 }
@@ -48,6 +53,24 @@ describe('the device engine opens every timeframe at once', () => {
     release()
     await all
     expect(eng.read('AAA', 'D')?.c?.length).toBe(300)
+  })
+
+  // ⛔ THE ONE ORDER THE PARALLEL OPEN MUST KEEP (review of #2407): the split list is read BEFORE any timeframe
+  // serves a read. Past its as-of day a copy is used only when that list covers the session and does not name the
+  // symbol (the split guard); a timeframe open ahead of the list would answer every symbol "no copy" (fail closed)
+  // until it arrived. AT_ASOF cannot see this: on the as-of day the guard needs no list.
+  it('the day after the as-of day: no timeframe opens ahead of the split list, and the list then decides each symbol', async () => {
+    const NEXT = () => Date.UTC(2026, 10, 19, 15, 0)                  // 10:00 ET on the next session
+    const d = await disk({ splits: { session: '2026-11-19', symbols: { AAA: 4 } } })
+    const { io, release } = slowDisk(d, 'splits')                     // the split list's file is slow to open
+    const eng = createDeviceEngine({ now: NEXT, io, fetchFn: vi.fn() })
+    const one = eng.openTf('1')
+    expect(await settled(one)).toBe(false)                            // 1m does not open before the list is read
+    release()
+    await one
+    expect(eng.read('AAA', '1')).toBeNull()                           // named in the list: it splits today
+    expect(eng.why('AAA', '1')).toBe('split')
+    expect(eng.read('BBB', '1')?.c?.length).toBe(300)                 // not named: its copy is used
   })
 
   it('a derived timeframe (W) waits for its D', async () => {

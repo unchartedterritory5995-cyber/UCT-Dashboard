@@ -2,8 +2,13 @@
 // (1) THE DEVICE READ STARTS IN THE KEY PRESS: the board's one call (handoffGroups.beginGroupSwitch) primes every
 //     member's device read BEFORE the group decides, on the key each chart's switch reads (the intraday fetch key
 //     and session; the D key), so a copy the device client holds is in the store by the decision.
-// (2) NO POLL: under the BarStore the handoff's waiters (the D/W/M hold, the intraday prepare) are woken by the
-//     entry's own changes (prefetch.watch), never a POLL_MS timer; the moment the device copy lands, it commits.
+// (2) NO POLL: with the device store on, the handoff's waiters (the D/W/M hold, the intraday prepare) are woken by
+//     prefetch.watch, never a POLL_MS timer; the moment the device copy lands, it commits. (Off, they keep the poll:
+//     useSymbolHandoff.coldGatesOff.test.jsx.)
+// ⛔ THIS FILE MOCKS THE WHOLE FACADE: its fake `watch` fires only when a test calls it, after the test has set the
+// state, so it cannot see a value that is written AFTER the wake. Those are railed through the real store:
+// data/barStore/store.deviceFirstPaint.test.js (W1, the device copy's stamps) and prefetch.watchAnswered.test.js
+// (the tail answer). Here: who is woken, that no poll is armed, that every exit stops watching.
 import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
@@ -12,8 +17,9 @@ const st = { displayable: false, lake: false, deep: true, device: false, held: t
 const watchers = []
 const deviceWarm = vi.fn(() => Promise.resolve(false))
 const devicePaints = vi.fn(() => st.device)
+const peekDisplayable = vi.fn(() => st.displayable)
 vi.mock('../data/barStore/prefetch', () => ({
-  peekDisplayable: () => st.displayable,
+  peekDisplayable: (...a) => peekDisplayable(...a),
   lakePending: () => st.lake,
   deepPending: () => st.deep,
   holdsBars: () => st.held,
@@ -46,7 +52,9 @@ beforeEach(async () => {
   vi.useFakeTimers()
   Object.assign(st, { displayable: false, lake: false, deep: true, device: false, held: true })
   watchers.length = 0
-  deviceWarm.mockClear(); devicePaints.mockClear()
+  deviceWarm.mockClear(); devicePaints.mockClear(); peekDisplayable.mockClear()
+  devicePaints.mockImplementation(() => st.device)
+  peekDisplayable.mockImplementation(() => st.displayable)
   await load()
 })
 afterEach(() => { vi.useRealTimers() })
@@ -135,9 +143,74 @@ describe('gate 2: woken by the entry, never a poll', () => {
     act(() => { h.rerender({ s: 'BBB' }) })
     const w = watchers.find((x) => x.sym === 'BBB' && x.tf === '30')
     expect(w?.opts).toEqual({ showExtended: true })
+    peekDisplayable.mockClear()
     await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+    expect(peekDisplayable).not.toHaveBeenCalled()                      // eight POLL_MS ticks would have asked it
     expect(h.result.current).toBe('AAA')
     await act(async () => { st.displayable = true; st.lake = false; fire((x) => x.sym === 'BBB'); await Promise.resolve() })
     expect(h.result.current).toBe('BBB')
+    expect(watchers.filter((x) => x.sym === 'BBB').every((x) => x.off)).toBe(true)
+  })
+
+  // Every exit of a waiter stops watching: a subscription pins its registry entry, and a waiter left behind would
+  // commit a symbol the member has already left.
+  const of = (sym, tf) => watchers.filter((x) => x.sym === sym && x.tf === tf)
+  it('D hold: a newer symbol, then an unmount, each stop the watch of the request they end', () => {
+    const h = renderHook(({ s }) => useSymbolHandoff(s, 'D', {}), { initialProps: { s: 'AAA' } })
+    act(() => { h.rerender({ s: 'BBB' }) })
+    expect(of('BBB', 'D').some((x) => !x.off)).toBe(true)
+    act(() => { h.rerender({ s: 'CCC' }) })                             // superseded before anything landed
+    expect(of('BBB', 'D').every((x) => x.off)).toBe(true)
+    expect(of('CCC', 'D').some((x) => !x.off)).toBe(true)
+    act(() => { h.unmount() })
+    expect(of('CCC', 'D').every((x) => x.off)).toBe(true)
+  })
+
+  it('intraday prepare: a newer symbol, then an unmount, each stop the watch of the request they end', () => {
+    st.deep = false; st.lake = true
+    const h = renderHook(({ s }) => useSymbolHandoff(s, '30', {}), { initialProps: { s: 'AAA' } })
+    act(() => { h.rerender({ s: 'BBB' }) })
+    expect(of('BBB', '30').some((x) => !x.off)).toBe(true)
+    act(() => { h.rerender({ s: 'CCC' }) })
+    expect(of('BBB', '30').every((x) => x.off)).toBe(true)
+    expect(of('CCC', '30').some((x) => !x.off)).toBe(true)
+    act(() => { h.unmount() })
+    expect(of('CCC', '30').every((x) => x.off)).toBe(true)
+  })
+
+  // The first look at a held device copy RE-READS the device (prefetch.deviceVerdict -> persist.refreshDevice), and a
+  // copy that moves forward there wakes the watcher INSIDE that look. The nested wake lands the switch and stops
+  // watching; the outer look must not then call a stop that is already gone.
+  it('D hold: a wake nested inside the first look lands the switch once and nothing throws', async () => {
+    let n = 0
+    devicePaints.mockImplementation(() => {
+      n++
+      if (n === 2) { st.device = true; fire((x) => x.sym === 'BBB' && x.tf === 'D') }   // (1: the route; 2: the first look)
+      return st.device
+    })
+    const h = renderHook(({ s }) => useSymbolHandoff(s, 'D', {}), { initialProps: { s: 'AAA' } })
+    expect(() => { act(() => { h.rerender({ s: 'BBB' }) }) }).not.toThrow()
+    await act(async () => { await Promise.resolve() })
+    expect(n).toBeGreaterThanOrEqual(2)
+    expect(h.result.current).toBe('BBB')
+    expect(of('BBB', 'D').every((x) => x.off)).toBe(true)
+  })
+
+  it('intraday prepare: a wake nested inside a wake lands the switch once and nothing throws', async () => {
+    st.deep = false; st.lake = true
+    const h = renderHook(({ s }) => useSymbolHandoff(s, '30', {}), { initialProps: { s: 'AAA' } })
+    act(() => { h.rerender({ s: 'BBB' }) })
+    let n = 0
+    peekDisplayable.mockImplementation(() => {
+      n++
+      if (n === 1) { st.displayable = true; st.lake = false; fire((x) => x.sym === 'BBB' && x.tf === '30') }
+      return st.displayable
+    })
+    let threw = null
+    await act(async () => { try { fire((x) => x.sym === 'BBB' && x.tf === '30') } catch (e) { threw = e } await Promise.resolve() })
+    peekDisplayable.mockImplementation(() => st.displayable)
+    expect(threw).toBe(null)
+    expect(h.result.current).toBe('BBB')
+    expect(of('BBB', '30').every((x) => x.off)).toBe(true)
   })
 })

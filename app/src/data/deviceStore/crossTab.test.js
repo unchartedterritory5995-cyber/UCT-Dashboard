@@ -67,7 +67,11 @@ function fakeBus() {
 }
 const settle = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise((r) => setTimeout(r, 0)) }
 
-const ROWS = { AAA: synthBars(1000, { step: 300, seed: 3 }), BBB: synthBars(600, { step: 300, seed: 4 }) }
+/** 5m rows ending at the as-of session's last bucket (15:55 ET on 2026-11-18): a seed that is whole (an intraday
+ *  seed that stops earlier is 'seed-short' and loses its last row, engine._shortOfClose). */
+const LAST_5M = Date.UTC(2026, 10, 18, 20, 55) / 1000
+const fiveMin = (n, seed) => synthBars(n, { step: 300, seed, t0: LAST_5M - (n - 1) * 300 })
+const ROWS = { AAA: fiveMin(1000, 3), BBB: fiveMin(600, 4) }
 async function seededDisk() {
   const pack = seedPackOf(ROWS, { tf: '5', build: 'b1' })
   const disk = new Map()
@@ -98,8 +102,7 @@ describe('device store across tabs', () => {
     const A = tab('A', env)
     const B = tab('B', env)
     await settle()
-    // (synthBars' rows do not end at the as-of session's last bucket: the engine's honest answer, engine._shortOfClose)
-    expect((await B.ask({ op: 'why', sym: 'AAA', tf: '5' })).res).toBe('seed-short')
+    expect((await B.ask({ op: 'why', sym: 'AAA', tf: '5' })).res).toBe('seed-only:no-overlay')
     expect((await B.ask({ op: 'why', sym: 'ZZZ', tf: '5' })).res).toBe('missing')
     expect((await A.ask({ op: 'why', sym: 'AAA', tf: '60' })).res).toBe('no-file')
     A.core.close(); B.core.close()
