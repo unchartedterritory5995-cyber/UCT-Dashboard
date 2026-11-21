@@ -74,7 +74,7 @@ export default function Piece50DrawItV2() {
         <div className={d5.stopRow}>
           <div className={d5.live}>
             <div><small>Entry</small><b>${entry?.toFixed(2)}</b></div>
-            <div><small>Your stop</small><input className={d5.priceIn} type="number" step="0.01" min="0" placeholder="tap the chart or type" value={myPrice ?? ''} onChange={(e) => setMyPrice(e.target.value === '' ? null : r2(Number(e.target.value)))} /></div>
+            <div><small>Your stop</small><input className={d5.priceIn} type="number" aria-label="Your stop" step="0.01" min="0" placeholder="tap the chart or type" value={myPrice ?? ''} onChange={(e) => setMyPrice(e.target.value === '' ? null : r2(Number(e.target.value)))} /></div>
           </div>
           <div className={d5.nudge}><button type="button" onClick={() => nudge(0.01)} title="up a cent">▲ 1¢</button><button type="button" onClick={() => nudge(-0.01)} title="down a cent">▼ 1¢</button><button type="button" onClick={() => nudge(r2((myPrice ?? entry) * 0.001))} title="up a tenth of a percent">▲ 0.1%</button><button type="button" onClick={() => nudge(-r2((myPrice ?? entry) * 0.001))} title="down a tenth of a percent">▼ 0.1%</button></div>
         </div>

@@ -2255,6 +2255,19 @@
    ],
    "fast": false
   },
+  "stock.auctionCalendar": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.callSearch": {
    "domain": "stock",
    "group": "data",
@@ -2346,6 +2359,19 @@
    ],
    "fast": false
   },
+  "stock.dividendsCalendar": {
+   "domain": "stock",
+   "group": "marketCalendars",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.earnings": {
    "domain": "stock",
    "group": "data",
@@ -2424,6 +2450,19 @@
    ],
    "fast": false
   },
+  "stock.fomcWatch": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.gammaLevels": {
    "domain": "stock",
    "group": "marketBoards",
@@ -2440,6 +2479,19 @@
   "stock.groupDrill": {
    "domain": "stock",
    "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.ipoCalendar": {
+   "domain": "stock",
+   "group": "marketCalendars",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2528,6 +2580,19 @@
    ],
    "fast": true
   },
+  "stock.realCurve": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.seasonality": {
    "domain": "stock",
    "group": "marketRecords",
@@ -2609,6 +2674,19 @@
   "stock.shortList": {
    "domain": "stock",
    "group": "shortInterest",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.splitsDividends": {
+   "domain": "stock",
+   "group": "marketCalendars",
    "target": "market",
    "risk": "local",
    "reversible": true,

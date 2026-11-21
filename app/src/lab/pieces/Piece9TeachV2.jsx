@@ -66,7 +66,7 @@ export default function Piece9TeachV2() {
       <div className={s.chartBox}><StudyChart bars={shown} annotations={annotations} height={360} rightPadBars={6} /></div>
       <div className={s.replay}>
         <button type="button" className={s.pill} onClick={() => { if (upto >= n) setUpto(START); setPlaying((p) => !p) }}>{playing ? '❚❚ Pause' : upto >= n ? '↺ Replay' : '▶ Play'}</button>
-        <input type="range" min={START} max={n} value={upto} onChange={(e) => { setPlaying(false); setUpto(+e.target.value) }} />
+        <input type="range" aria-label="Replay through the chart" min={START} max={n} value={upto} onChange={(e) => { setPlaying(false); setUpto(+e.target.value) }} />
         <span className={s.hint}>{shown?.length ? shown[shown.length - 1].t : ''}</span>
       </div>
       {onRed ? <div className={s.callout}><b>1 · The red day is real.</b> It closes weak, with a body of one to five percent. Not a baby red candle. Sellers showed up and finished the day in charge. Press play.</div> : null}

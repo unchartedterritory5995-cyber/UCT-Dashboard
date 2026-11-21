@@ -1,0 +1,84 @@
+/* FED: the sections and the statement's redline. App tokens only (the terminal wears the member's
+   theme). The lists, notes, links and small tables come from marketPanels.module.css.
+   The redline never leans on colour alone: an added word is underlined, a removed word is struck
+   through, and each run carries hidden words a screen reader reads ("added:", "removed:"). No green
+   or red: a changed word is not good or bad. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+  font-size: var(--text-xs);
+}
+
+.link {
+  color: var(--accent);
+  text-decoration: underline;
+  overflow-wrap: break-word;
+}
+
+.statement {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.para {
+  margin: 0;
+  color: var(--text);
+  line-height: var(--lh-normal);
+  overflow-wrap: break-word;
+}
+
+.added {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
+.removed {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.legend {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.tickers {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.today {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+.footer {
+  margin: 0;
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}

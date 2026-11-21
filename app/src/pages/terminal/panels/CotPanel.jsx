@@ -140,10 +140,10 @@ function Board({ roster, code, pick, picker, unknown, wrap }) {
           <thead>
             <tr>
               <th scope="col">Market</th>
-              <th scope="col" title="Net position of the CFTC's non-commercial traders, in contracts, and its change on the week">Large specs, net</th>
-              <th scope="col" className={styles.phoneHide} title="Net position of the CFTC's commercial traders, in contracts, and its change on the week">Commercials, net</th>
-              <th scope="col" className={styles.phoneWrap} title="The week's change in the large speculators' net position as a share of open interest. The list is sorted by its size.">Week&apos;s move</th>
-              <th scope="col" className={styles.phoneWrap} title={`Large speculators. ${RANGE_TITLE}`}>3-year range</th>
+              <th scope="col" className={styles.snugWrap} title="Net position of the CFTC's non-commercial traders, in contracts, and its change on the week">Large specs, net</th>
+              <th scope="col" className={`${styles.phoneHide} ${styles.snugWrap}`} title="Net position of the CFTC's commercial traders, in contracts, and its change on the week">Commercials, net</th>
+              <th scope="col" className={`${styles.phoneWrap} ${styles.snugWrap}`} title="The week's change in the large speculators' net position as a share of open interest. The list is sorted by its size.">Week&apos;s move</th>
+              <th scope="col" className={`${styles.phoneWrap} ${styles.snugWrap}`} title={`Large speculators. ${RANGE_TITLE}`}>3-year range</th>
             </tr>
           </thead>
           <tbody>
@@ -155,8 +155,8 @@ function Board({ roster, code, pick, picker, unknown, wrap }) {
                   <br />
                   <span className={styles.muted}>{r.code}{r.date < dates.latest ? `, report of ${reportDay(r.date)}` : ''}</span>
                 </td>
-                <NetCell net={r.largeSpecs.net} wow={r.largeSpecs.wow} testId="terminal-cot-board-large" className={styles.phoneWrap} />
-                <NetCell net={r.commercials.net} wow={r.commercials.wow} testId="terminal-cot-board-comm" className={styles.phoneHide} />
+                <NetCell net={r.largeSpecs.net} wow={r.largeSpecs.wow} testId="terminal-cot-board-large" className={`${styles.phoneWrap} ${styles.snugWrap}`} />
+                <NetCell net={r.commercials.net} wow={r.commercials.wow} testId="terminal-cot-board-comm" className={`${styles.phoneHide} ${styles.snugWrap}`} />
                 <td data-testid="terminal-cot-board-move">
                   {r.move == null ? <span className={styles.muted} title="No earlier report to measure the week against">n/a</span>
                     : <span className={signClass(r.move)}>{shareText(r.move)}</span>}

@@ -48,19 +48,21 @@ export function newestFiling(rows) {
   }, null)
 }
 
+// The insider's role (director, officer: CFO, 10% owner) is a muted second line under the name, not a column of its
+// own: on one line it was the widest cell and pushed Value through Traded out of a 592px desktop panel (part 5,
+// 2026-11-21: the table was 911px in a 567px box). The second line wraps; every number column stays in view.
 const COLUMNS = [
   { key: 'sym', label: 'Symbol', title: 'Click a symbol to open its DES' },
-  { key: 'name', label: 'Insider' },
-  { key: 'role', label: 'Role', phoneHide: true },
+  { key: 'name', label: 'Insider', title: 'The insider, with their role under the name' },
   { key: 'amount', label: 'Value', title: 'Shares times price' },
   { key: 'shares', label: 'Shares', phoneHide: true },
   { key: 'price', label: 'Price', phoneHide: true },
   { key: 'date', label: 'Traded' },
 ]
-const TEXT_KEYS = new Set(['sym', 'name', 'role', 'date'])
+const TEXT_KEYS = new Set(['sym', 'name', 'date'])
 const valueOf = (key, r) => r[key]
 const isNumeric = (key) => !TEXT_KEYS.has(key)
-const firstDirFor = (key) => (key === 'sym' || key === 'name' || key === 'role' ? 'asc' : 'desc')
+const firstDirFor = (key) => (key === 'sym' || key === 'name' ? 'asc' : 'desc')
 const byOrder = (a, b) => a.order - b.order
 
 export default function InsiderPanel() {
@@ -94,7 +96,7 @@ export default function InsiderPanel() {
   return (
     <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-insider">
       {read.error && <p className={styles.note} role="status">{failureText(read.error, 'Insider buys')} Showing the last read.</p>}
-      <div className={styles.tableBox}>
+      <div className={styles.tableBox} data-fold="550">
         <table className={styles.table} data-testid="terminal-insider-table" aria-label="Insider buys, last 7 days, sortable">
           <thead>
             <tr>
@@ -117,8 +119,11 @@ export default function InsiderPanel() {
                   <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                   <PanelSymbol sym={r.sym} className={styles.sym} />
                 </td>
-                <td className={styles.wrapCell}>{r.name}</td>
-                <td className={styles.phoneHide}>{r.role}</td>
+                <td className={styles.wrapCell}>
+                  {r.name}
+                  <br />
+                  <span className={styles.muted} data-testid={`terminal-insider-role-${r.sym}`}>{r.role}</span>
+                </td>
                 <td>{formatCompactTerminal(r.amount, { money: true })}</td>
                 <td className={styles.phoneHide}>{formatNumber(r.shares, { decimals: 0 })}</td>
                 <td className={styles.phoneHide}>{formatCurrency(r.price)}</td>

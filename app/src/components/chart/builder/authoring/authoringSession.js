@@ -81,6 +81,76 @@ export function replyLines(rb, state, changes = []) {
   return lines
 }
 
+/**
+ * ⭐ 2026-11-21 — THE NOTES AN ANSWER CARRIES, for the dock to show with it.
+ *
+ * THE GAP (found by reading a live round against the dock): `replyLines` prints what was assumed about a
+ * SETTING ("Using RSI period 14.") and the engine's defaults. An assumption written as a sentence was printed
+ * by `readback().lines` only, which the "Describe it" box shows and the dock does not. So the door's own
+ * notes about a build ("The count stops at 500 ...", "recomputed from 960 bars back ...") and the
+ * assistant's stated assumptions reached no member in the dock: only the assistant's paragraph did.
+ *
+ * Two lists, never mixed, because they are two voices: `uct` is what the system itself says about what it
+ * built (`by: 'uct'` on the wire), `assumed` is what the assistant says it took for granted. THIS turn's
+ * only, like `replyLines`: an entry is the record of its own turn. An output is named only when the
+ * indicator has more than one. ⛔ Data, not lines: `readback().lines` is what an Agent approval is sealed
+ * on, and these do not belong in it twice.
+ * @returns {{uct: string[], assumed: string[]} | null}  null when the turn carries neither
+ */
+export function notesOf(rb, state) {
+  const outputs = (rb && Array.isArray(rb.outputs)) ? rb.outputs : []
+  const on = (key) => {
+    if (!key || outputs.length < 2) return ''
+    const o = outputs.find((x) => x && x.key === key)
+    const name = o && (o.name || o.label)
+    return name ? ` (on ${name})` : ''
+  }
+  const uct = []
+  const assumed = []
+  for (const a of (state && state.assumptions) || []) {
+    if (!a || a.revision !== state.revision) continue
+    if (a.source === 'engine') continue                                // said by `replyLines`, in its own words
+    // ⭐ an assumption about a SETTING keeps its sentence too: `replyLines` says the value ("Using period
+    // 500."), and the sentence is what it MEANS ("The count stops at 500 ..."), which was shown nowhere
+    const text = typeof a.text === 'string' ? a.text.replace(/\s+/g, ' ').trim() : ''
+    if (!text) continue
+    ;(a.source === 'uct' ? uct : assumed).push(`${text}${on(a.output)}`)
+  }
+  return uct.length || assumed.length ? { uct, assumed } : null
+}
+
+/** The noun a first build is counted in: its own type word when every output shares one, else "output". */
+const BUILT_NOUNS = Object.freeze({ Line: ['line', 'lines'], Condition: ['condition', 'conditions'], Value: ['value', 'values'] })
+
+/**
+ * ⭐ 2026-11-20 (owner's choice, "names only") — THE FIRST ANSWER NAMES WHAT WAS BUILT AND POINTS AT THE CARD.
+ *
+ * THE GAP (seen in a live run's screenshots): on the first build the conversation and the summary card
+ * directly under it said the same engine sentences twice ("Williams %R (9) — a number on every bar: ..."),
+ * and on a laptop-height window that pushed the card's settings below the fold.
+ *
+ * The first answer now carries ONE line for the outputs: how many, and their names. The card keeps the
+ * engine's full description of each (it is the same read-back, of the same definition, one glance down).
+ * ⛔ ONLY THE DESCRIPTIONS MOVE. Everything else a reply carries stays in the conversation, in the order
+ * `replyLines` gives it: what the engine disclosed about this change (an output that cannot be drawn on
+ * this chart, a request that was cancelled) and what was assumed this turn.
+ * ⛔ A LATER CHANGE IS UNTOUCHED (P3S): it shows the engine's read-back of the result in full, because by
+ * then the conversation is the record of what each turn did.
+ * A build with nothing to name says what `replyLines` says: there is nothing to point at.
+ */
+export function createdLines(rb, state, changes = []) {
+  const read = rb && Array.isArray(rb.outputs) ? rb : { outputs: [] }
+  const outputs = read.outputs
+  const full = replyLines(read, state || {}, changes)
+  const names = outputs.map((o) => o && (o.name || o.label || o.key)).filter((n) => typeof n === 'string' && n.trim())
+  if (names.length === 0 || names.length !== outputs.length) return full
+  const described = new Set(outputs.map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean))
+  const rest = full.filter((line) => !described.has(line))
+  const words = new Set(outputs.map((o) => typeWord(o.type)))
+  const [one, many] = (words.size === 1 && BUILT_NOUNS[[...words][0]]) || ['output', 'outputs']
+  return [`Built ${names.length} ${names.length === 1 ? one : many}: ${names.join(', ')}. Details below.`, ...rest]
+}
+
 export const NOTHING_CHANGED = 'Nothing on the chart changed.'
 /** What the dock says after the member pressed Stop. The request left the browser, so the
  *  server may still have worked on it: said plainly, because it can count toward the day. */
@@ -401,14 +471,18 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   // ⛔ P3S: a CHANGE shows the deterministic readback of the RESULT and nothing the model wrote.
   return { ok: true, state: out.state, changed: true, outcome: turn.outcome, changes: result.changes || [],
     entries: [{ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
-      lines: [...replyLines(out.readback, out.state, result.changes), ...unclear],
+      // ⭐ 2026-11-20: the FIRST build names its outputs and points at the card (`createdLines`); a later
+      // change keeps the engine's full read-back of the result.
+      lines: [...(before.working ? replyLines : createdLines)(out.readback, out.state, result.changes), ...unclear],
       // ⭐ 2026-11-16 (Studio plan, section 5) — WHAT THE ASSISTANT SAYS IT BUILT, kept apart from
       // the engine's words above and labelled as the assistant's by the dock. The engine's lines
       // stay the authority; this is the plain sentence a member checks their request against
       // (a read-back like "1 when (the 10-bar exponential average ...) and 0 otherwise" is true
       // and hard to read). ⛔ Its own field, NOT `reply`: `snippetOf` reads `reply`, and what is
       // sent back to the model as context must not change.
-      ...(saidOf(turn.reply) ? { said: saidOf(turn.reply) } : {}) }] }
+      ...(saidOf(turn.reply) ? { said: saidOf(turn.reply) } : {}),
+      // ⭐ 2026-11-21: the door's own notes and the assistant's stated assumptions, each under its own label
+      ...(notesOf(out.readback, out.state) ? { notes: notesOf(out.readback, out.state) } : {}) }] }
 }
 
 /**

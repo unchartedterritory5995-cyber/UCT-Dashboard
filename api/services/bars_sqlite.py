@@ -3244,8 +3244,11 @@ class AddOnlyBar(dict):
 #: (an unjoined source: no proven join factor, or an empty Massive answer) logs the span it filled, so
 #: rows on an unproven basis can be found and rebased. A later proven join rebases them on its own: it
 #: is a plain, replacing write. Best effort: the log never fails the bar write.
-_UNJOINED_DDL = ("CREATE TABLE IF NOT EXISTS unjoined_writes (ticker TEXT NOT NULL, tf TEXT NOT NULL, "
-                 "ts_min INTEGER NOT NULL, ts_max INTEGER NOT NULL, rows INTEGER NOT NULL, "
+#: ⭐ A ROW IS ONE LOGGED FILL, so its key is a rowid alias (`id INTEGER PRIMARY KEY`): two fills of one series in
+#: one millisecond are two rows, never one replacing the other (a natural key of ticker/tf/ts_min/written_at_ms
+#: could collide and drop a note). The address book requires every table to say what one row is one of.
+_UNJOINED_DDL = ("CREATE TABLE IF NOT EXISTS unjoined_writes (id INTEGER PRIMARY KEY, ticker TEXT NOT NULL, "
+                 "tf TEXT NOT NULL, ts_min INTEGER NOT NULL, ts_max INTEGER NOT NULL, rows INTEGER NOT NULL, "
                  "written_at_ms INTEGER NOT NULL, source TEXT NOT NULL)")
 
 
@@ -3282,7 +3285,8 @@ def _note_unjoined(ticker: str, tf: str, bars: list, date_tf: bool, held_before:
         with _WRITE_LOCK:
             c = _conn()
             c.execute(_UNJOINED_DDL)
-            c.execute("INSERT INTO unjoined_writes VALUES (?, ?, ?, ?, ?, ?, ?)",
+            c.execute("INSERT INTO unjoined_writes (ticker, tf, ts_min, ts_max, rows, written_at_ms, source) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?)",
                       (ticker.upper(), tf, filled[0], filled[-1], len(filled), _now_ms(), "unjoined-yfinance"))
             c.commit()
     except Exception:  # noqa: BLE001 — provenance never fails the write
