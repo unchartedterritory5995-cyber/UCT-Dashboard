@@ -974,7 +974,7 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'chartGrid.set',
-    summary: 'Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts\' area is re-tiled as an even grid. Other widgets stay; nothing is removed unless replace is set. One change, one Undo.',
+    summary: 'Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts\' area is re-tiled as an even grid. Other widgets stay; nothing is removed unless replace is set. One change, one Undo. For “add / open X” (show X beside the charts there) use widget.addCharts, never this.',
     hints: 'Use for "create/open/show N charts for A, B, C…", "put SPY, QQQ, NVDA and TSLA in a 2x2 grid", "show NVDA and AMD side by side" — whenever the member names the tickers for several charts. '
       + 'target = the ref of the board entry. symbols = the tickers in the member\'s order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. '
       + 'layout = "columns" for side by side, "rows" for stacked, "grid" for a grid, else null. '
