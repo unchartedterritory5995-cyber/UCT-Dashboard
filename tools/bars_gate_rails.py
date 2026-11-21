@@ -28,7 +28,10 @@ import sys
 REPO = pathlib.Path(__file__).resolve().parents[1]
 
 PATTERNS = ("tests/test_bars_*.py", "tests/test_bar_*.py")
-NAMED = ("tests/test_index_developing_bar.py", "tests/test_intraday_tail_currentness.py")
+NAMED = ("tests/test_index_developing_bar.py", "tests/test_intraday_tail_currentness.py",
+         # 2026-11-20 (#2261): the D2 address book re-derives `bars_sqlite.py`'s own DDL and delta queries, and three
+         # bar-store changes (05ff3d9bd9, #1102, #1098) left it red for 11 days with no lane running it
+         "tests/test_canonical_address_book.py")
 REQUIRED = ("tests/test_bar_contract.py", "tests/test_bars_server_include_today.py",
             "tests/test_index_developing_bar.py", "tests/test_intraday_tail_currentness.py")
 #: path -> why it is not gated. Each one is red on a clean runner (`tools/remote_tests.py`), named here so
