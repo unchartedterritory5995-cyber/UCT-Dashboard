@@ -70,7 +70,10 @@ function control({ instances, bars1 = barsA, bars2 = barsB, sym2 = 'BBB', ctx1 =
   const b = createBinder({ chart: fake.chart, LWC: fake.LWC })
   b.sync({ ...ctxFor({ registry: nativeRegistry, instances, bars: bars1 }), ...ctx1 })
   fake.reset()
-  b.sync(ctxFor({ registry: nativeRegistry, instances, bars: bars2, sym: sym2, ...ctx2 }))
+  // ⛔ `ctx2` reaches BOTH: `ctxFor`'s named options (`cs`, `plan`) and every other ctx key (`plotWindowFrom`), which
+  // `ctxFor` does not pass through. ⚰️ The first cut spread it into `ctxFor` only, so a control asked for a window drew
+  // every row, and the window rails compared the binder against a control that was not the same question.
+  b.sync({ ...ctxFor({ registry: nativeRegistry, instances, bars: bars2, sym: sym2, ...ctx2 }), ...ctx2 })
   return handed(fake)
 }
 

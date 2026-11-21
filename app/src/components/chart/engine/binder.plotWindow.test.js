@@ -129,6 +129,26 @@ describe('with a window', () => {
   it('a start before the first bar changes nothing', () => {
     for (const [key, pts] of handed(bind({ plotWindowFrom: bars[0].t - 86400 }))) expect(pts, key).toHaveLength(N)
   })
+  // ⭐ (2026-11-20) THE SAME QUESTION AGAIN, BUT FROM FURTHER BACK. A line's points are now built from the window's
+  // first bar, so the point memo must not answer a pass that draws from an earlier bar with an array that starts
+  // later. The two cases above make a new `adjustTime` per pass (`ctxFor`), so their memo always misses and cannot
+  // see this; these keep ONE `adjustTime`, as StockChart's stable `useCallback` does, so the memo is asked.
+  it('one adjustTime, the window taken away: every row again, never the windowed points the memo kept', () => {
+    const adjustTime = (t) => t
+    const run = bind({ adjustTime, plotWindowFrom: bars[START].t })
+    run.binder.sync(ctxFor({ adjustTime, plotWindowFrom: null }))
+    for (const [key, pts] of handed(run)) expect(pts, key).toHaveLength(N)
+  })
+  it('one adjustTime, the window grown leftwards: the new rows, the same points', () => {
+    const adjustTime = (t) => t
+    const whole = handed(bind({ adjustTime }))
+    const run = bind({ adjustTime, plotWindowFrom: bars[START].t })
+    run.binder.sync(ctxFor({ adjustTime, plotWindowFrom: bars[START - 500].t }))
+    for (const [key, pts] of handed(run)) {
+      expect(pts, key).toHaveLength(N - START + 500)
+      expect(pts, key).toEqual(whole.get(key).slice(START - 500))
+    }
+  })
 })
 
 // ─── ⭐ (2026-11-20) WHAT THE BINDER BUILDS, NOT ONLY WHAT IT HANDS OVER ────────────────────────────────────────────
