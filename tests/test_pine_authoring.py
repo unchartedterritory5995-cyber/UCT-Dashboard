@@ -326,6 +326,11 @@ def test_every_recipe_in_the_file_is_served_and_only_served_ones_are_ever_handed
     ("prior day high and low", "prior-day-levels"),
     ("Convert the chart to Heikin Ashi candles", "heikin-ashi-candles"),
     ("heiken ashi", "heikin-ashi-candles"),
+    ("count the distribution days of the last 25 sessions", "distribution-days"),
+    ("a Distribution Day counter that drops a day after a rally", "distribution-days"),
+    ("mark the follow-through day of a rally attempt", "follow-through-day"),
+    ("show me follow through days", "follow-through-day"),
+    ("which bar is day 1 of a rally", "follow-through-day"),
 ])
 def test_a_request_is_handed_the_recipe_it_names(words, first):
     found = pa.recipes_for(words)
@@ -337,6 +342,9 @@ def test_a_request_is_handed_the_recipe_it_names(words, first):
     "Plot a 21 EMA", "RSI under 30", "", None, "color the bars green when the close is above the open",
     "the epoch of the trend", "costco style accounting", "an abstract idea",          # "poc", "stc", "st" inside other words
     "a multi timeframe trend table",                    # no recipe on purpose: its newest bar cannot be right (see RUN_STOP_WORDS)
+    "a histogram of the distribution of daily returns",         # "distribution" beside "daily" is not a distribution day
+    "follow the trend through the day",                         # the three words, never the phrase
+    "stalling days",                                    # a different rule (an UP day): the distribution recipe would teach the wrong one
 ])
 def test_a_request_that_names_no_recipe_is_handed_none(words):
     assert pa.recipes_for(words) == []
@@ -669,3 +677,19 @@ def test_rule_eleven_a_script_draws_only_what_was_asked_and_offers_the_rest():
     # it is a rule of the contract (ahead of the reference sections), and the last one
     assert doc.index("11. Draw ONLY") < doc.index("## ") and not any(line.startswith("12. ") for line in doc.split(chr(10)))
 
+
+def test_rule_eleven_the_plot_a_drawing_only_request_keeps_is_invisible():
+    """Seen in a live round: asked ONLY for a box, a line or two labels, half the scripts also drew the value the
+    drawing is made from as a faint visible line. The plot is worth keeping (a script with one works in alerts),
+    so the rule says to keep it and hide it. What the engine does with such a plot is held on the member's own
+    path by `supportLoop/invisiblePlotCarriesDrawings.test.js`, whose colour this sentence must match."""
+    rule = next(line for line in pa.document().split(chr(10)) if line.startswith("11. "))
+    assert "ONLY a drawing (a box, a line, labels, a table)" in rule and "names no plotted line" in rule
+    assert "used in alerts" in rule                                   # the reason the plot stays
+    assert "`plot(level, \"Level\", color=color.new(color.gray, 100))`" in rule      # the form, written out
+    assert "a hidden plot is there for alerts" in rule                # and the member is told
+    assert rule.rstrip().endswith("Never hide a plot the member asked to see.")
+    # the same colour the engine test proves, read from that file so the two cannot drift apart
+    import pathlib
+    proof = (pathlib.Path(__file__).resolve().parent.parent / "app/src/components/chart/supportLoop/invisiblePlotCarriesDrawings.test.js").read_text(encoding="utf-8")
+    assert "color=color.new(color.gray, 100))" in proof

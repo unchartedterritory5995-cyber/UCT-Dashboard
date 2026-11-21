@@ -229,9 +229,10 @@ def implied_snapshot(sym: str, next_date: Optional[str]) -> dict:
 
 # ── the panel (REQUEST PATH) ────────────────────────────────────────────────
 
-def _cached_earnings(sym: str) -> Optional[dict]:
-    """The earnings payload from CACHE only. A miss schedules the existing
-    background rebuild (earnings_intel._schedule_refresh) and returns None."""
+def held_earnings(sym: str) -> Optional[dict]:
+    """READ ONLY: the earnings payload this server already holds (the cache, then the snapshot store), or None.
+    It never schedules a rebuild: a reader that must not start work (the UCT Agent's `stock.eventsTimeline` data
+    kind, MD-1 §4.16) reads through this, and `_cached_earnings` below is this plus the rebuild on a miss."""
     from api.services import earnings_intel as ei
     ck = f"{ei._KIND}::{sym}"
     hit = ei.cache.get(ck)
@@ -240,6 +241,16 @@ def _cached_earnings(sym: str) -> Optional[dict]:
     stored = ei.snap_store.get(ei._KIND, sym)
     if stored is not None and isinstance(stored[0], dict) and stored[0].get("quarters"):
         return stored[0]
+    return None
+
+
+def _cached_earnings(sym: str) -> Optional[dict]:
+    """The earnings payload from CACHE only. A miss schedules the existing
+    background rebuild (earnings_intel._schedule_refresh) and returns None."""
+    hit = held_earnings(sym)
+    if hit is not None:
+        return hit
+    from api.services import earnings_intel as ei
     ei._schedule_refresh(sym)
     return None
 

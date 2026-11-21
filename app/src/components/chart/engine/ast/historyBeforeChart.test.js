@@ -20,6 +20,13 @@
 // ⭐ FINDING 3 (the same ruling): the Python lane's `sym` arm kept the CHART's `historyFromListing` for the other symbol,
 // where the chart lane clears it; the `sym(…, barindex)` cases below are the twin rail for it.
 // ⭐ ITEM 4: a running value carrying such a read (`ema(nz(close[1]), 3)`) is drawn only where two starts agree.
+// ⭐⭐ RULING 1 (2026-11-20): a WINDOW that reaches before the first bar is unknown there too — an average's, a pivot's, a
+// `barssince` / `valuewhen` with no known occurrence in reach, a smoother's warm-up (`interpret.js::windowEdgeLookback`):
+// `close > sma(close, 5) ? 1 : 0` drew 0 on bars 0-3 where the longer chart's average is a number. A running value's
+// state after its warm-up (`ema`'s seed) is FINDING 2's and stays drawn. The `RULING-1` cases.
+// ⭐ RULING 3 (2026-11-20): the Python lane names the code against the column BEFORE the request masks, as this lane does
+// (`withheldReadMask`'s `column`): a bar withheld by a first-period mask AND by a read before the chart, the only one,
+// names it in both lanes. The `RULING-3` cases.
 //
 // THE SHARED FIXTURE `tests/fixtures/ast/history_before_chart.json` is WRITTEN here (HISTORY_BEFORE_CHART_WRITE=1) and READ
 // by `tests/test_pine_history_before_chart.py`: every case's tree, its `opts`, the hand-written expectation (`expect`
@@ -69,6 +76,8 @@ function weekdays(start, end, holidays = []) {
 const DAYS = {
   wednesday: weekdays('2026-09-02', '2026-11-17', ['2026-09-07']),
   monday: weekdays('2026-09-14', '2026-11-17'),
+  // RULING 3: Friday 2026-09-04 is week 0 alone (bar 0), week 1 is bars 1-4 (Labour Day 09-07 left out)
+  friday: weekdays('2026-09-04', '2026-11-17', ['2026-09-07']),
 }
 const barsOn = (days) => days.map((t, i) => ({ t, o: i + 0.5, h: i + 1.5, l: i, c: i + 1, v: 100 + i }))
 const CHART = { tf: 'D', newestBarIsForming: false }
@@ -102,6 +111,46 @@ const SHAPES = [
   // started from bar 0's `nz` 0 and from bar 1, its ema of these bars (a straight line) agrees bit for bit from bar 3
   { name: 'ema(nz(close[1]), 3) (a running value: withheld until its two starts agree, ITEM 4)',
     tree: () => call('ema', call('nz', off(1, CLOSE), num(0)), num(3)), window: W8, held: [0, 1, 2] },
+  // ⭐⭐ RULING 1 — A WINDOW THAT REACHES BEFORE THE FIRST BAR (bar i: c = i + 1, h = i + 1.5, a straight line)
+  { name: 'RULING-1 close > sma(close, 5) ? 1 : 0 (bars 0-3: the average reaches before the chart; never a confident 0)',
+    tree: () => op('?:', op('>', CLOSE, call('sma', CLOSE, num(5))), num(1), num(0)), window: W8, expect: [n, n, n, n, 1, 1, 1, 1] },
+  { name: 'RULING-1 nz(sma(close, 5)) (bars 0-3, never 0)', tree: () => call('nz', call('sma', CLOSE, num(5)), num(0)),
+    window: W8, expect: [n, n, n, n, 3, 4, 5, 6] },
+  { name: 'RULING-1 nz(ema(close, 5)) (its warm-up withheld; drawn from its seed on: FINDING 2)',
+    tree: () => call('nz', call('ema', CLOSE, num(5)), num(0)), window: W8, expect: [n, n, n, n, 3, 4, 5, 6] },
+  { name: 'RULING-1 nz(ema(sma(close, 5), 3)) (a smoother warming up after its argument: bars 4-5 too)',
+    tree: () => call('nz', call('ema', call('sma', CLOSE, num(5)), num(3)), num(0)), window: W8, expect: [n, n, n, n, n, n, 4, 5] },
+  { name: 'RULING-1 nz(highest(high, 3)) (bars 0-1)', tree: () => call('nz', call('highest', HIGH, num(3)), num(0)),
+    window: W8, expect: [n, n, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5] },
+  { name: 'RULING-1 nz(pivothigh(high, 2, 1)) (a pivot needs the 2 bars before it: bars 0-1)',
+    tree: () => call('nz', call('pivothigh', HIGH, num(2), num(1)), num(0)), window: W8, expect: [n, n, 0, 0, 0, 0, 0, 0] },
+  { name: 'RULING-1 rising(close, 3) (false before 3 steps is a number, still unknown: bars 0-2)',
+    tree: () => call('rising', CLOSE, num(3)), window: W8, expect: [n, n, n, 1, 1, 1, 1, 1] },
+  { name: 'RULING-1 falling(close, 3) (bars 0-2)', tree: () => call('falling', CLOSE, num(3)),
+    window: W8, expect: [n, n, n, 0, 0, 0, 0, 0] },
+  { name: 'RULING-1 nz(barssince(close > 4, 5), -1) (no known true in reach: bars 0-3)',
+    tree: () => call('nz', call('barssince', op('>', CLOSE, num(4)), num(5)), num(-1)), window: W8, expect: [n, n, n, n, 0, 0, 0, 0] },
+  { name: 'RULING-1 nz(barssince(close > 6, 3), -1) (a full window with no true answers 3: drawn from bar 2)',
+    tree: () => call('nz', call('barssince', op('>', CLOSE, num(6)), num(3)), num(-1)), window: W8, expect: [n, n, 3, 3, 3, 3, 0, 0] },
+  { name: 'RULING-1 nz(valuewhen(close > 4, close, 3), -1) (bars 0-1; a full window with no true is na: drawn)',
+    tree: () => call('nz', call('valuewhen', op('>', CLOSE, num(4)), CLOSE, num(3)), num(-1)), window: W8,
+    expect: [n, n, -1, -1, 5, 6, 7, 8] },
+  { name: "RULING-1 nz(valuewhenOccurrence(close > 4, close, 0), -1) (Pine's ta.valuewhen: no occurrence yet, bars 0-3)",
+    tree: () => call('nz', call('valuewhenOccurrence', op('>', CLOSE, num(4)), CLOSE, num(0)), num(-1)), window: W8,
+    expect: [n, n, n, n, 5, 6, 7, 8] },
+  { name: 'RULING-1 nz(change(close)) (bar 0)', tree: () => call('nz', call('change', CLOSE), num(0)),
+    window: W8, expect: [n, 1, 1, 1, 1, 1, 1, 1] },
+  { name: 'RULING-1 nz(rsi(close, 3)) (bars 0-2)', tree: () => call('nz', call('rsi', CLOSE, num(3)), num(0)),
+    window: W8, expect: [n, n, n, 100, 100, 100, 100, 100] },
+  { name: "RULING-1 nz(tf_merge(W, sma(close, 2))) (week 0's average reaches the week before the chart: bars 2-5 too)",
+    tree: () => call('nz', merge(call('sma', CLOSE, num(2))), num(0)), window: W8, expect: [n, n, n, n, n, n, 5, 5] },
+  // ⭐ RULING 3 — the only bar a read before the chart withholds is one a first-period mask withholds too: named in both
+  { name: 'RULING-3 nz(tf_live(W, high) + close[1]) (bar 0: the partial week AND the bar before the chart; named)',
+    tree: () => call('nz', op('+', live(HIGH), off(1, CLOSE)), num(0)), window: W8,
+    expect: [n, n, n, 10.5, 11.5, 12.5, 13.5, 19.5] },
+  { name: 'RULING-3 nz(tf_merge(W, high) + close[1]) on the Friday set (bar 0: the partial week AND the bar before; named)',
+    set: 'friday', tree: () => call('nz', op('+', merge(HIGH), off(1, CLOSE)), num(0)), window: W8,
+    expect: [n, n, n, n, 9.5, 10.5, 11.5, 12.5] },
   // ⭐ ANOTHER SYMBOL: its series is never the chart's listing (C26)
   { name: "nz(sym('SPY', close[1])) (SPY's bar 0 reads before SPY's first bar)", symbols: true,
     tree: () => call('nz', sym('SPY', off(1, CLOSE)), num(0)), window: W8, expect: [n, 1, 2, 3, 4, 5, 6, 7] },
@@ -121,6 +170,8 @@ const SHAPES = [
     window: W8, expect: [n, n, 3, 3, 3, 3, 7, 7] },
   { name: 'KEPT sma(close, 3) (no read before the chart: drawn from bar 2)', tree: () => call('sma', CLOSE, num(3)),
     window: W8, expect: [n, n, 2, 3, 4, 5, 6, 7] },
+  { name: 'KEPT ema(close, 5) (blank through its warm-up as before, drawn from its seed: FINDING 2, nothing named)',
+    tree: () => call('ema', CLOSE, num(5)), window: W8, expect: [n, n, n, n, 3, 4, 5, 6] },
   // ⭐ the chart clock's own: `time("W")` on a session daily chart is the calendar's week open on every bar, bar 0 included
   // (C49, measured); its literal tree's `key != key[1]` is not this walk's (`periodAnchorMask` is the clock's authority).
   // Week 0 opens Monday 2026-08-31 09:30 New York (13:30Z); week 1's first session is Tuesday 09-08 (Labour Day)
@@ -142,6 +193,12 @@ const SHAPES = [
     opts: { varOriginAbsolute: true }, tree: () => call('nz', off(1, CLOSE), num(0)), window: W8, expect: [0, 1, 2, 3, 4, 5, 6, 7] },
   { name: 'CONTROL nz(close[1]) in a formula document (its `x[1]` means its own series)', opts: {},
     tree: () => call('nz', off(1, CLOSE), num(0)), window: W8, expect: [0, 1, 2, 3, 4, 5, 6, 7] },
+  { name: 'CONTROL close > sma(close, 5) ? 1 : 0 from the listing (TradingView averages nothing before it either)',
+    opts: LISTING, tree: () => op('?:', op('>', CLOSE, call('sma', CLOSE, num(5))), num(1), num(0)), window: W8,
+    expect: [0, 0, 0, 0, 1, 1, 1, 1] },
+  { name: 'CONTROL close > sma(close, 5) ? 1 : 0 in a formula document', opts: {},
+    tree: () => op('?:', op('>', CLOSE, call('sma', CLOSE, num(5))), num(1), num(0)), window: W8,
+    expect: [0, 0, 0, 0, 1, 1, 1, 1] },
   // ⛔ the gate is the DOCUMENT's: a formula's `sym` read is walked by nothing here either (its `barIndexAbsolute` is unset
   // too, so only another symbol's read could reach the walk without the Pine declaration)
   { name: "CONTROL nz(sym('SPY', close[1])) in a formula document (another symbol's `x[1]` means its own series too)",
@@ -254,6 +311,12 @@ describe('⭐ the defect, by name', () => {
     expect(named("nz(sym('SPY', close[1])) from the chart's listing")).toBe(true)
     // a per-bar count was withheld unnamed by `historyReadMask` (C38); it now carries this name
     expect(named('nz(barsAgo(close, 1, 400))')).toBe(true)
+    // RULING 1: every window case takes a drawn value away, by this name
+    const windows = FIX.cases.filter((c) => c.name.startsWith('RULING-1'))
+    expect(windows.length).toBeGreaterThanOrEqual(15)
+    for (const c of windows) expect(c.named, c.name).toBe(true)
+    // RULING 3: named although its one bar is withheld by a first-period mask too (the column before the masks)
+    for (const c of FIX.cases.filter((x) => x.name.startsWith('RULING-3'))) expect(c.named, c.name).toBe(true)
   })
   it('a read that stays `na` is blank as before and names nothing; the controls name nothing', () => {
     for (const c of FIX.cases.filter((x) => x.name.startsWith('KEPT') || x.name.startsWith('CONTROL'))) {

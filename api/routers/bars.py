@@ -2046,6 +2046,41 @@ def bars_stream_status():
     return out
 
 
+@router.post("/api/admin/bars/regraft")
+def bars_regraft(request: Request, payload: dict = Body(...)):
+    """Re-fetch a NAMED list of tickers' deep D/W/M history through the store's own writer, on THIS pod
+    (`api.services.bars_regraft`). A proven join replaces stored pre-floor rows; an unproven one is
+    add-only. Auth: Bearer PUSH_SECRET. Body: {"tickers": [...] (at most 300), "tfs": ["D","W","M"],
+    "dry_run": true (the DEFAULT: writes nothing, reports per-row effects), "interval_s": 5}.
+    One job at a time (409 while one runs); poll GET /api/admin/bars/regraft-status."""
+    _check_admin_auth(request)
+    from api.services import bars_regraft as _rg
+    tickers = list(dict.fromkeys(str(t).strip().upper() for t in (payload.get("tickers") or []) if str(t).strip()))
+    if not tickers or len(tickers) > _rg.MAX_TICKERS:
+        raise HTTPException(status_code=400, detail=f"tickers: 1..{_rg.MAX_TICKERS} symbols")
+    tfs = [str(t).upper() for t in (payload.get("tfs") or list(_rg.TFS))]
+    if not tfs or any(t not in _rg.TFS for t in tfs):
+        raise HTTPException(status_code=400, detail=f"tfs: a subset of {list(_rg.TFS)}")
+    dry_run = payload.get("dry_run", True) is not False
+    try:
+        interval_s = float(payload.get("interval_s", 5.0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="interval_s: a number of seconds")
+    if not _rg.claim(len(tickers), tfs, dry_run):
+        return JSONResponse(status_code=409, content={"status": "already-running", **_rg.status()})
+    _threading.Thread(target=_rg.run, args=(tickers, tfs, dry_run, interval_s), daemon=True,
+                      name="bars-regraft").start()
+    return {"status": "started", "dry_run": dry_run, "tickers": len(tickers), "tfs": tfs,
+            "interval_s": max(_rg.MIN_INTERVAL_S, interval_s), "poll": "/api/admin/bars/regraft-status"}
+
+
+@router.get("/api/admin/bars/regraft-status")
+def bars_regraft_status(request: Request):
+    _check_admin_auth(request)
+    from api.services import bars_regraft as _rg
+    return _rg.status()
+
+
 @router.get("/api/admin/warm-universe-status")
 def warm_universe_status():
     """Return current progress of the universe warmer (no auth — read-only)."""

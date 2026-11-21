@@ -1119,6 +1119,15 @@ def _exact_sum(series: Sequence[float], lo: int, hi: int) -> float:
     return total
 
 
+def _rma_seed_mean(values: Sequence[float]) -> float:
+    """⭐⭐ RMA-SEED (engine 92) -- THE ONE SEED RULE of every Wilder smoother a Pine document is served,
+    the twin of ``interpret.js::rmaSeedMean``: the EXACTLY ROUNDED sum of the first ``n`` values (``_exact_sum``,
+    ``math.fsum``) divided by ``n``. Pine's ``ta.rma`` seeds with ``ta.sma``, which TradingView sums exactly
+    (SMA-EXACT); witnessed where a left-to-right seed parts from it on ``vw-bi-dmi-{spy,rddt}-1d-2026-11-19``
+    (3 of 6 ADX seeds, all this one). ``_rma_col`` (``ta.rma``, ``ta.atr``) and ``FN_PINE["rsi"]`` read it."""
+    return _exact_sum(values, 0, len(values) - 1) / len(values)
+
+
 def _window_mean(series: Sequence[float], lo: int, hi: int) -> float:
     """``ta.sma``: the EXACTLY ROUNDED window sum over its length (``math.fsum``), the twin of
     ``interpret.js::windowMean`` / ``exactSum`` (SMA-EXACT, Engine 65 (#1484)): TradingView's sma
@@ -1648,16 +1657,22 @@ def _smooth_col(series: Sequence[float], n: int, k: float, wilder: bool = False)
     prev = NAN
     count = 0
     total = 0.0
+    seed: List[float] = []
     for i in range(len(series)):
         v = series[i]
         if not math.isfinite(v):
             # HOLD: state untouched, this bar answers `na`.
             continue
         if math.isnan(prev):
-            total += v
+            if wilder:
+                seed.append(v)
+            else:
+                total += v
             count += 1
             if count == n:
-                prev = total / n
+                # ⭐ RMA-SEED -- Wilder's seed is ``_rma_seed_mean`` (the exactly rounded sum / n), ``ema``'s the
+                # running sum (unmeasured, unchanged)
+                prev = _rma_seed_mean(seed) if wilder else total / n
                 out[i] = prev
         else:
             # ⭐⭐ LANDING TRAIN 1 -- ``ta.rma`` in TradingView's own arithmetic (``interpret.js::rmaStep``,
@@ -2204,6 +2219,23 @@ def _body_args_of(node: Any) -> frozenset:
     if isinstance(ms, Mapping):
         return frozenset(ms.get("updates") or ())
     return frozenset()
+
+
+def _holds_recurrence(tree: Any) -> bool:
+    """Does the tree hold a single-state recurrence (``accum``, the call the chart lane's listing pass runs)?
+    Iterative. A multi-state ``accumK`` is answered alike by both lanes from the listing and is not counted."""
+    stack, seen = [tree], set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") == "call" and node.get("name") in RECURRENCES:
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
 
 
 def _is_stateful_call(node: Any) -> bool:
@@ -3179,6 +3211,11 @@ def _adx_pine(k: int):
 
 
 FN_PINE: Dict[str, Callable[..., List[float]]] = {
+    # ⭐ RMA-SEED -- Pine's ``ta.rsi`` seeds its two averages as ``ta.rma`` does (``_rma_seed_mean``); ``FN["rsi"]``
+    # (the formula language's, the native RSI's) keeps the running-sum seed. Twin of ``interpret.js::FN_PINE.rsi``.
+    "rsi": lambda s, n: _bind_shipped(("c",), (s,), len(s),
+                                      lambda bars: compute_rsi_raw([b["c"] for b in bars], n,
+                                                                   seed_mean=_rma_seed_mean)),
     "rising": lambda series, n: _monotone_col(series, n, True, pine=True),
     "falling": lambda series, n: _monotone_col(series, n, False, pine=True),
     "percentrank": lambda series, n: [
@@ -4954,6 +4991,11 @@ def interpret(ast: Any, bars: List[dict],
         whole = _chart_clock_whole(ast, bars, inputs, budget, scalars, opts)
         if whole is not None and whole["why"]:
             return [None] * len(bars)
+        # ⭐⭐ ruling (i) -- from the listing, a recurrence is the chart lane's: withheld whole, by name, never the
+        # bounded window's number (``LISTING_PASS_CHART_LANE``)
+        if (opts or {}).get("historyFromListing") is True and _holds_recurrence(ast):
+            _name_chart_clock(opts, [LISTING_PASS_CHART_LANE])
+            return [None] * len(bars)
     column = _interpret_column(ast, bars, inputs, budget, scalars, opts)
     if (not probing and (opts or {}).get("switchedAgreement") is not False
             and reads_switched_state(ast)):
@@ -4982,6 +5024,11 @@ def interpret(ast: Any, bars: List[dict],
         if aligned is not None:
             column = [math.nan if aligned[i] else v for i, v in enumerate(column)]
     if not probing:
+        # ⭐⭐ PERIOD -1 -- the column a read before the chart is named against (``interpret.js::historyBeforeChartMask``,
+        # named where it takes a drawn value away): the column BEFORE every withholding mask, as the JS lane's
+        # ``withheldReadMask`` hands it (RULING 3, 2026-11-20: taken after the request masks below, a bar a first-period
+        # mask withheld too named nothing here and the code in the chart lane); the mask itself is asked LAST (below)
+        named_against = list(column)
         # ⭐ ENGINE 55 -- ...and its ``tf_merge`` half (``interpret.js::tfMergeMask``).
         merged = tf_merge_mask(ast, bars, opts, inputs, budget, scalars)
         if merged is not None:
@@ -4991,9 +5038,6 @@ def interpret(ast: Any, bars: List[dict],
         lived = tf_live_mask(ast, bars, opts, inputs, budget, scalars)
         if lived is not None:
             column = [math.nan if lived[i] else v for i, v in enumerate(column)]
-        # ⭐⭐ PERIOD -1 -- the column a read before the chart is named against (``interpret.js::historyBeforeChartMask``,
-        # named where it takes a drawn value away), as it stands here; the mask itself is asked LAST (below)
-        named_against = list(column)
     if not probing:
         # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
@@ -5864,6 +5908,40 @@ _WITNESS_NESTED = ("sym", "tf", "tf_live", "tf_merge", "ltf")
 _WITNESS_WINDOW_CALLS = ("change", "crossOver", "crossUnder", "percentrank", "barsAgo")
 _WITNESS_FINITE = ("sma", "wma", "stdev", "sum", "dev", "median", "highest", "lowest", "highestbars", "lowestbars")
 
+#: ⭐⭐ RULING 1 -- the calls the left-edge measurement found answering a NUMBER on a bar whose window reaches before the
+#: first bar held (``interpret.js::WINDOW_EDGE_FINITE``, the note on ``windowEdgeLookback``).
+WINDOW_EDGE_FINITE = frozenset({"rising", "falling", "mfiPine"})
+
+
+def _window_edge_lookback(node: Any) -> float:
+    """⭐⭐ RULING 1 -- the port of ``interpret.js::windowEdgeLookback`` (its note carries the rule and the measurement):
+    a call's declared lookback, the reach ``_witness_mask``'s ``before_first`` reads its warm-up within; 0 when it has
+    none (a pointwise call, ``barsAgo``, ``cum``, a ``session`` window), infinity for ``valuewhenOccurrence``."""
+    if not isinstance(node, dict) or node.get("type") != "call" or node.get("name") == "barsAgo":
+        return 0
+    args = node.get("args")
+    spec = TABLE[FUNCTIONS_SECTION].get(node.get("name")) if isinstance(node.get("name"), str) else None
+    if spec is None or not isinstance(args, list):
+        return 0
+    # an ANCHORED total (``cumFrom``) answers ``na`` before its anchor on any chart: it reaches back to the anchor only
+    if "anchor" in (spec.get("argRoles") or []):
+        return 0
+    lb = spec.get("lookback")
+    if lb == SERIES_LOOKBACK:
+        return math.inf if node.get("name") == "valuewhenOccurrence" else 0
+    if isinstance(lb, int) and not isinstance(lb, bool):
+        return lb if lb > 0 else 0
+    m = _LOOKBACK_RE.fullmatch(str(lb)) if isinstance(lb, str) else None
+    if m is None:
+        return 0
+    idx = int(m.group(2))
+    arg = args[idx] if idx < len(args) else None
+    v = arg.get("value") if isinstance(arg, dict) and arg.get("type") == "num" else None
+    # a window the evaluator would refuse is never evaluated: nothing is drawn from it
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or v != int(v) or v < 0:
+        return 0
+    return (1 if m.group(1) is None else int(m.group(1))) * int(v)
+
 
 def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                   is_site: Callable[[dict], bool],
@@ -5904,6 +5982,10 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
             return len(args) == 1 and isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 1
         return node.get("type") == "call" and node.get("name") == "barsAgo" and len(args) == 3
 
+    def edge_reach(node: Any) -> float:
+        # ⭐⭐ RULING 1 -- a call whose own window can reach before the first bar held (``before_first``)
+        return _window_edge_lookback(node) if before_first else 0
+
     def has_site(node: Any) -> bool:
         if not isinstance(node, dict):
             return False
@@ -5913,7 +5995,7 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
         has_memo[key] = False
         args = node.get("args")
         r = (is_site(node) or (not skipped(node) and (
-            reads_before_first(node)
+            reads_before_first(node) or edge_reach(node) > 0
             or (not (request_sites and node.get("type") in _WITNESS_NESTED)
                 and isinstance(args, list) and any(has_site(a) for a in args)))))
         has_memo[key] = r
@@ -5960,6 +6042,43 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                 out[j] = 1
         return out
 
+    cols: Dict[int, List[float]] = {}
+
+    def col_memo(node: Any) -> List[float]:
+        # one walk, one set of bars and options: a node's column is read once (the JS twin's ``colMemo``)
+        key = id(node)
+        if key not in cols:
+            cols[key] = col_of(node)
+        return cols[key]
+
+    def edge_of(node: Any, reach: float):
+        # ⭐⭐ RULING 1 -- the call's warm-up: the run of ``na`` it opens with from the first bar every argument it reads
+        # is held, within its first ``reach`` there; every one of them for ``WINDOW_EDGE_FINITE``
+        f = 0
+        for a in node.get("args") or []:
+            if not isinstance(a, dict) or a.get("type") == "num" or _reads_recurrence_binding(a):
+                continue
+            c = col_memo(a)
+            j = 0
+            while j < n and math.isnan(c[j]):
+                j += 1
+            f = max(f, j)
+        # RULING 1 (cost) -- an argument that is never held leaves no bar to withhold: the call's own column is not read
+        if f >= n:
+            return None
+        always = node.get("name") in WINDOW_EDGE_FINITE
+        col = None if always else col_memo(node)
+        out = None
+        end = n if reach == math.inf else min(n, f + int(reach))
+        for i in range(f, end):
+            # the warm-up is the run of ``na`` it opens with: a number answered is read from bars the chart holds
+            if not always and not math.isnan(col[i]):
+                break
+            if out is None:
+                out = [0] * n
+            out[i] = 1
+        return out
+
     def unk(node: Any):
         if not has_site(node):
             return None
@@ -5970,6 +6089,8 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
         kind = node.get("type")
         args = node.get("args") if isinstance(node.get("args"), list) else []
         name = node.get("name")
+        # ⭐⭐ RULING 1 -- set by a branch that answered the call's own reach before the first bar by its events
+        event_edge = False
         if kind in _WITNESS_NESTED and not is_site(node):
             out = ALL
         elif is_site(node):
@@ -6051,6 +6172,9 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                     out = [0] * n
                     trues: List[int] = []
                     last_unknown = -1
+                    # ⭐⭐ RULING 1 -- ``before_first``: with no known occurrence to read, the one it reads may be before
+                    # the first bar held (the event rule)
+                    event_edge = before_first
                     for i in range(n):
                         if uc is not None and uc[i]:
                             last_unknown = i
@@ -6063,10 +6187,12 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                                 out[i] = 1
                             elif lt >= start and us is not None and us[lt]:
                                 out[i] = 1
+                            elif before_first and start < 0 and lt < 0:
+                                out[i] = 1
                         else:
                             need = k + 1
                             if len(trues) < need:
-                                if last_unknown >= 0:
+                                if last_unknown >= 0 or before_first:
                                     out[i] = 1
                             else:
                                 at = trues[len(trues) - need]
@@ -6134,6 +6260,13 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
         else:
             for a in args:
                 out = or_into(out, unk(a))
+        # ⭐⭐ RULING 1 -- a call whose own window reaches before the first bar held is unknown there, beside whatever its
+        # arguments carried in
+        reach = edge_reach(node) if (kind == "call" and not event_edge and not is_site(node)) else 0
+        if reach > 0 and out != ALL:
+            e = edge_of(node, reach)
+            if e is not None:
+                out = or_into(None if out is None else list(out), e)
         memo[key] = out
         return out
 
@@ -7035,7 +7168,19 @@ CHART_CLOCK_WHOLE = (
     OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE,
     # 2026-11-19 -- U-BUILTIN T-D: ``time("D")`` off the regular session, ``time("D", session)`` off a daily chart
     "time-day:off-session", "time-session:day-on-other-chart", "time-day:no-timeframe",
+    # 2026-11-20, ruling (i) -- from the listing, a recurrence is the chart lane's (``LISTING_PASS_CHART_LANE``)
+    "var-origin:listing-pass",
+    # 2026-11-20 -- U-BUILTIN T-D EXT: ``time("D")`` on a chart that trades around the clock
+    "time-day:exchange-zone",
 )
+#: ⭐⭐ (coordinator ruling 2026-11-20, (i)) -- FROM THE LISTING, A RECURRENCE IS THE CHART LANE'S. With
+#: ``historyFromListing`` the chart lane runs a recurrence from bar 0 (``interpret.js::listingPass``, C12w, ruling R-W),
+#: TradingView's own value (the RDDT-from-listing captures); this lane never ported that pass and answered the bounded
+#: window, a different number (bar 7 of ``tests/fixtures/ast/listing_recurrence_twin.json``: 85.05684 here, 85.05277
+#: there). So a plot whose tree holds a recurrence is withheld whole there, by this code (the sentence is
+#: ``interpret.js::CHART_CLOCK_WITHHELD``'s). ⛔ LIFT CONDITION: a server path that passes ``historyFromListing`` (none
+#: does: ``pine_strategy_backtest.py`` states it is always false) needs the full port of the listing pass here first.
+LISTING_PASS_CHART_LANE = "var-origin:listing-pass"
 #: The opening-range calls: the two whose answer depends on the chart's bar length. Mirrors
 #: ``interpret.js::OPENING_RANGE_CALLS``.
 OPENING_RANGE_CALLS = ("openingRangeHigh", "openingRangeLow")
@@ -7064,6 +7209,8 @@ CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     # PERIOD -1 -- a read of the bar, week or month before the chart's first (``history_before_chart_mask``)
     "history:before-chart",
     WINDOW_EXTREME_LEFT_EDGE,
+    # U-BUILTIN T-D EXT -- an overnight bar of an extended-hours chart (``_overnight_day_mask``)
+    "time-day:overnight",
 )
 
 
@@ -7308,6 +7455,160 @@ def is_session_day_gate(node: Any) -> bool:
             and _matches_shape(args[2], _cc_na()))
 
 
+#: U-BUILTIN T-D EXT (2026-11-20) -- ``interpret.js::DAY_EXCHANGE_ZONE`` / ``DAY_OVERNIGHT``: a chart that
+#: trades around the clock (withheld whole) and an overnight bar of an extended-hours chart (withheld per bar).
+DAY_EXCHANGE_ZONE = "time-day:exchange-zone"
+DAY_OVERNIGHT = "time-day:overnight"
+#: ``interpret.js::EXTENDED_OPEN_SECONDS`` / ``EXTENDED_ANCHOR_SHIFT``: 04:00, and how far before 09:30 it is.
+EXTENDED_OPEN_SECONDS = 4 * 3600
+_EXTENDED_CLOSE_SECONDS = 20 * 3600
+EXTENDED_ANCHOR_SHIFT = _SESSION_OPEN_SECONDS - EXTENDED_OPEN_SECONDS
+
+
+def session_day_window_node(start: int, end: int, days: Optional[List[int]], ms: bool) -> dict:
+    """``interpret.js::sessionDayWindowNode`` -- ``time("D", session)`` for a window of one day in the
+    exchange's zone: the gated daily tree, the window's START on the bar's day inside it. Read that docstring."""
+    def minute_of_day() -> dict:
+        return _cc_op("+", [_cc_op("*", [_cc_leaf("hour"), _cc_num(60)]), _cc_leaf("minute")])
+    inside = _cc_op("&&", [_cc_op(">=", [minute_of_day(), _cc_num(start)]), _cc_op("<", [minute_of_day(), _cc_num(end)])])
+    if days:
+        acc = None
+        for k in days:
+            t = _cc_op("==", [_cc_leaf("dayofweek"), _cc_num(k)])
+            acc = t if acc is None else _cc_op("||", [acc, t])
+        inside = _cc_op("&&", [inside, acc])
+    secs = _cc_op("-", [_cc_leaf("time"), _cc_call("mod", [
+        _cc_op("*", [_cc_op("-", [minute_of_day(), _cc_num(start)]), _cc_num(60)]), _cc_num(CLOCK_PERIOD_SECONDS["D"])])])
+    value = _cc_op("*", [secs, _cc_num(1000)]) if ms else secs
+    return session_day_gate_node(_cc_op("?:", [inside, value, _cc_na()]))
+
+
+def session_day_window_of(gate: Any) -> Optional[dict]:
+    """``interpret.js::sessionDayWindowOf`` -- ``{start, end, days, ms}`` of a ``session_day_window_node`` gate,
+    read from the tree and REBUILT and compared node for node; ``None`` for any other gate."""
+    if not is_session_day_gate(gate):
+        return None
+    child = gate["args"][1]
+    if not (isinstance(child, dict) and child.get("type") == "op" and child.get("name") == "?:"
+            and isinstance(child.get("args"), list) and len(child["args"]) == 3):
+        return None
+
+    def is_range(n: Any) -> bool:
+        a = n.get("args") if isinstance(n, dict) else None
+        return (isinstance(n, dict) and n.get("type") == "op" and n.get("name") == "&&" and isinstance(a, list)
+                and len(a) == 2 and isinstance(a[0], dict) and a[0].get("type") == "op" and a[0].get("name") == ">=")
+
+    inside = child["args"][0]
+    days: Optional[List[int]] = None
+    if not is_range(inside) and isinstance(inside, dict) and inside.get("type") == "op" \
+            and inside.get("name") == "&&" and isinstance(inside.get("args"), list) and len(inside["args"]) == 2:
+        days = []
+        stack = [inside["args"][1]]
+        while stack:
+            t = stack.pop()
+            if isinstance(t, dict) and t.get("type") == "op" and t.get("name") == "||" and isinstance(t.get("args"), list):
+                stack.extend(t["args"])
+                continue
+            a = t.get("args") if isinstance(t, dict) else None
+            k = a[1].get("value") if (isinstance(t, dict) and t.get("type") == "op" and t.get("name") == "=="
+                                      and isinstance(a, list) and len(a) == 2 and isinstance(a[1], dict)) else None
+            if not isinstance(k, (int, float)) or isinstance(k, bool):
+                return None
+            days.append(k)
+        days.sort()
+        inside = inside["args"][0]
+    if not is_range(inside):
+        return None
+    lo, hi = inside["args"][0].get("args"), inside["args"][1].get("args") if isinstance(inside["args"][1], dict) else None
+    start = lo[1].get("value") if isinstance(lo, list) and len(lo) == 2 and isinstance(lo[1], dict) else None
+    end = hi[1].get("value") if isinstance(hi, list) and len(hi) == 2 and isinstance(hi[1], dict) else None
+    if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
+        return None
+    for ms in (True, False):
+        if _matches_shape(gate, session_day_window_node(start, end, days, ms)):
+            return {"start": start, "end": end, "days": days, "ms": ms}
+    return None
+
+
+def chart_day_regime(tf: Any, pack: Optional[Sequence[float]]) -> dict:
+    """``interpret.js::chartDayRegime`` -- which day a chart's bars keep for ``time("D")`` and
+    ``time("D", session)``: ``period`` / ``daily`` / ``regular`` / ``extended`` (with ``overnight``, a 0/1 list,
+    or ``None``) / ``around-the-clock`` / ``off-session`` / ``unreadable`` / ``unwitnessed``. Read that docstring;
+    this is the same decision, bar for bar."""
+    if tf in ("W", "M"):
+        return {"kind": "period", "overnight": None}
+    daily = tf == "D"
+    if not daily and not (isinstance(tf, str) and tf.isdigit()):
+        return {"kind": "unwitnessed", "overnight": None}
+    sat = sun = weekend = ext = False
+    n = len(pack or [])
+    overnight: Optional[List[int]] = None
+    for i, v in enumerate(pack or []):
+        if v is None or math.isnan(v):
+            return {"kind": "unreadable", "overnight": None}
+        dow = v // 10000
+        if dow == 7:
+            sat = True
+        elif dow == 1:
+            sun = True
+        if daily:
+            continue
+        second = ((v % 10000) // 100) * 3600 + (v % 100) * 60
+        if dow == 7 or (dow == 1 and second < _EXTENDED_CLOSE_SECONDS) or (dow == 6 and second >= _EXTENDED_CLOSE_SECONDS):
+            weekend = True
+        weekday = 2 <= dow <= 6
+        if weekday and _SESSION_OPEN_SECONDS <= second < _SESSION_CLOSE_SECONDS:
+            continue
+        if weekday and EXTENDED_OPEN_SECONDS <= second < _EXTENDED_CLOSE_SECONDS:
+            ext = True
+            continue
+        if overnight is None:
+            overnight = [0] * n
+        overnight[i] = 1
+    if daily:
+        return {"kind": "around-the-clock" if (sat and sun) else ("off-session" if (sat or sun) else "daily"),
+                "overnight": None}
+    if weekend:
+        return {"kind": "around-the-clock", "overnight": None}
+    if ext:
+        return {"kind": "extended", "overnight": overnight}
+    return {"kind": "off-session" if overnight is not None else "regular", "overnight": None}
+
+
+_DAY_SERVED_KINDS = ("period", "daily", "regular", "extended")
+
+
+def _day_regime_serves(kind: str, opts: Any) -> bool:
+    """``interpret.js::dayRegimeServes`` -- ``extended`` for a Pine evaluation only."""
+    return kind in _DAY_SERVED_KINDS and (kind != "extended" or pine_compare_on(opts))
+
+
+def _session_day_gate_served(gate: Any, kind: str) -> bool:
+    """``interpret.js::sessionDayGateServed`` (no Pine evaluation asked: the gated tree's own value)."""
+    w = session_day_window_of(gate)
+    if w is None:
+        return False
+    if kind == "extended":
+        return EXTENDED_OPEN_SECONDS <= w["start"] * 60 < _EXTENDED_CLOSE_SECONDS
+    if kind in ("regular", "period"):
+        return w["start"] * 60 == _SESSION_OPEN_SECONDS
+    return False
+
+
+def _carry_over_overnight(col: Sequence[float], overnight: Optional[Sequence[int]]) -> List[float]:
+    """``interpret.js::carryOverOvernight`` -- each overnight bar carries the last in-session value (NaN first)."""
+    out = [float(v) if v is not None else math.nan for v in col]
+    if not overnight:
+        return out
+    held = math.nan
+    for i, v in enumerate(out):
+        if overnight[i]:
+            out[i] = held
+        else:
+            held = v
+    return out
+
+
 def is_period_close(node: Any) -> bool:
     """``interpret.js::isPeriodClose``."""
     if not isinstance(node, dict) or node.get("type") != "op" or node.get("name") != "?:":
@@ -7477,28 +7778,6 @@ def _scan_chart_clock(tree: Any):
     return anchors, closes, owns, sixties, folds, nested, leaves, ranges, days, day_gates
 
 
-def _day_anchor_served_on(tf: Any, bars: List[dict], inputs, budget, scalars, opts) -> bool:
-    """``interpret.js::dayAnchorServedOn`` -- is ``time("D")``, 09:30 New York, TradingView's answer on
-    these bars? A 1W / 1M chart, a 1D chart of Monday-to-Friday bars, an intraday chart whose every bar
-    opens 09:30-16:00 New York, Monday to Friday."""
-    if tf in ("W", "M"):
-        return True
-    if tf != "D" and not (isinstance(tf, str) and tf.isdigit()):
-        return False
-    for v in _clock_column(_REGIME_PACK, bars, inputs, budget, scalars, opts):
-        if v is None or math.isnan(v):
-            return False
-        dow = v // 10000
-        if dow in (1, 7):
-            return False
-        if tf == "D":
-            continue
-        second = ((v % 10000) // 100) * 3600 + (v % 100) * 60
-        if second < _SESSION_OPEN_SECONDS or second >= _SESSION_CLOSE_SECONDS:
-            return False
-    return True
-
-
 def _date_keyed(bars) -> bool:
     """Does any bar carry a DATE key rather than an instant? Mirrors
     ``interpret.js::dateKeyed``: only a date-keyed daily bar is stamped 09:30 New
@@ -7578,17 +7857,81 @@ def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opt
             add("time-close:not-daily")
         elif kind in ("every-day", "one-weekend-day"):
             add("time-close:weekend-bars")
-    # U-BUILTIN T-D (``interpret.js::chartClockWhole``)
+    # U-BUILTIN T-D / T-D EXT (``interpret.js::chartClockWhole``): ``chart_day_regime``'s one decision
     stated = isinstance(tf, str) and tf != ""
     if (days or day_gates) and not stated:
         add(DAY_NO_TIMEFRAME)
-    if days and stated and kind != "unreadable" and not _day_anchor_served_on(tf, bars, inputs, budget, scalars, opts):
-        add(DAY_OFF_SESSION)
-    if day_gates and stated and tf != "D":
-        add(DAY_SESSION_OTHER_CHART)
+    day = (_chart_day_regime_of(tf, bars, inputs, budget, scalars, opts)
+           if stated and kind != "unreadable" and (days or (day_gates and tf != "D")) else None)
+    if day is not None and day["kind"] == "around-the-clock":
+        add(DAY_EXCHANGE_ZONE)
+    elif day is not None:
+        if days and not _day_regime_serves(day["kind"], opts):
+            add(DAY_OFF_SESSION)
+        if day_gates and tf != "D" and not all(_session_day_gate_served(g, day["kind"]) for g in day_gates):
+            add(DAY_SESSION_OTHER_CHART)
     _name_chart_clock(opts, why)
     return {"anchors": anchors, "closes": closes, "why": why, "regime": regime,
-            "every_day": kind == "every-day"}
+            "every_day": kind == "every-day", "days": days, "day_gates": day_gates}
+
+
+def _chart_day_regime_of(tf: Any, bars: List[dict], inputs, budget, scalars, opts) -> dict:
+    """``interpret.js::chartDayRegimeOf``."""
+    if tf in ("W", "M") or (tf != "D" and not (isinstance(tf, str) and tf.isdigit())):
+        return chart_day_regime(tf, None)
+    return chart_day_regime(tf, _clock_column(_REGIME_PACK, bars, inputs, budget, scalars, opts))
+
+
+def _overnight_day_mask(tree: Any, days: List[dict], day_gates: List[dict], bars: List[dict],
+                        inputs, budget, scalars, opts) -> Optional[List[int]]:
+    """``interpret.js::overnightDayMask`` -- the overnight bars of an extended-hours chart for a tree reading
+    ``time("D")`` or a served ``time("D", session)`` window (1 = withheld), or ``None``. Read that docstring:
+    the overnight bars and every root bar within ``r - 1`` of one; from the first one on under an unbounded
+    read."""
+    if not days and not day_gates:
+        return None
+    tf = (opts or {}).get("tf")
+    if not isinstance(tf, str) or tf in ("", "D", "W", "M"):
+        return None
+    day = _chart_day_regime_of(tf, bars, inputs, budget, scalars, opts)
+    if day["kind"] != "extended" or not day["overnight"]:
+        return None
+    targets = {id(t) for t in list(days) + list(day_gates)}
+    reads: List[tuple] = []
+    stack = [(tree, False)]
+    seen = set()
+    functions = TABLE[FUNCTIONS_SECTION]
+    while stack:
+        node, unbounded = stack.pop()
+        if not isinstance(node, dict) or (id(node), unbounded) in seen:
+            continue
+        seen.add((id(node), unbounded))
+        if id(node) in targets:
+            reads.append((node, unbounded))
+            continue
+        name = node.get("name")
+        is_call = node.get("type") == "call" and isinstance(name, str)
+        spec = functions.get(name) if is_call else None
+        opened = unbounded or bool(
+            spec is not None and (spec.get("lookback") == SERIES_LOOKBACK or _is_stateful_call(node)))
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, opened))
+    n = len(bars)
+    mask = [0] * n
+    root_reach = max_lookback(tree)
+    overnight = day["overnight"]
+    for node, unbounded in reads:
+        reach = max(0, root_reach - max_lookback(node) - 1)
+        last = -math.inf
+        for i in range(n):
+            if overnight[i]:
+                last = last if (unbounded and last != -math.inf) else i
+            if last != -math.inf and (unbounded or i - last <= reach):
+                mask[i] = 1
+    _name_chart_clock(opts, [DAY_OVERNIGHT])
+    return mask
 
 
 def period_anchor_mask(tree: Any, bars: List[dict],
@@ -7607,12 +7950,15 @@ def period_anchor_mask(tree: Any, bars: List[dict],
     if whole["why"]:
         return [1] * n
     anchors, closes = whole["anchors"], whole["closes"]
+    # U-BUILTIN T-D EXT -- the overnight bars of an extended-hours chart (``interpret.js::periodAnchorMask``)
+    night = _overnight_day_mask(tree, whole.get("days") or [], whole.get("day_gates") or [], bars,
+                                inputs, budget, scalars, opts)
     if not anchors and not closes:
-        return None
+        return night
     tf = (opts or {}).get("tf")
     partial: List[str] = []
     root_reach = max_lookback(tree)
-    mask = [0] * n
+    mask = list(night) if night else [0] * n
 
     def spread(unknown: List[int], node: dict, from_before: bool) -> None:
         reach = max(0, root_reach - max_lookback(node))
@@ -8017,9 +8363,54 @@ def _interpret_column(ast: Any, bars: List[dict],
             _clock_state["calendar"] = compute_period_calendar(bars, (opts or {}).get("tf"))
         return _clock_state["calendar"]
 
+    # U-BUILTIN T-D EXT (2026-11-20) -- ``time("D")`` and a served ``time("D", session)`` window below a daily
+    # chart, a PINE evaluation only: the port of ``interpret.js::dayClockValue``. Read that comment.
+    def _day_clock() -> Optional[dict]:
+        if "day" not in _clock_state:
+            _clock_state["day"] = None
+            _tf = (opts or {}).get("tf")
+            if isinstance(_tf, str) and _tf not in ("", "D"):
+                _scan = _scan_chart_clock(ast)
+                _days, _gates = _scan[8], _scan[9]
+                if _days or _gates:
+                    _pack = None
+                    if _tf not in ("W", "M"):
+                        _dow, _hour, _minute = scope.get("dayofweek"), scope.get("hour"), scope.get("minute")
+                        if isinstance(_dow, list) and isinstance(_hour, list) and isinstance(_minute, list):
+                            _pack = [d * 10000 + h * 100 + m for d, h, m in zip(_dow, _hour, _minute)]
+                        else:
+                            _pack = [math.nan] * len(bars)
+                    _clock_state["day"] = {"regime": chart_day_regime(_tf, _pack),
+                                           "days": {id(x) for x in _days}, "gates": {id(x) for x in _gates}}
+        return _clock_state["day"]
+
+    def _day_clock_value(n: dict) -> Any:
+        if n.get("type") != "op" or n.get("name") not in ("?:", "+", "*"):
+            return None
+        day = _day_clock()
+        if day is None:
+            return None
+        kind, overnight = day["regime"]["kind"], day["regime"]["overnight"]
+        if id(n) in day["days"]:
+            if not pine_compare_on(opts) or kind != "extended":
+                return None
+            ms = n.get("name") == "*"
+            opened = _eval_raw(n["args"][0] if ms else n)
+            opened = opened if isinstance(opened, list) else [opened] * len(bars)
+            out = [(v - EXTENDED_ANCHOR_SHIFT) * (1000 if ms else 1) for v in opened]
+            return _carry_over_overnight(out, overnight)
+        if id(n) in day["gates"] and _session_day_gate_served(n, kind):
+            value = eval_node(n["args"][1])
+            value = value if isinstance(value, list) else [value] * len(bars)
+            return _carry_over_overnight(value, overnight if kind == "extended" else None)
+        return None
+
     def _chart_clock_value(n: Any) -> Any:
         if not isinstance(n, dict):
             return None
+        _daily = _day_clock_value(n)
+        if _daily is not None:
+            return _daily
         kind = n.get("type")
         if kind == "call":
             if n.get("name") != "valuewhenOccurrence":

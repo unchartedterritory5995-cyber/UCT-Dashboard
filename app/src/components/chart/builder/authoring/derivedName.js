@@ -144,8 +144,31 @@ const fmtNum = (v) => {
   if (!Number.isFinite(v)) return String(v)
   return Number.isInteger(v) ? String(v) : String(Number(v.toPrecision(6)))
 }
-/** Plain-mode words for calls the upper-case chart convention garbles. */
-const PLAIN_CALL_WORDS = Object.freeze({
+/**
+ * ⭐ THE PLAIN WORDS A FUNCTION IS SAID WITH: in an indicator's automatic NAME, in its legend, in the builder's
+ * first answer, and in a settings row. ONE table.
+ *
+ * HOW IT GOT HERE. Until 2026-10 every call read as its upper-cased engine name. Thirteen functions were then
+ * given words one at a time (`WORDED_BEFORE_2026_11_21`, below). On 2026-11-20 the SETTINGS ROWS got words for
+ * forty more, kept out of names on purpose: a saved name is recognised as automatic by comparing it with the
+ * wording it was derived in (`namingSnapshot`), and re-wording names would have frozen every saved one as if a
+ * member had typed it. On 2026-11-21 the builder's first answer began to open with the names ("Built 1 line:
+ * PERCENTRANK 100."), so the names moved to the same words, and the wording they had until that day became a
+ * RECOGNISED OLDER WORDING (`legacy`): a name saved in it is still automatic and moves to these words the next
+ * time its indicator is edited. Nothing at rest is rewritten.
+ *
+ * ⛔ A WORD NEVER HIDES A DIFFERENCE. `atr` and `atrPine` are two calculations (Wilder's first bar, and
+ * TradingView's), as are `mfi` / `mfiPine` and `stoch` / `stochPine`: the TradingView one says so.
+ * A function with no entry reads as its upper-cased name, which is right for the acronyms a chart already
+ * uses (SMA, EMA, RSI, ATR, MACD, VWAP, ADX, CCI).
+ *
+ * ⭐ THIS TABLE IS A LEDGERED ENUMERATION SITE (`engine/__tests__/enumerationSites.test.js`): a short display
+ * word per function is product language the closed table does not declare today (it declares `sentence`,
+ * a whole clause). FOLLOW-UP, recorded 2026-11-21: this table moves into `closedTable.json` as ONE `caption`
+ * declaration per function, as a unit of a later engine train. Until then it is the one authority over a
+ * function's plain name, and its ledger row is the bridge.
+ */
+export const CALL_WORDS = Object.freeze({
   supertrend: 'Supertrend', supertrendDirection: 'Supertrend direction',
   // 2026-10-30 — Parabolic SAR (#523): "Parabolic SAR 0.02,0.2", not "SAR 0.02,0.2".
   sar: 'Parabolic SAR', sarDirection: 'Parabolic SAR trend',
@@ -155,7 +178,46 @@ const PLAIN_CALL_WORDS = Object.freeze({
   // 2026-11-17 — the regular session's own values: "Opening range high 30", not "OPENINGRANGEHIGH 30".
   sessionOpen: 'Session open', sessionHigh: 'Session high', sessionLow: 'Session low',
   openingRangeHigh: 'Opening range high', openingRangeLow: 'Opening range low',
+  // 2026-11-20 (settings rows) and 2026-11-21 (names too)
+  williamsR: 'Williams %R',
+  aroonUp: 'Aroon up', aroonDown: 'Aroon down',
+  donchianUpper: 'Donchian upper', donchianMiddle: 'Donchian middle', donchianLower: 'Donchian lower',
+  ichimokuTenkan: 'Ichimoku conversion line', ichimokuKijun: 'Ichimoku base line',
+  ichimokuSpanA: 'Ichimoku leading span A', ichimokuSpanB: 'Ichimoku leading span B', ichimokuChikou: 'Ichimoku lagging span',
+  plusDI: '+DI', minusDI: '-DI',
+  highest: 'Highest', lowest: 'Lowest',
+  highestbars: 'Bars since the highest', lowestbars: 'Bars since the lowest',
+  barssince: 'Bars since', valuewhen: 'Value when', valuewhenOccurrence: 'Value when',
+  percentrank: 'Percent rank', percentileLinearInterpolation: 'Percentile', percentileNearestRank: 'Percentile (nearest rank)',
+  pivothigh: 'Pivot high', pivotlow: 'Pivot low',
+  stdev: 'Standard deviation', dev: 'Mean deviation', median: 'Median', sum: 'Sum',
+  change: 'Change', rising: 'Rising', falling: 'Falling',
+  cum: 'Running total', cumFrom: 'Running total from',
+  obvN: 'On-balance volume change', pvtN: 'Price volume trend change',
+  avwap: 'Anchored VWAP',
+  stoch: 'Stochastic',
+  atrPine: 'ATR (TradingView)', mfiPine: 'MFI (TradingView)', stochPine: 'Stochastic (TradingView)',
+  accum: 'Running value', accum2: 'Linked running values', accum3: 'Linked running values', accum4: 'Linked running values',
 })
+/**
+ * ⛔ FROZEN: the functions that had a plain word in a NAME before 2026-11-21. It is what the `legacy` wording is
+ * rebuilt from (these read as their word, every other function as its upper-cased name), so a name saved before
+ * that day is still recognised as automatic. Never add to it: a function given a word later was upper-cased in
+ * every name saved before, and listing it here would stop those names being recognised.
+ * `derivedName.legacyWording.test.js` holds the legacy wording to a sample recorded from the code of that day.
+ */
+export const WORDED_BEFORE_2026_11_21 = Object.freeze([
+  'supertrend', 'supertrendDirection', 'sar', 'sarDirection', 'fisher', 'laguerre', 'laguerreRsi', 'dpo',
+  'sessionOpen', 'sessionHigh', 'sessionLow', 'openingRangeHigh', 'openingRangeLow',
+])
+const LEGACY_WORDED = new Set(WORDED_BEFORE_2026_11_21)
+const hasWord = (name) => typeof name === 'string' && Object.prototype.hasOwnProperty.call(CALL_WORDS, name)
+/** The word a call is said with in `mode`, or null (it then reads as its upper-cased name). */
+function wordOfCall(name, mode) {
+  if (mode === 'formula' || !hasWord(name)) return null
+  if (mode === 'legacy' && !LEGACY_WORDED.has(name)) return null
+  return CALL_WORDS[name]
+}
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
 /** One node → compact chart words. Deterministic; total over the node grammar. */
@@ -170,8 +232,11 @@ const EXPANSION_LABELS = Object.freeze({
  *  EMA 20", "High below previous High and Low above previous Low", "EMA 9 vs EMA 20 %",
  *  "Close when Close above SMA 50". `formula` is the wording every name was derived in
  *  before — kept so a name SAVED under it still reads as automatic (`namingSnapshot`)
- *  and follows its maths, rather than being frozen as if a member had typed it. */
-export const NAME_MODES = Object.freeze(['plain', 'formula'])
+ *  and follows its maths, rather than being frozen as if a member had typed it.
+ *  ⭐ 2026-11-21 — `legacy` is `plain` as it read until that day: the same sentences, with only the thirteen
+ *  functions of `WORDED_BEFORE_2026_11_21` said in words and every other call upper-cased. It is never
+ *  written again; it exists so a name SAVED in it is recognised, exactly as `formula` does. */
+export const NAME_MODES = Object.freeze(['plain', 'formula', 'legacy'])
 
 const PLAIN_RELATIONS = Object.freeze({
   '>': 'above', '<': 'below', '>=': 'at or above', '<=': 'at or below', '==': 'equals', '!=': 'not equal to',
@@ -219,8 +284,8 @@ export function nameOfTree(node, parentPrec = 0, mode = 'plain') {
       // A call whose name is a camel-case phrase reads as words in plain mode
       // ("Supertrend direction 3,10", not "SUPERTRENDDIRECTION 3,10"); the
       // formula wording keeps the upper-case convention byte for byte.
-      const fn = plain && PLAIN_CALL_WORDS[node.name] ? PLAIN_CALL_WORDS[node.name]
-        : String(node.name || '').toUpperCase()
+      // ⭐ ONE table of words (`CALL_WORDS`); the `legacy` wording reads only the thirteen it always had.
+      const fn = wordOfCall(node.name, mode) || String(node.name || '').toUpperCase()
       // ⭐ THE CHART CONVENTION: "EMA 20", "RSI 14", "MACD 12,26,9". The bar
       // field `close` is the default source and is not repeated; any other source
       // IS part of the name ("EMA 20 (Open)") — a name must not hide what it reads.
@@ -368,12 +433,12 @@ function calculatorName(model) {
 
 /** The derived label of ONE output row: its table label when the table names the
  *  indicator (`tableNames`), else its formula (the P2 rule). */
-export function derivedRowName(row, model = null) {
+export function derivedRowName(row, model = null, mode = 'plain') {
   const t = model ? tableNames(model) : null
   const label = t && row ? t.labelOf.get(row.key) : null
   if (label) return clip(label, LABEL_MAX)
   const library = libraryLabelOf(row, model)
-  return library ? clip(library, LABEL_MAX) : formulaRowName(row)
+  return library ? clip(library, LABEL_MAX) : formulaRowName(row, mode)
 }
 
 /** ⭐ 2026-11-18 — A LIBRARY OUTPUT IS NAMED BY THE LIBRARY. A line that IS one of a checked
@@ -396,13 +461,13 @@ function libraryLabelOf(row, model) {
  * alone. Primary output first; a second output is named too; more are counted.
  * @param {{rows: {key, ast, hidden}[], scanKey: string}} model
  */
-export function derivedDefName(model) {
+export function derivedDefName(model, mode = 'plain') {
   const t = tableNames(model)
   if (t && t.title) return clip(t.title, NAME_MAX)
   if (t && t.labels.length) {
     return clip(t.labels.slice(0, 2).join(' · ') + (t.labels.length > 2 ? ` +${t.labels.length - 2}` : ''), NAME_MAX)
   }
-  return calculatorName(model) || formulaDefName(model)
+  return calculatorName(model) || formulaDefName(model, mode)
 }
 
 /** The P2 formula-derived definition name (also what older saves stored). */
@@ -448,6 +513,9 @@ export function libraryTitleOf(model) {
   return entry && heldLibraryIndicator(model, entry) ? entry : null
 }
 
+/** Every wording a formula-derived name may have been SAVED in: today's, and the two before it. */
+const OLDER_WORDINGS = Object.freeze(['plain', 'formula', 'legacy'])
+
 /** What "auto" looked like before the patch: name + each row's label. */
 export function namingSnapshot(model) {
   if (!model) return null
@@ -461,19 +529,21 @@ export function namingSnapshot(model) {
   const rows = new Map(model.rows.map((r, i) => [r.key, {
     label: r.label || '',
     auto: i === 0
-      ? (r.label || '') === '' || r.label === derivedRowName(r, model)
-        || (notPrimary(model, r) && (r.label === formulaRowName(r) || r.label === formulaRowName(r, 'formula')))
-      : !!r.label && (r.label === derivedRowName(r, model) || r.label === formulaRowName(r)
-        || r.label === formulaRowName(r, 'formula')),
+      ? (r.label || '') === '' || r.label === derivedRowName(r, model) || r.label === derivedRowName(r, model, 'legacy')
+        || (notPrimary(model, r) && OLDER_WORDINGS.some((w) => r.label === formulaRowName(r, w)))
+      : !!r.label && (r.label === derivedRowName(r, model) || r.label === derivedRowName(r, model, 'legacy')
+        || OLDER_WORDINGS.some((w) => r.label === formulaRowName(r, w))),
   }]))
   // ⭐ An older save stored the FORMULA name; it is still automatic, so it follows.
   // ⭐ 2026-10-29: and a name derived in the FORMULA wording ("EMA 9 > EMA 20", what every
   // save before the plain wording stored) is automatic too, so it moves to the plain words
   // on the next maths edit rather than being frozen as if the member had typed it.
+  // ⭐ 2026-11-21: and so is a name derived in the LEGACY wording ("PERCENTRANK 100", what every save before
+  // the function words reached names stored): it moves to "Percent rank 100" on the next edit.
   return {
     name: model.name,
-    nameAuto: model.name === derivedDefName(model) || model.name === formulaDefName(model)
-      || model.name === formulaDefName(model, 'formula'),
+    nameAuto: model.name === derivedDefName(model) || model.name === derivedDefName(model, 'legacy')
+      || OLDER_WORDINGS.some((w) => model.name === formulaDefName(model, w)),
     libraryTitle: libraryTitleOf(model),
     rows,
   }

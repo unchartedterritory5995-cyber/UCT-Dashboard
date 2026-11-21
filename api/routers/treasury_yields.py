@@ -3,7 +3,8 @@
   GET /api/research/treasury-yields     RATES: the daily Treasury yield at each maturity with its
                                         changes in basis points, the 10-year minus 2-year and
                                         10-year minus 3-month spreads, and five years of daily
-                                        history for the small pictures
+                                        history for the small pictures; plus the real yield
+                                        curve (TIPS) and the breakevens, as their own block
 
 Paid, like the other research reads: 401 signed out, 402 not on a paid plan. No feature flag and
 no new environment variable.
@@ -42,6 +43,15 @@ def get_treasury_yields(user: dict = Depends(require_paid)):
     minus 2-year and 10-year minus 3-month spreads (with whether each is inverted and for how many
     trading days), and five years of daily history for the 2-year, 10-year, 30-year and both
     spreads. Every `ok` answer carries the date of the newest figure and when the site read it.
+
+    An `ok` answer also carries `real`: the Treasury's daily par REAL yield curve (TIPS, 5 to 30
+    years) and the breakeven at each of those maturities (nominal minus real, computed by the
+    server), as its own block with its own status, dates and source
+    (`api/services/treasury_real_yields.py`). That block is never waited for and is only asked for
+    once the nominal answer is held, so it cannot delay or replace the yields above.
     """
-    from api.services import treasury_yields
-    return treasury_yields.get_yields()
+    from api.services import treasury_real_yields, treasury_yields
+    answer = treasury_yields.get_yields()
+    if isinstance(answer, dict) and answer.get("status") == "ok":
+        answer = {**answer, "real": treasury_real_yields.get_real(wait_s=0)}
+    return answer

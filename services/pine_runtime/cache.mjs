@@ -52,6 +52,9 @@ export function canonicalCtx(ctx) {
   // W9-T11: a broker run's window decides its answer. Appended ONLY when the job states one, so
   // every key a job without it had is unchanged; `window=` cannot collide with an input part (hex=hex).
   if (ctx.historyWindowBars !== undefined) parts.push(`window=${num(ctx.historyWindowBars)}`)
+  // (2026-11-20) the served depth decides whether a run asks [B-START-DEEP] (its rules, its report's data note): in the
+  // key only when the job states one, so every key a job without it had is unchanged
+  if (ctx.listingDepthBars !== undefined) parts.push(`depth=${num(ctx.listingDepthBars)}`)
   return parts.join('|')
 }
 

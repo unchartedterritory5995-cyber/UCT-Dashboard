@@ -1,0 +1,22 @@
+//@version=6
+indicator("UCTPROBE_VW_A6_ARM_DRAW_PERBAR", overlay = true, max_lines_count = 500, max_labels_count = 500)
+
+// PROVENANCE: written 2026-11-20 for the Pine parity programme, objects unit A6 (capture queue
+// docs/pine/capture-queue-2026-11-20-a6-arm-draw.md, Q-A6-1). NEVER COMPILED ON TRADINGVIEW.
+// A drawing made in one arm of `?:` inside a function, on a test that changes every bar. Is the
+// drawing made only on the calls that arm is taken (and is the `var` handle the call site's), and
+// does `line.delete` of the previous handle act on every call?
+//   L01  f(close > open, high): a line from the previous bar's high, made only where up
+//   B01  g(close > open, low): a label at the low, the else arm `na`, never deleted (all are kept)
+// CAPTURE: NYSE:RDDT 1D from the listing; AMEX:SPY 1D second. Record EVERY line and label.
+
+f(s, y) =>
+    var line ln = na, line.delete(ln)
+    ln := s ? line.new(bar_index - 1, y, bar_index, y, color = color.green) : na
+    y
+g(s, y) =>
+    lb = s ? label.new(bar_index, y, "B01") : na
+    y
+
+plot(f(close > open, high), "L01_high", display = display.data_window)
+plot(g(close > open, low), "B01_low", display = display.data_window)

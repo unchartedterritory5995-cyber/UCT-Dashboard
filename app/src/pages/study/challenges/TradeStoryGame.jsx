@@ -197,8 +197,8 @@ function StopCard({ point, pick, plan, long, inPosition, position, missOpen, las
       </div>
       <div className={`${s.replayPauseTiles} ${g.tiles}`} role="radiogroup" aria-label={q} data-testid="story-calls">
         {ACTIONS.map((a, i) => (
-          <Tile key={a} n={i + 1} i={i} label={actionLabel(a, long)} state={stateOf(a)} disabled={done} role="radio" checked={pick === a}
-            onClick={() => onPick(a)} testId={`story-call-${a}`} />
+          <Tile key={a} n={i + 1} i={i} state={stateOf(a)} disabled={done} role="radio" checked={pick === a}
+            onClick={() => onPick(a)} testId={`story-call-${a}`}>{actionLabel(a, long)}</Tile>
         ))}
       </div>
       {done && w.ok !== true ? (

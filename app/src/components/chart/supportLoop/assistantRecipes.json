@@ -807,6 +807,81 @@
     }
    },
    "served": true
+  },
+  {
+   "id": "distribution-days",
+   "title": "A count of distribution days in which each day stops counting after a rally",
+   "asks": [
+    "distribution day",
+    "distribution days",
+    "distribution day count"
+   ],
+   "shows": "a count over a window in which each counted bar is judged by the bars AFTER it: a loop over the window (`for i = 0 to win - 1`, reading the condition `i` bars back with `isDist[i]`) and, inside it, a loop over the later bars (`for j = 0 to i - 1`) that drops the day once a later close has risen far enough above its close. No `var` is needed (each bar counts afresh). ONE plot, the count, in its own pane",
+   "chart": "daily",
+   "source": "//@version=5\nindicator(\"Distribution day count\", overlay=false)\nwin       = input.int(25, \"Window (bars)\", minval=1, maxval=200)\ndropPct   = input.float(0.2, \"Minimum close drop (%)\", minval=0.0, step=0.1)\nexpirePct = input.float(5.0, \"Stop counting a day after a rise of (%)\", minval=0.1, step=0.5)\n// a distribution day: a close down at least dropPct percent from the prior close, on more volume than the prior bar\nisDist = close <= close[1] * (1 - dropPct / 100) and volume > volume[1]\n// the days in the window that still count: a day stops counting once any LATER close is expirePct percent above its close\ncount = 0\nfor i = 0 to win - 1\n    if isDist[i]\n        expired = false\n        if i > 0\n            for j = 0 to i - 1\n                if close[j] >= close[i] * (1 + expirePct / 100)\n                    expired := true\n        if not expired\n            count += 1\nplot(count, \"Distribution days\", color=color.red, style=plot.style_stepline)\n",
+   "lane": "runtime",
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart, with 1 note",
+   "draws": false,
+   "runs": {
+    "fromListing": {
+     "ok": true,
+     "values": 2000
+    },
+    "offListing": {
+     "ok": true,
+     "values": 1725
+    }
+   },
+   "member": {
+    "fromListing": {
+     "forming": "runs",
+     "finished": "runs"
+    },
+    "offListing": {
+     "forming": "runs",
+     "finished": "runs"
+    }
+   },
+   "served": true
+  },
+  {
+   "id": "follow-through-day",
+   "title": "A rally attempt and its follow-through day",
+   "asks": [
+    "follow-through day",
+    "follow-through days",
+    "rally attempt",
+    "day 1 of a rally"
+   ],
+   "shows": "a state kept across bars in `var` variables (is an attempt live, which day of it this is, the low it started on), with the order of the two steps written out: FIRST the ending test and the day count of a live attempt, THEN the start test, so a new attempt may start on the bar the old one ended. The signal is one condition over that state, drawn as ONE `plotshape` under the bar and nothing else",
+   "chart": "daily",
+   "source": "//@version=5\nindicator(\"Follow-through day\", overlay=true)\nlookback    = input.int(60, \"Highest-close lookback (bars)\", minval=2)\ndrawdownPct = input.float(5.0, \"Correction: percent below the highest close\", minval=0.0, step=0.25)\nminDay      = input.int(4, \"Earliest day of the attempt\", minval=1)\ngainPct     = input.float(1.25, \"Minimum gain on the day (%)\", minval=0.0, step=0.05)\n// in a correction: the close is at least drawdownPct percent below the highest close of the lookback (this bar included)\nhiClose = ta.highest(close, lookback)\ninCorrection = close <= hiClose * (1 - drawdownPct / 100)\n// ONE rally attempt at a time, kept across bars: whether it is live, which day of it this is, and the low it started on\nvar bool  active   = false\nvar int   dayCount = 0\nvar float startLow = na\nif active\n    // the attempt ends when a later bar trades below the low of the bar it started on\n    if low < startLow\n        active := false\n        dayCount := 0\n        startLow := na\n    else\n        dayCount += 1\n// it starts on a bar that closes above the prior close while in a correction (a new one may start on the bar the old one ended)\nif not active and close > close[1] and inCorrection\n    active := true\n    dayCount := 1\n    startLow := low\n// a follow-through day: day minDay or later of a live attempt, up at least gainPct percent on more volume than the prior bar\nfollowThrough = active and dayCount >= minDay and close >= close[1] * (1 + gainPct / 100) and volume > volume[1]\nplotshape(followThrough, \"Follow-through day\", shape.triangleup, location.belowbar, color.green, size=size.small)\n",
+   "lane": "runtime",
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart, with 1 note",
+   "draws": false,
+   "runs": {
+    "fromListing": {
+     "ok": true,
+     "values": 2000
+    },
+    "offListing": {
+     "ok": true,
+     "values": 2000
+    }
+   },
+   "member": {
+    "fromListing": {
+     "forming": "runs",
+     "finished": "runs"
+    },
+    "offListing": {
+     "forming": "runs",
+     "finished": "runs"
+    }
+   },
+   "served": true
   }
  ],
  "stops": [

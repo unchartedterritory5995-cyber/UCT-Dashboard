@@ -1,0 +1,123 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "RMA-SEED (feat/pine-dmi-rma-seed, engine 92): ta.rma's seed is the exactly rounded sum / n (one rule, rmaSeedMean, read by CARRIED.rma on both lanes, rsiPineStep and FN_PINE.rsi; Python twin _rma_seed_mean), and ta.dmi is TradingView's body over ta.rma (PINE_TUPLE_BUILTINS.dmi, unequal periods served). Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "S1",
+   "mutant": "ta.rma's seed is the left-to-right running sum again (the kernel table, both lanes)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "const rmaStep = smoothStepOf((prev, v, n) => (prev * (n - 1) + v) / n, true)",
+   "to": "const rmaStep = smoothStepOf((prev, v, n) => (prev * (n - 1) + v) / n, false)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/rmaSeedDmi.test.js",
+   "expectRed": "seeds with it"
+  },
+  {
+   "id": "S2",
+   "mutant": "the one seed rule sums left to right",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "export const rmaSeedMean = (values, lo, n) => exactSum(values, lo, lo + n - 1) / n",
+   "to": "export const rmaSeedMean = (values, lo, n) => { let s = 0; for (let k = lo; k < lo + n; k += 1) s += values[k]; return s / n }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/rmaSeedDmi.test.js",
+   "expectRed": "exactly rounded sum over its length"
+  },
+  {
+   "id": "S3",
+   "mutant": "the runtime lane's ta.rsi kernel seeds its gain average left to right",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    st[o + 4] = rmaSeedMean(st, o + RSI_PINE_CELLS, n); st[o + 5] = rmaSeedMean(st, o + RSI_PINE_CELLS + cap, n)",
+   "to": "    st[o + 4] = Array.from(st.subarray(o + RSI_PINE_CELLS, o + RSI_PINE_CELLS + n)).reduce((s, x) => s + x, 0) / n; st[o + 5] = rmaSeedMean(st, o + RSI_PINE_CELLS + cap, n)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/rmaSeedDmi.test.js",
+   "expectRed": "seeds its two averages"
+  },
+  {
+   "id": "S4",
+   "mutant": "the host lane's Pine ta.rsi drops the seed rule (reads the native RSI's running sum)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  rsi: (s, n) => bindShipped(['c'], [s], s.length, (bars) => computeRSI(bars, n, PINE_RSI)),",
+   "to": "  rsi: (s, n) => bindShipped(['c'], [s], s.length, (bars) => computeRSI(bars, n)),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/rmaSeedDmi.test.js",
+   "expectRed": "seeds its two averages"
+  },
+  {
+   "id": "S5",
+   "mutant": "computeRSI ignores the seed it is handed for the gain average",
+   "file": "app/src/components/chart/indicators.js",
+   "from": "      avgGain = seedMean ? seedMean(gains, 0, period) : sumGain / period",
+   "to": "      avgGain = seedMean ? gains.reduce((s, x) => s + x, 0) / period : sumGain / period",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/rmaSeedDmi.test.js",
+   "expectRed": "seeds its two averages"
+  },
+  {
+   "id": "S6",
+   "mutant": "the column driver sizes a growing store as three scalars (the seed values are lost)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  const st = new Float64Array(carriedCellsOf(spec, n, series.length))",
+   "to": "  const st = new Float64Array(typeof spec.cells === 'function' ? 3 : spec.cells)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/rmaSeedDmi.test.js",
+   "expectRed": "seeds with it"
+  },
+  {
+   "id": "D1",
+   "mutant": "ta.dmi's ADX smooths over the FIRST length (unequal pairs wrong)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        bin('/', pc('math.abs', [bin('-', plus, minus)]), denominator), a[1]]))",
+   "to": "        bin('/', pc('math.abs', [bin('-', plus, minus)]), denominator), a[0]]))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/rmaSeedDmi.test.js",
+   "expectRed": "all seven columns"
+  },
+  {
+   "id": "D2",
+   "mutant": "the directional move is 0, not na, where ta.change has no previous bar",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      const dm = (x, y) => tern(pc('na', [x]), nm('na'),",
+   "to": "      const dm = (x, y) => tern(pc('na', [x]), num(0),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/rmaSeedDmi.test.js",
+   "expectRed": "all seven columns"
+  },
+  {
+   "id": "D3",
+   "mutant": "the ADX denominator is `sum == 0 ? 1 : sum` inline again: the `ta.rma` calls inside `sum` sit in a ?: arm that skips the sum == 0 bars, so the runtime lane stops by name on such a chart",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      const denominator = bin('+', sum, bin('*', tern(bin('==', sum, num(0)), num(1), num(0)), bin('-', num(1), sum)))",
+   "to": "      const denominator = tern(bin('==', sum, num(0)), num(1), sum)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/rmaSeedDmi.test.js",
+   "expectRed": "WHERE SUM == 0"
+  },
+  {
+   "id": "D4",
+   "mutant": "`up` is `ta.change(high)` inlined into the ?: arms again (a call that runs only on the arm taken)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      const up = bin('-', nm('high'), off(nm('high'), 1))",
+   "to": "      const up = pc('ta.change', [nm('high')])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/rmaSeedDmi.test.js",
+   "expectRed": "THE MEMBER DOOR"
+  },
+  {
+   "id": "P1",
+   "mutant": "the Python twin's seed rule sums left to right",
+   "file": "api/services/ast_interpret.py",
+   "from": "    return _exact_sum(values, 0, len(values) - 1) / len(values)",
+   "to": "    total = 0.0\n    for v in values:\n        total += v\n    return total / len(values)",
+   "rail": "python -m pytest -q tests/test_ast_rma_seed.py",
+   "expectRed": "exactly_rounded"
+  },
+  {
+   "id": "P2",
+   "mutant": "the Python twin's Pine ta.rsi drops the seed rule",
+   "file": "api/services/ast_interpret.py",
+   "from": "                                                                   seed_mean=_rma_seed_mean)),",
+   "to": "                                                                   seed_mean=None)),",
+   "rail": "python -m pytest -q tests/test_ast_rma_seed.py",
+   "expectRed": "pine_rsi_seeds_with_it"
+  },
+  {
+   "id": "P3",
+   "mutant": "compute_rsi_raw ignores the seed it is handed for the gain average",
+   "file": "api/services/indicator_compute.py",
+   "from": "            avg_gain = seed_mean(gains) if seed_mean is not None else sum_gain / period",
+   "to": "            avg_gain = __import__('functools').reduce(lambda s, x: s + x, gains, 0.0) / period if seed_mean is not None else sum_gain / period",
+   "rail": "python -m pytest -q tests/test_ast_rma_seed.py",
+   "expectRed": "pine_rsi_seeds_with_it"
+  }
+ ]
+}

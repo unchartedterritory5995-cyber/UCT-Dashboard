@@ -578,6 +578,35 @@ export const FUNCTIONS = [
     ticker: { panel: 'DividendCalendar' }, market: { panel: 'DividendCalendar' } },
   { code: 'CACT', label: 'Corporate actions (splits, dividends, name changes)', group: 'Security',
     ticker: { panel: 'CorporateActions' } },
+  // AUCT (2026-11-21): the Treasury auctions coming up and the results of the recent ones
+  // (GET /api/research/treasury-auctions, read from the US Treasury's Fiscal Data service; the
+  // server holds one answer and looks for new records once each weekday evening). No argument.
+  // AUCT is not in the site's stock universe.
+  { code: 'AUCT', label: 'Treasury auctions (upcoming and recent results)', group: 'Market',
+    market: { panel: 'TreasuryAuctions' } },
+  // FED (2026-11-21): Fed watch. The newest FOMC statement with a word-level redline against the one
+  // before, live Fed headlines from the news wire's own store, the Board's speeches and testimony,
+  // this week's Fed speakers and the next meeting from the economic calendar, the policy rate, the
+  // officials' median rate projections and the New York Fed's Survey of Market Expectations
+  // (GET /api/research/fed-watch; the server reads the Board's and the New York Fed's public pages
+  // on its own schedule). No odds from futures prices. FED is not in the site's stock universe.
+  { code: 'FED', label: 'Fed watch (statements, speeches, Fed headlines, the next meeting)', group: 'Market',
+    market: { panel: 'FedWatch' } },
+  // ECON (2026-11-21): the economy board. The official prints that move markets, theme by theme
+  // (inflation, jobs, growth and spending, housing, rates), each with the print before, the change,
+  // the period, the release day and the next release from the release calendar, plus the releases
+  // due in the next 7 days (GET /api/econ/latest: the econ routes' own flag and gate, answered from
+  // what the econ service already published). No argument. ECO is a real stock (in the site's
+  // universe), so the code is ECON, which is not.
+  { code: 'ECON', label: 'Economy dashboard (CPI, jobs, GDP, spending, housing: last print, prior, next release)', group: 'Market',
+    market: { panel: 'Economy' } },
+  // LIQ (2026-11-21): liquidity. Net liquidity (the Fed's total assets minus the TGA minus overnight
+  // reverse repo, a UCT calculation on each H.4.1 Wednesday) with its 1, 4, 13 and 52-week change and
+  // two years of it, then the parts (the Fed's assets, the TGA weekly and daily, reverse repo, reserves,
+  // M2, SOFR). GET /api/econ/latest + GET /api/econ/series: the econ routes' own flag and gate, answered
+  // from what the econ service already published. No argument. LIQ is not in the site's universe.
+  { code: 'LIQ', label: 'Liquidity (Fed balance sheet, TGA, reverse repo, net liquidity)', group: 'Market',
+    market: { panel: 'Liquidity' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -812,7 +841,8 @@ const FUNCTION_WORDS = {
   SENT: { keywords: ['sentiment', 'aaii', 'naaim', 'fear and greed', 'put call', 'macro', 'economy'],
     note: 'The economy rows say so if that feed is switched off.' },
   RATES: { keywords: ['treasury yields', 'yield curve', 'interest rates', 'bond yields', '10 year yield', '2 year yield',
-    'inverted curve', '2s10s'], note: 'End-of-day figures, one a day.' },
+    'inverted curve', '2s10s', 'real yields', 'tips yields', 'breakeven inflation'],
+    note: 'End-of-day figures, one a day. Real yields and breakevens are their own block, with their own date.' },
   SCAT: { keywords: ['scatter', 'scatter plot', 'market map'] },
   HELP: { example: 'HELP CHK', keywords: ['help', 'functions', 'commands'] },
   RRG: { keywords: ['rotation', 'sector rotation', 'sectors'] },
@@ -892,6 +922,21 @@ const FUNCTION_WORDS = {
   CACT: { example: 'NVDA CACT', keywords: ['corporate actions', 'splits', 'stock split', 'dividend history', 'name change',
     'ticker change', 'past dividends'],
     note: 'Only what the server already holds for the stock: splits, dividends by ex-date and ticker changes.' },
+  AUCT: { example: 'AUCT', keywords: ['treasury auctions', 'auctions', 'bond auction', 'auction results', 'bid to cover',
+    'indirect bidders', 'treasury supply'],
+    note: 'Auctions ahead and the last 45 days of results. A result shows the evening of the auction day.' },
+  FED: { example: 'FED', keywords: ['fed', 'fomc', 'federal reserve', 'fed speakers', 'powell', 'fed statement', 'rate decision',
+    'fed headlines', 'dot plot', 'fed minutes'],
+    note: 'Statements, speeches and projections from the Board, live Fed headlines and a survey of market professionals. No odds from futures prices.' },
+  // 'economy' stays with SENT (its own keyword since wave 8).
+  ECON: { example: 'ECON', keywords: ['economic data', 'cpi', 'inflation', 'jobs report', 'payrolls', 'unemployment', 'gdp',
+    'retail sales', 'jobless claims', 'pce', 'housing starts'],
+    note: 'Official releases from the agencies, each with the print before and the next release date. No forecasts.' },
+  // 'fed' and 'federal reserve' stay with FED, 'treasury' with RATES. 'qt' and 'm2' are under the
+  // three-letter floor of the word search: 'quantitative tightening' and 'money supply' find LIQ.
+  LIQ: { example: 'LIQ', keywords: ['liquidity', 'net liquidity', 'fed balance sheet', 'reverse repo', 'rrp', 'tga',
+    'qt', 'quantitative tightening', 'm2', 'money supply', 'reserves'],
+    note: 'Net liquidity is a UCT calculation from the Fed and Treasury figures, each part beside it. No forecasts.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

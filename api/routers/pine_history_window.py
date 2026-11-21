@@ -7,6 +7,12 @@ chart lane "reads ``bars_window`` through an endpoint". This is that endpoint, a
 
   * The value is ``bars_window.HISTORY_WINDOW_BARS`` (rulings R10/R13, D9: it stays 5000), imported,
     never restated: ``tests/test_history_window_one_authority.py`` parses this file.
+  * ⭐⭐ (2026-11-19, D9 strategy-only, coordinator ruling) a SECOND field, ``strategyHistoryWindowBars``
+    (``bars_window.STRATEGY_HISTORY_WINDOW_BARS``, this endpoint its one consumer): the window a strategy run on a
+    member's chart takes. ``historyWindowBars`` keeps its value and its meaning to every reader that knows only it
+    (a bundle from before this field reads 5,000, exactly as before); a reader that knows both runs over the
+    strategy window and reads ``historyWindowBars`` as the depth a run from the listing is served at without the
+    deep-start rule (B-START-DEEP, ``runtime/brokerRules.js``).
   * It answers a constant, so it decides nothing: which bars a run covers, whether it reaches the
     listing, and the refusals (``runtime:strategy-start``, Q-S1n) stay the runtime's
     (``runtimeColumns.js::computeStrategyWindow``, ``vm.js`` [B-START]).
@@ -19,12 +25,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from api.middleware.auth_middleware import get_current_user
-from api.services.bars_window import HISTORY_WINDOW_BARS
+from api.services.bars_window import HISTORY_WINDOW_BARS, STRATEGY_HISTORY_WINDOW_BARS
 
 router = APIRouter()
 
 
 @router.get("/api/pine/history-window")
 def history_window(user: dict = Depends(get_current_user)) -> dict:
-    """The one history window a strategy run takes, for the chart's run context."""
-    return {"historyWindowBars": HISTORY_WINDOW_BARS}
+    """The history windows a strategy run on the chart reads, for its run context."""
+    return {"historyWindowBars": HISTORY_WINDOW_BARS, "strategyHistoryWindowBars": STRATEGY_HISTORY_WINDOW_BARS}

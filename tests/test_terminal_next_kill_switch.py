@@ -634,6 +634,12 @@ ACKNOWLEDGED_FRONTEND_GATES = {
         "TEST: fakes `cohorts` to drive the Create Indicator gate through the command palette",
     "app/src/agent/agentIndicatorsM1.test.jsx":
         "TEST: fakes `cohorts` to drive the Create Indicator gate through the agent manifest",
+    # 2026-11-20: the charts top bar's "Create indicator" door. The button itself asks the gate above
+    # (`useCreateIndicatorAccess`) and names no cohort; these two tests set the member's `cohorts`.
+    "app/src/pages/charts/CreateIndicatorTopBarButton.test.jsx":
+        "TEST: fakes `cohorts` to drive the Create Indicator gate on the charts top bar's button",
+    "app/src/pages/charts/createIndicatorTopBar.wire.test.jsx":
+        "TEST: fakes `cohorts` to drive the Create Indicator gate through the rendered charts page",
     # Test files: each builds a fake auth payload with or without the cohort to drive the gate.
     "app/src/pages/terminal/TerminalShell.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/TerminalBoards.test.jsx": "TEST: fakes `cohorts` to drive the gate",

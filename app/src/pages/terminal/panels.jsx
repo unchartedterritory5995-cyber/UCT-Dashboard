@@ -148,6 +148,14 @@ export const PANEL_IMPORTERS = {
   IpoCalendar: () => import('./panels/IpoCalendarPanel'),
   DividendCalendar: () => import('./panels/DividendCalendarPanel'),
   CorporateActions: () => import('./panels/CorporateActionsPanel'),
+  // Market wave C (2026-11-21): Treasury auctions, upcoming and recent results
+  TreasuryAuctions: () => import('./panels/TreasuryAuctionsPanel'),
+  // FED (2026-11-21): the FOMC statement and its redline, Fed headlines, speeches, the next meeting, the rate, projections, the survey
+  FedWatch: () => import('./panels/FedWatchPanel'),
+  // ECON (2026-11-21): the economy board, theme by theme, with the releases due in the next 7 days
+  Economy: () => import('./panels/EconomyPanel'),
+  // LIQ (2026-11-21): net liquidity (a UCT calculation from the Fed and Treasury figures), its changes, two years of it, the parts
+  Liquidity: () => import('./panels/LiquidityPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),

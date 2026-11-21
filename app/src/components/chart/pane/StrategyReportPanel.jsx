@@ -156,13 +156,18 @@ function TradeList({ trades }) {
   )
 }
 
-/** The stamp: the D2 sentence (every v1 record carries one), the start date and the as-of bar. */
+/** The stamp: the D2 sentence (every v1 record carries one), a deep-window run's data-source sentence, the start date
+ *  and the as-of bar. */
 function Stamp({ window: w }) {
   if (!w) return null
   return (
     <div className={styles.stamp} data-testid="strategy-report-stamp">
       {w.sentence
         ? <p className={styles.startSentence} data-testid="strategy-report-start-sentence">{w.sentence}</p>
+        : null}
+      {/* the data-source note of a deep-window run (`brokerReport.js::DATA_SOURCE_SENTENCE`), verbatim */}
+      {w.dataSentence
+        ? <p className={styles.startSentence} role="note" data-testid="strategy-report-data-sentence">{w.dataSentence}</p>
         : null}
       <p className={styles.line} data-testid="strategy-report-asof">
         {w.startDate ? `Starts ${w.startDate} (UTC)` : 'No start bar'}
