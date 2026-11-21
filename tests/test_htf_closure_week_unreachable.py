@@ -1,9 +1,11 @@
 """⭐⭐ RULING 2 (C), the coordinator's tripwire (2026-11-20): WHY NO SERVED SERIES REACHES A CLOSURE-DAY WEEK.
 
 A bar dated on a day the New York exchange held no session (a weekend, a full closure) is kept in a weekly / monthly
-aggregate by both lanes now; whether TradingView's week holds it is UNMEASURED (Q-REQ-CLOSURE:
-``vw-req-w-closure-day-eurusd-1d`` / ``-es1-1d``), and the withhold that would name it is deferred to that capture
-because nothing the store serves holds such a bar. This file pins that reason, so it cannot quietly stop being true:
+aggregate by both lanes now. ⭐⭐ Q-CLOSURE ANSWERED (2026-11-21, captures ``vw-req-w-closure-day-{eurusd,es1}-1d-2026-11-20``):
+TradingView's week HOLDS such a bar, and such a symbol's daily sessions open the evening before, so a week is its
+SESSION's (``ast_interpret._session_keying``; what the venue's own calendar decides is withheld by name,
+``request:htf-venue-calendar``; ``tests/test_pine_htf_session_week.py``). Nothing the store serves holds such a bar.
+This file pins that reason, so it cannot quietly stop being true:
 
 1. every ticker the NYSE calendar governs (``date_bar_keys.calendar_applies``) loses such a daily row at the store's serve
    door (``bars_fetch._fmt_sqlite_bars``) and at its producer (``bars_fetch._massive_raw_to_iso``);
@@ -13,8 +15,10 @@ because nothing the store serves holds such a bar. This file pins that reason, s
    (``htfExchangeDay.test.js``'s tripwire half).
 
 ⛔ If this goes red because someone serves FX, futures or crypto daily bars (or exempts another ticker from the
-calendar), the weekly / monthly aggregate of a closure-day bar becomes reachable: land Q-REQ-CLOSURE and its withhold
-(or the aggregate it measures) FIRST.
+calendar), the weekly / monthly aggregate of a closure-day bar becomes reachable. Then check two things FIRST: the serve
+door above DROPS a closure-day daily row for every calendar ticker, which TradingView contradicts for FX and futures
+(it holds Good Friday's EURUSD bar), and the served dates must be ones ``_session_keying`` reads (a trading day, or the
+calendar date of the evening open, never a mix of the two).
 """
 from __future__ import annotations
 
