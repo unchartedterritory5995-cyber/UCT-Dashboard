@@ -363,6 +363,57 @@ const TERMINAL_DATA = {
         was: { d1: 0.73, w1: null, m1: 0.53, m3: null, y1: null }, change_bp: { d1: 2, w1: null, m1: 22, m3: null, y1: null } }],
       history: { from: '2025-10-30', to: '2026-10-30', points: 250, years: 1, columns_left_out: true }, rows: 250, read_at: '2026-11-03T15:40:00Z', basis: 'fixture', units: 'fixture', source: 'fixture', check: null } }
   },
+  // Terminal data wave 7 (dark kinds `market.regime`, `stock.setups`, `stock.eventsTimeline`, `uct20.list`, `options.ivHistory`,
+  // `dilution.watch`; MD-1 §4.16): the same rule — each adapter's own data shape, made-up names and figures. `as_of` is the
+  // data's own date (the time the read was computed, the newest bar judged, the newest event, the wire run, the newest
+  // logged session, the newest filing; never the day of the read).
+  'market.regime': () => ({ freshness: 'periodic', as_of: '2026-11-03T15:30:00Z', data: { regime: 'bull_correction', label: 'Bull correction', band: 'YELLOW', confidence: 0.6,
+    signals: { pct_above_50ma: 48, pct_above_200ma: 61, new_highs: 40, new_lows: null, distribution_days: 4, market_phase: 'Made-up phase' },
+    reasons: ['a made-up reason line'], reasons_left_out: 1, left_out: ['uct_exposure_rating', 'vix'], vocabulary_version: 'fixture', computed_at: '2026-11-03T15:30:00Z' } }),
+  'stock.setups': (p) => {
+    const all = [{ setup: 'made_up_base', name: 'Made-up base', asof_date: '2026-10-30', confidence: 82, key_level: 105.5, checks_passed: 5, checks_made: 6 },
+      { setup: 'made_up_flag', name: 'Made-up flag', asof_date: '2026-10-28', confidence: 64, key_level: null, checks_passed: 3, checks_made: 4 }]
+    const rows = all.slice(0, p.rows || 10)
+    return { freshness: 'historical', as_of: '2026-10-30T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), tf: 'D', rows, count: rows.length, confirmed_total: all.length, cut: rows.length < all.length,
+      evaluated: 5, window_days: 10, min_confidence: 50, as_of: '2026-10-30', judged_at: '2026-10-30T21:30:00Z', expected_session: '2026-10-30', left_out: ['rationale', 'checks'] } }
+  },
+  'stock.eventsTimeline': (p) => {
+    const all = [{ date: '2026-11-12', kind: 'earnings', title: 'Made-up scheduled report', detail: null, source: 'earnings', print_date: '2026-11-12', print_label: 'Q3', print_state: 'scheduled', offset: 0, stage: 'T' },
+      { date: '2026-10-29', kind: 'filing', title: 'Made-up filing', detail: 'Form 8-K', source: 'filing', print_date: '2026-11-12', print_label: 'Q3', print_state: 'scheduled', offset: -10, stage: 'T-10' },
+      { date: '2026-08-13', kind: 'earnings', title: 'Made-up earnings report', detail: 'a made-up detail', source: 'earnings', print_date: '2026-08-13', print_label: 'Q2', print_state: 'reported', offset: 0, stage: 'T' }]
+    const rows = all.slice(0, p.rows || 20)
+    return { status: 'partial', freshness: 'historical', as_of: '2026-10-29T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), staged: true, reason: null, offset_unit: 'weekdays (fixture)',
+      prints: [{ date: '2026-11-12', label: 'Q3', state: 'scheduled' }, { date: '2026-08-13', label: 'Q2', state: 'reported' }], rows, count: rows.length, total: all.length, cut: rows.length < all.length,
+      sources: { earnings: 'ok', uct_catalyst: 'empty', filing: 'ok', room_spike: 'not_held' }, as_of: '2026-10-29', left_out: ['thesis', 'url'] } }
+  },
+  'uct20.list': (p) => {
+    const all = [{ rank: 1, symbol: 'AAA', rs: 97, score: 88, ret_1m: 12.5, ret_3m: 40.25, earnings_date: '2026-11-18' },
+      { rank: 2, symbol: 'BBB', rs: 95, score: 84, ret_1m: -2, ret_3m: 18, earnings_date: null },
+      { rank: 3, symbol: 'CCC', rs: null, score: 80, ret_1m: null, ret_3m: null, earnings_date: null }]
+    const rows = all.slice(0, p.rows || 20)
+    return { freshness: 'historical', as_of: '2026-11-03T04:00:00Z', data: { rows, count: rows.length, total: all.length, cut: rows.length < all.length, as_of: '2026-11-03', status: 'fresh', held_since: null,
+      pending_removed: 1, left_out: ['entry', 'stop', 'target_1', 'target_2', 'portfolio', 'nav', 'price', 'change', 'thesis', 'company_desc'] } }
+  },
+  'options.ivHistory': (p) => {
+    const all = [{ date: '2026-10-30', atm_iv: 0.425, atm_dte: 28, atm_expiration: '2026-11-27', rule: 'closest-30', complete: true },
+      { date: '2026-10-29', atm_iv: null, atm_dte: null, atm_expiration: null, rule: 'closest-30', complete: false },
+      { date: '2026-10-28', atm_iv: 0.4, atm_dte: 30, atm_expiration: '2026-11-27', rule: 'closest-30', complete: true }]
+    const rows = all.slice(0, p.rows || 20)
+    return { freshness: 'historical', as_of: '2026-10-30T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), rows, count: rows.length, total: all.length, cut: rows.length < all.length, as_of: '2026-10-30',
+      logging_began: '2026-10-28', covers_from: '2026-10-28', covers_to: '2026-10-30', sessions_logged: 3, sessions_with_iv: 2, missing_sessions: 0, rank: null, rank_note: '3 sessions logged, rank needs 20.',
+      rank_min_sessions: 20, partial: false, partial_reasons: [], expected_session: '2026-10-30', source: 'fixture' } }
+  },
+  'dilution.watch': (p) => {
+    const all = [{ date: '2026-10-21', form: '424B5', kind: 'offering', what: 'Made-up prospectus supplement', under: { form: 'S-3', filed: '2025-06-02', shelf: true } },
+      { date: '2026-03-10', form: '8-K', kind: 'unregistered', what: 'Made-up unregistered sale', under: null },
+      { date: '2025-06-02', form: 'S-3', kind: 'registration', what: 'Made-up shelf registration', under: null }]
+    const rows = all.slice(0, p.rows || 15)
+    return { freshness: 'historical', as_of: '2026-10-27T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), state: 'ok', company: 'Made-up Company Inc', fund_like: false,
+      window: { years: 3, from: '2023-11-03', to: '2026-11-03', recent_months: 12, recent_from: '2025-11-03' }, coverage: { complete: true, from: '2023-11-03', pages_unread: 0 }, newest_filing: '2026-10-27',
+      summary: { live_shelves: 1, pending_shelves: 0, offerings: { m12: 1, y3: 1, latest: '2026-10-21' }, unregistered: { m12: 1, y3: 1, latest: '2026-03-10' }, registrations: { m12: 0, y3: 1, latest: '2025-06-02' } },
+      shelves: [{ form: 'S-3', filed: '2025-06-02', effective: '2025-06-20', expires_estimate: '2028-06-20', state: 'live', offerings: 1, latest_offering: '2026-10-21' }],
+      rows, count: rows.length, total: all.length, cut: rows.length < all.length, as_of: '2026-10-27', read_at: '2026-11-03T15:40:00Z', last_good: false } }
+  },
 }
 /** Wave 6's made-up calendar months: ten years each, except a month nobody counted (February) and a thin one (March). */
 function SEASON_MONTHS(shift) {
@@ -561,7 +612,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
     }
-    // terminal data waves 1 to 6 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    // terminal data waves 1 to 7 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
     if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
         stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })

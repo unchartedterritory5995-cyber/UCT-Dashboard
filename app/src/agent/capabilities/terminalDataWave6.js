@@ -31,7 +31,7 @@
 // isolated kind also needs its own UCT_AGENT_ISOLATED_KINDS entry or every read is refused).
 // ROUTING: the five share ONE words-only group, `marketRecords` (routing.js lists them by action: the stock `data` group their
 // domain names has no room under the routing budget, and waves 3 to 5 hold their own groups at their sizes). It is the 48th
-// and LAST group the server keeps (turn.MAX_GROUPS). Each one's own words (WAVE6_ROUTE_WORDS) are added to that group only
+// group, the last of the 48 the server kept then (turn.MAX_GROUPS; wave 7 raised it). Each one's own words (WAVE6_ROUTE_WORDS) are added to that group only
 // while it is registered, so on a dark server the group has no words and no registered action, and routing is
 // byte-identical to the base.
 import { registerCapability } from '../capabilities'

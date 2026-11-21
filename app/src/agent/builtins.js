@@ -55,6 +55,7 @@ import { registerTerminalWave3Capabilities } from './capabilities/terminalDataWa
 import { registerTerminalWave4Capabilities } from './capabilities/terminalDataWave4'
 import { registerTerminalWave5Capabilities } from './capabilities/terminalDataWave5'
 import { registerTerminalWave6Capabilities } from './capabilities/terminalDataWave6'
+import { registerTerminalWave7Capabilities } from './capabilities/terminalDataWave7'
 import { registerChartDescribeCapability } from './capabilities/chartDescribe'
 import { registerMultiChartCapabilities } from './capabilities/multiChart'
 // ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
@@ -142,4 +143,5 @@ export function registerServerGatedBuiltins() {
   registerTerminalWave4Capabilities()    // Terminal data wave 4: three local-only answers, each while the server serves its own isolated kind
   registerTerminalWave5Capabilities()    // Terminal data wave 5: two local-only answers (FINRA short interest), each while the server serves its own isolated kind
   registerTerminalWave6Capabilities()    // Terminal data wave 6: five local-only answers (seasonality, Market Tide by session, open interest change, Treasury yields), each while the server serves its own isolated kind
+  registerTerminalWave7Capabilities()    // Terminal data wave 7: six local-only answers (market regime, confirmed setups, events timeline, UCT 20 list, IV history, dilution watch), each while the server serves its own isolated kind
 }

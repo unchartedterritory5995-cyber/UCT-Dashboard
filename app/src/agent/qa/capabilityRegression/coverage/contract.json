@@ -2333,6 +2333,19 @@
    ],
    "fast": false
   },
+  "stock.dilutionWatch": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.earnings": {
    "domain": "stock",
    "group": "data",
@@ -2362,6 +2375,19 @@
   "stock.earningsSeason": {
    "domain": "stock",
    "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.eventsTimeline": {
+   "domain": "stock",
+   "group": "marketReads",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2424,9 +2450,35 @@
    ],
    "fast": false
   },
+  "stock.ivHistory": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.longRunLeaders": {
    "domain": "stock",
    "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.marketRegime": {
+   "domain": "stock",
+   "group": "marketReads",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2528,6 +2580,19 @@
    ],
    "fast": false
   },
+  "stock.setups": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.shortInterest": {
    "domain": "stock",
    "group": "shortInterest",
@@ -2609,6 +2674,19 @@
   "stock.treasuryYields": {
    "domain": "stock",
    "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.uct20List": {
+   "domain": "stock",
+   "group": "marketReads",
    "target": "market",
    "risk": "local",
    "reversible": true,
