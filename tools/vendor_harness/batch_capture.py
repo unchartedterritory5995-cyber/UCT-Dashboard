@@ -386,6 +386,73 @@ STUDY_JS = "(id) => {" + _CHART + r"""
            status: st ? { type: st.type, error: ed ? (ed.error || JSON.stringify(ed)) : null, title: ed ? ed.title || null : null } : null };
 }"""
 
+#: ⭐⭐ A TRADINGVIEW BUILT-IN (or published script), ADDED FROM THE INDICATORS DIALOG (coordinator ruling 2026-11-20,
+#: item 2: "a rig path living in a scratchpad wrapper is exactly the kind of infrastructure that rots"). Moved over
+#: VERBATIM from patrick-54's scratchpad wrapper `batch_builtin.py` (patrick-0b's batch, 2026-11-18, sha256 117e144e…),
+#: which captured 35 built-ins and 4 published scripts that way: open the dialog, type the row's search, click ONLY
+#: the one list element whose `data-id` is exactly the row's id (none, or more than one: nothing is clicked, the row
+#: stops by name), close the dialog. Add to chart only; nothing is saved.
+#: ⭐ THE ONE IN-PAGE INPUT WRITE THE BATCH MAKES: the dialog's search box, set by this evaluation (no Playwright text
+#: entry: `test_the_driver_never_enters_text`). It is a UI search, never the account, never the layout.
+OPEN_DIALOG_JS = r"""() => { if (document.querySelector('[data-name="indicators-dialog"]')) return { open: true }
+  const b = document.querySelector('[data-name="open-indicators-dialog"]'); if (!b) return { open: false, clicked: false }
+  b.click(); return { open: false, clicked: true } }"""
+SEARCH_AND_CLICK_JS = r"""async ({ id, search }) => {
+  const d = document.querySelector('[data-name="indicators-dialog"]'); const input = d && d.querySelector('input')
+  if (!input) return { STOP: 'no dialog search input' }
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, search)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  for (let i = 0; i < 20; i += 1) {
+    await new Promise((r) => setTimeout(r, 300))
+    const hits = [...d.querySelectorAll('[data-id]')].filter((el) => el.getAttribute('data-id') === id)
+    if (hits.length === 1) {
+      const title = (hits[0].getAttribute('data-title') || hits[0].textContent || '').trim().slice(0, 100)
+      hits[0].click()
+      return { clicked: true, title }
+    }
+    if (hits.length > 1) return { STOP: `${hits.length} elements carry data-id ${id}` }
+  }
+  return { STOP: `no element with data-id ${id} after searching ${JSON.stringify(search)}` } }"""
+CLOSE_DIALOG_JS = r"""() => !document.querySelector('[data-name="indicators-dialog"]')"""
+#: a built-in's input ids by their dialog LABEL (`builtinInputs` names inputs by label), from the study API (verbatim)
+INPUT_IDS_JS = "(id) => {" + _CHART + r"""
+  const h = chartOf(); const si = h ? tryv(() => h.c.getStudyById(id)) : null;
+  if (!si) return {};
+  const got = tryv(() => si.getInputsInfo && si.getInputsInfo()) || [];
+  const out = {}; for (const i of got) if (i && i.name && i.id) out[i.name] = i.id;
+  return out }"""
+#: WRITE (the added study's inputs, chart state): set by input id, read back in the same evaluation. Verbatim from
+#: patrick-54's `batch_wide.INPUTS_JS`, which `batch_builtin.py` called.
+INPUTS_JS = "(arg) => {" + _CHART + r"""
+  const h = chartOf(); const si = h ? tryv(() => h.c.getStudyById(arg.id)) : null;
+  if (!si) return { ok: false, why: 'study not found' };
+  if (typeof si.setInputValues !== 'function' || typeof si.getInputValues !== 'function')
+    return { ok: false, why: 'the study API has no setInputValues / getInputValues' };
+  const want = Object.entries(arg.inputs).map(([id, value]) => ({ id, value }));
+  try { si.setInputValues(want) } catch (e) { return { ok: false, why: 'setInputValues threw: ' + e } }
+  const got = tryv(() => si.getInputValues()) || [];
+  const byId = Object.fromEntries(got.map((x) => [x.id, x.value]));
+  const bad = want.filter((w) => byId[w.id] !== w.value).map((w) => ({ id: w.id, want: w.value, got: byId[w.id] }));
+  return { ok: bad.length === 0, bad, set: want.length };
+}"""
+#: ⭐⭐ THE POST-ADD IDENTITY, read-only (coordinator ruling 2026-11-20, item 2): `metaInfo().id` of every INDICATOR on
+#: the chart model, chart events left out by shortId exactly as `tv_capture.js`'s census does. After one add on the
+#: empty scratch layout it must be exactly [`builtin_identity(id)`], or the row stops by name (`Driver.add_builtin`):
+#: a list element whose label moved onto another study can no longer be added silently.
+STUDY_IDENTITY_JS = r"""() => {
+  const col = window._exposed_chartWidgetCollection; if (!col) return { ok: false, why: 'no _exposed_chartWidgetCollection' };
+  let mm; try { mm = col.activeChartWidget.value().model().model() } catch (e) { return { ok: false, why: String(e) } }
+  const EVENTS = new Set(['Splits', 'Earnings', 'Dividends']);
+  const indicators = [];
+  for (const d of (mm.dataSources() || [])) {
+    if (!d || typeof d.metaInfo !== 'function') continue;
+    let mi = {}; try { mi = d.metaInfo() || {} } catch (e) {}
+    if (EVENTS.has(mi.shortId)) continue;
+    indicators.push(mi.id || null);
+  }
+  return { ok: true, indicators };
+}"""
+
 #: ⭐⭐ (coordinator ruling 2026-11-20, (ii)) THE CHART'S RESOLVED SESSION, read-only: what the main series resolved
 #: (`symbolInfo().session`, e.g. '0400-2000' extended / '0930-1600' regular for a US listing, and `subsession_id`).
 SESSION_JS = r"""() => {
@@ -553,6 +620,130 @@ def sym_match(have, want) -> bool:
 
 def res_norm(r) -> str:
     return re.sub(r"^1(?=[DWM]$)", "", str(r or "").strip().upper())
+
+
+#: ⭐⭐ THE MEASURED DIALOG SEARCH per data-id: the term typed into the Indicators dialog that lists exactly that `data-id`.
+#: Every pair here CAPTURED, with the added study's `metaInfo().id` recorded as `builtin_identity(id)` (the captures'
+#: `study.id`): runs builtin*-2026-11-18, studio-builtins-2026-11-18, builtin-stoch-2026-11-19,
+#: served-gap-published-2026-11-20, s4-vwap-anchors-retake2-2026-11-21 (patrick-54's rig).
+#: ⚰️ STD;VWAP is "VWAP", NEVER "Volume Weighted Average Price": that search lists 36 elements, every one a community
+#: `PUB;` script, and the built-in (titled "Volume-weighted average price") is not among them (patrick-54's
+#: vwap_dialog_probe, 2026-11-20). Tonight's s4 VWAP-anchor rows stopped by name on it, 7 of 7 (the pre-click gate).
+#: ⛔ One authority: a row may omit `search` (this table answers) or name the same term; a row naming another term for a
+#: measured id is refused at load. An id not here must name its search, and its first live run is the proof.
+BUILTIN_SEARCH = {
+    "STD;Accumulation_Distribution": "Accumulation/Distribution",
+    "STD;Aroon": "Aroon",
+    "STD;Awesome_Oscillator": "Awesome Oscillator",
+    "STD;Bull%Bear%Power": "Bull Bear Power",
+    "STD;Chaikin_Money_Flow": "Chaikin Money Flow",
+    "STD;Chande_Momentum_Oscillator": "Chande Momentum Oscillator",
+    "STD;Chandelier_Exit": "Chandelier Exit",
+    "STD;Choppiness_Index": "Choppiness Index",
+    "STD;Connors_RSI": "Connors RSI",
+    "STD;Coppock%1Curve": "Coppock Curve",
+    "STD;DEMA": "Double exponential moving average",
+    "STD;DMI": "Directional Movement Index",
+    "STD;DPO": "Detrended Price Oscillator",
+    "STD;EFI": "EFI",
+    "STD;EOM": "Ease of Movement",
+    "STD;Fisher_Transform": "Fisher Transform",
+    "STD;Know_Sure_Thing": "Know Sure Thing",
+    "STD;Mass%1Index": "Mass Index",
+    "STD;McGinley%1Dynamic": "McGinley Dynamic",
+    "STD;Negative_Volume_Index": "Negative Volume Index",
+    "STD;On_Balance_Volume": "OBV",
+    "STD;Positive_Volume_Index": "Positive Volume Index",
+    "STD;Price_Oscillator": "Price Oscillator",
+    "STD;Price_Volume_Trend": "PVT",
+    "STD;Stochastic": "Stochastic",
+    "STD;Stochastic_RSI": "Stochastic RSI",
+    "STD;TEMA": "Triple exponential moving average",
+    "STD;TRIX": "TRIX",
+    "STD;True%1Strength%1Indicator": "True Strength Index",
+    "STD;Ulcer_Index": "Ulcer Index",
+    "STD;Ultimate_Oscillator": "Ultimate Oscillator",
+    "STD;Vortex%1Indicator": "Vortex Indicator",
+    "STD;VWAP": "VWAP",
+    "PUB;2lteb6l2tkaWsLlOnbiNJpQEhIQXU34c": "Heatmap Volume [xdecow]",
+    "PUB;b96fdd470dac47d1a227d8aae88bdbb4": "Volume SuperTrend AI (Zeiierman)",
+    "PUB;e764b93365ee4ba6873926bee036bade": "Auto Fibonacci and Gann Fan/Retracements Combo",
+    "PUB;XqxUTKWKYqrZhEffXx3qNtmzHAl99EPn": "Stoch Money Flow (ADMF) & Absolute Strength Index (ASI) [cI8DH]",
+}
+#: the data-id kinds whose added study's identity is MEASURED as `Script$<id>@tv-scripting` (the table above: 33 STD;,
+#: 4 PUB;). Any other kind (e.g. `VWAPAA@tv-basicstudies`, a non-Pine built-in) has no measured identity: refused at load.
+BUILTIN_ID_KINDS = {"STD;": "built-in", "PUB;": "published script"}
+
+
+def builtin_identity(data_id) -> str:
+    """The `metaInfo().id` TradingView gives the study a dialog element with this `data-id` adds (measured, see above)."""
+    return f"Script${data_id}@tv-scripting"
+
+
+def is_builtin_row(script) -> bool:
+    return bool(isinstance(script, dict) and script.get("builtin"))
+
+
+def builtin_spec(script) -> dict:
+    """The row's built-in as {"id", "search", "kind"}, or GateFailed(abort) naming why it cannot be added."""
+    b = script.get("builtin")
+    slug = script.get("slug")
+    if not isinstance(b, dict) or not isinstance(b.get("id"), str) or not b["id"]:
+        raise GateFailed(f"{slug}: `builtin` must be {{\"id\": \"STD;…\"}}, not {b!r}", abort=True)
+    bid = b["id"]
+    kind = next((v for k, v in BUILTIN_ID_KINDS.items() if bid.startswith(k)), None)
+    if kind is None:
+        raise GateFailed(f"{slug}: {bid!r} is not a Pine script id ({' / '.join(BUILTIN_ID_KINDS)}): the identity its add "
+                         "would land on is unmeasured, so it is never added", abort=True)
+    measured, named = BUILTIN_SEARCH.get(bid), b.get("search")
+    if named is not None and (not isinstance(named, str) or not named.strip()):
+        raise GateFailed(f"{slug}: the search of {bid} must be a non-empty string, not {named!r}", abort=True)
+    if measured is not None and named is not None and named != measured:
+        raise GateFailed(f"{slug}: the row searches {named!r} for {bid}; the measured dialog search is {measured!r} "
+                         "(BUILTIN_SEARCH). Drop the row's `search` or fix the table with a new measurement", abort=True)
+    search = named if named is not None else measured
+    if search is None:
+        raise GateFailed(f"{slug}: no measured dialog search for {bid}: name `builtin.search` (its first live run is the "
+                         "proof: the pre-click data-id gate) or add a measured one to BUILTIN_SEARCH", abort=True)
+    return {"id": bid, "search": search, "kind": kind}
+
+
+def _input_text(v) -> str:
+    return "true" if v is True else "false" if v is False else str(v)
+
+
+def builtin_label(script) -> str:
+    """⭐⭐ THE SOURCE A BUILT-IN'S CAPTURE RECORDS, GENERATED from its row, never typed (coordinator ruling
+    2026-11-20): what was added, how, and at which settings. It is what `source.text` holds, so a reader can never take
+    it for Pine, and its sha256 is the row's `sha256`.
+    ⚰️ A hand-written label file said `search "Volume Weighted Average Price"` on the s4 retake2 captures, whose add typed
+    "VWAP": the label outlived the change it described."""
+    b = builtin_spec(script)
+    inputs = script.get("builtinInputs") or {}
+    if not isinstance(inputs, dict):
+        raise GateFailed(f"{script.get('slug')}: builtinInputs must name inputs by their dialog label", abort=True)
+    settings = ("; ".join(f"{k} = {_input_text(v)}" for k, v in inputs.items()) + ", every other setting at its default"
+                if inputs else "every setting at its default")
+    return (f"TradingView {b['kind']} {b['id']} added from the Indicators dialog (search {json.dumps(b['search'], ensure_ascii=False)}), "
+            f"not pasted Pine: {settings}. Label generated by batch_capture.builtin_label from the manifest row.")
+
+
+def normalize_builtin_rows(scripts) -> list:
+    """⛔ BEFORE ANY PAGE STEP: every built-in row's `sha256` is its generated label's (filled in when absent); a row that
+    carries its own `path` (a second source) or another sha is refused by name. Idempotent. Returns the rows."""
+    for s in scripts:
+        if not is_builtin_row(s):
+            continue
+        if s.get("path"):
+            raise GateFailed(f"{s.get('slug')}: a built-in's source is the label generated from its row "
+                             f"(builtin_label); drop `path` ({s['path']!r}), it would be a second source", abort=True)
+        sha = hashlib.sha256(builtin_label(s).encode("utf-8")).hexdigest()
+        if s.get("sha256") not in (None, sha):
+            raise GateFailed(f"{s.get('slug')}: sha256 {str(s['sha256'])[:12]} is not the generated label's {sha[:12]} "
+                             "(a hand label, or the row changed): drop it, the batch derives it", abort=True)
+        s["sha256"] = sha
+        s.setdefault("path", None)
+    return scripts
 
 
 def same_period(day, listing, tf) -> bool:
@@ -820,6 +1011,7 @@ class Driver:
         self.added_id = None
         self.injected = False
         self.menu_open = False
+        self.dialog_open = False     # the Indicators dialog a built-in row opened (`add_builtin`), until it closes
         self.slug = None
 
     def step(self, name):
@@ -1010,6 +1202,15 @@ class Driver:
 
     # ── one script ──────────────────────────────────────────────────────────
     def source_of(self, script):
+        if is_builtin_row(script):
+            # a built-in has no pasted source: its capture records the label generated from its row
+            text = builtin_label(script)
+            raw = text.encode("utf-8")
+            sha = hashlib.sha256(raw).hexdigest()
+            if sha != script.get("sha256"):
+                raise GateFailed(f"{script.get('slug')}: the generated label is sha {sha[:12]}, the manifest says "
+                                 f"{str(script.get('sha256'))[:12]} (normalize_builtin_rows did not run)")
+            return raw, text
         path = pathlib.Path(script["path"])
         path = path if path.is_absolute() else REPO / path
         raw = path.read_bytes()
@@ -1099,7 +1300,83 @@ class Driver:
         if len(new) != 1:
             raise GateFailed(f"one add produced {len(new)} new studies: {new}", abort=True)
         self.added_id = new[0]["id"]
+        self.own_added(new[0])
         self.rd.note_on_claim(self.slug, addedStudyId=self.added_id)
+        return self.added_id
+
+    def own_added(self, study):
+        """⭐⭐ OWNERSHIP IS THE CHART'S OWN NAME FOR THE STUDY (patrick-54's hard requirement, 2026-11-21): the
+        `getAllStudies()` name of the study this add produced, from the SAME read the guarded clean-save makes
+        (`STATE_JS`), recorded the moment it appears. Never the census title, the manifest's search or a label.
+        ⚰️ 2026-11-21 00:5xZ, the s4 VWAP retake 2: ownership was the census title "VWAP" while `getAllStudies()` names the
+        built-in "Volume-weighted average price", so the batch's own leftover read as foreign, the guarded clean-save
+        (correctly) refused, and the rig stayed dirty until `repair` at 00:57Z. A nameless study is owned by nobody:
+        the guard then refuses to remove it (the safe direction)."""
+        name = (study or {}).get("name")
+        if isinstance(name, str) and name:
+            self.added_titles.add(name)
+        return name
+
+    def add_builtin(self, script):
+        """⭐⭐ A built-in from the Indicators dialog (patrick-54's `batch_builtin.add_builtin`, moved over verbatim; its
+        page reads now go through `ev` so every one is a recorded step). TWO GATES, both by name:
+          1. PRE-CLICK (in the click's own evaluation): only the ONE element whose `data-id` is exactly the row's id is
+             clicked; none or several: nothing is clicked, the row stops (GATE_FAILED);
+          2. POST-ADD: the chart model's indicators read exactly [`builtin_identity(id)`] (`STUDY_IDENTITY_JS`);
+             anything else stops the row by name, naming what it landed on, and cleanup removes it.
+        Then the row's `builtinInputs` (by dialog label), each set, read back and recomputed."""
+        b = builtin_spec(script)
+        r = self.ev("builtin:open_dialog", OPEN_DIALOG_JS)
+        if not r or not (r.get("open") or r.get("clicked")):
+            raise Inconclusive(f"the Indicators dialog could not be opened: {r}")
+        self.dialog_open = True
+        self.clock.sleep(2.5)
+        r = self.ev("builtin:search_and_click", SEARCH_AND_CLICK_JS, {"id": b["id"], "search": b["search"]})
+        self.log(f"[builtin] {b['id']} ({b['search']!r}): {json.dumps(r)}")
+        if not r or r.get("STOP") or not r.get("clicked"):
+            self.page.keyboard.press("Escape")
+            self.dialog_open = False
+            raise GateFailed(f"the built-in add was refused by its own gate (nothing clicked): {r}", r)
+        self.clock.sleep(1.5)
+        self.page.keyboard.press("Escape")
+        self.clock.sleep(0.8)
+        if not self.ev("builtin:closed", CLOSE_DIALOG_JS):
+            self.page.keyboard.press("Escape")
+        self.dialog_open = False
+        st, ok = self.poll("state", STATE_JS, None,
+                           lambda s: bool(s and s.get("studies") is not None
+                                          and {x["id"] for x in s["studies"]} - self.baseline_ids),
+                           self.opts.add_timeout_s)
+        new = [x for x in (st or {}).get("studies") or [] if x["id"] not in self.baseline_ids]
+        if not new:
+            raise Inconclusive("the built-in was clicked and no study appeared")
+        if len(new) != 1:
+            raise GateFailed(f"one add produced {len(new)} new studies: {new}", abort=True)
+        self.added_id = new[0]["id"]
+        self.own_added(new[0])        # ours whatever it turns out to be: even a study the identity gate refuses
+        self.rd.note_on_claim(self.slug, addedStudyId=self.added_id)
+        want_id = builtin_identity(b["id"])
+        got = self.ev("builtin:identity", STUDY_IDENTITY_JS)
+        if not got or not got.get("ok"):
+            raise Inconclusive(f"the added study's identity could not be read: {got}", got)
+        if got.get("indicators") != [want_id]:
+            raise GateFailed(f"the built-in add landed on {got.get('indicators')}, not [{want_id!r}]: the element "
+                             f"{b['id']} ({r.get('title')!r}) added another study, so the row stops by name", got)
+        want = script.get("builtinInputs") or {}
+        if want:
+            sid = self.added_id
+            self.wait_compute(sid, "compute:before-inputs")
+            ids = self.ev("builtin:input_ids", INPUT_IDS_JS, sid) or {}
+            for label, value in want.items():
+                iid = ids.get(label)
+                if not iid:
+                    raise GateFailed(f"the built-in has no input labelled {label!r} (inputs: {sorted(ids)})")
+                r = self.ev(f"builtin:input-{iid}", INPUTS_JS, {"id": sid, "inputs": {iid: value}})
+                self.log(f"[builtin-input] {b['id']} {label} ({iid}) = {value!r}: {r}")
+                if not r or not r.get("ok"):
+                    raise Inconclusive(f"input {label!r} could not be set as asked: {r}", r)
+                self.wait_compute(sid, f"compute:input-{iid}")
+                self.clock.sleep(1.5)
         return self.added_id
 
     def wait_compute(self, sid, label="compute"):
@@ -1210,12 +1487,17 @@ class Driver:
                              f"{[s.get('name') for s in st['studies']]} — the rig must read 0 before a capture",
                              st, abort=True)
         self.script_state = self.ensure_symbol_tf(st)
-        self.open_editor()
-        uri = self.create_new_indicator()
-        self.binding_gate()
-        self.set_source(raw, uri, script["sha256"])
-        self.gate("before add")
-        sid = self.add_to_chart()
+        if is_builtin_row(script):
+            # ⭐ a built-in is added from the Indicators dialog: no editor, no buffer, no binding (`add_builtin`)
+            self.gate("before add")
+            sid = self.add_builtin(script)
+        else:
+            self.open_editor()
+            uri = self.create_new_indicator()
+            self.binding_gate()
+            self.set_source(raw, uri, script["sha256"])
+            self.gate("before add")
+            sid = self.add_to_chart()
         self.wait_compute(sid)
         depth = self.force_depth()
         rows = self.wait_compute(sid, "compute:settle")
@@ -1239,7 +1521,7 @@ class Driver:
         title = listed[0].get("title") or listed[0].get("description")
         if not title:
             raise Inconclusive("the one indicator on the chart has no title to select it by", listed)
-        self.added_titles.add(title)
+        # ⛔ the census title SELECTS the study for `capture()`; it is never ownership (`own_added`, at the add)
         forming, forming_why = newest_bar_forming(o.newest_bar_forming)
         cap_opts = {
             "study": title, "source": text, "id": capture_id,
@@ -1343,6 +1625,9 @@ class Driver:
         if self.menu_open:
             sub("dismiss_menu", lambda: self.page.keyboard.press("Escape"))
             self.menu_open = False
+        if self.dialog_open:
+            sub("dismiss_dialog", lambda: self.page.keyboard.press("Escape"))
+            self.dialog_open = False
         st = sub("cleanup:state", lambda: self.page.evaluate(STATE_JS))
         base = self.baseline_ids
         extra = ([] if base is None
@@ -1519,6 +1804,8 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
     original = None
     try:
         try:
+            # ⛔ BEFORE ANY PAGE STEP: every built-in row's search, identity kind and generated source (by name)
+            normalize_builtin_rows(manifest["scripts"])
             # ⛔ BEFORE ANY PAGE STEP: every script's capture id, and no two the same (nothing is captured otherwise)
             clash = capture_id_refusal(manifest["scripts"], drv.opts_for)
             if clash:
@@ -1731,10 +2018,33 @@ def _recon(page, args) -> int:
     return 0
 
 
+def prepare_run_manifest(manifest_path, run_dir, log=print) -> dict:
+    """The manifest a `run` uses, loaded and normalized (`_load_manifest`), compared with the one the run dir already
+    holds (a resume), and written there. ⛔ The run dir's copy is NORMALIZED before the compare: it may be the very file
+    named by `--manifest` (patrick-54's scratch convention, `--manifest $RUN/manifest.json --run-dir $RUN`), hand-written,
+    with a built-in row that carries no sha256 (2026-11-21, review of #2284: `KeyError: 'sha256'` before any page step)."""
+    manifest = _load_manifest(manifest_path)
+    mpath = pathlib.Path(run_dir) / "manifest.json"
+    if mpath.exists():
+        old = json.loads(mpath.read_text(encoding="utf-8"))
+        try:
+            normalize_builtin_rows(old.get("scripts", []))
+        except StepOutcome:
+            pass             # an old copy that no longer normalizes simply differs: the NOTE below says so
+        if [s.get("sha256") for s in old.get("scripts", [])] != [s["sha256"] for s in manifest["scripts"]]:
+            log(f"[batch] NOTE: resuming {run_dir} with a manifest that differs from the one it started with")
+    write_json_atomic(mpath, manifest)
+    return manifest
+
+
 def _load_manifest(path) -> dict:
     m = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
     if m.get("schema") != "uct.vendor-batch-manifest/v1" or not isinstance(m.get("scripts"), list):
         raise SystemExit(f"{path} is not a uct.vendor-batch-manifest/v1")
+    try:
+        normalize_builtin_rows(m["scripts"])     # a built-in row's sha256 is derived before the run dir records it
+    except StepOutcome as so:
+        raise SystemExit(f"{path}: {so.reason}") from None
     return m
 
 
@@ -1833,16 +2143,10 @@ def main(argv=None) -> int:
         if why:
             print(f"[batch] REFUSED: {why}")
             return 2
-        manifest = _load_manifest(args.manifest)
         run_id = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         run_dir = pathlib.Path(args.run_dir) if args.run_dir else DEFAULT_RUN_ROOT / run_id
         rd = RunDir(run_dir, run_id)
-        mpath = run_dir / "manifest.json"
-        if mpath.exists():
-            old = json.loads(mpath.read_text(encoding="utf-8"))
-            if [s["sha256"] for s in old.get("scripts", [])] != [s["sha256"] for s in manifest["scripts"]]:
-                print(f"[batch] NOTE: resuming {run_dir} with a manifest that differs from the one it started with")
-        write_json_atomic(mpath, manifest)
+        manifest = prepare_run_manifest(args.manifest, run_dir)
         opts = Opts(symbol=args.symbol, tf=args.tf,
                     listing_date=args.listing_date or KNOWN_LISTING.get(args.symbol.upper()),
                     throttle_s=args.throttle_s, compute_timeout_s=args.compute_timeout_s,

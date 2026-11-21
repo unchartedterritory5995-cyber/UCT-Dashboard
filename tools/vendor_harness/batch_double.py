@@ -145,11 +145,44 @@ class _Keyboard:
         self.page._log("press", key, None)
         if key == "Escape":
             self.page.menu = None
+            self.page.dialog_open = False
         if key == bc.SAVE_SHORTCUT:
             # the layout's own Save: the persisted copy becomes the page as it is now (the guarded clean-save)
             self.page.persisted = {"studies": json.loads(json.dumps(self.page.studies)),
                                    "symbol": self.page.symbol, "resolution": self.page.resolution}
             self.page.saved_word = True
+
+
+#: ⭐ THE INDICATORS DIALOG AS MEASURED (2026-11-20, item 2). What a search lists, by `data-id` and the element's title:
+#: patrick-54's vwap_dialog_probe read the two VWAP searches on the rig (the first entries of each, in order); every
+#: other measured pair of `bc.BUILTIN_SEARCH` lists its own id (it captured). A search not listed here lists nothing.
+MEASURED_DIALOG = {
+    "Volume Weighted Average Price": [   # 36 elements, every one a community script: the built-in is NOT among them
+        {"id": "PUB;dc6dc22f6df34a818f00858fdbd237b1", "title": "Volume Weighted Average Price"},
+        {"id": "PUB;39qrkQnRpKsQUoJTk8wxl00Pa4Rj7n0v", "title": "Volume Weighted Average Price Oscillator [NeoButane]"},
+        {"id": "PUB;31d30a274d234879af531500a2dc4bb5", "title": "Volume Weighted Average Price (VWAP) with Extras [starlord_xrp]"},
+    ],
+    "VWAP": [
+        {"id": "STD;VWAP", "title": "Volume-weighted average price"},
+        {"id": "VWAPAA@tv-basicstudies", "title": "VWAP auto-anchored"},
+        {"id": "PUB;2741", "title": "VWAP Stdev Bands v2 Mod"},
+    ],
+}
+#: ⭐⭐ A BUILT-IN'S TWO NAMES (patrick-54, 2026-11-21): `getAllStudies()` names the built-in VWAP by its description
+#: "Volume-weighted average price" (the dialog element's title, which the double uses as the study's `name`), while the
+#: census (`tv_capture.js`: `title(true)` / shortDescription) titles it "VWAP". A data-id not here: one name for both.
+MEASURED_CENSUS_TITLE = {"STD;VWAP": "VWAP"}
+#: the built-in VWAP's inputs by dialog label (`getInputsInfo`), as its retake2 captures recorded them
+MEASURED_INPUTS = {"STD;VWAP": {"Hide VWAP on 1D or Above": ("in_0", False), "Anchor Period": ("in_1", "Session"),
+                                "Source": ("in_2", "hlc3"), "Offset": ("in_3", 0)}}
+
+
+def measured_dialog():
+    out = {k: [dict(x) for x in v] for k, v in MEASURED_DIALOG.items()}
+    for bid, search in bc.BUILTIN_SEARCH.items():
+        if not any(x["id"] == bid for x in out.get(search, [])):
+            out.setdefault(search, []).append({"id": bid, "title": search})
+    return out
 
 
 TITLE_XY = (300.0, 100.0)
@@ -186,6 +219,12 @@ class RecordingTVPage:
         # ⭐ (2026-11-20) the chart's session (the rig layout's: regular), and whether a session spec is honoured
         self.session_id = "regular"
         self.honours_session = True
+        # ⭐ (2026-11-20, item 2) the Indicators dialog: what each search lists (`measured_dialog`), whether it is open,
+        # and `lands_on` {data-id: metaInfo id}: an element whose click adds ANOTHER study (a moved label)
+        self.dialog = measured_dialog()
+        self.dialog_open = False
+        self.lands_on = {}
+        self.searches = []
         # ⭐ UCT's answers through the rig's browser context: `/api/ticker-ipo` per ticker as
         # production answers it (measured 2026-11-19: RDDT 2024-03-21 and ALAB 2024-03-20, both final)
         self.ipo = {"RDDT": {"first_trade_date": "2024-03-21", "first_trade_final": True},
@@ -231,6 +270,11 @@ class RecordingTVPage:
             bc.ACCOUNT_JS: ("ACCOUNT", lambda a: self.account),
             bc.SAVED_TEXT_JS: ("SAVED_TEXT", lambda a: bool(getattr(self, "saved_word", False))),
             bc.FOCUS_BODY_JS: ("FOCUS_BODY", lambda a: getattr(self, "focus_leaves", True)),
+            bc.OPEN_DIALOG_JS: ("OPEN_DIALOG", self._open_dialog),
+            bc.SEARCH_AND_CLICK_JS: ("SEARCH_AND_CLICK", self._search_and_click),
+            bc.CLOSE_DIALOG_JS: ("CLOSE_DIALOG", lambda a: not self.dialog_open),
+            bc.STUDY_IDENTITY_JS: ("STUDY_IDENTITY", self._study_identity),
+            bc.INPUT_IDS_JS: ("INPUT_IDS", self._input_ids), bc.INPUTS_JS: ("INPUTS", self._inputs),
         }
 
     # ── recording ───────────────────────────────────────────────────────────
@@ -405,6 +449,56 @@ class RecordingTVPage:
             self.persisted = {"studies": json.loads(json.dumps(self.studies)), "symbol": self.symbol, "resolution": self.resolution}
         return {"clicked": True, "vis": "visible", "gate": gate}
 
+    # ── the Indicators dialog (item 2, 2026-11-20) ──────────────────────────
+    def _open_dialog(self, _):
+        if self.dialog_open:
+            return {"open": True}
+        self.dialog_open = True
+        return {"open": False, "clicked": True}
+
+    def _search_and_click(self, a):
+        """As the page: the ONE element whose data-id is exactly `id` among what `search` lists is clicked (it adds its
+        study); none or several, nothing is clicked."""
+        if not self.dialog_open:
+            return {"STOP": "no dialog search input"}
+        self.searches.append(a["search"])
+        hits = [x for x in self.dialog.get(a["search"], []) if x["id"] == a["id"]]
+        if len(hits) > 1:
+            return {"STOP": f"{len(hits)} elements carry data-id {a['id']}"}
+        if not hits:
+            return {"STOP": f"no element with data-id {a['id']} after searching {json.dumps(a['search'])}"}
+        self.next_id += 1
+        inputs = {iid: dv for iid, dv in (MEASURED_INPUTS.get(a["id"]) or {}).values()}
+        self.studies.append({"id": f"st{self.next_id}", "name": hits[0]["title"], "sha": None, "source": None,
+                             "title": MEASURED_CENSUS_TITLE.get(a["id"], hits[0]["title"]),
+                             "reads": 0, "builtin": a["id"], "inputs": inputs,
+                             "metaInfoId": self.lands_on.get(a["id"], bc.builtin_identity(a["id"]))})
+        if self.autosave == "tradingview":
+            # ⚠️ UNMEASURED whether a dialog add autosaves the layout as an editor add does; the double assumes the
+            # worse case (it does), so the batch's removal and fresh-load verify must cover it
+            self.persisted = {"studies": json.loads(json.dumps(self.studies)), "symbol": self.symbol, "resolution": self.resolution}
+        return {"clicked": True, "title": hits[0]["title"]}
+
+    def _study_identity(self, _):
+        return {"ok": True, "indicators": [s.get("metaInfoId") or "Script$USER;787899e2@tv-scripting" for s in self.studies]}
+
+    def _input_ids(self, sid):
+        s = self._find(sid)
+        if not s or not s.get("builtin"):
+            return {}
+        return {label: iid for label, (iid, _) in (MEASURED_INPUTS.get(s["builtin"]) or {}).items()}
+
+    def _inputs(self, a):
+        s = self._find(a["id"])
+        if not s:
+            return {"ok": False, "why": "study not found"}
+        bad = [{"id": k, "want": v, "got": None} for k, v in a["inputs"].items() if k not in s.get("inputs", {})]
+        for k, v in a["inputs"].items():
+            if k in s.get("inputs", {}):
+                s["inputs"][k] = v
+        s["reads"] = 0                       # a new input recomputes
+        return {"ok": not bad, "bad": bad, "set": len(a["inputs"])}
+
     def _find(self, sid):
         return next((s for s in self.studies if s["id"] == sid), None)
 
@@ -444,11 +538,12 @@ class RecordingTVPage:
         return {"studies": len(self.studies) + 2, "events": ["Splits", "Earnings"], "indicators": len(self.studies),
                 "controlProbeSawSomething": True, "controlFilterRemovedExactlyTheEvents": True,
                 "list": [{"id": "Script$USER;787899e2", "shortId": "Script$USER;787899e2",
-                          "title": s["name"], "description": s["name"]} for s in self.studies]}
+                          "title": s.get("title") or s["name"], "description": s["name"]} for s in self.studies]}
 
     def _vh_capture(self, o):
         self._need_vh()
-        hits = [s for s in self.studies if o["study"] in s["name"]]
+        # as tv_capture.js: the study is selected by a substring of its census title or its description
+        hits = [s for s in self.studies if o["study"] in (s.get("title") or s["name"]) or o["study"] in s["name"]]
         if len(hits) != 1:
             return {"ok": False, "error": f"study {json.dumps(o['study'])} matched {len(hits)} indicators — need exactly one."}
         s = hits[0]
@@ -495,11 +590,13 @@ class RecordingTVPage:
             "census": {"studies": len(self.studies) + 2, "events": ["Splits", "Earnings"],
                        "indicators": len(self.studies), "controlProbeSawSomething": True,
                        "controlFilterRemovedExactlyTheEvents": True},
-            "study": {"id": "Script$USER;787899e2@tv-scripting-101", "fullId": None, "title": s["name"],
-                      "description": s["name"], "shortDescription": s["name"], "status": {"type": 2},
+            "study": {"id": s.get("metaInfoId") or "Script$USER;787899e2@tv-scripting-101", "fullId": None,
+                      "title": s.get("title") or s["name"], "description": s["name"],
+                      "shortDescription": s.get("title") or s["name"], "status": {"type": 2},
                       "plots": [{"id": "plot_0", "type": "line", "title": "Plot"}],
                       "styles": {"plot_0": {"title": "Plot"}}, "styleState": None, "palettes": {},
-                      "paletteState": None, "inputs": []},
+                      "paletteState": None,
+                      "inputs": [{"id": k, "value": v} for k, v in (s.get("inputs") or {}).items()]},
             "window": {"chartBarsLoaded": BARS, "studyBarsLoaded": BARS,
                        "firstBarTime": bars[0][0], "lastBarTime": bars[-1][0]},
             "bars": {"fields": ["time", "open", "high", "low", "close", "volume"], "timeUnit": "unix-s",

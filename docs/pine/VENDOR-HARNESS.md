@@ -306,6 +306,27 @@ line, then the written file re-verified) → **cleanup, always**: remove the stu
 resolution / pane stretch back, `__uctVH.cleanup()`, assert no `__uct*` globals. After
 the last script the chart is put back on the symbol and resolution it started on.
 
+### A TradingView built-in (or published script), from the Indicators dialog (2026-11-20)
+
+A manifest row `{"slug", "builtin": {"id": "STD;VWAP"}, "builtinInputs": {"Anchor Period": "Earnings"}, …}` is
+added from the Indicators dialog instead of the Pine editor (patrick-54's scratchpad `batch_builtin.py`, moved into
+`batch_capture.py` by the coordinator's ruling). Two gates, both stopping the row by name:
+
+1. **pre-click**, inside the click's own evaluation: the dialog is searched, and only the ONE element whose
+   `data-id` is exactly the row's id is clicked. None or several: nothing is clicked (GATE_FAILED).
+2. **post-add**: the chart model's indicators must read exactly `["Script$<id>@tv-scripting"]`
+   (`metaInfo().id`, chart events left out as in `tv_capture.js`), or the row stops naming what it landed on,
+   and cleanup removes it.
+
+The search comes from `BUILTIN_SEARCH`, a table of MEASURED pairs (33 built-ins, 4 published scripts, each captured
+with that identity). ⚰️ `STD;VWAP` is searched `VWAP`: the search "Volume Weighted Average Price" lists 36 community
+scripts and not the built-in, whose dialog title is "Volume-weighted average price" (7 of 7 rows stopped on it,
+2026-11-20). A row naming another term for a measured id is refused at load. An unmeasured `STD;`/`PUB;` id must
+name its search, and its first live run is the proof. Any other id kind (e.g. `VWAPAA@tv-basicstudies`) is refused:
+its identity is unmeasured. The capture's `source` is a label GENERATED from the row (`builtin_label`: what was
+added, how, at which settings), and the row's `sha256` is derived from it. A row carrying a `path` (a hand label)
+or another sha is refused at load.
+
 `startsAtBar0` is asserted ONLY when the history stopped growing AND the first loaded
 bar is the symbol's listing day in its own timezone (known for `NYSE:RDDT` =
 2024-03-21; pass `--listing-date` for another young listing). `newestBarIsForming`
