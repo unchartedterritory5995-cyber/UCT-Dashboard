@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "DOOR-DEADLINE (fix/pine-door-deadline, NUMBER PENDING): one deadline bounds a whole member-door call (every translation, retry and Resolver), and past it the script is refused by name, whole. Every rule, broken once, must turn its rail red.",
+ "about": "DOOR-DEADLINE (fix/pine-door-deadline, engine 92): one deadline bounds a whole member-door call (every translation, retry and Resolver), and past it the script is refused by name, whole. Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "D1",

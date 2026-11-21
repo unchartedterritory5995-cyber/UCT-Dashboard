@@ -1,6 +1,6 @@
 # One deadline for a whole member-door call (evidence, 2026-11-20)
 
-Branch `fix/pine-door-deadline`, cut from master `f2581397fe` (`SCRIPT_ENGINE_VERSION = 89`). NUMBER PENDING (train
+Branch `fix/pine-door-deadline`, cut from master `f2581397fe` (`SCRIPT_ENGINE_VERSION = 89`). engine 92 (train
 e91). The licence-held scripts this unit measured are never committed: the rails use synthetic slow scripts, and the
 per-script timings stay in private evidence (the coordinator has them). This page carries the method, the aggregates
 and the verdicts.

@@ -1116,7 +1116,7 @@ def _exact_sum(series: Sequence[float], lo: int, hi: int) -> float:
 
 
 def _rma_seed_mean(values: Sequence[float]) -> float:
-    """⭐⭐ RMA-SEED (NUMBER PENDING) -- THE ONE SEED RULE of every Wilder smoother a Pine document is served,
+    """⭐⭐ RMA-SEED (engine 92) -- THE ONE SEED RULE of every Wilder smoother a Pine document is served,
     the twin of ``interpret.js::rmaSeedMean``: the EXACTLY ROUNDED sum of the first ``n`` values (``_exact_sum``,
     ``math.fsum``) divided by ``n``. Pine's ``ta.rma`` seeds with ``ta.sma``, which TradingView sums exactly
     (SMA-EXACT); witnessed where a left-to-right seed parts from it on ``vw-bi-dmi-{spy,rddt}-1d-2026-11-19``

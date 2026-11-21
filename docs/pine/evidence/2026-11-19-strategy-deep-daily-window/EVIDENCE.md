@@ -1,7 +1,7 @@
 # The strategy-only daily window: built 2026-11-19, served from the listing 2026-11-20 (Q-SU-7 / Q-SU-8 MATCH)
 
 Branch `feat/strategy-deep-daily-window`, stacked on `feat/strategy-unit`. Base `origin/master` `860e30c72a`, engine 87.
-NUMBER PENDING (`scriptEngineVersion.js`).
+engine 92 (`scriptEngineVersion.js`).
 
 ## 1. The ruling
 

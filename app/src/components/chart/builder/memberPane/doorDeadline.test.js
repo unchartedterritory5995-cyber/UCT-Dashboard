@@ -1,6 +1,6 @@
 // app/src/components/chart/builder/memberPane/doorDeadline.test.js
 //
-// ⭐⭐ THE DOOR DEADLINE (door-deadline unit, 2026-11-20; NUMBER PENDING) — ONE CLOCK FOR A WHOLE MEMBER-DOOR CALL.
+// ⭐⭐ THE DOOR DEADLINE (door-deadline unit, 2026-11-20; engine 92) — ONE CLOCK FOR A WHOLE MEMBER-DOOR CALL.
 // `memberPaneDefinition` runs many translations in a row on the page's main thread, and every bound the translator
 // has was per translation: three public scripts held a member's tab for minutes before they were
 // refused by name (`engine/ast/doorDeadline.js`). These rails feed SYNTHETIC slow scripts (licence-held scripts are

@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "RMA-SEED (feat/pine-dmi-rma-seed, NUMBER PENDING): ta.rma's seed is the exactly rounded sum / n (one rule, rmaSeedMean, read by CARRIED.rma on both lanes, rsiPineStep and FN_PINE.rsi; Python twin _rma_seed_mean), and ta.dmi is TradingView's body over ta.rma (PINE_TUPLE_BUILTINS.dmi, unequal periods served). Every rule, broken once, must turn its rail red.",
+ "about": "RMA-SEED (feat/pine-dmi-rma-seed, engine 92): ta.rma's seed is the exactly rounded sum / n (one rule, rmaSeedMean, read by CARRIED.rma on both lanes, rsiPineStep and FN_PINE.rsi; Python twin _rma_seed_mean), and ta.dmi is TradingView's body over ta.rma (PINE_TUPLE_BUILTINS.dmi, unequal periods served). Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "S1",

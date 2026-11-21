@@ -9531,7 +9531,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     return folded === null ? null : folded !== 0
   }
 
-  /** ⭐⭐ Q-BH0 (NUMBER PENDING) — A PINE v6 `bool`'S HISTORY BEFORE HISTORY BEGINS READS `false` (captures
+  /** ⭐⭐ Q-BH0 (engine 92) — A PINE v6 `bool`'S HISTORY BEFORE HISTORY BEGINS READS `false` (captures
    *  `vw-v6-bool-history-bar0-{spy,rddt}-1d-2026-11-19`; the rule and why only those bars: `pine.js::v6BoolHistory`,
    *  which the columnar lane's reads take). `h` is a WRITTEN `x[back]` (a whole `back` ≥ 1) as this lane lowered it;
    *  a v6 `bool` (`exprTypeIn`, judged at the read's token: a v5 library keeps `na`) becomes `na(close[back]) ? 0 : h`.

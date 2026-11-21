@@ -188,7 +188,7 @@ describe('the built-ins measured EXACT stay exact for a Pine document (a built-i
     for (const k of ['crossOver', 'crossUnder', 'highest', 'lowest', 'max', 'min', 'sign', 'pivotHigh', 'pivotLow', 'mode']) {
       expect(Object.prototype.hasOwnProperty.call(FN_PINE, k), k).toBe(false)
     }
-    // ⭐ RMA-SEED (NUMBER PENDING): `rsi` joins FN_PINE for its SEED (`rmaSeedMean`), not for a compare: its
+    // ⭐ RMA-SEED (engine 92): `rsi` joins FN_PINE for its SEED (`rmaSeedMean`), not for a compare: its
     // inside compares nothing within an epsilon (`rmaSeedDmi.test.js`)
     expect(Object.keys(FN_PINE).sort()).toEqual(['adx', 'falling', 'minusDI', 'percentrank', 'plusDI', 'rising', 'rsi'])
   })

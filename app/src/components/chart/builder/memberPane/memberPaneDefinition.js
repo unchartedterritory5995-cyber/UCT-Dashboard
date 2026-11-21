@@ -306,7 +306,7 @@ function calcBarsMeta(t) {
 let runtimeLaneForced = false
 export function __forceRuntimeLaneForTests(on = true) { runtimeLaneForced = on === true }
 
-// ─── ⭐⭐ THE DOOR DEADLINE (door-deadline unit, 2026-11-20; NUMBER PENDING) ─────────────────────────────────────
+// ─── ⭐⭐ THE DOOR DEADLINE (door-deadline unit, 2026-11-20; engine 92) ─────────────────────────────────────
 //
 // ⚰️ THREE PUBLIC SCRIPTS HELD A MEMBER'S TAB FOR MINUTES. `MemberPane.jsx` builds this door
 // synchronously on the page's main thread (`useMemo`), and every bound the translator has is PER TRANSLATION: this

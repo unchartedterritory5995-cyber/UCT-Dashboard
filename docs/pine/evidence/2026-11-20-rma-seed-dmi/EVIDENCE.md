@@ -1,4 +1,4 @@
-# RMA-SEED: `ta.rma`'s seed is the exactly rounded sum, and `ta.dmi` is TradingView's body over it (NUMBER PENDING)
+# RMA-SEED: `ta.rma`'s seed is the exactly rounded sum, and `ta.dmi` is TradingView's body over it (engine 92)
 
 Branch `feat/pine-dmi-rma-seed`, for e90. The coordinator numbers the train.
 Coordinator ruling 2026-11-20: (a) `ta.dmi` as TradingView's body and (b) the exactly rounded `ta.rma` seed

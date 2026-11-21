@@ -184,7 +184,7 @@ describe('4 — a branch on a PARAMETER is the call site\'s', () => {
     y.forEach((v, i) => expect(same(v, every[i]), `bar ${i}`).toBe(true))
     expect(refusalOf(v6(`${fn}plot(f("Percent"))\n`))).toBeNull()
   })
-  // ⭐⭐ A4 (feat/a4-param-branch-checked, NUMBER PENDING) — ⚰️ WAS refused at the call, naming the parameter. No
+  // ⭐⭐ A4 (feat/a4-param-branch-checked, engine 92) — ⚰️ WAS refused at the call, naming the parameter. No
   // call site can fix a per-bar argument, so its copy CHECKS the branch to run on every call (HIST-S3,
   // `a4ParamBranchChecked.test.js`): never drawn off every call, it stops by name at the first call the branch skips.
   it('a call passing a per-bar text is never drawn off every call: stopped by name where the branch skips', () => {

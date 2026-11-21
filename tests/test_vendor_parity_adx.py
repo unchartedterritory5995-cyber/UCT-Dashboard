@@ -26,7 +26,7 @@ isolation proof.
 capture needed for this specific claim -- it is about translator behavior,
 not real-runtime arithmetic): Pine's real `ta.dmi(diLength, adxSmoothing)`
 allows those two lengths to differ; UCT's table uses ONE shared `period` for
-both. ⚰️ RMA-SEED (NUMBER PENDING): Pine's `ta.dmi` no longer reads this table
+both. ⚰️ RMA-SEED (engine 92): Pine's `ta.dmi` no longer reads this table
 at all -- it is `pine.js::PINE_TUPLE_BUILTINS.dmi`, TradingView's body over
 `ta.rma`, unequal lengths served, witnessed bit for bit on
 `vw-bi-dmi-{spy,rddt}-1d-2026-11-19` (`rmaSeedDmi.test.js`,

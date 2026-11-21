@@ -193,7 +193,7 @@ describe('a `var` may read its own previous bar inside its own update', () => {
 
 // ─── ta.dmi — the one BUILTIN tuple in the corpus ───────────────────────────
 //
-// ⭐ RMA-SEED (NUMBER PENDING): Pine answers `[+DI, -DI, ADX]`, and each leg is TradingView's own
+// ⭐ RMA-SEED (engine 92): Pine answers `[+DI, -DI, ADX]`, and each leg is TradingView's own
 // "Directional Movement Index" body over `ta.rma` (`PINE_TUPLE_BUILTINS.dmi`), witnessed bit for bit on
 // `vw-bi-dmi-{spy,rddt}-1d-2026-11-19` (`rmaSeedDmi.test.js`). ⚰️ It was three legs of the house table's
 // one-period `adx` / `plusDI` / `minusDI`, which refused an unequal pair (`pine:tuple`); the ADX smooths over

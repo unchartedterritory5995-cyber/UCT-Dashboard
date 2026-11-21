@@ -2425,7 +2425,7 @@ const SMOOTH_CELLS = 3            // [prev, count, sum]
 
 function smoothInit(st, o) { st[o] = NaN; st[o + 1] = 0; st[o + 2] = 0 }
 
-/** ⭐⭐ RMA-SEED (NUMBER PENDING) — THE ONE SEED RULE OF EVERY WILDER SMOOTHER A PINE DOCUMENT IS SERVED:
+/** ⭐⭐ RMA-SEED (engine 92) — THE ONE SEED RULE OF EVERY WILDER SMOOTHER A PINE DOCUMENT IS SERVED:
  *  `ta.rma`'s first value is the EXACTLY ROUNDED sum of its first `n` values, divided by `n` (`exactSum`).
  *  Pine's published `ta.rma` seeds with `ta.sma(src, length)`, and TradingView's `ta.sma` IS the exactly
  *  rounded window sum (SMA-EXACT, `exactSum` above). WITNESSED where the two seeds part:
@@ -2502,7 +2502,7 @@ const smoothStep = smoothStepOf((prev, v, n, k) => prev * (1 - k) + v * k)
  *  different digit (label 437 of W3N-D1c SPY). The house `rsi`, `atr` and `adx` kernels already
  *  used this order. Python twin: `ast_interpret._smooth_col(..., wilder=True)`.
  *  `docs/pine/evidence/2026-11-16-rma-summation/EVIDENCE.md`.
- *  ⭐⭐ RMA-SEED (NUMBER PENDING): its SEED is `rmaSeedMean` (the exactly rounded sum of the first `n`
+ *  ⭐⭐ RMA-SEED (engine 92): its SEED is `rmaSeedMean` (the exactly rounded sum of the first `n`
  *  values / `n`), not the running sum `smoothStep` keeps, so it holds those `n` values (`RMA_CELLS`). */
 const rmaStep = smoothStepOf((prev, v, n) => (prev * (n - 1) + v) / n, true)
 /** `rmaStep`'s cells: the three scalars, then the seed values. `bars` (the column driver's series length)

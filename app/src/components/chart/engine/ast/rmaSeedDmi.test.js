@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/ast/rmaSeedDmi.test.js
 //
-// ─── ⭐⭐ RMA-SEED (NUMBER PENDING) — `ta.rma`'s SEED IS THE EXACTLY ROUNDED SUM, AND `ta.dmi` IS ITS BODY ─────
+// ─── ⭐⭐ RMA-SEED (engine 92) — `ta.rma`'s SEED IS THE EXACTLY ROUNDED SUM, AND `ta.dmi` IS ITS BODY ─────
 //
 // Pine's `ta.rma` seeds with `ta.sma(src, length)`, and TradingView's `ta.sma` is the exactly rounded window sum
 // (SMA-EXACT). The engine seeded `ta.rma` with a left-to-right sum. The first capture that separates the two:

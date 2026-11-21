@@ -566,7 +566,7 @@ plot(ta.sma(x, 10))
 })
 
 describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intentionally moved', () => {
-  /** ⭐ RMA-SEED (NUMBER PENDING) — Wilder's seed is the EXACTLY ROUNDED sum of the first `n` values / `n`
+  /** ⭐ RMA-SEED (engine 92) — Wilder's seed is the EXACTLY ROUNDED sum of the first `n` values / `n`
    *  (`exactSum`, SMA-EXACT's own rail `smaExactSum.test.js`); the exponential seed stays the running sum. */
   const seedOf = (vals, n, wilder) => (wilder ? exactSum(vals, 0, n - 1) / n : vals.reduce((s, x) => s + x, 0) / n)
   /** The loop as it stood BEFORE 2F-2C, transcribed. ⛔ An independent longhand,

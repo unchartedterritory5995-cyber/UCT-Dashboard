@@ -1,4 +1,4 @@
-"""RMA-SEED (NUMBER PENDING) -- ``ta.rma``'s seed is the exactly rounded sum / n, the PYTHON lane held to the bit.
+"""RMA-SEED (engine 92) -- ``ta.rma``'s seed is the exactly rounded sum / n, the PYTHON lane held to the bit.
 
 Pine's ``ta.rma`` seeds with ``ta.sma(src, length)``, and TradingView's ``ta.sma`` is the exactly rounded window
 sum (SMA-EXACT). The first capture separating that from a left-to-right seed is our own committed probe

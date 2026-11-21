@@ -119,7 +119,7 @@ describe('what is NOT cast', () => {
     // nothing claimed)
     expect(formulaOf(tr(3, 'plot((close > open)[1] and high > low ? 1 : 2)'))).toBe('(close > open)[1] != 0 && high > low ? 1 : 2')
     // ⛔ and v6 is not cast (a v6 bool is never `na`; measured: casting there moved
-    // trend-duration-forecast-chartprime MATCH -> DIVERGE). ⭐ Q-BH0 (NUMBER PENDING): its history before
+    // trend-duration-forecast-chartprime MATCH -> DIVERGE). ⭐ Q-BH0 (engine 92): its history before
     // history begins is `false` (`pine.js::v6BoolHistory`), so the read carries that test, and no cast
     expect(formulaOf(tr(6, 'plot((close > open)[1] and high > low ? 1 : 2)')))
       .toBe('(na(close[1]) ? 0 : (close > open)[1]) && high > low ? 1 : 2')

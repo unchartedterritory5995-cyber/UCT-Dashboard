@@ -7,7 +7,7 @@
     "pasteLowersTo": {
       "formula": "valuewhenOccurrence(!na(100 * rma(na(-(low - low[1])) ? 0 / 0 : -(low - low[1]) > high - high[1] && -(low - low[1]) > 0 ? -(low - low[1]) : 0, 14) / rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14)), 100 * rma(na(-(low - low[1])) ? 0 / 0 : -(low - low[1]) > high - high[1] && -(low - low[1]) > 0 ? -(low - low[1]) : 0, 14) / rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 0)",
       "since": "2026-11-20",
-      "why": "RMA-SEED (NUMBER PENDING): a pasted Pine `ta.dmi` lowers to TradingView's own Directional Movement Index body over `ta.rma` (`pine.js::PINE_TUPLE_BUILTINS.dmi`, witnessed bit for bit on `vw-bi-dmi-{spy,rddt}-1d-2026-11-19`), not to the house `plusDI` / `minusDI` / `adx`, whose one period cannot express an unequal pair. This observation's `engine` block is deliberately LEFT on the house formula: `tests/test_vendor_parity_adx.py` still grades that formula (the formula language's and the native chart's). `vendorTruth.test.js` asserts the paste produces THIS formula, and the vendor harness maps the plot by it."
+      "why": "RMA-SEED (engine 92): a pasted Pine `ta.dmi` lowers to TradingView's own Directional Movement Index body over `ta.rma` (`pine.js::PINE_TUPLE_BUILTINS.dmi`, witnessed bit for bit on `vw-bi-dmi-{spy,rddt}-1d-2026-11-19`), not to the house `plusDI` / `minusDI` / `adx`, whose one period cannot express an unequal pair. This observation's `engine` block is deliberately LEFT on the house formula: `tests/test_vendor_parity_adx.py` still grades that formula (the formula language's and the native chart's). `vendorTruth.test.js` asserts the paste produces THIS formula, and the vendor harness maps the plot by it."
     }
   },
   "engine": {

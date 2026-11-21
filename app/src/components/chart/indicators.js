@@ -109,7 +109,7 @@ export function toHeikinAshi(bars) {
  *  from the pre-hole state. 380 of 380 bars, and the values reconstruct to 1.3e-6
  *  with the residual decaying geometrically — seed truncation, not a model gap.
  */
-/** ⭐ RMA-SEED (NUMBER PENDING) — `opts.seedMean(values, lo, n)` is how the two Wilder averages are SEEDED
+/** ⭐ RMA-SEED (engine 92) — `opts.seedMean(values, lo, n)` is how the two Wilder averages are SEEDED
  *  from the first `period` gains and losses: Pine's `ta.rsi` passes `interpret.js::rmaSeedMean` (the exactly
  *  rounded sum / n, TradingView's `ta.rma` seed) through `FN_PINE.rsi`. Without it (the native chart RSI, the
  *  screener, the formula language's `rsi`) the seed is the running sum / n, byte for byte as before. */

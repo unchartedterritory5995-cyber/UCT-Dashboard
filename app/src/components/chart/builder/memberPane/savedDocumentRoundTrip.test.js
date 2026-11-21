@@ -189,7 +189,7 @@ const MOVED_BY_ENGINE = Object.freeze({
     why: 'engine 56-v2 (P12b): a `bool` that can be `na` keeps its operator, so `show_mid and timeframe.isintraday` is no longer folded to its right side and `show_mid` (input default true) is a knob the document gains (an append)',
     undo: 'engine56',
   },
-  // ⭐⭐ Q-BH0 (NUMBER PENDING) — the one saved document whose script reads a v6 bool's history
+  // ⭐⭐ Q-BH0 (engine 92) — the one saved document whose script reads a v6 bool's history
   'corpus/committed/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine': {
     why: 'Q-BH0: a Pine v6 bool\'s history before history begins reads false (captures vw-v6-bool-history-bar0-{spy,rddt}), so `not isBullish[1]`, `isSqueeze[1]` and the like are `na(close[1]) ? 0 : x[1]` (`pine.js::v6BoolHistory`); the inputs inside sit one `?:` deeper',
     undo: 'qbh0',

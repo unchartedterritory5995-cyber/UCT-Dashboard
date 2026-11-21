@@ -1278,7 +1278,7 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // refuses every other source by name. See the `key === 'vwap'` branch there.
   // ⭐⭐ THE THREE LEGS `ta.dmi` ANSWERS WITH. Pine has no singular spelling for
   // them — the only way to reach one is to destructure `[+DI, -DI, ADX]` — so
-  // these keys are synthetic. ⚰️ RMA-SEED (NUMBER PENDING): their only caller,
+  // these keys are synthetic. ⚰️ RMA-SEED (engine 92): their only caller,
   // `dmiParts`, is gone — `ta.dmi` is `PINE_TUPLE_BUILTINS.dmi`, TradingView's body
   // over `ta.rma` — so no translation of `ta.dmi` emits them any more. They stay
   // declared only for what already names them (a formula translated before this
@@ -4264,7 +4264,7 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       return [mid, bin('+', mid, band), bin('-', mid, band)]
     },
   },
-  // ⭐⭐ DMI — `[diPlus, diMinus, adx] = ta.dmi(diLength, adxSmoothing)` (RMA-SEED, NUMBER PENDING), TradingView's
+  // ⭐⭐ DMI — `[diPlus, diMinus, adx] = ta.dmi(diLength, adxSmoothing)` (RMA-SEED, engine 92), TradingView's
   // own "Directional Movement Index" body, written out over `ta.rma` on BOTH lanes (the runtime lane takes these
   // same trees through `pineTupleBuiltinCallParts`):
   //   up = ta.change(high), down = -ta.change(low)
@@ -7391,7 +7391,7 @@ function barOffsetNode(child, n, table, tok, wrote) {
     + 'both of which this table already declares', locate(tok))
 }
 
-/** ⭐⭐ Q-BH0 (NUMBER PENDING) — A PINE v6 `bool`'S HISTORY BEFORE HISTORY BEGINS READS `false`.
+/** ⭐⭐ Q-BH0 (engine 92) — A PINE v6 `bool`'S HISTORY BEFORE HISTORY BEGINS READS `false`.
  *
  *  WITNESSED: TradingView's captures `vw-v6-bool-history-bar0-{spy,rddt}-1d-2026-11-19` (committed; probe
  *  `tools/visual_conformance/probes/vw-v6-bool-history-bar0.pine`, from the listing) draw 1 on bar 0 for `b[1] == false`,

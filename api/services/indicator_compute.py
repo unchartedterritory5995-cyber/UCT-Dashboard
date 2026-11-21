@@ -227,7 +227,7 @@ def compute_rsi_raw(closes: List[Number], period: int = 14, seed_mean=None) -> L
     Every later bar was then wrong and never re-converged. TradingView instead
     holds: ``na`` on the hole AND on the bar after it, then one normal step.
 
-    ⭐ RMA-SEED (NUMBER PENDING) -- ``seed_mean(values)`` is how the two Wilder averages are SEEDED from the
+    ⭐ RMA-SEED (engine 92) -- ``seed_mean(values)`` is how the two Wilder averages are SEEDED from the
     first ``period`` gains and losses: Pine's ``ta.rsi`` passes ``ast_interpret._rma_seed_mean`` (the exactly
     rounded sum / n) through ``FN_PINE["rsi"]``, twin of ``indicators.js::computeRSI``'s ``opts.seedMean``.
     Without it (the native RSI, the screener) the seed is the running sum / n, as before.

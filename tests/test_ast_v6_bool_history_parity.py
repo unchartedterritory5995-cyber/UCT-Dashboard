@@ -1,4 +1,4 @@
-"""Q-BH0 (NUMBER PENDING): a Pine v6 bool's history before history begins reads ``false``, in the Python lane.
+"""Q-BH0 (engine 92): a Pine v6 bool's history before history begins reads ``false``, in the Python lane.
 
 TradingView's captures ``vw-v6-bool-history-bar0-{spy,rddt}-1d-2026-11-19`` (committed) draw ``b[1] == false`` as 1 on
 bar 0 (and ``b[2] == false`` on bars 0 and 1): a v6 bool is never ``na`` ("To Pine Script version 6": "Boolean values
