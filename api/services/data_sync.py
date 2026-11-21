@@ -580,7 +580,7 @@ def complete_deferred_swap(data_dir: Optional[str] = None) -> str:
         try:
             from api.services import bars_sqlite
             bars_sqlite.bump_db_epoch()
-            bars_sqlite.bump_store_floor("adopted clustered store (boot swap)")
+            bars_sqlite.bump_store_floor("adopted clustered store (boot swap)", persist=True)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"[data_sync] adopt-clustered: floor bump after boot swap: {e}")
         logger.info(f"[data_sync] adopt-clustered: installed clustered snapshot {ts} at boot "
@@ -906,7 +906,7 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None, defer_swap=Non
             # the snapshot producer (proofs about ITS rows, before the old store's tails
             # were merged in), so every proof / seal is voided and every served rev moves
             # past what clients hold — the provably safe choice over carrying meta across.
-            bars_sqlite.bump_store_floor("adopted clustered store")
+            bars_sqlite.bump_store_floor("adopted clustered store", persist=True)
         _write_marker_at(data_dir, _ADOPTED_MARKER, ts)
         if reinstall:
             _write_marker_at(data_dir, _REINSTALL_MARKER, reinstall)
@@ -1299,7 +1299,7 @@ def download_snapshot(ts: str) -> bool:
             # at call-time keeps each module independently importable.
             from api.services import bars_sqlite
             bars_sqlite.bump_db_epoch()
-            bars_sqlite.bump_store_floor("snapshot installed")   # wholesale: revs + proofs
+            bars_sqlite.bump_store_floor("snapshot installed", persist=True)   # wholesale: revs + proofs
             # A restored snapshot may predate the weekly Friday re-keying —
             # purge any Monday-keyed weekly rows it carried so the duplicate
             # candle bug can't be resurrected by a snapshot pull (the
@@ -1511,7 +1511,7 @@ def force_resync() -> bool:
         try:
             from api.services import bars_sqlite
             bars_sqlite.bump_db_epoch()
-            bars_sqlite.bump_store_floor("empty schema recreated")
+            bars_sqlite.bump_store_floor("empty schema recreated", persist=True)
             bars_sqlite.init_db()
         except Exception as e:
             logger.error(f"[data_sync] force_resync: init_db after failed pull errored: {e}")
@@ -1831,10 +1831,17 @@ def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
     # A forward add (or the tail itself) never is.
     history = False
     if interior:
-        from api.services.bars_sqlite import _history_keys
+        from api.services import bars_sqlite as _bs
         cand = conn.execute(_MERGE_HISTORY_SQL,
                             (ticker, tf, floor, mx, ticker, tf, floor, mx)).fetchall()
-        history = bool(cand and _history_keys(conn, tf, cand))
+        history = bool(cand and _bs._history_keys(conn, tf, cand))
+    # D1: a history change this merge makes takes the WORKER's number when that RISES above what this pod
+    # serves now (read before the writes); then every pod that merges the same delta carries the same number.
+    shipped = _shipped_hrev(conn, ticker, tf) if history else None
+    if shipped is not None:
+        from api.services import bars_sqlite as _bs
+        if shipped <= int(_bs.series_meta(ticker, tf, _conn_override=conn)["history_rev"]):
+            shipped = None                               # it would not rise: this pod's clock moves it instead
     conn.execute(_MERGE_ADD_SQL, (ticker, tf, floor))
     added = conn.total_changes - before
     corrected = 0
@@ -1843,7 +1850,12 @@ def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
         conn.execute(_MERGE_CORRECT_SQL, (ticker, tf, floor))
         corrected = conn.total_changes - before
     if added or corrected:
-        _bump_merged_rev(conn, ticker, tf, history=history)
+        if shipped is not None:
+            _bump_merged_rev(conn, ticker, tf, history=False)
+            conn.execute("UPDATE main.series_meta SET history_rev = max(history_rev, ?) WHERE ticker=? AND tf=?",
+                         (shipped, ticker, tf))
+        else:
+            _bump_merged_rev(conn, ticker, tf, history=history)
     return added, corrected
 
 
@@ -1859,6 +1871,37 @@ _MERGE_HISTORY_SQL = (
     "AND s.ts > ? AND s.ts < ? AND COALESCE(s.v,0) > COALESCE(m.v,0) AND "
     + _MERGE_VALID_SQL + _MERGE_GRID_SQL
 )
+
+
+#: ⭐ D1 (2026-11-21, the content-derived base): a delta ships the WORKER's served history_rev for every pair it
+#: carries, and a pod that merges it adopts max(its own, shipped). Two pods fed the same deltas then serve the
+#: same number for every series the worker changed, instead of each stamping its own clock (measured that day:
+#: 70 of 70 series differed between web and bars-api). A delta without this table (an older worker) merges
+#: exactly as before. Never lowers anything: adoption is a max, and a merge that changes held history still
+#: RISES above what this pod served (the worker's number when it is higher, this pod's clock otherwise).
+SHIP_META_TABLE = "ship_meta"
+SHIP_META_DDL = (f"CREATE TABLE IF NOT EXISTS {SHIP_META_TABLE} (ticker TEXT NOT NULL, tf TEXT NOT NULL, "
+                 "history_rev INTEGER NOT NULL, PRIMARY KEY (ticker, tf)) WITHOUT ROWID")
+_SHIP_ADOPT_SQL = (
+    f"UPDATE main.series_meta SET history_rev = (SELECT s.history_rev FROM snap.{SHIP_META_TABLE} s "
+    "WHERE s.ticker = series_meta.ticker AND s.tf = series_meta.tf) "
+    f"WHERE EXISTS (SELECT 1 FROM snap.{SHIP_META_TABLE} s WHERE s.ticker = series_meta.ticker "
+    "AND s.tf = series_meta.tf AND s.history_rev > series_meta.history_rev)")
+_SHIP_INSERT_SQL = (
+    "INSERT INTO main.series_meta (ticker, tf, rev, history_rev) "
+    f"SELECT s.ticker, s.tf, s.history_rev, s.history_rev FROM snap.{SHIP_META_TABLE} s "
+    "WHERE NOT EXISTS (SELECT 1 FROM main.series_meta m WHERE m.ticker = s.ticker AND m.tf = s.tf) "
+    "AND EXISTS (SELECT 1 FROM main.ohlcv o WHERE o.ticker = s.ticker AND o.tf = s.tf)")
+
+
+def _shipped_hrev(conn, ticker: str, tf: str):
+    """The worker's history_rev for this pair as the delta ships it, or None (an older delta, or not shipped)."""
+    try:
+        r = conn.execute(f"SELECT history_rev FROM snap.{SHIP_META_TABLE} WHERE ticker=? AND tf=?",
+                         (ticker, tf)).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    return None if r is None else int(r[0])
 
 
 def _bump_merged_rev(conn, ticker: str, tf: str, history: bool = False) -> None:
@@ -1976,6 +2019,19 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None, *,
                 except BaseException:
                     conn.execute("ROLLBACK")
                     raise
+            # D1: every pair the delta SHIPS a number for (merged or skipped as unchanged) adopts the worker's
+            # history_rev when it is higher. One short transaction after the merge (no chunk holds it).
+            if conn.execute("SELECT 1 FROM snap.sqlite_master WHERE type = 'table' AND name = ?",
+                            (SHIP_META_TABLE,)).fetchone() and conn.execute(
+                    "SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = 'series_meta'").fetchone():
+                conn.execute("BEGIN IMMEDIATE")
+                try:
+                    conn.execute(_SHIP_ADOPT_SQL)
+                    conn.execute(_SHIP_INSERT_SQL)
+                    conn.execute("COMMIT")
+                except BaseException:
+                    conn.execute("ROLLBACK")
+                    raise
             logger.info(
                 f"[data_sync] merge end: {len(pairs)} pairs, {added} added, "
                 f"{corrected} corrected, {chunks} chunks, lock max "
@@ -2084,6 +2140,7 @@ def _export_delta_db(out_path: str, now: Optional[int] = None) -> int:
             from api.services.bars_sqlite import iter_tickers
 
             total = 0
+            shipped = []
             for ticker in iter_tickers(src):
                 for tf, cut in cutoffs.items():
                     # The ceiling keeps a mis-keyed unix timestamp on a date
@@ -2099,6 +2156,13 @@ def _export_delta_db(out_path: str, now: Optional[int] = None) -> int:
                             "INSERT OR REPLACE INTO ohlcv VALUES (?,?,?,?,?,?,?,?)", rows
                         )
                         total += len(rows)
+                        shipped.append((ticker, tf))
+            # D1: the worker's SERVED history_rev for every pair this delta carries (see SHIP_META_TABLE).
+            from api.services.bars_sqlite import series_meta
+            out.execute(SHIP_META_DDL)
+            out.executemany(f"INSERT OR REPLACE INTO {SHIP_META_TABLE} VALUES (?,?,?)",
+                            [x for x in ((t, tf, int(series_meta(t, tf)["history_rev"])) for t, tf in shipped)
+                             if x[2] > 0])                      # 0 = the worker never wrote it: nothing to adopt
             out.commit()
             return total
         finally:

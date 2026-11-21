@@ -104,6 +104,16 @@ local; send anything heavier than a few files here. Rails: `tests/test_remote_te
 deleted mid-run on 2026-11-16 by a "leftover ref" cleanup that counted every session's refs); the tool deletes
 its own ref when it finishes.
 
+**It waits for room before it enqueues (2026-11-20).** GitHub has no job priority, so on a full 40-job pool a
+session's run sat in the same queue as the master deploy gate (11/20: gate jobs waited up to 22 min for a runner;
+a ~16 min gate took 44). Now, BEFORE it pushes its ref, the tool waits on this PC while the deploy gate has a job
+waiting for a runner, or while 4+ remote runs are in flight and other runs are queued; it prints why and re-checks
+every 60-75 s. The wait is capped at 30 min (`--max-wait-min N`) and then it dispatches anyway: it never drops a
+request, it dispatches at once if it cannot read the load, and a wait that is stopped leaves nothing behind (no
+ref, no run). `--max-wait-min 0` skips the wait: for a production incident only. Spend the pool deliberately: one
+request per finished change (not one per step of a train), only the tests and shards you need, and no second
+dispatch while one of yours is still queued or running.
+
 ## ⛔⛔ flow-worker DEPLOYS ARE MANUAL (owner decision 2026-11-12) — read before touching options-flow code
 
 Railway **auto deploy is DISABLED for `flow-worker`** (the live options tape, Live Flow, Options Flow,
@@ -1707,7 +1717,6 @@ All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key com
 - **Chart instance reuse**: no DOM destroy on ticker switch — `setData()` on existing series, `applyOptions()` for settings. Only `chart.remove()` on unmount.
 - **Memoized data**: `ohlcData`, `closeData`, `volData`, `overlayData`, `resolvedOverlays` all wrapped in `useMemo`. Prevents recomputation on non-data changes.
 - **A live price tick never renders the chart** (2026-11-20): under BARSTORE StockChart reads quotes through `useQuietRealtimePrices(tickers, { renderKey, onTickRef })` (`hooks/useQuietRealtimePrices.js`, `lib/liveQuote.js`; its own module because `useRealtimePrices.js` is on the Notebook's first open): the render re-runs only when the feed badge or the include-mode session candle's ext price changes; the Pre/Post tags, the screenshot price and `livePricesRef` update between renders. Never read the quote through a hook that re-renders per publish in the chart body. Rail: `StockChart.liveTicks.test.jsx`.
-- **Per-symbol metadata never renders the chart** (2026-11-20): ticker meta, listing date, event / news / desk markers, the watermark logo and the pane's next-earnings date are read by `ChartMetaFeed` (in `StockChart.jsx`) into a per-chart store (`chart/chartMetaStore.js`); an answer redraws the watermark lines, markers and badges directly (`_drawMeta`). Never add a per-symbol read as a hook or `useState` in the chart body; only a fact the engine computes on re-renders it. Rail: `StockChart.metaRenders.test.jsx`.
 - **GZip compression**: `GZipMiddleware` on FastAPI (skips `/api/stream/*` SSE endpoints), ~6x smaller payloads
 - **3-layer cache**: in-memory TTLCache (~1ms, 5-15min) → persistent disk `/data/bars_cache/` (~10ms, 2-72hr) → Massive API (4-30s)
 - **Disk cache TTLs**: D=48hr, W=72hr, 60m=8hr, 30m=4hr, 5m=2hr. Empty results never cached.

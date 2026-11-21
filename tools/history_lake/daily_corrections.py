@@ -208,8 +208,39 @@ def _atomic_json(path, obj):
     os.replace(tmp, path)
 
 
+def rescale_check(store: str, out: Path) -> dict:
+    """F3 (coordinator ruling): the standing rescale check (tools/bars_rescale_check.py) over the SAME store this build
+    reads. Writes out/RESCALE_FLAG.json {"exit", "names"}. Exit 2 (could not run) fails the build; a finding is not a
+    failure here: `publish` refuses every flagged name unless it is listed in --cleared."""
+    from tools import bars_rescale_check as F3
+    code = F3.main(["--db", store, "--out", str(out / "rescale_check.json")])
+    if code == 2:
+        raise SystemExit("bars_rescale_check could not run: the build stops (F3)")
+    rep = json.load(open(out / "rescale_check.json"))
+    names = sorted({str(r.get("ticker")).upper() for r in rep.get("rescale_artifacts") or ()}
+                   | {str(r.get("ticker")).upper() for k in ("pending", "declined") for r in rep.get(k) or ()})
+    flag = {"exit": code, "names": names}
+    _atomic_json(out / "RESCALE_FLAG.json", flag)
+    print("F3 rescale check:", code, names)
+    return flag
+
+
+def blocked_names(out: Path, cleared: str) -> set:
+    """F3-flagged names a publish must not carry: their stored rows hold rescale damage, so a compare-and-set entry built
+    on them could turn one wrong value into another. `--cleared` names the ones data-identity's rows have replaced.
+    No flag file: the build did not run the check, and nothing may be published."""
+    p = out / "RESCALE_FLAG.json"
+    if not p.exists():
+        raise SystemExit("refused: no RESCALE_FLAG.json (the build must run the F3 rescale check first)")
+    flag = json.load(open(p))
+    if int(flag.get("exit", 2)) == 2:
+        raise SystemExit("refused: the F3 rescale check could not run on this build")
+    return {str(s).upper() for s in flag.get("names") or ()} - {x.strip().upper() for x in (cleared or "").split(",") if x.strip()}
+
+
 def cmd_build(a):
     out = Path(a.out)
+    rescale_check(a.store, out)
     minutes = json.load(open(out / "minutes.json"))
     raw = json.load(open(out / "rawday.json"))
     ent_dir = out / "entries"
@@ -266,10 +297,16 @@ def cmd_publish(a, client=None, bucket=None):
     from api.services import bars_corrections as K
     out = Path(a.out)
     have = {p.stem for p in (out / "entries").glob("*.json")}
+    blocked = blocked_names(out, getattr(a, "cleared", ""))
     if a.stage == "none":
         names = set()                                     # the revert drill: every earlier symbol retires
     else:
-        names = have if a.stage == "all" else {s for s in a.stage.split(",") if s} & have
+        asked = have if a.stage == "all" else {s for s in a.stage.split(",") if s} & have
+        if a.stage != "all" and asked & blocked:
+            raise SystemExit(f"refused: F3-flagged {sorted(asked & blocked)} (clear them with --cleared)")
+        names = asked - blocked
+        if asked & blocked:
+            print("F3: left out of this publish:", sorted(asked & blocked))
         if not names:
             raise SystemExit(f"nothing to publish: {a.stage} has no entries")
     if client is None:
@@ -427,7 +464,13 @@ def cmd_verify(a):
             w = want.get((sym, tf), {})
             last = max((str(x["t"])[:10] for x in af.get("bars") or []), default="")
             extra = {d: v for d, v in dif.items() if d not in w and d != last}       # the developing bar moves on its own
+            # A ledger row that did NOT reach the served answer (a compare-and-set or chk miss: the stored row moved, e.g.
+            # a re-fetch). Counted per ticker so a drifted series shows up as a number, not silence.
+            after_by = {str(x["t"])[:10]: x for x in af.get("bars") or []}
+            missed = [d for d, r in w.items() if r.get("op") == "set" and d in after_by
+                      and any(abs(after_by[d][k] - nv) > 1e-6 for k, (_ov, nv) in (r.get("f") or {}).items() if k in "ohlc")]
             report[f"{sym}_{tf}"] = {"changed": len(dif), "ledger_rows": len(w), "changed_not_in_ledger": len(extra),
+                                     "ledger_rows_not_applied": len(missed), "missed_sample": missed[:5],
                                      "extra_sample": dict(list(extra.items())[:5]),
                                      "history_rev": [bf.get("history_rev"), af.get("history_rev")]}
     print(json.dumps(report, indent=1, default=str))
@@ -456,6 +499,7 @@ def main(argv=None):
     ap.add_argument("--before", default="")
     ap.add_argument("--after", default="")
     ap.add_argument("--symbols-file", default="")
+    ap.add_argument("--cleared", default="", help="F3-flagged names data-identity's rows have replaced (comma list)")
     a = ap.parse_args(argv)
     {"candidates": cmd_candidates, "minutes": cmd_minutes, "build": cmd_build, "publish": cmd_publish,
      "capture": cmd_capture, "verify": cmd_verify, "yahoo": cmd_yahoo}[a.cmd](a)
