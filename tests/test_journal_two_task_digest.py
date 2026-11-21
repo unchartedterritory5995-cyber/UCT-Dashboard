@@ -56,6 +56,10 @@ EXEMPT = {
         "invalidating trigger and `backfill_note_task_digest` fills them at the same boot",
     ("api/services/journal_two/roundtrip_export_fixture.py", "main"):
         "a fixture builder for the export round-trip rail, never a production path",
+    # 2026-11-21: in the census since fc484e6537 (#759, 2026-11-04), which went red on it with nobody running this file
+    ("api/services/journal_two/note_connectors/engine.py", "_apply_source_renames"):
+        "the Obsidian rename re-key: its assembled SET names only import_key, tags, folder_id and title, never a "
+        "body column, so a note's tasks cannot change (checked: test_the_rename_rekey_never_writes_a_body)",
 }
 
 
@@ -170,6 +174,7 @@ def _new(c, *items, title="n"):
 # ── the census ────────────────────────────────────────────────────────────────
 
 DRIVEN = {
+    ("api/services/journal_two/note_connectors/engine.py", "_write_into_trashed_row"),
     ("api/services/journal_two/notes.py", "create_note"),
     ("api/services/journal_two/notes.py", "update_note"),
     ("api/services/journal_two/notes.py", "append_widget_embed"),
@@ -268,6 +273,35 @@ def test_the_connector_engines_raw_rewrite_is_never_stale(conn):
     assert _row(conn, nid)                      # non-vacuity: refilled, not absent
     _assert_answer_equal(conn)
     assert [t["text"] for t in note_tasks.list_tasks(U, now=NOW, conn=conn)["tasks"]] == ["resolved text"]
+
+
+def test_the_connector_engines_write_into_a_trashed_note_refills_its_row(conn):
+    """`_write_into_trashed_row` (ddcad9c107, #756): the remote's new content written into a note the member trashed.
+    It is a door (it calls `_sync_note_sidecars`), so the row is the NEW body's tasks; the note stays in the trash,
+    and a restore brings the new tasks back."""
+    from api.services.journal_two.note_connectors import engine
+    nid = _new(conn, ("old task", False, None))
+    notes_svc.delete_note(U, nid, conn=conn)
+    engine._write_into_trashed_row(conn, U, nid, {"title": "n", "bodyJson": _doc(("remote task", False, "2026-09-25"))})
+    _assert_fresh(conn, nid)
+    assert _row(conn, nid) == _stored_tasks(conn, nid) and _row(conn, nid)   # refilled from the NEW body
+    assert "remote task" in json.dumps(_row(conn, nid))
+    _assert_answer_equal(conn)
+    assert "remote task" not in [t["text"] for t in note_tasks.list_tasks(U, now=NOW, conn=conn)["tasks"]]
+    notes_svc.restore_note(U, nid, conn=conn)
+    _assert_answer_equal(conn)
+    assert [t["text"] for t in note_tasks.list_tasks(U, now=NOW, conn=conn)["tasks"]] == ["remote task"]
+
+
+def test_the_rename_rekey_never_writes_a_body():
+    """`_apply_source_renames` is EXEMPT on a claim (no body column), so the claim is checked against its source."""
+    src = (REPO / "api/services/journal_two/note_connectors/engine.py").read_text(encoding="utf-8")
+    fn = next(n for n in ast.walk(ast.parse(src))
+              if isinstance(n, ast.FunctionDef) and n.name == "_apply_source_renames")
+    text = ast.get_source_segment(src, fn)
+    assert "UPDATE j2_notes SET {cols}" in text      # non-vacuity: the assembled SET the census flags
+    for col in ("body_json", "body_plain"):
+        assert col not in text, f"_apply_source_renames now names {col}: drive it against the task index instead"
 
 
 def test_a_raw_body_write_by_no_door_at_all_drops_the_row(conn):

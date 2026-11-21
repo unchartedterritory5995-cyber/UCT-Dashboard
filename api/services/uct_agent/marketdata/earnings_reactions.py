@@ -124,12 +124,15 @@ def cached_day(ds: str) -> Optional[dict]:
     """One day's calendar dict from the week cache that owns it, WITHOUT building a week (the same two entries the
     router's own `cached_report_session` reads). None when the week, or the day in it, is not held."""
     from api.routers import calendar as route
+    from api.services.calendar_week_contract import week_days
     monday = route._monday_of(date.fromisoformat(ds))
     if monday == route._week_dates()[0]:
         week = route.cache.get("calendar_weekly")
     else:
         week = route.cache.get(f"calendar_week_{monday.isoformat()}")
-    day = ((week or {}).get("days") or {}).get(ds) if isinstance(week, dict) else None
+    # TERM-030: the shared shape check. A malformed week raises (the kind answers unavailable), never "no reporters".
+    days = week_days(week, reader="api.services.uct_agent.marketdata.earnings_reactions.cached_day") or {}
+    day = days.get(ds)
     return day if isinstance(day, dict) else None
 
 
