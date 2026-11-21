@@ -1,5 +1,5 @@
 {
-  "fingerprint": "pipeline:master -> production=33 master commits not promoted yet (oldest landed 75 min ago): more than 60 min outside any hold and checks are still running|tests:nightly NEW failures=run 44568753938 found 58 NEW failures against the previous valid master run|tests:nightly full suite=no VALID master run for over 36 h (newest valid is run 44568753938)",
-  "posted_at": "2026-11-21T07:52:16.228786+00:00",
+  "fingerprint": "pipeline:master -> production=35 master commits not promoted yet (oldest landed 92 min ago): more than 60 min outside any hold and checks are still running|tests:nightly NEW failures=run 44568753938 found 58 NEW failures against the previous valid master run|tests:nightly full suite=no VALID master run for over 36 h (newest valid is run 44568753938)",
+  "posted_at": "2026-11-21T08:08:26.131798+00:00",
   "reason": "new stuck item"
 }
