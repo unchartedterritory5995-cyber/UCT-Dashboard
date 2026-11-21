@@ -853,6 +853,41 @@ function sameOptions(a, b) {
   return true
 }
 
+/**
+ * True when handing `want` to `series.applyOptions` would change no option the series holds now, by the library's
+ * own `merge` (lightweight-charts 5.2.0): a key set to `undefined` is skipped, a `null` over a value already set is
+ * skipped, a plain object merges key by key into the object already there, and everything else (a number, a
+ * string, a function, an array) is ASSIGNED, so it is held when it is the same value (an array: the same items).
+ * Read off `series.options()` (the library's copy of what the series holds), never off what this file last sent:
+ * other code writes some of these options too. A series that cannot say what it holds holds nothing.
+ */
+export function optionsHeld(series, want) {
+  let now = null
+  try { now = series && typeof series.options === 'function' ? series.options() : null } catch { now = null }
+  return !!now && typeof now === 'object' && heldIn(now, want)
+}
+function heldIn(now, want) {
+  if (!want || typeof want !== 'object') return false
+  for (const k of Object.keys(want)) {
+    const w = want[k]
+    if (w === undefined) continue
+    const n = now[k]
+    if (w !== null && typeof w === 'object' && !Array.isArray(w) && n !== undefined) {
+      // merged key by key into what is there (which must itself be an object to take keys)
+      if (n === null || typeof n !== 'object' || Array.isArray(n) || !heldIn(n, w)) return false
+      continue
+    }
+    if (w === null && n !== undefined) continue
+    if (Array.isArray(w)) {
+      if (!Array.isArray(n) || n.length !== w.length) return false
+      for (let i = 0; i < w.length; i++) if (!Object.is(n[i], w[i])) return false
+      continue
+    }
+    if (!Object.is(n, w)) return false
+  }
+  return true
+}
+
 /** Run series never write on the axis: the one last-value tag and price line
  *  belong to the LOGICAL series (the primary, which holds the newest run). */
 function runSeriesOptions(options) {
@@ -2922,6 +2957,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
      *  scale id AND payload, so a second definition wanting a DIFFERENT scale
      *  state on the same axis still gets its write. */
     const scalesWritten = new Set()
+    /** A series write carrying `priceFormat` (the library's full update) went out THIS sync — see pass one. */
+    let fullUpdateCarried = false
 
     // ── TRAP #5: EVERY SERIES ON A SCALE MUST EXIST BEFORE ANY OF THEM HAS
     //             DATA. Measured at B5 Task 8; it cost 11,913 changed pixels.
@@ -3092,7 +3129,20 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // series object ends up in the new pane with `toBe` and an empty
         // `removeSeries` list.
         if (b.from && b.from.paneIndex !== paneIndex) attempt(() => series.moveToPane(paneIndex))
-        attempt(() => series.applyOptions(options))
+        // ⭐ (paint, 2026-11-21) A SET THE SERIES ALREADY HOLDS IS NOT HANDED BACK TO IT. Every `applyOptions`
+        // marks the series' pane view "options changed", and its next paint restyles EVERY item of the series
+        // (a search for its row plus two object spreads per item): measured on eight real-Chrome list flips of
+        // the production build, 8.3 ms of each flip's paint, for sets that had not changed. `optionsHeld` asks
+        // the series itself (`series.options()`), so a value another writer set since (the Group-only
+        // `visible`, the off-screen `lastValueVisible`) is not held and is put back exactly as before.
+        // ⚠️ ONE WRITE STILL GOES OUT PER SYNC (`fullUpdateCarried`): every set carries `priceFormat`, and a
+        // series `priceFormat` makes the library run a FULL update (a relayout: the price axes re-fit their
+        // labels and can shrink). The chart got that from every sync before, so it still does.
+        // Railed: binder.optionsHeld.test.js.
+        if (!optionsHeld(series, options) || (!fullUpdateCarried && options.priceFormat !== undefined)) {
+          attempt(() => series.applyOptions(options))
+          if (options.priceFormat !== undefined) fullUpdateCarried = true
+        }
       }
 
       prepared.push({ b, bi, paneIndex, scaleId, scaleOptions, series, guideHandles, options })
