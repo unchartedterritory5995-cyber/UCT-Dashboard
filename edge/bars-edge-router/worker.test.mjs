@@ -17,7 +17,7 @@ import worker, {
   classifyRequest, SERVICE_VALID, SERVICE_EXPIRED, SERVICE_INVALID,
   classifyToken, readCookie, stripEdgeCookie,
   VALID, MISSING, EXPIRED, INVALID, isDeliberateTierShed, routeToTier, BARS_HEDGE_MS,
-  BARS_BREAKER_MS, TIER_BREAKER, makeTierBreaker, hedgeFor,
+  BARS_BREAKER_MS, TIER_BREAKER, makeTierBreaker, hedgeFor, BARS_HISTORY_REV_HEDGE_MS, MEASURED_TIER_P99_MS,
 } from "./worker.js";
 
 // The isolate's breaker is module state: every test starts with it closed.
@@ -752,55 +752,64 @@ test("the breaker window is long enough to cover a measured tier restart, short 
 });
 
 
-// ── history_rev-bearing reads are never hedged (2026-11-21 stopgap) ─────────────────
+// ── history_rev-bearing reads hedge only when the tier is really stuck (2026-11-21) ──────
 // history_rev is comparable only within one store, and web's and bars-api's differ for every series
-// measured (72/72): a web answer re-points the browser at web's history, which then refuses bars-api's.
-const NOHEDGE = { hedgeMs: null };
+// measured (70/70): a web answer re-points the browser at web's history, which then refuses bars-api's.
+const HR = (ms) => ({ hedgeMs: ms, historyRev: true });
 
-test("⭐⭐ a history_rev read with a SLOW tier waits for the tier: web is never asked", async () => {
+test("⭐⭐ a history_rev read past the SHORT hedge but inside its long one waits for the tier", async () => {
   const br = makeTierBreaker(clock().now);
   const f = fakeFetch({ tier: { ms: 150 }, web: { ms: 5 } });
-  const res = await routeToTier(f.fn, T, W, GET, { ...NOHEDGE, breaker: br });
+  const res = await routeToTier(f.fn, T, W, GET, { ...HR(400), breaker: br });
   assert.equal(res.headers.get("X-Bars-Edge"), "tier");
   assert.deepEqual(f.calls.map((x) => x.who), ["tier"]);
   assert.equal(br.isOpen(), false);
 });
 
-test("⭐ a history_rev read whose tier FAILS goes to web at once, and opens a failure window it honours", async () => {
+test("⭐⭐ a STUCK tier is hedged at the long threshold, and that opens a window history_rev reads honour", async () => {
   const br = makeTierBreaker(clock().now);
-  let f = fakeFetch({ tier: { ms: 5, status: 502 }, web: { ms: 5 } });
-  assert.equal((await routeToTier(f.fn, T, W, GET, { ...NOHEDGE, breaker: br })).headers.get("X-Bars-Edge"), "web-fallback");
+  let f = fakeFetch({ tier: { ms: 5000 }, web: { ms: 5 } });
+  const t0 = Date.now();
+  const res = await routeToTier(f.fn, T, W, GET, { ...HR(60), breaker: br });
+  assert.equal(res.headers.get("X-Bars-Edge"), "web-hedge");
+  assert.ok(Date.now() - t0 < 1000, "waited past the long hedge");
   assert.equal(br.isOpen(true), true);
   f = fakeFetch({ tier: { ms: 5000 }, web: { ms: 5 } });
-  const res = await routeToTier(f.fn, T, W, GET, { ...NOHEDGE, breaker: br });
-  assert.equal(res.headers.get("X-Bars-Edge"), "web-breaker");
+  assert.equal((await routeToTier(f.fn, T, W, GET, { ...HR(60), breaker: br })).headers.get("X-Bars-Edge"), "web-breaker");
   assert.deepEqual(f.calls.map((x) => x.who), ["web"]);
 });
 
-test("⛔ a breaker opened only by a HEDGE win does not send history_rev reads to web", async () => {
+test("⭐ a history_rev read whose tier FAILS goes to web at once, and opens a window it honours", async () => {
+  const br = makeTierBreaker(clock().now);
+  const f = fakeFetch({ tier: { ms: 5, status: 502 }, web: { ms: 5 } });
+  assert.equal((await routeToTier(f.fn, T, W, GET, { ...HR(2000), breaker: br })).headers.get("X-Bars-Edge"), "web-fallback");
+  assert.equal(br.isOpen(true), true);
+});
+
+test("⛔ a window opened only by a SHORT-hedge win does not send history_rev reads to web", async () => {
   const br = makeTierBreaker(clock().now);
   let f = fakeFetch({ tier: { ms: 5000 }, web: { ms: 5 } });
   assert.equal((await routeToTier(f.fn, T, W, GET, { hedgeMs: 30, breaker: br })).headers.get("X-Bars-Edge"), "web-hedge");
   assert.equal(br.isOpen(), true);
   assert.equal(br.isOpen(true), false);
   f = fakeFetch({ tier: { ms: 20 }, web: { ms: 5 } });
-  const res = await routeToTier(f.fn, T, W, GET, { ...NOHEDGE, breaker: br });
+  const res = await routeToTier(f.fn, T, W, GET, { ...HR(400), breaker: br });
   assert.equal(res.headers.get("X-Bars-Edge"), "tier");
   assert.deepEqual(f.calls.map((x) => x.who), ["tier"]);
-  // ...and a later failure inside that window makes it a failure window for everyone
-  f = fakeFetch({ tier: { ms: 5, status: 502 }, web: { ms: 5 } });
-  await routeToTier(f.fn, T, W, GET, { ...NOHEDGE, breaker: br });
+  f = fakeFetch({ tier: { ms: 5, status: 502 }, web: { ms: 5 } });          // a failure inside it upgrades it
+  await routeToTier(f.fn, T, W, GET, { ...HR(400), breaker: br });
   assert.equal(br.isOpen(true), true);
 });
 
-test("⭐ hedgeFor: /api/bars/<sym> is never hedged; /api/bars-history keeps the hedge", () => {
-  assert.deepEqual(hedgeFor("/api/bars/KO"), NOHEDGE);
-  assert.deepEqual(hedgeFor("/api/bars/BRK.B"), NOHEDGE);
+test("⭐ hedgeFor and the production thresholds: /api/bars/<sym> hedges far above the tier's p99", () => {
+  assert.deepEqual(hedgeFor("/api/bars/KO"), { hedgeMs: BARS_HISTORY_REV_HEDGE_MS, historyRev: true });
+  assert.deepEqual(hedgeFor("/api/bars/BRK.B"), { hedgeMs: BARS_HISTORY_REV_HEDGE_MS, historyRev: true });
   assert.deepEqual(hedgeFor("/api/bars-history/KO"), {});
-  assert.deepEqual(hedgeFor("/api/hist/KO"), {});
+  assert.ok(BARS_HISTORY_REV_HEDGE_MS >= 2 * MEASURED_TIER_P99_MS, "a normal read must never hedge");
+  assert.ok(BARS_HISTORY_REV_HEDGE_MS > BARS_HEDGE_MS && BARS_HISTORY_REV_HEDGE_MS < 8000, "below the timeout");
 });
 
-test("⭐ the worker's own route passes hedgeFor: a slow tier on /api/bars/<sym> is waited for", async () => {
+test("⭐ the worker's own route passes hedgeFor: a tier slower than the short hedge is still waited for", async () => {
   const realFetch = globalThis.fetch;
   const calls = [];
   globalThis.fetch = async (input, init) => {
