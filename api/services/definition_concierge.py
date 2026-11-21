@@ -2729,6 +2729,73 @@ def _lexicon_vocabulary(lexicon: Mapping[str, Any]) -> frozenset:
     return held[1]
 
 
+_RELATION_STEMS: Dict[int, Tuple[Any, Any, frozenset]] = {}
+_SENTENCE_SLOT = re.compile(r"\{\d+\}")
+
+
+def _relation_stems(lexicon: Mapping[str, Any], table: Optional[Mapping[str, Any]] = None) -> frozenset:
+    """The door's own RELATION words, by stem. ⛔ DERIVED, NEVER LISTED, from two declarations:
+
+      1. the closed table's `sentence` for every function that YIELDS TRUE OR FALSE: the table's relations and
+         events ("{0} crossing above {1}", "{0} rising for {1} bars"), with the argument slots taken out;
+      2. this lexicon's own phrases for those same functions ("cross over", "cross under"). The table says
+         "crossing" and a member writes "crosses", and the stemmer does not join the two: measured, with (1)
+         alone only "Crossing Above" was freed.
+
+    A function added to the table that yields true/false, or a phrase the lexicon gains for one, extends this
+    set with no edit here (`tests/test_relation_words_are_not_a_name.py` holds that, and that a hand list is red)."""
+    t = table if table is not None else ast_table.TABLE
+    held = _RELATION_STEMS.get(id(lexicon))
+    if held is None or held[0] is not lexicon or held[1] is not t:
+        functions = t.get(ast_table.FUNCTIONS_SECTION) or {}
+        # ⛔ WHETHER A FUNCTION YIELDS TRUE OR FALSE IS ASKED, NEVER RE-DERIVED: `scan_definition.is_boolean_tree`
+        # owns the manifest's kind declaration (one fact, one implementation), so it is asked about a call
+        # to each function. A name it cannot answer for is no relation.
+        relations = {name for name in functions if _yields_true_or_false(name, t)}
+        stems: set = set()
+        for name in relations:
+            spec = functions[name]
+            gloss = _SENTENCE_SLOT.sub(" ", str((spec.get("sentence") if isinstance(spec, Mapping) else "") or ""))
+            for word in _WORD_TOKEN.findall(gloss):
+                stems.update(_stem_key(_form_tokens(word))[0])
+        for key, entries in (lexicon.get("index") or {}).items():
+            if any(e.get("kind") == TABLE_ENTRY and e.get("key") in relations for e in entries):
+                stems.update(key)
+        held = (lexicon, t, frozenset(stems))
+        _RELATION_STEMS[id(lexicon)] = held
+    return held[2]
+
+
+def _yields_true_or_false(function: str, table: Mapping[str, Any]) -> bool:
+    """Does a call to this table function produce true/false? Asked of the one classifier that owns it."""
+    try:
+        return bool(scan_definition.is_boolean_tree({"type": "call", "name": function, "args": []}, table))
+    except Exception:                                   # noqa: BLE001 -- a name it cannot answer for is no relation
+        return False
+
+
+def _only_relation_words(words: List[Any], lexicon: Mapping[str, Any]) -> bool:
+    """Is every word of this Title-Case run one of the door's own relation words ("Crosses Above")?
+
+    ⭐ FOUND IN A LIVE ROUND, 2026-11-21: "Signal When RSI 14 Crosses Above 70" was refused before any model call
+    as an unknown indicator NAMED "Crosses Above". A relation is what the request ASKS, not what something is
+    called. ⛔ EVERY word must be one: "Falling Wedge", "Above The Stomach" and "Crossing Guard Oscillator" hold
+    a relation word beside other words and stay names.
+
+    ⛔ MEASURED BEFORE IT WAS WRITTEN, and the broader rule was measured too and REFUSED: reading a short run
+    as a name only when it holds a word the product does not know also un-refused real named indicators
+    nobody here has a formula for (Range Filter, Volatility Stop, Pivot Points, Three Line Break, Arms Index,
+    Bullish Percent Index, Put Call Ratio, Count Back Line). This rule un-refuses none of them."""
+    relation = _relation_stems(lexicon)
+    seen = False
+    for w in words:
+        stems = _stem_key(_form_tokens(w.group(0)))[0]
+        if not stems or not set(stems) <= relation:
+            return False
+        seen = True
+    return seen
+
+
 def _opens_a_sentence(text: str, w: Any) -> bool:
     """Is this word a request OPENER standing first in its sentence ("Add ...", "Done. Show ...")?
     Its capital is grammar. ⭐ MEASURED 2026-11-18: counted as the first word of a name, it made
@@ -2822,8 +2889,10 @@ def _named_phrases(prompt: str, already_found: List[dict],
             rest = [w for w in words[first:j]
                     if not (whole and any(f.get("section") == whole and f["start"] <= w.start() and w.end() <= f["end"]
                                           for f in already_found))]
-            if not overlaps or (strict_lexicon is not None and j - first <= NAME_MAX_WORDS
-                                and _foreign_words(rest, strict_lexicon)):
+            # ⭐ 2026-11-21 -- A RUN MADE ONLY OF RELATION WORDS IS A RELATION, never a name (`strict_lexicon` only).
+            only_relations = strict_lexicon is not None and _only_relation_words(words[first:j], strict_lexicon)
+            if (not overlaps or (strict_lexicon is not None and j - first <= NAME_MAX_WORDS
+                                 and _foreign_words(rest, strict_lexicon))) and not only_relations:
                 out.append({"kind": NAMED_ENTRY, "key": phrase, "section": None,
                             "start": start, "end": end, "matched_as": phrase})
             i = j
