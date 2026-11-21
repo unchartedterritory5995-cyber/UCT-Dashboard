@@ -36,11 +36,29 @@ A symbol whose newest selected bar is OLDER than the as-of session is left out (
 server answer would differ from the seed (the request path heals it), and a first frame that then
 jumps is worse than a 100 ms network paint.
 
+⛔ A DATE IS NOT A SESSION (2026-11-21). "The newest row is OF the as-of day" was the only check, and the
+worker's store holds, for 5m / 15m / 30m / 60m, whatever the day's one prewarm fetch returned: rows that
+stop mid-session, the last one a bucket caught while forming (build 20261121T0137Z: 6 of 3,541 symbols'
+30m reached the last bucket). So for those timeframes (`GATED_TFS`):
+  * a symbol is packed only when its as-of session is PROVEN complete (`complete`: by default
+    `ffseed_intraday.known_complete`, the post-close pass's ledger); the rest are left out and counted
+    (`incomplete`);
+  * the pack itself is then MEASURED: the share of its symbols whose last bar is the session's last
+    regular bucket (`last_rth_bucket_ts`, early closes included). Under `complete_floor(tf)` (default
+    90%; a thin name with no print in the last bucket is complete and still counts against the share)
+    the timeframe is REFUSED: not uploaded and not named in the manifest (`refused` says why). Devices
+    keep the generation they hold for it (`engine.ingestAll` skips a timeframe the manifest does not
+    name) and read it only while their split guard allows, else the network.
+A refused 5m / 15m / 30m / 60m never stops D or 1m (nor each other): the symbol floor refuses them the
+same way. D and 1m are not gated and a floor on them still refuses the whole build, as before.
+
 WHERE IT RUNS. On the `worker` service (it holds the fullest bars.db and already builds the D/W/M
 barspack after the close), as a daemon thread, DARK until `FFSEED_ENABLED=1`. It builds once per
 closed session, after `FFSEED_BUILD_AFTER_MIN` (default 20:15 ET: the extended session has ended
-and the 8 h mutable-window repairs of the regular-session bars have had hours to land). Zero
-provider calls. Worker deploys are manual (docs/runbooks/worker-deploys.md).
+and the 8 h mutable-window repairs of the regular-session bars have had hours to land). The build
+itself makes zero provider calls; the two passes that run just before it do (`ffseed_onemin`: 1m for
+the long tail; `ffseed_intraday`: the as-of session's 5m and 15m for every symbol, 30m / 60m derived).
+Worker deploys are manual (docs/runbooks/worker-deploys.md).
 
 CLI (a local build into a directory, no upload)::
 
@@ -93,6 +111,19 @@ def floor_for(tf: str) -> int:
     """The symbol floor of one timeframe's pack (read at build time, so a variable change needs no deploy)."""
     tf = str(tf)
     return _int_env(f"FFSEED_MIN_SYMBOLS_{tf}", MIN_SYMBOLS_BY_TF.get(tf, MIN_SYMBOLS))
+
+
+#: The timeframes packed only on proof that the as-of session is complete, and refused one at a time (see
+#: the module doc): every intraday timeframe but 1m, which has its own pass and plan (`ffseed_onemin`).
+GATED_TFS = tuple(tf for tf in SEED_TFS if tf not in ("1", "D"))
+#: Percent of a gated pack's symbols whose last bar must be the session's last regular bucket.
+MIN_TAIL_PCT = _int_env("FFSEED_MIN_TAIL_PCT", 90)
+
+
+def complete_floor(tf: str) -> float:
+    """The completeness floor of one gated timeframe, a share in 0..1 (`FFSEED_MIN_TAIL_PCT_<tf>` in
+    percent, else `FFSEED_MIN_TAIL_PCT`, default 90; read at build time)."""
+    return max(0, min(100, _int_env(f"FFSEED_MIN_TAIL_PCT_{tf}", MIN_TAIL_PCT))) / 100.0
 
 
 KEEP_BUILDS = _int_env("FFSEED_KEEP", 2)
@@ -153,6 +184,15 @@ def is_rth_bar(ts: int) -> bool:
 
 def is_trading_day(d: date) -> bool:
     return d.weekday() < 5 and int(d.strftime("%Y%m%d")) not in _holidays()
+
+
+def last_rth_bucket_ts(tf: str, asof: date) -> int:
+    """Start (unix s) of the LAST regular-session bucket of `asof` on the stored grid of intraday `tf`:
+    15:59 / 15:55 / 15:45 / 15:30 / 15:30 (the 60m half bar) on a full day, three hours earlier on an
+    early close. The serve path's own reading (`bars_fetch.session_complete`: the bucket holding the
+    last second before the regular close), so the two cannot disagree."""
+    from api.services import bars_fetch
+    return int(bars_fetch._ext_bucket_start(str(tf), int(bars_fetch._session_window(asof, "rth")[1]) - 1))
 
 
 def last_closed_session(now: Optional[datetime] = None, after_min: int = RTH_CLOSE_MIN) -> date:
@@ -339,14 +379,37 @@ def build_id(now: Optional[datetime] = None) -> str:
     return now.astimezone(timezone.utc).strftime("%Y%m%dT%H%MZ")
 
 
+def _proven_complete(asof: date) -> Callable[[str, str], bool]:
+    """The default proof a gated timeframe packs by: the post-close pass's ledger."""
+    from api.services import ffseed_intraday
+    return ffseed_intraday.known_complete(asof)
+
+
 def build_tf(tf: str, symbols: Iterable[str], asof: date, build: str, *, comp: str = "gzip",
-             depth: Optional[int] = None, read=store_read) -> Tuple[bytes, dict]:
-    """One timeframe's pack bytes and its stats. A symbol that fails is counted, never fatal."""
+             depth: Optional[int] = None, read=store_read,
+             complete: Optional[Callable[[str, str], bool]] = None) -> Tuple[bytes, dict]:
+    """One timeframe's pack bytes and its stats. A symbol that fails is counted, never fatal.
+
+    A gated timeframe (`GATED_TFS`) packs a symbol only when `complete(symbol, tf)` says its as-of
+    session is proven complete (default: the post-close pass's ledger, so a store nobody completed packs
+    NOTHING); the others are counted `incomplete`. Every intraday timeframe also counts `reach_last`: the
+    packed symbols whose last bar is the session's last regular bucket (`tail_share` of the pack)."""
     n = depth if depth is not None else depth_for(tf)
     asof_ymd = int(asof.strftime("%Y%m%d"))
     pb = fmt.PackBuilder(tf, asof=asof.isoformat(), build=build, depth=n, comp=comp)
-    stats = {"no_bars": 0, "stale": 0, "old_grid": 0, "inexact": 0, "error": 0, "short": 0, "bars": 0}
+    stats = {"no_bars": 0, "stale": 0, "old_grid": 0, "inexact": 0, "error": 0, "short": 0, "bars": 0,
+             "incomplete": 0, "reach_last": 0}
+    gate = (complete if complete is not None else _proven_complete(asof)) if tf in GATED_TFS else None
+    last_bucket = last_rth_bucket_ts(tf, asof) if tf != "D" else None
     for sym in symbols:
+        if gate is not None:
+            try:
+                proven = bool(gate(sym, tf))
+            except Exception:  # noqa: BLE001 - a proof that cannot be read is no proof
+                proven = False
+            if not proven:
+                stats["incomplete"] += 1
+                continue
         try:
             bars = seed_window(sym, tf, n, asof_ymd, read=read)
         except OldGridSeries:
@@ -371,30 +434,66 @@ def build_tf(tf: str, symbols: Iterable[str], asof: date, build: str, *, comp: s
         stats["bars"] += facts["bars"]
         if facts["bars"] < n:
             stats["short"] += 1
+        if last_bucket is not None and int(bars[-1]["t"]) == last_bucket:
+            stats["reach_last"] += 1
     stats["symbols"] = len(pb)
     stats["depth"] = n
+    stats["last_bucket"] = last_bucket
+    stats["tail_share"] = (stats["reach_last"] / stats["symbols"]) if stats["symbols"] else 0.0
     return pb.finish(), stats
+
+
+def completeness_of(tf: str, stats: dict) -> Optional[dict]:
+    """The manifest's record of how complete an intraday pack is (None for D): `reach_last` of `symbols`
+    end at `last_bucket` (`share`); `floor` is the share a gated timeframe needs to be published (None
+    for 1m: measured, never refused); `proven` says every packed symbol passed the completeness proof."""
+    if stats.get("last_bucket") is None:
+        return None
+    return {"last_bucket": stats["last_bucket"], "reach_last": stats["reach_last"],
+            "share": round(stats["tail_share"], 4),
+            "floor": complete_floor(tf) if tf in GATED_TFS else None, "proven": tf in GATED_TFS}
+
+
+def unfit(tf: str, stats: dict, floor: int) -> Optional[str]:
+    """Why this timeframe's pack must not be published, or None: under its symbol floor, or (gated
+    timeframes) under its completeness floor."""
+    if stats["symbols"] < floor:
+        return f"{stats['symbols']} symbols, floor {floor}"
+    if tf in GATED_TFS and stats["tail_share"] < complete_floor(tf):
+        return (f"{stats['reach_last']} of {stats['symbols']} symbols reach the session's last bucket "
+                f"({stats['tail_share']:.1%}), floor {complete_floor(tf):.0%}")
+    return None
 
 
 def manifest_entry(tf: str, build: str, data: bytes, stats: dict) -> dict:
     key = f"{PREFIX}/{build}/{tf}.ffs"
-    return {
+    entry = {
         "key": key, "url": f"{EDGE_PATH}/{build}/{tf}.ffs", "bytes": len(data),
         "sha256": hashlib.sha256(data).hexdigest(), "symbols": stats["symbols"],
         "bars": stats["bars"], "depth": stats["depth"], "tunit": fmt.T_UNIT[tf],
-        "skipped": {k: stats[k] for k in ("no_bars", "stale", "old_grid", "inexact", "error")},
+        "skipped": {k: stats.get(k, 0) for k in ("no_bars", "stale", "old_grid", "inexact", "error", "incomplete")},
         "short": stats["short"],
     }
+    done = completeness_of(tf, stats)
+    if done is not None:
+        entry["complete"] = done
+    return entry
 
 
 def build(*, tfs: Iterable[str] = SEED_TFS, symbols: Optional[List[str]] = None,
           asof: Optional[date] = None, comp: str = "gzip", read=store_read,
           now: Optional[datetime] = None, min_symbols: Optional[int] = None,
           on_pack: Optional[Callable[[str, bytes, dict], None]] = None,
-          splits: Optional[Callable[[date, List[str]], Optional[dict]]] = None) -> dict:
+          splits: Optional[Callable[[date, List[str]], Optional[dict]]] = None,
+          complete: Optional[Callable[[str, str], bool]] = None) -> dict:
     """Build every timeframe. Returns {"manifest": {...}, "packs": {tf: bytes}} (or, with
-    `on_pack`, hands each pack over as it is finished and keeps no bytes). Raises SeedBuildError
-    when a timeframe is below the symbol floor, so a broken store never replaces a good build."""
+    `on_pack`, hands each pack over as it is finished and keeps no bytes).
+
+    A pack that is `unfit` (under its symbol floor; a gated timeframe also under its completeness
+    floor) is never published. For D and 1m that raises SeedBuildError, so a broken store never
+    replaces a good build. A gated timeframe (5m / 15m / 30m / 60m) is refused ALONE: it is not handed
+    to `on_pack`, the manifest does not name it under `tfs` and says why under `refused`, and the other
+    timeframes build on. Raises when nothing at all is fit to publish."""
     symbols = list(symbols) if symbols is not None else universe()
     asof = asof or last_closed_session(now.astimezone(ET) if now else None)
     bid = build_id(now)
@@ -409,12 +508,26 @@ def build(*, tfs: Iterable[str] = SEED_TFS, symbols: Optional[List[str]] = None,
     sp = (splits or next_session_splits)(asof, symbols)
     if sp is not None:
         manifest["splits"] = sp
+    refused: Dict[str, dict] = {}
     for tf in tfs:
         t0 = time.time()
-        data, stats = build_tf(tf, symbols, asof, bid, comp=comp, read=read)
+        data, stats = build_tf(tf, symbols, asof, bid, comp=comp, read=read, complete=complete)
         floor = floor_for(tf) if min_symbols is None else min_symbols
-        if stats["symbols"] < floor:
-            raise SeedBuildError(f"tf {tf}: {stats['symbols']} symbols, floor {floor}: refusing to publish")
+        done = completeness_of(tf, stats)
+        if done is not None:
+            log.info("[ffseed] tf=%s completeness: %d of %d symbols reach the last bucket (%.1f%%, floor %s); "
+                     "%d left out as incomplete", tf, stats["reach_last"], stats["symbols"],
+                     100.0 * stats["tail_share"],
+                     "none" if done["floor"] is None else f"{done['floor']:.0%}", stats["incomplete"])
+        why = unfit(tf, stats, floor)
+        if why is not None:
+            if tf not in GATED_TFS:
+                raise SeedBuildError(f"tf {tf}: {why}: refusing to publish")
+            refused[tf] = {"reason": why, "symbols": stats["symbols"], "symbol_floor": floor,
+                           "incomplete": stats["incomplete"], "complete": done}
+            log.warning("[ffseed] tf=%s REFUSED, not published (%s): the other timeframes build on and "
+                        "devices keep the build they hold for it", tf, why)
+            continue
         entry = manifest["tfs"][tf] = manifest_entry(tf, bid, data, stats)
         log.info("[ffseed] tf=%s %d symbols %d bars %d bytes in %.1fs", tf, stats["symbols"],
                  stats["bars"], len(data), time.time() - t0)
@@ -422,6 +535,11 @@ def build(*, tfs: Iterable[str] = SEED_TFS, symbols: Optional[List[str]] = None,
             on_pack(tf, data, entry)
         else:
             packs[tf] = data
+    if refused:
+        manifest["refused"] = refused
+    if not manifest["tfs"]:
+        raise SeedBuildError("no timeframe is fit to publish: "
+                             + "; ".join(f"tf {tf}: {r['reason']}" for tf, r in refused.items()))
     return {"manifest": manifest, "packs": packs}
 
 
@@ -677,18 +795,32 @@ def forced_rebuild_due(now: Optional[datetime] = None) -> Optional[date]:
 
 
 def nightly(asof: date) -> dict:
-    """One session's build: the long-tail 1m pass, the build and publish, the marker, then the 1m
-    retention. The pass and the retention never stop a publish."""
+    """One session's build: the long-tail 1m pass, the intraday completion pass (5m / 15m fetched,
+    30m / 60m derived: `ffseed_intraday`), the build and publish, the marker, then the 1m retention.
+    Neither pass nor the retention can stop a publish: what the intraday pass did not prove complete is
+    left out of its timeframe by the build, and a timeframe left too thin is refused alone."""
+    from api.services import ffseed_intraday as intraday
     from api.services import ffseed_onemin as onemin
     if onemin.backfill_enabled():
         try:
             onemin.run_pass(asof)
         except Exception:  # noqa: BLE001
             log.exception("[ffseed] 1m backfill failed (building with what the store has)")
+    if intraday.enabled():
+        try:
+            intraday.run_pass(asof)
+        except Exception:  # noqa: BLE001
+            log.exception("[ffseed] intraday completion pass failed (unproven symbols are left out)")
+    else:
+        log.warning("[ffseed] FFSEED_INTRADAY_BACKFILL=0: nothing proves 5m/15m/30m/60m complete, "
+                    "those timeframes will be refused")
     m = build_and_publish(asof=asof)
     _write_marker(max(_read_marker(), int(asof.strftime("%Y%m%d"))))
     log.info("[ffseed] published %s as-of %s: %s", m["build"], m["asof"],
              {tf: (e["symbols"], e["bytes"]) for tf, e in m["tfs"].items()})
+    if m.get("refused"):
+        log.warning("[ffseed] %s as-of %s REFUSED timeframes (not published): %s", m["build"], m["asof"],
+                    {tf: r["reason"] for tf, r in m["refused"].items()})
     try:
         onemin.retention(asof)
     except Exception:  # noqa: BLE001
@@ -774,6 +906,9 @@ def _main(argv=None) -> int:
         json.dump(built["manifest"], f, indent=1, sort_keys=True)
     print(json.dumps({tf: {k: e[k] for k in ("symbols", "bars", "bytes")}
                       for tf, e in built["manifest"]["tfs"].items()}, indent=1))
+    for tf, r in (built["manifest"].get("refused") or {}).items():
+        # 5m / 15m / 30m / 60m pack only what the post-close pass proved complete on THIS store
+        print(f"tf {tf} refused: {r['reason']}")
     return 0
 
 

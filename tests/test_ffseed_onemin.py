@@ -228,6 +228,10 @@ def seq(monkeypatch, tmp_path):
     log = []
     monkeypatch.setattr(onemin, "backfill", lambda asof, **kw: log.append(("backfill", asof)) or {"not_reached": 0})
     monkeypatch.setattr(onemin, "retention", lambda asof: log.append(("retention", asof)))
+    # the intraday completion pass (ffseed_intraday) runs between the 1m pass and the build: it is the
+    # provider's here, so it is stubbed out; tests/test_ffseed_intraday.py pins its place in the sequence
+    from api.services import ffseed_intraday
+    monkeypatch.setattr(ffseed_intraday, "complete_session", lambda asof, **kw: {})
 
     def bp(asof):
         log.append(("publish", asof))
