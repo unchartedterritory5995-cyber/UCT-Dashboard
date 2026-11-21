@@ -365,6 +365,7 @@ def test_the_ratchet_artifacts_stay_out_of_the_union_rail():
 
 STUB_WRAPPER = r"""#!/usr/bin/env bash
 # a stand-in for tools/ci_offline.sh: answers each tool by name, from the environment
+if [ -n "${ARGS_LOG:-}" ]; then printf '%s\n' "$*" >> "$ARGS_LOG"; fi
 case " $* " in
   *" queue --check "*) exit "${Q_RC:-0}" ;;
   *" pins --check "*) exit "${P_RC:-0}" ;;
@@ -401,6 +402,11 @@ def _execute(tmp_path, run: str, **env) -> int:
     shim.write_text('#!/usr/bin/env bash\nexec "%s" "$@"\n' % sys.executable.replace("\\", "/"), encoding="utf-8",
                     newline="\n")
     os.chmod(shim, 0o755)
+    if "GIT_RC" in env:         # a stand-in `git`: logs its arguments, answers GIT_RC
+        git = bindir / "git"
+        git.write_text('#!/usr/bin/env bash\nprintf \'git %s\\n\' "$*" >> "$ARGS_LOG"\nexit "$GIT_RC"\n',
+                       encoding="utf-8", newline="\n")
+        os.chmod(git, 0o755)
     script = tmp_path / "step.sh"
     script.write_text(run, encoding="utf-8", newline="\n")
     full = dict(os.environ, CI_TOOLS=str(tmp_path / "ci"), GITHUB_STEP_SUMMARY=str(tmp_path / "summary.md"),
@@ -416,6 +422,34 @@ def test_the_derived_evidence_step_fails_when_either_check_does(tmp_path, q, p, 
     assert "pins --check" in run
     rc = _execute(tmp_path, run, Q_RC=q, P_RC=p)
     assert (rc == 0) is ok, f"queue rc {q}, pins rc {p}: step exit {rc}"
+
+
+@pytest.mark.parametrize("git_rc,q,want", [(0, 0, 0), (0, 1, "red"), (128, 0, "red")])
+def test_on_a_pr_the_queue_check_runs_against_the_prs_base_and_a_base_it_cannot_fetch_fails(tmp_path, git_rc, q, want):
+    """⭐ (2026-11-21) `queue --check` passed while a doc edit dropped 3 targets: on a pull request the step fetches the
+    base and checks `--against` it. ⛔ A base it cannot fetch is never a pass (the comparison did not run)."""
+    run = _step_run("derived-evidence", "queue --check")
+    log = tmp_path / "args.log"
+    rc = _execute(tmp_path, run, Q_RC=q, P_RC=0, BASE_SHA="0123abcd", GIT_RC=git_rc, ARGS_LOG=log)
+    lines = log.read_text(encoding="utf-8").splitlines()
+    assert lines[0] == "git fetch --no-tags --depth=1 origin 0123abcd", lines
+    queue = [ln for ln in lines if " queue --check" in ln]
+    if git_rc == 0:
+        assert queue and queue[0].endswith("queue --check --against 0123abcd"), lines
+    else:
+        assert not queue, lines            # nothing to compare with: the check does not run, and the step fails
+    assert (rc == 0) if want == 0 else (rc != 0), f"git {git_rc}, queue {q}: step exit {rc}"
+
+
+def test_without_a_pr_base_the_queue_check_runs_as_before(tmp_path):
+    run = _step_run("derived-evidence", "queue --check")
+    log = tmp_path / "args.log"
+    assert _execute(tmp_path, run, Q_RC=0, P_RC=0, ARGS_LOG=log) == 0
+    lines = log.read_text(encoding="utf-8").splitlines()
+    assert [ln for ln in lines if " queue --check" in ln][0].endswith("queue --check"), lines
+    assert not [ln for ln in lines if ln.startswith("git ")]
+    step = next(s for s in _wf()["jobs"]["derived-evidence"]["steps"] if "queue --check" in str(s.get("run")))
+    assert step["env"]["BASE_SHA"] == "${{ github.event.pull_request.base.sha }}"
 
 
 def _result(verdict, measured, expected=266):

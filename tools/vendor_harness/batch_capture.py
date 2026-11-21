@@ -91,6 +91,7 @@ from pine_member_pane_capture import TIERS, _gate  # noqa: E402
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from evidence_ledger import CAPTURE_PHASES  # noqa: E402 — the ONE phase vocabulary: imported, never restated
+from evidence_ledger import SESSION_SUFFIX, SESSIONS  # noqa: E402 — the ONE session vocabulary, likewise
 
 TV_CAPTURE = HERE / "tv_capture.js"
 VERIFY = HERE / "verify_capture.mjs"
@@ -606,9 +607,9 @@ def utcnow() -> str:
 #: row stopped. Its double parsed the spec, and `sym_match` read THROUGH it, so its self-checks agreed with the code,
 #: not with TradingView. And its read-back ran BEFORE the resolution was set, on the batch's 1D chart, where a US
 #: listing always resolves 0930-1600 (every daily capture on record), so even a working setter read "regular" there.
-ROW_SESSIONS = {"extended": "0400-2000", "regular": "0930-1600"}
-#: what a capture id says of a row's NAMED session (`capture_id_for`); one entry per `ROW_SESSIONS` key
-SESSION_SUFFIX = {"extended": "-ext", "regular": "-rth"}
+#: The vocabulary is `evidence_ledger.SESSIONS` (and its id suffixes `evidence_ledger.SESSION_SUFFIX`, imported
+#: above): the queue matches a target's session against what each capture RECORDED with the same words.
+ROW_SESSIONS = SESSIONS
 
 #: ⭐⭐ THE LAYOUT A BATCH RUNS ON (`--layout`, ruling B1 2026-11-21). The rig layout is `01f1AcIj`, saved with EXTENDED
 #: hours (probe R1, 2026-11-21: sessionId "extended", 60m resolves 0400-2000 with 186 of 300 bars outside 09:30-16:00);
@@ -624,6 +625,9 @@ RIG_LAYOUT_ID = LAYOUT.rstrip("/").rsplit("/", 1)[-1]
 #: a copy), and a direct `sessionId.setValue` is NOT persisted (a fresh load reverts it; only the chart model's
 #: `changeSessionId`, an undo command, is). Selecting a layout is the mechanism, never writing a session.
 RIG_REGULAR_LAYOUT_ID = "MyS1vKSg"
+#: The layout saved with each session's hours (the two above): a manifest row that names its session names this
+#: layout too (`evidence_engine.build_manifest`), so a batch on the other layout skips it instead of failing its read.
+SESSION_LAYOUT = {"extended": RIG_LAYOUT_ID, "regular": RIG_REGULAR_LAYOUT_ID}
 LAYOUT_ID_RX = re.compile(r"^[A-Za-z0-9]{6,16}$")
 
 

@@ -148,12 +148,28 @@ shapes; these rules are what makes them machine-readable without rewriting them)
   `1,800 bars`) is never a timeframe.
 - A target needing a live session is `NEEDS_LIVE` at status derivation, the single place that
   rule lives; the manifest selects by status alone.
+- ⭐ **A row may ask for an intraday chart's HOURS** (the session dimension, coordinator ruling 2026-11-21), in
+  words beside its chart: `extended hours off`, `extended off`, `regular session` -> regular; `extended hours on`,
+  `the EXTENDED session on` -> extended (`evidence_engine.session_words`, a closed vocabulary). They are read only
+  from the cells that name the row's chart (or the section's / preamble's lines that name it, when the chart came
+  from there), never from a prose remark in another cell. Words that say WHEN a capture is taken (`during regular
+  hours`, `during RTH`, `in the regular session`) are a live row's clock, not its hours. Both sessions beside one
+  chart refuse the queue by name (`SessionError`). A daily, weekly or monthly chart resolves 0930-1600 whatever the
+  layout's hours, so its rows carry no session.
+- ⛔ **A table line no table holds refuses the queue by name** (`TableLineError`): a line between a table's rows (a
+  blank one included) ends the table, and the rows after it would read as nothing. ⚰️ 2026-11-21: such a split
+  dropped 3 targets (543 -> 540) with `queue --check` green.
 
 ### 2.2 Targets (the unit of work)
 
-A **target** is one capture to take: `(source sha, symbol, timeframe)`. Rows that need the
-same capture collapse onto one target, which lists every row it answers. Status, derived
-from disk on every build:
+A **target** is one capture to take: `(source sha, symbol, timeframe)`, plus the row's `phase` (`@<phase>`) and,
+on an intraday chart, the hours it asks for (`@regular` / `@extended`, carried as `captureSession`; a row asking none
+keeps its id, `<stem>@<symbol>@<tf>`). Rows that need the same capture collapse onto one target, which lists every
+row it answers. ⛔ A session target is answered only by a capture that RECORDED those hours: the capture's own
+`symbol.session` (`evidence_ledger.capture_session`: `0930-1600` regular, `0400-2000` extended, from the one
+vocabulary `evidence_ledger.SESSIONS`), never its id and never a row's label (⚰️ `vw-lower-tf-bars-rddt-*-2026-11-16`
+and `vw-bi-time-close-2arg-spy-60-2026-11-19` were asked for extended hours off and recorded 0400-2000). The ledger
+records no session, so `VERDICT_LOCAL` never answers a session target. Status, derived from disk on every build:
 
 | status | meaning |
 |---|---|
@@ -167,7 +183,8 @@ from disk on every build:
 | `LICENCE_HOLD` | a guard, not a state anything reaches today: a target whose source is neither a probe nor a corpus file with a clear licence is held here, never QUEUED, never in a manifest. Every target source today is a probe or a corpus file, so no target has this status (the builtin / reference-only census scripts are listed apart, see 2.4) |
 
 **The capture stem** (`evidence_engine.capture_stem`, ONE authority) is the `<script>` of a capture id
-`<script>-<sym>-<tf>-<yyyy-mm-dd>[-<phase>]` (the phase, from the closed vocabulary
+`<script>-<sym>-<tf>[-rth|-ext]-<yyyy-mm-dd>[-<phase>]` (`-rth` / `-ext` when the row named its session,
+`evidence_ledger.SESSION_SUFFIX`; the phase, from the closed vocabulary
 `evidence_ledger.CAPTURE_PHASES` = insession / postclose-open / postclose-fresh / preopen, set by a queue row's `phase`
 column and carried as `capturePhase`, so two session states of one probe on one day never share an id; #2015): the
 manifest hands it to the driver (`captureStem`), the STALE lookup
@@ -177,6 +194,15 @@ run has one, so a same-slug file added between the capture and the promote chang
 the slug (three `support-and-resistance__*` today). Before it existed the manifest handed over the raw stem,
 every corpus capture came back as `name__hash-...`, failed the gate's own id rule and was retaken by every
 batch.
+
+**The derived set cannot shrink silently** (`queue --check --against REF`, 2026-11-21). `queue --check` proves the docs
+derive a queue; with `--against REF` it also derives the queue from REF's queue docs, with the same code and the same
+probes, fixtures and census, so the docs are the only difference. A row that asked for a capture at REF must still be
+in a target, or be disposed of in its doc (`not a capture`), or be gone (its line deleted or rewritten); a row still in
+the docs that derives nothing (it needs a probe now, its table reads as a ledger or a finished record, no table holds
+it) fails the check by name (`shrink_refusals`), and the log lists every target only there, only here, or with a new
+status. The pine heavy `derived-evidence` job runs it against each PR's base. ⚰️ It exists because a split table
+dropped 3 targets (543 -> 540) while `queue --check` passed.
 
 ### 2.3 Priority = scripts unblocked, derived from the census, never typed
 
@@ -225,7 +251,9 @@ order, then groups by chart within each priority band so a batch switches symbol
 times as it can without letting a lower-priority capture jump a higher one. It writes a
 `uct.vendor-batch-manifest/v1` that `batch_capture.py` already reads, with per-script
 `symbol`, `tf`, `listingDate`, `captureStem` (the capture stem, above), `chartDefaulted` and
-`chartSource` (where the chart was read), `queueTargetId`, `rows`, `localOnly`, and the
+`chartSource` (where the chart was read), `queueTargetId`, `rows`, `localOnly`, for a session target `session`
+and `layout` (the rig layout saved with those hours, `batch_capture.SESSION_LAYOUT`: a batch on the other layout skips
+the row, and the batch READS the session after the row's resolution, never sets it), and the
 production door-flag state (read from `docs/frontend_feature_flags.json`, as
 `batch_manifest.py` does) so the grader runs the door the census counted. ⛔ No manifest takes a
 target whose chart was defaulted, whatever statuses a selection asks for.
@@ -323,7 +351,9 @@ run's orphan study is removed only by the id it recorded.
 
 - **Validate** (`fixture_gate`): `verify_capture.mjs` (shape, receipt, source sha: the one
   authority, called, never re-implemented) + the file name equals `<id>.json` and the id has
-  the house form `<script>-<sym>-<tf>-<yyyy-mm-dd>[-<phase>]` (a phase from `CAPTURE_PHASES` only), where `<script>` must be the stem the
+  the house form `<script>-<sym>-<tf>[-rth|-ext]-<yyyy-mm-dd>[-<phase>]` (a phase from `CAPTURE_PHASES` only; ONE
+  grammar, `evidence_ledger.SESSION_SUFFIX_RX` + `PHASE_SUFFIX_RX`, shared with `batch_capture.capture_id_for`, which
+  writes it, and `evidence_ledger.script_key` / `capture_phase`, which read it), where `<script>` must be the stem the
   RUN MANIFEST asked the driver for (its entry's `captureStem`, when that entry carries this
   capture's source sha; a same-slug file added after the capture must not unpromote it), else,
   for a source the repository holds (a probe or corpus file, by sha), THAT source's capture
