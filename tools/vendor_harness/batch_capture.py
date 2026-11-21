@@ -338,7 +338,8 @@ BINDING_SETTLE_S = 15.0
 #: `rig_controls.js` (one function expression; its leading comment dropped), railed over the rig's recorded DOM in
 #: app/src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js. A menu row is a `[role="menuitem"]`
 #: inside an open `[role="menu"]`; `Add to chart` is inside `#pine-editor-dialog`; exactly one visible control of the
-#: text, which a pointer at its centre would hit, or NOTHING is clicked (`STOP` when it found several, or a covered one).
+#: text, which a pointer at its centre would hit, or NOTHING is clicked: several stop the step at once (`STOP`); a covered
+#: one is read again until it clears or the step's timeout refuses it (`covered`; a transient overlay never fails a row).
 #: ⚰️ Both searched own text over the WHOLE page and took the first hit: one attempt clicked an unrelated "Save" behind
 #: a modal ("Save" has 4 own-text matches on the rig page, 2026-11-21 04:10Z, `D:/uct-rig-facts/dom_facts_2026-11-21.json`).
 _RIG_CONTROLS_SRC = (HERE / "rig_controls.js").read_text(encoding="utf-8")
@@ -857,15 +858,22 @@ def throttle_refusal(throttle_s) -> str | None:
 
 
 def menu_answered(r) -> bool:
-    """A menu-row read that settles the poll: the one row, or a STOP (several rows, or a covered one)."""
+    """A menu-row read that settles the poll: the one row, or a STOP (several rows). A COVERED row does not settle it:
+    the poll reads again, so an overlay that clears in time never fails a good row (patrick-54's review of #2326)."""
     return bool(r and (r.get("ok") or r.get("STOP")))
 
 
-def menu_refusal(r, text: str) -> None:
-    """⛔ A menu read that STOPPED (`rig_controls.js`: several rows of the text in the open menus, or one another element
-    covers) fails the row by name before the pointer touches any row."""
-    if r and r.get("STOP"):
+def menu_refusal(r, text: str, timed_out: bool = False) -> None:
+    """⛔ A menu read that STOPPED (`rig_controls.js`: several rows of the text in the open menus), or one still COVERED
+    when the step's timeout ran out, fails the row by name before the pointer touches any row."""
+    if r and (r.get("STOP") or (timed_out and r.get("covered"))):
         raise GateFailed(f"the menu row `{text}` was not clicked: {r.get('why')}", r)
+
+
+def add_answered(r) -> bool:
+    """An `ADD_JS` read that settles the add: it clicked, or it stopped for any reason but a COVERED button (that one is
+    read again until it clears or the timeout refuses it). Nothing is clicked by a read that does not answer."""
+    return bool(r and (r.get("clicked") or (r.get("STOP") and not r.get("covered"))))
 
 
 def capture_id_for(script: dict, o: Opts) -> str:
@@ -1343,7 +1351,7 @@ class Driver:
         self.menu_open = True
         cn, ok = self.poll("menu:Create new", MENU_ITEM_JS, {"text": "Create new"}, menu_answered,
                            self.opts.ui_timeout_s)
-        menu_refusal(cn, "Create new")
+        menu_refusal(cn, "Create new", timed_out=not ok)
         if not ok:
             raise Inconclusive("the script-title menu showed no `Create new` row")
         self.step("hover:Create new")
@@ -1351,7 +1359,7 @@ class Driver:
         self.clock.sleep(0.8)
         ind, ok = self.poll("menu:Indicator", MENU_ITEM_JS, {"text": "Indicator", "rightOf": cn["rect"]},
                             menu_answered, self.opts.ui_timeout_s)
-        menu_refusal(ind, "Indicator")
+        menu_refusal(ind, "Indicator", timed_out=not ok)
         if not ok:
             raise Inconclusive("`Create new` opened no `Indicator` row (the submenu needs a real hover)")
         self.step("click:Indicator")
@@ -1387,7 +1395,7 @@ class Driver:
         return r
 
     def add_to_chart(self):
-        r = self.ev("add", ADD_JS)
+        r, _ = self.poll("add", ADD_JS, None, add_answered, self.opts.ui_timeout_s)
         if not r or r.get("STOP") or not r.get("clicked"):
             raise GateFailed(f"the add was refused by its own gate — nothing clicked: {r}", r)
         st, ok = self.poll("state", STATE_JS, None,

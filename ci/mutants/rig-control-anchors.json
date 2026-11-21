@@ -1,56 +1,110 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "ANCHOR follow-up (tools/rig-control-anchors, patrick-54's review, coordinator ruling 2026-11-21): the menu rows and Add to chart are found inside their containers (an open [role=menu]'s [role=menuitem] rows; #pine-editor-dialog), exactly one, never a covered one (tools/vendor_harness/rig_controls.js, railed over the rig's recorded DOM), and the Driver and the double hold to it. Every rule, broken once, must turn its rail red.",
+ "about": "ANCHOR follow-up (tools/rig-control-anchors, patrick-54's review, coordinator ruling 2026-11-21): the menu rows and Add to chart are found inside their containers (an open [role=menu]'s [role=menuitem] rows; #pine-editor-dialog), exactly one, a covered one read again until it clears or the timeout refuses it, several stopping at once (tools/vendor_harness/rig_controls.js, railed over the rig's recorded DOM), and the Driver and the double hold to it. Every rule, broken once, must turn its rail red.",
  "mutants": [
-  {"id": "A1", "mutant": "menu rows are searched over the whole page again",
+  {
+   "id": "A1",
+   "mutant": "menu rows are searched over the whole page again",
    "file": "tools/vendor_harness/rig_controls.js",
    "from": "const rows = [...document.querySelectorAll('[role=\"menu\"] [role=\"menuitem\"]')];",
    "to": "const rows = [...document.querySelectorAll('*')];",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js"},
-  {"id": "A2", "mutant": "Add to chart is searched over the whole page again",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js"
+  },
+  {
+   "id": "A2",
+   "mutant": "Add to chart is searched over the whole page again",
    "file": "tools/vendor_harness/rig_controls.js",
    "from": "pool = [...dialog.querySelectorAll('button, a, [role=\"button\"], div, span')];",
    "to": "pool = [...document.querySelectorAll('button, a, [role=\"button\"], div, span')];",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js"},
-  {"id": "A3", "mutant": "several matches: the first is taken",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js"
+  },
+  {
+   "id": "A3",
+   "mutant": "several matches: the first is taken",
    "file": "tools/vendor_harness/rig_controls.js",
    "from": "  if (hits.length > 1) {",
    "to": "  if (false) {",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js"},
-  {"id": "A4", "mutant": "a covered control is chosen (no hit test)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js"
+  },
+  {
+   "id": "A4",
+   "mutant": "a covered control is chosen (no hit test)",
    "file": "tools/vendor_harness/rig_controls.js",
    "from": "  const top = document.elementFromPoint(x, y);",
    "to": "  const top = el;",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js"},
-  {"id": "A5", "mutant": "a submenu row need not sit right of the row that opened it",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js"
+  },
+  {
+   "id": "A5",
+   "mutant": "a submenu row need not sit right of the row that opened it",
    "file": "tools/vendor_harness/rig_controls.js",
    "from": "  if (a.rightOf) hits = hits.filter(",
    "to": "  if (false) hits = hits.filter(",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js"},
-  {"id": "A6", "mutant": "a control with no box (not shown) counts",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js"
+  },
+  {
+   "id": "A6",
+   "mutant": "a control with no box (not shown) counts",
    "file": "tools/vendor_harness/rig_controls.js",
    "from": "filter((el) => own(el) === a.text && vis(el));",
    "to": "filter((el) => own(el) === a.text);",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js"},
-  {"id": "A7", "mutant": "a STOPPED menu read is not refused: the Driver waits it out and moves on",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js"
+  },
+  {
+   "id": "A7",
+   "mutant": "a STOPPED menu read is not refused: the Driver waits it out and moves on",
    "file": "tools/vendor_harness/batch_capture.py",
-   "from": "    if r and r.get(\"STOP\"):\n        raise GateFailed(f\"the menu row",
+   "from": "    if r and (r.get(\"STOP\") or (timed_out and r.get(\"covered\"))):\n        raise GateFailed(f\"the menu row",
    "to": "    if False:\n        raise GateFailed(f\"the menu row",
-   "rail": "python -m pytest tests/test_vendor_batch_capture.py -q -p no:cacheprovider -k \"two_create_new_rows or covered_indicator_row\""},
-  {"id": "A8", "mutant": "ADD_JS asks the menu container for Add to chart",
+   "rail": "python -m pytest tests/test_vendor_batch_capture.py -q -p no:cacheprovider -k \"two_create_new_rows or covered_indicator_row\""
+  },
+  {
+   "id": "A8",
+   "mutant": "ADD_JS asks the menu container for Add to chart",
    "file": "tools/vendor_harness/batch_capture.py",
    "from": "({ text: 'Add to chart', within: 'editor' });",
    "to": "({ text: 'Add to chart', within: 'menu' });",
-   "rail": "python -m pytest tests/test_vendor_batch_capture.py -q -p no:cacheprovider -k the_menu_and_add_scripts_evaluate_the_railed_finder"},
-  {"id": "A9", "mutant": "the double clicks an Add to chart outside the dialog",
+   "rail": "python -m pytest tests/test_vendor_batch_capture.py -q -p no:cacheprovider -k the_menu_and_add_scripts_evaluate_the_railed_finder"
+  },
+  {
+   "id": "A9",
+   "mutant": "the double clicks an Add to chart outside the dialog",
    "file": "tools/vendor_harness/batch_double.py",
-   "from": "        if self._own_add() != 1 or \"Add to chart\" in self.covered:",
+   "from": "        if self._own_add() != 1 or covered:",
    "to": "        if False:",
-   "rail": "python -m pytest tests/test_vendor_batch_capture.py -q -p no:cacheprovider -k \"add_to_chart_outside_the_editor_dialog or covered_add_to_chart\""},
-  {"id": "A10", "mutant": "the double takes the first of several menu rows",
+   "rail": "python -m pytest tests/test_vendor_batch_capture.py -q -p no:cacheprovider -k \"add_to_chart_outside_the_editor_dialog or covered_add_to_chart\""
+  },
+  {
+   "id": "A10",
+   "mutant": "the double takes the first of several menu rows",
    "file": "tools/vendor_harness/batch_double.py",
    "from": "        if n > 1:\n            return {\"ok\": False, \"STOP\": True",
    "to": "        if False:\n            return {\"ok\": False, \"STOP\": True",
-   "rail": "python -m pytest tests/test_vendor_batch_capture.py -q -p no:cacheprovider -k two_create_new_rows"}
+   "rail": "python -m pytest tests/test_vendor_batch_capture.py -q -p no:cacheprovider -k two_create_new_rows"
+  },
+  {
+   "id": "A11",
+   "mutant": "a covered menu row stops the step at once (a transient overlay fails a good row)",
+   "file": "tools/vendor_harness/batch_capture.py",
+   "from": "    return bool(r and (r.get(\"ok\") or r.get(\"STOP\")))",
+   "to": "    return bool(r and (r.get(\"ok\") or r.get(\"STOP\") or r.get(\"covered\")))",
+   "rail": "python -m pytest tests/test_vendor_batch_capture.py -q -p no:cacheprovider -k transient_cover_over_the_indicator_row"
+  },
+  {
+   "id": "A12",
+   "mutant": "a menu row still covered at the timeout is not refused by name",
+   "file": "tools/vendor_harness/batch_capture.py",
+   "from": "(r.get(\"STOP\") or (timed_out and r.get(\"covered\")))",
+   "to": "r.get(\"STOP\")",
+   "rail": "python -m pytest tests/test_vendor_batch_capture.py -q -p no:cacheprovider -k covered_indicator_row_is_not_clicked_and_is_refused_at_the_timeout"
+  },
+  {
+   "id": "A13",
+   "mutant": "a covered Add to chart stops the add at once (a transient overlay fails a good row)",
+   "file": "tools/vendor_harness/batch_capture.py",
+   "from": "(r.get(\"STOP\") and not r.get(\"covered\"))",
+   "to": "r.get(\"STOP\")",
+   "rail": "python -m pytest tests/test_vendor_batch_capture.py -q -p no:cacheprovider -k transient_cover_over_add_to_chart"
+  }
  ]
 }

@@ -22,6 +22,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import math
 import pathlib
 import shutil
 import sys
@@ -1248,13 +1249,25 @@ def test_an_add_to_chart_outside_the_editor_dialog_is_never_clicked(tmp_path):
     assert rd2.results()["x"]["outcome"] == bc.CAPTURED and page2.adds == [("add", True)]
 
 
-def test_a_covered_add_to_chart_is_never_clicked(tmp_path):
+def _reads(page, name):
+    return sum(1 for k, n, _ in page.calls if k == "evaluate" and n == name)
+
+
+def test_a_covered_add_to_chart_is_never_clicked_and_is_refused_at_the_timeout(tmp_path):
     manifest, page = _one_script(tmp_path)
-    page.covered.add("Add to chart")
+    page.covered["Add to chart"] = math.inf                               # a cover that never clears
     _, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
     res = rd.results()["x"]
     assert res["outcome"] == bc.GATE_FAILED and "covered at its centre" in res["reason"], res
-    assert page.adds == [("add", False)] and not page.studies
+    assert not page.studies and all(not clicked for _, clicked in page.adds) and len(page.adds) > 1   # read again, never clicked
+
+
+def test_a_transient_cover_over_add_to_chart_clears_and_the_row_is_captured(tmp_path):
+    manifest, page = _one_script(tmp_path)
+    page.covered["Add to chart"] = 2                                      # two covered reads, then clear
+    _, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    assert rd.results()["x"]["outcome"] == bc.CAPTURED, rd.results()["x"]
+    assert page.adds == [("add", False), ("add", False), ("add", True)]  # one click, after the cover cleared
 
 
 def test_two_create_new_rows_stop_the_row_before_the_pointer_touches_either(tmp_path):
@@ -1264,18 +1277,28 @@ def test_two_create_new_rows_stop_the_row_before_the_pointer_touches_either(tmp_
     res = rd.results()["x"]
     assert res["outcome"] == bc.GATE_FAILED, res
     assert "the menu row `Create new` was not clicked: 2 visible 'Create new' in an open menu" in res["reason"]
+    assert _reads(page, "MENU_ITEM") == 1                                 # several stop AT ONCE, no polling
     assert not _pointer_at(page, bd.CREATE_XY) and not _pointer_at(page, bd.INDICATOR_XY)
     assert "SET_SOURCE" not in page.names() and "ADD" not in page.names()
 
 
-def test_a_covered_indicator_row_is_not_clicked(tmp_path):
+def test_a_covered_indicator_row_is_not_clicked_and_is_refused_at_the_timeout(tmp_path):
     manifest, page = _one_script(tmp_path)
-    page.covered.add("Indicator")
+    page.covered["Indicator"] = math.inf
     _, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
     res = rd.results()["x"]
     assert res["outcome"] == bc.GATE_FAILED and "the menu row `Indicator` was not clicked" in res["reason"], res
+    assert "covered at its centre" in res["reason"] and _reads(page, "MENU_ITEM") > 2   # read again until the timeout
     assert _pointer_at(page, bd.CREATE_XY) == ["move"]                     # hovered `Create new`, as before
     assert not _pointer_at(page, bd.INDICATOR_XY) and "SET_SOURCE" not in page.names()
+
+
+def test_a_transient_cover_over_the_indicator_row_clears_and_the_row_is_captured(tmp_path):
+    manifest, page = _one_script(tmp_path)
+    page.covered["Indicator"] = 2
+    _, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    assert rd.results()["x"]["outcome"] == bc.CAPTURED, rd.results()["x"]
+    assert _pointer_at(page, bd.INDICATOR_XY) == ["click"]                # clicked once, after the cover cleared
 
 
 def test_the_menu_and_add_scripts_evaluate_the_railed_finder_in_its_container():

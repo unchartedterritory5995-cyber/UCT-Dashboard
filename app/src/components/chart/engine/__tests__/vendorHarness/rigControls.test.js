@@ -152,7 +152,8 @@ describe('the menu rows: a [role="menuitem"] inside an open [role="menu"], exact
 
   it('⛔ a row something else covers at its centre is not chosen (a real click would land on the cover)', () => {
     mount(MENU + COVER_MENU)
-    expect(find({ text: 'Create new', within: 'menu' })).toMatchObject({ ok: false, STOP: true, covered: true })
+    // not a STOP: the Driver reads again until the cover clears, and refuses at its timeout (#2326 review)
+    expect(find({ text: 'Create new', within: 'menu' })).toMatchObject({ ok: false, STOP: false, covered: true })
   })
 
   it('CONTROL: a row with no box (not shown) is not counted', () => {
@@ -187,7 +188,7 @@ describe('Add to chart: inside #pine-editor-dialog, exactly one', () => {
 
   it('⛔ a modal over the dialog: its button is covered and is not chosen', () => {
     mount(EDITOR + COVER_ADD)
-    expect(find({ text: 'Add to chart', within: 'editor' })).toMatchObject({ ok: false, STOP: true, covered: true })
+    expect(find({ text: 'Add to chart', within: 'editor' })).toMatchObject({ ok: false, STOP: false, covered: true })
   })
 
   it('⛔ two in the dialog: nothing is chosen, by name', () => {

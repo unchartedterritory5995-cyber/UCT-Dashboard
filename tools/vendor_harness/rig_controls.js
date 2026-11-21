@@ -3,7 +3,9 @@
 // THE ONE CONTROL A CAPTURE STEP CLICKS, FOUND INSIDE ITS OWN CONTAINER, as one function expression the batch
 // driver evaluates in the page (`batch_capture.py::MENU_ITEM_JS` and `ADD_JS` embed this file's text). Returns
 // `{ok: true, el, x, y, rect}` for exactly one visible control whose own text is `a.text`, or `{ok: false, found,
-// why}` (and `STOP: true` when it found several, or one that something else covers): nothing is clicked then.
+// why}`: nothing is clicked then. `STOP: true` when it found SEVERAL (the step stops at once); `covered: true` when the
+// one it found is under another element (the step keeps reading, a transient overlay clears, and refuses at its
+// timeout: patrick-54's review of #2326).
 //
 // ⚰️ WHY (patrick-54's review, coordinator ruling 2026-11-21). The menu rows and `Add to chart` were searched by own
 // text over the WHOLE page and the first hit was taken; one attempt on the rig clicked an unrelated "Save" behind a
@@ -49,7 +51,7 @@
   const top = document.elementFromPoint(x, y);
   const mine = owner(el);
   if (!top || !(top === el || el.contains(top) || (mine && (top === mine || mine.contains(top))))) {
-    return { ok: false, STOP: true, found: 1, covered: true,
+    return { ok: false, STOP: false, found: 1, covered: true,
              why: `${JSON.stringify(a.text)} in ${where} is covered at its centre by another element: nothing is clicked` };
   }
   return { ok: true, el, x, y, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } };
