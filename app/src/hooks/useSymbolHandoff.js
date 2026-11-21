@@ -25,7 +25,7 @@
 // legend) by being applied at the ChartWidget boundary — above every consumer —
 // rather than inside the chart where half of them live outside its tree.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { memPeek } from '../utils/barsMemCache'
 import * as legacyPrefetch from '../utils/prefetchBars'
 import * as storePrefetch from '../data/barStore/prefetch'
@@ -68,6 +68,63 @@ if (DEVICE) exposeDeviceDiag()
  */
 export const COVER_ROWS = 600
 const covers = (sym, tf, opts = {}) => BARSTORE && (storePrefetch.heldRows?.(sym, tf, opts) ?? 0) >= COVER_ROWS
+
+/**
+ * ⭐⭐ ONE FRAME FOR THE WHOLE GROUP (owner, hard rule, 2026-11-20: "scanning is impossible on the eyes
+ * otherwise"). Every chart of a linked colour group shows the new symbol in the SAME frame. Each chart's
+ * handoff still decides when ITS chart is ready (the rules above and below); the group only decides when
+ * they are SHOWN: a chart that is ready waits for its siblings that asked for the same symbol, and the
+ * last one to be ready shows them all in one synchronous pass (one React render, one frame). Bounded: once
+ * GROUP_SYNC_MS has passed since the first sibling was ready, the ready ones are shown and each straggler
+ * shows itself when it is ready, so nothing hangs on a slow sibling.
+ *  - A member is a chart of the group whose request moved to `sym` and is not showing it yet; it joins in
+ *    a LAYOUT effect, so every sibling of one commit has joined before any of them (a passive effect, or
+ *    a prepare resolving later) can be ready.
+ *  - A chart leaving the round (a newer symbol, unmounted) never holds the others.
+ *  - No group (a host that passes none): the chart shows itself, as before.
+ */
+export const GROUP_SYNC_MS = 150
+const _rounds = new Map()   // group -> { sym, members: Map<id, {ready, show}>, timer, expired }
+let _memberIds = 0
+function _flushRound(group, round) {
+  if (round.timer) { clearTimeout(round.timer); round.timer = null }
+  const ready = [...round.members.entries()].filter(([, m]) => m.ready)
+  for (const [id, m] of ready) { round.members.delete(id); try { m.show() } catch { /* one member never blocks the rest */ } }
+  if (!round.members.size && _rounds.get(group) === round) _rounds.delete(group)
+}
+function groupJoin(group, sym, id) {
+  let round = _rounds.get(group)
+  if (!round || round.sym !== sym) {
+    if (round?.timer) clearTimeout(round.timer)
+    round = { sym, members: new Map(), timer: null, expired: false }
+    _rounds.set(group, round)
+  }
+  if (!round.members.has(id)) round.members.set(id, { ready: false, show: null })
+}
+function groupLeave(group, sym, id) {
+  const round = _rounds.get(group)
+  if (!round || round.sym !== sym || !round.members.delete(id)) return
+  if (!round.members.size) { if (round.timer) clearTimeout(round.timer); _rounds.delete(group); return }
+  // the siblings left may all be ready now
+  if ([...round.members.values()].every((m) => m.ready)) _flushRound(group, round)
+}
+function groupReady(group, sym, id, show) {
+  const round = group ? _rounds.get(group) : null
+  const m = round && round.sym === sym ? round.members.get(id) : null
+  if (!m) { show(); return }                       // no group, or not a member of this round: show now
+  m.ready = true; m.show = show
+  if (round.expired) { _flushRound(group, round); return }
+  if ([...round.members.values()].every((x) => x.ready)) { _flushRound(group, round); return }
+  if (!round.timer) {
+    round.timer = setTimeout(() => {
+      round.timer = null
+      round.expired = true
+      _flushRound(group, round)
+    }, GROUP_SYNC_MS)
+  }
+}
+/** @internal tests: forget every round. */
+export function __resetGroupRoundsForTests() { for (const r of _rounds.values()) if (r.timer) clearTimeout(r.timer); _rounds.clear() }
 
 /** Does the chart's source already hold a D/W/M set for (sym, tf)? */
 function holdsDailySet(sym, tf) {
@@ -114,10 +171,20 @@ export function peekDisplayable(sym, tf, { showExtended } = {}) {
  *                     or a ref read when a switch starts (a host that resolves its settings
  *                     after this hook runs); omitted → the view-global fallback
  */
-export default function useSymbolHandoff(requestedSym, tf, { enabled = true, showExtended } = {}) {
+export default function useSymbolHandoff(requestedSym, tf, { enabled = true, showExtended, group = null } = {}) {
   // Seed with the request so a FIRST mount never lags — there is no previous
   // chart to protect, and lagging here would be a blank chart on page load.
   const [displayedSym, setDisplayedSym] = useState(requestedSym)
+  // ⭐⭐ ONE FRAME FOR THE GROUP: join the round for the requested symbol in the LAYOUT phase (see
+  // GROUP_SYNC_MS), so every sibling of this commit is a member before any of them can be ready.
+  const memberIdRef = useRef(0)
+  if (!memberIdRef.current) memberIdRef.current = ++_memberIds
+  useLayoutEffect(() => {
+    if (!group || !enabled || !requestedSym || !tf || requestedSym === displayedSym) return undefined
+    const id = memberIdRef.current
+    groupJoin(group, requestedSym, id)
+    return () => groupLeave(group, requestedSym, id)
+  }, [group, enabled, requestedSym, tf, displayedSym])
 
   // ⛔ LATEST REQUEST WINS, AND A CANCELLED PREPARE MUST NEVER LATE-COMMIT.
   // Scanning A→B→C→D outruns any single prepare, so every async resolution is
@@ -138,7 +205,9 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     if (requestedSym === displayedSym) return undefined
 
     const gen = ++genRef.current
-    const commitNow = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
+    // the chart is ready: it is SHOWN with its group (groupReady), or alone when it has none
+    const show = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
+    const commitNow = () => { if (genRef.current === gen) groupReady(group, requestedSym, memberIdRef.current, show) }
     // ⭐ ONE PAINT, PANES INCLUDED (2026-11-17): every path below commits through here, and B is
     // shown only once the server columns its panes draw have landed (serverCompute.columnsReadyFor),
     // waiting at most COLUMNS_WAIT_MS. Landed (or stored in this browser) commits in the same tick.
@@ -162,7 +231,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     const commit = () => {
       if (genRef.current !== gen) return
       noteDevice()
-      if (columnsReadyFor(requestedSym, tf)) { setDisplayedSym(requestedSym); return }
+      if (columnsReadyFor(requestedSym, tf)) { commitNow(); return }
       whenColumnsReady(requestedSym, tf, COLUMNS_WAIT_MS).then(commitNow, commitNow)
     }
 
@@ -296,7 +365,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     // says so). Depending on it re-runs this effect exactly once after a commit,
     // where the first guard immediately returns — so the extra pass costs one
     // comparison and correctly tears down the finished prepare.
-  }, [requestedSym, tf, enabled, displayedSym, showExtended])
+  }, [requestedSym, tf, enabled, displayedSym, showExtended, group])
 
   return displayedSym
 }
