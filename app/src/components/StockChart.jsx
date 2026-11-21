@@ -12094,7 +12094,6 @@ function StockChartBody({
     // per per-symbol layer it cannot clear in the frame and per input it cannot build. ⛔ A new per-symbol layer
     // gets a line here (a refusal) until the controller can clear it. Nothing below runs with the switch off.
     if (switchCtl) {
-      const _sources = [secondarySources, lowerTfSources, fundamentalSources, marketCapAuthoritySources, economicSources, calcFrames]
       switchCtl.noteView({
         sym, tf: resolvedTf, showExtended, recipes: _nfRecipes,
         refuse: !BARSTORE ? 'legacy-live'
@@ -12119,7 +12118,7 @@ function StockChartBody({
           // a definition the engine does not compute natively (a member's, a Pine one) may read the symbol's facts
           // (exchange, sector, first trade date), which only the metadata feed of a render holds
           : (csView.indicatorInstances || []).some((i) => { const d = i && engineRegistry.getDefinition(i.defId); return !!d && d.compute?.kind !== 'native' }) ? 'non-native-instance'
-          : _sources.some((m) => !switchIsNone(m)) ? 'sources'
+          // (an indicator input of the symbol, the `sources` refusal, is the controller's own rule: FRAME_RULES)
           : null,
         symbolRefusal: (s) => (isEconomicId(s) ? 'econ'
           : !switchHostPlain(s) ? 'host-symbol'
@@ -23098,14 +23097,6 @@ function applyFrame(ctx, frame) {
 /** What `StockChartBody` hands every controller it makes. */
 const SWITCH_DEPS = { applyFrame, buildFrame }
 
-/** `isNone`, by another name here (`switchController.isNone`: null / false / empty). */
-function switchIsNone(v) {
-  if (v == null || v === false || v === '') return true
-  if (Array.isArray(v)) return v.length === 0
-  if (v instanceof Map || v instanceof Set) return v.size === 0
-  return typeof v === 'object' ? Object.keys(v).length === 0 : false
-}
-
 /** The settings a chart of `sym` reads (the non-ECON half of the `cs` memo, moved here verbatim). Returns
  *  `csMerged` ITSELF when `sym` neither clamps the chart type nor brings product components: the test the
  *  imperative switch makes of both symbols before it carries the settings across. */
@@ -23166,7 +23157,7 @@ function overlayDataOf(sessionAppliedBars, resolvedOverlays, adjustTime, overlay
 /** The load-anchor tail of the candles (StockChart's `ohlcData` memo calls this over its own copy; the switch
  *  controller calls it over the next symbol's, with a seed and a live-sanity it can prove are not needed). */
 export function ohlcLoadAnchorTail(arr, displayBars, o) {
-  const { econ, exactDateRange, entryDate, replayCutoff, resolvedTf, adjustTime, sym, dailySeed, repairToday, liveSane } = o
+  const { econ, exactDateRange, entryDate, replayCutoff, resolvedTf, adjustTime, sym, dailySeed, repairToday, liveSane: _liveSane } = o
   // Load-anchor whitespace seed (candle series ONLY — filteredBars is untouched, so the live
   // writers / indicators / crosshair never see it). See _developingBarISO: on a cold first
   // paint the stale provisional ends at the last SEALED period; today's real bar then appends
@@ -23236,7 +23227,7 @@ export function ohlcLoadAnchorTail(arr, displayBars, o) {
           const _px = _snap ? _effLivePrice(_snap) : null
           // ⛔ REGULAR SESSION ONLY. Outside 09:30-16:00 ET `_effLivePrice` returns the
           // EXTENDED-hours price, but the period candle is settled at the 4pm close.
-          if (_px && !_snap.ext_session && liveSane(sym, _px)) {
+          if (_px && !_snap.ext_session && _liveSane(sym, _px)) {
             const _o = (_snap.day_open && _snap.day_open > 0) ? _snap.day_open : _px
             const _h = Math.max((_snap.day_high && _snap.day_high > 0) ? _snap.day_high : _px, _px)
             const _l = Math.min((_snap.day_low && _snap.day_low > 0) ? _snap.day_low : _px, _px)

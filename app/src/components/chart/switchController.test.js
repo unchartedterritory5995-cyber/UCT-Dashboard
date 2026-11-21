@@ -90,7 +90,7 @@ const reactFrame = (sym, over = {}) => {
   for (const [name, r] of Object.entries(FRAME_RULES)) f[name] = r.kind === 'none' ? null : `${name}@${sym}`
   const bars = [{ t: 1 }, { t: 2 }]
   return {
-    ...f, sym, resolvedTf: 'D', adjustTime: ADJ, comparisonData: [],
+    ...f, sym, resolvedTf: 'D', adjustTime: ADJ, comparisonData: [], _exKey: sym + '_D',
     __heavy: { committed: { displayBars: bars, filteredBars: bars } },
     ...over,
   }
@@ -263,6 +263,7 @@ describe('refusals: named, counted, and nothing is painted', () => {
     ['sessionPreviewLastBar', true, 'session-preview'],
   ])('a value that is carried only while it is nothing: %s', (name, value, why) => refused(painted('AAA', {}, { [name]: value }).c, 'BBB', why))
   it('a frame name with no rule refuses the switch by name (it never rides along)', () => refused(painted('AAA', {}, { aNewName: 1 }).c, 'BBB', 'unruled:aNewName'))
+  it('a chart key that does not start with its symbol (the key is derived, never spelled here)', () => refused(painted('AAA', {}, { _exKey: 'D_AAA' }).c, 'BBB', 'key-shape'))
 })
 
 describe('the stale-render guard, and the catch-up', () => {

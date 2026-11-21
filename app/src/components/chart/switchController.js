@@ -62,7 +62,7 @@ const NO_PAINT = () => {}
 export const FRAME_RULES = Object.freeze({
   // ── the symbol itself, and what is derived from its bars ──
   sym: { kind: BUILT, from: (b) => b.sym },
-  _exKey: { kind: BUILT, from: (b) => `${b.sym}_${b.tf}` },
+  _exKey: { kind: BUILT, from: (b) => b.exKey },
   __heavy: { kind: BUILT, from: (b) => b.box },
   volMaData: { kind: BUILT, from: (b) => b.frame.volMaData },
   overlayData: { kind: BUILT, from: (b) => b.overlayData },
@@ -190,9 +190,13 @@ export function createSwitchController({ applyFrame, buildFrame }) {
     if (!built.ok) return refuse(sym, `frame:${built.why}`)
     const tail = view.tail(built, sym, snapshot)
     if (!tail.ok) return refuse(sym, 'tail')
+    // ⛔ the chart's key for the new symbol is DERIVED from the chart's own key (its symbol swapped), never
+    // spelled a second time here (rails/oneKey.census: one owner per key shape)
+    if (typeof frame._exKey !== 'string' || !frame._exKey.startsWith(frame.sym)) return refuse(sym, 'key-shape')
     const b = {
       sym,
       tf: view.tf,
+      exKey: sym + frame._exKey.slice(frame.sym.length),
       frame: built,
       tail,
       overlayData: view.overlayData(built.sessionAppliedBars),
@@ -271,7 +275,7 @@ export function createSwitchController({ applyFrame, buildFrame }) {
       pending = { sym, tf: t.tf, fromSym: t.fromSym }
       applyFrame(passCtx, t.frame)
       v.clearReadout()                 // the old symbol's numbers are not left over the new candles
-      appliedKey = `${sym}_${t.tf}`
+      appliedKey = t.frame._exKey
       diag.applied += 1
       diag.tail[t.tail] = (diag.tail[t.tail] || 0) + 1
       diag.last = { sym, ok: true, why: null }
