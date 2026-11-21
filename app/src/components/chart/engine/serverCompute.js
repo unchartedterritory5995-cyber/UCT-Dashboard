@@ -272,6 +272,61 @@ export function barTimeKey(t) {
   return Number.isFinite(n) ? n : NaN
 }
 
+// ⚡ (2026-11-20) ONE BARS ARRAY, SEVERAL ENVELOPES: the five RS definitions of one chart are aligned to the same
+// bars on every switch, each parsing every bar's date again (12,000 regex parses each on a daily chart) and building
+// the same time -> row map when their envelopes carry the same times. So, per bars array (by identity): the bar keys,
+// read once, and the row of each bar in the last envelope times aligned to it, reused by an envelope whose times are
+// the same values. A bars array whose length or first / last key moved (a bar appended or replaced in place) is read
+// again; a later one is a new array and a new entry. The rows are the ones the join below always produced.
+// ⛔ BOUNDED BY RECENCY: only the BAR_ROWS_KEPT most recently aligned bars arrays keep their keys and rows (a key
+// and a row per bar, ~150 KB for a 12,000-bar row), never every array the bar store still holds.
+export const BAR_ROWS_KEPT = 6
+const _barRows = new WeakMap()   // bars -> { n, keys: Float64Array, times, row: Int32Array }
+const _barRowsOrder = new Map()  // bars -> true, oldest first (strong refs, at most BAR_ROWS_KEPT)
+function _keepBarRows(series, m) {
+  _barRows.set(series, m)
+  _barRowsOrder.delete(series)
+  _barRowsOrder.set(series, true)
+  while (_barRowsOrder.size > BAR_ROWS_KEPT) {
+    const old = _barRowsOrder.keys().next().value
+    _barRowsOrder.delete(old)
+    _barRows.delete(old)
+  }
+}
+const _barKeyAt = (bars, i) => barTimeKey(bars[i] && bars[i].t)
+function sameTimes(a, b) {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
+  return true
+}
+function barRowsFor(times, series) {
+  const n = series.length
+  let m = _barRows.get(series)
+  if (m && (m.n !== n || (n > 0 && (!Object.is(_barKeyAt(series, 0), m.keys[0])
+    || !Object.is(_barKeyAt(series, n - 1), m.keys[n - 1]))))) m = null
+  if (!m) {
+    const keys = new Float64Array(n)
+    for (let i = 0; i < n; i++) keys[i] = _barKeyAt(series, i)
+    m = { n, keys, times: null, row: null }
+  }
+  _keepBarRows(series, m)
+  if (m.times !== times && !(m.times && sameTimes(m.times, times))) {
+    const at = new Map()
+    for (let i = 0; i < times.length; i++) {
+      const k = barTimeKey(times[i])
+      if (!at.has(k)) at.set(k, i)
+    }
+    const row = new Int32Array(n)
+    for (let i = 0; i < n; i++) {
+      const j = at.get(m.keys[i])
+      row[i] = j === undefined ? -1 : j
+    }
+    m.times = times
+    m.row = row
+  }
+  return m.row
+}
+
 export function alignColumns(parsed, bars) {
   const { times, columns } = parsed || { times: [], columns: {} }
   const series = Array.isArray(bars) ? bars : []
@@ -279,23 +334,14 @@ export function alignColumns(parsed, bars) {
   if (!keys.length) return {}
   if (!times.length) return {}
 
-  const at = new Map()
-  for (let i = 0; i < times.length; i++) {
-    const k = barTimeKey(times[i])
-    if (!at.has(k)) at.set(k, i)
-  }
-
   // ⚡ WHERE EACH BAR SITS IN THE ENVELOPE IS WORKED OUT ONCE, NOT ONCE PER COLUMN (2026-11-13).
   // The join used to parse every bar's date for every column: the RS line carries 24 columns,
   // so a 4,374-bar daily chart parsed 105,000 dates to place them, on every paint (13 ms of
   // the lane's 24 ms for a five-definition RS suite, measured). One pass finds each bar's row;
   // each column is then a plain copy. The answer is the same cell for cell.
+  // ⚡ (2026-11-20) …and once per bars array, not once per envelope (`barRowsFor`).
   const n = series.length
-  const row = new Int32Array(n)
-  for (let i = 0; i < n; i++) {
-    const j = at.get(barTimeKey(series[i] && series[i].t))
-    row[i] = j === undefined ? -1 : j
-  }
+  const row = barRowsFor(times, series)
 
   const out = {}
   for (const key of keys) {
