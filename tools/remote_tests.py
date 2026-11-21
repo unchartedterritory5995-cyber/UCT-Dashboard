@@ -38,6 +38,7 @@ import sys
 import tempfile
 import time
 import xml.etree.ElementTree as ET
+from datetime import datetime
 from pathlib import Path
 
 WORKFLOW = "remote-tests.yml"
@@ -401,6 +402,56 @@ def quota_line(core: dict | None) -> str:
         return "quota unreadable"
     reset = time.strftime("%H:%M:%SZ", time.gmtime(core.get("reset") or 0))
     return f"{core.get('remaining')}/{core.get('limit')} left, resets {reset}"
+
+
+# ---- admission: wait for room before enqueueing (2026-11-20) ----------------------------------------------------------
+#: ⚰️ 2026-11-20 the account's 40-job pool was full for hours: master deploy gate jobs waited up to 21.6 min for a
+#: runner (run 44857170200: a ~16 min gate took 44) while session runs sat in the same queue. GitHub has no job
+#: priority, so the only lever is not to enqueue: before pushing its ref this tool waits while the gate has a job
+#: waiting for a runner (rule A), or while MAX_REMOTE_IN_FLIGHT remote runs are going and other runs are queued
+#: (rule B). It fails open and is capped (wait_for_room). Plan: docs/superpowers/plans/2026-11-20-remote-tests-admission.md
+#: each remote run holds at most 4 vitest runners (`max-parallel`) plus pytest, so 4 runs hold at most 20 of 40 slots
+MAX_REMOTE_IN_FLIGHT = 4
+#: a run created longer ago than this is ignored: GitHub keeps 11 runs from 2026-11-11 "queued" with 0 jobs (cancel
+#: answers 409, delete 403), one a master deploy gate run, which would otherwise hold rule A shut forever
+FRESH_RUN_S = 6 * 3600
+
+
+def _epoch(iso: str | None) -> float | None:
+    """GitHub's `2026-11-21T03:00:00Z` -> epoch seconds; None when missing or unparseable."""
+    try:
+        return datetime.fromisoformat(str(iso).replace("Z", "+00:00")).timestamp() if iso else None
+    except ValueError:
+        return None
+
+
+def _fresh(runs: list[dict], now: float) -> list[dict]:
+    out = []
+    for r in runs or []:
+        t = _epoch(r.get("created_at"))
+        if t is not None and now - t <= FRESH_RUN_S:
+            out.append(r)
+    return out
+
+
+def room_to_dispatch(gate_runs: list[dict], gate_jobs: dict[str, list[dict]], remote_runs: list[dict],
+                     queued_runs: list[dict], now: float) -> tuple[bool, str]:
+    """(may we enqueue now, why). A: a fresh deploy gate run is queued, or in progress with a job waiting for a
+    runner (jobs are created only once their `needs:` finish, so a listed `queued` job IS waiting for a runner; a
+    `pending` run waits on the previous gate, not on a runner). B: MAX_REMOTE_IN_FLIGHT fresh remote runs are
+    queued or in progress AND some fresh run is queued (the pool is full)."""
+    for run in _fresh(gate_runs, now):
+        if run.get("status") == "queued":
+            return False, f"deploy gate run {run.get('id')} is queued"
+        if run.get("status") == "in_progress":
+            waiting = sum(1 for j in gate_jobs.get(str(run.get("id")), []) if j.get("status") == "queued")
+            if waiting:
+                return False, f"deploy gate run {run.get('id')} has {waiting} job(s) waiting for a runner"
+    in_flight = [r for r in _fresh(remote_runs, now) if r.get("status") in ("queued", "in_progress")]
+    queued = [r for r in _fresh(queued_runs, now) if r.get("status") == "queued"]
+    if len(in_flight) >= MAX_REMOTE_IN_FLIGHT and queued:
+        return False, f"{len(in_flight)} remote runs in flight and {len(queued)} run(s) queued"
+    return True, "room"
 
 
 _REPO = "repos/{owner}/{repo}"

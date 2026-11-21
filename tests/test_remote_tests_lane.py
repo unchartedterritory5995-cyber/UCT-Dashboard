@@ -715,3 +715,62 @@ def test_a_5xx_dispatch_whose_run_exists_is_waited_on_end_to_end(monkeypatch):
     monkeypatch.setattr(rt, "_delete_ref", lambda ref: events.append("delete"))
     assert rt.main(["--pytest", "tests/test_a.py"]) == rt.LANE        # the stubbed wait answers "still running"
     assert events == ["wait 31", "cancel 31", "delete"], events
+
+
+# ---- admission (2026-11-20): wait for CI room before enqueueing -------------------------------------------------------
+# 11/20 the 40-job pool was full and master deploy gate jobs waited up to 21.6 min for a runner (a 16 min gate took 44).
+# GitHub has no job priority, so the client holds back instead. Plan: docs/superpowers/plans/2026-11-20-remote-tests-admission.md
+def _now():
+    return rt._epoch("2026-11-21T03:10:00Z")
+
+
+def _run(i, status, at="2026-11-21T03:00:00Z"):
+    return {"id": i, "status": status, "created_at": at}
+
+
+def test_admission_empty_pool_dispatches():
+    assert rt.room_to_dispatch([], {}, [], [], _now()) == (True, "room")
+
+
+def test_admission_gate_job_waiting_for_a_runner_waits():
+    ok, why = rt.room_to_dispatch([_run(9, "in_progress")],
+                                  {"9": [{"status": "in_progress"}, {"status": "queued"}]}, [], [], _now())
+    assert not ok and "deploy gate run 9" in why and "1 job(s) waiting" in why
+
+
+def test_admission_gate_running_with_no_job_queued_dispatches():
+    assert rt.room_to_dispatch([_run(9, "in_progress")], {"9": [{"status": "in_progress"}]}, [], [], _now())[0]
+
+
+def test_admission_a_queued_gate_run_waits():
+    ok, why = rt.room_to_dispatch([_run(9, "queued")], {}, [], [], _now())
+    assert not ok and "is queued" in why
+
+
+def test_admission_a_pending_gate_run_does_not_wait():
+    """`pending` = waiting on the previous gate's `master-deploy` concurrency group, not on a runner."""
+    assert rt.room_to_dispatch([_run(9, "pending")], {}, [], [], _now())[0]
+
+
+def test_admission_a_stale_queued_gate_run_is_ignored():
+    """The 11/11 ghost gate run (0 jobs, queued forever, GitHub refuses cancel and delete) must not hold it shut."""
+    assert rt.room_to_dispatch([_run(43096652068, "queued", "2026-11-11T20:32:25Z")], {}, [], [], _now())[0]
+
+
+def test_admission_four_remote_runs_and_a_queued_run_waits():
+    remote = [_run(i, "in_progress") for i in range(4)]
+    ok, why = rt.room_to_dispatch([], {}, remote, [_run(50, "queued")], _now())
+    assert not ok and "4 remote runs in flight" in why
+
+
+def test_admission_four_remote_runs_and_nothing_queued_dispatches():
+    assert rt.room_to_dispatch([], {}, [_run(i, "in_progress") for i in range(4)], [], _now())[0]
+
+
+def test_admission_three_remote_runs_and_queued_runs_dispatches():
+    assert rt.room_to_dispatch([], {}, [_run(i, "queued") for i in range(3)], [_run(50, "queued")], _now())[0]
+
+
+def test_admission_stale_remote_and_queued_runs_are_ignored():
+    old = "2026-11-11T20:32:25Z"
+    assert rt.room_to_dispatch([], {}, [_run(i, "queued", old) for i in range(6)], [_run(50, "queued", old)], _now())[0]
