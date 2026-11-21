@@ -26,3 +26,22 @@ export function useLatestCallback(fn) {
   h.set(fn)
   return h.call
 }
+
+// ─── the render's heavy values, read at use time ─────────────────────────────────────────────────────────
+// ⛔⛔ (2026-11-20) A big component's closures must not CAPTURE its large locals (the bars arrays): V8 keeps
+// a captured local in the render's shared context, and any closure kept across renders keeps that context
+// and, through the memoized callbacks it holds, older renders' contexts (StockChart.closureChains.test.jsx:
+// every link of such a chain carried that render's bars). `useRenderBox()` is ONE object for the
+// component's life, made out here (it points at nothing of a render); each render `put`s its newest values
+// and closures read `box.name` when they run. A closure therefore sees the NEWEST value, which for an effect
+// body, a handler or a memo factory is its own render's (React flushes effects before the next render).
+function makeBox() {
+  const box = { put(name, value) { box[name] = value; return value } }
+  return box
+}
+
+/** One object for the component's life holding the newest value of each heavy local (`put` each render). */
+export function useRenderBox() {
+  const [b] = useState(makeBox)
+  return b
+}
