@@ -112,6 +112,24 @@ describe('catch-up ends where a device that was live all day is', () => {
       .toEqual(['today.bin', '1355.bin', '1356.bin', '1357.bin', '1358.bin', '1359.bin'])
   })
 
+  it('⭐ (2026-11-21) the today.bin replay gives the thread back every sliceMs of work, and ends in the same state', async () => {
+    const e = edge({ through: 599, rolled: 594 })
+    let ms = 0
+    let yields = 0
+    let appliedAtYield = []
+    const d = device(e.fetchImpl, at(14, 0, 8), {
+      sliceMs: 5, elapsed: () => (ms += 1),
+      yieldTo: () => { yields++; appliedAtYield.push(d.c.status().lastSeq); return Promise.resolve() },
+    })
+    expect(await d.c.syncNow()).toEqual({ current: true })
+    expect(snapshot(d.sink)).toEqual(snapshot(LIVE.sink))
+    expect(yields).toBeGreaterThan(50)                       // ~595 frames, a slice every few
+    expect(yields).toBeLessThan(200)                         // ...never a yield per frame (a slice is sliceMs of work)
+    expect(new Set(appliedAtYield).size).toBe(appliedAtYield.length)   // each yield is at a new minute
+    expect(Math.max(...appliedAtYield)).toBeLessThanOrEqual(594)   // all inside the replay (rolled at 594)
+    expect(Math.min(...appliedAtYield)).toBeLessThan(20)           // from its first slices on
+  })
+
   it('back after a long sleep (09:00 -> 14:00): one today.bin, then minute files, same state', async () => {
     const e = edge({ through: 599, rolled: 594 })
     const d = device(e.fetchImpl, at(9, 1, 8))
