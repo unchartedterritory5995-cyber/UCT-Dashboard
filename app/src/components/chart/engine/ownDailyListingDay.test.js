@@ -70,6 +70,10 @@ for (let d = '2024-03-01', k = 0; d <= '2024-04-20'; d = isoPlus(d, 1), k += 1) 
 
 // the LISTING fact: the symbol's first trade day as `/api/ticker-ipo` answers it (live RDDT: first_trade_date 2024-03-21,
 // first_trade_final true), carried on the chart's symbol (StockChart `symbolMeta.firstTradeDate`)
+// ⭐⭐ (e91, coordinator ruling 2026-11-20) a bar reading a session BEFORE the own daily rows' first is DEPTH: the run starts
+// at `knownFrom`, the first bar every read of which is held (the held first session's LAST bar, which reads its own row)
+const lastBarOf = (rows, day) => rows.reduce((k, b, i) => (b.t >= ET(day, 0, 0) && b.t < ET(isoPlus(day, 1), 0, 0) ? i : k), -1)
+const DEPTH_SAYS = /this chart's history reaches \d+, and the `this symbol's daily bars` bars we hold begin at \d{4}-\d{2}-\d{2}/
 const ctxOf = (own = OWN_D, firstTrade = LISTING) => ({ tf: '60', newestBarIsForming: false, historyFromListing: false,
   symbol: { ...RDDT, ...(firstTrade ? { firstTradeDate: firstTrade } : {}) },
   secondary: new Map([['SPX', { bars: SPX_60, status: 'available' }], ['SPX@D', { bars: SPX_D, status: 'available' }],
@@ -212,35 +216,45 @@ describe('3. ⛔ CONTROL: a chart whose history does not start at the own daily 
     expect(states[states.length - 1], said).toBe('served:null')
     expect(newestLabels(cols, rows.length)).toEqual(['                RS Rating', ''])
   })
-  it('a chart reaching sessions BEFORE the first own row: refused at its first bar, "has no bar on"', async () => {
+  // ⚰️ (e91) this case was REFUSED whole ("has no bar on <its first bar>, after its history began"); the e88 in-session
+  // capture (RDDT 5m, own rows 7 sessions short of the chart) blanked that pane all session. RULED (coordinator,
+  // 2026-11-20): a bar reading a session before the held rows' first is DEPTH: the run starts where every read is known.
+  // ⚠️ `CHART.slice(1)`: the fixture's first bar (12:30, the listing day's open) is OFF the 60m grid, so SP:SPX's read
+  // (line 89) refuses it before the own read is asked. ⚰️ The case this replaces matched THAT refusal ("has no bar on
+  // <CHART[0]>", the adjacent site) and never tested the own read at all.
+  it('a chart reaching sessions BEFORE the first own row: DEPTH, the run starts at the first bar every read of which is held', async () => {
     const late = OWN_D.slice(2)
-    const { sup } = supplyOn(CHART, ctxOf(late))
-    expect(sup.refusal).not.toBeNull()
-    expect(sup.refusal.message).toMatch(new RegExp(`has no bar on ${CHART[0].t}\\b`))
-    const { states, refusals, said } = await runHalfOn(CHART, ctxOf(late))
-    expect(states[states.length - 1], said).toBe('refused:runtime:request')
-    expect(refusals.some((m) => /has no bar on/.test(m)), said).toBe(true)
+    const C = CHART.slice(1)
+    const { sup } = supplyOn(C, ctxOf(late))
+    expect(sup.refusal, 'a depth gap is answered with where the run starts').not.toBeNull()
+    expect(sup.refusal.message).not.toMatch(/has no bar on/)
+    expect(sup.refusal.message).toMatch(DEPTH_SAYS)
+    expect(sup.refusal.knownFrom).toBe(lastBarOf(C, SESS[2]))
+    const { states, said } = await runHalfOn(C, ctxOf(late))
+    expect(states[states.length - 1], said).not.toBe('refused:runtime:request')
   })
 })
 
-describe('4. ⛔ CONTROL: the SAME shape WITHOUT a listing fact refuses (a first held row is not a listing)', () => {
-  it('no firstTradeDate on the symbol: the listing session pre-close bars are unknown, "has no bar on"', async () => {
+describe('4. ⛔ CONTROL: the SAME shape WITHOUT a listing fact is DEPTH, never na (a first held row is not a listing)', () => {
+  it('no firstTradeDate on the symbol: the listing session pre-close bars are UNKNOWN (depth), never na by history', async () => {
     const C = CHART.slice(1)
     const { sup } = supplyOn(C, ctxOf(OWN_D, null))
     expect(sup.refusal, 'no listing is claimed without the fact').not.toBeNull()
-    expect(sup.refusal.message).toMatch(/has no bar on/)
+    expect(sup.refusal.message).not.toMatch(/has no bar on/)
+    expect(sup.refusal.knownFrom, 'the bars before the first own close are unknown, not na').toBe(lastBarOf(C, LISTING))
     const { states, said } = await runHalfOn(C, ctxOf(OWN_D, null))
-    expect(states[states.length - 1], said).toBe('refused:runtime:request')
+    expect(states[states.length - 1], said).not.toBe('refused:runtime:request')
   })
-  it('⛔ a CAPPED store with an OLDER listing (the IBM / KO shape, measured): refused, never na-by-history', async () => {
+  it('⛔ a CAPPED store with an OLDER listing (the IBM / KO shape, measured): DEPTH, never na-by-history', async () => {
     // the store's first daily row is not the symbol's first trade: /api/bars/IBM?tf=D serves from 1962-01-02 while IBM
     // listed 1949-01-28 (smoke@ GETs, 2026-11-19); here the rows start on the chart's first day, the listing years before
     const C = CHART.slice(1)
     const { sup } = supplyOn(C, ctxOf(OWN_D, '2020-01-02'))
     expect(sup.refusal, 'an earlier real daily bar exists; reading na would be a wrong value').not.toBeNull()
-    expect(sup.refusal.message).toMatch(/has no bar on/)
+    expect(sup.refusal.message).not.toMatch(/has no bar on/)
+    expect(sup.refusal.knownFrom, 'unknown before the first held close: depth, never na by history').toBe(lastBarOf(C, LISTING))
     const { states, said } = await runHalfOn(C, ctxOf(OWN_D, '2020-01-02'))
-    expect(states[states.length - 1], said).toBe('refused:runtime:request')
+    expect(states[states.length - 1], said).not.toBe('refused:runtime:request')
   })
 })
 
@@ -276,10 +290,12 @@ describe('6. the listing date in flight: the run WAITS for it, and the answer re
     expect(refusals.filter((m) => /has no bar on/.test(m)), said).toEqual([])
     for (const m of requests) expect(m.ctx.symbol.firstTradeDatePending).toBe(true)
   })
-  it('⛔⛔ NEVER STICKY: refused WITHOUT the date (as captured), then the date lands: the run is asked again and SERVED', async () => {
+  // ⭐ (e91 ruling) without the date the listing session's pre-close bars are DEPTH (unknown: the run starts after them),
+  // no longer a whole-run refusal. NEVER STICKY still holds: the date's arrival asks the run again, and it serves from it.
+  it('⛔⛔ NEVER STICKY: WITHOUT the date (depth, never a whole-run refusal), then the date lands: the run is asked again and SERVED', async () => {
     const C = CHART.slice(1)
     const cold = await runHalfOn(C, ctxOf(OWN_D, null))
-    expect(cold.states[cold.states.length - 1], cold.said).toBe('refused:runtime:request')
+    expect(cold.states[cold.states.length - 1], cold.said).not.toBe('refused:runtime:request')
     const asked = requests.length
     const warm = await runHalfOn(C, ctxOf())
     expect(warm.states[warm.states.length - 1], warm.said).toBe('served:null')
@@ -298,9 +314,11 @@ describe('6. the listing date in flight: the run WAITS for it, and the answer re
     const agl = { ...ctxOf(OWN_D, '2021-04-15'), symbol: { ...RDDT, firstTradeDate: '2021-04-15', firstTradeDatePending: true } }
     const { sup } = supplyOn(C, agl)
     expect(sup.pending).toBe(false)
-    expect(sup.refusal && sup.refusal.message).toMatch(/has no bar on/)
+    // ⭐ (e91 ruling) the wrong date unlocks nothing: the listing session's pre-close bars stay unknown (DEPTH), never na
+    expect(sup.refusal && sup.refusal.message).not.toMatch(/has no bar on/)
+    expect(sup.refusal && sup.refusal.knownFrom, 'unknown before the first own close').toBe(lastBarOf(C, LISTING))
     const { states, said } = await runHalfOn(C, agl)
-    expect(states[states.length - 1], said).toBe('refused:runtime:request')
+    expect(states[states.length - 1], said).not.toBe('refused:runtime:request')
   })
   it('⛔ CONTROL: a chart that does not start on the own rows\' first session never waits on the date', () => {
     const rows = CHART.filter((b) => b.t >= ET(SESS[2], 0, 0))

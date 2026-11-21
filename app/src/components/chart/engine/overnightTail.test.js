@@ -128,22 +128,27 @@ describe('the supply: an all-overnight tail is a CUT, named, never a wait and ne
       expect(sup.refusal.message).not.toMatch(/until they arrive|drawn when they arrive/)
     })
   }
-  it('⛔ CONTROL (#2076 unchanged): an IN-SESSION lag within the wait is PENDING, never overnight', () => {
+  // ⭐ (e91, ruling (2b)) an in-session lag is now a TAIL cut (`tailLag.test.js`): its own code and sentence, never overnight
+  it('⛔ CONTROL: an IN-SESSION lag within the wait is a pending TAIL cut, never overnight', () => {
     const sup = supplyOf(5, midday(), spxOf(5, [13, 40]), {}, { settled: false })
-    expect(sup.refusal).toBeNull()
-    expect(sup.pending).toBe(true)
-    expect(sup.waiting.sentence).toMatch(WAIT)
+    expect(sup.refusal.guard).toBe(REQUEST_GUARD)
+    expect(sup.refusal.tailWait).toBe(true)
+    expect(sup.refusal.tailPending).toBe(true)
+    expect(sup.refusal.message).toMatch(WAIT)
+    expect(sup.refusal.message).not.toMatch(/overnight/)
   })
-  it('⛔ CONTROL: an in-session lag past the wait is the LAG refusal, never overnight', () => {
+  it('⛔ CONTROL: an in-session lag past the wait is a LAG tail cut, never overnight', () => {
     const sup = supplyOf(5, midday(), spxOf(5, [13, 35]), {}, { settled: false })
     expect(sup.refusal && sup.refusal.guard).toBe(REQUEST_LAG_GUARD)
-    expect(sup.refusal.cutAt).toBeUndefined()
+    expect(sup.refusal.tailWait).toBe(true)
+    expect(sup.refusal.tailPending).toBe(false)
   })
   it('⛔⛔ A MIXED TAIL is NEVER overnight: the day\'s close not settled yet, so 16:00-19:55 (inside the session) lack rows too -> the lag rule', () => {
     const sup = supplyOf(5, chartOf(5), spxOf(5), {}, { settled: false })
     expect(sup.refusal && sup.refusal.guard).toBe(REQUEST_LAG_GUARD)
-    expect(sup.refusal.cutAt).toBeUndefined()
+    expect(sup.refusal.tailWait).toBe(true)
     expect(sup.refusal.message).toMatch(LAG)
+    expect(sup.refusal.message).not.toMatch(/overnight/)
   })
   it('⛔ a HOLE before the tail keeps its own refusal on the cut run (the cut never hides it)', () => {
     const rows = chartOf(5)
@@ -189,10 +194,14 @@ describe('the run: cut at the overnight tail, everything before drawn exactly as
     const r = run(DEF(), chartOf(5), ctxOf(5, secondaryOf(spxOf(5))))
     expect(r.err && r.err.guard).toBe(REQUEST_OVERNIGHT_GUARD)
   })
-  it('⛔ an in-session lag is still the wait on the run (pending, the pane keeps its picture), never a cut', () => {
+  it('⛔ an in-session lag is a TAIL cut (e91 (2b)), never an overnight one: its own code, not `request-overnight`', () => {
     const r = run(DEF(), midday(), ctxOf(5, secondaryOf(spxOf(5, [13, 40]), { settled: false })))
-    expect(r.err && r.err.pending).toBe(true)
-    expect(r.cols).toBeUndefined()
+    expect(r.err).toBeUndefined()
+    const rec = runtimeOvernightOf(r.cols)
+    expect(rec.tail).toBe(true)
+    expect(rec.rows[0].code).toBe(REQUEST_GUARD)
+    expect(rec.rows[0].code).not.toBe(REQUEST_OVERNIGHT_GUARD)
+    expect(rec.rows[0].reason).toMatch(WAIT)
   })
   it('the curtain (an off-listing run) cuts at the tail too and never refuses the whole run', () => {
     const rows = chartOf(5)

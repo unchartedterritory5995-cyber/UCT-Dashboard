@@ -56,6 +56,36 @@ About 10 bytes per bar after gzip. Encode + gzip: median 4.5 ms, max 112 ms (on 
 stays 0 and the D bar sums the minutes. Levers measured, not taken: a columnar record layout
 -7.7%; integer volume -9% (the flat files carry fractional volume on 29% of rows; the socket may not).
 
+## The day's daily bar after the close (FLAG_DAILY, `MINUTE_FRAMES_WITH_DAILY`, default off)
+
+Minutes cannot give two parts of today's D bar: the OFFICIAL close (the closing auction; equal to the
+15:59 close for 9 of 57 symbols on 2026-11-20) and the consolidated day volume (a median 16% above the
+regular-minute sum). The server has both: bars-api writes today's D row from the whole-market snapshot
+`day` object, and /api/bars?tf=D serves it. With the flag on, every frame from the regular close
+(16:00 ET, 13:00 on a half day) to 20:00 carries a DAILY section (flag bit 2, after the blocks, before
+the CRC): varint count, then records in the block layout without `av`, one per symbol, for `day`.
+
+- **Same source, same parse.** stream-ingest reads the same snapshot (in a CHILD process, every
+  `MINUTE_FRAMES_DAILY_POLL_S`, default 30 s, only inside that window: parsing ~13k tickers holds the
+  GIL 150-230 ms) and parses it with bars-api's own `bars_live_store.daily_rows_from_snapshot`: the
+  same symbols (`BCpC` is not `BCPC`), unrounded prices, whole-share volume. No row unless
+  `massive._regular_session_has_opened_today()` (a holiday's `day` is the prior session). The row
+  equals the STORED D row; the served one differs only if `bars_sanitize` changes today's bar (a
+  lone bad-print wick clamp), which the Monday check would show.
+- **Every symbol once, then changes.** The first post-close frame of a publisher epoch carries every
+  symbol; later frames only the rows that changed. A reader keeps the newest row per symbol, so
+  replaying `today.bin` in order (or the minute files after it) gives the current row.
+- **Size, today's real frames (2026-11-20, 15,300 symbols with a regular-session row):** the 16:00
+  frame 29.5 KB -> 194 KB gzip; after-hours frames +3-6 KB each (rows = the symbols that printed that
+  minute); 16:00-19:07 +1.06 MB on a 20 MB today.bin. Every row in every frame would be ~190 KB a
+  frame, ~46 MB a day: why only changes ride.
+- **Arm only after the device reads it.** A decoder that does not know bit 2 refuses the frame
+  (`trailing bytes`, in Python and in `codec.js`), never misreads it, so today's device would lose
+  the post-close frames until its decoder reads the section. Arm (after hours: a `--set` restarts
+  stream-ingest): `railway variables --service stream-ingest --set MINUTE_FRAMES_WITH_DAILY=1`.
+  Check after the close: `python tools/forming_daily_check.py` prints
+  `frames' DAILY row == the server's D bar` per symbol. Rollback: `--set MINUTE_FRAMES_WITH_DAILY=0`.
+
 ## Channel: R2 + the edge, not a broadcast on stream-edge
 
 | | R2 + edge (chosen) | one broadcast channel on stream-edge |

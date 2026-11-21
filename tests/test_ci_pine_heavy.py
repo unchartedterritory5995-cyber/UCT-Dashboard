@@ -153,6 +153,21 @@ def test_the_pine_twins_leg_runs_the_w9_probe_rail():
     assert any(p.endswith("/test_pine_run_half_evidence.py") for p in covered)   # CONTROL: the glob still reads
 
 
+def test_a_pytest_leg_runs_the_c45_door_rail_and_what_it_reads_triggers_it():
+    """2026-11-20: `test_c45_withheld_doors.py` (the C45 doors ask ast_interpret's own whole-series decision) was red
+    on master from engine 78 (#1888) and again from engine 90 (#2194), with every check green: no leg ran it. A
+    pytest leg names it, and a PR that changes it, the interpreter it asks, or the fixture it reads triggers this."""
+    covered = set()
+    for leg in _wf()["jobs"]["pytest"]["strategy"]["matrix"]["include"]:
+        for pat in leg["tests"].split():
+            covered |= {pathlib.Path(p).as_posix() for p in glob.glob(str(ROOT / pat))}
+    assert (ROOT / "tests/test_c45_withheld_doors.py").as_posix() in covered
+    rxs = [_glob_rx(p) for p in _on(_wf())["pull_request"]["paths"]]
+    for p in ("tests/test_c45_withheld_doors.py", "api/services/ast_interpret.py",
+              "tests/fixtures/ast/period_anchor_parity.json"):
+        assert any(rx.match(p) for rx in rxs), f"a PR changing {p} does not trigger pine-heavy"
+
+
 # ── the union rail ────────────────────────────────────────────────────────────
 
 def _report(tmp, name, files, failed=0):

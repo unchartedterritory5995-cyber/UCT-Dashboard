@@ -63,6 +63,7 @@ on:
       - 'tools/vendor_harness/**'
       - 'tests/test_ast_*.py'
       - 'tests/test_pine_*.py'
+      - 'tests/test_c45_withheld_doors.py'
       - 'tests/test_ci_pine_heavy.py'
       - 'tools/ci_offline.sh'
       - 'tools/ci_vitest_union.py'
@@ -319,7 +320,9 @@ jobs:
           - { leg: ast-twins,  tests: 'tests/test_ast_*.py' }
           # tests/test_w9_probes.py: the W9 queue doc's rows <-> the generated strategy probes (2026-11-17, #1554:
           # W9-NB1 reached master red because no leg ran it)
-          - { leg: pine-twins, tests: 'tests/test_pine_*.py tests/test_w9_probes.py' }
+          # tests/test_c45_withheld_doors.py: the C45 doors ask ast_interpret's own whole-series decision (2026-11-20:
+          # red since engine 78 #1888 and engine 90 #2194 with every check green, because no leg ran it)
+          - { leg: pine-twins, tests: 'tests/test_pine_*.py tests/test_w9_probes.py tests/test_c45_withheld_doors.py' }
     steps:
       - uses: actions/checkout@v4
         with:

@@ -42,6 +42,17 @@ day's `today.bin` (read back from R2 at start) and links its first frame to the 
 there through `prev_seq`; minutes it was not alive for are simply missing, and every reader
 sees the hole the same way.
 
+THE DAY'S DAILY BAR AFTER THE CLOSE (MINUTE_FRAMES_WITH_DAILY=1, default off). From the regular
+close (16:00 ET, 13:00 on a half day) to 20:00, every frame carries a DAILY section (minute_frames
+FLAG_DAILY): each symbol's daily bar for the day exactly as the server holds it, i.e. the row bars-api
+writes from the whole-market snapshot's `day` object (`bars_live_store.daily_rows_from_snapshot`, the
+one parser, so the same symbols, prices and whole-share volume) and /api/bars?tf=D serves: the
+official close (closing auction) and the consolidated day volume, which no sum of minute bars gives.
+The first frame of an epoch after the close carries every symbol, later frames only the symbols whose
+row changed. The snapshot is read in a CHILD process every `MINUTE_FRAMES_DAILY_POLL_S` (default 30)
+during that window only: parsing ~13k tickers holds the GIL 150-230 ms (measured on bars-api), which
+the reader's loop must never pay.
+
 COST ON THE READER'S LOOP. `on_am` is a dict write per event. The encode (~10-40 ms for a busy
 full-market minute) and the gzip run on a worker thread; uploads run on a worker thread.
 """
@@ -75,6 +86,20 @@ def _with_av() -> bool:
     return os.environ.get("MINUTE_FRAMES_WITH_AV", "0").strip().lower() in ("1", "true", "yes", "on")
 
 
+def _with_daily() -> bool:
+    return os.environ.get("MINUTE_FRAMES_WITH_DAILY", "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+def regular_close_seq(day: int) -> int:
+    """The seq of `day`'s regular close minute (16:00 ET, 13:00 on an NYSE early close)."""
+    try:
+        from api.services.nyse_calendar import NYSE_EARLY_CLOSES_YYYYMMDD
+        close = 13 * 60 if int(day) in NYSE_EARLY_CLOSES_YYYYMMDD else 16 * 60
+    except Exception:  # noqa: BLE001 - unreadable calendar: a full day
+        close = 16 * 60
+    return close - mf.SESSION_START_MIN
+
+
 def _prefix() -> str:
     p = os.environ.get("MINUTE_FRAMES_PREFIX", "live1m/").strip()
     return p if p.endswith("/") else p + "/"
@@ -106,7 +131,8 @@ class Publisher:
                  grace_s: Optional[float] = None, roll_every: Optional[int] = None,
                  late_keep_min: Optional[int] = None, with_av: Optional[bool] = None,
                  prefix: Optional[str] = None, epoch: Optional[int] = None,
-                 now_ms: Optional[Callable[[], int]] = None):
+                 now_ms: Optional[Callable[[], int]] = None,
+                 daily: Optional[Callable[[int], Optional[dict]]] = None):
         self.put = put
         self.get = get
         self.live = live or (lambda: True)
@@ -118,6 +144,9 @@ class Publisher:
         self._now = now_ms or (lambda: int(time.time() * 1000))
         self.epoch = int(epoch if epoch is not None else self._now() // 1000) & 0xFFFFFFFF
         self.started_ms = self._now()
+        # day -> {sym: (o, h, l, c, v)} of the newest server daily rows (None: off / none yet)
+        self.daily = daily
+        self.daily_sent: dict = {}                 # what this epoch's frames carried, per symbol
         # minute -> {sym: row}: bars for minutes whose frame is not out yet
         self.pending: dict = {}
         # minute -> {sym: row}: what each recent published minute carried (late/replace test)
@@ -251,6 +280,7 @@ class Publisher:
         self.published.clear()
         self.late.clear()
         self.replace.clear()
+        self.daily_sent = {}
 
     def _first_minute(self, now: int) -> Optional[int]:
         if self.last_minute is not None:
@@ -338,6 +368,25 @@ class Publisher:
         self._enc.append(frame)
         return frame
 
+    def _daily_rows(self, day: int, seq: int) -> Optional[dict]:
+        """The DAILY section for this frame: from the regular close on, the server's daily rows that
+        changed since this epoch last carried them (all of them the first time). None before the
+        close, when off, or when there is nothing new. Runs in `encode_pending` (a worker thread):
+        comparing ~15k rows is a few ms the reader's loop never pays."""
+        if self.daily is None or seq < regular_close_seq(day):
+            return None
+        try:
+            rows = self.daily(day)
+        except Exception:  # noqa: BLE001 - a missing daily feed costs the section, never the frame
+            rows = None
+        if not rows:
+            return None
+        changed = {sym: tuple(r) for sym, r in rows.items() if self.daily_sent.get(sym) != tuple(r)}
+        self.daily_sent.update(changed)
+        if changed:
+            self.stats["daily_rows"] = self.stats.get("daily_rows", 0) + len(changed)
+        return changed or None
+
     # ── encode + upload (worker threads) ─────────────────────────────────────────
 
     def encode_pending(self) -> int:
@@ -346,9 +395,10 @@ class Publisher:
         frames, self._enc = self._enc, []
         for fr in frames:
             t0 = time.perf_counter()
+            fr["daily"] = self._daily_rows(fr["day"], fr["seq"])
             raw = mf.encode_frame(day=fr["day"], seq=fr["seq"], prev_seq=fr["prev_seq"],
                                   epoch=self.epoch, minute=fr["minute"], blocks=fr["blocks"],
-                                  with_av=self.with_av, complete=fr["complete"])
+                                  with_av=self.with_av, complete=fr["complete"], daily=fr.get("daily"))
             gz = mf.gzip_bytes(raw)
             self.stats["last_encode_ms"] = round((time.perf_counter() - t0) * 1000, 1)
             self.stats["last_frame_bytes"] = len(gz)
@@ -403,7 +453,9 @@ class Publisher:
                 "today_seq": None if self.today_seq == mf.NO_SEQ else self.today_seq,
                 "today_bytes": self.today.compressed_bytes if self.today else 0,
                 "pending_minutes": len(self.pending), "uploads_queued": len(self.uploads),
-                "with_av": self.with_av, "grace_s": self.grace_ms / 1000, **self.stats}
+                "with_av": self.with_av, "with_daily": self.daily is not None,
+                "daily_feed": getattr(self.daily, "counts", None),
+                "grace_s": self.grace_ms / 1000, **self.stats}
 
 
 # ── the process's one publisher + its loop task ───────────────────────────────────
@@ -462,10 +514,121 @@ def _socket_live() -> bool:
     return bool(bar_stream._running)
 
 
+# ── the server's daily rows, read in a child process after the close ─────────────
+
+SNAPSHOT_PATH = "/v2/snapshot/locale/us/markets/stocks/tickers"
+
+
+def _daily_poll_s() -> float:
+    return max(5.0, _env_float("MINUTE_FRAMES_DAILY_POLL_S", 30.0))
+
+
+def snapshot_daily_rows(snapshot: dict, day: int) -> dict:
+    """{sym: (o, h, l, c, v)} for `day` from a whole-market snapshot: bars-api's own parser
+    (`bars_live_store.daily_rows_from_snapshot`), so these are the rows /api/bars?tf=D serves."""
+    from api.services.bars_live_store import daily_rows_from_snapshot
+    return {r[0]: tuple(r[2:7]) for r in daily_rows_from_snapshot(snapshot.get("tickers") or [], int(day))}
+
+
+def poll_daily_once(now_s: Optional[float] = None) -> Optional[tuple]:
+    """One snapshot read -> (day, {sym: row}) for TODAY (ET), or None outside [close, 20:00) or
+    when today's regular session has not opened. ⛔ A holiday's (or a pre-open) snapshot `day` is
+    the PRIOR session: dated today it would draw yesterday's candle twice (2026-09-04, 2026-09-11).
+    The one rule is bars-api's (`massive._regular_session_has_opened_today`), asked, not restated."""
+    day, seq = mf.seq_of_minute(int(time.time() if now_s is None else now_s) // 60)
+    if seq < regular_close_seq(day):                # before the close, or outside 04:00-20:00 (seq -1)
+        return None
+    from api.services import massive
+    if not massive._regular_session_has_opened_today():
+        return None
+    from api.services import massive_adapter
+    data = massive_adapter.get(SNAPSHOT_PATH, data_class="bars",
+                               activity="minute_frame_publisher.daily").value or {}
+    rows = snapshot_daily_rows(data, day)
+    return (day, rows) if rows else None
+
+
+def daily_changes(state: dict, got: Optional[tuple]) -> Optional[tuple]:
+    """CHILD: (day, rows) -> (day, only the rows not yet handed over for that day), or None. Keeps
+    the pipe (and the parent's unpickle, which holds ITS GIL) to the few hundred rows that move after
+    hours instead of ~15k every poll; the first report of a day is every row."""
+    if not got:
+        return None
+    day, rows = got
+    if state.get("day") != day:
+        state.clear()
+        state.update(day=day, sent={})
+    sent = state["sent"]
+    changed = {sym: r for sym, r in rows.items() if sent.get(sym) != r}
+    sent.update(changed)
+    return (day, changed) if changed else None
+
+
+def _daily_child(q, poll_s: float) -> None:
+    """CHILD PROCESS: poll the snapshot during [close, 20:00) ET and hand (day, changed rows) to the parent."""
+    state: dict = {}
+    while True:
+        try:
+            msg = daily_changes(state, poll_daily_once())
+            if msg:
+                q.put(msg)
+        except Exception as e:  # noqa: BLE001
+            try:
+                q.put(("err", str(e)[:200]))
+            except Exception:  # noqa: BLE001
+                pass
+        time.sleep(poll_s)
+
+
+class DailyFeed:
+    """Today's server daily rows as the child process reports them (changes merged into the day's
+    rows); `feed(day)` -> {sym: row} for that day, or None."""
+
+    def __init__(self, start_child: bool = True, poll_s: Optional[float] = None):
+        self._latest: Optional[tuple] = None
+        self.counts = {"reports": 0, "errors": 0}
+        if start_child:
+            import multiprocessing as mp
+            import threading
+            ctx = mp.get_context("spawn")
+            self._q = ctx.Queue()
+            ctx.Process(target=_daily_child, args=(self._q, poll_s or _daily_poll_s()), daemon=True,
+                        name="minute-frames-daily").start()
+            threading.Thread(target=self._listen, daemon=True, name="minute-frames-daily-listener").start()
+
+    def _listen(self) -> None:
+        while True:
+            try:
+                self.report(self._q.get())
+            except Exception:  # noqa: BLE001
+                time.sleep(1)
+
+    def report(self, msg) -> None:
+        if isinstance(msg, tuple) and len(msg) == 2 and msg[0] != "err" and isinstance(msg[1], dict):
+            day, latest = int(msg[0]), self._latest
+            # copy, then swap: the encode thread may be iterating the dict it was handed
+            rows = dict(latest[1]) if latest is not None and latest[0] == day else {}
+            rows.update(msg[1])
+            self._latest = (day, rows)
+            self.counts["reports"] += 1
+        else:
+            self.counts["errors"] += 1
+
+    def __call__(self, day: int) -> Optional[dict]:
+        latest = self._latest
+        return latest[1] if latest is not None and latest[0] == int(day) else None
+
+
 def publisher() -> Publisher:
     global _publisher
     if _publisher is None:
-        _publisher = Publisher(put=_default_put, get=_default_get, live=_socket_live)
+        daily = None
+        if _with_daily():
+            try:
+                daily = DailyFeed()
+            except Exception as e:  # noqa: BLE001 - no daily section, the frames go on
+                _log.warning("[minute-frames] daily feed did not start: %s", e)
+        _publisher = Publisher(put=_default_put, get=_default_get, live=_socket_live, daily=daily)
     return _publisher
 
 

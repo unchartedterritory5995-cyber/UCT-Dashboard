@@ -86,14 +86,20 @@ def _post(text: str) -> None:
             from api.services.alert_destination import ops_webhook
             url = (ops_webhook(SEVERITY, producer=PRODUCER) or "").strip()
             if not url:
+                # ⭐ 2026-11-20: said, because a page nobody was sent looks exactly like a page that was
+                log.warning("[llm-provider] no ops destination is set: the page was NOT sent")
                 return
             req = urllib.request.Request(url, data=json.dumps({"content": text[:1900]}).encode("utf-8"),
                                          headers={"Content-Type": "application/json",
                                                   "User-Agent": "UCT-llm-provider/1.0"}, method="POST")
             with urllib.request.urlopen(req, timeout=10) as r:
                 r.read(64)
-        except Exception:                           # noqa: BLE001 -- a page that cannot be sent is not the turn's failure
-            log.warning("[llm-provider] the page could not be posted", exc_info=True)
+            # ⭐ 2026-11-20: the first real page could not be confirmed from the log (success said nothing).
+            # ⛔ The fact only: never the destination (a webhook address is a credential), never the text.
+            log.info("[llm-provider] the page was posted to the ops channel")
+        except Exception as exc:                    # noqa: BLE001 -- a page that cannot be sent is not the turn's failure
+            # the KIND of failure only: an error's own text or traceback can carry the webhook address
+            log.warning("[llm-provider] the page could not be posted: %s", type(exc).__name__)
 
     try:
         threading.Thread(target=send, daemon=True, name="llm-provider-page").start()

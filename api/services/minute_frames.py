@@ -17,6 +17,7 @@ FRAME ("UMF1")
                     bit1 FLAG_INCOMPLETE = the vendor socket was down for part of this minute's
                     delivery window: a symbol missing here may still have traded (a reader
                     treats the minute as a GAP, never as "no trades")
+                    bit2 FLAG_DAILY = a DAILY section follows the blocks (below)
     6   u16  reserved (0)
     8   u32  day       ET trading date as YYYYMMDD
     12  u32  seq       this frame's minute, as its index from 04:00 ET of `day` (0..959)
@@ -41,7 +42,17 @@ FRAME ("UMF1")
                  volume kv<=8: varint V (v scaled by 10**kv); kv==15: f64 v
                  av     (FLAG_AV) the same volume scale as v: varint (AV+1), 0 = absent;
                         kv==15: f64 av (NaN = absent)
+    ..  ...  (FLAG_DAILY) the DAILY section: varint n_daily, then n_daily records in strictly
+             increasing symbol index, each exactly a block record WITHOUT av (sym_gap, scales,
+             price, volume): that symbol's DAILY bar for `day` as the server holds it (bars-api's
+             whole-market snapshot `day` row, the row /api/bars?tf=D serves). Published from the
+             regular close (16:00 ET, 13:00 on a half day) to 20:00: the first such frame of a
+             publisher epoch carries every symbol, later ones only the symbols whose row changed.
+             A reader keeps the newest row per symbol (replaying today.bin in order gives it).
     ..  u32  CRC-32 of every byte before it
+
+    A reader that does not know FLAG_DAILY refuses the frame (trailing bytes), never misreads it;
+    the publisher sets it only with MINUTE_FRAMES_WITH_DAILY=1.
 
 EXACT, BY CONSTRUCTION. A price is stored at the smallest scale k at which `n / 10**k == p`
 holds in IEEE double arithmetic (Python and JavaScript divide identically, correctly rounded),
@@ -78,6 +89,7 @@ TODAY_MAGIC = b"UMT1"
 VERSION = 1
 FLAG_AV = 0x01
 FLAG_INCOMPLETE = 0x02
+FLAG_DAILY = 0x04
 NO_SEQ = 0xFFFFFFFF
 
 KIND_ONTIME = 0
@@ -253,12 +265,14 @@ def _record(out: bytearray, row: tuple, with_av: bool) -> None:
 
 
 def encode_frame(*, day: int, seq: int, prev_seq: int, epoch: int, minute: int,
-                 blocks: list, with_av: bool = False, complete: bool = True) -> bytes:
+                 blocks: list, with_av: bool = False, complete: bool = True,
+                 daily: Optional[dict] = None) -> bytes:
     """One frame. `blocks` = [(minute, kind, {sym: (o, h, l, c, v[, av])}), ...]; the block for
-    the frame's own minute is first by convention. Returns the RAW (uncompressed) bytes."""
-    symbols = sorted({s for _, _, rows in blocks for s in rows})
+    the frame's own minute is first by convention. `daily` = {sym: (o, h, l, c, v)}, the DAILY
+    section (None or empty: none). Returns the RAW (uncompressed) bytes."""
+    symbols = sorted({s for _, _, rows in blocks for s in rows} | set(daily or ()))
     index = {s: i for i, s in enumerate(symbols)}
-    flags = (FLAG_AV if with_av else 0) | (0 if complete else FLAG_INCOMPLETE)
+    flags = (FLAG_AV if with_av else 0) | (0 if complete else FLAG_INCOMPLETE) | (FLAG_DAILY if daily else 0)
     out = bytearray(_HDR.pack(MAGIC, VERSION, flags, 0,
                               day, seq, prev_seq & 0xFFFFFFFF, epoch & 0xFFFFFFFF, minute))
     _symbol_table(out, symbols)
@@ -275,6 +289,14 @@ def encode_frame(*, day: int, seq: int, prev_seq: int, epoch: int, minute: int,
             _put_varint(out, i - prev - 1)
             prev = i
             _record(out, rows[s], with_av)
+    if daily:
+        _put_varint(out, len(daily))
+        prev = -1
+        for s in sorted(daily, key=index.__getitem__):
+            i = index[s]
+            _put_varint(out, i - prev - 1)
+            prev = i
+            _record(out, tuple(daily[s])[:5], False)
     out += struct.pack("<I", zlib.crc32(out) & 0xFFFFFFFF)
     return bytes(out)
 
@@ -393,47 +415,59 @@ def decode_frame(data: bytes) -> dict:
         kind = buf[pos]
         pos += 1
         n, pos = _get_varint(buf, pos)
-        rows = {}
-        idx = -1
-        for _ in range(n):
-            gap, pos = _get_varint(buf, pos)
-            idx += gap + 1
-            sc = buf[pos]
-            pos += 1
-            k, kv = sc & 0x0F, sc >> 4
-            if k == RAW_SCALE:
-                o, h, l, c = struct.unpack_from("<dddd", buf, pos)
-                pos += 32
-            else:
-                O, pos = _get_zz(buf, pos)
-                dC, pos = _get_zz(buf, pos)
-                dH, pos = _get_zz(buf, pos)
-                dL, pos = _get_zz(buf, pos)
-                C = O + dC
-                H = max(O, C) + dH
-                L = min(O, C) - dL
-                p = _POW10[k]
-                o, h, l, c = O / p, H / p, L / p, C / p
-            av = None
-            if kv == RAW_SCALE:
-                (v,) = struct.unpack_from("<d", buf, pos)
-                pos += 8
-                if with_av:
-                    (av,) = struct.unpack_from("<d", buf, pos)
-                    pos += 8
-                    av = None if math.isnan(av) else av
-            else:
-                V, pos = _get_varint(buf, pos)
-                v = V / _POW10[kv]
-                if with_av:
-                    A, pos = _get_varint(buf, pos)
-                    av = None if A == 0 else (A - 1) / _POW10[kv]
-            rows[symbols[idx]] = (o, h, l, c, v, av) if with_av else (o, h, l, c, v)
+        rows, pos = _read_records(buf, pos, n, symbols, with_av)
         blocks.append({"minute": bmin, "kind": kind, "rows": rows})
+    out = {"day": day, "seq": seq, "prev_seq": prev_seq, "epoch": epoch, "minute": minute,
+           "flags": flags, "blocks": blocks}
+    if flags & FLAG_DAILY:
+        n, pos = _get_varint(buf, pos)
+        out["daily"], pos = _read_records(buf, pos, n, symbols, False)
     if pos != end:
         raise FrameError("trailing bytes")
-    return {"day": day, "seq": seq, "prev_seq": prev_seq, "epoch": epoch, "minute": minute,
-            "flags": flags, "blocks": blocks}
+    return out
+
+
+def _read_records(buf, pos: int, n: int, symbols: list, with_av: bool):
+    """`n` records (the block record layout above) -> ({sym: row}, new pos)."""
+    rows = {}
+    idx = -1
+    for _ in range(n):
+        gap, pos = _get_varint(buf, pos)
+        idx += gap + 1
+        if idx >= len(symbols):
+            raise FrameError("record names a symbol outside the table")
+        sc = buf[pos]
+        pos += 1
+        k, kv = sc & 0x0F, sc >> 4
+        if k == RAW_SCALE:
+            o, h, l, c = struct.unpack_from("<dddd", buf, pos)
+            pos += 32
+        else:
+            O, pos = _get_zz(buf, pos)
+            dC, pos = _get_zz(buf, pos)
+            dH, pos = _get_zz(buf, pos)
+            dL, pos = _get_zz(buf, pos)
+            C = O + dC
+            H = max(O, C) + dH
+            L = min(O, C) - dL
+            p = _POW10[k]
+            o, h, l, c = O / p, H / p, L / p, C / p
+        av = None
+        if kv == RAW_SCALE:
+            (v,) = struct.unpack_from("<d", buf, pos)
+            pos += 8
+            if with_av:
+                (av,) = struct.unpack_from("<d", buf, pos)
+                pos += 8
+                av = None if math.isnan(av) else av
+        else:
+            V, pos = _get_varint(buf, pos)
+            v = V / _POW10[kv]
+            if with_av:
+                A, pos = _get_varint(buf, pos)
+                av = None if A == 0 else (A - 1) / _POW10[kv]
+        rows[symbols[idx]] = (o, h, l, c, v, av) if with_av else (o, h, l, c, v)
+    return rows, pos
 
 
 def decode_today(data: bytes) -> dict:

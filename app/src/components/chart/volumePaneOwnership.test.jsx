@@ -223,9 +223,10 @@ describe('⛔⛔ A PANE ROW ACTS ON ITS OWN INSTANCE (owner §19)', () => {
 describe('⭐ THE VOLUME PANE’S ROWS ARE DERIVED, NOT ENUMERATED', () => {
   const body = STOCK_CHART.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')
   const rows = (() => {
-    const start = body.indexOf('const volPaneRows = useMemo(')
-    expect(start, '`volPaneRows` is gone — the volume pane has no legend').toBeGreaterThan(-1)
-    return body.slice(start, body.indexOf('}, [crosshairData,', start))
+    // (2026-11-20) the memo's FUNCTION, keyed on the readout payload inside the strip's ReadoutIsland
+    const start = body.indexOf('const volPaneRowsOf = useMemo(() => memoOnArg((crosshairData) => {')
+    expect(start, '`volPaneRowsOf` is gone — the volume pane has no legend').toBeGreaterThan(-1)
+    return body.slice(start, body.indexOf('}), [cs,', start))
   })()
 
   it('⭐⭐ its guests come from `chipPaneHost`, the one pane authority', () => {

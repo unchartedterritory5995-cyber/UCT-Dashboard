@@ -130,8 +130,8 @@ export default function AlertsPanel({ sym = null, onRun, onRows }) {
           {sym ? <> <button type="button" className={styles.linkBtn} onClick={() => onRun?.('ALRT')}>See all your alerts</button>.</> : null}
         </PanelState>
       ) : (
-        <div className={styles.tableBox}>
-          <table className={styles.table} data-testid="terminal-alerts-table"
+        <div className={styles.tableBox} data-fold="590">
+          <table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-alerts-table"
             aria-label={sym ? `Price alerts on ${sym}` : 'Your price alerts'}>
             <thead>
               <tr>
