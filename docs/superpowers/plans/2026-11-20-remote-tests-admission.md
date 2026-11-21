@@ -25,7 +25,7 @@
 **Rule** (one decision per check):
 
 - **WAIT** if
-  - **A.** a `master deploy gate` run created within `FRESH_RUN_S` is `queued`, or is `in_progress` with at least one job `queued`; or
+  - **A.** a `master deploy gate` run created within `FRESH_RUN_S` that is `queued` or `in_progress` has at least one job `queued`, or is `queued` with no job listed yet (live 2026-11-21 03:51Z: run 44861476002 read `queued` while 5 of its jobs ran and 7 waited, so the decision is made on the jobs, not on the run's label); or
   - **B.** at least `MAX_REMOTE_IN_FLIGHT` `remote tests` runs created within `FRESH_RUN_S` are `queued` or `in_progress`, **and** at least one run of any workflow created within `FRESH_RUN_S` is `queued`.
 - Otherwise **DISPATCH**.
 
@@ -33,7 +33,7 @@ A gate run that is `pending` (waiting on the previous gate's concurrency group) 
 
 **Signals.** Every one is a conditional GET through `GitHubApi.request(..., conditional=True, wait_out_limits=False)`:
 1. `repos/{owner}/{repo}/actions/workflows/master-deploy-gate.yml/runs?per_page=10`
-2. `repos/{owner}/{repo}/actions/runs/{id}/jobs?per_page=100` for each fresh `in_progress` gate run (normally 0 or 1)
+2. `repos/{owner}/{repo}/actions/runs/{id}/jobs?per_page=100` for each fresh `queued` or `in_progress` gate run (normally 0 or 1)
 3. `repos/{owner}/{repo}/actions/workflows/remote-tests.yml/runs?per_page=50`
 4. `repos/{owner}/{repo}/actions/runs?status=queued&per_page=100`
 

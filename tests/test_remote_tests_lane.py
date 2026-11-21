@@ -742,9 +742,22 @@ def test_admission_gate_running_with_no_job_queued_dispatches():
     assert rt.room_to_dispatch([_run(9, "in_progress")], {"9": [{"status": "in_progress"}]}, [], [], _now())[0]
 
 
-def test_admission_a_queued_gate_run_waits():
-    ok, why = rt.room_to_dispatch([_run(9, "queued")], {}, [], [], _now())
+def test_admission_a_queued_gate_run_with_no_jobs_yet_waits():
+    ok, why = rt.room_to_dispatch([_run(9, "queued")], {"9": []}, [], [], _now())
     assert not ok and "is queued" in why
+
+
+def test_admission_a_queued_gate_run_with_a_waiting_job_waits():
+    """Live 2026-11-21 03:51Z, run 44861476002: run status `queued` while 5 of its jobs ran and 7 waited."""
+    jobs = [{"status": "completed"}, {"status": "in_progress"}, {"status": "queued"}]
+    ok, why = rt.room_to_dispatch([_run(9, "queued")], {"9": jobs}, [], [], _now())
+    assert not ok and "1 job(s) waiting" in why
+
+
+def test_admission_a_queued_gate_run_whose_jobs_all_started_dispatches():
+    """The run-level `queued` label can trail its jobs: decide on the jobs, never on the label alone."""
+    jobs = [{"status": "completed"}, {"status": "in_progress"}]
+    assert rt.room_to_dispatch([_run(9, "queued")], {"9": jobs}, [], [], _now())[0]
 
 
 def test_admission_a_pending_gate_run_does_not_wait():
@@ -797,6 +810,15 @@ def test_read_load_sends_the_four_reads_in_order():
     assert {c[0] for c in fake.calls} == {"GET"} and len(fake.calls) == 4
     assert load.gate_runs == [gate] and load.gate_jobs == {"9": [{"status": "queued"}]}
     assert load.remote_runs == [] and load.queued_runs == []
+
+
+def test_read_load_reads_jobs_for_a_queued_gate_run_too():
+    clock = _Clock()
+    gate = {"id": 9, "status": "queued", "created_at": _at(clock)}
+    api, fake, _ = _api([_ok({"workflow_runs": [gate]}), _ok({"jobs": []}),
+                         _ok({"workflow_runs": []}), _ok({"workflow_runs": []})], clock)
+    assert rt.read_load(api).gate_jobs == {"9": []}
+    assert fake.calls[1][1] == "repos/{owner}/{repo}/actions/runs/9/jobs?per_page=100"
 
 
 def test_read_load_skips_jobs_when_no_gate_is_running():

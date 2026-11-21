@@ -441,17 +441,21 @@ def _fresh(runs: list[dict], now: float) -> list[dict]:
 
 def room_to_dispatch(gate_runs: list[dict], gate_jobs: dict[str, list[dict]], remote_runs: list[dict],
                      queued_runs: list[dict], now: float) -> tuple[bool, str]:
-    """(may we enqueue now, why). A: a fresh deploy gate run is queued, or in progress with a job waiting for a
-    runner (jobs are created only once their `needs:` finish, so a listed `queued` job IS waiting for a runner; a
-    `pending` run waits on the previous gate, not on a runner). B: MAX_REMOTE_IN_FLIGHT fresh remote runs are
+    """(may we enqueue now, why). A: a fresh queued or in-progress deploy gate run has a job waiting for a runner,
+    or is queued with no job listed yet (jobs are created only once their `needs:` finish, so a listed `queued` job
+    IS waiting for a runner; a `pending` run waits on the previous gate, not on a runner). B: MAX_REMOTE_IN_FLIGHT fresh remote runs are
     queued or in progress AND some fresh run is queued (the pool is full)."""
+    # ⚰️ live 2026-11-21 03:51Z (run 44861476002): a run's own status can read `queued` while 5 of its jobs run and 7
+    # wait, so the decision is made on the JOBS; the label alone decides only when no job is listed yet
     for run in _fresh(gate_runs, now):
-        if run.get("status") == "queued":
+        if run.get("status") not in ("queued", "in_progress"):
+            continue
+        jobs = gate_jobs.get(str(run.get("id"))) or []
+        waiting = sum(1 for j in jobs if j.get("status") == "queued")
+        if waiting:
+            return False, f"deploy gate run {run.get('id')} has {waiting} job(s) waiting for a runner"
+        if run.get("status") == "queued" and not jobs:
             return False, f"deploy gate run {run.get('id')} is queued"
-        if run.get("status") == "in_progress":
-            waiting = sum(1 for j in gate_jobs.get(str(run.get("id")), []) if j.get("status") == "queued")
-            if waiting:
-                return False, f"deploy gate run {run.get('id')} has {waiting} job(s) waiting for a runner"
     in_flight = [r for r in _fresh(remote_runs, now) if r.get("status") in ("queued", "in_progress")]
     queued = [r for r in _fresh(queued_runs, now) if r.get("status") == "queued"]
     if len(in_flight) >= MAX_REMOTE_IN_FLIGHT and queued:
@@ -472,7 +476,7 @@ class Load:
 
 def read_load(api: GitHubApi) -> Load | None:
     """What room_to_dispatch needs, in at most 4 conditional requests (a 304 is free): the gate's recent runs, the
-    jobs of a fresh in-progress gate run (normally 0 or 1 of them), the recent remote runs, the queued runs. None on
+    jobs of a fresh queued or in-progress gate run (normally 0 or 1 of them), the recent remote runs, the queued runs. None on
     ANY answer it cannot use: the caller then dispatches (fail open), and a rate limit is never slept on here."""
     def get(path: str, key: str) -> list | None:
         status, data = api.request("GET", path, conditional=True, wait_out_limits=False)
@@ -486,7 +490,7 @@ def read_load(api: GitHubApi) -> Load | None:
             return None
         gate_jobs: dict[str, list[dict]] = {}
         for run in _fresh(gate_runs, api.now()):
-            if run.get("status") == "in_progress":
+            if run.get("status") in ("queued", "in_progress"):
                 jobs = get(f"{_REPO}/actions/runs/{run.get('id')}/jobs?per_page=100", "jobs")
                 if jobs is None:
                     return None
