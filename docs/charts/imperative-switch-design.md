@@ -113,7 +113,9 @@ the same task, so mixed groups still paint together.
 **The trigger is shared with the sync-switch work** (`app/src/hooks/handoffGroups.js`, the other agent's design 3,
 approved for /charts). The coordinator made its one decision the switch trigger for both designs:
 
-- The board's `setGroupSym` calls `decideGroupShow(scope, group, sym)` in the key handler. The scope is the board's
+- The board's `setGroupSym` calls `beginGroupSwitch(scope, group, sym)` in the key handler (`primeGroup`, then
+  `decideGroupShow`; trigger commit 695aff235a on perf/sync-switch, rebased on master 2b140dd338; members may also
+  take a latest-only `prime(sym)`). The scope is the board's
   `groupSymsStore`. A chart without a scope (the drill, the terminal) never registers and takes the round only. The
   decision is `{sym, seq, tfs, applied}`, and the round calls `show({sym, tf})` with the tf checked at ready.
 - It asks every member's `canShowNow`. For an imperative member, that means the frame builds whole, sources included.
