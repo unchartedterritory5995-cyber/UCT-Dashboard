@@ -774,3 +774,53 @@ def test_admission_three_remote_runs_and_queued_runs_dispatches():
 def test_admission_stale_remote_and_queued_runs_are_ignored():
     old = "2026-11-11T20:32:25Z"
     assert rt.room_to_dispatch([], {}, [_run(i, "queued", old) for i in range(6)], [_run(50, "queued", old)], _now())[0]
+
+
+_GATE_RUNS = "repos/{owner}/{repo}/actions/workflows/master-deploy-gate.yml/runs?per_page=10"
+_REMOTE_RUNS = "repos/{owner}/{repo}/actions/workflows/remote-tests.yml/runs?per_page=50"
+_QUEUED_RUNS = "repos/{owner}/{repo}/actions/runs?status=queued&per_page=100"
+
+
+def _at(clock):
+    import time as _t
+    return _t.strftime("%Y-%m-%dT%H:%M:%SZ", _t.gmtime(clock.t))
+
+
+def test_read_load_sends_the_four_reads_in_order():
+    clock = _Clock()
+    gate = {"id": 9, "status": "in_progress", "created_at": _at(clock)}
+    api, fake, _ = _api([_ok({"workflow_runs": [gate]}), _ok({"jobs": [{"status": "queued"}]}),
+                         _ok({"workflow_runs": []}), _ok({"workflow_runs": []})], clock)
+    load = rt.read_load(api)
+    assert [c[1] for c in fake.calls] == [_GATE_RUNS, "repos/{owner}/{repo}/actions/runs/9/jobs?per_page=100",
+                                          _REMOTE_RUNS, _QUEUED_RUNS]
+    assert {c[0] for c in fake.calls} == {"GET"} and len(fake.calls) == 4
+    assert load.gate_runs == [gate] and load.gate_jobs == {"9": [{"status": "queued"}]}
+    assert load.remote_runs == [] and load.queued_runs == []
+
+
+def test_read_load_skips_jobs_when_no_gate_is_running():
+    api, fake, _ = _api([_ok({"workflow_runs": []}), _ok({"workflow_runs": []}), _ok({"workflow_runs": []})])
+    assert rt.read_load(api) is not None
+    assert len(fake.calls) == 3 and not any("/jobs" in c[1] for c in fake.calls)
+
+
+@pytest.mark.parametrize("answer", [
+    (403, {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1000900"}, "rate limit"),
+    (500, {}, ""),
+    (0, {}, ""),
+    _ok({"unexpected": 1}),
+])
+def test_read_load_returns_none_on_any_error_and_never_sleeps(answer):
+    api, fake, clock = _api([answer])
+    assert rt.read_load(api) is None
+    assert clock.sleeps == [] and len(fake.calls) == 1
+
+
+def test_read_load_repeat_check_is_conditional():
+    empty = {"workflow_runs": []}
+    api, fake, _ = _api([_ok(empty, etag='W/"g"'), _ok(empty, etag='W/"r"'), _ok(empty, etag='W/"q"'),
+                         (304, {}, ""), (304, {}, ""), (304, {}, "")])
+    assert rt.read_load(api) is not None and rt.read_load(api) is not None
+    assert fake.calls[3][2] == {"If-None-Match": 'W/"g"'}
+    assert api.not_modified == 3

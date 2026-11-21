@@ -38,6 +38,7 @@ import sys
 import tempfile
 import time
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -452,6 +453,49 @@ def room_to_dispatch(gate_runs: list[dict], gate_jobs: dict[str, list[dict]], re
     if len(in_flight) >= MAX_REMOTE_IN_FLIGHT and queued:
         return False, f"{len(in_flight)} remote runs in flight and {len(queued)} run(s) queued"
     return True, "room"
+
+
+GATE_WORKFLOW = "master-deploy-gate.yml"
+
+
+@dataclass
+class Load:
+    gate_runs: list[dict]
+    gate_jobs: dict[str, list[dict]]
+    remote_runs: list[dict]
+    queued_runs: list[dict]
+
+
+def read_load(api: GitHubApi) -> Load | None:
+    """What room_to_dispatch needs, in at most 4 conditional requests (a 304 is free): the gate's recent runs, the
+    jobs of a fresh in-progress gate run (normally 0 or 1 of them), the recent remote runs, the queued runs. None on
+    ANY answer it cannot use: the caller then dispatches (fail open), and a rate limit is never slept on here."""
+    def get(path: str, key: str) -> list | None:
+        status, data = api.request("GET", path, conditional=True, wait_out_limits=False)
+        if status != 200 or not isinstance(data, dict) or not isinstance(data.get(key), list):
+            return None
+        return data[key]
+
+    try:
+        gate_runs = get(f"{_REPO}/actions/workflows/{GATE_WORKFLOW}/runs?per_page=10", "workflow_runs")
+        if gate_runs is None:
+            return None
+        gate_jobs: dict[str, list[dict]] = {}
+        for run in _fresh(gate_runs, api.now()):
+            if run.get("status") == "in_progress":
+                jobs = get(f"{_REPO}/actions/runs/{run.get('id')}/jobs?per_page=100", "jobs")
+                if jobs is None:
+                    return None
+                gate_jobs[str(run.get("id"))] = jobs
+        remote_runs = get(f"{_REPO}/actions/workflows/{WORKFLOW}/runs?per_page=50", "workflow_runs")
+        if remote_runs is None:
+            return None
+        queued_runs = get(f"{_REPO}/actions/runs?status=queued&per_page=100", "workflow_runs")
+        if queued_runs is None:
+            return None
+    except (RuntimeError, OSError):
+        return None
+    return Load(gate_runs, gate_jobs, remote_runs, queued_runs)
 
 
 _REPO = "repos/{owner}/{repo}"
