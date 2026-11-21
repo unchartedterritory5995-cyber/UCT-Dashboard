@@ -3506,14 +3506,17 @@ def _bar_volume(bar: dict) -> float:
     return 0 if v is None else v
 
 
-def _resample_weekly_iso(daily_bars: list[dict], ticker: str | None = None) -> list[dict]:
+def _resample_weekly_iso(daily_bars: list[dict], ticker: str | None = None,
+                         sessions_only: bool = True) -> list[dict]:
     """Resample our normalized daily bars (t = ISO date string) to weekly.
     Non-session daily rows are excluded (`date_bar_keys`) — a week is its sessions."""
     if not daily_bars:
         return []
     from api.services.date_bar_keys import session_daily
     weeks = {}
-    for bar in session_daily(daily_bars, ticker):
+    # ``sessions_only=False``: every row as handed (the Pine interpreter's resample, ``ast_interpret._htf_resampled``,
+    # which withholds by name a week holding a day without a session rather than leaving the row out of one lane)
+    for bar in (session_daily(daily_bars, ticker) if sessions_only else daily_bars):
         try:
             dt = datetime.strptime(bar["t"], "%Y-%m-%d")
         except (ValueError, TypeError):
@@ -3546,14 +3549,15 @@ def _resample_weekly_iso(daily_bars: list[dict], ticker: str | None = None) -> l
     ]
 
 
-def _resample_monthly_iso(daily_bars: list[dict], ticker: str | None = None) -> list[dict]:
+def _resample_monthly_iso(daily_bars: list[dict], ticker: str | None = None,
+                         sessions_only: bool = True) -> list[dict]:
     """Resample our normalized daily bars (t = ISO date string) to monthly.
     Non-session daily rows are excluded (`date_bar_keys`) — a month is its sessions."""
     if not daily_bars:
         return []
     from api.services.date_bar_keys import session_daily
     months = {}
-    for bar in session_daily(daily_bars, ticker):
+    for bar in (session_daily(daily_bars, ticker) if sessions_only else daily_bars):
         try:
             dt = datetime.strptime(bar["t"], "%Y-%m-%d")
         except (ValueError, TypeError):

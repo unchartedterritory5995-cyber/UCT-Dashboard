@@ -379,3 +379,194 @@ def test_a_stray_old_bar_at_startup_never_waits_in_memory_forever():
     _run_to(pub, clock, (m0 + 1) * 60 + 5)
     assert pub.pending == {} and pub.stats["too_late"] == 1
     assert sorted(k[-8:] for k in r2.objects if k.endswith(".bin") and "today" not in k) == ["1000.bin"]
+
+
+# ── the DAILY section after the close (MINUTE_FRAMES_WITH_DAILY) ────────────────────
+
+def test_the_daily_section_round_trips_exactly_and_is_absent_unless_given():
+    m = 29_000_000
+    daily = {"AAPL": (342.865, 344.34, 340.24, 342.845, 77589154.0),
+             "ONLYDAILY": (1.0 / 3.0, 0.5, 0.25, 0.4, 12.0),              # no exact scale: float64
+             "BRK-B": (570.0, 571.25, 568.5, 570.0, 6608999.0)}
+    raw = mf.encode_frame(day=20261120, seq=720, prev_seq=719, epoch=1, minute=m,
+                          blocks=[(m, mf.KIND_ONTIME, {"AAPL": (342.9, 343.0, 342.8, 342.95, 1000.0)})],
+                          daily=daily)
+    fr = mf.decode_frame(mf.gzip_bytes(raw))
+    assert fr["flags"] & mf.FLAG_DAILY
+    assert set(fr["daily"]) == set(daily)
+    for sym, row in daily.items():
+        assert all(_same_bits(a, b) for a, b in zip(fr["daily"][sym], row)), sym
+    assert fr["blocks"][0]["rows"]["AAPL"][3] == 342.95                     # the minute block is untouched
+    for none in (None, {}):
+        plain = mf.decode_frame(mf.encode_frame(day=20261120, seq=720, prev_seq=719, epoch=1, minute=m,
+                                                blocks=[(m, mf.KIND_ONTIME, {})], daily=none))
+        assert "daily" not in plain and not plain["flags"] & mf.FLAG_DAILY
+
+
+def test_a_reader_that_ignores_the_daily_flag_refuses_the_frame_never_misreads_it():
+    m = 29_000_000
+    raw = bytearray(mf.encode_frame(day=20261120, seq=720, prev_seq=719, epoch=1, minute=m,
+                                    blocks=[(m, mf.KIND_ONTIME, {"A": (1.0, 1.0, 1.0, 1.0, 1.0)})],
+                                    daily={"A": (1.0, 2.0, 0.5, 1.5, 9.0)}))
+    raw[5] &= ~mf.FLAG_DAILY & 0xFF                                     # a reader blind to the flag
+    raw[-4:] = struct.pack("<I", __import__("zlib").crc32(bytes(raw[:-4])) & 0xFFFFFFFF)
+    with pytest.raises(mf.FrameError, match="trailing"):
+        mf.decode_frame(bytes(raw))
+
+
+class _Daily:
+    def __init__(self, rows=None, day=None):
+        self.rows, self.day, self.asked = rows or {}, day, []
+
+    def __call__(self, day):
+        self.asked.append(day)
+        return dict(self.rows) if self.day in (None, day) else None
+
+
+def test_frames_carry_the_server_daily_rows_from_the_close_all_first_then_changes():
+    r2, clock = R2(), {"ms": 0}
+    feed = _Daily({"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0), "MSFT": (3.0, 4.0, 2.5, 3.5, 200.0)})
+    pub = _pub(r2, clock, daily=feed)
+    m0 = fx._unix(DAY, 15, 58) // 60
+    clock["ms"] = (m0 + 1) * 60000
+    pub.on_am("AAPL", _am(m0))
+    _run_to(pub, clock, (m0 + 2) * 60 + 5)                         # 15:58 and 15:59: before the close
+    _run_to(pub, clock, (m0 + 3) * 60 + 5)                         # 16:00: every symbol
+    _run_to(pub, clock, (m0 + 4) * 60 + 5)                         # 16:01: nothing changed
+    feed.rows["MSFT"] = (3.0, 4.5, 2.5, 4.25, 260.0)
+    _run_to(pub, clock, (m0 + 5) * 60 + 5)                         # 16:02: only MSFT
+    got = {k[-8:-4]: mf.decode_frame(v).get("daily") for k, v in r2.objects.items()
+           if k.endswith(".bin") and "today" not in k}
+    assert got["1558"] is None and got["1559"] is None
+    assert got["1600"] == {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0), "MSFT": (3.0, 4.0, 2.5, 3.5, 200.0)}
+    assert got["1601"] is None
+    assert got["1602"] == {"MSFT": (3.0, 4.5, 2.5, 4.25, 260.0)}
+    # replaying today.bin in order gives the newest row per symbol
+    today = mf.decode_today(pub.today.snapshot())                   # every frame of the day so far
+    newest = {}
+    for f in today["frames"]:
+        newest.update(f.get("daily") or {})
+    assert newest["MSFT"][3] == 4.25 and newest["AAPL"][3] == 1.5
+
+
+def test_a_half_day_closes_at_1300_and_a_restart_sends_every_row_again():
+    assert mfp.regular_close_seq(20261127) == 13 * 60 - 240 and mfp.regular_close_seq(20261120) == 16 * 60 - 240
+    r2, clock = R2(), {"ms": 0}
+    feed = _Daily({"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0)})
+    pub = _pub(r2, clock, daily=feed)
+    m0 = fx._unix("2026-11-27", 12, 59) // 60
+    clock["ms"] = (m0 + 1) * 60000
+    pub.on_am("AAPL", _am(m0))
+    built = _run_to(pub, clock, (m0 + 2) * 60 + 5)
+    assert [f["daily"] for f in built] == [None, {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0)}]   # 12:59, 13:00
+    assert pub.status()["daily_feed"] is None and pub.status()["with_daily"] is True
+    pub.start_day(pub.load_day(20261127))                           # a new epoch's start forgets what was sent
+    assert pub._daily_rows(20261127, mfp.regular_close_seq(20261127) + 5) == {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0)}
+
+
+def test_without_the_feed_or_its_rows_a_frame_has_no_daily_section():
+    assert _pub(R2(), {"ms": 0})._daily_rows(20261120, 800) is None
+    pub = _pub(R2(), {"ms": 0}, daily=_Daily({"A": (1.0, 1.0, 1.0, 1.0, 1.0)}, day=20261119))
+    assert pub._daily_rows(20261120, 800) is None                    # rows for another day are never used
+    boom = _pub(R2(), {"ms": 0}, daily=lambda day: (_ for _ in ()).throw(RuntimeError("down")))
+    assert boom._daily_rows(20261120, 800) is None
+
+
+def test_the_daily_rows_are_bars_apis_own_parse_of_the_snapshot():
+    snap = {"tickers": [{"ticker": "BRK.B", "day": {"o": 570, "h": 571.25, "l": 568.5, "c": 570, "v": 6608999.7}},
+                        {"ticker": "PRE", "day": {"o": 0, "h": 0, "l": 0, "c": 0, "v": 0}},
+                        {"ticker": "BCpC", "day": {"o": 20.5, "h": 21, "l": 20, "c": 20.55, "v": 10}}]}
+    assert mfp.snapshot_daily_rows(snap, 20261120) == {"BRK-B": (570.0, 571.25, 568.5, 570.0, 6608999)}
+    import inspect
+    assert "daily_rows_from_snapshot" in inspect.getsource(mfp.snapshot_daily_rows)
+
+
+def test_the_child_hands_over_every_row_once_then_only_changes_and_starts_over_each_day():
+    state, a, b = {}, (1.0, 2.0, 0.5, 1.5, 100), (3.0, 4.0, 2.5, 3.5, 200)
+    assert mfp.daily_changes(state, None) is None
+    assert mfp.daily_changes(state, (20261120, {"A": a, "B": b})) == (20261120, {"A": a, "B": b})
+    assert mfp.daily_changes(state, (20261120, {"A": a, "B": b})) is None
+    assert mfp.daily_changes(state, (20261120, {"A": a, "B": b[:4] + (260,)})) == (20261120, {"B": b[:4] + (260,)})
+    assert mfp.daily_changes(state, (20261123, {"A": a})) == (20261123, {"A": a})
+
+
+def test_the_daily_feed_merges_the_changes_into_its_day_and_never_mutates_a_handed_out_dict():
+    feed = mfp.DailyFeed(start_child=False)
+    assert feed(20261120) is None
+    feed.report((20261120, {"A": (1.0, 1.0, 1.0, 1.0, 1.0), "B": (2.0, 2.0, 2.0, 2.0, 2.0)}))
+    held = feed(20261120)
+    feed.report((20261120, {"B": (2.0, 2.5, 2.0, 2.5, 9.0)}))
+    feed.report(("err", "provider down"))
+    assert feed(20261120) == {"A": (1.0, 1.0, 1.0, 1.0, 1.0), "B": (2.0, 2.5, 2.0, 2.5, 9.0)}
+    assert held["B"] == (2.0, 2.0, 2.0, 2.0, 2.0)                    # the dict an encode was iterating is untouched
+    assert feed(20261121) is None and feed.counts == {"reports": 2, "errors": 1}
+    feed.report((20261123, {"C": (5.0, 5.0, 5.0, 5.0, 5.0)}))      # a new day starts empty
+    assert feed(20261123) == {"C": (5.0, 5.0, 5.0, 5.0, 5.0)} and feed(20261120) is None
+
+
+def test_the_daily_feed_starts_only_with_its_flag(monkeypatch):
+    started = []
+
+    class _Fake:
+        def __init__(self, *a, **k):
+            started.append(1)
+
+        def __call__(self, day):
+            return None
+    monkeypatch.setattr(mfp, "DailyFeed", _Fake)
+    monkeypatch.delenv("MINUTE_FRAMES_WITH_DAILY", raising=False)
+    mfp._reset_for_tests()
+    assert mfp.publisher().daily is None and started == []
+    monkeypatch.setenv("MINUTE_FRAMES_WITH_DAILY", "1")
+    mfp._reset_for_tests()
+    assert isinstance(mfp.publisher().daily, _Fake) and started == [1]
+    mfp._reset_for_tests()
+
+
+def test_the_poll_reads_today_only_after_the_close_and_only_once_the_session_opened(monkeypatch):
+    from api.services import massive, massive_adapter
+    calls, opened = [], {"v": True}
+    snap = {"tickers": [{"ticker": "AAPL", "day": {"o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100}}]}
+
+    class _R:
+        value = snap
+    monkeypatch.setattr(massive_adapter, "get", lambda path, **k: calls.append(path) or _R())
+    monkeypatch.setattr(massive, "_regular_session_has_opened_today", lambda: opened["v"])
+    at = lambda h, m: fx._unix("2026-11-20", h, m)                          # noqa: E731
+    assert mfp.poll_daily_once(at(15, 59)) is None and calls == []          # before the close: no read
+    assert mfp.poll_daily_once(at(16, 0)) == (20261120, {"AAPL": (1.0, 2.0, 0.5, 1.5, 100)})
+    assert mfp.poll_daily_once(at(20, 0)) is None and len(calls) == 1       # 20:00 is outside the session
+    opened["v"] = False                                                     # a holiday: the snapshot is the prior session
+    assert mfp.poll_daily_once(at(17, 0)) is None and len(calls) == 1
+    assert mfp.poll_daily_once(fx._unix("2026-11-27", 13, 0)) is None       # half day, but not opened (stub)
+    opened["v"] = True
+    assert mfp.poll_daily_once(fx._unix("2026-11-27", 13, 0))[0] == 20261127
+    assert mfp.poll_daily_once(fx._unix("2026-11-27", 12, 59)) is None
+
+
+def test_the_monday_check_reads_the_newest_daily_row_per_symbol_from_the_frames():
+    from tools import forming_daily_check as chk
+    assert chk.FLAG_DAILY == mf.FLAG_DAILY
+    m = fx._unix("2026-11-20", 16, 0) // 60
+
+    def frame(minute, daily):
+        return mf.decode_frame(mf.encode_frame(day=20261120, seq=720, prev_seq=719, epoch=1, minute=minute,
+                                               blocks=[(minute, mf.KIND_ONTIME, {})], daily=daily))
+    frames = [frame(m - 1, None), frame(m, {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0), "MSFT": (3.0, 3.0, 3.0, 3.0, 1.0)}),
+              frame(m + 1, None), frame(m + 2, {"AAPL": (1.0, 2.0, 0.5, 1.75, 140.0)})]
+    got = chk.daily_rows(frames, {"AAPL"})
+    assert got == {"AAPL": ((1.0, 2.0, 0.5, 1.75, 140.0), 16 * 60 + 2)}
+
+
+def test_the_daily_rows_are_read_on_the_encode_thread_never_in_tick():
+    r2, clock = R2(), {"ms": 0}
+    feed = _Daily({"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0)})
+    pub = _pub(r2, clock, daily=feed)
+    m0 = fx._unix(DAY, 16, 0) // 60
+    clock["ms"] = (m0 + 1) * 60000
+    pub.on_am("AAPL", _am(m0))
+    clock["ms"] = (m0 + 1) * 60000 + 5000
+    pub.start_day(pub.load_day(pub.day_needed()))
+    assert len(pub.tick()) == 1 and feed.asked == []                 # the loop thread built the frame alone
+    pub.encode_pending()
+    assert feed.asked == [20261118]

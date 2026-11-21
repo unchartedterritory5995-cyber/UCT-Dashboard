@@ -382,11 +382,14 @@ def test_D1_repro_a_split_listed_for_two_dates_is_refused_not_divided_by_r_squar
 
 # ── D2: a correctly adjusted series is never written ─────────────────────────
 
-@pytest.mark.parametrize("ratio,gap", [(1.2, 0.92), (1.5, 0.70)])
-def test_D2_repro_a_real_gap_near_a_small_split_is_never_rescaled(store, ratio, gap):
-    """Correctly adjusted 60m rows, a real gap DOWN on the declared date (6:5 with an 8%
+@pytest.mark.parametrize("ratio,gap,detector_flags", [(1.2, 0.92, False), (1.2, 0.84, True), (1.5, 0.70, True)])
+def test_D2_repro_a_real_gap_near_a_small_split_is_never_rescaled(store, ratio, gap, detector_flags):
+    """Correctly adjusted 60m rows, a real gap DOWN on the declared date (6:5 with a 16%
     gap; 3:2 with ~30%): the session detector sees a 'cliff' and the bar step is unique —
-    but the daily closes show the same gap, so nothing is written."""
+    but the daily closes show the same gap, so nothing is written.
+    ⭐ 2026-11-20 (F3b', bars_sanitize._SPLIT_SIZE_TOL): an 8% gap against a 6:5 (step 1.087 vs
+    1.2) is no longer a 'cliff' at all — the detector declines it as not split-sized — and
+    still nothing is written. The 16% case keeps the daily-proof refusal exercised for a 6:5."""
     days = _sessions(24)
     base = _truth(random.Random(21), _grid("5", days))
     g = _ts(days[12], 9, 30)
@@ -396,8 +399,11 @@ def test_D2_repro_a_real_gap_near_a_small_split_is_never_rescaled(store, ratio, 
     _put_daily("GAP", base)
     before, h0 = _rows("GAP", "60"), bs.series_meta("GAP", "60")["history_rev"]
     res = ish.heal_series("GAP", "60", splits=[(days[12].isoformat(), ratio)])
-    assert res["cliffs"], "the session detector alone would have called this a split"
-    assert not res["rescale"] and res["refused"][0]["why"] == "daily-proof-unknown"
+    if detector_flags:
+        assert res["cliffs"], "the session detector alone would have called this a split"
+        assert not res["rescale"] and res["refused"][0]["why"] == "daily-proof-unknown"
+    else:
+        assert not res["cliffs"] and not res["rescale"], "an 8% gap is not a 6:5's size (F3b')"
     assert _rows("GAP", "60") == before
     assert bs.series_meta("GAP", "60")["history_rev"] == h0
 

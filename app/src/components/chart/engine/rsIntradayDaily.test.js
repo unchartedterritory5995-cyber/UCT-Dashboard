@@ -114,10 +114,21 @@ describe("this chart's own symbol at D: the previous session, the session's last
     expect(() => run(OWN_SRC, loading)).toThrow(/still loading/)
   })
 
-  it('⛔ a bar before the held daily rows is unknown: the run refuses rather than guess', () => {
+  // ⚰️ (e91, coordinator ruling 2026-11-20) this refused the WHOLE run; the e88 in-session capture (RDDT 5m, own rows 7
+  // sessions short) blanked Fred RS's pane all session. A bar before the held rows is still UNKNOWN (never a guessed value):
+  // the run starts where every read is held (DEPTH, `knownFrom`), and the bars before it read nothing.
+  it('⛔ a bar before the held daily rows is unknown, never guessed: the run starts where every read is held', () => {
     const shallow = ctxOf()
     shallow.secondary.set(OWN_DAILY_KEY, { bars: OWN_D.slice(1), status: 'available' })   // no 11-13 row: day 1 reads none
-    expect(() => run(OWN_SRC, shallow)).toThrow(/cannot be read on every bar/)
+    let cols = null
+    try { cols = run(OWN_SRC, shallow) } catch (e) {
+      expect(String(e && e.message), 'never the hole sentence for a bar before the rows').not.toMatch(/after its history began/)
+      return
+    }
+    const x = cols && cols.x
+    const first = Array.from(x || []).findIndex((v) => Number.isFinite(v))
+    expect(first, 'the bars before the held rows read nothing').toBeGreaterThan(0)
+    for (let i = 0; i < first; i += 1) expect(Number.isNaN(x[i]), `bar ${i} is unknown`).toBe(true)
   })
 })
 

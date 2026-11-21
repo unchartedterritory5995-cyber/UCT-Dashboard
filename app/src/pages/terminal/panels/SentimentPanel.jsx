@@ -146,9 +146,9 @@ function SentimentTable({ read }) {
     )
   }
   return (
-    <div className={styles.tableBox}>
+    <div className={styles.tableBox} data-fold="510">
       {read.error && <p className={styles.note} role="status">{failureText(read.error, 'Sentiment')} Showing the last read.</p>}
-      <table className={styles.table} data-testid="terminal-sent-table">
+      <table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-sent-table">
         <caption className={styles.caption}>Sentiment</caption>
         <thead>
           <tr>
@@ -220,7 +220,7 @@ function EconRow({ sym, meta, start }) {
   }
   return (
     <tr data-testid={`terminal-sent-econ-${sym}`}>
-      <td className={styles.phoneWrap}>{name}</td>
+      <td className={`${styles.phoneWrap} ${styles.snugWrap}`}>{name}</td>
       {body}
     </tr>
   )
@@ -247,8 +247,8 @@ function EconTable() {
   }
   if (!shown.length) return <p className={styles.muted} data-testid="terminal-sent-econ-empty">No key economic series are published here yet.</p>
   return (
-    <div className={styles.tableBox}>
-      <table className={styles.table} data-testid="terminal-sent-econ">
+    <div className={styles.tableBox} data-fold="510">
+      <table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-sent-econ">
         <caption className={styles.caption}>Economy</caption>
         <thead>
           <tr>

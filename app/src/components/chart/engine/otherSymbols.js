@@ -422,16 +422,41 @@ export function heldFetchesOf(store, chartTf) {
  *  at what the index door answers (`api/index_bars.py`, 12,500 sessions; from 1990 that is all of it).
  *  ⭐ L13 — a MONTHLY chart: 31 calendar days a month and two months before the first chart month. */
 export const HELD_DAILY_DEPTH_CAP = 12500
-export function heldDepthOf(barCount, chartTf = 'W') {
+export function heldDepthOf(barCount, chartTf = 'W', heldSessions = 0) {
   const n = Number.isFinite(barCount) && barCount > 0 ? Math.floor(barCount) : 200
   const tf = String(chartTf == null ? '' : chartTf)
   // ⭐ RS RATING L12 — an INTRADAY chart's daily rows: one per session its bars span, counted at the regular
   // session's 390 minutes (an extended-hours day holds more bars, so this is the deeper answer), plus ten
+  // ⭐⭐ (e91, the e88 in-session capture) — AND AT LEAST THE SESSIONS THE CHART'S BARS ACTUALLY SPAN (`heldSessions`,
+  // `sessionsSpanned` rounded up a rung by the chart). ⚰️ A count at 78 bars a session is short for a symbol that trades in
+  // fewer slots: RDDT's regular-hours 5m chart (18,749 rows, 273 sessions, ~69 a session) was held 267 daily rows, 7
+  // sessions short of its first bar, and the run refused the chart for the bars it could not read.
   if (Object.prototype.hasOwnProperty.call(INTRADAY_STEP_MIN, tf)) {
-    return Math.min(HELD_DAILY_DEPTH_CAP, Math.ceil((n * INTRADAY_STEP_MIN[tf]) / 390) + 10)
+    const byRows = Math.ceil((n * INTRADAY_STEP_MIN[tf]) / 390) + 10
+    const bySpan = Number.isFinite(heldSessions) && heldSessions > 0 ? Math.floor(heldSessions) + 10 : 0
+    return Math.min(HELD_DAILY_DEPTH_CAP, Math.max(byRows, bySpan))
   }
   const monthly = tf.replace(/^1/, '') === 'M'
   return Math.min(HELD_DAILY_DEPTH_CAP, monthly ? n * 31 + 62 : n * 7 + 14)
+}
+
+/** ⭐⭐ (e91) THE TRADING SESSIONS an intraday chart's bars span, from its first bar's session to its newest bar's, counted
+ *  on the exchange calendar (`isTradingDay`), never estimated from its row count. Pure: two bar times (unix seconds), no
+ *  wall clock (this module is in the run's host-neutral closure). 0 for anything else (a daily chart's ISO dates). */
+export function sessionsSpanned(firstT, lastT) {
+  if (typeof firstT !== 'number' || typeof lastT !== 'number' || !Number.isFinite(firstT) || !(lastT >= firstT)) return 0
+  const a = etDayOf(firstT)
+  const b = etDayOf(lastT)
+  let count = 0
+  for (let d = a, k = 0; d <= b && k < 40000; d = nextDayOf(d), k += 1) if (isTradingDay(d)) count += 1
+  return count
+}
+/** The held-session ladder: a chart's span rounded UP to a rung (`heldSessionsRung`), so a filling chart refetches its
+ *  daily rows a few times, never once per fill step (the same discipline as `useSecondarySources.js::heldSpanFor`). */
+export const HELD_SESSION_LADDER = Object.freeze([64, 128, 256, 512, 1024, 2048, 4096, 8192, HELD_DAILY_DEPTH_CAP])
+export function heldSessionsRung(sessions) {
+  if (!Number.isFinite(sessions) || sessions <= 0) return 0
+  return HELD_SESSION_LADDER.find((r) => r >= sessions) ?? HELD_DAILY_DEPTH_CAP
 }
 
 /** ⭐ A witnessed series' bars keyed the way the chart keys its own: by SESSION DATE

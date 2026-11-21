@@ -138,7 +138,12 @@ def test_the_whole_series_question_per_lane(tree, alert, sweep):
 def test_bar_index_is_asked_only_of_a_document_that_means_pines():
     lane = ai.lane_opts_for(definition(INDEX_MOD, meta=PINE))
     # 2026-11-09: the same declaration also says its `var` state began on the first bar
-    assert lane == {"barIndexAbsolute": True, "varOriginAbsolute": True}
+    # 2026-11-18 (7fbb1b81e1, engine 78 #1888, ruling D1): Pine compares two floats within
+    # TradingView's epsilon, and "semanticsOptsFor / semantics_opts_for set pineCompare for a
+    # translation or an Apply import ... Every server lane that builds its own opts passes
+    # pine_compare_opts_for" -- `lane_opts_for` is the alert lane's. A compare key, not a count key:
+    # the exact dict stays, so the next key a lane adds for a Pine document is a decision here too.
+    assert lane == {"barIndexAbsolute": True, "varOriginAbsolute": True, "pineCompare": True}
     assert ai.lane_opts_for(definition(INDEX_MOD)) == {}
     assert ai.lane_opts_for(None) == {} and ai.lane_opts_for({"meta": None}) == {}
     assert ai.whole_series_withheld(INDEX_MOD, [], opts=lane) == ("bar-index:window",)
@@ -167,6 +172,21 @@ def test_the_question_agrees_with_what_interpret_does_on_the_same_bars(name):
             assert column == [None] * len(bars), (name, opts)
 
 
+def _reads_chart_clock(tree) -> bool:
+    """Does ``tree`` hold a chart-clock node? The engine's own ``clocked``
+    (``ast_interpret._chart_clock_whole``) over the engine's own scan. The scan's tuple is unpacked
+    BY NAME, so a family it gains fails here loudly instead of reading as "reads no clock".
+
+    ⚰️ This was ``any(_scan_chart_clock(t)[:4])`` (anchors, closes, owns, sixties) until U-BUILTIN T-D
+    (1dd7830952, 2026-11-19, engine 90 #2194) added ``days`` / ``day_gates`` -- ``time("D")`` and
+    ``time("D", session)`` -- and its documented rule: "withheld by name elsewhere (...
+    time-day:no-timeframe on bars with no timeframe)". The 48 ``D`` / ``change(D)`` / ``D rth`` /
+    ``D window`` cases the regenerated fixture then carried (12e78f44a4) are withheld with no tf BY
+    DESIGN, and a slice that did not know them called them clock-free."""
+    anchors, closes, owns, sixties, _folds, _nested, _leaves, _ranges, days, day_gates = ai._scan_chart_clock(tree)
+    return bool(anchors or closes or owns or sixties or days or day_gates)
+
+
 def test_the_question_is_not_vacuous_and_can_answer_no():
     cases = [ANCHOR[n]["ast"] for n in ANCHOR]
     sweep = [ai.whole_series_withheld(t, ai.DATE_KEYED_PROBE_BARS, opts={"tf": "D"}) for t in cases]
@@ -176,8 +196,9 @@ def test_the_question_is_not_vacuous_and_can_answer_no():
     # the shared fixture, and its rule is that a chart stating NO timeframe evaluates a request
     # "as before" (the server's daily consumers): those are served, by design. Which trees read
     # a clock is asked of the engine's own scan, never typed here.
-    clocked = [any(ai._scan_chart_clock(t)[:4]) for t in cases]
+    clocked = [_reads_chart_clock(t) for t in cases]
     assert sum(clocked) >= 40, "the clock-reading cases vanished: the assertion below is vacuous"
+    assert sum(1 for c in clocked if not c) >= 12, "the clock-free cases vanished: the last assertion is vacuous"
     assert all(a for a, c in zip(alert, clocked) if c), "with no tf every chart-clock tree is withheld whole"
     assert not any(a for a, c in zip(alert, clocked) if not c), (
         "a tree that reads no clock (a request on an unstated timeframe) was withheld with no tf")

@@ -426,3 +426,37 @@ Any difference, a base whose bytes do not match the base manifest's `sha256` (it
 worker's own copy of the last build, `<DATA_DIR>/ffseed_cache/`, else from R2), or any error: no delta
 for that timeframe, and the manifest carries none. The full packs are uploaded first and never depend on
 it.
+
+### The device (`app/src/data/deviceStore/delta.js`, `engine.js` `_ingestDelta`)
+
+The device store tries the delta first when the generation it holds for a timeframe IS `delta.base` (by its
+commit marker and by its own trailer's `build`), and takes the full pack otherwise. In order:
+
+1. **Download** `delta.url` (resolved against the manifest like the pack's) whole, into memory: exactly
+   `delta.bytes`, its sha256 equal to `delta.sha256`. No Range, no resume: a broken download is a fallback.
+2. **Parse** it (`parseDelta`: magic, `v`, `kind`, `fields`, `tf`/`tunit`, `comp`, every entry's shape). Its
+   `build` must be the manifest's, its `base` the held build and the manifest's `delta.base`. Every symbol of
+   the held build must have an entry; the new set (every entry but `remove`) must be non-empty and match the
+   manifest's `symbols` and `bars`.
+3. **Rebuild** the new pack, one symbol at a time, in code-point order, into a NEW generation file
+   (`<tf>.<gen>.pack`, no `.prog`): `replace` copies the delta's blob; an unchanged `keep` copies the held
+   blob; any other `keep` or `merge` decodes the held rows, keeps `first <= t <= last`, rescales them
+   exactly, upserts the merge rows (a tie: the blob's row), re-encodes the body (section 4) and gzips it with
+   fflate. The trailer is the pack trailer of section 3 with the new build's `asof`/`build` and each symbol's
+   NEW entry (`bars first last asof crc pscale vscale` from the delta; `off len body` where this file holds
+   it), plus the keys `via: "delta"` and `base`.
+4. **Read it all back** through the reader: the trailer parses, every symbol is there with the entry written,
+   and every record decodes (`decodeRecord`) to the new build's `bars`, `first`, `last` and column `crc`.
+   This is section 10's apply step 4 on the bytes as stored, and the device's ONE check of the result: the
+   rebuilt file is not byte-identical to the server's (another gzip encoder), so the manifest's full-pack
+   `sha256` cannot be compared.
+5. **Commit** as for a download: the marker `<tf>.<gen>.ok` (`bytes` = this file's size, `src` = the
+   manifest's full-pack `{sha256, bytes}` this generation stands for, `via: "delta"`), the swap, the older
+   generations removed. A later manifest naming the same build and full-pack `bytes` is `current`.
+
+Any failure at any step removes the new generation's file and downloads the full pack; the held
+generation serves every read until a new one is committed. A crash mid-write leaves an unmarked file no
+reader opens, removed by the next ingest. Measured (Node, this repository's dev PC, synthetic 60m records of
+1,000 bars): ~1.5-2.5 ms of worker time per symbol, the worker handing back control every 12 ms so other
+tabs' reads keep being answered. Tests: `app/src/data/deviceStore/delta.test.js` against deltas the server
+built (`tools/ffseed_make_delta_js_fixture.py`, pinned by `tests/test_ffseed_delta_js_fixture.py`).

@@ -68,7 +68,7 @@ export function runtimeOvernightOf(columns) {
  * bars, every record kept (a drawing's bar indices are unchanged: the run starts where the chart does), and the
  * overnight record added for the strip (`astColumns.js::chartClockReport`).
  */
-export function withOvernightTail(cols, n, from, series) {
+export function withOvernightTail(cols, n, from, series, record = null) {
   const out = {}
   for (const [k, col] of Object.entries(cols || {})) {
     if (!col || typeof col.length !== 'number') { out[k] = col; continue }
@@ -83,7 +83,11 @@ export function withOvernightTail(cols, n, from, series) {
   const names = [...new Set((series || []).filter(Boolean))]
   Object.defineProperty(out, RUNTIME_OVERNIGHT_KEY, {
     value: Object.freeze({ from, bars: n - from, series: Object.freeze(names),
-      rows: Object.freeze([Object.freeze({ code: REQUEST_OVERNIGHT_GUARD, reason: overnightSentence(names) })]) }),
+      // ⭐⭐ (e91 (2b)) a TAIL cut (another series' newest bars not arrived) names its own code and sentence (`record`)
+      rows: Object.freeze([Object.freeze(record && record.code
+        ? { code: record.code, reason: String(record.reason || '') }
+        : { code: REQUEST_OVERNIGHT_GUARD, reason: overnightSentence(names) })]),
+      ...(record && record.code ? { tail: true } : {}) }),
     enumerable: false, configurable: true,
   })
   return out

@@ -1551,7 +1551,7 @@ The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V
 ### Architecture
 - **Top-level shell:** `app/src/pages/charts/ChartsWorkspace.jsx` — owns layout state + 4 color groups + viewport-lock sizing. Layout persists to `usePreferences('charts_workspace_layout')` (debounced 500ms). Color-group syms persist to `charts_workspace_groups`.
 - **Grid:** `react-grid-layout@^1.5.3` Responsive component. `cols={12}`, `FIXED_ROWS=20`, `rowHeight` computed dynamically via `ResizeObserver` on `.workspaceBody` so the grid always fills the visible viewport exactly. `maxRows={20}` + `overflow: hidden` on body = no outer scroll. `margin=[6,6]`, `compactType: 'vertical'`. `resizeHandles={['nw','ne','sw','se']}` enables resize from all 4 corners.
-- **Color groups (A/B/C/D)** are how widgets link tickers. A widget assigned color A reads/writes `groupSyms.A`; multiple widgets on the same color stay in lockstep. `WorkspaceContext` (`useWorkspace()`) exposes `{groupSyms, setGroupSym(color, sym)}`. `ChartsSymContext` (V1 API, `useChartsSym()`) is now a shim: explicit Provider → WorkspaceContext Group A → null fallback. Watchlists/ThemeTrackerPage/Screener (V1-era) still work without code change because they default to Group A.
+- **Color groups (A/B/C/D)** are how widgets link tickers. A widget assigned color A reads/writes `groupSyms.A`; multiple widgets on the same color stay in lockstep. `WorkspaceContext` (`useWorkspace()`) exposes `{groupSyms, setGroupSym(color, sym)}`. ⭐ On /charts `groupSyms` is a store the board owns (`groupSymsStore.js`, 2026-11-20), not board state: a symbol switch re-renders only the components whose render READS `groupSyms` (useWorkspace subscribes them), never the board, the grid or the widget hosts. `ChartsSymContext` (V1 API, `useChartsSym()`) is now a shim: explicit Provider → WorkspaceContext Group A → null fallback. Watchlists/ThemeTrackerPage/Screener (V1-era) still work without code change because they default to Group A.
 - **Widget types — ⭐ measure it, don't quote it:** the authoritative list is
   `WIDGET_REGISTRY` in `app/src/widgets/registry.js` (metadata + menu membership
   + journal-embed params), with the /charts component bindings in
@@ -1700,7 +1700,7 @@ All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key com
 - TradingView-style overlay at top-left of chart, appears on hover
 - Shows: date/time, O, H, L, C, V (formatted K/M), change + change%, MA overlay values with colors
 - Developing bar: falls back to REST session volume + last computed MA values
-- Uses `chart.subscribeCrosshairMove()` API, state in `crosshairData`
+- Uses `chart.subscribeCrosshairMove()` API. The payload (`crosshairData`) is NOT StockChart state (2026-11-20): it lives in a per-chart store (`chart/readoutStore.js`) printed by `ReadoutIsland`s, so a hover frame or a switch's readout re-renders the legend rows, never the whole chart. Read it inside an island's render function, never at StockChart's top level
 - Works on all chart surfaces (TickerPopup, Breadth, ThemeTracker, Watchlists, CustomScan)
 
 ### Chart Performance Architecture
@@ -3371,12 +3371,18 @@ gets.** C1–C3 still carry the real argument (the incoming commits cannot inter
 branch); what is gone is the net that was believed to be under it. When in doubt, re-gate.
 
 ⭐ **What C5 DOES do, and it is not nothing:** its verdict decides whether `production` is
-promoted, and **`web` deploys from `production`** — so a red gate stops the member-facing
-deploy. ⚠️ The other five services (`worker`, `bars-api`, `chart-renderer`, `flow-worker`,
-`terminal-next-monitor`) deploy from **`master`** and are NOT gated by it. Measured
-2026-09-20, `railway status --json`. This also supersedes `master-deploy-gate.yml`'s own
-*"a RED gate still deploys"* line, which was true on 2026-09-14 and stopped being true for
-`web` at the cutover.
+promoted, and **`web` AND `bars-api` deploy from `production`** — so a red gate stops both
+member-facing serving tiers. ⚠️ `worker` and `flow-worker` deploy from **`master`** and are NOT
+gated by it. Measured 2026-11-21, read-only `railway deployment list --service <svc> --json`
+(each SUCCESS row's `meta.branch`): web `production`, bars-api `production` (the same
+`createdAt` as web's deploy of each commit), worker `master`, flow-worker `master`;
+`chart-renderer` and `terminal-next-monitor` listed no SUCCESS deployment, so their branch is
+UNMEASURED — measure before relying on it. ⚰️ This line said "the other five services (incl.
+`bars-api`) deploy from `master`" (measured 2026-09-20); bars-api moved to `production` since,
+and the stale line was taken as fact on 2026-11-20 (docs/incidents/
+2026-11-20-index-intraday-tail-goes-back.md § Deploy). This also supersedes
+`master-deploy-gate.yml`'s own *"a RED gate still deploys"* line, which was true on 2026-09-14
+and stopped being true for `web` at the cutover.
 
 ⛔ **Any of C1–C3 failing ⇒ local re-gate.** The "third supersession = STOP" rule counts
 C1–C3 failures **only** — disjoint commits that carry are not supersessions.
