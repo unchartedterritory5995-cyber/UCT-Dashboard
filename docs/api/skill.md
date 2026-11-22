@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (799)
+## Member session reads (801)
 
 ### Limits
 
@@ -119,6 +119,7 @@ Response 200:
 | options-analytics | 600/minute |
 | options-flow | 1200/minute |
 | research | 600/minute |
+| research-studies | 30/minute |
 | screener | 600/minute |
 | stream | 120/minute |
 | trade-exchange-news-internal | 1200/minute |
@@ -680,6 +681,8 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/estimate-history` | paid | research | metric=eps, window=30 |
 | GET | `/api/research/estimate-history/{sym}` | paid | research | {sym} |
 | GET | `/api/research/estimates/{sym}` | paid | research | {sym}, consensus=0, revisions=0 |
+| GET | `/api/research/event-study` | paid | research-studies | kind, universe, metric, series, indicator, period, market, group, op, threshold, symbol, horizons, episodes=first, entry=event_close |
+| GET | `/api/research/event-study/series` | paid | research-studies |  |
 | GET | `/api/research/events/{sym}` | paid | research | {sym} |
 | GET | `/api/research/expected-move/{sym}` | paid | research | {sym}, report_date, grade=True |
 | GET | `/api/research/fed-watch` | paid | research |  |

@@ -301,7 +301,7 @@ def test_main_serves_on_both_sockets(monkeypatch):
     exits = []
     # main() ends the process once the server is down: record the call instead of making it
     # here (the exit itself is railed in a child process below).
-    monkeypatch.setattr(serve_dual, "exit_after_shutdown", exits.append)
+    monkeypatch.setattr(serve_dual, "exit_after_shutdown", lambda code, **kw: exits.append(code))
     t = threading.Thread(target=serve_dual.main, daemon=True)
     t.start()
     try:
@@ -336,9 +336,13 @@ def test_main_serves_on_both_sockets(monkeypatch):
 # can never outlive its test and end the test runner with exit 0.
 
 _DRIVER = r'''
-import os, sys, threading, time
+import os, signal, sys, threading, time
 sys.path.insert(0, sys.argv[1])
 mode = sys.argv[2]
+if mode == "signal":
+    # PID 1 in the container ignores a signal it has no handler for, so uvicorn's re-raise of the
+    # captured SIGTERM after its shutdown does not kill the pod there; the same disposition here.
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
 import uvicorn
 from api import serve_dual
 
@@ -386,7 +390,10 @@ class Driven(uvicorn.Server):
         def stop_once_started():
             while not (self.started or self.should_exit):
                 time.sleep(0.05)
-            self.should_exit = True
+            if mode == "signal":
+                self.handle_exit(signal.SIGTERM, None)   # the handler uvicorn installed (main's, timed)
+            else:
+                self.should_exit = True
         threading.Thread(target=stop_once_started, daemon=True).start()
         super().run(*a, **kw)
         st = app.straggler
@@ -458,3 +465,32 @@ def test_an_exception_from_run_is_never_turned_into_an_exit(tmp_path):
     main() as before, and the process is NOT hard-exited."""
     rc, events, err, _ = _run_main_in_child(tmp_path, "run-raises")
     assert (rc, events) == (7, ["main-raised serve failed"]), err
+
+
+# ── the always-on exit line (track 6, 2026-11-22): a swap's hold, split by the pod's own log ──
+
+def test_the_exit_line_names_the_seconds_from_the_shutdown_signal_the_shutdown_and_the_join(tmp_path):
+    """SIGTERM through the handler uvicorn installed: ONE line names the seconds from the signal to
+    the exit, the server's shutdown and the thread join (the straggler's ~0.4 s), and the process
+    still exits 0 after the join."""
+    import re
+
+    rc, events, err, _ = _run_main_in_child(tmp_path, "signal")
+    assert rc == 0, err
+    assert "straggler-done" in events, events
+    lines = [ln for ln in err.splitlines() if ln.startswith("[serve-dual] exit after ")]
+    assert len(lines) == 1, err
+    m = re.fullmatch(r"\[serve-dual\] exit after (\d+\.\d)s from the shutdown signal \(the server's shutdown "
+                     r"(\d+\.\d)s, the thread join (\d+\.\d\d)s, 0 thread\(s\) left\)", lines[0])
+    assert m, lines[0]
+    total, shutdown, join = (float(x) for x in m.groups())
+    assert join >= 0.2, "the straggler's 0.4 s is inside the join"
+    assert abs(total - (shutdown + join)) <= 0.15
+
+
+def test_without_a_signal_the_exit_line_still_names_the_join(tmp_path):
+    """A server told to stop in-process (no signal): the line says no signal was seen and names the join."""
+    rc, events, err, _ = _run_main_in_child(tmp_path, "linger")
+    assert rc == 0, err
+    lines = [ln for ln in err.splitlines() if ln.startswith("[serve-dual] exit after ")]
+    assert len(lines) == 1 and "no shutdown signal was seen" in lines[0] and "the thread join" in lines[0], err
