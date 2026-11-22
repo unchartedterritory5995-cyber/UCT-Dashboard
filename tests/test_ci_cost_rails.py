@@ -91,6 +91,46 @@ def test_no_branch_push_trigger_runs_without_a_path_filter():
     assert not bad, "branch push triggers with no path filter (add `paths:` or pin with a reason):\n" + "\n".join(bad)
 
 
+#: a branch the merge queue would create for pull request 1 into master
+QUEUE_BRANCH = "gh-readonly-queue/master/pr-1-0123456789abcdef0123456789abcdef01234567"
+
+
+def _branch_glob_matches(pattern: str, branch: str) -> bool:
+    """GitHub's branch filter, the two wildcards these workflows use: `*` stops at a slash, `**` does not."""
+    rx = "".join(".*" if tok == "**" else "[^/]*" if tok == "*" else re.escape(tok)
+                 for tok in re.split(r"(\*\*|\*)", pattern))
+    return re.fullmatch(rx, branch) is not None
+
+
+def _fires_on_the_queue(push: dict) -> bool:
+    """Would this push trigger run for the merge queue's temporary branch?"""
+    branches = push.get("branches")
+    if branches:
+        return any(_branch_glob_matches(b, QUEUE_BRANCH) for b in branches if not b.startswith("!"))
+    return not any(_branch_glob_matches(b, QUEUE_BRANCH) for b in push.get("branches-ignore") or [])
+
+
+def test_no_push_trigger_runs_on_the_merge_queues_temporary_branches():
+    """Rehearsed 2026-11-22 (northstar-quarry/mq-rehearsal, 5 queued pull requests): GitHub builds every queued pull
+    request on a branch `gh-readonly-queue/<base>/pr-N-<sha>`, and a `push` trigger with no branch filter ran on
+    each of them, once per queued pull request. At ~170 merges a day that is ~170 extra runs per such workflow.
+    A push trigger names its branches, or ignores the queue's."""
+    bad = [name for name, doc in _workflows()
+           if _on(doc).get("push") is not None and _fires_on_the_queue(_on(doc)["push"])]
+    assert not bad, ("push triggers that would run on the merge queue's temporary branches "
+                     "(add `branches-ignore: ['gh-readonly-queue/**']`):\n" + "\n".join(bad))
+
+
+def test_the_queue_branch_judge_can_tell_the_cases_apart():
+    """Control: a judge that answered the same for every trigger would hold nothing."""
+    assert _fires_on_the_queue({}) and _fires_on_the_queue({"paths": ["api/**"]})
+    assert _fires_on_the_queue({"branches": ["**"]}) and _fires_on_the_queue({"branches": ["gh-readonly-queue/**"]})
+    assert not _fires_on_the_queue({"branches": ["master", "main"]})
+    assert not _fires_on_the_queue({"branches": ["agent/**", "wisdom/**", "*"]})      # `*` stops at a slash
+    assert not _fires_on_the_queue({"paths": ["api/**"], "branches-ignore": ["gh-readonly-queue/**"]})
+    assert _fires_on_the_queue({"branches-ignore": ["gh-readonly-queue/*"]})          # one level only: not enough
+
+
 def test_unfiltered_pr_workflows_are_exactly_the_pinned_set():
     unfiltered = {name for name, doc in _workflows() if "pull_request" in _on(doc) and not _filtered(_on(doc)["pull_request"])}
     assert unfiltered == set(UNFILTERED_PR_OK), (

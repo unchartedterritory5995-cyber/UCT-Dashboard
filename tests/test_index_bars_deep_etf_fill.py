@@ -314,7 +314,7 @@ def test_proxy_session_bars_parses_the_store_answer_and_keeps_one_session(monkey
     import api.routers as routers
     monkeypatch.setattr(routers, "bars", fake, raising=False)
     out = index_bars._proxy_session_bars("SPY", DEC2)
-    assert asked == [(("SPY", "5"), {"bars": 400, "to": DEC3.isoformat(), "warm": 1})]
+    assert asked == [(("SPY", "5"), {"bars": 400, "to": DEC2.isoformat(), "warm": 1})]
     assert sorted(out) == [b["t"] for b in _bars(DEC2, 600.0)]
     assert set(out[min(out)]) == {"o", "h", "l", "c"}
 
@@ -351,3 +351,24 @@ def test_the_answer_fields_carry_the_filled_sessions_cut_to_the_answers_span(fmp
     assert fields["deep"]["filled"] == [{"d": DEC2.isoformat(), "slots": 1, "src": "SPY"}]
     tail = [b for b in out if b["t"] >= _ts(DEC3, "09:30")]          # an answer cut after the filled session
     assert index_bars._repair_fields(info["repair"], tail)["deep"]["filled"] == []
+
+
+# ── F13 (2026-11-22: production's 1m 2026-08-13 refused under the next-day window; the run was cut there) ────────
+def test_a_refusal_recorded_under_an_older_fill_version_is_asked_again_at_once(fmp, etf):
+    _hole(fmp, DEC2, HOLE)
+    _fill()
+    etf["empty"].add(DEC2.isoformat())
+    path = index_bars._deep_path("^GSPC")
+    data = index_bars._load_deep(path)
+    data["days"][DEC2.isoformat()]["fill"] = {"state": "refused", "reason": "no edge bar held by both the index and the ETF",
+                                              "src": "SPY", "at": NOW}        # version 1: no `v`
+    index_bars._save_deep(path, data)
+    etf["empty"].clear()
+    assert index_bars.deep_fill_step("^GSPC", now=NOW + 60)["filled"] == 1, "not held for the TTL"
+    f = _store()[DEC2.isoformat()]["fill"]
+    assert f["state"] == "filled" and f["v"] == index_bars.DEEP_FILL_VERSION
+    data = index_bars._load_deep(path)
+    data["days"][DEC2.isoformat()]["fill"] = {"state": "refused", "reason": "x", "src": "SPY", "at": NOW,
+                                              "v": index_bars.DEEP_FILL_VERSION}
+    index_bars._save_deep(path, data)
+    assert index_bars.deep_fill_step("^GSPC", now=NOW + 60)["read"] == 0, "a current-version refusal keeps its TTL"

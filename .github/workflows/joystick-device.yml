@@ -51,6 +51,9 @@ on:
     # 07:00 UTC = 03:00 ET — outside market hours and outside the master-push window.
     - cron: '0 7 * * *'
   push:
+    # The merge queue builds each queued pull request on a temporary gh-readonly-queue/** branch, and a push
+    # trigger with no branch filter runs on every one of them (rehearsed 2026-11-22). tests/test_ci_cost_rails.py.
+    branches-ignore: ['gh-readonly-queue/**']
     # Deliberately narrow, and it reaches `gate-rails` only. A workflow that runs on
     # everything gets ignored, which is how `optionsflow-guard.yml` explains its own scope.
     paths:

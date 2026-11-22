@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (796)
+## Member session reads (803)
 
 ### Limits
 
@@ -119,6 +119,7 @@ Response 200:
 | options-analytics | 600/minute |
 | options-flow | 1200/minute |
 | research | 600/minute |
+| research-studies | 30/minute |
 | screener | 600/minute |
 | stream | 120/minute |
 | trade-exchange-news-internal | 1200/minute |
@@ -656,6 +657,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/patterns/{sym}` | paid | screener | {sym}, tf=D, types, min_conf=50.0, confirmed_only=True, include_structures=False |
 | GET | `/api/pine/breadth/{spelling}` | paid | screener | {spelling} |
 | GET | `/api/pine/events/{ticker}` | paid | screener | {ticker} |
+| GET | `/api/pine/financial/{ticker}` | paid | screener | {ticker} |
 | GET | `/api/pine/history-window` | member | screener |  |
 | GET | `/api/pine/libraries` | member | screener |  |
 | GET | `/api/pine/libraries/{author}/{name}/{version}` | member | screener | {author}, {name}, {version} |
@@ -680,6 +682,8 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/estimate-history` | paid | research | metric=eps, window=30 |
 | GET | `/api/research/estimate-history/{sym}` | paid | research | {sym} |
 | GET | `/api/research/estimates/{sym}` | paid | research | {sym}, consensus=0, revisions=0 |
+| GET | `/api/research/event-study` | paid | research-studies | kind, universe, metric, series, indicator, period, market, group, op, threshold, symbol, horizons, episodes=first, entry=event_close |
+| GET | `/api/research/event-study/series` | paid | research-studies |  |
 | GET | `/api/research/events/{sym}` | paid | research | {sym} |
 | GET | `/api/research/expected-move/{sym}` | paid | research | {sym}, report_date, grade=True |
 | GET | `/api/research/fed-watch` | paid | research |  |
@@ -722,17 +726,21 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/options/{sym}/surface` | paid | research | {sym}, expiration |
 | GET | `/api/research/ownership/{sym}` | paid | research | {sym} |
 | GET | `/api/research/people/{sym}` | paid | research | {sym} |
+| GET | `/api/research/public-records/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/quote/{sym}` | paid | research | {sym} |
 | GET | `/api/research/ratings/{sym}` | paid | research | {sym} |
 | GET | `/api/research/rename-notice/{sym}` | paid | research | {sym} |
 | GET | `/api/research/revenue-segments/{ticker}` | paid | research | {ticker}, period=annual |
 | GET | `/api/research/seasonality-board` | paid | research |  |
 | GET | `/api/research/seasonality/{sym}` | paid | research | {sym} |
+| GET | `/api/research/setup-history` | paid | research |  |
+| GET | `/api/research/setup-history/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/short-data/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/short-interest-list` | paid | research | rank, limit |
 | GET | `/api/research/stock-stats/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/treasury-auctions` | paid | research |  |
 | GET | `/api/research/treasury-yields` | paid | research |  |
+| GET | `/api/research/volume-footprint/{ticker}` | paid | research | {ticker} |
 | GET | `/api/risk-summary` | paid | member-workspace |  |
 | GET | `/api/rs-rankings` | paid | market-analytics |  |
 | GET | `/api/rs-rankings/{ticker}` | paid | market-analytics | {ticker} |

@@ -47,7 +47,10 @@ DOOR_PATHS = (
 def answer_of(body):
     """The door's answer in the case's own shape, from a recorded response body."""
     env = body.get("envelope") or {}
-    out = {"disposition": body.get("disposition"), "reply": body.get("reply") or env.get("reply") or ""}
+    # what the MEMBER was told: the reply, or, when the door declined by a gate (`ok` false: the script door's "I can't"
+    # carries no reply), the gate's own member sentence, `reason`
+    said = body.get("reply") or env.get("reply") or (body.get("reason") if body.get("ok") is False else None) or ""
+    out = {"disposition": body.get("disposition"), "reply": said}
     if env.get("ops"):
         out["ops"] = env["ops"]
     if env.get("questions"):
@@ -119,7 +122,10 @@ def grade_run(data, run_dir):
 def record_of(case, answer):
     """A fresh answer cut to what a case keeps: what is graded, nothing else of the response."""
     if case["lane"] == "formula":
-        return {"contract": "uct.authoring.patch/1", "ops": answer.get("ops")}
+        kept = {"contract": "uct.authoring.patch/1", "ops": answer.get("ops")}
+        if case.get("says"):
+            kept["reply"] = answer.get("reply")                    # this case holds what the member is told, too
+        return kept
     if case["lane"] == "script":
         return {"turn": "script", "script": {"pine": (answer.get("script") or {}).get("pine")}}
     kept = {"disposition": answer.get("disposition"), "reply": answer.get("reply")}

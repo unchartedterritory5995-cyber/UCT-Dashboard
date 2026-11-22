@@ -164,7 +164,7 @@ def test_the_1m_fill_reads_the_etfs_1m_bars_and_allows_the_same_span(monkeypatch
     import api.routers as routers
     monkeypatch.setattr(routers, "bars", fake, raising=False)
     pb = index_bars._proxy_session_bars("SPY", DEC2, "1")
-    assert asked == [(("SPY", "1"), {"bars": 1000, "to": DEC3.isoformat(), "warm": 1})]
+    assert asked == [(("SPY", "1"), {"bars": 1000, "to": DEC2.isoformat(), "warm": 1})]
     exp = gap.expected_rth_buckets("1", DEC2)
     held = {b["t"]: b for b in _bars1(DEC2)}
     span = index_bars.DEEP_FILL_MAX_SLOTS * 5

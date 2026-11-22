@@ -29,7 +29,7 @@ import { useCreateIndicatorAccess } from '../components/chart/builder/studio/cre
 import { useUserDefinitions, USER_DEFINITIONS_KEY } from '../hooks/useUserDefinitions'
 import { mutate } from 'swr'
 import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
-import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
+import { setAuthoringSources, setExceptSetReader, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED } from './deixis'
@@ -82,6 +82,8 @@ import { isCoachMessage } from './capabilities/coach'
 import { beginAuthoringIntent, takeAuthoringIntent, peekAuthoringIntent, clearAuthoringIntent, authoringPrompt, authoringOp, isCancelWords, INDICATOR_DOORS, openIndicatorDoor } from './indicatorEntry'
 
 registerBuiltins()
+// (H-RDR-1) F5's "all charts" check reads "every chart less the exclusions" as the set the words name (indicatorAuthoring)
+setExceptSetReader(everyExceptSet)
 
 // ⛔ Charts operator P1 hardening: a model QUESTION's choices become buttons. Only a non-empty string, or an
 // object with a non-empty string `label` (NL-1: plus a context `ref`, translated back to a real target), ever

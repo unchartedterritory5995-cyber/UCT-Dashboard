@@ -2552,6 +2552,19 @@
       "owner": "Pine track 4 (the data indicators need), unit E1",
       "note": "A STAGE, read per request in api/services/pine_events.py::stage() by GET /api/pine/events/{ticker} (api/routers/pine_events.py): a chart symbol's earnings, dividends and splits for the Pine event supply. UNSET or admins = signed-in admins only (dark for members): this is how production's own vendor fetch is graded against TradingView (tools/vendor_harness/event_grade.py, coordinator ruling 2026-11-22). all (or 1/true/on) = every paid member; set only when the engine's event supply (E2) ships. off, or any unknown value = nobody (404, fail closed). Members get 404 while dark, so the route is not an oracle. Nothing in the engine reads the route until E2. Rails: tests/test_pine_events.py."
     },
+    "PINE_FINANCIAL_SUPPLY_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-22",
+      "where": [],
+      "default": "admins",
+      "values": [
+        "off",
+        "admins",
+        "all"
+      ],
+      "owner": "Pine track 4 (the data indicators need), unit F1a",
+      "note": "A STAGE, read per request in api/services/pine_financial.py::stage() by GET /api/pine/financial/{ticker} (api/routers/pine_financial.py): a chart symbol's figures from SEC filings (UCT's point-in-time fundamentals store) for Pine's request.financial, served as UCT data and never graded as TradingView's. UNSET or admins = signed-in admins only (dark for members). all (or 1/true/on) = every paid member; set only when the engine's request.financial supply (F1b) ships, and the assistant is handed request.financial only at all. off, or any unknown value = nobody (404, fail closed). Members get 404 while dark, so the route is not an oracle. Rails: tests/test_pine_financial.py."
+    },
     "PINE_SUPPORT_REPORTS_ENABLED": {
       "status": "armed",
       "where": [
@@ -2560,6 +2573,18 @@
       "owner": "pine support loop",
       "owner_decision": "Owner decision 2026-10-30: approved, and turned on in production on web the same day.",
       "note": "Phase A (PR #539): the opt-in \"Doesn't match TradingView?\" report, the ONE place a member's pasted source is stored (api/services/indicator_support.py::reports_enabled, read per call; 1/true/on/yes). Requires the member's explicit consent per report; kept only to fix support; withdrawable; deleted 30 days after fixed/wontfix and in any case after 365 days (docs/pine/support-loop/PHASE-A.md). Phase B (docs/pine/support-loop/PHASE-B.md) triages these reports. Rollback: blank it on web and redeploy (verify a NEW boot); unset refuses every create with 404, stores nothing, and the client hides every report button."
+    },
+    "PINE_SERVER_RETRANSLATE": {
+      "status": "dark",
+      "since": "2026-11-22",
+      "where": [],
+      "default": "off",
+      "values": [
+        "off",
+        "on"
+      ],
+      "owner": "pine parity programme (track 6)",
+      "note": "RE-TRANSLATE (b), design_retranslate_b.md. Mode flag, read PER CALL in api/services/server_translations.py::enabled(). SERVICE: web. Off (unset): server_translations.current_for answers None for everyone, so every reader behaves exactly as before and nothing is deleted. On: a stored script version held by an older engine's refusal is answered by the server's translation at TODAY's engine (the read path is PR (4), not yet shipped). Arm only on the coordinator's OK, after one measured night. Rollback: blank it (a variable, no deploy)."
     },
     "PINE_RUNTIME_SAVE_ENABLED": {
       "status": "armed",

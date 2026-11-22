@@ -436,7 +436,8 @@ export function withoutExclusions(text) {
   for (const m of [...s.matchAll(NEG_CUE_RE), ...s.matchAll(NEG_ANY_RE), ...s.matchAll(NEG_STAY_RE)]) {
     if (negTickerRefs(m[0]).length) s = s.slice(0, m.index) + ' '.repeat(m[0].length) + s.slice(m.index + m[0].length)
   }
-  return s
+  // (H-RDR-1) …nor a negated chart clause ("…, but leave the top-left one alone"): the place it names is excluded, not aimed at
+  return blankNegChartRefs(s)
 }
 // (AUDIT control) NEG_EXCEPT's "X" excludes only a CHART or a POSITION — a chart noun, a place / order word, the click, or a ticker
 // on the board. A value or a setting ("weekly, not daily", "log, not linear", "show the 50, not the 200") is a contrast on the
@@ -470,7 +471,7 @@ function negNamesAChart(phrase, charts) {
 // equivalence rail holds it as it is), so a BARE ticker possessive was never placed — it fell to the unplaced scan and the ask
 // OFFERED the very chart the member excluded. Read here, on the words as said, only when NOTHING follows the possessive but
 // "chart" / "one" and the clause's end (a neighbour or relation — "SPY's neighbour" — stays unplaced, as before).
-const EXCEPT_TICKER_POSS = /\b(?:except(?:\s+for)?|apart\s+from|other\s+than|excluding|but\s+not|save\s+for|minus)\s+((?:the\s+)?[A-Za-z]{1,5}['’]s(?:\s+(?:chart|one))?)(?=\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\b|\s*[,.;!?]|\s*$)/gi
+const EXCEPT_TICKER_POSS = /\b(?:except(?:\s+for)?|apart\s+from|aside\s+from|besides|other\s+than|excluding|but\s+not|save\s+for|minus)\s+((?:the\s+)?[A-Za-z]{1,5}['’]s(?:\s+(?:chart|one))?)(?=\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\b|\s*[,.;!?]|\s*$)/gi
 const tickerPossMatches = (text) => [...String(text || '').matchAll(EXCEPT_TICKER_POSS)]
 // (hotfix, ticker-possessive targeting) a NEGATED TICKER clause beside a change on the board: "…, but leave NVDA's alone",
 // "…, skip NVDA's", "…; dont touch NVDA", "Not the NVDA chart though.", "hands off the NVDA chart", "Leave NVDA out of it.",
@@ -530,6 +531,258 @@ export function negTickerRefs(text, charts = []) {
   for (const m of s.matchAll(NEG_STAY_RE)) read(m, m[2], null)
   return out
 }
+// ── H-RDR-1: a negated CHART clause whose object is NOT a ticker ──
+// ROOT CAUSE: the negated-clause reader above (NEG_CUE_RE / NEG_STAY_RE → negTickerRefs) only ever read TICKER objects, and the
+// click reader (NEG_CLICK) only a fixed few verbs. So "add RSI to every chart, but leave the top-left one alone", "skip the
+// first chart", "don't touch chart 2", "hands off this one", "keep the bottom row the same", "the upper left one stays as it is"
+// excluded NOTHING and a plan on that chart ran. This reads the SAME cues (leave … alone / as is / be / untouched, keep … the
+// same, skip, ignore, exclude, spare, hands off, don't touch / change / modify …, not, without, … stays / is fine) governing ANY
+// chart reference — a position, a line, a side, an ordinal ("the second chart", "chart 3", "chart three"), the click by any
+// name, a pronoun — and places it with the SAME phrase resolver the "except X" readers use (excludedCharts' readException).
+// Ticker objects stay with negTickerRefs. What is UNRESOLVED (→ UNPLACED, the plan is asked) is decided in excludedCharts.
+// The cue governs a LIST of references ("leave the top one and the bottom one alone") up to its clause's end; the list ends at
+// the first piece that is not a reference ("skip the first chart and make the rest weekly": "make the rest weekly" ends it).
+const NEG_GEN_RE = new RegExp(String.raw`${NEG_START}(${NEG_CUE}|without|with\s+the\s+exception\s+of)\s+([^,;:.!?—–()]{1,90})`, 'gi')
+const NEG_GEN_STAY_RE = new RegExp(String.raw`${NEG_START}((?:(?:the|this|that|these|those|my|both)\s+[^,;:.!?—–()]{1,60}?|chart\s+(?:#\s*)?[A-Za-z0-9]{1,6}(?:\s+(?:and|&)\s+(?:the\s+)?[^,;:.!?—–()]{1,40}?)?|mine|my\s+own))\s+(?:${NEG_STAY}|stay(?:\s+(?:as\s+(?:they\s+)?are|the\s+same|unchanged|untouched|put))?|are\s+(?:fine|good|ok(?:ay)?)(?:\s+as\s+(?:they\s+)?are)?)${NEG_END}`, 'gi')
+// where a cue's clause ends inside the run the regex took (a clause conjunction; "and" is a list word, read piece by piece)
+const GEN_CLAUSE_END = /\s+(?:but|then|though|although|while|so|because|since|plus|also)\b/i
+// a piece's trailing tail words ("alone", "as it is", "the same", "out of it", "on daily" …)
+const GEN_TAIL = new RegExp(String.raw`^(.*?)((?:\s+(?:alone|be|out(?:\s+of\s+(?:it|this|that|them|this\s+one))?|as\s+(?:it\s+|they\s+)?(?:is|are|was)|as\s+is|untouched|unchanged|the\s+same|where\s+(?:it\s+is|they\s+are)|though|please|thanks|for\s+now|this\s+time|too|either))*)$`, 'i')
+const GEN_AT = new RegExp(String.raw`^(.*?)\s+(?:(?:on|at|in)\s+)?(?:(?:a|the)\s+)?${KEEP_SETTING}(?:\s+(?:as\s+(?:it\s+)?is|for\s+now|too))?$`, 'i')
+const STRONG_TAIL = /\b(?:alone|be|untouched|unchanged|as\s+(?:it\s+|they\s+)?(?:is|are|was)|as\s+is|the\s+same|out|where\s+(?:it\s+is|they\s+are))\b/i
+const NUM_WORD = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 }
+const PLACE_W = String.raw`(?:top|bottom|upper|lower|left|right|middle|cent(?:er|re)|top[\s-]?left|top[\s-]?right|bottom[\s-]?left|bottom[\s-]?right|upper[\s-]?left|upper[\s-]?right|lower[\s-]?left|lower[\s-]?right|left[\s-]?hand|right[\s-]?hand|leftmost|rightmost|topmost|bottommost)`
+const ORD_W = String.raw`(?:first|second|third|fourth|fifth|sixth|last|1st|2nd|3rd|4th|5th|6th)`
+const NOUN_W = String.raw`(?:ones?|charts?|cells?|panes?|panels?|graphs?|rows?|columns?|side|corner)`
+// a piece that IS a chart reference, whole: a place / order / line / side noun phrase, "chart N", the click by any name, a pronoun
+const REF_SHAPE = new RegExp('^(?:'
+  + String.raw`(?:the|my|this|that|these|those|both)\s+(?:(?:${PLACE_W}|${ORD_W}|two|three|four|selected|clicked|current|active|other|same)[\s-]+){0,3}${NOUN_W}(?:\s+(?:on|in|at|along)\s+the\s+(?:left|right|top|bottom)(?:\s+(?:side|edge|row|column))?)?`
+  + String.raw`|(?:the|my)\s+(?:${PLACE_W}[\s-]*){1,2}`
+  + String.raw`|(?:the\s+)?(?:(?:two|three|four|pair|2|3|4)\s+)?(?:(?:charts?|ones?)\s+)?(?:on|at|along)\s+the\s+(?:left|right|top|bottom)(?:\s+(?:side|edge|row|column))?`
+  + String.raw`|chart\s+(?:#\s*)?[1-9]|mine|my\s+own(?:\s+${NOUN_W})?|it|this|that|them|those|these`
+  + '|' + CLICK_ACT_NP
+  + ')$', 'i')
+const LOOSE_DET = /^(?:the|my|this|that|these|those|both|any|either)\s+\S/i
+const BARE_ORD_PLACE = new RegExp(String.raw`^(?:the|my)\s+(?:${ORD_W}|${PLACE_W})$`, 'i')
+const CHART_NOUN = /\b(?:ones?|charts?|cells?|panes?|panels?|graphs?|rows?|columns?|corner)\b/i
+const BARE_PRONOUN = /^(?:it|this|that|them|those|these)$/i
+const GEN_RELATION = /\b(?:next\s+to|beside|besides|alongside|above|below|beneath|under(?:neath)?|over|near(?:est)?|around|surrounding|across|opposite|diagonal(?:ly)?|adjacent|kitty|catty|left\s+of|right\s+of|neighbou?rs?|either\s+side)\b|['’]s\b/i
+/** "chart three" / "chart #2" → "chart 3" (ORD_RE reads digits only) */
+export const ordinalDigits = (p) => String(p || '').replace(/\bchart\s+(?:#\s*)?(one|two|three|four|five|six|seven|eight|nine)\b/gi, (_, w) => `chart ${NUM_WORD[w.toLowerCase()]}`)
+  // …and "the rightmost / left-hand / topmost chart" is the right / left / top one (namedAnchor reads the plain place words)
+  .replace(/\b(left|right|top|bottom)(?:most|[\s-]hand)\b/gi, '$1')
+/** Each non-ticker chart reference a negated clause governs → [{ phrase, cue, strong, loose, index, end }]. */
+export function negChartRefs(text, charts = []) {
+  const s = String(text || '')
+  const wide = REST_WORDS.test(s) || WHOLE_BOARD.test(s)
+  const out = []
+  const read = (m, cue0, body0, stay) => {
+    const cue = String(cue0 || '').toLowerCase().replace(/\s+/g, ' ')
+    let body = String(body0 || '')
+    const ce = GEN_CLAUSE_END.exec(body)
+    if (ce) body = body.slice(0, ce.index)
+    const pieces = body.split(/\s*(?:&|\band\b|\bor\b|\bnor\b)\s*/i).map(x => x.trim())
+    const got = []
+    const bodyAt = stay ? m.index : m.index + m[0].length - String(body0 || '').length
+    let pos = 0
+    for (let i = 0; i < pieces.length; i++) {
+      let p = pieces[i]
+      if (!p) break
+      pos = body.indexOf(p, pos) + p.length
+      const t = GEN_TAIL.exec(p)
+      let core = (t ? t[1] : p).trim(), tail = t ? t[2] : ''
+      let at = false
+      const a = GEN_AT.exec(core)
+      if (a && !tail) { core = a[1].trim(); at = true }
+      core = ordinalDigits(core.replace(/^(?:the\s+)?(?:whole|entire)\s+/i, 'the '))
+      const last = i === pieces.length - 1 || !!tail || at
+      // a bare order / place word listed before a piece with the noun ("the first and the last chart") is that chart
+      if (i < pieces.length - 1 && BARE_ORD_PLACE.test(core)) core = `${core} chart`
+      const shaped = REF_SHAPE.test(core)
+      // a piece that names a chart but is no plain reference ("the one next to the top-left one") is read only when it is the
+      // cue's whole object: right after the cue, ending at a tail or at the clause's end, and a noun phrase under a determiner
+      // ("dont touch NVDA Top-left chart (SPY)" — a request run on into a choice's label — is no such phrase)
+      // (a phrase that runs on into a destination — "the top-left one to weekly" — is a negated action, negActionRefs' to read)
+      const loose = !stay && !shaped && i === 0 && last && CHART_NOUN.test(core) && LOOSE_DET.test(core)
+        && !/\s(?:to|into|onto|from|with|for)(?:\s|$)/i.test(core.replace(/\b(?:next|close|adjacent|closest|nearest)\s+to\b|\bto\s+the\s+(?:left|right)\s+of\b|\b(?:across|away)\s+from\b/gi, ' '))
+      if (!shaped && !loose) break
+      got.push({ phrase: core, tail, at, loose, end: stay ? m.index + m[0].length : bodyAt + pos })
+      if (tail || at || loose) break
+    }
+    if (!got.length) return
+    const tail = got[got.length - 1].tail || (stay ? ' as is' : '')
+    const at = got[got.length - 1].at
+    if (at && !wide) return                                       // "keep the top one on daily" alone can be the change itself
+    const strong = STRONG_TAIL.test(tail) || /^(?:leave out|keep out|skip|ignore|exclude|spare|hands off(?: of)?|without|with the exception of)$/.test(cue) || /^(?:don|do not|never|please don|no need)/.test(cue) || at || stay
+    if (/^keep$/.test(cue) && !strong && !wide) return            // a bare "keep X" is no exclusion alone
+    if (/^leave$/.test(cue) && !STRONG_TAIL.test(tail) && !wide) return   // "leave the top one on" / "leave it there": no exclusion
+    for (const g of got) {
+      if (BARE_PRONOUN.test(g.phrase) && !STRONG_TAIL.test(tail) && !stay) continue    // "skip that", "ignore it": no chart named
+      if (negTickerRefs(`not ${g.phrase}`, charts).length) continue                  // a ticker: negTickerRefs reads it
+      if (ACT_COMPLEMENT.test(g.phrase)) continue        // "don't touch the other charts": a complement, read by the rest readers
+      // a loose phrase naming a board ticker ("hands off the NVDA chart Top-left chart (SPY)…", a request run on into a choice's
+      // label) is the ticker reader's and the net's, never placed here by its place words
+      if (g.loose && g.phrase.split(/[^A-Za-z0-9.]+/).some(w => w && charts.some(c => String(c?.symbol || '') === w))) continue
+      out.push({ phrase: g.phrase, cue, strong, loose: g.loose, stay, index: m.index, end: got[got.length - 1].end })
+    }
+  }
+  for (const m of s.matchAll(NEG_GEN_RE)) read(m, m[1], m[2], false)
+  // "<the chart> stays as it is / is fine": the stative keep is itself the cue
+  for (const m of s.matchAll(NEG_GEN_STAY_RE)) read(m, 'stays', m[1], true)
+  return out
+}
+// ── H-RDR-1 (AUDIT follow-up): a NEGATED IMPERATIVE WITH A DESTINATION ──
+// "don't change the top-left one to weekly", "do not add RSI to the second chart", "never hide volume on the NVDA chart", "do not
+// close chart 2": the member forbids an ACTION on a chart. negChartRefs reads a cue whose object IS the chart ("don't touch X");
+// here any verb is negated and the chart sits anywhere in its clause (object, destination, "on / to / from X"). On master a model
+// plan doing exactly the forbidden op on that chart was EXECUTED (every chart-backed family measured). Every chart reference in
+// the negated clause is a chart the change must never land on: excluded (placed by the same resolver), or UNPLACED when it cannot
+// be placed — so a plan on it is asked, never run. Not a negation of the change: "don't forget / hesitate / worry / wait", "never
+// mind". The clause ends at a clause conjunction or at "and <command verb>" ("don't touch the top one and make the rest weekly").
+// The cue: don't / do not / never / no need to, and (AUDIT T2) the formal ones — refrain from, under no circumstances, on no
+// account, by no means (each optionally "should / must … you"). (a4) A SERIAL verb stays under the negation: "don't go and change
+// X", "don't go ahead and …", "don't try and / to …", "don't come and …", "don't bother to …", "don't dare …", "never ever …" — the
+// governed verb is the one after it (a new positive command is "<clause>, and <verb> …" with the negation behind it).
+// (C, AUDIT T2 r2) an optional run of courtesy / intensifier words before the cue: "kindly do not …", "absolutely under no
+// circumstances …", "I really don't want you to …" (the run is words only: it never crosses a comma)
+const NEG_COURTESY = String.raw`(?:(?:please|kindly|really|absolutely|seriously|definitely|just|simply|truly|honestly|totally|certainly|positively|strictly|actually)\s+){0,3}`
+const NEG_ACT_CUE = String.raw`${NEG_COURTESY}(?:(?:i\s+${NEG_COURTESY})?(?:don['’]?t|dont|do\s+not)|never|no\s+need\s+to|refrain\s+from|(?:under\s+no\s+circumstances|on\s+no\s+account|by\s+no\s+means)(?:\s+(?:should|must|may|can|will|are)\s+(?:you|we|it))?)`
+const NEG_SERIAL = String.raw`(?:(?:go|come)\s+(?:ahead\s+)?(?:and\s+)?|try\s+(?:and|to)\s+|bother\s+(?:to\s+)?|dare\s+(?:to\s+)?|even\s+(?:think\s+about\s+|try\s+to\s+)?|ever\s+)?`
+const NEG_ACT_RE = new RegExp(String.raw`${NEG_START}(${NEG_ACT_CUE})\s+${NEG_SERIAL}(?!(?:forget|hesitate|worry|mind|wait|be|let|need|have|know|see|think|understand|get\s+me\s+wrong)\b)([A-Za-z]+)\b([^,;:.!?—–()]{0,100})`, 'gi')
+// (a3) an ASIDE set off by commas between the cue (or its verb) and what it governs — "don't, if you can help it, change the top
+// one", "never change, under any circumstances, the SPY chart" — is no clause break: blanked (position for position) before the
+// negated clause is read. An aside is short (≤ 7 words), never starts with a conjunction (", and switch …" is a new command) and
+// names no chart (", the QQQ one, …" is a list, not an aside).
+const ASIDE_RE = new RegExp(String.raw`\b(${NEG_ACT_CUE}(?:\s+${NEG_SERIAL}[A-Za-z]+)?)(\s*,\s*(?!(?:and|but|then|so|or|nor|also|plus)\b)[^,;:.!?—–()]{1,48}?\s*,)`, 'gi')
+function blankAsides(s, charts) {
+  const syms = charts.map(c => String(c?.symbol || '')).filter(Boolean)
+  let out = s
+  for (const m of s.matchAll(ASIDE_RE)) {
+    const aside = m[2].replace(/^\s*,|,\s*$/g, '').trim()
+    if (aside.split(/\s+/).length > 7) continue
+    ACT_NP.lastIndex = 0
+    if (ACT_NP.test(aside) || syms.some(t => new RegExp(String.raw`(?:^|[^A-Za-z0-9.])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`).test(aside))) continue
+    const at = m.index + m[1].length
+    out = out.slice(0, at) + ' '.repeat(m[2].length) + out.slice(at + m[2].length)
+  }
+  ACT_NP.lastIndex = 0
+  return out
+}
+const ACT_NEXT_COMMAND = /\s+(?:and|&)\s+(?:then\s+)?(?:please\s+)?(?:put|make|set|switch|change|add|move|turn|show|hide|remove|give|apply|take|drop|flip|close|delete|draw|plot|open|reset|replace|use|do|swap|load|bring)\b/i
+// (the click by the act comes first: "the one I clicked" is that whole phrase, never "the one")
+const ACT_NP = new RegExp(String.raw`(?:${CLICK_ACT_NP})|\b(?:the|my|this|that|these|those|both)\s+(?:[A-Za-z0-9#'’-]+\s+){0,3}?(?:charts?|ones?|cells?|panes?|panels?|graphs?|rows?|columns?)\b(?!['’]s)|\bchart\s+(?:#\s*)?(?:[1-9]|one|two|three|four|five|six|seven|eight|nine)\b|^\s*(?:it|this)\b(?!['’]s)|\bmine\b`, 'gi')
+// a complement of the negated chart is no chart the clause names ("don't touch the other charts", "the rest")
+// ("the other chart", singular on a board of several, is no complement: it names one chart the board cannot place — asked)
+const ACT_COMPLEMENT = /\b(?:others|rest|remaining|else|every|all|each)\b|\bother\s+(?:[A-Za-z-]+\s+)?(?:charts|ones|cells|panes|panels|graphs)\b/i
+/** The chart references a negated imperative's clause names → [{ phrase, tok, shaped, index, end }] (tok: a board ticker). */
+export function negActionRefs(text, charts = []) {
+  const s = blankAsides(String(text || ''), charts)
+  const syms = [...new Set(charts.map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))]
+  const out = []
+  for (const m of s.matchAll(NEG_ACT_RE)) {
+    let body = String(m[3] || '')
+    const ce = GEN_CLAUSE_END.exec(body)
+    if (ce) body = body.slice(0, ce.index)
+    const nc = ACT_NEXT_COMMAND.exec(body)
+    if (nc) body = body.slice(0, nc.index)
+    const at = m.index + m[0].length - String(m[3] || '').length
+    const end = at + body.length
+    const seen = []
+    for (const r of body.matchAll(ACT_NP)) {
+      let phrase = ordinalDigits(r[0].trim())
+      if (ACT_COMPLEMENT.test(phrase)) continue
+      // a RELATION after the noun ("the one below it", "the chart next to NVDA"): the whole relation is the reference (it names
+      // ANOTHER chart than its anchor) — placed only as a relation from the click, else UNPLACED
+      const after = body.slice(r.index + r[0].length)
+      const relTail = /^\s+(?:next\s+to|beside|alongside|above|below|beneath|under(?:neath)?|over|near(?:est)?|around|surrounding|across|opposite|diagonal(?:ly)?|adjacent|left\s+of|right\s+of|to\s+the\s+(?:left|right)\s+of|on\s+either\s+side)\b/i.test(after)
+      if (relTail) phrase = `${phrase}${after}`.trim()
+      seen.push([r.index, relTail ? body.length : r.index + r[0].length])
+      const tok = relTail ? null : syms.find(t => new RegExp(String.raw`(?:^|[^A-Za-z0-9.])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, t.length <= 2 ? '' : 'i').test(phrase)) || null
+      out.push({ phrase, tok, shaped: !relTail && REF_SHAPE.test(phrase), relation: relTail, index: m.index, end })
+      if (relTail) break
+    }
+    // a bare board ticker in the clause ("don't add RSI to SPY", "never switch NVDA to weekly")
+    for (const t of syms) {
+      const re = new RegExp(String.raw`(?:^|[^A-Za-z0-9.$])\$?(${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(?![A-Za-z0-9])`, t.length >= 3 ? 'gi' : 'g')
+      for (const x of body.matchAll(re)) {
+        const i = x.index + x[0].length - x[1].length
+        if (seen.some(([a, b]) => i >= a && i < b)) continue
+        if (x[1] !== t && (t.length < 3 || LOWER_STOP.test(x[1]))) continue
+        out.push({ phrase: x[1], tok: t, shaped: false, bare: true, index: m.index, end })
+      }
+    }
+  }
+  // (B, AUDIT T2 r2) FAIL SAFE: a negation whose scope ENDS AT A COMMA before it has governed anything — the cue (or the cue and
+  // its verb) followed directly by a comma that is no short aside ("don't, <a long aside>, change the top one", "never change,
+  // <…>, the SPY chart") — cannot say what it forbids. Every chart the rest of its sentence names may be the one: UNPLACED (asked),
+  // never left to run. Not a cue whose verb is no action ("don't worry, …", "never mind, …").
+  for (const m of s.matchAll(NEG_DANGLE_RE)) {
+    const restAt = m.index + m[0].length
+    const stop = /[.!?;]/.exec(s.slice(restAt))
+    const rest = s.slice(restAt, stop ? restAt + stop.index : s.length)
+    if (!namesAChartRef(rest, syms)) continue
+    out.push({ phrase: rest.trim(), dangling: true, index: m.index, end: restAt + rest.length })
+  }
+  return out
+}
+const NEG_DANGLE_RE = new RegExp(String.raw`${NEG_START}(${NEG_ACT_CUE})(?:\s+${NEG_SERIAL}(?!(?:forget|hesitate|worry|mind|wait|be|let|need|have|know|see|think|understand|get)\b)[A-Za-z]+)?\s*,`, 'gi')
+/** Does the phrase name a chart: a chart noun phrase, "chart N", a click name, a place / order word, or a board ticker? */
+function namesAChartRef(text, symsUpper = []) {
+  const s = String(text || '')
+  ACT_NP.lastIndex = 0
+  const np = ACT_NP.test(s)
+  ACT_NP.lastIndex = 0
+  return np || /\b(?:the|my)\s+(?:top|bottom|upper|lower|left|right|middle|cent(?:er|re)|first|second|third|fourth|last)\b/i.test(s)
+    || symsUpper.some(t => new RegExp(String.raw`(?:^|[^A-Za-z0-9.])\$?${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, t.length >= 3 ? 'i' : '').test(s))
+}
+// (b9, AUDIT T2) an ADDITIVE exclusion after an exclusion's own clause — "…, but leave the top-left one alone, and the bottom one
+// too", "…; skip chart 2, and chart 4 as well", "don't change the top one to weekly, or the bottom one either", "…, and also the NVDA
+// chart": the list goes on past the first clause's tail. Read ONLY right after a clause that is itself an exclusion (a negation /
+// exception / keep cue in it) and only as a bare reference with an additive marker (too / as well / also / either, or "and also …"):
+// "make the top one weekly, and the bottom one too" (no exclusion before it) and ", and switch the bottom one to weekly" (a new
+// command) are never read. Each reference is placed like any other exclusion's object, or UNPLACED.
+const ADD_OBJ = String.raw`(?:(?:the|my|this|that)\s+[^,;:.!?—–()]{1,40}?|chart\s+(?:#\s*)?[A-Za-z0-9]{1,6}|\$?[A-Z][A-Z0-9]{0,4}(?:['’]s)?(?:\s+(?:chart|one))?|mine)`
+// (A, AUDIT T2 r2) the tail follows a clause break ([,;—–], optionally with a conjunction) OR, with no punctuation, a bare
+// conjunction: "…leave X alone and the bottom one too", "don't touch X and also Y". A positive command after "and" ("and set Y to
+// weekly") never fits ADD_OBJ: it starts with its verb.
+const ADD_RE = new RegExp(String.raw`(?:[,;—–]\s*(?:(?:and|&|plus|or|nor)\s+)?|\s+(?:and|&|plus|or|nor)\s+)(also\s+)?(${ADD_OBJ})(?:\s+(too|as\s+well|also|either))?\s*(?=[,;.!?—–]|\s+(?:and|but|then|so)\b|$)`, 'g')
+const EXCLUSION_CLAUSE = /\b(?:leave|leaving|keep|keeping|skip|skipping|ignore|exclude|excluding|spare|hands\s+off|except|apart\s+from|other\s+than|besides|aside\s+from|but\s+not|not|never|don['’]?t|dont|do\s+not|without|refrain|no\s+circumstances|no\s+account|no\s+means|stays?|alone|untouched)\b/i
+/** The references an additive tail adds to the exclusion before it → [{ phrase, tok, shaped, index, end }]. */
+export function additiveRefs(text, charts = []) {
+  const s = String(text || '')
+  const syms = [...new Set(charts.map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))]
+  const out = []
+  for (const m of s.matchAll(ADD_RE)) {
+    if (!m[1] && !m[3]) continue                                  // no additive marker: a list item or a new command, not this
+    const prev = s.slice(0, m.index).split(/[,;.!?—–]/).filter(x => x.trim()).pop() || ''
+    // the clause before must exclude A CHART: a cue (never "don't forget / worry / hesitate / mind / wait …") and a chart reference
+    // ("…, not daily, and the bottom one too" excludes nothing)
+    const prevCue = prev.replace(/\b(?:don['’]?t|dont|do\s+not|never)\s+(?:forget|worry|hesitate|mind|wait)\b[\s\S]*$/i, ' ')
+    if (!EXCLUSION_CLAUSE.test(prevCue) || !namesAChartRef(prevCue, syms)) continue
+    const phrase = ordinalDigits(m[2].trim())
+    const tokM = /^\$?([A-Z][A-Z0-9]{0,4})(?:['’]s)?(?:\s+(?:chart|one))?$/.exec(phrase) || /^(?:the|my)\s+\$?([A-Z][A-Z0-9]{0,4})\s+(?:chart|one)$/.exec(phrase)
+    const tok = tokM && syms.includes(tokM[1]) ? tokM[1] : null
+    const shaped = !tok && REF_SHAPE.test(phrase)
+    if (tokM && !tok) continue                                    // a ticker the board does not show is no chart to protect
+    if (!tok && !shaped && !CHART_NOUN.test(phrase)) continue     // "…, and the RSI too": no chart named
+    out.push({ phrase, tok, shaped, index: m.index, end: m.index + m[0].length })
+  }
+  return out
+}
+/** The words with every negated chart clause negChartRefs reads blanked, position for position. */
+export function blankNegChartRefs(text, charts = []) {
+  let s = String(text || '')
+  for (const r of [...negChartRefs(s, charts), ...negActionRefs(s, charts), ...additiveRefs(s, charts)]) s = s.slice(0, r.index) + ' '.repeat(Math.max(0, r.end - r.index)) + s.slice(r.end)
+  return s
+}
+/** …and every negated TICKER clause too (negTickerRefs' clauses): the words with no negated clause about a chart left. */
+export function blankNegatedClauses(text, charts = []) {
+  let s = blankNegChartRefs(text, charts)
+  for (const m of [...s.matchAll(NEG_CUE_RE), ...s.matchAll(NEG_ANY_RE), ...s.matchAll(NEG_STAY_RE)]) {
+    if (negTickerRefs(m[0], charts).length) s = s.slice(0, m.index) + ' '.repeat(m[0].length) + s.slice(m.index + m[0].length)
+  }
+  return s
+}
 /** The charts an exclusion in the words names (by symbol, position, order, or "this one" = the click). */
 export function excludedCharts(text, charts = [], sel = null) {
   const out = new Set()
@@ -570,6 +823,76 @@ export function excludedCharts(text, charts = [], sel = null) {
     }
     if (r.poss) out.add(UNPLACED)
   }
+  // (H-RDR-1) a NEGATED CHART clause whose object is a position, a line, an ordinal, the click or a pronoun ("…, but leave the
+  // top-left one alone", "skip the second chart", "hands off this one", "the bottom row stays as it is"): placed by the SAME
+  // phrase resolver as "except X" (readException).
+  // UNRESOLVED — the exact rule. A reference negChartRefs reads (a cue from NEG_CUE / without / … stays, governing a piece that
+  // is a chart reference: REF_SHAPE, or a lone chart-noun phrase ending at a tail or the clause's end) is UNRESOLVED, and the
+  // exclusion is UNPLACED (every plan on the board is asked; no chart is guessed), when ALL of these hold:
+  //   (a) the phrase resolver placed no chart for it: no place word fits exactly one chart or a line / side (a 2×2 has no
+  //       "middle one"), no ordinal is on the board ("the sixth chart" on four), no ticker names it, and it is the click by a
+  //       click name ("this one", "it", "the one I clicked", "mine") with NOTHING clicked — or the phrase is a RELATION
+  //       (GEN_RELATION: "the one beside NVDA", "the chart next to the top-left one") or a LOOSE phrase (a chart noun under a
+  //       determiner that is no plain reference shape: "the big chart", "the timeframe on the top-left chart") and so is never
+  //       read by that resolver (a loose phrase naming a board ticker is left to the ticker reader and its net);
+  //   (b) it is not a relation from the click that the relation readers place ("the charts around it", "the one below it"
+  //       with a chart clicked: those charts are excluded instead);
+  //   (c) its cue is not a bare "not" governing a loose phrase ("…, not the chart I meant" is a contrast: nothing, as before);
+  //   (d) it is not a STATED keep ("<X> stays / is fine"), whose unplaceable subject excludes nothing (see below).
+  // A reference that IS placed adds exactly its chart(s) and nothing else — a recognized exclusion is never also UNPLACED (its
+  // phrase is in `placed`, which the net below compares without the cue: NET_CUE_LEAD).
+  for (const r of negChartRefs(text, charts)) {
+    const a0 = adds
+    // ⛔ a RELATION ("the one beside NVDA", "the chart below the top-left one") names ANOTHER chart than its anchor: never read by
+    // the phrase resolver (it would place the anchor); only a relation from the click is placed (below), else UNPLACED.
+    // A LOOSE phrase (no plain reference shape: "the timeframe on the top-left chart") is never placed by its words either —
+    // it is UNPLACED (asked) unless it is a relation from the click: an exclusion is guessed from no phrase it cannot read whole
+    if (!r.loose && !GEN_RELATION.test(r.phrase)) readException({ 0: r.phrase, 1: r.phrase, index: r.end, input: String(text || '') })
+    placed.push(normPhrase(r.phrase))
+    if (adds > a0) continue
+    if (r.cue === 'not' && !r.strong && r.loose) continue
+    // (d) a STATED keep ("the column on the right is fine", "chart 5 stays as it is") the board cannot place is a statement,
+    // not an instruction: it excludes nothing (the stated-clause rule, G5, as before) — never UNPLACED
+    if (r.stay) continue
+    // a RELATION from the click ("leave the charts around it alone", "don't touch the one below it") is placed by the relation
+    // readers (negatedRelations / relativeChart in spatialConstraints): resolved there, never unplaced here
+    if (sel && negatedRelations(text).some(p => normPhrase(p) === normPhrase(r.phrase))) continue
+    const rel = sel ? relativeChart(r.phrase, charts, sel) : null
+    if (rel?.hits?.length) { for (const c of rel.hits) if (c.ref !== sel) out.add(c.ref); if (adds > a0) continue }
+    out.add(UNPLACED)
+  }
+  // (H-RDR-1, AUDIT) a NEGATED IMPERATIVE with a destination ("don't change the top-left one to weekly", "do not add RSI to the
+  // second chart", "never hide volume on SPY"): every chart its clause names is a chart the change must never land on. A plain
+  // reference is placed by readException; a board ticker on its symbol (one chart → it; several → UNPLACED, none offered); any
+  // other chart phrase ("the big chart", "the one beside NVDA") or a reference that cannot be placed → UNPLACED (asked). These
+  // survive the changed-ticker rule below: "don't change SPY to AAPL" forbids the change on SPY, it never licenses it.
+  const forbidden = new Set()
+  // (b9) …and an ADDITIVE tail after an exclusion ("…alone, and the bottom one too"): the same placement, the same fail-safe
+  for (const r of [...negActionRefs(text, charts), ...additiveRefs(text, charts)]) {
+    if (r.dangling) {
+      // (B) a negation that ended at a comma before governing anything: every chart its sentence names may be the forbidden one
+      out.add(UNPLACED)
+      try { for (const c of chartsNamedBy(r.phrase, charts, sel)) unoffered.add(c) } catch { /* no names */ }
+      continue
+    }
+    if (placed.includes(normPhrase(r.phrase))) continue
+    const a0 = adds
+    const before = new Set(out)
+    if (r.tok && !r.shaped) {
+      const list = charts.filter(c => String(c?.symbol || '').toUpperCase() === r.tok)
+      if (list.length === 1) out.add(list[0].ref)
+      else { out.add(UNPLACED); for (const c of list) unoffered.add(c.ref) }
+    } else if (r.relation) {
+      // a relation from the click ("don't touch the one below it"): its charts (the relation readers', as negChartRefs reads it)
+      if (sel && !negatedRelations(text).some(p => normPhrase(p) === normPhrase(r.phrase))) {
+        const rel = relativeChart(r.phrase, charts, sel)
+        for (const c of rel?.hits || []) if (c.ref !== sel) out.add(c.ref)
+      } else if (sel) adds++                                       // placed by spatialConstraints' negated-relation reader
+    } else if (r.shaped && !GEN_RELATION.test(r.phrase)) readException({ 0: r.phrase, 1: r.phrase, index: r.end, input: String(text || '') })
+    if (adds === a0) out.add(UNPLACED)
+    for (const x of out) if (!before.has(x) && x !== UNPLACED) forbidden.add(x)
+    placed.push(normPhrase(r.phrase))
+  }
   // (AUDIT #1143 follow-up 2) an exception the readers could NOT place but whose words NAME A CHART — "except the one next to
   // mine", "apart from this one's neighbour", "other than the chart I opened" — was silently nothing, so the chart the member
   // excluded was NOT protected (a plan on it ran). Now it is UNPLACED: the plan is asked. Only when the excepted words name a
@@ -582,8 +905,26 @@ export function excludedCharts(text, charts = [], sel = null) {
   // "don't touch the axis", "skip to the next bar" carry none and read nothing (as before)
   const negNet = [...String(text || '').matchAll(NEG_NET_RE)].map(k => ({ 1: k[2] }))
     .filter(k => /\b(?!I\b)[A-Z][A-Z0-9]{0,4}\b|\b[A-Z][a-z]+['’]s\b/.test(k[1]) && CHARTISH_WORDS.test(k[1]))
+  // (H-RDR-1 r3) an exception keyword governing a LIST of plain references — "except the top-left one and the bottom-right one
+  // (as well)", "apart from the SPY chart and the NVDA chart", "other than chart 1 or chart 4" — places EACH item like a single
+  // exception (the single-phrase readers stop at 30 characters, and the net below defers a plain ticker list to them); an item the
+  // board cannot place is UNPLACED. Only when every item is a reference: "except volume and RSI" is no list of charts.
+  for (const k of String(text || '').matchAll(EXC_KW)) {
+    const body = k[1].replace(/\s+(?:too|as\s+well|also|either)\s*$/i, '').trim()
+    const items = body.split(/\s*(?:&|\band\b|\bor\b|\bnor\b|\bplus\b)\s*/i).map(x => ordinalDigits(x.trim().replace(/^also\s+/i, ''))).filter(Boolean)
+    if (items.length < 2) continue
+    if (!items.every(x => REF_SHAPE.test(x) || /^(?:(?:the|my)\s+)?\$?[A-Z][A-Z0-9]{0,4}(?:['’]s)?(?:\s+(?:chart|one))?$/.test(x))) continue
+    for (const x of items) {
+      const a0 = adds
+      readException({ 0: x, 1: x, index: k.index + k[0].length, input: String(text || '') })
+      if (adds === a0) out.add(UNPLACED)
+    }
+    placed.push(normPhrase(k[1]))
+  }
   for (const k of [...String(text || '').matchAll(EXC_KW), ...negNet]) {
-    const w = normPhrase(k[1])
+    // (H-RDR-1) compared WITHOUT the cue a phrase starts with ("every chart but leave SPY's chart alone": EXC_KW's phrase is
+    // "leave SPY's chart alone", the reader placed "SPY's chart") — a recognized exclusion is never ALSO unplaced (asked)
+    const w = normPhrase(k[1]).replace(NET_CUE_LEAD, '')
     if (placed.some(ph => ph && (w.startsWith(ph) || ph.startsWith(w)))) continue
     if (!CHARTISH.test(k[1])) continue
     // a TICKER in the excepted words is the board's to place (master policy: a ticker the board does not show excludes nothing)
@@ -597,13 +938,13 @@ export function excludedCharts(text, charts = [], sel = null) {
   }
   // ⛔ (AUDIT finding 1) a ticker the words CHANGE is never one they exclude: "AAPL instead of SPY" / "AAPL rather than SPY" name
   // SPY as the chart to change (AAPL its new symbol) — an exclusion reading of it would protect SPY and aim the change elsewhere
-  for (const c of charts) if (c?.ref && out.has(c.ref) && c.symbol && changed(String(c.symbol).toUpperCase())) out.delete(c.ref)
+  for (const c of charts) if (c?.ref && out.has(c.ref) && !forbidden.has(c.ref) && c.symbol && changed(String(c.symbol).toUpperCase())) out.delete(c.ref)
   out.add = add
   // the charts an UNPLACED exception may mean (a ticker on several charts): never offered by a question (`unoffered`)
   Object.defineProperty(out, 'unoffered', { value: unoffered, enumerable: false })
   return out
   function readException(m) {
-    const phrase = m[1].trim()
+    const phrase = ordinalDigits(m[1].trim())                    // (H-RDR-1) "chart three" is "chart 3"
     if (changedIn(phrase)) return
     const role = clickRole(phrase, tailOf(m))
     if (role === 'click') { if (sel) out.add(sel); return }
@@ -657,7 +998,9 @@ export function excludedCharts(text, charts = [], sel = null) {
 // NOT "instead of" / "rather than": measured, those are value contrasts or target swaps ("the weekly timeframe instead of the
 // chart one", "a line instead of candles"), never an exclusion from a set.
 const EXC_KW = /\b(?:except(?:\s+for)?|apart\s+from|other\s+than|excluding|besides|aside\s+from|save\s+for|minus|but\s+not|(?:everything|all|them|these|(?:every|each)\s+chart)\s+but)\s+([^,.;!?—–]{1,60})/gi
-const normPhrase = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+const normPhrase = (s) => ordinalDigits(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+// (H-RDR-1) a negation cue at the head of a normalized phrase (the unplaced net compares the object, not the cue)
+const NET_CUE_LEAD = /^(?:(?:but|and|then|so|please|just|also)\s+)*(?:not|leave(?:\s+out)?|leaving|keep(?:\s+out)?|skip|ignore|exclude|spare|hands\s+off(?:\s+of)?|without|(?:don\s+t|dont|do\s+not|never)\s+(?:touch|change|modify|alter|update|switch|mess\s+with|bother\s+with|include))\s+/
 // those words name a CHART: a chart noun, a neighbour / relation, the click's own names, a place word, or a possessive 's OF A
 // CHART — after a chart noun / "mine" ("this one's neighbour") or an all-caps TICKER ("SPY's neighbour"); never any word's 's
 // ("except Apple's earnings day", "other than Friday's close" are dates / values, not charts)
@@ -714,7 +1057,8 @@ export function relationAnchor(text, charts = [], sel = null) {
 export function spatialConstraints(text, charts = [], sel = null) {
   const out = { allowed: null, excluded: new Set(), count: null, plural: false, why: [] }
   const add = (refs, why) => { out.allowed = out.allowed || new Set(); for (const r of refs) out.allowed.add(r); out.why.push(why) }
-  const clauses = targetClauses(text)
+  // (H-RDR-1) a negated chart clause names an EXCLUSION, never an allowed target ("hands off the top-left one" is no place to aim)
+  const clauses = targetClauses(blankNegChartRefs(text, charts))
   for (const c of clauses) {
     if (MOVE.test(c)) continue
     // P: an absolute place in a line (either order) — the resolver's own reading of the words, checked on this geometry below
@@ -754,7 +1098,10 @@ export function spatialConstraints(text, charts = [], sel = null) {
     if (rel && !rel.alsoClick && !rel.negated) {
       const hits = (rel.hits || []).map(c => c.ref)
       // the click is the anchor — unless the relation lands ON it ("the first chart in this row" with the first one clicked)
-      if (!hits.includes(sel)) out.excluded.add(sel)
+      // (H-RDR-1) …and only when the words WITHOUT their negated chart / ticker clauses still relate a chart to it: "…, but keep
+      // the bottom right one as it is" says nothing about the click ("as it is" is no relation from it), so it is no anchor
+      const relB = relativeChart(blankNegatedClauses(text, charts), charts, sel)
+      if (!hits.includes(sel) && relB && !relB.alsoClick && !relB.negated) out.excluded.add(sel)
       // a PLAIN side relation from the click ("the chart above this one"; no count, walk or line in it), read on this module's
       // own geometry: the target is a neighbour on that side. Any other relation's reading is the resolver's (its hits).
       const s = charts.find(c => c.ref === sel && c.cell)
@@ -806,7 +1153,8 @@ export function everyExceptSet(text, charts = [], sel = null) {
   const ex0 = EXCEPT_WORD.exec(t.slice(after))
   // (hotfix) a negated-TICKER clause beside the quantifier ("every chart weekly, but leave NVDA's alone") is this family too:
   // the quantifier's own words run to its clause's end, and the exclusion is the ticker the clause names
-  const ex = ex0 || (negTickerRefs(text, charts).length
+  // (H-RDR-1) …and a negated CHART clause ("every chart weekly, but leave the top-left one alone", "…; skip chart 2")
+  const ex = ex0 || ((negTickerRefs(text, charts).length || negChartRefs(text, charts).length || negActionRefs(text, charts).length)
     ? { index: t.slice(after).split(/[,;:.!?—–]|\s+(?:but|and|then|though)\s+/i)[0].length, neg: true } : null)
   if (!ex) return null
   const seg = t.slice(after, after + ex.index).replace(BOARD_PP, ' ')
