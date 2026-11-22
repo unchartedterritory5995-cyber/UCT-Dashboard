@@ -9379,8 +9379,16 @@ export const EVENT_BEFORE_RECORD_CODE = 'other-symbol:event-before-record'
  *  the same mask as an event family's, for a placed series whose record's family is `financial`
  *  (`pineFinancial.js::financialUnknownSentence`). */
 export const FINANCIAL_UNKNOWN_CODE = 'other-symbol:financial-unknown'
-/** The per-bar code a placed series' record (`SERIES_EVENT_RECORD`) names its withheld bars by. */
-export const beforeRecordCodeOf = (record) => (record && record.family === 'financial' ? FINANCIAL_UNKNOWN_CODE : EVENT_BEFORE_RECORD_CODE)
+/** ⭐⭐ T4 B2 — the per-bar code for a bar withheld because it lies before UCT's breadth counts begin (a `USI:` read,
+ *  `otherSymbols.js::markBreadthSeries`: the record's `code`; the member's words: `pineBreadth.js::
+ *  breadthBeforeRecordSentence`). */
+export const BREADTH_BEFORE_RECORD_CODE = 'other-symbol:breadth-before-record'
+/** ⭐ ONE READING of the per-bar code a placed series' record (`SERIES_EVENT_RECORD`) names its withheld bars by (train
+ *  e95: T4 F1b's and T4 B2's readings, one function): a record that names its own `code` (a breadth spelling's, T4 B2)
+ *  is that code; a `financial` family's is `FINANCIAL_UNKNOWN_CODE` (T4 F1b); any other is an event family's.
+ *  `pineBreadth.js::recordCode` reads through this. */
+export const beforeRecordCodeOf = (record) => (record && typeof record.code === 'string' ? record.code
+  : record && record.family === 'financial' ? FINANCIAL_UNKNOWN_CODE : EVENT_BEFORE_RECORD_CODE)
 
 /** ⭐⭐ C26 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON AN OTHER-SYMBOL BAR WE
  *  DO NOT HOLD, as a 0/1 column (1 = withheld), or null when nothing is withheld.
@@ -9479,7 +9487,8 @@ export function eventBeforeRecordMask(tree, bars, opts, code = EVENT_BEFORE_RECO
     seen.add(node)
     if (node.type === 'sym' && !under) {
       const series = supplied[String(node.value).trim().toUpperCase()]
-      // ⭐ T4 F1b — one mask per per-bar code (an event family's record, or a financial read's)
+      // ⭐ T4 F1b / T4 B2 — one mask per per-bar code: only the records of THIS code (an event family's, a financial
+      // read's, or a breadth spelling's)
       if (Array.isArray(series) && series[SERIES_EVENT_RECORD] && beforeRecordCodeOf(series[SERIES_EVENT_RECORD]) === code) nodes.push([node, series])
     }
     const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === LTF
@@ -9668,6 +9677,8 @@ function withSymAlignment(ast, bars, out, opts) {
   sinkPerBar(opts, EVENT_BEFORE_RECORD_CODE, eventBeforeRecordMask(ast, bars, opts))
   // ⭐⭐ T4 F1b — and the bars a financial read withholds, by their own name
   sinkPerBar(opts, FINANCIAL_UNKNOWN_CODE, eventBeforeRecordMask(ast, bars, opts, FINANCIAL_UNKNOWN_CODE))
+  // ⭐⭐ T4 B2 — and the bars before UCT's breadth counts begin, by their own name
+  sinkPerBar(opts, BREADTH_BEFORE_RECORD_CODE, eventBeforeRecordMask(ast, bars, opts, BREADTH_BEFORE_RECORD_CODE))
   const mask = symAlignmentMask(ast, bars, opts)
   if (!mask) return out
   const copy = Float64Array.from(out)

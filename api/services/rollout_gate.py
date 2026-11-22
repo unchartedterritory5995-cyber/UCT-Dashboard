@@ -729,8 +729,10 @@ PINE_OBJECTS_X_DIVERGE = "DIVERGE"
 #: captured on CLOSED bars (E0); an event landing on a forming bar is not graded (W-E5), so history-only.
 #: `request-financial` (T4 F1b): the chart's own figures from company filings; a filing can become public while a bar
 #: forms, and no capture grades that bar, so history-only.
+#: `request-breadth` (T4 B2, NUMBER PENDING): a `USI:` read served from UCT's daily breadth counts; a forming session's
+#: count is not witnessed (Q-T4-B1 is a pre-open capture), so history-only.
 PINE_CAPABILITY_FORMING_UNGRADED = frozenset({"realtime-state", "varip", "request-other", "request-events",
-                                              "request-financial"})
+                                              "request-financial", "request-breadth"})
 #: U15 (coordinator ruling 2026-11-15): one row PER LIBRARY VERSION, `library:Author/Library/N`.
 #: The row pins the version by `sha256` (the sha of the library source the evidence graded), and an
 #: evidence entry counts only when its `library` names that path AND that sha: an entry graded

@@ -763,6 +763,13 @@
       "evidence": [],
       "note": "T4 F1b (2026-11-22): `request.financial` on the chart's own symbol for the ids and periods pineDataCatalog.json maps (financial.fields), served as UCT data from company filings (F1a, GET /api/pine/financial/<symbol>, dark behind PINE_FINANCIAL_SUPPLY_ENABLED) and placed on the first bar closing after each filing became public, on daily, weekly and monthly charts. NEVER graded as TradingView's figures (Studio ruling 2026-11-14), so no MATCH can admit it: its evidence is the census and the grade diff naming every such plot a UCT-data substitution (docs/pine/evidence/2026-11-22-t4-f1b-financial-engine/EVIDENCE.md). History-only (rollout_gate.PINE_CAPABILITY_FORMING_UNGRADED). The coordinator admits it with the flag."
     },
+    "request-breadth": {
+      "status": "pending",
+      "admitted": false,
+      "scope": "closed-bar-history",
+      "evidence": [],
+      "note": "T4 B2 (2026-11-22, NUMBER PENDING): TradingView's `USI:` breadth spellings (NYSE and Nasdaq advancing, declining and unchanged issues, ADD, ADDQ) served from UCT's own breadth counts (B1, GET /api/pine/breadth/<spelling>, dark behind PINE_BREADTH_SUPPLY_ENABLED), labelled UCT breadth data (our own counts), not the exchange's official figures, and graded MATCH_SUBSTITUTED or a named divergence, never MATCH. Each spelling is served only once its capture witnesses the alignment (Q-T4-B1 daily, Q-T4-B2 weekly / monthly; requestWitnesses.json rows of kind breadth). NOT ADMITTED until two scripts (one community) grade MATCH_SUBSTITUTED with the runtime pane on against our production supply; history-only (rollout_gate.PINE_CAPABILITY_FORMING_UNGRADED): a forming session's count is not witnessed. The coordinator admits it with the flag."
+    },
     "request-other": {
       "status": "conformant",
       "admitted": true,

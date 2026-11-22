@@ -549,7 +549,9 @@ function eventRecordsOf(symbols) {
         ...(r.window ? { window: r.window } : {}),
         // ⭐⭐ T4 F1b — a financial read's id, period and why its newest withheld bar is withheld (its sentence)
         ...(r.family === 'financial' ? { field: r.field || null, period: r.period || null,
-          unknown: r.unknown ? { why: r.unknown.why, day: r.unknown.day } : null } : {}) })
+          unknown: r.unknown ? { why: r.unknown.why, day: r.unknown.day } : null } : {}),
+        // ⭐⭐ T4 B2 — a breadth spelling's record: its per-bar code and what the strip names it by
+        ...(typeof r.code === 'string' ? { code: r.code, spelling: r.spelling || null, exchange: r.exchange || null } : {}) })
     }
   }
   return out

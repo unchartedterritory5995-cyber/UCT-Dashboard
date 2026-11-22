@@ -42,7 +42,8 @@ import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/run
 import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
 import { setRuntimeDoorClock, RUNTIME_REQUEST_WITHHELD_KEY } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
-import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY, isEventRequest } from '../../otherSymbols'
+import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY, isEventRequest,
+  breadthReadsOf } from '../../otherSymbols'
 import { EVENTS_KEY } from '../../pineEvents'
 // ⭐⭐ T4 F1b — the chart's own financial figures (UCT data, never graded as TradingView's)
 import { FINANCIAL_KEY, financialReadOf } from '../../pineFinancial'
@@ -2157,6 +2158,9 @@ function runOurSideOnTheParityClock(capture) {
       // ⭐⭐ T4 F1b — the reads this run answered from UCT data and NEVER from the vendor's figures: the grade names
       // them and never counts MATCH (`compare.mjs::uctDataOf`)
       uctData: uctDataReadsOf(def),
+      // ⭐⭐ T4 B2 — the `USI:` spellings this run read from UCT breadth (`otherSymbols.breadthReadsOf`): the grade never
+      // reads MATCH on them (`compare.mjs`, coordinator ruling 2026-11-22)
+      breadth: breadthReadsOf(def),
       // ⭐⭐ (2026-11-17) — a broker document's run: its record, or why it published none (`strategyRunOf`);
       // null for every other document. Graded by `strategyLane.js`.
       strategy,

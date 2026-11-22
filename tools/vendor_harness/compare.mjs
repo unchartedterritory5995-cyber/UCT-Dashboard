@@ -1171,6 +1171,21 @@ export function compareCapture(capture, ours, opts = {}) {
     if (out.verdictWithoutColour) out.verdictWithoutColour = asSubstituted(out.verdictWithoutColour)
     out.plots = out.plots.map((p) => (p.verdict === 'MATCH' ? { ...p, verdict: MATCH_SUBSTITUTED } : p))
   }
+  // ⭐⭐ T4 B2 (coordinator ruling 2026-11-22) — A RUN THAT READS UCT BREADTH NEVER READS MATCH. A `USI:` spelling is served
+  // from UCT's own counts (`app/src/components/chart/engine/pineBreadth.js`), which differ from the exchanges' official
+  // issue counts by construction: an all-agree grade is MATCH_SUBSTITUTED, anything else stays what it is (a DIVERGE is
+  // the named divergence the reason carries). Fail closed, as L7: every plot is relabelled. `ours.breadth` is our side's
+  // own report (`{spellings, words}`: the engine's words, never restated here).
+  const breadth = ours && ours.breadth && Array.isArray(ours.breadth.spellings) && ours.breadth.spellings.length ? ours.breadth : null
+  if (breadth) {
+    out.breadthRead = { spellings: [...breadth.spellings], words: String(breadth.words || '') }
+    out.verdict = asSubstituted(out.verdict)
+    const said = `${out.breadthRead.words} (${out.breadthRead.spellings.join(', ')})`
+    out.reason = out.verdict === MATCH_SUBSTITUTED ? `${out.reason}, on ${said}` : `${out.reason}; this script reads ${said}`
+    if (out.verdictWithoutPaints) out.verdictWithoutPaints = asSubstituted(out.verdictWithoutPaints)
+    if (out.verdictWithoutColour) out.verdictWithoutColour = asSubstituted(out.verdictWithoutColour)
+    out.plots = out.plots.map((p) => (p.verdict === 'MATCH' ? { ...p, verdict: MATCH_SUBSTITUTED } : p))
+  }
   // ⭐⭐ T4 F1b (Studio ruling 2026-11-14) — A RUN THAT READ UCT DATA IN PLACE OF TRADINGVIEW'S FIGURES NEVER READS
   // MATCH. Our side names each such read (`ours.uctData`: `[{name, source}]`, e.g. `request.financial` from company
   // filings) and was NOT fed the vendor's value, so nothing here can prove the number: whatever agreed is graded

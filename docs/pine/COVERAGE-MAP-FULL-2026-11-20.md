@@ -104,7 +104,7 @@ Sole: the unit is the script's only wall (a fix of it alone serves the script). 
 |---|---|---:|---:|---:|---:|---:|---:|
 | `objects` | engine | 453 (441) | 602 | 1 | 43 | 71 | 2 |
 | `strategy` | owner | 249 (183) | 427 | 2 | 45 | 70 | 1 |
-| `request` | engine | 176 (111) | 531 | 3 | 23 | 64 | 3 |
+| `request` | engine | 176 (111) | 531 | 3 | 21 | 64 | 3 |
 | `builtins` | engine | 172 (143) | 1147 | 4 | 18 | 150 | 4 |
 | `dynamic-history` | engine | 93 (78) | 315 | 5 | 6 | 44 | 6 |
 | `statements` | engine | 80 (58) | 563 | 6 | 3 | 54 | 9 |
@@ -116,7 +116,7 @@ Sole: the unit is the script's only wall (a fix of it alone serves the script). 
 | `compute-budget` | engine | 17 (14) | 47 | 12 | 3 | 6 | 12 |
 | `request-with-state` | engine | 16 (11) | 156 | 13 | 3 | 27 | 10 |
 | `imperative-host` | engine | 15 (15) | 43 | 14 | 0 | 6 | 30 |
-| `robustness` | engine | 15 (2) | 40 | 15 | 0 | 1 | 34 |
+| `robustness` | engine | 15 (2) | 40 | 15 | 0 | 1 | 35 |
 | `call-mapping` | engine | 14 (13) | 96 | 16 | 1 | 7 | 20 |
 | `functions` | engine | 13 (6) | 148 | 17 | 0 | 16 | 22 |
 | `unmapped` | engine | 13 (13) | 33 | 18 | - | - | - |
@@ -131,11 +131,11 @@ Sole: the unit is the script's only wall (a fix of it alone serves the script). 
 | `known-lists` | engine | 3 (3) | 11 | 27 | 3 | 11 | 11 |
 | `admit:calc-bars` | evidence | 2 (2) | 67 | 28 | 1 | 9 | 18 |
 | `admit:collections:map` | evidence | 2 (2) | 57 | 29 | 0 | 8 | 27 |
-| `admit:enum` | evidence | 2 (2) | 44 | 30 | 0 | 4 | 31 |
+| `admit:enum` | evidence | 2 (2) | 44 | 30 | 0 | 4 | 32 |
 | `detector` | engine | 1 (1) | 31 | 31 | 0 | 7 | 29 |
 | `admit:obj:polyline` | evidence | 0 (0) | 122 | 32 | 0 | 9 | 25 |
 | `types` | engine | 0 (0) | 70 | 33 | 0 | 11 | 24 |
-| `realtime` | engine | 0 (0) | 8 | 34 | 0 | 3 | 32 |
+| `realtime` | engine | 0 (0) | 8 | 34 | 0 | 3 | 33 |
 
 What the full population changes:
 
