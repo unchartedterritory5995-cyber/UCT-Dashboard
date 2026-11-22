@@ -299,19 +299,23 @@ describe('a held device copy asked for again', () => {
   })
 
   it('N2 a NEWER copy is still taken, rows and all', async () => {
+    // the first copy is complete through Thursday (no Friday row); the newer one holds Friday too
     let through = THROUGH - 86400
     let cached = false
-    const hit = () => ({ n: ROWS.length, through, savedAt: through * 1000, get rows() { return ROWS } })
+    const rowsNow = () => (through === THROUGH ? ROWS : ROWS.slice(0, -1))
+    const hit = () => ({ n: rowsNow().length, through, savedAt: through * 1000, get rows() { return rowsNow() } })
     const device = { peek: vi.fn(() => (cached ? hit() : null)), read: vi.fn(async () => { cached = true; return hit() }) }
     const { store, pf } = boot({ device })
     const key = keyOf({ sym: 'MINE', tf: 'D' })
     pf.warmMemFromIDB(['MINE'], ['D'])
     await settle()
     expect(store.persist.deviceThroughOf(key)).toBe(THROUGH - 86400)
+    expect(store.peek(key).bars).toHaveLength(ROWS.length - 1)
     through = THROUGH
     pf.deviceWarm('MINE', 'D')
     await settle()
     expect(store.persist.deviceThroughOf(key)).toBe(THROUGH)
+    expect(store.peek(key).bars).toHaveLength(ROWS.length)   // Friday's row is in
     store.dispose()
   })
 })
