@@ -1187,6 +1187,9 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   const left = ex.size ? charts.filter(c => !ex.has(c.ref)) : []
   if (left.length === 1 && !offBoardTicker(words, charts)) named.add(left[0].ref)
   const kept = withoutExclusions(words)
+  // (H-RDR-1) the charts the words name OUTSIDE their exclusions are named too: "do not touch chart 1; set chart 4 to weekly" names
+  // chart 4 (the ordinal reader takes only the first ordinal in the words, and that one is the excluded chart)
+  if (kept !== words) for (const r of chartsNamedBy(kept, charts)) if (!ex.has(r)) named.add(r)
   // (#988) a position said only to EXCLUDE a chart ("log on the one I selected, not the left one") is no place the request names
   const said = chartPositions(withoutExclusions(words))
   const answered = (pickedRefs || []).some(Boolean)

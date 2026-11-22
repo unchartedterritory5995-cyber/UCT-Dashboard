@@ -115,7 +115,26 @@ const NEGATED = [
   ['chart.setTimeframe (weekly)', "don't make the SPY chart weekly", ['TL']], ['chart.setTimeframe (weekly)', 'leave the bottom row as is but switch it to weekly', ['BL', 'BR']],
   ['widget.remove', 'do not close the second chart', ['TR']], ['widget.remove', "don't delete the top-left one", ['TL']],
   ['widget.remove', 'never remove the left chart', ['TL', 'BL']],
+  // (AUDIT T2) an aside, a serial verb, a formal cue, an additive second exclusion
+  ['chart.setTimeframe (weekly)', "don't, if you can help it, change the top-left one to weekly", ['TL']],
+  ['indicator.add (RSI)', "don't go and add RSI to the second chart", ['TR']],
+  ['chart.setTimeframe (weekly)', 'under no circumstances should you switch chart 3 to weekly', ['BL']],
+  ['indicator.add (RSI)', 'add RSI to every chart but leave the top-left one alone, and the bottom-right one too', ['TL', 'BR']],
 ]
+describe('a real positive command after a negation still runs on its own chart (real panel)', () => {
+  it.each([
+    ["don't change the top-left one, and switch the bottom-right one to weekly", 'BR', 'TL'],
+    ["don't touch the SPY chart; set the AMD chart to weekly", 'BR', 'TL'],
+  ])('"%s": a plan on %s runs; %s never changes', async (t, runs, spared) => {
+    const f = FAMILIES['chart.setTimeframe (weekly)']
+    const m = mount(null)
+    const before = stored(m.board, spared)
+    p.st.envelopes.push(f.plan('apply', [runs]))
+    await m.say(t)
+    expect(f.changed(m.board), transcript()).toEqual([runs])
+    expect(stored(m.board, spared)).toBe(before)
+  }, 60000)
+})
 describe('a negated imperative is never executed on the chart it names (real panel)', () => {
   it.each(NEGATED.flatMap(([fam, t, named]) => [[fam, t, named, null], [fam, t, named, named[0]]]))('%s · "%s" (names %j, clicked %s)', async (fam, t, named, sel) => {
     const f = fam === 'widget.remove' ? REMOVE : FAMILIES[fam]
