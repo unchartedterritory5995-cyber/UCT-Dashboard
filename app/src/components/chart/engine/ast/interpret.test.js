@@ -1200,9 +1200,12 @@ describe('the interpreter is PURE', () => {
     // ⭐ U-HTF-CALENDAR (2026-11-18) — `lib/marketClock/tradingViewSession.js` (TradingView's session facts, read by
     // `htfClosesOnNextBar`) is a SEVENTH edge that widens nothing: it is already inside the scanned closure as
     // `indicators.js`'s one edge, scanned below with its own allowlist and its own imports pinned.
+    // ⭐⭐ Q-CLOSURE (2026-11-21) — `lib/marketClock/sessionCalendar.js` (the NYSE's full closures and the dataset's
+    // horizon, read by `sessionKeying`'s S2) is an EIGHTH edge that widens nothing either: it is `tradingViewSession.js`'s
+    // one edge, scanned below with its own allowlist and its own imports pinned.
     expect(got.imports.sort())
-      .toEqual(['../../../../lib/marketClock/tradingViewSession.js', '../../indicators.js', '../pineCompare.js',
-        './barIndexShift.js', './budget.js', './parse.js', './sentence.js'])
+      .toEqual(['../../../../lib/marketClock/sessionCalendar.js', '../../../../lib/marketClock/tradingViewSession.js',
+        '../../indicators.js', '../pineCompare.js', './barIndexShift.js', './budget.js', './parse.js', './sentence.js'])
     const cmpSrc = fs.readFileSync(path.join(path.dirname(SELF), '..', 'pineCompare.js'), 'utf8')
     expect(cmpSrc.length).toBeGreaterThan(2000)
     const cmpScan = scan(acorn.parse(cmpSrc, { ecmaVersion: 2023, sourceType: 'module' }))

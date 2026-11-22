@@ -6,6 +6,9 @@
   python tools/value_eval.py --answers <run_dir> --full [--write]
                                                       # the same, as a full run under the ratchet (exit 1 below a threshold);
                                                       # --write records the thresholds the first full run sets
+  python tools/value_eval.py --answers <run_dir> --adopt
+                                                      # make this run's RIGHT answers the record (a wrong one never is)
+  python tools/value_eval.py --stale                  # which records were made before the door's files last changed
   python tools/value_eval.py --rule-digest <case id>  # the fingerprint of a rule as it stands (for rule.history)
 
 A run folder holds one `<id>-0.body.json` per request: the door's whole answer to it, as the recorder that drives
@@ -17,6 +20,7 @@ threshold). Exit 1: something did. Exit 2: the run could not be graded.
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -28,6 +32,16 @@ from tools.value_cases import grade as G  # noqa: E402
 
 FIXTURE = ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json"
 LANES = ("formula", "wall", "script")
+#: what the door's answers are written FROM: a record made before one of these last changed is stale, and a
+#: stale record says what the door answered then, not what it answers now. Re-run it live (tools/value_record.py).
+DOOR_PATHS = (
+    "api/services/definition_conversation.py",
+    "api/services/script_conversation.py",
+    "api/services/pine_authoring.py",
+    "app/src/components/chart/supportLoop/assistantPineReference.json",
+    "app/src/components/chart/supportLoop/assistantRecipes.json",
+    "app/src/components/chart/engine/scriptEngineVersion.js",
+)
 
 
 def answer_of(body):
@@ -44,43 +58,132 @@ def answer_of(body):
 
 
 def grade_run(data, run_dir):
-    """{scores: {lane: {right, of}}, changed: [{id, lane, was, now, lines}], full: every case was answered}"""
+    """{scores: {lane: {right, of, answered}}, changed: [{id, lane, was, now, lines}], full: every case was answered,
+    full_lanes: [the lanes whose every case was answered and graded], verdicts, answers}"""
     run_dir = Path(run_dir)
     scores, changed, answered = {}, [], 0
+    verdicts, fresh = {}, {}
+    scripts, script_answers = [c for c in data["cases"] if c["lane"] == "script"], {}
     for case in data["cases"]:
         if case["lane"] == "script":
-            continue                                               # graded through the browser engine, not here
-        lane = scores.setdefault(case["lane"], {"right": 0, "of": 0})
+            continue                                               # graded below, through the browser engine
+        lane = scores.setdefault(case["lane"], {"right": 0, "of": 0, "answered": 0})
         lane["of"] += 1
         path = run_dir / f"{case['id']}-0.body.json"
         if path.exists():
             answered += 1
-            result = G.grade_case(case, answer_of(json.loads(path.read_text(encoding="utf-8"))))
+            lane["answered"] += 1
+            fresh[case["id"]] = answer_of(json.loads(path.read_text(encoding="utf-8")))
+            result = G.grade_case(case, fresh[case["id"]])
             now, lines = result["verdict"], result["lines"]
         else:
             now, lines = "no answer", []
+        verdicts[case["id"]] = now
         lane["right"] += now == "right"
         # the record is held right by tests/test_value_cases.py; it is graded again only to describe a change
-        was = "right" if now == "right" else G.grade_case(case)["verdict"]
+        # (a case recorded WRONG is a known defect: `was` is that, so the run that gets it right names the change)
+        was = case.get("recorded_verdict") or ("right" if now == "right" else G.grade_case(case)["verdict"])
         if now != was:
             changed.append({"id": case["id"], "lane": case["lane"], "was": was, "now": now, "lines": lines})
     total = sum(v["of"] for v in scores.values())
-    return {"scores": scores, "changed": changed, "full": answered == total}
+    full = answered == total
+    if scripts:
+        for case in scripts:
+            path = run_dir / f"{case['id']}-0.body.json"
+            if path.exists():
+                script_answers[case["id"]] = answer_of(json.loads(path.read_text(encoding="utf-8")))
+        if script_answers:
+            lane = scores.setdefault("script", {"right": 0, "of": len(scripts), "answered": len(script_answers)})
+            try:
+                from tools.value_cases import script_grade
+                got = script_grade.grade_all([c for c in scripts if c["id"] in script_answers], script_answers)
+            except Exception as exc:  # noqa: BLE001 -- no node here: the lane is NOT graded, and the run is not full
+                lane["not_graded"] = str(exc)[:200]
+                full = False
+            else:
+                fresh.update(script_answers)
+                for case in scripts:
+                    now = got[case["id"]]["verdict"] if case["id"] in got else "no answer"
+                    verdicts[case["id"]] = now
+                    lane["right"] += now == "right"
+                    was = case.get("recorded_verdict", "right")     # the record is held by tests/test_value_cases_scripts.py
+                    if now != was:
+                        changed.append({"id": case["id"], "lane": "script", "was": was, "now": now, "lines": (got.get(case["id"]) or {}).get("lines", [])})
+                full = full and len(script_answers) == len(scripts)
+    full_lanes = sorted(name for name, v in scores.items() if v["answered"] == v["of"] and "not_graded" not in v)
+    return {"scores": scores, "changed": changed, "full": full, "full_lanes": full_lanes, "verdicts": verdicts, "answers": fresh}
+
+
+def record_of(case, answer):
+    """A fresh answer cut to what a case keeps: what is graded, nothing else of the response."""
+    if case["lane"] == "formula":
+        return {"contract": "uct.authoring.patch/1", "ops": answer.get("ops")}
+    if case["lane"] == "script":
+        return {"turn": "script", "script": {"pine": (answer.get("script") or {}).get("pine")}}
+    return {"disposition": answer.get("disposition"), "reply": answer.get("reply")}
+
+
+def adopt(data, report, stamps):
+    """Make a run's RIGHT answers the record. A wrong or missing one is never adopted: the old record stands.
+    Returns (adopted ids, kept ids). Mutates data."""
+    adopted, kept = [], []
+    for case in data["cases"]:
+        if report["verdicts"].get(case["id"]) == "right" and case["id"] in report["answers"]:
+            case["answer"] = record_of(case, report["answers"][case["id"]])
+            case.pop("recorded_verdict", None)                     # a known defect the door now gets right is one no longer
+            case.pop("defect", None)
+            case["recorded"] = {"on": str(stamps.get("started") or "")[:10], "front": stamps.get("front"), "model": stamps.get("model")}
+            adopted.append(case["id"])
+        else:
+            kept.append(case["id"])
+    return adopted, kept
+
+
+def _git(*args):
+    return subprocess.run(["git", *args], cwd=str(ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace")
+
+
+def stale(data, changed_since=None):
+    """{case id: why}: records made on a build whose door files differ from this tree's, or on an unknown build.
+    `changed_since(build) -> list of changed door files, or None when the build is unknown` (git, by default)."""
+    def by_git(build):
+        if _git("cat-file", "-e", build + "^{commit}").returncode != 0:
+            return None
+        return _git("diff", "--name-only", build, "HEAD", "--", *DOOR_PATHS).stdout.split()
+    changed_since = changed_since or by_git
+    out, seen = {}, {}
+    for case in data["cases"]:
+        build = (case.get("recorded") or {}).get("front")
+        if not build:
+            out[case["id"]] = "no build recorded"
+            continue
+        if build not in seen:
+            changed = changed_since(build)
+            seen[build] = ("the recorded build is not in this clone" if changed is None
+                           else ("changed since: " + ", ".join(sorted(p.rsplit("/", 1)[-1] for p in changed))) if changed else None)
+        if seen[build]:
+            out[case["id"]] = seen[build]
+    return out
 
 
 def apply_ratchet(data, report):
-    """The first FULL run writes each lane's threshold; a later full run below one is red. Mutates data['thresholds']."""
-    if not report["full"]:
-        return {"ok": True, "below": [], "note": "not a full run: the thresholds are neither written nor tested"}
+    """LANE BY LANE: the first run that answers EVERY case of a lane writes that lane's threshold; a later such run
+    below it is red. A lane with a request unanswered (or not graded) is neither written nor tested.
+    Mutates data['thresholds']."""
+    if not report["full_lanes"]:
+        return {"ok": True, "below": [], "note": "no lane was fully answered: the thresholds are neither written nor tested"}
     below, wrote = [], []
-    for lane, score in report["scores"].items():
+    for lane in report["full_lanes"]:
+        score = report["scores"][lane]
         line = data["thresholds"].get(lane)
         if line is None:
             data["thresholds"][lane] = score["right"]
             wrote.append(lane)
         elif score["right"] < line:
             below.append(lane)
-    return {"ok": not below, "below": below, "note": (f"thresholds written for {wrote}" if wrote else "thresholds held")}
+    held = [lane for lane in report["full_lanes"] if lane not in wrote and lane not in below]
+    return {"ok": not below, "below": below, "note": f"thresholds written for {wrote}; held on {held}; lanes not fully answered: "
+                                                     f"{sorted(set(report['scores']) - set(report['full_lanes']))}"}
 
 
 def main(argv):
@@ -91,9 +194,20 @@ def main(argv):
     if "--requests" in argv:
         print(json.dumps({"requests": [{"id": c["id"], "words": c["words"]} for c in data["cases"]]}, indent=1, ensure_ascii=False))
         return 0
+    if "--stale" in argv:
+        old = stale(data)
+        for lane in LANES:
+            ids = [c["id"] for c in data["cases"] if c["lane"] == lane]
+            print(f"{lane}: {sum(1 for i in ids if i in old)} of {len(ids)} records are stale")
+        for why in sorted(set(old.values())):
+            ids = sorted(i for i, w in old.items() if w == why)
+            print(f"  {len(ids)} x {why}: {' '.join(ids[:12])}{' ...' if len(ids) > 12 else ''}")
+        return 0
     if "--answers" not in argv:
         tally = {}
         for case in data["cases"]:
+            if case["lane"] == "script":
+                continue                                           # tests/test_value_cases_scripts.py, or --answers
             result = G.grade_case(case)
             tally.setdefault(case["lane"], []).append(result["verdict"])
             if result["verdict"] != "right":
@@ -116,9 +230,18 @@ def main(argv):
         print(f"{lane}: {score['right']} of {score['of']} right in this run (threshold {data['thresholds'].get(lane)})")
     worse = [row for row in report["changed"] if row["was"] == "right" and row["now"] not in ("right", "no answer")]
     code = 1 if worse else 0
+    if "--adopt" in argv:
+        stamps_path = run_dir / "run.json"
+        stamps = json.loads(stamps_path.read_text(encoding="utf-8")) if stamps_path.exists() else {}
+        if not stamps.get("front"):
+            print("NOT ADOPTED: the run folder has no run.json naming the build it was recorded on")
+            return 2
+        adopted, kept = adopt(data, report, stamps)
+        FIXTURE.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+        print(f"adopted {len(adopted)} right answers as the record (build {stamps['front']}); kept the old record for {len(kept)}")
     if "--full" in argv:
-        if not report["full"]:
-            print("NOT A FULL RUN: some requests have no answer in this folder; the thresholds are neither written nor tested")
+        if not report["full_lanes"]:
+            print("NO LANE WAS FULLY ANSWERED in this folder: the thresholds are neither written nor tested")
             return 2
         verdict = apply_ratchet(data, report)
         print(verdict["note"])

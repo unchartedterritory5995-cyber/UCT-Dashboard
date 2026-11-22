@@ -76,7 +76,8 @@ cross: crypto and other feeds, tick footprints, non-commercial libraries. On the
 
 ## 3. Tonight: finishing what was in flight
 
-The order is the dependency order.
+The order is the dependency order. The table is the plan as written; section 8 records what has
+moved since.
 
 | # | item | state | next step | holder |
 |---:|---|---|---|---|
@@ -272,13 +273,180 @@ Nothing in section 3 waits on these.
 
 ## 7. Sequence after tonight
 
-1. e93 lands.
-2. The paste chain lands.
-3. e94 lands.
-4. **Census at e94** on both lines: by version, history-only, and the strategy census fixed.
+1. e93 lands. **Done 11-22:** production serves engine 93.
+2. **e94 lands:** the paste chain and the deterministic budgets, in one train (ruled 11-22).
+3. **Census at e94** on both lines: by version, history-only, and the strategy census fixed.
+4. **U-DAILY** (track 4b), moved up on 11-22 to the next engine unit. It covers a daily value on an
+   intraday chart, together with intraday markers or another symbol in the same script. Its acceptance
+   cases are the requests the day-length guard can only answer with a question today.
 5. Forming-bar witnesses (track 1a), with track 6 staged in parallel.
 6. Track 1 units in the full-population order, re-ranked by member demand (track 7).
 7. Intraday measurement (track 4b).
 8. Translator performance (track 2).
 
 The sealed WRITE eval (track 7) starts now in the studio's lane. Nothing above blocks it.
+
+## 8. Progress log
+
+### 2026-11-22 (the night of 11-21)
+
+**Merged.**
+- #2394, the objects grader: orphan line fills; supply recorded before the session; a v1 MATCH cannot
+  stand over an objectsV2 DIVERGE. The grade diff moved only the expected rows. Member-visible: none.
+- #2029: host-parity digests re-recorded at engine 92 (167 of 167).
+- #2405: Agent CI now runs on the licensing register the data-terminal suites read. This was a latent red
+  on master.
+- #2411: a script held back on a forming bar names the server's reason ("reads another symbol or
+  timeframe", varip, or barstate), not always barstate.
+- Studio:
+  - #2389: last month's value with no offset;
+  - #2396: a value that starts on a date starts fresh;
+  - #2398, #2402, #2404, #2408, #2412: the WRITE eval, units 1 to 4 plus the j06 oracle fix;
+  - #2413: the door refuses a timeframe or symbol read of a constant, and a placeholder reply;
+  - #2410: a cross-timeframe or cross-symbol read the member did not ask for is sent back once.
+- #2422: FMP deep intraday history for SPX and NDX. Settled sessions come from FMP, the live tail stays on
+  yfinance, and half-days, the seam and the atomic store are railed. It fixes Fred RS's intraday line,
+  which was blank before about 60 days back.
+
+**Train e93** (#2418): #2280, #2302, #2331, #2388.
+- Prod ratchet 60 = 60. Runtime-on 93 -> 96, with 0 lost.
+- HP-0 moved nothing.
+
+**The WRITE eval** is on master and gates every PR that touches the door or the engine. The record now:
+
+| lane | right | the miss |
+|---|---|---|
+| formula | 101 of 101 | none |
+| wall | 28 of 28 | none |
+| script | 16 of 17 | j06, named |
+
+Its findings, each now fixed or in a PR:
+- **j06, oracle drift.** The rule was mirroring the script's `[1]`. A look-back placed outside
+  `request.security` made the value a whole period stale. Fix: rule 12, #2423.
+- **y02, a constant read as a timeframe.** The door accepted a placeholder reply and a `tf(0, W)`. Fixed
+  in #2413.
+- **Written dates.** The model's own epoch arithmetic was 4 days off, and when unsure it asked the member
+  for epoch seconds. Fix: the door resolves written dates, #2421.
+- **`plotchar` for numbers.** It draws nothing. Fix: a sentence telling the assistant to use a label
+  (queued).
+- **`request-other` written without being offered.** It stays not offered until track 1a's evidence lands.
+  A script that reads one the member did not ask for is repaired (#2410).
+
+**The paste chain (track 2).** The worker removes the main-thread stalls: A from 120 s to 3-5 s, B from
+40 s to 1 s.
+- But 3 of 6 AFTER runs were refused: the translator's 10 s wall window, and a clock-dependent door
+  answer.
+- **RULED: e94 = the paste chain (#2254, #2364, #2367) + the deterministic translate budgets, shipped
+  together.**
+- The next trace is taken with source maps. Its bar: 0 refusals, no door or translate task over 50 ms on
+  the main thread, and wall time within 10% of before or explained.
+
+**The live session (track 1a).**
+- `barstate.isnew` is refused on both lanes (RULING-0927: it needs per-tick evaluation). That becomes a
+  future unit.
+- Monday 11-23 Q-BSF: the barstate probe on SPY and QQQ (1D and 5) plus the community witness
+  renko-candles-overlay on SPY, QQQ, IWM and DIA (5).
+- Tuesday and Wednesday: Q-HTF-FORM v2, including an object-program table that reads another timeframe
+  (j06). That table draws all session with ungraded values, and this witnesses them.
+
+**Data.**
+- The 13-symbol pre-floor split heal was confirmed NOT served (the reboot killed the publish). The dry
+  re-check passed; the publish was re-run on the owner's go.
+- New evidence for track 4b: a 14-day ATR on a 5-minute chart is the U-DAILY wall.
+- New evidence for track 1: an event-latched `var` together with another symbol is the
+  `request-with-state` wall.
+
+**Next.**
+1. e93 lands, then the census at e93 on both lines.
+2. The e94 combined train.
+3. The first full live WRITE run, as bench@.
+4. Monday's captures.
+5. The engine follow-ups:
+   - the run-colour and run-half guard sentences take their reason from #2411's builder;
+   - the host door grades bars before an other-symbol supply begins as `na` instead of withholding them
+     (`SERIES_UNKNOWN_BEFORE_FIRST`).
+
+### 2026-11-22, later (to 05:30Z)
+
+**Live.** Production serves engine 93 (checked 01:22Z). #2424, the entry above, merged after its gate.
+
+**Merged since the entry above.**
+- #2423, rule 12: a value on another timeframe is read as it stands. A look-back goes inside the request
+  only for "last week's". This closes the j06 oracle drift.
+- #2427: run colours and run halves say the server's forming-bar reason (the follow-up to #2411).
+- #2426: Fred RS's weekly re-take, with SPX held after the close. The weekly labels grade
+  MATCH_SUBSTITUTED.
+- #2430: the sin/asin composition's one-ulp difference (123 of 8,511 bars) is filed as a NAMED
+  divergence, not a defect. Row 6's math.sin half is closed; Q-CF stays open.
+- #2409, #2414: the j06 other-timeframe table evidence, and Monday's probe revised. The first community
+  witness was refused on both lanes, so another one replaced it.
+
+**Data.**
+- **The 13-symbol heal is served and checked.**
+  - 34 of 35 checked closes match TradingView.
+  - The false split cliffs on ONB and TMP are gone.
+  - Six control symbols did not move.
+  - The one miss: ODC's 27 July 1983 bar is in the published file but not served, so a read-side filter
+    drops it. It predates the heal and is logged as a data item.
+- **The next batch, v3, is staged:** 13 more symbols, 10 pre-floor split corrections and 3 vendor split
+  dates, each checked against TradingView. The order is dry run, publish, then a served check.
+- **60-minute index history stays Yahoo's 730 days.**
+  - FMP's hourly series matched TradingView on 32% of bars, against Yahoo's 71%, and FMP's 5-minute
+    roll-up is no better.
+  - So Fred RS's 60-minute line stays blank before about two years back, until an hourly source that
+    matches TradingView exists.
+  - The limit is stated in #2422.
+- **#2429 (rides e94): a bar before another symbol's first held row is withheld.**
+  - Such a bar is withheld by name, never read as `na`. Its words: "Not drawn before <date>: UCT intraday
+    history of SPX starts there".
+  - SPY 5/30/60 `na` mismatches: 9,203 / 21,275 / 11,969 -> 0.
+
+**WRITE.**
+- **Ruled: a disclosed stand-in is not a build.** Sometimes the member's words need something the engine
+  cannot build, such as a 14-day ATR on a 5-minute chart. Then:
+  - the door refuses by name;
+  - it offers the nearest builds as one-tap choices;
+  - it builds only what the member picks.
+- **The day-length guard (ruled B).**
+  - It covers requests like "the 50 day average" on a 5-minute chart. 61 of 200 recorded requests write an
+    explicit day length, and the guard had zero false positives on them.
+  - About half can be built on a daily calc timeframe. The rest, a marker or another symbol in the same
+    script, can only end at a question today.
+  - So the guard ships with a good question: two choices, with spans in trader words ("50 five-minute bars,
+    about 4 hours").
+  - U-DAILY moves up to the next engine unit after e94 (section 7). Its 11 own-round requests are public
+    acceptance cases: walls today, each must build right when U-DAILY lands.
+- **Studio queue:** #2421 (written dates; green, merging) -> `plotchar` -> the intraday unit -> the
+  day-length guard -> (c), the authoring check on the worker.
+- **The first full live run** (bench@, at most $20):
+  - the wall lane is running;
+  - the script lane can start now that rule 12 is served;
+  - the formula lane waits on #2421.
+
+**e94.**
+- **Built:** master -> #2254 -> #2364 -> #2367 -> the budgets -> #2429. It adds an interim 10 s
+  main-thread cap on the studio's authoring check, which refuses by name until (c) moves the check to the
+  worker.
+- **Census v3, lane 0** (852 scripts, today's clock): 0 served -> refused in the worker. 14 time out on
+  both clocks, the same as master.
+- **The slow-lane basis for the final stops is being measured one run at a time.**
+  - A first 3-run pass hit its 80-minute cap. That is about 1.1-1.3x earlier runs of the same script (each
+    run is a report and a door call), so it is not a regression.
+  - Each finished call is now written as it ends, so a cap kill keeps what finished.
+  - A control run on e93's base is queued if a door call exceeds twice e93's measurement.
+  - No stop value is written before the basis table is read.
+
+**Open for the owner.** Section 6's four decisions are unchanged. One more question: 19 day-length
+requests come from the catalogue, so they stay private under the owner's rule. Should they be published?
+
+**Next.**
+1. **e94:**
+   - the slow-lane basis, then the final stops;
+   - acceptance: 0 served -> refused on both lanes;
+   - the rig re-trace with source maps;
+   - the regen guard, then merge.
+2. The e93 snapshot regen, with the rulings applied, and its PR.
+3. The v3 publish and its served check.
+4. Monday 11-23: the Q-BSF captures.
+5. The live run's script and formula lanes.
+6. After e94: the census at e94, then U-DAILY.

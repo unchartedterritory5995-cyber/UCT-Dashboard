@@ -105,6 +105,195 @@ def not_offered(cap: str) -> bool:
     """Admitted by the engine and deliberately not offered to the assistant: a named id, or a library version."""
     return cap in NOT_FOR_THE_ASSISTANT or pine_capabilities.is_library_capability(cap)
 
+
+# ⭐ A READ OF ANOTHER SYMBOL OR TIMEFRAME THE MEMBER DID NOT ASK FOR (found by the value cases, 2026-11-22).
+# `request-other` is not offered to the assistant (above), and the assistant wrote it anyway, from what it knows
+# of Pine: "yesterday's high" on a DAILY chart came back as `request.security(syminfo.tickerid, "D", high[1])`,
+# a read the chart's own `high[1]` already is. Such a script is admitted for finished bars only, so it carries a
+# limit the member never asked to take on.
+# The rule, decided by READING THE SCRIPT'S OWN REQUESTS against the member's words and the chart (never by the
+# assistant): a request for a TICKER the member named, or for a TIMEFRAME the member's words name, was ASKED for
+# and is kept; a request for a ticker nobody named, or for the chart's own symbol on the chart's own timeframe,
+# was NOT asked for and gets one repair; anything this cannot read for certain is UNSURE and is KEPT (a silent
+# rewrite that changes what the script means is worse than a limit the window already tells the member about).
+OTHER_READ_ASKED, OTHER_READ_NOT_ASKED, OTHER_READ_UNSURE = "asked", "not asked", "unsure"
+_REQUEST_CALL = re.compile(r"\brequest\.security(?:_lower_tf)?\s*\(")
+_CHART_SYMBOLS = ("syminfo.tickerid", "syminfo.ticker")
+_CHART_TIMEFRAMES = ("timeframe.period", '""', "''")
+#: the member's words for a timeframe, by the code a request names it with
+_TIMEFRAME_WORDS: Dict[str, "re.Pattern[str]"] = {
+    "W": re.compile(r"\bweek(?:ly|s|'s)?\b", re.I),
+    "M": re.compile(r"\bmonth(?:ly|s|'s)?\b", re.I),
+    "D": re.compile(r"\b(?:daily|days?|day's|yesterday(?:'s)?|session(?:'s)?)\b", re.I),
+    "intraday": re.compile(r"\b(?:minutes?|hours?|hourly|intraday)\b", re.I),
+}
+_ANY_TIMEFRAME_WORD = re.compile(r"\btime ?frames?\b", re.I)
+OTHER_READ_REPAIR_LINE = (
+    "[script:not-asked] This script reads {what} with `request.security`, and the member did not ask for another "
+    "symbol or timeframe. A script that requests one is drawn on finished bars only, a limit this request does not "
+    "need. Return the WHOLE script without `request.security`: read the chart's own bars (`high[1]` is the bar "
+    "before this one; on the member's chart that is the prior {bar}). Change nothing else about what it computes.")
+
+
+def _code_only(script: str) -> str:
+    """The script without its comments (a `//` inside a string literal is kept)."""
+    out = []
+    for line in script.splitlines():
+        quote, cut = None, len(line)
+        for i, ch in enumerate(line):
+            if quote:
+                if ch == quote and line[i - 1] != "\\":
+                    quote = None
+            elif ch in "\"'":
+                quote = ch
+            elif ch == "/" and line[i:i + 2] == "//":
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
+def _strings_blanked(code: str) -> str:
+    """The code with the INSIDE of every string literal blanked, the same length: a call named in a string
+    (`"request.security(x, y, z) is not used"`) is prose, and prose is never matched."""
+    out, quote = [], None
+    for i, ch in enumerate(code):
+        if quote:
+            if ch == quote and code[i - 1] != "\\":
+                quote = None
+                out.append(ch)
+            else:
+                out.append("\n" if ch == "\n" else " ")
+        else:
+            if ch in "\"'":
+                quote = ch
+            out.append(ch)
+    return "".join(out)
+
+
+def _first_two_args(code: str, start: int) -> Optional[Tuple[str, str]]:
+    """The first two arguments of the call whose `(` ends at `start`, split at the top level, or None."""
+    depth, quote, args, cur = 1, None, [], []
+    for i in range(start, len(code)):
+        ch = code[i]
+        if quote:
+            cur.append(ch)
+            if ch == quote and code[i - 1] != "\\":
+                quote = None
+            continue
+        if ch in "\"'":
+            quote = ch
+        elif ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth -= 1
+            if depth == 0:
+                args.append("".join(cur).strip())
+                break
+        elif ch == "," and depth == 1:
+            args.append("".join(cur).strip())
+            cur = []
+            if len(args) == 2:
+                break
+            continue
+        cur.append(ch)
+    return (args[0], args[1]) if len(args) >= 2 else None
+
+
+def _literal(text: str) -> Optional[str]:
+    text = text.strip()
+    return text[1:-1] if len(text) >= 2 and text[0] in "\"'" and text[-1] == text[0] else None
+
+
+def _resolved(arg: str, code: str) -> Optional[str]:
+    """What a request's argument IS: a chart name as written, a literal's text, or what a plain name was given
+    (`sym = input.symbol("SPY", ...)`, `tf = "W"`). None when this cannot say for certain."""
+    arg = arg.strip()
+    if arg in _CHART_SYMBOLS or arg in _CHART_TIMEFRAMES:
+        return arg
+    lit = _literal(arg)
+    if lit is not None:
+        return lit
+    if not re.fullmatch(r"[A-Za-z_]\w*", arg):
+        return None
+    given = re.findall(rf"(?m)^[ \t]*(?:var[ \t]+)?(?:[A-Za-z_][\w.<>]*[ \t]+)?{re.escape(arg)}[ \t]*:?=[ \t]*(.+)$", code)
+    if len(given) != 1:                                            # never assigned, or assigned more than once
+        return None
+    value = given[0].strip()
+    if value in _CHART_SYMBOLS or value in _CHART_TIMEFRAMES:
+        return value
+    lit = _literal(value)
+    if lit is not None:
+        return lit
+    called = re.match(r"input\.(?:symbol|timeframe|string)\s*\(\s*(\"[^\"]*\"|'[^']*')", value)
+    return _literal(called.group(1)) if called else None
+
+
+def _timeframe_kind(tf: Optional[str]) -> Optional[str]:
+    """'D', 'W', 'M', 'intraday', or None for a timeframe this does not know."""
+    if not isinstance(tf, str):
+        return None
+    t = tf.strip().upper()
+    if re.fullmatch(r"\d*[DWM]", t):
+        return t[-1] if t[:-1] in ("", "1") else None
+    return "intraday" if re.fullmatch(r"\d+", t) else None
+
+
+def other_reads(script: Any) -> Optional[List[Tuple[Optional[str], Optional[str]]]]:
+    """Every `request.security` of the script as (symbol, timeframe), each resolved or None. None when the script
+    is unreadable; [] when it requests nothing."""
+    if not isinstance(script, str) or not script.strip():
+        return None
+    code = _code_only(script)
+    out = []
+    for m in _REQUEST_CALL.finditer(_strings_blanked(code)):      # found where it is CODE; its arguments read as written
+        args = _first_two_args(code, m.end())
+        out.append((None, None) if args is None else (_resolved(args[0], code), _resolved(args[1], code)))
+    return out
+
+
+def other_read_asked(message: Any, script: Any, chart: Any = None) -> Tuple[str, List[str]]:
+    """(verdict, what was read and not asked for). The verdict is OTHER_READ_ASKED (or nothing is requested),
+    OTHER_READ_NOT_ASKED, or OTHER_READ_UNSURE; see the rule above. `chart`: `{sym, tf}` of the member's chart."""
+    reads = other_reads(script)
+    if reads is None:
+        return OTHER_READ_UNSURE, []
+    words = str(message or "")
+    named = {w.upper().rstrip(".") for w in re.findall(r"[A-Za-z][A-Za-z0-9.\-]{0,9}", words)}
+    chart_sym = str(chart.get("sym") or "").upper() if isinstance(chart, Mapping) else ""
+    chart_kind = _timeframe_kind(chart.get("tf")) if isinstance(chart, Mapping) else None
+    unsure, unasked = False, []
+    for sym, tf in reads:
+        if sym is None or tf is None:
+            unsure = True
+            continue
+        own_symbol = sym in _CHART_SYMBOLS or (chart_sym and sym.upper().split(":")[-1] == chart_sym)
+        if not own_symbol:
+            ticker = sym.upper().split(":")[-1]
+            if ticker not in named:
+                unasked.append(f"the symbol {ticker}")
+            continue
+        if tf in _CHART_TIMEFRAMES:
+            unasked.append("the chart's own symbol on the chart's own timeframe")
+            continue
+        kind = _timeframe_kind(tf)
+        if kind is None or chart_kind is None:
+            unsure = True
+        elif kind == chart_kind and kind != "intraday":
+            unasked.append("the chart's own symbol on the chart's own timeframe")
+        elif not (_TIMEFRAME_WORDS[kind].search(words) or _ANY_TIMEFRAME_WORD.search(words)):
+            unsure = True                                          # another timeframe nobody named: unsure, so KEPT
+    if unsure:
+        return OTHER_READ_UNSURE, []
+    return (OTHER_READ_NOT_ASKED, sorted(set(unasked))) if unasked else (OTHER_READ_ASKED, [])
+
+
+def other_read_repair(unasked: List[str], chart: Any = None) -> str:
+    """What the assistant is told when its script reads what the member did not ask for."""
+    kind = _timeframe_kind(chart.get("tf")) if isinstance(chart, Mapping) else None
+    bar = {"D": "day", "W": "week", "M": "month"}.get(kind or "", "bar")
+    return OTHER_READ_REPAIR_LINE.replace("{what}", " and ".join(unasked) or "another symbol or timeframe").replace("{bar}", bar)
+
 #: ⭐ ONE SENTENCE PER PITFALL, keyed by the generator's pitfall id (`PITFALL_PROBES`). Printed only
 #: while the reference says that pitfall still STANDS (its probe did not run fully).
 PITFALL_WORDS: Dict[str, str] = {
@@ -166,7 +355,45 @@ THE RULES
 8. When the request comes with RECIPES, start from the closest one: each is a whole script this engine runs as written and whose numbers were checked. Keep its structure, change what the request needs (the numbers, the condition, the colours, the title), and never import a habit from another platform that the recipe does not use.
 9. Say what the script MEANS by a term that has more than one reading (which pivot rule, which window, which average) in `reply`, in plain words.
 10. For a well-known indicator, when this document lists Pine's OWN function for it, CALL that function: do not re-derive its maths by hand. {own_functions}When this document lists none, write the published calculation yourself and say in `reply` which definition you used.
-11. Draw ONLY what the member asked for. A request for a count or a signal is that one plot or mark: do not add a label on every event, a summary table, a background colour, extra shapes or an `alertcondition` the request did not name. Each extra clutters the chart and is one more claim that has to be right. If something more would help, OFFER it in `reply` in one short sentence ("I can also mark each day or add a table") and leave it out of the script. When the request is ONLY a drawing (a box, a line, labels, a table) and names no plotted line, still `plot` the value the drawing is made from, because a script with a plot can be used in alerts and one without cannot; but make that plot INVISIBLE with a fully transparent colour (`plot(level, "Level", color=color.new(color.gray, 100))`) and say in `reply` that a hidden plot is there for alerts. Never hide a plot the member asked to see."""
+11. Draw ONLY what the member asked for. A request for a count or a signal is that one plot or mark: do not add a label on every event, a summary table, a background colour, extra shapes or an `alertcondition` the request did not name. Each extra clutters the chart and is one more claim that has to be right. If something more would help, OFFER it in `reply` in one short sentence ("I can also mark each day or add a table") and leave it out of the script. When the request is ONLY a drawing (a box, a line, labels, a table) and names no plotted line, still `plot` the value the drawing is made from, because a script with a plot can be used in alerts and one without cannot; but make that plot INVISIBLE with a fully transparent colour (`plot(level, "Level", color=color.new(color.gray, 100))`) and say in `reply` that a hidden plot is there for alerts. Never hide a plot the member asked to see.
+12. {other_timeframe}
+13. {number_on_bars}"""
+
+#: ⭐ RULE 13: A NUMBER WRITTEN ON BARS (found by a value check of a live round, 2026-11-22). Asked to "write the
+#: count above each bar of the run as a number from 1 to 9", the assistant wrote
+#: `plotchar(cnt > 0 ? cnt : na, "Count", "", location.abovebar)`. `plotchar` draws ONE fixed character wherever
+#: its series has a value; with an empty character this engine draws its default mark. Every bar of the run got the
+#: same mark and no bar got its number. The next round's answer to the same shape used
+#: `label.new(bar_index, low, str.tostring(n))` and was right on every bar it was checked on.
+NUMBER_ON_BARS_RULE = (
+    "A NUMBER WRITTEN ON BARS that changes from bar to bar (a count, a rank, a value) is written with a label, one "
+    "per bar: `if n > 0` then `label.new(bar_index, high, str.tostring(n), style = label.style_none, textcolor = "
+    "color.green)`, with `max_labels_count = 500` in `indicator(...)`. `plotchar` and `plotshape` draw ONE FIXED "
+    "character or text per call, the same on every bar: `plotchar(n, char = \"\")` writes no number at all.")
+
+#: ⭐ RULE 12: WHERE A LOOK-BACK GOES WHEN THE MEMBER ASKS FOR ANOTHER TIMEFRAME (found by the value cases'
+#: oracle check, 2026-11-22). Asked whether the close is above "the 10 week moving average", the assistant wrote
+#: `wMA = request.security(syminfo.tickerid, "W", ta.sma(close, 10))` and then read `wMA[1]`: one bar of the
+#: CHART back, not one week. On the bar that completes a week the table showed the average one whole week stale.
+#: `request-other` is NOT offered to the assistant (`NOT_FOR_THE_ASSISTANT`) and gains no wording by this: the rule
+#: only stops a request the member's words ASKED for (`other_read_asked` keeps those) being written wrongly.
+#: ⛔ EACH HALF TEACHES ONLY WHAT A COMMITTED CAPTURE GRADES. The capture is
+#: `vw-request-htf-alignment-spy-1d-2026-10-02` (AMEX:SPY 1D, 1,800 bars, the newest one finished; rail
+#: `vendorHarness.reqLookaheadAlignment.test.js`):
+#:   * AS IT STANDS (look-ahead off, nothing after the request): its rows A02 (`close`, "W") and A05 ("M") equal
+#:     TradingView on every bar but the newest, MATCH 7 of 7 on both lanes
+#:     (docs/pine/evidence/2026-11-18-htf-calendar-merge/EVIDENCE.md);
+#:   * THE LOOK-BACK INSIDE, look-ahead on: its row A06 (`close[1]`: last week's close) is exact on every graded
+#:     bar (docs/pine/evidence/2026-11-16-req-request-security/EVIDENCE.md). That form IS "last week's value", on
+#:     every bar of the week, its last bar included: taught for "the 10 week average" it would be a week stale on
+#:     the bar that completes the week, exactly as the look-back outside is (measured before this was written).
+#: Neither row grades a FORMING bar: the member's chart says what it does there, this rule does not.
+OTHER_TIMEFRAME_RULE = (
+    "A value on ANOTHER TIMEFRAME, only when the member's words ask for one (a 10 week average, the monthly close): "
+    "read it AS IT STANDS with `request.security(syminfo.tickerid, \"W\", expr)`, and put nothing after it. `x[1]` "
+    "after a request is one bar of THIS chart, not one week: on the bar that completes a week it shows the week "
+    "before. ONLY when the words say LAST week's or the PREVIOUS month's value, put the look-back INSIDE the request: "
+    "`request.security(syminfo.tickerid, \"W\", expr[1], lookahead = barmerge.lookahead_on)`.")
 
 #: ⭐⭐ ADMITTED FOR FINISHED BARS ONLY, SAID TO THE ASSISTANT (found live 2026-11-19). The engine admits some
 #: capabilities on CLOSED-BAR evidence only (G6, `historyOnly` in the generated reference, held equal to the
@@ -308,7 +535,8 @@ def _lines(title: str, rows: List[str]) -> List[str]:
 
 def contract(ref: Optional[Mapping[str, Any]] = None) -> str:
     """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference."""
-    return CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
+    return (CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
+            .replace("{other_timeframe}", OTHER_TIMEFRAME_RULE).replace("{number_on_bars}", NUMBER_ON_BARS_RULE))
 
 
 def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:
@@ -644,6 +872,42 @@ def _fit(text: str, room: int) -> str:
 #: Said under a recipe that does its work on the last bar (`finishedBarsOnly` in the generated file).
 LAST_BAR_RECIPE_LINE = ("(This recipe waits for the last bar on purpose: keep its `if barstate.islast`. UCT tells the "
                         "member when it is drawn; do not describe that yourself.)")
+
+
+def _request_calls(script: Any) -> Optional[List[str]]:
+    """Every `request.security(...)` of a script, WHOLE (symbol, timeframe, expression and options), with
+    comments and layout aside, sorted. None when one cannot be read to its closing bracket."""
+    if not isinstance(script, str):
+        return None
+    code = _code_only(script)
+    blanked = _strings_blanked(code)
+    out = []
+    for m in _REQUEST_CALL.finditer(blanked):
+        depth, i = 1, m.end()
+        while i < len(blanked) and depth:
+            depth += (blanked[i] == "(") - (blanked[i] == ")")
+            i += 1
+        if depth:
+            return None
+        out.append("".join(code[m.start():i].split()))
+    return sorted(out)
+
+
+def recipe_whose_requests_these_are(message: Any, script: Any, doc: Optional[Mapping[str, Any]] = None) -> Optional[str]:
+    """The id of the checked recipe this script is backed by AND whose `request.security` calls are EXACTLY
+    this script's, or None.
+
+    `backed_by` is a similarity (the script holds 85 percent of the recipe's tokens, in order): right for
+    saying which answers were value-checked, too wide for excusing a read. A script that resembles a recipe
+    and requests something the recipe does not (one more request, another timeframe, another expression) was
+    not checked with that request in it. So the requests are held to IDENTITY: the same calls, whole, the same
+    number of times."""
+    backed = backed_by(message, script, doc)
+    if backed is None:
+        return None
+    recipe = next((r for r in recipes(doc) if r["id"] == backed), None)
+    own = _request_calls(recipe["source"]) if recipe else None
+    return backed if own and own == _request_calls(script) else None
 
 
 def recipes_text(found: List[Mapping[str, Any]]) -> str:

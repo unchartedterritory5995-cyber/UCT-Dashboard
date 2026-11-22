@@ -557,17 +557,21 @@ def rules(cid):
         def readings(done, forming):
             """done(w): the value at COMPLETED week w (NAN if not enough weeks). forming(i): the value with the forming week as it stands at bar i."""
             at = lambda w: done(w) if w >= 0 else NAN   # noqa: E731
-            return [
+            # ⚰️ Two more readings stood here until 2026-11-22 and no recorded answer ever needed them: "the whole
+            # of this week from its first bar", which knows Friday's close on Monday, and "TWO completed weeks
+            # back". Neither is a reading of any of these requests' words; a rule that lists them passes a
+            # formula that looks ahead or is a week stale.
+            out = [
                 ('the last COMPLETED week, held all week', [at(wk[i] - 1) for i in range(N)]),
                 ('the finished week on its last bar, the one before until then (TradingView history)', [at(wk[i] if last[i] else wk[i] - 1) for i in range(N)]),
-                ('the FORMING week as it stands on each bar', [forming(i) for i in range(N)]),
-                ('the whole of this week from its first bar (looks ahead)', [at(wk[i]) for i in range(N)]),
-                ('TWO completed weeks back, held all week', [at(wk[i] - 2) for i in range(N)]),
             ]
+            if forming is not None:
+                out.append(('the FORMING week as it stands on each bar', [forming(i) for i in range(N)]))
+            return out
         run_hi = lambda i: max(H[k] for k in members[wk[i]] if k <= i)   # noqa: E731
         run_lo = lambda i: min(L[k] for k in members[wk[i]] if k <= i)   # noqa: E731
         if cid == 'j01':
-            return {"last week's high": readings(lambda w: w_hi[w], run_hi), "last week's low": readings(lambda w: w_lo[w], run_lo)}
+            return {"last week's high": readings(lambda w: w_hi[w], None), "last week's low": readings(lambda w: w_lo[w], None)}
         if cid == 'j02':
             done = lambda w: sum(w_cl[w - 9:w + 1]) / 10 if w >= 9 else NAN   # noqa: E731
             forming = lambda i: (sum(w_cl[wk[i] - 9:wk[i]]) + C[i]) / 10 if wk[i] >= 9 else NAN   # noqa: E731
@@ -638,6 +642,44 @@ def rules(cid):
         from .stat_rules import stat_rules
         got = stat_rules(cid, C, V, [None if not ok(x) else x for x in SC])
         return {group: [(name, [NAN if v is None else v for v in col]) for name, col in readings] for group, readings in got.items()}
+    if cid == 'intraday-01':                                # today's low so far plus the 14 day ATR; today's high so far minus it
+        # ⚠ GRADED ON THE DAILY MARKET until the intraday market exists (the next unit): here each bar is its own
+        # day, so "today's low so far" at the bar's close is the bar's low and the 14 day ATR is the ATR of 14 bars.
+        out = {"today's low plus the 14 day ATR": [], "today's high minus the 14 day ATR": []}
+        for kind in ('rma', 'wilder', 'sma'):
+            a = atr(14, kind)
+            out["today's low plus the 14 day ATR"].append((f'ATR by {kind}', [L[i] + a[i] if ok(a[i]) else NAN for i in range(N)]))
+            out["today's high minus the 14 day ATR"].append((f'ATR by {kind}', [H[i] - a[i] if ok(a[i]) else NAN for i in range(N)]))
+        return out
+    if cid and cid.startswith('date-start-'):               # a running value that starts on a date the member wrote out
+        def since(start, first, step):
+            """No value before the date; `first` on the first bar on or after it; `step` on every bar after."""
+            out, v = [], None
+            for i in range(N):
+                if day(BARS[i]) < start:
+                    out.append(NAN)
+                    continue
+                x = first(i) if v is None else step(v, i)
+                if not ok(x):
+                    out.append(NAN)
+                    continue
+                v = float(x)
+                out.append(v)
+            return out
+        if cid == 'date-start-01':                          # a stop 2 ATR(14) under the close from 2 June 2026 that only rises
+            v = []
+            for kind in ('rma', 'wilder', 'first', 'sma'):
+                a = atr(14, kind)
+                level = lambda i, a=a: C[i] - 2 * a[i] if ok(a[i]) else NAN  # noqa: E731
+                v.append((f'ATR by {kind}', since('2026-06-02', level, lambda was, i, level=level: max(was, level(i)) if ok(level(i)) else NAN)))
+            return {'the stop from 2 June 2026 that only rises': v}
+        if cid == 'date-start-02':                          # the highest high since 3 March 2026
+            return {'the highest high since 3 March 2026': [('from the date', since('2026-03-03', lambda i: H[i], lambda was, i: max(was, H[i])))]}
+        if cid == 'date-start-03':                          # the up closes since 1 September 2026
+            up = lambda i: 1.0 if i > 0 and C[i] > C[i - 1] else 0.0  # noqa: E731
+            return {'the up closes since 1 September 2026': [
+                ('the first day counted when it is one', since('2026-09-01', up, lambda was, i: was + up(i))),
+                ('counted from the day after', since('2026-09-01', lambda i: 0.0, lambda was, i: was + up(i)))]}
     if cid == 'm07':                                        # CONTROL: "Detect Inside Bars", the term alone -> the firm's formula (a touch counts, on a bar that traded)
         return {'an inside bar, the firm\'s meaning': [('a touch counts, on a bar that traded', [NAN if i == 0 else (1.0 if H[i] > L[i] and V[i] > 0 and H[i] <= H[i - 1] and L[i] >= L[i - 1] else 0.0) for i in range(N)])]}
     return None

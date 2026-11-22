@@ -27,7 +27,7 @@ import path from 'node:path'
 
 import { loadCapture } from './harness'
 import { runOurSide, toProductBars } from './ourSide'
-import { censusOf, pairObjects } from './colourColumn'
+import { censusOf, pairObjects, vendorColourReader } from './colourColumn'
 import { sealCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import { objectDefaultsFor, OBJECT_DEFAULTS, toRenderState } from '../../objectRenderState'
@@ -235,6 +235,39 @@ describe('C37 — an uncoloured object wears the default of its script\'s Pine v
     }
   }, 120000)
 
+  // ⭐ e93 (2026-11-21): a cell's unset text colour is `color.black` in v4 and v6 too, so it is a NAMED default for every
+  // version (`objectDefaults.js` NAMED_OBJECT_DEFAULTS.cell). ⚰️ Witnessed for v5 only until then, v4 / v6 cells fell to
+  // the table renderer's fixed `#D1D4DC` and graded DIVERGE on colour (13 captures of 2026-11-20).
+  it('⭐ v4 and v6: a table cell\'s unset text is `color.black` too — vw-tf-tick-format-idiom-v4, vw-tf-tostring-built-fmt', () => {
+    for (const [id, version] of [['vw-tf-tick-format-idiom-v4-spy-1d-2026-11-20', 4], ['vw-tf-tostring-built-fmt-spy-1d-2026-11-20', 6]]) {
+      const c = load(id)
+      expect(c.source.text).toMatch(new RegExp(`^//@version=${version}`, 'm'))
+      expect(c.source.text, `${id}: the script names no cell text colour`).not.toMatch(/text_color\s*=/)
+      const o = tallyOf(id)
+      const rows = o.rows.filter((r) => r.kind === 'cell' && r.slot === 'text_color')
+      expect(rows.length, id).toBeGreaterThan(0)
+      for (const r of rows) {
+        expect(r.state, `${id} ${r.where}`).toBe('agreeByDefault')
+        expect(r.ours, `${id} ${r.where}`).toBe('#363a45ff')
+      }
+    }
+  }, 120000)
+
+  it('⭐ …and the v6 captures of 2026-11-16 that hold TradingView\'s cells (ours drew none there) say the same', () => {
+    // the vendor records alone: every cell's text colour is `color.black` (palette entry rgba(54,58,69,1)), the script
+    // naming none; why no grade ever showed it: on these our side held no cell, so no cell colour was ever paired
+    for (const id of ['vw-w3-format-date-spy-1d-2026-11-16', 'vw-w3-loop-helper-text-spy-1d-2026-11-16', 'vw-w3-str-repeat-length-spy-1d-2026-11-16']) {
+      const c = load(id)
+      expect(c.source.text).toMatch(/^\/\/@version=6/m)
+      expect(c.source.text).not.toMatch(/text_color\s*=/)
+      const read = vendorColourReader(c).read
+      const cells = c.objects.records.tableCells || []
+      expect(cells.length, id).toBeGreaterThan(0)
+      expect(new Set(cells.map((x) => read(x.tc))), id).toEqual(new Set(['#363a45ff']))
+      expect(objectDefaultsFor(undefined).cell.text_color).toBe('#363A45') // a v6 program states no version: the base
+    }
+  })
+
   it('🔴 CONTROL — without the program\'s version the SAME objects read against the base default, and differ', () => {
     const c = load('rsi-swing-indicator-rddt-1d-2026-09-28')
     const ours = runOurSide(c)
@@ -302,7 +335,8 @@ describe('C37 — an uncoloured object wears the default of its script\'s Pine v
       expect(versionObjectDefaults(v), String(v)).toEqual({})
       const d = objectDefaultsFor(v)
       for (const f of Object.keys(OBJECT_DEFAULTS)) expect(d[f], `${v} ${f}`).toEqual(OBJECT_DEFAULTS[f])
-      expect(d.cell).toEqual({})
+      // ⭐ e93: a cell's unset text is `color.black` in every version (was `{}`: the renderer's fixed grey)
+      expect(d.cell).toEqual({ text_color: '#363A45' })
     }
     // v6 keeps WHITE label text (4 labels on the 2026-09-30 probes)
     expect(objectDefaultsFor(6).label.textcolor).toBe('#FFFFFF')
@@ -310,8 +344,9 @@ describe('C37 — an uncoloured object wears the default of its script\'s Pine v
       line: { color: '#2196F3' }, label: { color: '#2196F3', textcolor: '#363A45' },
     })
     expect(versionObjectDefaults(5)).toEqual({
-      label: { textcolor: '#363A45' }, box: { bgcolor: '#2962FF', text_color: '#363A45' }, cell: { text_color: '#363A45' },
+      label: { textcolor: '#363A45' }, box: { bgcolor: '#2962FF', text_color: '#363A45' },
     })
+    for (const v of [4, 5]) expect(objectDefaultsFor(v).cell, String(v)).toEqual({ text_color: '#363A45' })
   })
 
   it('a v6 program states no version (its bytes are unchanged); a v4 / v5 one does', () => {

@@ -972,6 +972,112 @@ def get_etf_holdings(ticker: str, *, timeout: Optional[int] = None) -> _pe.Provi
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
+# ── 2026-11-21: revenue by segment (the Terminal's SEG) ─────────────────────
+# One typed function per endpoint, named after what it returns. Both paths were
+# already named in `fmp_response_cache.TTL` (a one-day lifetime) with no caller;
+# `api/services/revenue_segments.py` is the first and only one. FMP's stable docs
+# ("Revenue Product Segmentation API", "Revenue Geographic Segmentation API")
+# give `symbol` and an annual / quarter `period` (the Basic and Starter plans are
+# "Period Limited to Annual Reports"), which is what is sent; nothing else is.
+#
+# `data_class="segments"` is DELIBERATELY UNREGISTERED in
+# `provider_licensing_class._TABLE`, so it stamps "U": no licensing-register row
+# names segment revenue, and borrowing "fundamentals" for its class would be the
+# inference from resemblance `get_company_profile`'s docstring refuses. Nothing
+# gates display on the stamp (the IPO calendar shows FMP's unregistered
+# `("fmp", "ipo")` the same way). No internal timeout literal: the module
+# default applies unless a caller passes one.
+
+def get_revenue_product_segmentation(ticker: str, *, period: str = "annual",
+                                     timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Revenue by product or business line, period by period
+    (`/stable/revenue-product-segmentation?symbol=&period=`). `period` is
+    `annual` or `quarter`, sent as given (the vendor owns the vocabulary)."""
+    return _fetch("/stable/revenue-product-segmentation", {"symbol": ticker.upper(), "period": period},
+                   source_activity="fmp_client.get_revenue_product_segmentation", data_class="segments",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+def get_revenue_geographic_segmentation(ticker: str, *, period: str = "annual",
+                                        timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Revenue by region, period by period
+    (`/stable/revenue-geographic-segmentation?symbol=&period=`)."""
+    return _fetch("/stable/revenue-geographic-segmentation", {"symbol": ticker.upper(), "period": period},
+                   source_activity="fmp_client.get_revenue_geographic_segmentation", data_class="segments",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+# ── 2026-11-21: mergers and acquisitions (the Terminal's MNA) ───────────────
+# The repo named no FMP M&A path before this. Both paths below are taken from
+# FMP's public stable docs as a web search indexes them (2026-11-21; the docs
+# site itself refuses automated reading): "Latest Mergers & Acquisitions API",
+# `https://financialmodelingprep.com/stable/mergers-acquisitions-latest?page=0&limit=100`,
+# and "Search Mergers & Acquisitions API",
+# `https://financialmodelingprep.com/stable/mergers-acquisitions-search?name=`.
+# The answer's fields are NOT confirmed against a live answer here: the docs'
+# description names the transaction date, the company names and a link to the
+# SEC filing, and its sample row names symbol, companyName, cik,
+# targetedCompanyName, transactionDate, acceptedDate and link
+# (targetedSymbol / targetedCik are read only if present).
+# `api/services/mergers.py` parses defensively and lists every field it reads.
+# Market-wide: neither takes `ticker: str` (the `search_insider_purchases`
+# precedent for a non-`get_` name). `data_class="mergers"` is unregistered and
+# stamps "U", as `("fmp", "ipo")` does.
+
+def get_mergers_acquisitions_latest(*, page: int = 0, limit: int = 100,
+                                    timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """The newest M&A filings across the market, one page at a time
+    (`/stable/mergers-acquisitions-latest?page=&limit=`), newest first."""
+    return _fetch("/stable/mergers-acquisitions-latest", {"page": int(page), "limit": int(limit)},
+                   source_activity="fmp_client.get_mergers_acquisitions_latest", data_class="mergers",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+def search_mergers_acquisitions(name: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """M&A filings whose company names match `name`
+    (`/stable/mergers-acquisitions-search?name=`). Sends the name as given; the
+    caller decides which rows name the company it means."""
+    return _fetch("/stable/mergers-acquisitions-search", {"name": str(name)},
+                   source_activity="fmp_client.search_mergers_acquisitions", data_class="mergers",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+# ── 2026-11-21: historical index changes (the Terminal's IDXC) ──────────────
+# `index_rebalance_calendar.py` notes no historical-constituent endpoint was
+# called before this. The three paths are FMP's stable docs' own ("Historical
+# S&P 500 API", "Historical Nasdaq API", "Historical Dow Jones API", as a web
+# search indexes them, 2026-11-21): `/stable/historical-sp500-constituent`,
+# `/stable/historical-nasdaq-constituent`, `/stable/historical-dowjones-constituent`
+# (no hyphen in "dowjones"), each needing no parameter but the key. The docs
+# describe additions and removals with their dates and reasons; the field names
+# read (dateAdded, addedSecurity, removedTicker, removedSecurity, date, symbol,
+# reason) are from the docs' sample as indexed and are NOT confirmed against a
+# live answer here: `api/services/index_changes.py` parses defensively. Three
+# functions, not one with an `index` argument, for the reason the current
+# constituent functions above give. `data_class="constituents"`, the same
+# unregistered class (stamps "U") as today's members.
+
+def get_historical_sp500_constituents(*, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Every S&P 500 addition and removal FMP holds (`/stable/historical-sp500-constituent`)."""
+    return _fetch("/stable/historical-sp500-constituent", {},
+                   source_activity="fmp_client.get_historical_sp500_constituents", data_class="constituents",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+def get_historical_nasdaq_constituents(*, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Every Nasdaq 100 addition and removal FMP holds (`/stable/historical-nasdaq-constituent`)."""
+    return _fetch("/stable/historical-nasdaq-constituent", {},
+                   source_activity="fmp_client.get_historical_nasdaq_constituents", data_class="constituents",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+def get_historical_dowjones_constituents(*, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Every Dow 30 addition and removal FMP holds (`/stable/historical-dowjones-constituent`)."""
+    return _fetch("/stable/historical-dowjones-constituent", {},
+                   source_activity="fmp_client.get_historical_dowjones_constituents", data_class="constituents",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
 # ── 2026-09-11: D1 adapter gap G4 — the multi-symbol news leg ───────────────
 # `get_news_stock` above takes ONE ticker. `engine.py::get_news._fetch_fmp_
 # stock` sends a comma-separated list of up to 40 mover symbols to the same

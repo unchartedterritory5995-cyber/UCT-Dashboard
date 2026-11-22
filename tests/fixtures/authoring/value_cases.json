@@ -1,6 +1,27 @@
 {
  "schema": "uct.value-cases/1",
- "about": "Plain-words requests, each with the answer the Create Indicator door gave on production (recorded as a synthetic test account). A case on the formula lane has an independent calculation in tools/value_cases/rules.py; a case on the wall lane cannot be served, and the right answer refuses and names the wall in plain words. tests/test_value_cases.py holds every recorded answer.",
+ "about": "Plain-words requests, each with the answer the Create Indicator door gave on production (recorded as a synthetic test account). Lane \"formula\": an independent calculation in tools/value_cases/rules.py must equal what was built on every bar. Lane \"script\": the recorded script is run through the member pane's own path and held to tools/value_cases/script_rules.py, columns and drawn things alike. Lane \"wall\": the request cannot be served, and the right answer refuses and names the wall. tests/test_value_cases.py and tests/test_value_cases_scripts.py hold every recorded answer.",
+ "capabilities_without_a_case": [
+  "collections:array",
+  "conditional-ta",
+  "fn-multi",
+  "fn-single",
+  "for-in",
+  "generics",
+  "max_bars_back",
+  "method-call",
+  "obj:collection",
+  "obj:delete",
+  "obj:getter",
+  "realtime-state",
+  "switch",
+  "typed-array",
+  "udt",
+  "while"
+ ],
+ "capabilities_used_without_words": [
+  "request-other"
+ ],
  "cases": [
   {
    "id": "d01",
@@ -7964,11 +7985,16 @@
    "lane": "formula",
    "words": "On the daily chart, plot last week's high and last week's low as two lines",
    "rule": {
-    "digest": "ce0b5433a3c00e0a",
+    "digest": "c46106f52ba640c5",
     "history": [
      {
       "digest": "ce0b5433a3c00e0a",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "c46106f52ba640c5",
+      "quote": "last week's high",
+      "reason": "the rule listed three readings these words do not hold and no recorded answer needed: the FORMING week's high so far (this week is not last week), the whole week from its first bar (it knows Friday's high on Monday) and TWO completed weeks back. A rule that lists them passes a formula that looks ahead or is a week stale. Removed."
      }
     ]
    },
@@ -8037,11 +8063,16 @@
    "lane": "formula",
    "words": "On the daily chart, plot the 10 week simple moving average of the weekly close",
    "rule": {
-    "digest": "ea117b6e9df348a9",
+    "digest": "315a2a607cab3066",
     "history": [
      {
       "digest": "ea117b6e9df348a9",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "315a2a607cab3066",
+      "quote": "10 week simple moving average of the weekly close",
+      "reason": "the rule listed two readings these words do not hold and no recorded answer needed: the whole week from its first bar (it knows Friday's close on Monday) and TWO completed weeks back. Removed; the forming week as it stands and the last completed week remain."
      }
     ]
    },
@@ -8092,11 +8123,16 @@
    "lane": "formula",
    "words": "On the daily chart, plot the highest weekly high of the last 4 weeks",
    "rule": {
-    "digest": "46a566ad52021bdc",
+    "digest": "3bf9a64845002b80",
     "history": [
      {
       "digest": "46a566ad52021bdc",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "3bf9a64845002b80",
+      "quote": "highest weekly high of the last 4 weeks",
+      "reason": "the rule listed two readings these words do not hold and no recorded answer needed: the whole week from its first bar (it knows the week's high before it is made) and TWO completed weeks back. Removed."
      }
     ]
    },
@@ -11188,6 +11224,817 @@
       ]
      }
     ]
+   }
+  },
+  {
+   "id": "intraday-01",
+   "lane": "formula",
+   "words": "On a 5 minute chart, plot two lines: today's low so far plus the 14 day ATR, and today's high so far minus the 14 day ATR",
+   "rule": {
+    "digest": "b40b1d880b428031",
+    "history": [
+     {
+      "digest": "b40b1d880b428031",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "c7f99ed2c3"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The door accepted, on the first attempt, a patch whose reply is the word \"Placeholder\" and whose two lines add a weekly read of the constant 0 where the 14 day ATR should be (`sessionLow() + tf(0, W)`): labelled \"Session low + ATR\", it draws the session low. The door now refuses a scope read of nothing and a placeholder reply, so the assistant gets its repair. Graded on the daily market until the intraday one exists.",
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Session Range ATR Levels",
+      "placement": "price",
+      "primary": "lowPlusAtr",
+      "outputs": [
+       {
+        "key": "lowPlusAtr",
+        "label": "Session low + ATR",
+        "tree": {
+         "type": "op",
+         "name": "+",
+         "args": [
+          {
+           "type": "call",
+           "name": "sessionLow",
+           "args": []
+          },
+          {
+           "type": "tf",
+           "value": "W",
+           "args": [
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "highMinusAtr",
+        "label": "Session high - ATR",
+        "tree": {
+         "type": "op",
+         "name": "-",
+         "args": [
+          {
+           "type": "call",
+           "name": "sessionHigh",
+           "args": []
+          },
+          {
+           "type": "tf",
+           "value": "W",
+           "args": [
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "reply": "Placeholder"
+   }
+  },
+  {
+   "id": "date-start-01",
+   "lane": "formula",
+   "words": "Plot a trailing stop that starts on 2 June 2026 at 2 times the 14 day ATR below the close, and after that only ever moves up, staying 2 ATRs below the close when that is higher",
+   "rule": {
+    "digest": "f0253eefbe5df470",
+    "history": [
+     {
+      "digest": "f0253eefbe5df470",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "c7f99ed2c3"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The stop starts on 6 June 2026 under a sentence that says 2 June: the assistant worked the date's number out itself (`time < 1780718400`) and was four days off, because the door gave it no number for a date the member writes out. The door now resolves written dates, the assistant is told never to work one out or ask a member for one, and a date number the turn did not supply is refused.",
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Trailing Stop from 2 June 2026",
+      "placement": "price",
+      "primary": "stop",
+      "outputs": [
+       {
+        "key": "stop",
+        "label": "Trailing Stop",
+        "tree": {
+         "type": "op",
+         "name": "?:",
+         "args": [
+          {
+           "type": "op",
+           "name": "<",
+           "args": [
+            {
+             "type": "series",
+             "name": "time"
+            },
+            {
+             "type": "num",
+             "value": 1780718400
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "num",
+             "value": 0
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "accum",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 2
+                },
+                {
+                 "type": "call",
+                 "name": "atr",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  },
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 14
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": "<",
+               "args": [
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "time"
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 1780718400
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "-",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "op",
+                 "name": "*",
+                 "args": [
+                  {
+                   "type": "num",
+                   "value": 2
+                  },
+                  {
+                   "type": "call",
+                   "name": "atr",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "series",
+                     "name": "low"
+                    },
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "num",
+                     "value": 14
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "max",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "self"
+                },
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "op",
+                   "name": "*",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 2
+                    },
+                    {
+                     "type": "call",
+                     "name": "atr",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "series",
+                       "name": "low"
+                      },
+                      {
+                       "type": "series",
+                       "name": "close"
+                      },
+                      {
+                       "type": "num",
+                       "value": 14
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 900
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_style",
+      "output": "stop",
+      "color": "#F23645",
+      "width": 2,
+      "breaks": true
+     }
+    ],
+    "reply": "I've added a trailing stop on the price chart: from the first bar on or after 2 June 2026 it sits two 14-bar ATRs below the close, and after that it only ever ratchets up, holding its level whenever two ATRs below the close is lower. It shows nothing before that date."
+   }
+  },
+  {
+   "id": "h03",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Count the distribution days in the last 25 bars, where a distribution day is a close down at least 0.2 percent from the prior close on higher volume than the prior bar, and stop counting a distribution day once a later close has risen 5 percent above that day's close",
+   "rule": {
+    "digest": "80cca0f0d4679467",
+    "history": [
+     {
+      "digest": "80cca0f0d4679467",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "a1b5b0439c"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Distribution day count\", overlay=false)\nwin       = input.int(25, \"Window (bars)\", minval=1, maxval=200)\ndropPct   = input.float(0.2, \"Minimum close drop (%)\", minval=0.0, step=0.1)\nexpirePct = input.float(5.0, \"Stop counting a day after a rise of (%)\", minval=0.1, step=0.5)\n// a distribution day: a close down at least dropPct percent from the prior close, on more volume than the prior bar\nisDist = close <= close[1] * (1 - dropPct / 100) and volume > volume[1]\n// the days still counting: a day drops out once any LATER close is expirePct percent above its close\ncount = 0\nfor i = 0 to win - 1\n    if isDist[i]\n        expired = false\n        if i > 0\n            for j = 0 to i - 1\n                if close[j] >= close[i] * (1 + expirePct / 100)\n                    expired := true\n        if not expired\n            count += 1\nplot(count, \"Distribution days\", color=color.red, style=plot.style_stepline)"
+    }
+   }
+  },
+  {
+   "id": "h05",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Track a rally attempt. It starts on the first bar that closes above the prior close while the close is at least 5 percent below the highest close of the last 60 bars. It ends when a later bar's low is below the low of the bar it started on. Show the bars that are the fourth bar or later of a live attempt, counting the start as the first, and that close at least 1.25 percent above the prior close on higher volume than the prior bar",
+   "rule": {
+    "digest": "f745ebf8cd5236eb",
+    "history": [
+     {
+      "digest": "f745ebf8cd5236eb",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "a1b5b0439c"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Rally attempt follow-through\", overlay=true)\nlookback    = input.int(60, \"Highest-close lookback (bars)\", minval=2)\ndrawdownPct = input.float(5.0, \"Percent below the highest close\", minval=0.0, step=0.25)\nminDay      = input.int(4, \"Earliest bar of the attempt\", minval=1)\ngainPct     = input.float(1.25, \"Minimum gain on the bar (%)\", minval=0.0, step=0.05)\n// at least drawdownPct percent below the highest close of the last `lookback` bars (this bar included)\nhiClose = ta.highest(close, lookback)\ninCorrection = close <= hiClose * (1 - drawdownPct / 100)\n// ONE attempt at a time, kept across bars: whether it is live, which bar of it this is, and the low it started on\nvar bool  active   = false\nvar int   dayCount = 0\nvar float startLow = na\nif active\n    // the attempt ends when a later bar's low is below the low of the bar it started on\n    if low < startLow\n        active := false\n        dayCount := 0\n        startLow := na\n    else\n        dayCount += 1\n// it starts on a bar that closes above the prior close while in the correction (a new one may start on the bar the old one ended)\nif not active and close > close[1] and inCorrection\n    active := true\n    dayCount := 1\n    startLow := low\n// the signal: bar minDay or later of a live attempt, up at least gainPct percent on more volume than the prior bar\nfollowThrough = active and dayCount >= minDay and close >= close[1] * (1 + gainPct / 100) and volume > volume[1]\nplotshape(followThrough, \"Follow-through bar\", shape.triangleup, location.belowbar, color.green, size=size.small)\n"
+    }
+   }
+  },
+  {
+   "id": "i01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the 14 day ATR as a percent of the close, and show its latest value in a table in the top right corner",
+   "rule": {
+    "digest": "6f20c7a98b3eb080",
+    "history": [
+     {
+      "digest": "6f20c7a98b3eb080",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "851d47c723"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"ATR % of close\", overlay=false)\n\nlen = input.int(14, \"ATR length\", minval=1)\nshowPct = input.bool(true, \"Show value in table\")\n\n// ATR by Wilder's definition: RMA of True Range\natrVal = ta.rma(ta.tr, len)\natrPct = atrVal / close * 100\n\nplot(atrPct, \"ATR % of close\", color=color.teal, linewidth=2)\nplot(ta.sma(atrPct, len), \"Average of ATR %\", color=color.orange)\n\nvar table t = table.new(position.top_right, 2, 3, border_width=1)\nif showPct\n    table.cell(t, 0, 0, \"ATR(\" + str.tostring(len) + \")\", text_color=color.white, bgcolor=color.gray)\n    table.cell(t, 1, 0, str.tostring(atrVal, \"#.####\"), text_color=color.white)\n    table.cell(t, 0, 1, \"ATR %\", text_color=color.white, bgcolor=color.gray)\n    table.cell(t, 1, 1, str.tostring(atrPct, \"#.##\") + \"%\", text_color=color.white)\n    table.cell(t, 0, 2, \"Close\", text_color=color.white, bgcolor=color.gray)\n    table.cell(t, 1, 2, str.tostring(close, \"#.####\"), text_color=color.white)\n"
+    }
+   }
+  },
+  {
+   "id": "i02",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot today's volume divided by its 50 day average volume, and show the latest value in a table in the corner",
+   "rule": {
+    "digest": "32905ea07eb63f14",
+    "history": [
+     {
+      "digest": "32905ea07eb63f14",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "104db22eb5"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Relative volume vs 50-day average\", overlay=false)\n\nlen = input.int(50, \"Average volume length\", minval=1)\n\navgVol = ta.sma(volume, len)\nrvol = avgVol > 0 ? volume / avgVol : na\n\nplot(rvol, \"Relative volume\", color=color.blue, style=plot.style_columns)\nplot(1.0, \"1.0x (average)\", color=color.gray)\n\nvar table t = table.new(position.top_right, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Rel volume\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(rvol, \"#.##\") + \"x\", text_color=color.white)\ntable.cell(t, 0, 1, str.tostring(len) + \" bar avg vol\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(avgVol, \"#\"), text_color=color.white)"
+    }
+   }
+  },
+  {
+   "id": "i03",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Count the distribution days in the last 25 bars, where a distribution day is a close down at least 0.2 percent from the prior close on higher volume than the prior bar. Plot the count and show it in a status table that says Under pressure when the count is 5 or more and Normal otherwise",
+   "rule": {
+    "digest": "038538414d61eea0",
+    "history": [
+     {
+      "digest": "038538414d61eea0",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "104db22eb5"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Distribution Day Count\", overlay=false)\n\nlookback = input.int(25, \"Lookback bars\", minval=1)\ndropPct  = input.float(0.2, \"Minimum close drop (%)\", minval=0.0, step=0.1)\nthreshold = input.int(5, \"Pressure threshold (days)\", minval=1)\n\n// A distribution day: close down at least dropPct% from the prior close,\n// on volume higher than the prior bar's volume.\npctChange = (close - close[1]) / close[1] * 100\nisDist = pctChange <= -dropPct and volume > volume[1]\n\nint ddCount = 0\nfor i = 0 to lookback - 1\n    ddCount += isDist[i] ? 1 : 0\n\nunderPressure = ddCount >= threshold\n\nplot(ddCount, \"Distribution days\", color=color.red, style=plot.style_columns)\nplot(threshold, \"Threshold\", color=color.gray)\n\nvar table t = table.new(position.top_right, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Distribution days\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(ddCount), text_color=color.white, bgcolor=color.new(color.black, 40))\ntable.cell(t, 0, 1, \"Status\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, underPressure ? \"Under pressure\" : \"Normal\", text_color=color.white, bgcolor=underPressure ? color.red : color.green)\n"
+    }
+   }
+  },
+  {
+   "id": "i04",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the 50 day simple moving average, and put a label with the text Cross on each bar where the close crosses above it",
+   "rule": {
+    "digest": "038b4c255fb68b95",
+    "history": [
+     {
+      "digest": "038b4c255fb68b95",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "104db22eb5"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"50 SMA with cross labels\", overlay=true)\nlen = input.int(50, \"SMA length\", minval=1)\nsrc = input.source(close, \"Source\")\nma = ta.sma(src, len)\nplot(ma, \"50 SMA\", color=color.blue, linewidth=2)\nif ta.crossover(close, ma)\n    label.new(bar_index, low, \"Cross\", style=label.style_label_up, color=color.green, textcolor=color.white)\n"
+    }
+   }
+  },
+  {
+   "id": "i05",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the percent the close is above its 10 day, 21 day and 50 day simple moving averages as three lines, and show the three latest values in a table with one row each",
+   "rule": {
+    "digest": "7af9bb93a36e22ab",
+    "history": [
+     {
+      "digest": "7af9bb93a36e22ab",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "851d47c723"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"% above 10/21/50 SMA\", overlay=false)\n\nsrc = input.source(close, \"Source\")\nlen1 = input.int(10, \"Fast SMA length\", minval=1)\nlen2 = input.int(21, \"Mid SMA length\", minval=1)\nlen3 = input.int(50, \"Slow SMA length\", minval=1)\n\nsma1 = ta.sma(src, len1)\nsma2 = ta.sma(src, len2)\nsma3 = ta.sma(src, len3)\n\npct1 = (src - sma1) / sma1 * 100\npct2 = (src - sma2) / sma2 * 100\npct3 = (src - sma3) / sma3 * 100\n\nplot(pct1, \"% above fast SMA\", color=color.green, linewidth=2)\nplot(pct2, \"% above mid SMA\", color=color.orange, linewidth=2)\nplot(pct3, \"% above slow SMA\", color=color.red, linewidth=2)\nplot(0, \"Zero\", color=color.gray)\n\nvar table t = table.new(position.top_right, 2, 4, border_width=1)\ntable.cell(t, 0, 0, \"SMA\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, \"% from close\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 0, 1, str.tostring(len1) + \" day\", text_color=color.white)\ntable.cell(t, 1, 1, str.tostring(pct1, \"#.##\") + \"%\", text_color=pct1 >= 0 ? color.lime : color.red)\ntable.cell(t, 0, 2, str.tostring(len2) + \" day\", text_color=color.white)\ntable.cell(t, 1, 2, str.tostring(pct2, \"#.##\") + \"%\", text_color=pct2 >= 0 ? color.lime : color.red)\ntable.cell(t, 0, 3, str.tostring(len3) + \" day\", text_color=color.white)\ntable.cell(t, 1, 3, str.tostring(pct3, \"#.##\") + \"%\", text_color=pct3 >= 0 ? color.lime : color.red)\n"
+    }
+   }
+  },
+  {
+   "id": "i06",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the highest close of the last 252 bars, and put a label showing the close on each bar that makes a new 252 bar closing high",
+   "rule": {
+    "digest": "553b97c199d4bf62",
+    "history": [
+     {
+      "digest": "553b97c199d4bf62",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "851d47c723"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"252-bar closing high\", overlay=true, max_labels_count=500)\n\nlen = input.int(252, \"Lookback bars\", minval=1)\nlblColor = input.color(color.green, \"Label colour\")\n\nhh = ta.highest(close, len)\n\nisNewHigh = close >= hh\n\nif isNewHigh\n    label.new(bar_index, close, str.tostring(close, format.mintick), style=label.style_label_down, color=lblColor, textcolor=color.white, size=size.small)\n\nplot(hh, \"Highest close (252)\", color=color.orange, linewidth=2)\n"
+    }
+   }
+  },
+  {
+   "id": "j06",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Show a table in the corner that says whether the close is above the 10 week moving average and above the 10 month moving average",
+   "rule": {
+    "digest": "2dc1da21af9a677e",
+    "history": [
+     {
+      "digest": "22471dd72492f9d6",
+      "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "2dc1da21af9a677e",
+      "quote": "the 10 week moving average and above the 10 month moving average",
+      "reason": "ORACLE DRIFT, found in review on 2026-11-22: the rule read the week and the month BEFORE the newest bar's own, whatever that bar was. That is what the recorded script shows (`wMA[1]`, one DAILY bar back outside the weekly read), not what the words ask. The words ask for the average as it stands, or read conservatively the last FINISHED period's; on a bar that completes its week and its month the two are one number, and the script is a whole period stale. The rule now holds both honest readings and nothing further back. The recorded answer is WRONG by it."
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "104db22eb5"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The script reads the weekly and the monthly average one DAILY bar back (`wMA[1]` outside `request.security`). On a bar that completes its week or month it shows the average one whole period stale (113.56 where the 10 week average is 114.05; 120.29 where the 10 month average is 118.72, on the engine's built bars). Mid-period it equals the last finished period's. Open: the script door has no wording for reading another timeframe, so nothing tells the assistant where a look-back goes.",
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Weekly & monthly MA status table\", overlay=true)\n\nwLen = input.int(10, \"Weekly MA length\", minval=1)\nmLen = input.int(10, \"Monthly MA length\", minval=1)\n\nwMA = request.security(syminfo.tickerid, \"W\", ta.sma(close, wLen))\nmMA = request.security(syminfo.tickerid, \"M\", ta.sma(close, mLen))\n\n// Last FINISHED week / month value (available on the newest bar)\nwPrev = wMA[1]\nmPrev = mMA[1]\n\naboveW = close > wPrev\naboveM = close > mPrev\n\nvar table t = table.new(position.top_right, 3, 3, border_width=1)\ntable.cell(t, 0, 0, \"\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, \"MA\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 2, 0, \"Close vs MA\", text_color=color.white, bgcolor=color.gray)\n\ntable.cell(t, 0, 1, str.tostring(wLen) + \" week\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(wPrev, \"#.##\"), text_color=color.white)\ntable.cell(t, 2, 1, aboveW ? \"ABOVE\" : \"BELOW\", text_color=color.white, bgcolor=aboveW ? color.green : color.red)\n\ntable.cell(t, 0, 2, str.tostring(mLen) + \" month\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 2, str.tostring(mPrev, \"#.##\"), text_color=color.white)\ntable.cell(t, 2, 2, aboveM ? \"ABOVE\" : \"BELOW\", text_color=color.white, bgcolor=aboveM ? color.green : color.red)\n"
+    }
+   }
+  },
+  {
+   "id": "k01",
+   "lane": "script",
+   "chart": "daily",
+   "edge": {
+    "back": 50,
+    "othersClose": 10
+   },
+   "words": "Show a table with SPY, QQQ and IWM, one row each, saying Above or Below for whether its close is above its own 50 day simple moving average",
+   "rule": {
+    "digest": "61b680d710388426",
+    "history": [
+     {
+      "digest": "61b680d710388426",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "851d47c723"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"SPY / QQQ / IWM vs 50 SMA\", overlay=true)\n\nlen = input.int(50, \"SMA length\", minval=1)\nsym1 = input.string(\"SPY\", \"Symbol 1\")\nsym2 = input.string(\"QQQ\", \"Symbol 2\")\nsym3 = input.string(\"IWM\", \"Symbol 3\")\n\n[c1, m1] = request.security(sym1, \"D\", [close, ta.sma(close, len)])\n[c2, m2] = request.security(sym2, \"D\", [close, ta.sma(close, len)])\n[c3, m3] = request.security(sym3, \"D\", [close, ta.sma(close, len)])\n\nabove1 = c1 > m1\nabove2 = c2 > m2\nabove3 = c3 > m3\n\nupCol = color.new(color.green, 20)\ndnCol = color.new(color.red, 20)\n\nvar table t = table.new(position.top_right, 3, 4, border_width=1)\n\ntable.cell(t, 0, 0, \"Symbol\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, \"Close\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 2, 0, str.tostring(len) + \" SMA\", text_color=color.white, bgcolor=color.gray)\n\ntable.cell(t, 0, 1, sym1, text_color=color.white, bgcolor=color.new(color.black, 40))\ntable.cell(t, 1, 1, str.tostring(c1, \"#.##\"), text_color=color.white, bgcolor=color.new(color.black, 40))\ntable.cell(t, 2, 1, above1 ? \"Above\" : \"Below\", text_color=color.white, bgcolor=above1 ? upCol : dnCol)\n\ntable.cell(t, 0, 2, sym2, text_color=color.white, bgcolor=color.new(color.black, 40))\ntable.cell(t, 1, 2, str.tostring(c2, \"#.##\"), text_color=color.white, bgcolor=color.new(color.black, 40))\ntable.cell(t, 2, 2, above2 ? \"Above\" : \"Below\", text_color=color.white, bgcolor=above2 ? upCol : dnCol)\n\ntable.cell(t, 0, 3, sym3, text_color=color.white, bgcolor=color.new(color.black, 40))\ntable.cell(t, 1, 3, str.tostring(c3, \"#.##\"), text_color=color.white, bgcolor=color.new(color.black, 40))\ntable.cell(t, 2, 3, above3 ? \"Above\" : \"Below\", text_color=color.white, bgcolor=above3 ? upCol : dnCol)\n"
+    }
+   }
+  },
+  {
+   "id": "k04",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot 1 when SPY and QQQ both close above their own 50 day simple moving averages and 0 otherwise, and show Risk on or Risk off in a table in the corner",
+   "rule": {
+    "digest": "363c006548caba67",
+    "history": [
+     {
+      "digest": "363c006548caba67",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "104db22eb5"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"SPY + QQQ risk on/off\", overlay=false)\n\nlen = input.int(50, \"SMA length\", minval=1)\nsym1 = input.string(\"SPY\", \"Symbol 1\")\nsym2 = input.string(\"QQQ\", \"Symbol 2\")\n\nc1 = request.security(sym1, timeframe.period, close)\nm1 = request.security(sym1, timeframe.period, ta.sma(close, len))\nc2 = request.security(sym2, timeframe.period, close)\nm2 = request.security(sym2, timeframe.period, ta.sma(close, len))\n\nriskOn = c1 > m1 and c2 > m2\nsig = riskOn ? 1 : 0\n\nplot(sig, \"Risk on (1/0)\", color=color.teal, style=plot.style_stepline, linewidth=2)\n\nvar table t = table.new(position.top_right, 1, 1, border_width=1)\ntable.cell(t, 0, 0, riskOn ? \"Risk on\" : \"Risk off\", text_color=color.white, bgcolor=riskOn ? color.green : color.red)"
+    }
+   }
+  },
+  {
+   "id": "l01",
+   "lane": "script",
+   "chart": "daily",
+   "edge": {
+    "back": 252,
+    "high": true
+   },
+   "words": "Draw a horizontal line at the highest high of the last 252 bars",
+   "rule": {
+    "digest": "15281ce6a92293da",
+    "history": [
+     {
+      "digest": "15281ce6a92293da",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "104db22eb5"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"252-bar high line\", overlay=true)\nn = input.int(252, \"Lookback bars\", minval=1)\nhh = ta.highest(high, n)\nvar line hiLine = line.new(bar_index, hh, bar_index, hh, extend=extend.right, color=color.red, width=2)\nif not na(hh)\n    line.set_xy1(hiLine, bar_index - n, hh)\n    line.set_xy2(hiLine, bar_index, hh)\nplot(hh, \"Highest high\", color=color.new(color.red, 100))"
+    }
+   }
+  },
+  {
+   "id": "l02",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Draw a box around the high and low of the last 20 bars",
+   "rule": {
+    "digest": "f03eb3a155207b1d",
+    "history": [
+     {
+      "digest": "f03eb3a155207b1d",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "6f243a3321"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"20-bar range box\", overlay=true)\nn = input.int(20, \"Bars in range\", minval=1)\nhi = ta.highest(high, n)\nlo = ta.lowest(low, n)\nvar box b = box.new(bar_index, high, bar_index, low, bgcolor=color.new(color.blue, 88), border_color=color.blue, border_width=1)\nif not na(hi) and not na(lo)\n    box.set_lefttop(b, bar_index - (n - 1), hi)\n    box.set_rightbottom(b, bar_index, lo)\nplot(hi, \"Range high\", color=color.new(color.blue, 100))\nplot(lo, \"Range low\", color=color.new(color.blue, 100))\n"
+    }
+   }
+  },
+  {
+   "id": "l03",
+   "lane": "script",
+   "chart": "daily",
+   "edge": {
+    "back": 60,
+    "low": true
+   },
+   "words": "Draw a line from the lowest low of the last 60 bars to the most recent close",
+   "rule": {
+    "digest": "b9a079354bdceb59",
+    "history": [
+     {
+      "digest": "b9a079354bdceb59",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "6f243a3321"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Low-to-close line\", overlay=true)\n\nn = input.int(60, \"Lookback bars\", minval=2)\nlineColor = input.color(color.blue, \"Line colour\")\nlineWidth = input.int(2, \"Line width\", minval=1)\n\n// lowest low of the last n bars and how many bars back it sits\nll = ta.lowest(low, n)\noffset = ta.lowestbars(low, n)   // 0 or negative\n\nvar line conn = line.new(bar_index, low, bar_index, close, color=lineColor, width=lineWidth)\n\nif not na(ll)\n    line.set_xy1(conn, bar_index + offset, ll)\n    line.set_xy2(conn, bar_index, close)\n    line.set_color(conn, lineColor)\n    line.set_width(conn, lineWidth)\n\n// hidden plot so the script can be used in alerts\nplot(ll, \"Lowest low\", color=color.new(color.gray, 100))"
+    }
+   }
+  },
+  {
+   "id": "l04",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Put a box around every inside bar, from its high to its low, where an inside bar has a high below the prior bar's high and a low above the prior bar's low",
+   "rule": {
+    "digest": "36c050507f361f89",
+    "history": [
+     {
+      "digest": "36c050507f361f89",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "104db22eb5"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Inside bar boxes\", overlay=true, max_boxes_count=500)\n\nborderCol = input.color(color.orange, \"Border colour\")\nfillCol = input.color(color.new(color.orange, 85), \"Fill colour\")\nborderW = input.int(1, \"Border width\", minval=1)\n\nisInside = high < high[1] and low > low[1]\n\nif isInside\n    box.new(bar_index, high, bar_index, low, border_color=borderCol, border_width=borderW, bgcolor=fillCol)\n\nplot(isInside ? high : na, \"Inside bar high\", color=color.new(borderCol, 100), style=plot.style_circles)"
+    }
+   }
+  },
+  {
+   "id": "l05",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Draw a horizontal line at the prior bar's high and another at the prior bar's low, extended to the right",
+   "rule": {
+    "digest": "0fa6c30b4e0336e7",
+    "history": [
+     {
+      "digest": "0fa6c30b4e0336e7",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "104db22eb5"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Prior bar high/low lines\", overlay=true)\n\nhiColor = input.color(color.red, \"High line colour\")\nloColor = input.color(color.green, \"Low line colour\")\nlineWidth = input.int(1, \"Line width\", minval=1, maxval=5)\n\nph = high[1]\npl = low[1]\n\nvar line hiLine = line.new(bar_index, ph, bar_index + 1, ph, extend=extend.right, color=hiColor, width=lineWidth)\nvar line loLine = line.new(bar_index, pl, bar_index + 1, pl, extend=extend.right, color=loColor, width=lineWidth)\n\nif not na(ph)\n    line.set_xy1(hiLine, bar_index - 1, ph)\n    line.set_xy2(hiLine, bar_index, ph)\n    line.set_color(hiLine, hiColor)\n    line.set_width(hiLine, lineWidth)\n\nif not na(pl)\n    line.set_xy1(loLine, bar_index - 1, pl)\n    line.set_xy2(loLine, bar_index, pl)\n    line.set_color(loLine, loColor)\n    line.set_width(loLine, lineWidth)\n\nplot(ph, \"Prior bar high\", color=hiColor)\nplot(pl, \"Prior bar low\", color=loColor)\n"
+    }
+   }
+  },
+  {
+   "id": "l06",
+   "lane": "script",
+   "chart": "daily",
+   "edge": {
+    "back": 100,
+    "high": true,
+    "low": true
+   },
+   "words": "Put a label on the highest high of the last 100 bars showing that high, and a label on the lowest low of the last 100 bars showing that low",
+   "rule": {
+    "digest": "b95c9dcadb3760c8",
+    "history": [
+     {
+      "digest": "b95c9dcadb3760c8",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "6f243a3321"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"100-bar high & low labels\", overlay=true)\n\nn = input.int(100, \"Lookback bars\", minval=2)\n\nhh = ta.highest(high, n)\nll = ta.lowest(low, n)\n\n// how many bars back the extreme sits (0 = current bar)\nhiOffset = -ta.highestbars(high, n)\nloOffset = -ta.lowestbars(low, n)\n\nvar label hiLbl = label.new(bar_index, high, \"\", style=label.style_label_down, color=color.green, textcolor=color.white, size=size.small)\nvar label loLbl = label.new(bar_index, low, \"\", style=label.style_label_up, color=color.red, textcolor=color.white, size=size.small)\n\nif not na(hh)\n    label.set_xy(hiLbl, bar_index - hiOffset, hh)\n    label.set_text(hiLbl, str.tostring(hh, format.mintick))\n\nif not na(ll)\n    label.set_xy(loLbl, bar_index - loOffset, ll)\n    label.set_text(loLbl, str.tostring(ll, format.mintick))\n\nplot(hh, \"Highest high\", color=color.new(color.green, 100))\nplot(ll, \"Lowest low\", color=color.new(color.red, 100))"
+    }
+   }
+  },
+  {
+   "id": "count-on-bars-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Count runs of closes that are each above the close 4 bars earlier, and write the count above each bar of the run as a number from 1 to 9, starting again at 1 after 9 and stopping when the run breaks",
+   "rule": {
+    "digest": "a81f7fe966560a0c",
+    "history": [
+     {
+      "digest": "a81f7fe966560a0c",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "6783fe2c1a"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The script writes NO number: `plotchar(cnt > 0 ? cnt : na, \"Count\", \"\", location.abovebar)` draws one fixed mark on every bar of the run (an empty character is the engine's default mark), so every bar reads the same and none reads its count. The count itself is right. The script document now says a number that changes bar to bar is written with a label, and that plotchar and plotshape draw one fixed character per call.",
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"TD-style setup count\", overlay=true)\nlookback = input.int(4, \"Bars back to compare\", minval=1)\nmaxCount = input.int(9, \"Count resets after\", minval=1)\nup = close > close[lookback]\nvar int cnt = 0\nif up\n    cnt := cnt >= maxCount ? 1 : cnt + 1\nelse\n    cnt := 0\nplotchar(cnt > 0 ? cnt : na, \"Count\", \"\", location.abovebar, color=color.green, size=size.tiny)\nplot(cnt, \"Count value\", color=color.new(color.gray, 100))\n"
+    }
    }
   },
   {

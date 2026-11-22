@@ -187,6 +187,14 @@ export function loadCorpus(dir = FIXTURE_DIR) {
   const files = readdirSync(join(dir, 'corpus')).filter((f) => f.endsWith('.pine')).sort()
   const listed = new Set(corpus.scripts.filter((s) => s.file).map((s) => s.file))
   for (const f of files) if (!listed.has(`corpus/${f}`)) throw new Error(`corpus/${f} is not listed in corpus.json`)
+  // ⛔ A WINDOW IS DECLARED BY ITS BAR SET (`calcBars`), which `caseList` writes into the header AND stamps on the
+  // document. A file that declared its own count would run unwindowed: the document's stamp is the window's one
+  // authority (`calcBarsWindow.js::calcBarsCountOf`), and the member door writes it, not the source.
+  for (const f of files) {
+    if (/calc_bars_count/.test(readFileSync(join(dir, 'corpus', f), 'utf8'))) {
+      throw new Error(`corpus/${f} declares calc_bars_count itself: put the script on a bar set with calcBars, whose window the harness writes and stamps`)
+    }
+  }
   return corpus
 }
 
@@ -206,9 +214,16 @@ export function caseList(corpus, dir = FIXTURE_DIR) {
       const name = `${s.name}@${set}`
       out.push({
         case: name, script: s.name, set, hostile: !!s.hostile, expectGuard: s.expectGuard || null,
-        // the shape `runtimeAsync.messageOf` posts (HP-7)
+        // the shape `runtimeAsync.messageOf` posts (HP-7), as the member door mints it
+        // ⭐ (2026-11-19) WITH THE DOOR'S WINDOW STAMP. The door writes a declared `calc_bars_count` to
+        // `meta.calcBarsCount` (`memberPaneDefinition.js`, off `translatePine`), and since engine 59 (CBC-FMT) that stamp
+        // is the window's ONE authority (`calcBarsWindow.js::calcBarsCountOf`). ⚰️ This wrote the count into the SOURCE
+        // only, so from e59 no case ran windowed: the `calcbars` set ran every bar, and `h_varip_window` (design 4,
+        // "varip on a sliding window") was refused by the Node half for having no realtime ledger and SERVED by the
+        // browser's session ledger (HP-3 red, 2026-11-19), where a member's document is refused on both. The harness
+        // writes the header, so it stamps the number it wrote.
         def: { id: `hp:${name}`, compute: { kind: 'runtime', fn: `runtime:hp:${s.name}`, outputs, source },
-          meta: { runtimeHistory: 'listing' } },
+          meta: { runtimeHistory: 'listing', ...(spec.calcBars ? { calcBarsCount: spec.calcBars } : {}) } },
         ctx: { ...spec.ctx },
       })
     }
