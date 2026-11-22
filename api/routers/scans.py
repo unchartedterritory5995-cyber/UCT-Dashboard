@@ -97,6 +97,16 @@ def ipo_1y_status(_user: dict = Depends(require_paid)):
     return scan_ipo.status()
 
 
+@router.get("/api/scans/ipo-lockups")
+def ipo_lockups(_user: dict = Depends(require_paid)):
+    """IPO LOCKUP (the UCT Terminal's `IPO LOCKUP`, 2026-11-22): the companies of the last-year listings
+    above whose ESTIMATED lockup expiry (the listing date + 180 days, rolled to the next session) falls in
+    the next 30 days or the past 7. Only what the server holds (`api/services/ipo_lockups.py`): never a
+    vendor call; a request never builds (held answer, or `computing` while the one build runs)."""
+    from api.services import ipo_lockups as _lockups
+    return _lockups.get_lockups()
+
+
 @router.get("/api/scans/top-gainers-30d")
 def top_gainers_30d(_user: dict = Depends(require_paid)):
     """Top 5% of non-ETF stocks by 30-trading-day % change. Live all day."""

@@ -10,6 +10,8 @@ import { formatNumber, formatPercent } from '../../../lib/presentation/presentat
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 import { num } from '../../optionsAnalytics/optionsFormat'
+import IvRankPanel from '../../terminal/panels/IvRankPanel'
+import { normOscrView } from '../../terminal/panels/ivRankModel'
 
 // COV-02 (screen the OPTION, not the stock) + COV-03 (market-wide unusual option volume and
 // IV percentile), read ONLY from our own options log (api/services/research/options_screener.py).
@@ -22,6 +24,10 @@ import { num } from '../../optionsAnalytics/optionsFormat'
 //    percentile needs 20; below that the row says how many it has, never a number.
 // ⛔ READ-ONLY: no trade buttons. Nothing here places, stages or simulates an order.
 // ⛔ Polling: none. The log grows once a trading day; bare useSWR with no refreshInterval.
+//
+// OSCR RICH / OSCR CHEAP (2026-11-22): in the UCT Terminal the command's view word swaps this body for the
+// highest or lowest IV rank across the log (terminal/panels/IvRankPanel.jsx). The Screener page never passes
+// `view`, so the page is unchanged.
 
 const VIEWS = [['screen', 'Option screen'], ['volume', 'Unusual volume'], ['iv', 'IV percentile']]
 
@@ -259,7 +265,15 @@ function Iv() {
   )
 }
 
-export default function OptionsScreener() {
+export default function OptionsScreener({ view: ivView } = {}) {
+  // `OSCR RICH` / `OSCR CHEAP`: the IV rank list. Outside the shell its chip back here switches in this state.
+  const [rankView, setRankView] = useState(() => normOscrView(ivView))
+  return rankView
+    ? <IvRankPanel side={rankView === 'cheap' ? 'low' : 'high'} onView={setRankView} />
+    : <ScreenerTabs />
+}
+
+function ScreenerTabs() {
   const [view, setView] = useState('screen')
   const tabRefs = useRef({})
   const uid = useId()
