@@ -159,12 +159,10 @@ def compute_sma(closes, period):
 #: function is a same-slot complement (`_is_slot_complement`), so a positional window written into the same
 #: function is still reported; and an entry the scan no longer finds fails (an exemption must stay live).
 #: ⚰️ 2026-11-22: master was red on this rail from 178738e60a (#2491, SETH) until this entry.
-ROLLING_SHAPE_EXEMPT = {
-    "api/services/setup_history_calc.py::_baseline": (
-        "A one-shot complement of precomputed totals (every window bar's [n, sum, wins, clipped sum] minus the "
-        "setup's left-out bars', summed over at most four phase codes), not a rolling window: nothing slides, it "
-        "adds the same handful of roundings however long the history is, and its answer does not depend on "
-        "where reading started."),
+ROLLING_SHAPE_EXEMPT: dict = {
+    # ⚰️ 2026-11-22: "api/services/setup_history_calc.py::_baseline" was exempt here (#2508) while the terminal
+    # lane renamed its fields in f93d3e1805 (#2509); it no longer matches the shape at all, so the entry went stale and
+    # this rail correctly failed it. Empty is the normal state.
 }
 
 
@@ -233,27 +231,36 @@ def test_no_rolling_subtract_moving_average_survives_in_the_backend():
     )
 
 
-def test_the_rolling_shape_exemption_names_exactly_setup_history_baseline_and_it_is_live():
-    """The exemption is ONE function, still matched by the scan (a stale entry fails), and still a slot complement."""
-    key = "api/services/setup_history_calc.py::_baseline"
-    assert set(ROLLING_SHAPE_EXEMPT) == {key}, sorted(ROLLING_SHAPE_EXEMPT)
+def test_every_rolling_shape_exemption_is_live_and_one_sentence():
+    """Each entry (none today) is still matched by the scan (a stale entry fails), every match in it is a slot
+    complement, and its reason is one sentence."""
+    found = _scan(_is_rolling_accumulator)
     for k, why in ROLLING_SHAPE_EXEMPT.items():
         assert why.strip().endswith(".") and why.count(". ") == 0, f"{k}: the reason is one sentence"
-    found = _scan(_is_rolling_accumulator)
-    assert key in found, f"{key} no longer matches the shape: delete its exemption"
-    assert _exemption_holds(key), f"{key} matches the shape with something other than a slot complement"
+        assert k in found, f"{k} no longer matches the shape: delete its exemption"
+        assert _exemption_holds(k), f"{k} matches the shape with something other than a slot complement"
 
 
-def test_CONTROL_the_exemption_never_hides_a_real_rolling_window():
-    """With the exemption applied, the retired SMA is still reported in another file, in the exempt file under
-    another name, and written INTO the exempt function; the real `_baseline` is the only thing dropped."""
+def test_the_former_setup_history_exemption_is_gone_and_baseline_does_not_match():
+    """setup_history_calc._baseline names its record fields since f93d3e1805, so the scan does not match it and it
+    needs no entry; were it to match again, the backend scan above would name it."""
     key = "api/services/setup_history_calc.py::_baseline"
+    assert key not in ROLLING_SHAPE_EXEMPT
+    assert key not in _scan(_is_rolling_accumulator)
+
+
+def test_CONTROL_the_exemption_never_hides_a_real_rolling_window(monkeypatch):
+    """The mechanism, proven with a stand-in entry: a slot complement is dropped; the retired SMA is still reported
+    in another file, in the exempt file under another name, and written INTO the exempt function."""
+    key = "api/services/_stand_in.py::_baseline"
+    monkeypatch.setitem(ROLLING_SHAPE_EXEMPT, key, "A stand-in for the control, not a product file.")
+    complement = "def _baseline(rows, out):\n    n = 0\n    for a, o in zip(rows, out):\n        n += a[0] - o[0]\n    return n\n"
     in_baseline = _RETIRED_SMA_SOURCE.replace("def compute_sma(", "def _baseline(")
     elsewhere = {"api/services/indicator_compute.py::compute_sma": 7,
-                 "api/services/setup_history_calc.py::compute_sma": 7}
-    assert _unexempt(elsewhere) == elsewhere
-    assert _unexempt({key: 552}, source_for=lambda k: in_baseline) == {key: 552}
-    assert _unexempt({key: 552}) == {}
+                 "api/services/_stand_in.py::compute_sma": 7}
+    assert _unexempt(elsewhere, source_for=lambda k: _RETIRED_SMA_SOURCE) == elsewhere
+    assert _unexempt({key: 4}, source_for=lambda k: complement) == {}
+    assert _unexempt({key: 4}, source_for=lambda k: in_baseline) == {key: 4}
     assert _is_slot_complement(ast.parse("x += a[1] - b[1]").body[0])
     for src in ("x += s[i] - s[i - 3]", "x += a[1] - b[2]", "x += a['n'] - b['n']", "x += a[1] + b[1]"):
         assert not _is_slot_complement(ast.parse(src).body[0]), src
