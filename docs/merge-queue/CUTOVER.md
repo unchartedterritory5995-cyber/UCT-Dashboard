@@ -9,21 +9,25 @@ Every step here is reversible with one switch (the last section).
       said APPROVED on both.
 - [ ] The verdict's GitHub App exists, is installed on this repo with commit statuses read and write, and its
       credentials are in the environment `agent-ci-verdict`, whose deployment-branch policy allows `master` only.
-- [ ] The follower was rehearsed with that App in the rehearsal repo at #2501's FINAL head: it posts the verdict, a
-      job on a `gh-readonly-queue/...` ref is refused the environment, a status posted by GitHub Actions under the
-      same name does not satisfy the required check, and a no-Agent-path entry that adds a workflow whose
-      `environment` is an expression is REMOVED. (Rehearsed at `6b9fffe029` on 2026-11-22, before the follower's
-      workflow-tree check existed; that does not count for this box.)
+- [ ] The follower was rehearsed with that App in the rehearsal repo at #2501's FINAL head (`01a295991c`), three rows:
+  - [x] it posts the verdict; a job on a `gh-readonly-queue/...` ref is refused the environment; a status posted by
+        GitHub Actions under the same name does not satisfy the required check (2026-11-22);
+  - [x] a pull request that adds a workflow whose `environment` is an expression never enters the queue: its PR-head
+        `agent-ci-required` is failure (2026-11-22, 21:21Z round);
+  - [ ] after such a workflow is landed on the rehearsal repo's `master` OUTSIDE the queue, an ordinary no-Agent-path
+        entry branched before it is REMOVED by the follower, and lands once the file is gone.
 - [ ] `git diff origin/master origin/agent/int -- .github/workflows/agent-ci-required.yml` is empty. Done by the
       Agent Lead (merge `master` into `agent/int` after #2501 lands, outside a re-arm or evidence run: the file is an
       Agent path, so the merge starts an 18-job run). Checked by AUDIT.
+      When: #2501 has merged (done 2026-11-22, `a5d74997a9`), its master deploy gate run is green, AUDIT has confirmed
+      that the first pull request into master after it carries the App's status, and no Agent re-arm or evidence
+      run is in flight.
 - [ ] Environment `agent-ci-verdict` has "Allow administrators to bypass" OFF (`can_admins_bypass: false`).
       Set on 2026-11-22; re-read it on the day:
       `gh api repos/northstar-quarry/UCT-Dashboard/environments/agent-ci-verdict --jq .can_admins_bypass`
 - [ ] The list of open pull requests is recorded: each needs a push, a reopen or an agent ci run before the
       App's status exists on its head. The cutover message says so.
-- [ ] The Agent part is merged: Agent jobs run on `merge_group` for a queued pull request that touches an Agent
-      path, and `agent-ci-required` is posted on the merge group's commit.
+- [x] The Agent part is merged: #2501, 2026-11-22, `a5d74997a9`, on AUDIT's GO line, with the queue off.
 - [ ] The Agent part was exercised by real `merge_group` events in the rehearsal repo at #2501's FINAL head (with a
       stand-in for the 18 Agent jobs): no Agent path, Agent path, Agent + self-protected, and an Agent entry stacked
       behind a machinery edit.
