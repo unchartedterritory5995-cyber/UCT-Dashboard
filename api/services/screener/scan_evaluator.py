@@ -3169,6 +3169,83 @@ def sweep_job() -> None:
             receipt.get("unswept_reason"), receipt.get("deadline"))
 
 
+#: How long after a boot the catch-up looks (never inline: the boot is not slowed).
+#: The rs-history catch-up's delay, for the same reason.
+SWEEP_CATCHUP_BOOT_DELAY_S = 300
+
+
+def _has_receipt(definition: Any, tf_code: str, as_of: int) -> bool:
+    """Whether ``definition`` carries a ``scan_coverage`` row for ``as_of``: the
+    artifact a COMPLETED nightly evaluation leaves, and the only thing the catch-up
+    believes. Unhashable or unreadable counts as NO receipt: a definition swept
+    twice costs a little; one never swept is the defect this exists for."""
+    try:
+        return scan_store.coverage(_scannable_handle(definition), tf_code, as_of) is not None
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def sweep_catch_up() -> Optional[dict]:
+    """THE BOOT CATCH-UP for a nightly sweep a restart skipped or cut short.
+
+    🔴 THE SCHEDULER CANNOT DO THIS ITSELF. Its jobs live in memory, so a pod that
+    starts after 05:00 ET computes the next fire as TOMORROW: `misfire_grace_time`
+    only helps a scheduler that was running at the slot. Measured 2026-11-22: a web
+    restart at 10:00-10:01Z landed on the 05:00 ET slot and the night's sweep did
+    not run at all.
+
+    ⭐ ARTIFACT-FIRST (the store-backup catch-up's pattern, #1281): what is behind is
+    READ from the store, never remembered. Past today's slot and before its
+    deadline, the definitions tonight's sweep would take (`definitions_to_sweep`,
+    the same admission, cap and rotation) are checked for a `scan_coverage` row for
+    the session the sweep screens; ONLY those without one are swept, once, under the
+    sweep's own deadline. Run twice, the second run finds the receipts the first
+    wrote and sweeps nothing. A run killed half-way leaves the rest without receipts
+    for the next boot to find.
+
+    ⛔ IT NEVER RUNS BESIDE THE SCHEDULED SWEEP: the caller (`api/main.py`) holds one
+    lock over both jobs. This module imports no concurrency primitive (the census in
+    tests/test_scan_evaluator.py).
+
+    Returns the run's receipt, or ``None`` when nothing was due.
+    """
+    now = _now_et()
+    slot = now.replace(hour=SWEEP_HOUR_ET, minute=SWEEP_MINUTE_ET, second=0, microsecond=0)
+    if now < slot:
+        log.info("[scan] sweep catch-up: %s is before today's %s slot; the scheduled sweep "
+                 "runs it", now.isoformat(), slot.strftime("%H:%M ET"))
+        return None
+    deadline = sweep_deadline(now)
+    if now >= deadline:
+        log.info("[scan] sweep catch-up: %s is past today's deadline %s; nothing to catch "
+                 "up today", now.isoformat(), deadline.isoformat())
+        return None
+    try:
+        definitions = definitions_to_sweep()
+    except Exception as exc:                                 # noqa: BLE001
+        log.exception("[scan] sweep catch-up could not read the definitions to sweep: %s", exc)
+        return None
+    as_of = int(scan_store._normalise_as_of(expected_session()))
+    tf_code = scan_store._normalise_tf(DEFAULT_TF)
+    missing = [d for d in definitions if not _has_receipt(d, tf_code, as_of)]
+    if not missing:
+        log.info("[scan] sweep catch-up: all %s definitions carry a scan_coverage row for "
+                 "as_of=%s; nothing to catch up", len(definitions), as_of)
+        return None
+    log.warning("[scan] sweep catch-up: %s of %s definitions carry NO scan_coverage row for "
+                "as_of=%s (a restart skipped or cut today's %s sweep); sweeping them once now",
+                len(missing), len(definitions), as_of, slot.strftime("%H:%M ET"))
+    receipt = run_sweep(missing, as_of=as_of, deadline=deadline)
+    if not receipt:
+        log.warning("[scan] sweep catch-up did not run")
+        return None
+    proven = sum(1 for d in missing if _has_receipt(d, tf_code, as_of))
+    log.info("[scan] sweep catch-up receipts read back: %s of %s definitions now carry a "
+             "scan_coverage row for as_of=%s (stopped_early=%s)", proven, len(missing), as_of,
+             receipt.get("stopped_early"))
+    return receipt
+
+
 def live_sweep_job() -> None:
     """The SCHEDULED entry point for the five-minute cycle.
 
