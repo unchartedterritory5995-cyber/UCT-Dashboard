@@ -2514,6 +2514,19 @@
       ],
       "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Arms the after-close daily sweep so the web pod's newer-wins merge cold-populates every empty daily and advances every stale one, and a first view of ANY symbol serves from SQLite instead of shedding a warming 503."
     },
+    "PINE_BREADTH_SUPPLY_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-22",
+      "where": [],
+      "default": "admins",
+      "values": [
+        "off",
+        "admins",
+        "all"
+      ],
+      "owner": "Pine track 4 (the data indicators need), unit B1",
+      "note": "A STAGE, read per request in api/services/pine_breadth.py::stage() by GET /api/pine/breadth/{spelling} (api/routers/pine_breadth.py): UCT's own NYSE / Nasdaq breadth under TradingView's USI: spellings, labelled UCT breadth, for the breadth supply (B2). UNSET or admins = signed-in admins only (dark for members; admins read the values to grade them against capture Q-T4-B1). all (or 1/true/on) = paid members, who are still refused by the Pine data catalog's licence sentence while uct_breadth (massive/derived_analytics, held at R: ESC-03) is not servable. off, or any unknown value = nobody (404). Rails: tests/test_pine_breadth.py."
+    },
     "PINE_EVENTS_SUPPLY_ENABLED": {
       "status": "dark",
       "since": "2026-11-22",
