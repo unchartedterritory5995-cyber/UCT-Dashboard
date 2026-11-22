@@ -168,6 +168,11 @@ export const SEG_PERIOD_WORDS = Object.freeze({ ANNUAL: 'annual', YEARLY: 'annua
 // IDXC: a copy of the panel model's words (functions.indexChanges.test.js pins it to its owner). SP500, SPX, NDX, DOW
 // and DJIA are COT's own market words, so they are not IDXC's.
 export const IDXC_INDEX_WORDS = Object.freeze({ 'S&P500': 'sp500', NASDAQ100: 'nasdaq100', DOW30: 'dow' })
+// PUBR: a copy of the panel model's section words (functions.publicRecords.test.js pins it to its owner). ALL is a stock
+// (Allstate), so the all-sections view is the bare command.
+export const PUBR_VIEW_WORDS = Object.freeze({
+  CONTRACTS: 'contracts', AWARDS: 'contracts', TRIALS: 'trials', FDA: 'fda', APPROVALS: 'fda', LOBBYING: 'lobbying',
+})
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -723,6 +728,16 @@ export const ARG_KINDS = {
       return Object.prototype.hasOwnProperty.call(IDXC_INDEX_WORDS, key) ? IDXC_INDEX_WORDS[key] : null
     },
     describe: (v) => ({ sp500: 'the S&P 500', nasdaq100: 'the Nasdaq 100', dow: 'the Dow 30' })[v] || v,
+  },
+  // ── PUBR (2026-11-22): the panel model's words (panels/publicRecordsModel.js; pinned by functions.publicRecords.test.js) ──
+  /** PUBR's section: one of the four in full; bare `PUBR` is all four. */
+  pubrView: {
+    takes: 'CONTRACTS, TRIALS, FDA or LOBBYING',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(PUBR_VIEW_WORDS, key) ? PUBR_VIEW_WORDS[key] : null
+    },
+    describe: (v) => ({ contracts: 'federal contracts', trials: 'clinical trials', fda: 'FDA approvals', lobbying: 'lobbying' })[v] || v,
   },
   // ── FUND (2026-11-21): the panel model's words (panels/fundMetricsModel.js; pinned by functions.fundMetrics.test.js) ──
   /** FUND's line: ONE metric word draws that metric as a line (parseFundMetric). */

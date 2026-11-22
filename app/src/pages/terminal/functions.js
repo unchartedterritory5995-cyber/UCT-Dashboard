@@ -668,6 +668,14 @@ export const FUNCTIONS = [
   { code: 'IDXC', label: 'Index changes (additions and removals)', group: 'Market',
     ticker: { panel: 'IndexChanges', args: [{ kind: 'marketView', prop: 'view' }, { kind: 'idxcIndex', prop: 'index' }] },
     market: { panel: 'IndexChanges', args: [{ kind: 'marketView', prop: 'view' }, { kind: 'idxcIndex', prop: 'index' }] } },
+  // PUBR (2026-11-22): one company's public records from four government agencies: its federal contract awards
+  // (USAspending.gov), the clinical trials it leads (ClinicalTrials.gov), its FDA drug approvals (openFDA, Drugs@FDA)
+  // and its lobbying (LDA.gov), each matched to the ticker by the company's names, with the names shown
+  // (GET /api/research/public-records/{ticker}; the server reads each agency at most once a day per company).
+  // `NVDA PUBR TRIALS`. The brief named it RECS, which is a real fund (Columbia Research Enhanced Core ETF, NYSE Arca);
+  // PUBR is not in the site's universe and a web search on 2026-11-22 found no stock or fund trading under it.
+  { code: 'PUBR', label: 'Public records (government contracts, clinical trials, FDA approvals, lobbying)', group: 'Security',
+    ticker: { panel: 'PublicRecords', args: [{ kind: 'pubrView', prop: 'view' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -1025,6 +1033,12 @@ const FUNCTION_WORDS = {
   IDXC: { example: 'IDXC', keywords: ['index changes', 'index additions', 'index removals', 'added to the s&p', 'removed from the index',
     'index rebalance', 'sp500 changes', 'index deletions', 'index history'],
     note: 'The provider\'s list of additions and removals with the stock replaced and the reason. One stock: NVDA IDXC. On a panel that follows a stock, IDXC MARKET is all three indexes.' },
+  // A word another panel owns keeps finding it: 'records' (in LEAD's title), 'contract' and 'contracts' (ACCUM), 'spend'
+  // (ECON), 'fed' and 'federal' (FED). So no keyword here holds 'records', 'contract' or 'spend'; the label carries
+  // "public records" for a one-word search on 'public'.
+  PUBR: { example: 'NVDA PUBR', keywords: ['government contracts', 'federal contracts', 'clinical trials', 'fda approvals',
+    'drug approvals', 'lobbying', 'usaspending'],
+    note: 'From the agencies\' own records, matched to the company by name, with the matched names shown. One section: NVDA PUBR TRIALS.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

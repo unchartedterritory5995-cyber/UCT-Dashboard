@@ -147,6 +147,7 @@ const ARG_SAMPLE = {
   fundMetric: 'PE', fundMetrics: 'REV+EPS', fundPeers: 'AMD',
   mkthIndex: 'NDX',
   groupsKind: 'INDUSTRIES', groupsView: 'VALUATION',
+  pubrView: 'TRIALS',
 }
 
 afterEach(cleanup)
