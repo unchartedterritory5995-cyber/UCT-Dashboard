@@ -195,8 +195,11 @@ def test_the_exemption_is_IDENTITY_of_the_requests_never_resemblance():
     one_more = source + 'extra = request.security(syminfo.tickerid, timeframe.period, close)\nplot(extra)\n'
     other_tf = source.replace('"D", close[1])', '"W", close[1])')
     other_expression = source.replace('"D", low[1])', '"D", low[2])')
-    one_fewer_kind = source.replace('request.security(syminfo.tickerid, "D", close[1])', 'request.security(syminfo.tickerid, "D", high[1])')
-    for script in (one_more, other_tf, other_expression, one_fewer_kind):
+    one_swapped = source.replace('request.security(syminfo.tickerid, "D", close[1])', 'request.security(syminfo.tickerid, "D", high[1])')
+    # the SAME requests and one of them a second time: every call is the recipe's own, the COUNT is not
+    one_twice = source + 'again = request.security(syminfo.tickerid, "D", high[1])\nplot(again)\n'
+    assert set(pa._request_calls(one_twice)) == set(pa._request_calls(source)) and pa._request_calls(one_twice) != pa._request_calls(source)
+    for script in (one_more, other_tf, other_expression, one_swapped, one_twice):
         assert script != source and pa.backed_by(words, script) == "prior-day-levels", (pa.recipe_share(source, script), script[-120:])
         assert pa.recipe_whose_requests_these_are(words, script) is None, script[-160:]
     # a look-alike at about half the recipe is not backed at all, so it is never excused
