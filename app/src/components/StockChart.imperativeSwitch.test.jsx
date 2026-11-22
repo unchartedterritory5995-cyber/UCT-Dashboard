@@ -16,6 +16,7 @@
 // to the symbol the body is still held on ends the switch and puts that symbol's own frame back, whether the
 // controller takes it or not; the new symbol's own lines and markers come back at the body's render; a hover
 // between the paint and that render reports nothing; W and M are refused; the name the app holds is in the frame.
+import { paneLookProps } from './chart/pane/paneLook'
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { Profiler } from 'react'
 import { render, act, cleanup } from '@testing-library/react'
@@ -518,8 +519,12 @@ describe('(g) framing, as far as jsdom shows it: the member\'s zoom is kept and 
 // The browser A/B of 1aba532a17 (2026-11-21, a Saturday) painted ZERO switches: every ask on a default D + 30m
 // board was refused `session-tags`, because the Pre/Post chip and the RTH close tag are on every chart outside
 // regular hours. A refusal that fires on a default chart is a coverage bug, and nothing here saw it: every
-// case above ran with no session view. These four are the /charts pane's own props (its session view, its
-// keep-the-view prop), DEFAULT settings, with the quotes the app holds outside the session.
+// case above ran with no session view. These four are a /charts widget's chart as its hosts hand it over: the
+// pane's own look (`paneLookProps`, the real function: bold candles, MARKED VOLUME EXTREMES, a 50-bar volume
+// average...), the pane's and the widget's fixed props, DEFAULT settings, and the quotes the app holds (the
+// REST poll's, for both symbols: a watchlist beside the chart polls its rows).
+// ⛔ The chart is still mounted directly, not through ChartPane / ChartWidget: a refusal that only their state
+// can cause is not seen here. The browser's `__uctSwitchDiag` is the last word.
 describe('coverage: a default-settings chart is applied by the controller', () => {
   const SAT = '2026-11-14T16:00:00Z'       // Saturday: outside the session (the feed says "post")
   const TUE = '2026-09-22T17:17:00Z'       // Tuesday 13:17 ET: the regular session in progress
@@ -548,21 +553,46 @@ describe('coverage: a default-settings chart is applied by the controller', () =
     AAA: { price: 10.5, day_open: 10.4, day_high: 10.7, day_low: 10.3, ext_session: true, ext_price: 10.83, observed_at: Date.now() },
     BBB: { price: 21, day_open: 20.8, day_high: 21.4, day_low: 20.6, ext_session: true, ext_price: 21.47, observed_at: Date.now() },
   }
+  // what it holds inside the session: the last trade and the day's range (no extended-hours print)
+  const REG = {
+    AAA: { price: 10.52, day_open: 10.4, day_high: 10.7, day_low: 10.3, observed_at: Date.now() },
+    BBB: { price: 21.03, day_open: 20.8, day_high: 21.4, day_low: 20.6, observed_at: Date.now() },
+  }
   const CASES = [
     { name: 'D, outside the session', tf: 'D', clock: SAT, prices: EXT, rows: (sym) => daily(sym, '2026-11-13'), tags: true },
     { name: '30m, outside the session', tf: '30', clock: SAT, prices: EXT, rows: (sym) => intraday(sym, 30, '2026-11-13', 14), tags: true },
-    { name: 'D, inside the session', tf: 'D', clock: TUE, prices: {}, rows: (sym) => daily(sym, '2026-09-22'), tags: false },
-    { name: '30m, inside the session', tf: '30', clock: TUE, prices: {}, rows: (sym) => intraday(sym, 30, '2026-09-22', 13, 210), tags: false },
+    { name: 'D, inside the session', tf: 'D', clock: TUE, prices: REG, rows: (sym) => daily(sym, '2026-09-22'), tags: false },
+    { name: '30m, inside the session', tf: '30', clock: TUE, prices: REG, rows: (sym) => intraday(sym, 30, '2026-09-22', 13, 210), tags: false },
   ]
+  // a /charts widget's chart: ChartPane's look and fixed props, ChartWidget's `stockChartProps` at rest
+  const paneProps = () => ({
+    ...paneLookProps({ cs: undefined, theme: undefined, prefs: undefined }),
+    settingsOverride: undefined, hideCompare: true, axisFloor: 60, sessionView: 'regular', keepPresentOnSymbolChange: true,
+    viewLockKey: 'uct.charts.viewLock.cov', chartId: 'cov', hotkeysActive: true, canOpenCompare: true,
+    watermarkX: null, watermarkY: null, watermarkAnchor: null, watermarkAdjusting: false,
+    periodSelect: false, replayPick: false, replayCutoff: null, liveUpdates: undefined, startMarker: null,
+    highlightBarTime: undefined, highlightColor: undefined, highlightBodyOnly: undefined,
+  })
   const got = {}
+  const back = {}
   beforeAll(async () => {
     for (const c of CASES) {
       const clock = pinWallClock(c.clock)
       S.prices = c.prices
       S.rows = (sym, tf) => (tf === c.tf ? c.rows(sym) : null)
       try {
-        // the pane's own props; NO settings override: the member's defaults
-        const t = await mounted(true, c.tf, {}, { settingsOverride: undefined, sessionView: 'regular', keepPresentOnSymbolChange: true })
+        if (c.tags) {
+          // the way back inside the hold: AAA's own tags return with AAA's own frame
+          const r = await mounted(true, c.tf, {}, paneProps())
+          const rc = r.port.current
+          act(() => { if (rc) rc.apply('BBB') })
+          S.log.length = 0
+          let res = null
+          act(() => { res = rc ? rc.apply('AAA') : null })
+          back[c.name] = { res, log: S.log.slice(), pending: rc ? rc.pendingSym() : null }
+          r.done()
+        }
+        const t = await mounted(true, c.tf, {}, paneProps())
         const ctl = t.port.current
         const mountLog = S.log.slice()
         S.log.length = 0
@@ -598,6 +628,18 @@ describe('coverage: a default-settings chart is applied by the controller', () =
     expect(tagLines(got[name].paintLog).some((l) => / 10\.83$/.test(l)), 'no tag at AAA\'s price').toBe(false)
     // the body's render then finds them right: it sets no tag to another price
     expect(tagLines(got[name].commitLog).filter((l) => !/ (21\.47|21(\.\d+)?)$/.test(l))).toEqual([])
+  })
+
+  it.each(CASES.filter((c) => c.tags).map((c) => c.name))('%s: going back to AAA inside the hold puts AAA\'s tag back', (name) => {
+    expect(back[name].res).toBe('applied')
+    expect(back[name].pending).toBe(null)
+    const tagLines = back[name].log.filter((l) => / (createPriceLine|priceLine\.price) /.test(l))
+    expect(tagLines.some((l) => / 10\.83$/.test(l)), `AAA's Pre/Post tag: ${tagLines.join(' | ')}`).toBe(true)
+    expect(tagLines[tagLines.length - 1]).not.toMatch(/ 21\.47$/)
+  })
+
+  it('the volume pane marks its highest-volume bar on the pane (the case is the pane\'s look, which the frame builder must build)', () => {
+    expect(paneProps().markVolumeExtremes).toBe(true)
   })
 })
 

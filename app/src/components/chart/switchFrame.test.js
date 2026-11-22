@@ -21,7 +21,7 @@ vi.mock('../../data/barStore/index', () => ({ getBarStore: () => fakeStore }))
 vi.mock('./barStoreSwitch', () => ({ BARSTORE: true }))
 
 const { buildFrame, NO_FRAME } = await import('./switchFrame')
-const { prepareRow, deriveSession, deriveDisplay, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa, deriveHvc, EMPTY_HVC } = await import('./useNeighborFrames')
+const { prepareRow, deriveSession, deriveDisplay, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa, deriveVolExtremes, deriveHvc, EMPTY_HVC } = await import('./useNeighborFrames')
 const { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, computeHVC } = await import('./chartDerived')
 const { toHeikinAshi } = await import('./indicators')
 const { chartKeyFor } = await import('./useBarSnapshotBars')
@@ -201,11 +201,27 @@ describe('buildFrame: what it will not build, each by name (the caller takes the
     ['a provisional snapshot', () => buildFrame(snapOf('BBB', 'D', daily(60), { status: 'provisional' }), view, R), NO_FRAME.STATUS],
     ['an unavailable symbol', () => buildFrame(snapOf('BBB', 'D', [], { status: 'unavailable' }), view, R), NO_FRAME.STATUS],
     ['no bars', () => buildFrame(snapOf('BBB', 'D', []), view, R), NO_FRAME.EMPTY],
-    ['marked volume extremes', () => buildFrame(good(), view, { ...R, vol: { ...R.vol, on: false } }), NO_FRAME.VOLUME],
   ])('%s', (_name, run, why) => {
     const before = hits()
     expect(run()).toEqual({ ok: false, why })
     expect(hits() - before).toBe(0)
+  })
+  it('a chart that marks its volume extremes (every /charts pane) IS built: the highest-volume bar is marked, by the chart\'s own rule', () => {
+    // (the browser A/B's next refusal after `session-tags`: the pane passes `markVolumeExtremes`, and the
+    // builder refused every such chart as `volume`)
+    const rows = daily(60)
+    rows[41] = { ...rows[41], v: 9e9 }
+    const marked = { ...R, vol: { ...R.vol, on: false } }
+    const f = buildFrame(snapOf('BBB', 'D', rows), view, marked)
+    expect(f.ok).toBe(true)
+    const vx = deriveVolExtremes(f.sessionBars, null, null)
+    expect([...vx.goldTimes]).toEqual([f.sessionBars[41].t])
+    // the very array the chart's own memo is handed for these bars and these marks (one derivation, one answer)
+    expect(f.volData).toBe(deriveVol(f.sessionBars, f.hvcSet, vx, marked))
+    // ...and it is not the unmarked one: bar 41 differs, and only bar 41
+    const plain = deriveVol(f.sessionBars, f.hvcSet, null, marked)
+    const diff = f.volData.map((d, i) => (JSON.stringify(d) === JSON.stringify(plain[i]) ? -1 : i)).filter((i) => i >= 0)
+    expect(diff).toEqual([41])
   })
   it('a refusal derives nothing (it files no array for a frame it did not build)', () => {
     const s = snapOf('BBB', 'D', daily(60))
