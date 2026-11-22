@@ -16,7 +16,7 @@ import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import useSWR, { useSWRConfig, unstable_serialize } from 'swr'
 import { fromChartTime, seriesCacheTf, barsSessionQuery, sixtyMinGridFor, isRthBar } from './barTime'
 import { composeDevelopingTail } from './developingTail'
-import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
+import { isNativeTf, fetchTf, resampleSpec, customBaseBarsOf } from './timeframes'
 import { getTodayBar, todayPackUsable } from '../../lib/todayPackClient'
 import { getExtSessionCached } from '../../utils/extSession'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../../hooks/livePriceStore'
@@ -89,14 +89,37 @@ function _dwmGraceOff() {
   try { return localStorage.getItem(BARS_GRACE_OFF_KEY) === '1' } catch { return false }
 }
 
+/**
+ * ⭐ (2026-11-22) What the Compare overlay asks for: the chart's own timeframe when it is NATIVE; for a CUSTOM one
+ * (2h, 4h, 45m, 2D …) its native base at the chart's own custom depth, resampled by the chart's own rule
+ * (`resampleForSpec`), exactly as the chart builds its own custom series below. ⚰️ The route serves native timeframes
+ * only (`/api/bars/SPY?tf=240` answers `bars: []`), and this asked it for the custom code: a Compare symbol on a 4h
+ * chart drew nothing.
+ * @returns {{url: string|null, spec: object|null}}
+ */
+export function compareBarsRequest(compareSymbol, resolvedTf, barCount, gridQ = '') {
+  if (!compareSymbol) return { url: null, spec: null }
+  const sym = encodeURIComponent(String(compareSymbol).toUpperCase())
+  const spec = isNativeTf(resolvedTf) ? null : resampleSpec(resolvedTf)
+  if (!spec) return { url: `/api/bars/${sym}?tf=${resolvedTf}&bars=${barCount}${gridQ}`, spec: null }
+  return { url: `/api/bars/${sym}?tf=${spec.base}&bars=${customBaseBarsOf(spec.base)}`, spec }
+}
+
 /** The comparison symbol's bars (an SWR of its own URL). P3-S1: BOTH bar sources call this one
  *  hook, so a compare overlay is identical under either switch value; P3-S3 moves it onto a store key. */
 export function useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher }) {
-  const compareSwrUrl = compareSymbol
-    ? `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${resolvedTf}&bars=${barCount}${_gridQ}`
-    : null
+  const { url: compareSwrUrl, spec } = useMemo(
+    () => compareBarsRequest(compareSymbol, resolvedTf, barCount, _gridQ),
+    [compareSymbol, resolvedTf, barCount, _gridQ],
+  )
   const { data: compareData } = useSWR(compareSwrUrl, instFetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
-  return compareData
+  // a custom timeframe: the base payload, its rows resampled (same object while the payload is the same one)
+  return useMemo(
+    () => (spec && compareData && Array.isArray(compareData.bars)
+      ? { ...compareData, bars: resampleForSpec(compareData.bars, spec) }
+      : compareData),
+    [spec, compareData],
+  )
 }
 
 /** The current-session daily seed (see `_resolveDailyTodaySeed` in the hook). Shared with
@@ -837,7 +860,7 @@ export function useLegacyChartBars({
   // it can null itself out for a custom TF; the fetch + resample happen here.)
   const _customBaseIntraday = ['1', '5', '15', '30', '60'].includes(_customBaseTf)
   // Pull a generous base window so the resampled series has enough bars to fill the view.
-  const _customBaseBars = _customBaseIntraday ? 5000 : 6000
+  const _customBaseBars = customBaseBarsOf(_customBaseTf)
   const customSwrUrl = _isCustomTf
     ? `/api/bars/${encodeURIComponent(sym)}?tf=${_customBaseTf}&bars=${_customBaseBars}`
     : null
