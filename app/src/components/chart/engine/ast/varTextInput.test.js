@@ -60,6 +60,12 @@ describe('host lane: the `var` form is the plain form', () => {
     expect(formulas(shape(VAR, BODIES['a `switch` subject']))[0]).not.toMatch(/^refused:/)
   })
 
+  it('⛔ SCOPE: a `var` holding a string LITERAL is left as it was (its own unit, measured separately)', () => {
+    // `var string MODE = "Fixed"` would read the same way, soundly, but reaches far more scripts than this unit measured
+    const src = [...H, 'var string MODE = "Fixed"', 'plot(MODE == "Fixed" ? 1 : 0, "a")'].join('\n')
+    expect(formulas(src)[0]).toMatch(/^refused:/)
+  })
+
   it('⛔ the reassignment scan is what decides it: a Resolver built WITHOUT it reads every `var` as before', () => {
     const seed = parseWholeExpression(lexPine('input.string(defval = "Session", options = ["Session", "Week"])').tokens)
     const env = new Map([['anchor', { kind: 'state', seed, seedEnv: new Map(), update: { type: 'selfref' }, updateEnv: new Map() }]])

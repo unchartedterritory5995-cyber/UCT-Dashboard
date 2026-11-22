@@ -10424,8 +10424,8 @@ export class Resolver {
     return cOp(want ? '==' : '!=', [leaf, cNum(idx)])
   }
 
-  /** ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22, the input-kind unit) — A `var` NOTHING REASSIGNS, READ AS TEXT, IS
-   *  ITS INITIALIZER. `var anchor = input.string(defval = "Session", options = [...])` holds its initializer on every bar
+  /** ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22, the input-kind unit) — A `var` NOTHING REASSIGNS, HOLDING AN
+   *  `input.string`, READ AS TEXT, IS ITS INITIALIZER. `var anchor = input.string(defval = "Session", options = [...])` holds its initializer on every bar
    *  (Pine runs it once, on bar 0, and nothing writes it again), so as a `switch` subject or an `==` operand it is the
    *  same text the plain binding `anchor = input.string(...)` is, which this door has always read. ⚰️ The `var` form
    *  refused: `pine:input-kind` at `anchor == "Earnings"` and `pine:block` at `switch anchor` (TradingView's own VWAP
@@ -10437,7 +10437,11 @@ export class Resolver {
   fixedVarBinding(bound, name) {
     if (!this.mutatedKnown || !bound || bound.kind !== 'state') return null
     const seed = neverReassignedVarSeed(bound, name, this.mutated)
-    return seed ? { kind: 'expr', node: seed.node, env: seed.env || this.env } : null
+    // ⛔ SCOPE: the `var`'s initializer IS an `input.string` (the input-kind unit). A `var` holding a string literal
+    // (`var string TF2 = "Fixed Timeframe"`) would read the same way, soundly, but it reaches far more scripts than this
+    // unit measured (563 corpus scripts declare a `var` with text, against 41 with an `input.string`): it is its own unit.
+    if (!seed || !isStringInputCall(seed.node)) return null
+    return { kind: 'expr', node: seed.node, env: seed.env || this.env }
   }
 
   stringValueOf(node, depth = 0) {
@@ -17942,8 +17946,8 @@ export const STRING_VAR_NA_SEED_WHY = 'still holding the `na` it was declared wi
 /** ⭐ (NUMBER PENDING, input-kind) a `var` whose initializer IS an `input.string` names its knob the way the plain binding
  *  does (`stampInputName`), so a member's choice reaches it (`Resolver.enumCompare`) where it is read as text
  *  (`Resolver.fixedVarBinding`). ⛔ `input.string` only: every other `var` input is left exactly as it was. */
-const stampVarStringInput = (seed, name) => (seed && seed.type === 'call' && seed.name === 'input.string'
-  ? stampInputName(seed, name) : seed)
+const isStringInputCall = (node) => !!(node && node.type === 'call' && node.name === 'input.string')
+const stampVarStringInput = (seed, name) => (isStringInputCall(seed) ? stampInputName(seed, name) : seed)
 
 const markStringVarSeed = (toks, seed) => {
   const typed = toks && toks[1]
