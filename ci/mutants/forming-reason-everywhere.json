@@ -1,0 +1,60 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "The run colour's and the run half's forming-bar sentences derive the server's reason from formingReason.js, as the runtime document's does (#2411; found by Deepvue). Each call site handing its ids (FE-M1, FE-M4), each sentence deriving rather than fixing the reason (FE-M2, FE-M3), the accessor (FE-M5) and the run half's forming branch (FE-M6).",
+ "mutants": [
+  {
+   "id": "FE-M1",
+   "mutant": "the run colour's door hands its sentence no ids (every forming refusal says the fail-closed words)",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "    const said = runtimeColourWhy(code, { formingIds: runtimeFormingIdsOf({ source: rc && rc.source }) })",
+   "to": "    const said = runtimeColourWhy(code)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/div4RuntimeReadPaint.test.js",
+   "expectRed": "FA8"
+  },
+  {
+   "id": "FE-M2",
+   "mutant": "the run colour's sentence says barstate whatever the server named (the defect)",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "  return `this script ${formingReasonOf(formingIds)}, which has only been checked against TradingView on finished bars, `",
+   "to": "  return `this script ${formingReasonOf(['realtime-state'])}, which has only been checked against TradingView on finished bars, `",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formingReasonAgrees.test.js",
+   "expectRed": "FA3"
+  },
+  {
+   "id": "FE-M3",
+   "mutant": "the run half's sentence says barstate whatever the server named (the defect)",
+   "file": "app/src/components/chart/engine/ast/objectLoss.js",
+   "from": "  return `the script ${formingReasonOf(formingIds)}, which has only been checked `",
+   "to": "  return `the script ${formingReasonOf(['realtime-state'])}, which has only been checked `",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formingReasonAgrees.test.js",
+   "expectRed": "FA3"
+  },
+  {
+   "id": "FE-M4",
+   "mutant": "the binder's run-half note hands its sentence no ids",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "  return runHalfRefusedSentence(runHalf.code, { formingIds: runtimeFormingIdsOf({ source: runHalfSourceOf(def) }) })",
+   "to": "  return runHalfRefusedSentence(runHalf.code, {})",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formingReasonAgrees.test.js",
+   "expectRed": "FA3"
+  },
+  {
+   "id": "FE-M5",
+   "mutant": "the accessor forgets the latched ids",
+   "file": "app/src/components/chart/engine/runtimeKill.js",
+   "from": "  return v && Array.isArray(v.historyOnlyIds) ? [...v.historyOnlyIds] : []",
+   "to": "  return []",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formingReasonAgrees.test.js",
+   "expectRed": "FA3"
+  },
+  {
+   "id": "FE-M6",
+   "mutant": "the run half's forming code falls through to the generic sentence",
+   "file": "app/src/components/chart/engine/ast/objectLoss.js",
+   "from": "  const why = c === RUN_HALF_FORMING_CODE ? runHalfFormingWhy(formingIds)",
+   "to": "  const why = false ? runHalfFormingWhy(formingIds)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formingReasonAgrees.test.js",
+   "expectRed": "FA1"
+  }
+ ]
+}
