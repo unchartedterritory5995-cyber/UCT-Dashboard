@@ -22,7 +22,7 @@ import { FINANCIAL_KEY, placeFinancial, financialReadOf, FINANCIAL_SOURCE_NOTE }
 import { SERIES_UNKNOWN_BEFORE_FIRST } from './ast/interpret'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
 import { computeFor, columnErrors } from './nativeRegistry'
-import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers } from './runtime/runtimeColumns'
+import { computeRuntimeColumns, runtimeColumnsFor, resetRuntimeSessions, resetRuntimeLedgers } from './runtime/runtimeColumns'
 
 const pine = (lines) => ['//@version=5', 'indicator("financial")', ...lines].join('\n')
 function docOf(src) {
@@ -280,6 +280,18 @@ describe('F1b — refused by name at the bind (both lanes ask `financialDecision
     expect(w.reason).toMatch(/split history could not be verified/)
     const none = { ...ENTRY, financial: { ...DOC, familyState: 'none', fields: {} } }
     expect(decide({ ...CTX, secondary: new Map([[FINANCIAL_KEY, none]]) })).toMatchObject({ code: R.FINANCIAL_NONE })
+  })
+
+  it('runtime lane: a refreshed financial answer recomputes the run (its memo names the entry)', () => {
+    const doc = { id: 'u_finmemo', meta: { runtimeHistory: 'listing' }, compute: { kind: 'runtime', fn: 'runtime:u_finmemo',
+      outputs: { a: 0 }, source: pine(['plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "TTM"))']) } }
+    const at = (v, rev) => ({ ...CTX, historyFromListing: true, secondary: new Map([[FINANCIAL_KEY, { ...ENTRY, rev,
+      financial: { ...DOC, refreshedAt: rev, fields: { ...DOC.fields, 'TOTAL_REVENUE:TTM': { state: 'ok', knownFrom: '2025-11-03',
+        points: [pt('2025-11-03', v)] } } } }]]) })
+    // the chart's path, memoised per bars and run key (`runtimeColumnsFor`): the SAME bars, a refreshed answer
+    const bars = CHART.map((b) => ({ ...b }))
+    expect(Array.from(runtimeColumnsFor(doc, bars, {}, at(400, '1')).a)).toEqual(new Array(10).fill(400))
+    expect(Array.from(runtimeColumnsFor(doc, bars, {}, at(410, '2')).a)).toEqual(new Array(10).fill(410))
   })
 
   it('the memo moves when the financial entry lands', () => {

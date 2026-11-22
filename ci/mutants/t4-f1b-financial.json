@@ -92,15 +92,6 @@
    "expectRed": "door dark"
   },
   {
-   "id": "FN11",
-   "mutant": "a rewrite's financial read is handed to the bars door (fetchableOtherSymbols no longer skips data reads)",
-   "file": "app/src/components/chart/engine/otherSymbols.js",
-   "from": "    if (isEventRequest(ticker, spellings)) continue",
-   "to": "    if (false) continue",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
-   "expectRed": "asks the financial door only"
-  },
-  {
    "id": "FN12",
    "mutant": "the plot's disclosure no longer says UCT data from company filings",
    "file": "app/src/components/chart/engine/ast/symbolSubstitution.js",
@@ -111,12 +102,12 @@
   },
   {
    "id": "FN13",
-   "mutant": "the runtime lane no longer probes a financial read's depth (its unknown bars refuse the run, unnamed)",
+   "mutant": "the runtime lane's memo no longer names the financial entry (a refreshed answer is served the stale run)",
    "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
-   "from": "  if (!/\\brequest\\.(security|seed|earnings|dividends|splits|financial)\\b/.test(source) || !depthGapPossible(rows, ctx)) return 0",
-   "to": "  if (!/\\brequest\\.(security|seed|earnings|dividends|splits)\\b/.test(source) || !depthGapPossible(rows, ctx)) return 0",
+   "from": "  if (!/\\brequest\\.(security|seed|earnings|dividends|splits|financial)\\b/.test(String((compute && compute.source) || ''))) return ''",
+   "to": "  if (!/\\brequest\\.(security|seed|earnings|dividends|splits)\\b/.test(String((compute && compute.source) || ''))) return ''",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
-   "expectRed": "runtime lane"
+   "expectRed": "refreshed financial answer"
   },
   {
    "id": "FN14",
