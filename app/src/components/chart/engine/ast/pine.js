@@ -170,7 +170,7 @@ import { compileMessagePattern, tostringPatternOf, literalTostringText } from '.
 // copies of "does an empty needle match" is the second-authority defect this repo
 // keeps paying for. The exchange-witness map lives there too: it is consulted per
 // BINDING, which is not a question a door that runs once per script can answer.
-import { TEXT_PREDICATE_FN, foldScalar } from './bind.js'
+import { TEXT_PREDICATE_FN, foldScalar, REFUSED_ARM_CALL } from './bind.js'
 import { constCompareFold, pineCompareAmbiguous, constantTreeValue } from '../pineCompare.js'
 // ⭐ THE SHARED WINDOW PREDICATE — from `parse.js`, the one module the SAVE
 // door, the bind stage and the repaint LINTER can all see. See L2 in
@@ -4208,6 +4208,9 @@ const ARITY_HINTS = Object.freeze({
  *  both lanes answer it beside `ta.vwap(source, anchor)` (`Resolver.anchoredVwapTree`,
  *  `pineRuntimeFrontend.js`'s anchored-VWAP kernel). */
 export const VWAP_DEV_CALL = 'ta.vwap stdev'
+// ⭐⭐ e95 unit 2b — `REFUSED_ARM_CALL` (`bind.js`) is the table function a refused knob arm stands as
+// (`Resolver.refusedArmLeaf`); it is re-exported for the rails.
+export { REFUSED_ARM_CALL }
 
 const PINE_TUPLE_BUILTINS = Object.freeze({
   // ⭐⭐ e95 (unit 2) — `[vwap, upper, lower] = ta.vwap(source, anchor, stdev_mult)`: TradingView's built-in VWAP
@@ -6869,6 +6872,9 @@ export function constantValueOf(node, budget = { left: MAX_FOLD_NODES }) {
     // stops a malformed tree reaching an implementation that would read
     // `undefined` and answer NaN rather than refusing.
     if (!spec || !isPointwise(spec) || typeof FN[node.name] !== 'function') return null
+    // ⛔ e95 unit 2b — a refused knob arm (`REFUSED_ARM_CALL`) is never a number: the fold declines it (its evaluation
+    // refuses by name, which is the bind's to say, never a translation's)
+    if (node.name === REFUSED_ARM_CALL) return null
     // ⛔ ENGINE 56 — the A3 marker is its operand where its flag is 0 and WITHHELD elsewhere
     // (`interpret.js::boolNaMask`): a constant flag that is not 0 withholds every bar, so it
     // folds only where the flag folds to 0
@@ -8925,6 +8931,10 @@ export class Resolver {
      *  entries depend only on the `var`'s own bindings, never on the output
      *  being resolved. Absent, each Resolver keeps its own. */
     this.partialReadCache = opts.partialReadCache || null
+    /** ⭐⭐ e95 unit 2b — the arms of a knob `switch` this translator refused (`enumSwitch`), SHARED by every Resolver
+     *  of one translation (`translatePine` hands one list in): a `refusedArm(k)` leaf names its entry `k - 1`, and the
+     *  member door stamps the list on the document (`meta.knobArmRefusals`) for the bind to quote. */
+    this.knobArmRefusals = opts.knobArmRefusals || null
     /** ⭐⭐ C10 (2026-09-29) — THE OBJECT PASS. Set by the object pass's factory
      *  and by nothing else, and it widens two reads there only:
      *   · a ternary or an `and`/`or` whose test is a constant EXPRESSION
@@ -9683,6 +9693,10 @@ export class Resolver {
     // Anything else and every arm would have to exist at once, which is a menu
     // rather than a column, and it keeps refusing at `pine:block`.
     if (bound.kind === 'switch') {
+      // ⭐⭐ e95 unit 2b — A SUBJECT THAT IS A MEMBER'S `input.string` KNOB (`enumCompare`'s door) builds EVERY arm;
+      // the bind keeps the one the knob picks (`bind.js::pruneKnobArms`). Null for anything else.
+      const byKnob = this.enumSwitch(bound, tok, name)
+      if (byKnob) return byKnob
       const subject = this.stringValueOf(bound.subject)
       // ⭐⭐ C47 — A SUBJECT THE SYMBOL FIXES (`switch syminfo.root`, or a helper's
       // parameter bound to it) is fixed per BINDING, which is the same basis the
@@ -10520,8 +10534,12 @@ export class Resolver {
     const en = this.enumInputCallOf(side)
     if (!en) return null
     if (this.declareInputs !== 'all' && !this.declareInputs.has(en.name)) return null
-    const want = node.op === '=='
-    const idx = en.options.indexOf(lit)
+    return this.enumKnobTest(en, en.options.indexOf(lit), node.op === '==')
+  }
+
+  /** The knob `en` (an `enumInputCallOf` answer) compared with its option `idx` (`want`: `==`, else `!=`), as a live
+   *  per-bar number, and the knob recorded among the inputs used. An `idx` outside the options never matches. */
+  enumKnobTest(en, idx, want) {
     const tok = en.call.tok
     this.usedInputs.set(`${tok.line}:${tok.column}`, {
       call: 'input.string',
@@ -10539,6 +10557,106 @@ export class Resolver {
     Object.defineProperty(leaf, 'inputName', { value: en.name, enumerable: false })
     Object.defineProperty(leaf, 'inputDefault', { value: en.options.indexOf(en.def), enumerable: false })
     return cOp(want ? '==' : '!=', [leaf, cNum(idx)])
+  }
+
+  /** ⭐⭐ e95 unit 2b (coordinator ruling 2026-11-22: prune at BIND time) — A `switch` WHOSE SUBJECT IS A MEMBER'S
+   *  `input.string(…, options = [...])` KNOB, AS A LIVE SETTING.
+   *
+   *      isNewPeriod = switch anchor          // anchor = input.string("Session", options = [...])
+   *          "Earnings" => <earnings arm>
+   *          "Session"  => timeframe.change("D")
+   *          => false
+   *
+   *  is built as the chain Pine's own rule describes (the first arm whose label equals the subject, else the bare `=>`
+   *  arm), each test the knob compared with its option's index (`enumKnobTest`, `enumCompare`'s leaf):
+   *
+   *      anchor == 7 ? <earnings arm> : anchor == 0 ? timeframe.change("D") : false
+   *
+   *  ⛔⛔ EVERY ARM IS IN THE SAVED TREE, AND ONLY THE PICKED ONE IS IN THE BOUND ONE. The bind (`bind.js::
+   *  pruneKnobArms`, `foldBound`, and the Python twin) replaces each ternary whose test is made of knobs and
+   *  constants by the arm the binding's knob value picks, BEFORE anything per binding reads the tree (the
+   *  other-symbol and event decisions, the static gates, the evaluator). So an arm the knob does not pick never
+   *  withholds or refuses the chart: a refused arm (an event read on an intraday chart, a field UCT does not hold)
+   *  refuses only when the knob picks it. Before this, the subject folded to its default here and the setting was
+   *  no member setting at all ("not a setting of our document").
+   *
+   *  ⭐ AN ARM THIS TRANSLATOR REFUSES (coordinator ruling (B), 2026-11-22) stands as the refusing leaf
+   *  `refusedArm(k)` (`refusedArmLeaf`): pruned away unless the knob picks it, and then THAT plot is refused by name.
+   *
+   *  ⛔ NARROW, and null (today's fold to the default arm, unchanged) otherwise: the member door's knobs only
+   *  (`enumInputs`, a declared name); every label a string the script fixes; a no-match covered (a default arm, or
+   *  every option labelled); the arm the knob's DEFAULT picks translates (a knob is offered only on a chart that
+   *  draws); and a refused arm only where the translation keeps the list its leaves quote (`knobArmRefusals`). A label
+   *  outside the options can never match (Pine's comparison would not) and is dropped, as is a repeated label
+   *  (the first one wins). */
+  enumSwitch(bound, tok, name) {
+    if (!this.enumInputs || !this.declareInputs) return null
+    const en = this.enumInputCallOf(bound.subject)
+    if (!en) return null
+    if (this.declareInputs !== 'all' && !this.declareInputs.has(en.name)) return null
+    const arms = []
+    const seen = new Set()
+    for (const arm of bound.arms) {
+      const label = this.stringValueOf(parseWholeExpression(arm.match))
+      if (label === null) return null
+      const idx = en.options.indexOf(label)
+      if (idx < 0 || seen.has(idx)) continue
+      seen.add(idx)
+      arms.push({ idx, binding: arm.binding })
+    }
+    if (!arms.length) return null
+    const covered = seen.size === en.options.length
+    if (!covered && !bound.fallback) return null
+    // ⭐ (approved 2026-11-22, the refusing leaf) an arm this translator refuses is carried as `refusedArm(k)`: the bind
+    // prunes it away unless the knob picks it, and then refuses THAT plot by name, quoting the refusal it had here
+    const armOf = (binding) => {
+      try {
+        return { node: this.resolveBinding(binding, tok, name) }
+      } catch (err) {
+        // ⛔ the step budget and the door's clock are the translation's, never an arm's: they propagate
+        if (!(err instanceof PineRefusal) || err.guard === 'pine:timeout') throw err
+        return { refused: err }
+      }
+    }
+    // every option labelled: the last arm is the chain's end (its test can only be true there)
+    const last = covered ? arms.pop() : null
+    const end = { ...armOf(last ? last.binding : bound.fallback), label: last ? en.options[last.idx] : null,
+      idx: last ? last.idx : -1 }
+    const built = arms.map((a) => ({ ...armOf(a.binding), label: en.options[a.idx], idx: a.idx }))
+    // ⛔ THE DEFAULT'S PROGRAM MUST TRANSLATE: an arm the knob's default picks that this translator refused keeps the
+    // switch folded to its default, refused as it always was (a knob is offered only on a chart that draws)
+    const defIdx = en.options.indexOf(en.def)
+    const atDefault = built.find((a) => a.idx === defIdx) || end
+    if (atDefault.refused) return null
+    // ⛔ a Resolver whose translation keeps no list for the leaves to quote folds as before
+    if (!this.knobArmRefusals && (end.refused || built.some((a) => a.refused))) return null
+    const nodeOf = (a) => (a.refused ? this.refusedArmLeaf(en, a.label, a.refused) : a.node)
+    let out = nodeOf(end)
+    for (let k = built.length - 1; k >= 0; k -= 1) {
+      out = cOp('?:', [this.enumKnobTest(en, built[k].idx, true), nodeOf(built[k]), out])
+    }
+    return out
+  }
+
+  /** ⭐⭐ e95 unit 2b — the leaf an arm this translator refused stands as (`enumSwitch`): `refusedArm(k)`, `k` the
+   *  1-based entry of the translation's `knobArmRefusals`, which keeps the refusal's own guard and a sentence naming the
+   *  setting and the option that picks it. ⛔ No Pine spelling reaches it (only this method builds the node). */
+  refusedArmLeaf(en, label, err) {
+    const setting = en.title ? `"${en.title}"` : `\`${en.name}\``
+    const which = label === null ? 'an option no arm of its `switch` names' : `"${label}"`
+    const at = err.at || null
+    const entry = {
+      guard: err.guard,
+      message: `the setting ${setting} set to ${which} picks a branch of this script that this engine does not `
+        + `compute: ${err.message}`,
+      knob: en.name,
+      option: label,
+      ...(at && Number.isInteger(at.line) ? { line: at.line, column: at.column } : {}),
+    }
+    const list = this.knobArmRefusals
+    let k = list.findIndex((r) => r.guard === entry.guard && r.message === entry.message)
+    if (k < 0) { list.push(entry); k = list.length - 1 }
+    return cCall(REFUSED_ARM_CALL, [cNum(k + 1)])
   }
 
   /** ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22, the input-kind unit) — A `var` NOTHING REASSIGNS, HOLDING AN
@@ -16000,6 +16118,12 @@ export class Resolver {
   }
 
   resolveTableCall(pineName, base, args, tok) {
+    // ⛔⛔ e95 unit 2b — `refusedArm` is the leaf this translator writes for a knob arm it refused
+    // (`Resolver.refusedArmLeaf`), never a call a script may spell: written by a script it is refused, by name
+    if (base === REFUSED_ARM_CALL || pineName === REFUSED_ARM_CALL) {
+      throw new PineRefusal('pine:builtin', `${REFUSALS['pine:builtin']} — \`${pineName}\` (the name this engine gives a `
+        + 'branch of a setting it refused; a script cannot call it)', locate(tok))
+    }
     // ⭐⭐ e95 (unit 2) — `ta.vwap(source, anchor)` and its band leg (`VWAP_DEV_CALL`): the anchored VWAP.
     if ((pineName === 'ta.vwap' || pineName === VWAP_DEV_CALL) && Array.isArray(args) && args.length === 2
       && !args.some((a) => a && a.name)) {
@@ -30370,6 +30494,8 @@ function translatePineResult(source, opts = {}) {
   // ⭐ ONE `var`-read memo for the whole translation — see `Resolver.partialReadCache`.
   const partialReadCache = new Map()
   const objectPartialReadCache = new Map()
+  // ⭐⭐ e95 unit 2b — the knob arms this translation refused, one list for every Resolver (`Resolver.knobArmRefusals`)
+  const knobArmRefusals = []
   // ⭐ C11c — the object pass's read methods and window-reduction ambiguity
   // registry (see `Resolver.methodDefs` / `Resolver.windowAmbiguity`).
   const objectMethodDefs = readMethodDefs(stmts)
@@ -30377,7 +30503,7 @@ function translatePineResult(source, opts = {}) {
   const makeResolver = (scopeEnv = env) => {
     const r = new Resolver(scopeEnv, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
-        partialReadCache,
+        partialReadCache, knobArmRefusals,
         // ⭐⭐ C45 — the arm reader asks which script functions read their own history
         historyFns: historyFnsOf,
         strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version, pineScript: true, pineV1,
@@ -31654,6 +31780,8 @@ function translatePineResult(source, opts = {}) {
   // so nothing else moved: no parameter id, no note, no period read, no memo.
   const runtimeErrors = runtimeErrorPlan ? resolveRuntimeErrors() : null
   if (runtimeErrors) result.runtimeErrors = runtimeErrors
+  // ⭐⭐ e95 unit 2b — present only when a knob `switch` carries an arm this translator refused (`enumSwitch`)
+  if (knobArmRefusals.length) result.knobArmRefusals = knobArmRefusals.map((r) => ({ ...r }))
   return result
   } finally {
     // ⛔ ALWAYS CLOSED. A budget left open would make the NEXT standalone

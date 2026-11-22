@@ -307,7 +307,25 @@ describe('⭐⭐ review F1 — a plot whose colour reads a refused symbol is ref
     expect(screen.info).toContainEqual(expect.objectContaining({ name: 'quiet', note: HIDDEN_BY_SCRIPT }))
   })
 
-  it.each(['close', 'mode == "B" ? close : na'])('CONTROL: the same plot with value `%s` (drawable) is refused by name at every door', (value) => {
+  // ⭐⭐ e95 unit 2b (2026-11-22, the coordinator's ruling: prune at BIND time) — a value that is na only for the
+  // member's setting (`mode == "B" ? close : na`, mode a live input) is decided per BINDING now: at the default "A" the
+  // bound value IS the na literal (TradingView draws nothing there either), so it is not refused; set to "B" it reads
+  // `close` and is refused by name exactly as the plain `close` control is.
+  it('a plot whose value is na at the member setting and whose colour reads SPX is refused only when the setting draws it', () => {
+    const lines = ['mode = input.string("A", "Mode", options = ["A", "B"])', ...QUIET('mode == "B" ? close : na')]
+    const d = doorOf(lines)
+    expect(d.ok, d.reason).toBe(true)
+    const quiet = keyOf(d.definition, 'quiet')
+    expect(plotValueIsNaLiteral(d.definition.compute.trees[quiet])).toBe(false)     // the saved tree keeps both arms
+    const atDefault = computeFor(d.definition, BARS, undefined, CTX)
+    expect(columnErrors(atDefault)[quiet]).toBeUndefined()
+    expect(Array.from(atDefault[quiet]).some(Number.isFinite)).toBe(false)
+    expect((d.staticRefusals || {})[quiet]).toBeUndefined()
+    const atB = computeFor(d.definition, BARS, { mode: 'B' }, CTX)
+    expect(columnErrors(atB)[quiet]).toEqual({ guard: 'pine:request', code: R.BARE, message: colourReaderMessage('`quiet`', spx) })
+  })
+
+  it.each(['close'])('CONTROL: the same plot with value `%s` (drawable) is refused by name at every door', (value) => {
     const lines = value === 'close' ? QUIET(value) : ['mode = input.string("A", "Mode", options = ["A", "B"])', ...QUIET(value)]
     const d = doorOf(lines)
     expect(d.ok, d.reason).toBe(true)

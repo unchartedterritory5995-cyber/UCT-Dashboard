@@ -139,7 +139,8 @@ export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSym
 export function eventsNeededBy(instances, defOf) {
   for (const inst of Array.isArray(instances) ? instances : []) {
     const def = inst && defOf ? defOf(inst.defId) : null
-    if (def && eventsNeeded(def)) return true
+    // ⭐ e95 unit 2b — as THIS instance's settings make the document (an unpicked arm's event read is not fetched for)
+    if (def && eventsNeeded(instanceDocumentForFetch(def, inst))) return true
   }
   return false
 }

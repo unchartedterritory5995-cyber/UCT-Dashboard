@@ -11,6 +11,7 @@
   "saved": [
     {"input": "alma", "value": 2.5, "ast": {"type": "op", "name": "+", "args": [{"type": "op", "name": "*", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "alma"}]}, {"type": "series", "name": "open"}]}},
     {"input": "vwapAnchor", "value": 3, "ast": {"type": "op", "name": "*", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "vwapAnchor"}]}},
+    {"input": "refusedArm", "value": 2, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "refusedArm"}]}},
     {"input": "vwapAnchorDev", "value": 0.5, "ast": {"type": "op", "name": "+", "args": [{"type": "series", "name": "high"}, {"type": "series", "name": "vwapAnchorDev"}]}},
     {"input": "stochPine", "value": 4, "ast": {"type": "op", "name": "+", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "stochPine"}]}},
     {"input": "rci", "value": 0.25, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "high"}, {"type": "op", "name": "*", "args": [{"type": "series", "name": "rci"}, {"type": "series", "name": "low"}]}]}},

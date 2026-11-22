@@ -43,6 +43,7 @@
   "interpret:offset",
   "interpret:operator",
   "interpret:recurrence",
+  "interpret:refused-arm",
   "interpret:steps",
   "interpret:symbol",
   "interpret:timeframe",

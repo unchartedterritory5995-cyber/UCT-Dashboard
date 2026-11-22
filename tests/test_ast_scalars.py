@@ -947,7 +947,8 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # (`pine_tie_newest_is_its_operand`).
     # (2026-11-19, U-BUILTIN B3) bar 148 -> 149: `asin`.
     # e95 unit 2 (2026-11-22): the bar half 149 -> 151 (`vwapAnchor`, `vwapAnchorDev`); the scalar half untouched.
-    assert len(parts["bar"]) == 151 and len(parts["scalar"]) == 149
+    # e95 unit 2b (2026-11-22): the bar half 151 -> 152 (`refusedArm`); the scalar half untouched.
+    assert len(parts["bar"]) == 152 and len(parts["scalar"]) == 149
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     assert not (parts["bar"] & parts["scalar"])

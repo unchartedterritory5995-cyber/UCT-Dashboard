@@ -231,6 +231,8 @@ const FORMS = [
   { kind: 'call', name: 'vwapAnchorDev',
     parts: ['the volume-weighted standard deviation of ', 0, ', weighted by ', 2, ', since the last bar where ', 1,
       ' was true'] },
+  // ⭐⭐ e95 unit 2b (2026-11-22) — the leaf a knob arm the translator refused stands as (closedTable.json's words)
+  { kind: 'call', name: 'refusedArm', parts: ['a branch this engine does not compute (refusal ', 0, ' of the document)'] },
   // ⭐ 2026-11-17 — the opening range, hand-typed from the manifest's words like every form here.
   // ⚠️ They cannot collide with `highest` / `lowest` ("the highest X of the last N bars"): those end
   // in ` bars`, these in ` minutes of the regular session`, and `the grammar is UNAMBIGUOUS` asserts it.
@@ -1316,6 +1318,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:pvtN',
       // ⭐ PHASE 1 (2026-10-30) -- Pine's `ta.rci`.
       'function:rci',
+      // ⭐⭐ e95 unit 2b (2026-11-22): the leaf a knob arm the translator refused stands as
+      'function:refusedArm',
       'function:rising',
       'function:rma',
       'function:round',
@@ -1372,7 +1376,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 141 -> 148 (2026-11-17): the regular session's two clock leaves and five readers.
     // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`, Pine's `math.asin`.
     // e95 unit 2 (2026-11-22) 149 -> 151: `vwapAnchor`, `vwapAnchorDev`.
-    expect(entries.length).toBe(151)
+    // e95 unit 2b (2026-11-22) 151 -> 152: `refusedArm`.
+    expect(entries.length).toBe(152)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1402,7 +1407,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // readers (`sessionOpen`, `sessionHigh`, `sessionLow`, `openingRangeHigh`, `openingRangeLow`).
     // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`.
     // e95 unit 2 (2026-11-22) 149 -> 151: `vwapAnchor`, `vwapAnchorDev`.
-    expect(subjects.length).toBe(151)
+    // e95 unit 2b (2026-11-22) 151 -> 152: `refusedArm`.
+    expect(subjects.length).toBe(152)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2875,7 +2881,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ + 141 -> + 148 (2026-11-17): the regular session's two clock leaves and five readers.
     // U-BUILTIN B3 (2026-11-19) + 148 -> + 149: `asin`.
     // e95 unit 2 (2026-11-22) + 149 -> + 151: `vwapAnchor`, `vwapAnchorDev`.
-    expect(sentences.length).toBe(CORPUS.cases.length + 151)
+    // e95 unit 2b (2026-11-22) + 151 -> + 152: `refusedArm`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 152)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {
@@ -3115,7 +3122,9 @@ describe('the refusals', () => {
     // ⚠️ 13 -> 14 with `interpret:bind-time-text` (R-K, 2026-09-12). See the
     // correction under the `all.length` assertion below: the interpreter DOES
     // have to have an opinion about a text node, because one can reach it.
-    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(14)
+    // ⚠️ 14 -> 15 with `interpret:refused-arm` (e95 unit 2b, 2026-11-22): a knob arm the translator refused, reached
+    // only when a member's setting picks it (the bind prunes it away otherwise).
+    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(15)
     expect(Object.keys(SENTENCE_REFUSALS).length).toBe(10)
     // ⚠️ 33 -> 35 with W2b's two timeframe guards — one per door:
     // `canonicalise:timeframe` (the SHAPE of `tf(expr, 'W')`) and
@@ -3149,7 +3158,8 @@ describe('the refusals', () => {
     // the binding did not settle, which is the part a member can act on.
     // ⚠️ 41 -> 42 with `canonicalise:if` (2026-10-29), on the PARSE door; the loop
     // below is what proves its sentence contains no other door's and vice versa.
-    expect(all.length).toBe(42)
+    // ⚠️ 42 -> 43 with `interpret:refused-arm` (e95 unit 2b), on the INTERPRET door.
+    expect(all.length).toBe(43)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)

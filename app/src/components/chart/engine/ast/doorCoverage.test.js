@@ -24,7 +24,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { TABLE, parseFormula, MULTI_STATES } from './parse'
-import { translatePine, hostAdmissible, PINE_CALL_SHAPES } from './pine'
+import { translatePine, hostAdmissible, PINE_CALL_SHAPES, REFUSED_ARM_CALL } from './pine'
 import { TS_CALL_SHAPES } from './thinkscript'
 import { PCF_FUSED, PCF_CALLS } from './pcf'
 import {
@@ -116,7 +116,19 @@ describe('🔴 THE RATCHET — these ceilings may only ever fall', () => {
     // ceiling: there is no declared function Pine's door has never heard of. Every
     // remaining Pine gap is a SIGNATURE question, which is a different and much
     // cheaper kind of work than teaching a door a new name.
-    expect(nameHoles(ROWS).filter((h) => h.absentFrom.includes('pine'))).toEqual([])
+    // ⭐⭐ e95 unit 2b (2026-11-22) — ONE EXCUSAL, PAID FOR HERE: `refusedArm` is the leaf the translator writes for a
+    // knob arm it refused (`pine.js::Resolver.refusedArmLeaf`), and a script that spells it is refused BY NAME, on
+    // purpose (the coordinator's ruling: it stays unspellable). So the Pine door "not knowing" it is the design.
+    const UNSPELLABLE = new Set([REFUSED_ARM_CALL])
+    for (const n of UNSPELLABLE) {
+      const t = translatePine(`//@version=6
+indicator("t")
+plot(${n}(1))
+`, { strict: true })
+      expect(t.ok, `${n} must stay unspellable from Pine`).toBe(false)
+      expect(t.outputs[0].refusal.message).toContain('a script cannot call it')
+    }
+    expect(nameHoles(ROWS).filter((h) => h.absentFrom.includes('pine') && !UNSPELLABLE.has(h.name))).toEqual([])
   })
 
   it('the name-mapping doors may not map fewer names than they do today', () => {
@@ -277,6 +289,9 @@ plot(${n}(volume))
       // ⭐ `tieNewest` (2026-11-14, engine 56 S1) — written ONLY by the Pine door around a v4 / v5
       // `ta.highestbars` / `ta.lowestbars` source (TradingView names the newest of a tie there).
       'tieNewest',
+      // ⭐⭐ `refusedArm` (2026-11-22, e95 unit 2b) — written ONLY by the Pine door for a knob arm it refused
+      // (`Resolver.refusedArmLeaf`), and refused by name when a script spells it (the test above).
+      'refusedArm',
     ]
     // A SUPERSET check, so closing any one is green while a NEW name falling out
     // of every door is a named regression.

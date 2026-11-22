@@ -19,6 +19,7 @@
 import { interpret, listingSeedIsUnpinned, SERIES_EVENT_RECORD } from './ast/interpret'
 import { ENGINE_ERROR, isRefusal } from './ast/parse'
 import { foldBound, bindConstsFor } from './ast/bind'
+import { boundDocument, boundAtInputs, armRefusalOfTree } from './knobBind.js'
 import {
   otherSymbolRefusalOfTree, isOtherSymbolRefusal, colourReaderRefusal, colourReaderMessage, plotValueIsNaLiteral,
   withChartNewestDay,
@@ -27,7 +28,7 @@ import { resolveLowerTf } from './lowerTf'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 import { chartStaticRefusals, otherSymbolsDecision } from './evaluability'
 import { semanticsOptsFor } from './definitionSemantics'
-import { inputsAsRead } from './legacyInputs.js'
+import { resolveInputs, enumIndexOf, treeScalars } from './knobInputs.js'
 import { specializeParams } from './paramInputs.js'
 import { specializeSymbols } from './symbolInputs.js'
 import { calcBarsWindowOf, windowContext, widenToChart, withCalcBarsRecord, calcBarsWindowReport,
@@ -241,7 +242,13 @@ export function colourReaderPaintNotices(def, columns) {
   return out
 }
 
-function astColumnsUnstopped(def, bars, inputs, ctx) {
+function astColumnsUnstopped(savedDef, bars, inputs, ctx) {
+  // ⭐⭐ e95 unit 2b — THE BOUND DOCUMENT FIRST (`knobBind.js::boundDocument`): every knob ternary's unpicked arm
+  // pruned for THIS binding's inputs, before anything below decides per binding (the static gates, the other-symbol
+  // and event decisions, the block-run check, the evaluator). An arm the member's setting does not pick never
+  // withholds or refuses the chart. `savedDef` itself when the document holds no knob ternary.
+  const bindConsts = bindConstsFor({ tf: ctx && ctx.tf, inputs, symbol: ctx && ctx.symbol })
+  const def = boundDocument(savedDef, bindConsts)
   const keys = astPlotKey(def)
   const trees = astTrees(def)
   // ⭐⭐ C29 — a document folded at another chart period does not answer here
@@ -273,7 +280,6 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // that stopped it. An unknown timeframe folds NOTHING — `timeframeFlags`
   // returns null rather than a default, because a guessed `isdaily` is a
   // confident wrong length.
-  const bindConsts = bindConstsFor({ tf: ctx && ctx.tf, inputs, symbol: ctx && ctx.symbol })
   const bound = (tree) => foldBound(tree, bindConsts)
   // ⭐⭐ C26 — which other symbols this binding may read, decided ONCE for every
   // tree of the document (`otherSymbolsFor`).
@@ -363,6 +369,13 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         errors[key] = staticWhy.get(key)
         continue
       }
+      // ⭐⭐ e95 unit 2b — the member's setting picks an arm the translator refused: THIS plot is refused by name,
+      // quoting the translator's own sentence (`knobBind.js::armRefusalOfTree`)
+      const armWhy = armRefusalOfTree(trees[key], def)
+      if (armWhy) {
+        errors[key] = armWhy
+        continue
+      }
       // ⭐⭐ ENGINE 55 — a plot that reads a ticker this binding REFUSED (settled, not
       // pending) is refused BY NAME with the bind's code and sentence, never computed
       // into an all-`na` column (`otherSymbols.js::otherSymbolRefusalOfTree`).
@@ -444,6 +457,9 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // different route and reads identically at the call site.
   // ⭐ P0 0F — see the per-plot branch above (`chartScalars.js`).
   if (staticWhy.has(keys[0])) return withColumnErrors({}, { [keys[0]]: staticWhy.get(keys[0]) })
+  // ⭐⭐ e95 unit 2b — the single tree's refused knob arm, picked by the member's setting
+  const soleArmWhy = armRefusalOfTree(def.compute.ast, def)
+  if (soleArmWhy) return withColumnErrors({}, { [keys[0]]: soleArmWhy })
   // ⭐⭐ ENGINE 55 — the single tree's settled other-symbol refusal, by name.
   const soleSymWhy = otherSymbolRefusalOfTree(def.compute.ast, other)
   if (soleSymWhy) return withOtherSymbols(withColumnErrors({}, { [keys[0]]: soleSymWhy }), other)
@@ -722,70 +738,17 @@ export function barIndexAbsoluteFor(def, ctx) {
     && !(ctx && ctx.barIndexFromFirstBar === true)
 }
 
-/** Merge a caller's inputs over the definition's declared defaults. */
-// ⭐⭐ EXPORTED FOR THE OBJECT LANE (C3B-CLOSE item 6), NOT COPIED INTO IT.
-// `objectColumns.objectReaderFor` needs exactly this merge — declared defaults
-// under the instance's overrides — to evaluate an object's coordinate the way
-// the plot beside it is evaluated. A second copy there would be a second
-// authority over one value, and the two would disagree the first time a default
-// rule moved (`lesson_a_second_authority_over_one_value`).
-export function resolveInputs(def, inputs) {
-  const out = {}
-  for (const input of def?.inputs || []) {
-    if (input && typeof input.key === 'string') out[input.key] = input.default
-  }
-  // ⭐ 3-08b: a stored legacy input reads as its successor where the successor
-  // was never stored (`legacyInputs.inputsAsRead`; read-time, never written back).
-  const stored = inputsAsRead(def, inputs)
-  if (stored) {
-    for (const [k, v] of Object.entries(stored)) {
-      if (v !== undefined) out[k] = v
-    }
-  }
-  return out
-}
+// ⭐⭐ e95 unit 2b — `resolveInputs`, `enumIndexOf` and `treeScalars` moved to `knobInputs.js` (a leaf, so the fetch
+// plan can bind a document at an instance's knobs with no import cycle); re-exported here, so no importer moved.
+export { resolveInputs, enumIndexOf, treeScalars }
 
-/**
- * ⭐⭐ THE SCALARS A TREE READS: `resolveInputs`, with every TEXT enum handed over
- * as its option's INDEX.
- *
- * A tree has no strings (`pine.js::enumCompare` writes `kind == 1` for Pine's
- * `kind == "SMA"`), so an `enum` input whose options are text reaches it as the
- * position of the member's pick. The INSTANCE keeps the text — what the dropdown
- * shows and what `defSchema` validates — and only the evaluation scope sees the
- * number.
- *
- * ⭐⭐ ONE RULE, SHARED WITH THE SERVER (`api/services/alert_user_series._inputs_for`),
- * pinned by ONE fixture both suites read (`tests/fixtures/enum_input_parity.json`):
- *   • a value that IS one of the options → that option's index;
- *   • anything else — unknown text, a number, null, a boolean — → the DEFAULT's index;
- *   • a default that is not among the options → index 0. (Pine refuses to compile
- *     such a script, so the door never mints one; this guards a hand-made document.)
- * ⚰️ An unknown value used to pass through as text, the tree compared text with a
- * number, and EVERY `kind == i` was false — the script's else arm, which the server
- * did not agree with (it took the default).
- * ⛔ Only for the TREE lanes: a native's enum (`lineStyle: 'dashed'`) is text its
- * compute reads as text, and `resolveInputs` stays exactly what it was.
- */
-export function enumIndexOf(input, value) {
-  const opts = Array.isArray(input && input.options) ? input.options.map((o) => (Array.isArray(o) ? o[0] : o)) : []
-  if (!opts.length || !opts.every((o) => typeof o === 'string')) return null
-  const at = typeof value === 'string' ? opts.indexOf(value) : -1
-  if (at >= 0) return at
-  const def = opts.indexOf(input.default)
-  return def >= 0 ? def : 0
-}
-
-export function treeScalars(def, scalars) {
-  let out = scalars
-  for (const input of def?.inputs || []) {
-    if (!input || input.type !== 'enum' || typeof input.key !== 'string') continue
-    const i = enumIndexOf(input, scalars[input.key])
-    if (i === null) continue
-    if (out === scalars) out = { ...scalars }
-    out[input.key] = i
-  }
-  return out
+/** ⭐⭐ e95 unit 2b — THE DOCUMENT A MEMBER'S CHART DRAWS UNTIL A KNOB IS MOVED: `def` bound at its inputs' DEFAULTS
+ *  (`knobBind.js::boundDocument`), every knob ternary's unpicked arm pruned. The install-time measurements read this
+ *  (coordinator ruling 2026-11-22: the budget of the program the member's chart draws), while the compute-time budget
+ *  reads each binding's own bound tree, so a setting that picks an over-budget arm refuses THAT plot by name.
+ *  `def` itself when it holds no knob ternary. */
+export function defaultBoundDocument(def) {
+  return boundAtInputs(def, {})
 }
 
 /** The guard a parameter setting the door would refuse carries (`paramInputs.js`). */
