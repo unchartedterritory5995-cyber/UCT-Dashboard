@@ -1688,6 +1688,17 @@
       "yields": "num",
       "sentence": "the volume-weighted standard deviation of {0}, weighted by {2}, since the last bar where {1} was true"
     },
+    "refusedArm": {
+      "args": [
+        "int"
+      ],
+      "argRoles": [
+        "refusal"
+      ],
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "a branch this engine does not compute (refusal {0} of the document)"
+    },
     "williamsR": {
       "args": [
         "series",
@@ -3693,7 +3704,8 @@
       "openingRangeLow",
       "asin",
       "vwapAnchor",
-      "vwapAnchorDev"
+      "vwapAnchorDev",
+      "refusedArm"
     ]
   },
   "_functions_excluded": {

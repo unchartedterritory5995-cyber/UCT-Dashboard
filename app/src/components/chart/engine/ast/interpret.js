@@ -147,6 +147,11 @@ export const REFUSALS = Object.freeze({
   // of Volume v2's four series with a message that read like an engine bug.
   'interpret:bind-time-text':
     'a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names',
+  // ⭐⭐ e95 unit 2b — a knob arm the translator refused (`pine.js::Resolver.refusedArmLeaf`) is pruned away at bind
+  // unless the member's setting picks it (`bind.js::pruneKnobArms`); the chart lane refuses the plot first, quoting
+  // the translator's own sentence (`knobBind.js::armRefusalOfTree`). One reaching the evaluator says so here.
+  'interpret:refused-arm':
+    'a setting picks a branch of this script that the translator refused, so its value is not computed',
 })
 
 /** ⭐ THE HIGHER-TIMEFRAME LADDER, LOW TO HIGH — the mirror of
@@ -4079,6 +4084,8 @@ export const FN = Object.freeze({
   // deviation its bands are drawn from, summed from each reset (`vwapAnchorAccumulate`).
   vwapAnchor: (src, anchor, volume) => vwapAnchorCol(vwapAnchorStep, src, anchor, volume),
   vwapAnchorDev: (src, anchor, volume) => vwapAnchorCol(vwapAnchorDevStep, src, anchor, volume),
+  // ⭐⭐ e95 unit 2b — a refused knob arm (`pine.js::REFUSED_ARM_CALL`): never a number, refused by name
+  refusedArm: (k) => refuse('interpret:refused-arm', `(refusal ${k} of the document)`),
   cci: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeCCI(bars, n)),
   williamsR: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeWilliamsR(bars, n)),
   mfi: (h, l, c, v, n) => bindShipped(HLCV, [h, l, c, v], c.length, (bars) => computeMFI(bars, n)),

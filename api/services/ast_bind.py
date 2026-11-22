@@ -581,8 +581,82 @@ def int_slots(name: Any) -> list:
     return [i for i, kind in enumerate(spec.get("args") or ()) if kind == "int"]
 
 
+# ─── ⭐⭐ e95 unit 2b -- A KNOB'S UNPICKED ARMS ARE PRUNED AT BIND ────────────────────────────────────────────
+#
+# The mirror of ``bind.js::pruneKnobArms`` (see its header for the coordinator's ruling): a ternary whose test is made of
+# knobs and constants takes the same arm on every bar of one binding, so the bound tree keeps that arm only. A KNOB is
+# an input: a name ``consts`` holds as a finite number that is not a clock flag and not a symbol field.
+
+_KNOB_TEST_OPS = frozenset(("==", "!=", ">", "<", ">=", "<=", "&&", "||", "!", "u-"))
+
+
+def is_knob_name(name: Any, consts: Mapping[str, Any]) -> bool:
+    """Is ``name`` a knob of this binding (an input ``consts`` fixes as a finite number)?"""
+    if not isinstance(name, str) or name in BIND_TIME_CLOCK or name.startswith("syminfo."):
+        return False
+    if not consts or name not in consts:
+        return False
+    v = consts[name]
+    return _is_number(v) and math.isfinite(float(v))
+
+
+def knob_test_value(test: Any, consts: Mapping[str, Any]):
+    """The value of a ternary TEST made only of knobs, numbers and comparisons / logic over them (at least one knob),
+    for this binding; ``None`` for any other test."""
+    seen = {"knob": False}
+
+    def ok(n: Any) -> bool:
+        if not isinstance(n, Mapping):
+            return False
+        kind = n.get("type")
+        if kind == "num":
+            return True
+        if kind == "series":
+            if not is_knob_name(n.get("name"), consts):
+                return False
+            seen["knob"] = True
+            return True
+        args = n.get("args")
+        return (kind == "op" and n.get("name") in _KNOB_TEST_OPS and isinstance(args, (list, tuple))
+                and len(args) > 0 and all(ok(a) for a in args))
+
+    if not ok(test) or not seen["knob"]:
+        return None
+    try:
+        v = fold_scalar(test, consts)
+    except NotFoldable:
+        return None
+    return v if math.isfinite(v) else None
+
+
+def prune_knob_arms(ast: Any, consts: Mapping[str, Any] = None) -> Any:
+    """The tree with every knob ternary replaced by the arm this binding's knobs pick, and NOTHING else changed.
+    Mutates nothing; a subtree with nothing to prune is returned as is (the same object)."""
+    consts = consts or {}
+
+    def walk(node: Any) -> Any:
+        if not isinstance(node, Mapping) or not isinstance(node.get("args"), (list, tuple)):
+            return node
+        args = node["args"]
+        if node.get("type") == "op" and node.get("name") == "?:" and len(args) == 3:
+            v = knob_test_value(args[0], consts)
+            if v is not None:
+                return walk(args[1] if v else args[2])
+        out_args = [walk(a) for a in args]
+        if all(x is y for x, y in zip(out_args, args)):
+            return node
+        out = dict(node)
+        out["args"] = out_args
+        return out
+
+    return walk(ast)
+
+
 def fold_bound(ast: Any, consts: Mapping[str, Any] = None) -> Any:
     """The tree with every foldable INT-slot argument replaced by its literal.
+
+    ⭐ e95 unit 2b -- and every knob ternary replaced by the arm this binding picks (``prune_knob_arms``, the same
+    test).
 
     ⭐ RETURNS A NEW TREE AND MUTATES NOTHING. The stored definition must go on
     meaning what it said, because the NEXT symbol folds it differently. A pass
@@ -606,6 +680,11 @@ def fold_bound(ast: Any, consts: Mapping[str, Any] = None) -> Any:
             return node
         if not isinstance(node.get("args"), (list, tuple)):
             return node
+        # ⭐⭐ e95 unit 2b -- a knob ternary is the arm this binding picks (``prune_knob_arms``)
+        if node.get("type") == "op" and node.get("name") == "?:" and len(node["args"]) == 3:
+            v = knob_test_value(node["args"][0], consts)
+            if v is not None:
+                return walk(node["args"][1] if v else node["args"][2])
         # ⭐⭐ A ``textop`` FOLDS WHEREVER IT SITS, not only in an int slot -- and
         # that is not symmetry for its own sake. ``Uncharted Volume`` line 222
         # feeds its answer to a BOOLEAN (``isRatioSymbol``), never to a window

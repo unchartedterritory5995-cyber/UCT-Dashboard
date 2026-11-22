@@ -231,6 +231,8 @@ const FORMS = [
   { kind: 'call', name: 'vwapAnchorDev',
     parts: ['the volume-weighted standard deviation of ', 0, ', weighted by ', 2, ', since the last bar where ', 1,
       ' was true'] },
+  // ⭐⭐ e95 unit 2b (2026-11-22) — the leaf a knob arm the translator refused stands as (closedTable.json's words)
+  { kind: 'call', name: 'refusedArm', parts: ['a branch this engine does not compute (refusal ', 0, ' of the document)'] },
   // ⭐ 2026-11-17 — the opening range, hand-typed from the manifest's words like every form here.
   // ⚠️ They cannot collide with `highest` / `lowest` ("the highest X of the last N bars"): those end
   // in ` bars`, these in ` minutes of the regular session`, and `the grammar is UNAMBIGUOUS` asserts it.
@@ -1342,6 +1344,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       // ⭐⭐ e95 unit 2 (2026-11-22): Pine's anchored `ta.vwap`, the average and its band leg
       'function:vwapAnchor',
       'function:vwapAnchorDev',
+      // ⭐⭐ e95 unit 2b (2026-11-22): the leaf a knob arm the translator refused stands as
+      'function:refusedArm',
       'function:vwapOf',
       'function:williamsR',
       'function:wma',
@@ -1372,7 +1376,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 141 -> 148 (2026-11-17): the regular session's two clock leaves and five readers.
     // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`, Pine's `math.asin`.
     // e95 unit 2 (2026-11-22) 149 -> 151: `vwapAnchor`, `vwapAnchorDev`.
-    expect(entries.length).toBe(151)
+    // e95 unit 2b (2026-11-22) 151 -> 152: `refusedArm`.
+    expect(entries.length).toBe(152)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1402,7 +1407,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // readers (`sessionOpen`, `sessionHigh`, `sessionLow`, `openingRangeHigh`, `openingRangeLow`).
     // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`.
     // e95 unit 2 (2026-11-22) 149 -> 151: `vwapAnchor`, `vwapAnchorDev`.
-    expect(subjects.length).toBe(151)
+    // e95 unit 2b (2026-11-22) 151 -> 152: `refusedArm`.
+    expect(subjects.length).toBe(152)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2875,7 +2881,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ + 141 -> + 148 (2026-11-17): the regular session's two clock leaves and five readers.
     // U-BUILTIN B3 (2026-11-19) + 148 -> + 149: `asin`.
     // e95 unit 2 (2026-11-22) + 149 -> + 151: `vwapAnchor`, `vwapAnchorDev`.
-    expect(sentences.length).toBe(CORPUS.cases.length + 151)
+    // e95 unit 2b (2026-11-22) + 151 -> + 152: `refusedArm`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 152)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {

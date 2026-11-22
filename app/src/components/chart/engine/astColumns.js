@@ -19,6 +19,7 @@
 import { interpret, listingSeedIsUnpinned, SERIES_EVENT_RECORD } from './ast/interpret'
 import { ENGINE_ERROR, isRefusal } from './ast/parse'
 import { foldBound, bindConstsFor } from './ast/bind'
+import { boundDocument, armRefusalOfTree } from './knobBind.js'
 import {
   otherSymbolRefusalOfTree, isOtherSymbolRefusal, colourReaderRefusal, colourReaderMessage, plotValueIsNaLiteral,
   withChartNewestDay,
@@ -241,7 +242,13 @@ export function colourReaderPaintNotices(def, columns) {
   return out
 }
 
-function astColumnsUnstopped(def, bars, inputs, ctx) {
+function astColumnsUnstopped(savedDef, bars, inputs, ctx) {
+  // ⭐⭐ e95 unit 2b — THE BOUND DOCUMENT FIRST (`knobBind.js::boundDocument`): every knob ternary's unpicked arm
+  // pruned for THIS binding's inputs, before anything below decides per binding (the static gates, the other-symbol
+  // and event decisions, the block-run check, the evaluator). An arm the member's setting does not pick never
+  // withholds or refuses the chart. `savedDef` itself when the document holds no knob ternary.
+  const bindConsts = bindConstsFor({ tf: ctx && ctx.tf, inputs, symbol: ctx && ctx.symbol })
+  const def = boundDocument(savedDef, bindConsts)
   const keys = astPlotKey(def)
   const trees = astTrees(def)
   // ⭐⭐ C29 — a document folded at another chart period does not answer here
@@ -273,7 +280,6 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // that stopped it. An unknown timeframe folds NOTHING — `timeframeFlags`
   // returns null rather than a default, because a guessed `isdaily` is a
   // confident wrong length.
-  const bindConsts = bindConstsFor({ tf: ctx && ctx.tf, inputs, symbol: ctx && ctx.symbol })
   const bound = (tree) => foldBound(tree, bindConsts)
   // ⭐⭐ C26 — which other symbols this binding may read, decided ONCE for every
   // tree of the document (`otherSymbolsFor`).
@@ -363,6 +369,13 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         errors[key] = staticWhy.get(key)
         continue
       }
+      // ⭐⭐ e95 unit 2b — the member's setting picks an arm the translator refused: THIS plot is refused by name,
+      // quoting the translator's own sentence (`knobBind.js::armRefusalOfTree`)
+      const armWhy = armRefusalOfTree(trees[key], def)
+      if (armWhy) {
+        errors[key] = armWhy
+        continue
+      }
       // ⭐⭐ ENGINE 55 — a plot that reads a ticker this binding REFUSED (settled, not
       // pending) is refused BY NAME with the bind's code and sentence, never computed
       // into an all-`na` column (`otherSymbols.js::otherSymbolRefusalOfTree`).
@@ -444,6 +457,9 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // different route and reads identically at the call site.
   // ⭐ P0 0F — see the per-plot branch above (`chartScalars.js`).
   if (staticWhy.has(keys[0])) return withColumnErrors({}, { [keys[0]]: staticWhy.get(keys[0]) })
+  // ⭐⭐ e95 unit 2b — the single tree's refused knob arm, picked by the member's setting
+  const soleArmWhy = armRefusalOfTree(def.compute.ast, def)
+  if (soleArmWhy) return withColumnErrors({}, { [keys[0]]: soleArmWhy })
   // ⭐⭐ ENGINE 55 — the single tree's settled other-symbol refusal, by name.
   const soleSymWhy = otherSymbolRefusalOfTree(def.compute.ast, other)
   if (soleSymWhy) return withOtherSymbols(withColumnErrors({}, { [keys[0]]: soleSymWhy }), other)
@@ -781,6 +797,16 @@ export function treeScalars(def, scalars) {
     out[input.key] = i
   }
   return out
+}
+
+/** ⭐⭐ e95 unit 2b — THE DOCUMENT A MEMBER'S CHART DRAWS UNTIL A KNOB IS MOVED: `def` bound at its inputs' DEFAULTS
+ *  (`knobBind.js::boundDocument`), every knob ternary's unpicked arm pruned. The install-time measurements read this
+ *  (coordinator ruling 2026-11-22: the budget of the program the member's chart draws), while the compute-time budget
+ *  reads each binding's own bound tree, so a setting that picks an over-budget arm refuses THAT plot by name.
+ *  `def` itself when it holds no knob ternary. */
+export function defaultBoundDocument(def) {
+  if (!def || !def.compute) return def
+  return boundDocument(def, bindConstsFor({ inputs: treeScalars(def, resolveInputs(def, {})) }))
 }
 
 /** The guard a parameter setting the door would refuse carries (`paramInputs.js`). */

@@ -589,7 +589,101 @@ function assertUsableWindow(fnName, index, value, source) {
   }
 }
 
+// ─── ⭐⭐ e95 unit 2b — A KNOB'S UNPICKED ARMS ARE PRUNED AT BIND ────────────────────────────────────────────────
+//
+// A member's setting is a `series` leaf named for its input (`pine.js::enumCompare` / `enumSwitch`, a declared
+// input), and ONE binding fixes its value (`bindingConstants` puts every numeric input in `consts`). So a ternary whose
+// test is made of knobs and constants takes the same arm on every bar of the binding, and the other arm is code the
+// member's settings never run. The coordinator's ruling (2026-11-22): the saved tree keeps every arm; the BOUND tree
+// keeps the picked one, before anything per binding reads it (`foldBound`, and the bound document the chart lane
+// builds from `pruneKnobArms`), so an unpicked arm never withholds or refuses the chart.
+// ⛔ A KNOB IS AN INPUT: a name `consts` holds as a finite number that is not a clock flag (`BIND_TIME_CLOCK`, which
+// the int-slot fold reads) and not a symbol field. A test that reads anything else (a bar, a clock flag, a symbol) is
+// left exactly as it was.
+// ⛔ Mirrored by `api/services/ast_bind.py::prune_knob_arms` (`tests/test_ast_bind_parity.py`).
+
+/** The table function a knob arm the translator refused stands as (`pine.js::Resolver.refusedArmLeaf`): one `int`
+ *  argument, the arm's 1-based entry in the document's `meta.knobArmRefusals`. Evaluated, it refuses by name
+ *  (`interpret.js` `interpret:refused-arm`); the bind prunes it away unless the member's setting picks it. */
+export const REFUSED_ARM_CALL = 'refusedArm'
+
+const CLOCK_NAMES = new Set(BIND_TIME_CLOCK)
+const KNOB_TEST_OPS = new Set(['==', '!=', '>', '<', '>=', '<=', '&&', '||', '!', 'u-'])
+
+/** Is `name` a knob of this binding (an input `consts` fixes as a finite number)? */
+export function isKnobName(name, consts) {
+  return typeof name === 'string' && !CLOCK_NAMES.has(name) && !name.startsWith('syminfo.')
+    && !!consts && Object.prototype.hasOwnProperty.call(consts, name)
+    && typeof consts[name] === 'number' && Number.isFinite(consts[name])
+}
+
+/** The value of a ternary TEST made only of knobs, numbers and comparisons / logic over them (at least one knob), for
+ *  this binding; null for any other test (it is left to the evaluator, bar by bar). */
+export function knobTestValue(test, consts) {
+  let knob = false
+  const ok = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'num') return true
+    if (n.type === 'series') {
+      if (!isKnobName(n.name, consts)) return false
+      knob = true
+      return true
+    }
+    return n.type === 'op' && KNOB_TEST_OPS.has(n.name) && Array.isArray(n.args) && n.args.length > 0 && n.args.every(ok)
+  }
+  if (!ok(test) || !knob) return null
+  try {
+    const v = foldScalar(test, consts)
+    return Number.isFinite(v) ? v : null
+  } catch (err) {
+    if (err instanceof NotFoldable) return null
+    throw err
+  }
+}
+
+/** The tree with every knob ternary replaced by the arm this binding's knobs pick (`knobTestValue`), and NOTHING else
+ *  changed. ⭐ Mutates nothing, and a subtree with nothing to prune is returned AS IS (the same object), so a document
+ *  with no knob ternary binds to itself. */
+export function pruneKnobArms(ast, consts = {}) {
+  const walk = (node) => {
+    if (!node || typeof node !== 'object' || !Array.isArray(node.args)) return node
+    if (node.type === 'op' && node.name === '?:' && node.args.length === 3) {
+      const v = knobTestValue(node.args[0], consts)
+      if (v !== null) return walk(v ? node.args[1] : node.args[2])
+    }
+    let changed = false
+    const args = node.args.map((a) => {
+      const w = walk(a)
+      if (w !== a) changed = true
+      return w
+    })
+    return changed ? { ...node, args } : node
+  }
+  return walk(ast)
+}
+
+/** A TRANSLATION's tree (the member door's, before it is a document) pruned at its knobs' DEFAULTS: each declared
+ *  input leaf carries its default (`pine.js`, the non-enumerable `inputName` / `inputDefault`), and that is what the
+ *  member's chart draws until a knob is moved. The door's install-budget pass measures this (`builderInputs.js`).
+ *  The tree itself when it holds no knob ternary. */
+export function pruneAtLeafDefaults(ast) {
+  const consts = {}
+  const stack = [ast]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'series' && typeof n.inputName === 'string' && typeof n.inputDefault === 'number'
+        && Number.isFinite(n.inputDefault) && !Object.prototype.hasOwnProperty.call(consts, n.name)) {
+      consts[n.name] = n.inputDefault
+    }
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return Object.keys(consts).length ? pruneKnobArms(ast, consts) : ast
+}
+
 /** The tree with every foldable INT-slot argument replaced by its literal.
+ *
+ *  ⭐ e95 unit 2b — and every knob ternary replaced by the arm this binding picks (`pruneKnobArms`, the same test).
  *
  *  ⭐ RETURNS A NEW TREE AND MUTATES NOTHING. The saved definition must go on
  *  meaning what it said, because the NEXT symbol folds it differently — a pass
@@ -598,6 +692,11 @@ function assertUsableWindow(fnName, index, value, source) {
 export function foldBound(ast, consts = {}) {
   const walk = (node) => {
     if (!node || typeof node !== 'object' || !Array.isArray(node.args)) return node
+    // ⭐⭐ e95 unit 2b — a knob ternary is the arm this binding picks (`pruneKnobArms`): the other arm is never bound
+    if (node.type === 'op' && node.name === '?:' && node.args.length === 3) {
+      const v = knobTestValue(node.args[0], consts)
+      if (v !== null) return walk(v ? node.args[1] : node.args[2])
+    }
     // ⭐⭐ A `textop` FOLDS WHEREVER IT SITS, not only in an int slot — and that
     // is not symmetry for its own sake. `Uncharted Volume` line 222 feeds its
     // answer to a BOOLEAN (`isRatioSymbol`), never to a window length, so a pass

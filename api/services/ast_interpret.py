@@ -762,6 +762,10 @@ REFUSALS: Mapping[str, str] = {
     "interpret:bind-time-text": (
         "a value that a symbol settles reached the evaluator unsettled — the "
         "binding did not supply the symbol field it names"),
+    # ⭐⭐ e95 unit 2b -- a knob arm the translator refused (``pine.js::Resolver.refusedArmLeaf``), pruned away at
+    # bind unless the member's setting picks it (``ast_bind.prune_knob_arms``). One reaching the evaluator says so.
+    "interpret:refused-arm": (
+        "a setting picks a branch of this script that the translator refused, so its value is not computed"),
 }
 
 #: The ceiling on ``bars x warmup`` for one recurrence -- the ONE cost in this
@@ -3188,6 +3192,8 @@ FN: Dict[str, Callable[..., List[float]]] = {
     # e95 -- Pine's anchored ``ta.vwap``, reached only through ``pine.js`` (``PINE_TUPLE_BUILTINS.vwap``).
     "vwapAnchor": lambda src, anchor, volume: _vwap_anchor_col(src, anchor, volume),
     "vwapAnchorDev": lambda src, anchor, volume: _vwap_anchor_col(src, anchor, volume, dev=True),
+    # e95 unit 2b -- a refused knob arm (``pine.js::REFUSED_ARM_CALL``): never a number, refused by name.
+    "refusedArm": lambda k: _refuse("interpret:refused-arm", f"(refusal {k} of the document)"),
     "cci": _fn_cci,
     "williamsR": _fn_williams_r,
     "mfi": _fn_mfi,
@@ -5102,6 +5108,11 @@ def interpret(ast: Any, bars: List[dict],
     bar whose answer moves is withheld. Every other tree takes one pass,
     unchanged. See the JS docstring; the two lanes are held equal by
     ``tests/fixtures/ast/switched_counter_parity.json``."""
+    # ⭐⭐ e95 unit 2b -- THIS LANE'S BIND: the inputs it is handed fix every knob, so a knob ternary's unpicked arm is
+    # pruned before anything reads the tree (``ast_bind.prune_knob_arms``, the chart lane's ``bind.js::foldBound``):
+    # a refused knob arm (``refusedArm``) the member's setting does not pick is never evaluated. Identity otherwise.
+    from api.services.ast_bind import prune_knob_arms  # noqa: PLC0415 (ast_bind imports this module)
+    ast = prune_knob_arms(ast, {k: v for k, v in (inputs or {}).items() if _is_number(v)})
     probe = (opts or {}).get("prefixProbe")
     probing = isinstance(probe, (int, float)) and not isinstance(probe, bool)
     # C36 -- a tree whose ``time(<tf>)`` / ``time_close(<tf>)`` cannot be answered

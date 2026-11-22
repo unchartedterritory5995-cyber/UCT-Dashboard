@@ -35,6 +35,8 @@ import { registerStrategyBrokerGate } from '../../engine/strategyBrokerGateRegis
 // W9-T1: the broker's build flag is read here (outside the server compute closure) and handed to the front end.
 registerStrategyBrokerGate(strategyBrokerEnabled)
 import { PINE_RECURRENCE_ORIGIN, validateUserDefinitions } from '../../engine/nativeRegistry'
+// ⭐ e95 unit 2b — the document a member's chart draws until a knob is moved (the install and the up-front gates read it)
+import { defaultBoundDocument } from '../../engine/astColumns.js'
 import { checkBudget } from '../../engine/ast/budget'
 import { pineNaConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads, libraryPinsOf } from '../../engine/runtime/runtimeColumns'
@@ -1345,6 +1347,11 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     // for every script that reads none, so no other document changes and no
     // other chart fetches anything.
     ...(Array.isArray(t.lowerTf) && t.lowerTf.length ? { lowerTf: t.lowerTf } : {}),
+    // ⭐⭐ e95 unit 2b — the knob arms the translation refused (`pine.js::Resolver.refusedArmLeaf`), each quoted by the
+    // bind when a member's setting picks it (`engine/knobBind.js::armRefusalOfTree`): a `refusedArm(k)` leaf is entry
+    // `k - 1`. Absent for every script with none, so no other document changes.
+    ...(Array.isArray(t.knobArmRefusals) && t.knobArmRefusals.length
+      ? { knobArmRefusals: t.knobArmRefusals.map((r) => ({ guard: r.guard, message: r.message })) } : {}),
     // ⭐⭐ C43 — the `runtime.error` calls the translation placed (each with the
     // conditions it stands under) and the ones it could not (by name). Absent for
     // every script that writes no `runtime.error`, so no other document changes.
@@ -1431,7 +1438,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     requirementTags,
     // ⭐⭐ ENGINE 55 (review F1) — the plots a binding will refuse by spelling alone, with the
     // sentence it will say (`otherSymbols.staticPlotRefusalsOf`), for the preview to say up front.
-    ...((sr) => (Object.keys(sr).length ? { staticRefusals: sr } : {}))(staticPlotRefusalsOf(docOut)),
+    // ⭐ e95 unit 2b — at the knobs' defaults (`defaultBoundDocument`): what the chart draws until a knob is moved
+    ...((sr) => (Object.keys(sr).length ? { staticRefusals: sr } : {}))(staticPlotRefusalsOf(defaultBoundDocument(docOut))),
     // ⭐ ENGINE 53 — the run half, minted (how many host plots its column rail compares) or
     // declined (by code, for the census); absent for a script whose drawings are complete.
     ...(runHalfOut && runHalfOut.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalfOut.runtimeObjects.outputs).length } } : {}),
@@ -1600,9 +1608,12 @@ export function hostInstallRefusalOf(doc, rows = []) {
   if ((verdict.defs || []).length > 0) return null
   const trees = doc.compute.trees && typeof doc.compute.trees === 'object' && !Array.isArray(doc.compute.trees)
     ? Object.entries(doc.compute.trees) : [[null, doc.compute.ast]]
-  for (const [key, ast] of trees) {
+  // ⭐ e95 unit 2b — the install measured the trees at the knobs' defaults (`nativeRegistry.validateAstLane`)
+  const atDefaults = defaultBoundDocument(doc)
+  const boundTreeOf = (key) => (key === null ? atDefaults.compute.ast : atDefaults.compute.trees[key])
+  for (const [key] of trees) {
     let b = null
-    try { b = checkBudget(ast, doc.compute.budget) } catch { b = null }
+    try { b = checkBudget(boundTreeOf(key), doc.compute.budget) } catch { b = null }
     if (!b || b.ok || !BUDGET_PLAIN[b.guard]) continue
     const capKey = BUDGET_CAP_OF[b.guard]
     const row = (rows || []).find((r) => r && r.key === key) || (key === null ? (rows || [])[0] : null)

@@ -1,0 +1,966 @@
+{
+ "_": "e95 unit 2b -- the bind-time prune of a knob's unpicked arms (bind.js::pruneKnobArms / ast_bind.prune_knob_arms), pinned: both lanes are asserted against these rows, neither against the other. `inputs` are a binding's inputs (bindingConstants), `prunedTo` the bound tree.",
+ "cases": [
+  {
+   "id": "enum-chain-picks-week",
+   "tree": {
+    "type": "call",
+    "name": "vwapAnchor",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "op",
+      "name": "?:",
+      "args": [
+       {
+        "type": "op",
+        "name": "==",
+        "args": [
+         {
+          "type": "series",
+          "name": "anchor"
+         },
+         {
+          "type": "num",
+          "value": 3
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "refusedArm",
+        "args": [
+         {
+          "type": "num",
+          "value": 1
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         {
+          "type": "op",
+          "name": "==",
+          "args": [
+           {
+            "type": "series",
+            "name": "anchor"
+           },
+           {
+            "type": "num",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "type": "series",
+          "name": "weekfirst"
+         },
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": "==",
+            "args": [
+             {
+              "type": "series",
+              "name": "anchor"
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           },
+           {
+            "type": "series",
+            "name": "sessionfirst"
+           },
+           {
+            "type": "series",
+            "name": "monthfirst"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "series",
+      "name": "volume"
+     }
+    ]
+   },
+   "inputs": {
+    "anchor": 1
+   },
+   "prunedTo": {
+    "type": "call",
+    "name": "vwapAnchor",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "series",
+      "name": "weekfirst"
+     },
+     {
+      "type": "series",
+      "name": "volume"
+     }
+    ]
+   }
+  },
+  {
+   "id": "enum-chain-picks-the-end",
+   "tree": {
+    "type": "call",
+    "name": "vwapAnchor",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "op",
+      "name": "?:",
+      "args": [
+       {
+        "type": "op",
+        "name": "==",
+        "args": [
+         {
+          "type": "series",
+          "name": "anchor"
+         },
+         {
+          "type": "num",
+          "value": 3
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "refusedArm",
+        "args": [
+         {
+          "type": "num",
+          "value": 1
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         {
+          "type": "op",
+          "name": "==",
+          "args": [
+           {
+            "type": "series",
+            "name": "anchor"
+           },
+           {
+            "type": "num",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "type": "series",
+          "name": "weekfirst"
+         },
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": "==",
+            "args": [
+             {
+              "type": "series",
+              "name": "anchor"
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           },
+           {
+            "type": "series",
+            "name": "sessionfirst"
+           },
+           {
+            "type": "series",
+            "name": "monthfirst"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "series",
+      "name": "volume"
+     }
+    ]
+   },
+   "inputs": {
+    "anchor": 2
+   },
+   "prunedTo": {
+    "type": "call",
+    "name": "vwapAnchor",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "series",
+      "name": "monthfirst"
+     },
+     {
+      "type": "series",
+      "name": "volume"
+     }
+    ]
+   }
+  },
+  {
+   "id": "enum-chain-picks-a-refused-arm",
+   "tree": {
+    "type": "call",
+    "name": "vwapAnchor",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "op",
+      "name": "?:",
+      "args": [
+       {
+        "type": "op",
+        "name": "==",
+        "args": [
+         {
+          "type": "series",
+          "name": "anchor"
+         },
+         {
+          "type": "num",
+          "value": 3
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "refusedArm",
+        "args": [
+         {
+          "type": "num",
+          "value": 1
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         {
+          "type": "op",
+          "name": "==",
+          "args": [
+           {
+            "type": "series",
+            "name": "anchor"
+           },
+           {
+            "type": "num",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "type": "series",
+          "name": "weekfirst"
+         },
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": "==",
+            "args": [
+             {
+              "type": "series",
+              "name": "anchor"
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           },
+           {
+            "type": "series",
+            "name": "sessionfirst"
+           },
+           {
+            "type": "series",
+            "name": "monthfirst"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "series",
+      "name": "volume"
+     }
+    ]
+   },
+   "inputs": {
+    "anchor": 3
+   },
+   "prunedTo": {
+    "type": "call",
+    "name": "vwapAnchor",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "call",
+      "name": "refusedArm",
+      "args": [
+       {
+        "type": "num",
+        "value": 1
+       }
+      ]
+     },
+     {
+      "type": "series",
+      "name": "volume"
+     }
+    ]
+   }
+  },
+  {
+   "id": "knob-absent-left-alone",
+   "tree": {
+    "type": "call",
+    "name": "vwapAnchor",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "op",
+      "name": "?:",
+      "args": [
+       {
+        "type": "op",
+        "name": "==",
+        "args": [
+         {
+          "type": "series",
+          "name": "anchor"
+         },
+         {
+          "type": "num",
+          "value": 3
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "refusedArm",
+        "args": [
+         {
+          "type": "num",
+          "value": 1
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         {
+          "type": "op",
+          "name": "==",
+          "args": [
+           {
+            "type": "series",
+            "name": "anchor"
+           },
+           {
+            "type": "num",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "type": "series",
+          "name": "weekfirst"
+         },
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": "==",
+            "args": [
+             {
+              "type": "series",
+              "name": "anchor"
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           },
+           {
+            "type": "series",
+            "name": "sessionfirst"
+           },
+           {
+            "type": "series",
+            "name": "monthfirst"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "series",
+      "name": "volume"
+     }
+    ]
+   },
+   "inputs": {},
+   "prunedTo": {
+    "type": "call",
+    "name": "vwapAnchor",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "op",
+      "name": "?:",
+      "args": [
+       {
+        "type": "op",
+        "name": "==",
+        "args": [
+         {
+          "type": "series",
+          "name": "anchor"
+         },
+         {
+          "type": "num",
+          "value": 3
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "refusedArm",
+        "args": [
+         {
+          "type": "num",
+          "value": 1
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         {
+          "type": "op",
+          "name": "==",
+          "args": [
+           {
+            "type": "series",
+            "name": "anchor"
+           },
+           {
+            "type": "num",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "type": "series",
+          "name": "weekfirst"
+         },
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": "==",
+            "args": [
+             {
+              "type": "series",
+              "name": "anchor"
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           },
+           {
+            "type": "series",
+            "name": "sessionfirst"
+           },
+           {
+            "type": "series",
+            "name": "monthfirst"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "series",
+      "name": "volume"
+     }
+    ]
+   }
+  },
+  {
+   "id": "clock-flag-test-left-alone",
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "series",
+      "name": "isdaily"
+     },
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "series",
+      "name": "open"
+     }
+    ]
+   },
+   "inputs": {},
+   "timeframe": {
+    "isdaily": true
+   },
+   "prunedTo": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "series",
+      "name": "isdaily"
+     },
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "series",
+      "name": "open"
+     }
+    ]
+   }
+  },
+  {
+   "id": "bar-test-left-alone",
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "series",
+        "name": "open"
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "inputs": {
+    "anchor": 1
+   },
+   "prunedTo": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "series",
+        "name": "open"
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "knob-and-bar-test-left-alone",
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": "==",
+        "args": [
+         {
+          "type": "series",
+          "name": "anchor"
+         },
+         {
+          "type": "num",
+          "value": 1
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "series",
+          "name": "open"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "inputs": {
+    "anchor": 1
+   },
+   "prunedTo": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": "==",
+        "args": [
+         {
+          "type": "series",
+          "name": "anchor"
+         },
+         {
+          "type": "num",
+          "value": 1
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "series",
+          "name": "open"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   }
+  },
+  {
+   "id": "numeric-knob-compare",
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "len"
+       },
+       {
+        "type": "num",
+        "value": 10
+       }
+      ]
+     },
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     }
+    ]
+   },
+   "inputs": {
+    "len": 14
+   },
+   "prunedTo": {
+    "type": "series",
+    "name": "high"
+   }
+  },
+  {
+   "id": "bare-bool-knob",
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "series",
+      "name": "show"
+     },
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     }
+    ]
+   },
+   "inputs": {
+    "show": 0
+   },
+   "prunedTo": {
+    "type": "series",
+    "name": "low"
+   }
+  },
+  {
+   "id": "logic-over-knobs",
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "!",
+      "args": [
+       {
+        "type": "op",
+        "name": "||",
+        "args": [
+         {
+          "type": "op",
+          "name": "==",
+          "args": [
+           {
+            "type": "series",
+            "name": "anchor"
+           },
+           {
+            "type": "num",
+            "value": 7
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "==",
+          "args": [
+           {
+            "type": "series",
+            "name": "anchor"
+           },
+           {
+            "type": "num",
+            "value": 8
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "inputs": {
+    "anchor": 8
+   },
+   "prunedTo": {
+    "type": "num",
+    "value": 0
+   }
+  },
+  {
+   "id": "epsilon-ambiguous-left-alone",
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "==",
+      "args": [
+       {
+        "type": "series",
+        "name": "x"
+       },
+       {
+        "type": "num",
+        "value": 0.3
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "inputs": {
+    "x": 0.30000000000000004
+   },
+   "prunedTo": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "==",
+      "args": [
+       {
+        "type": "series",
+        "name": "x"
+       },
+       {
+        "type": "num",
+        "value": 0.3
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   }
+  }
+ ]
+}
