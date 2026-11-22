@@ -99,10 +99,12 @@ function _dwmGraceOff() {
  */
 export function compareBarsRequest(compareSymbol, resolvedTf, barCount, gridQ = '') {
   if (!compareSymbol) return { url: null, spec: null }
-  const sym = encodeURIComponent(String(compareSymbol).toUpperCase())
   const spec = isNativeTf(resolvedTf) ? null : resampleSpec(resolvedTf)
-  if (!spec) return { url: `/api/bars/${sym}?tf=${resolvedTf}&bars=${barCount}${gridQ}`, spec: null }
-  return { url: `/api/bars/${sym}?tf=${spec.base}&bars=${customBaseBarsOf(spec.base)}`, spec }
+  const code = spec ? spec.base : resolvedTf
+  const count = spec ? customBaseBarsOf(spec.base) : barCount
+  const q = spec ? '' : gridQ
+  // ⛔ ONE url literal, the site `rails/oneKey.baseline.json` already lists (a shrink-only allowlist: never a new one)
+  return { url: `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${code}&bars=${count}${q}`, spec }
 }
 
 /** The comparison symbol's bars (an SWR of its own URL). P3-S1: BOTH bar sources call this one
