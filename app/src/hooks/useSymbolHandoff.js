@@ -305,6 +305,12 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   // DEGRADED handoff separately from a successful one. Diagnostic only — no
   // rendering decision reads it.
   const lastOutcomeRef = useRef(null)
+  // ⛔⛔ (2026-11-21, the held key) A REQUEST THAT IS LEFT NEVER SHOWS. Every answer below is checked against the
+  // generation that started it, but a generation only ended when the NEXT request RAN, and inside a burst the next
+  // request waits BURST_SETTLE_MS before it runs (or never runs: a newer key replaces it). So a superseded request
+  // stayed current that long, and a late answer of it (its panes' columns landing) showed it, alone, over the newer
+  // one. It ends HERE, in the commit that leaves it: a layout cleanup, so before any late answer can run.
+  useLayoutEffect(() => () => { genRef.current += 1 }, [requestedSym, tf, enabled, group])
 
   useEffect(() => {
     // Disabled / nothing requested: pass straight through, same tick. The

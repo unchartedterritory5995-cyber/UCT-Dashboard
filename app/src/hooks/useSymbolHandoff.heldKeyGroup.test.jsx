@@ -44,7 +44,7 @@ vi.mock('../components/chart/engine/serverCompute', () => ({
 }))
 
 import useSymbolHandoff from './useSymbolHandoff'
-import { beginGroupSwitch, __resetHandoffGroupsForTests, __resetScopeForTests } from './handoffGroups'
+import { beginGroupSwitch, groupJoin, groupLeave, groupReady, __resetHandoffGroupsForTests, __resetScopeForTests } from './handoffGroups'
 import { BURST_SETTLE_MS, QUIET_MS } from './useSymbolSettle'
 
 const G = 'charts:A'
@@ -180,6 +180,22 @@ describe('a held key obeys gate 6 at every paint', () => {
     expect(split().map((f) => `${f.t}ms ${f.D}/${f.M}`)).toEqual([])
     expect([screen.D, screen.M]).toEqual(['R01', 'R01'])
   }, 30000)
+
+  it('the round itself: a leave shows nothing of a round a newer symbol has replaced, whoever is still in it', async () => {
+    const shown = []
+    groupJoin('charts:Z', 'R01', 1); groupJoin('charts:Z', 'R01', 2)
+    groupReady('charts:Z', 'R01', 2, () => shown.push('2:R01'))
+    groupLeave('charts:Z', 'R01', 1)                            // member 1 moves to the next row...
+    groupJoin('charts:Z', 'R02', 1)                             // ...before member 2 has (its own leave comes later)
+    await act(async () => { await Promise.resolve() })
+    expect(shown).toEqual([])
+    // control: the same leave with no newer symbol (member 1 is gone) shows the ready one, in that task
+    groupJoin('charts:Y', 'R01', 1); groupJoin('charts:Y', 'R01', 2)
+    groupReady('charts:Y', 'R01', 2, () => shown.push('2:R01'))
+    groupLeave('charts:Y', 'R01', 1)
+    await act(async () => { await Promise.resolve() })
+    expect(shown).toEqual(['2:R01'])
+  })
 })
 
 describe('what must not change', () => {
