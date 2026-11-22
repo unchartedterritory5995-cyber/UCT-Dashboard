@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (803)
+## Member session reads (806)
 
 ### Limits
 
@@ -617,6 +617,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/oi-snapshot/history` | paid | options-flow | sym (required), cp (required), strike (required), exp (required), days=30 |
 | GET | `/api/oi-snapshot/lookup` | paid | options-flow | sym (required), cp (required), strike (required), exp (required), snap_date |
 | GET | `/api/options-screener/iv-percentile` | paid | options-analytics |  |
+| GET | `/api/options-screener/iv-rank` | paid | options-analytics |  |
 | GET | `/api/options-screener/more-strategies` | paid | options-analytics |  |
 | GET | `/api/options-screener/more/{name}` | paid | options-analytics | {name}, underlyings, limit=50 |
 | GET | `/api/options-screener/multi-leg` | paid | options-analytics | underlyings, limit=50 |
@@ -694,7 +695,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/financial-history/{sym}` | paid | research | {sym}, period=quarter |
 | GET | `/api/research/financials/{sym}` | paid | research | {sym} |
 | GET | `/api/research/ftd/{sym}` | paid | research | {sym} |
-| GET | `/api/research/group-stats` | paid | research | kind=sector, name |
+| GET | `/api/research/group-stats` | paid | research | kind=sector, name, part |
 | GET | `/api/research/history/{sym}` | paid | research | {sym}, days=90 |
 | GET | `/api/research/index-changes` | paid | research | index=all, sym |
 | GET | `/api/research/iv-history/{sym}` | paid | research | {sym} |
@@ -756,6 +757,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/scans/highest-volume-ever/status` | paid | screener |  |
 | GET | `/api/scans/ipo-1y` | paid | screener |  |
 | GET | `/api/scans/ipo-1y/status` | paid | screener |  |
+| GET | `/api/scans/ipo-lockups` | paid | screener |  |
 | GET | `/api/scans/live-status` | paid | screener |  |
 | GET | `/api/scans/period-change` | paid | screener | start (required), end (required) |
 | GET | `/api/scans/period-change-coverage` | paid | screener | start (required), end (required) |

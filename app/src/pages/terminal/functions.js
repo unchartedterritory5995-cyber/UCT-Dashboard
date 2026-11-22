@@ -198,7 +198,10 @@ export const FUNCTIONS = [
   { code: 'OSCR', label: 'Options screener', group: 'Options',
     // `?tab=options` is Screener.jsx's own deep-link param (read once at mount as the
     // initial tab) — without it "Full page" always landed on the Stocks tab.
-    market: { panel: 'OptionsScreener', full: '/screener?tab=options', flag: 'optionsScreenerEnabled' } },
+    // OSCR RICH / OSCR CHEAP (2026-11-22): the highest and lowest IV rank across the options log (IvRankPanel,
+    // GET /api/options-screener/iv-rank, built each evening). The bare OSCR is the option screener, unchanged.
+    market: { panel: 'OptionsScreener', full: '/screener?tab=options', flag: 'optionsScreenerEnabled',
+      args: [{ kind: 'oscrView', prop: 'view' }] } },
   { code: 'FLOW', label: 'Options flow', group: 'Options',
     // No shell flag (audit 2026-10-08, FLOW P1): the `Flow` panel is FlowGate -- the flow tab while
     // researchFlowTabEnabled is on; with it off it says so and offers the page doors.
@@ -574,8 +577,10 @@ export const FUNCTIONS = [
   // whole market: bare `DVD` = the member's own stocks, `NVDA DVD` = one stock. It holds nothing past.
   // CACT: one stock's held splits and dividends (GET /api/research/corporate-actions/{ticker}, which
   // never asks a vendor) and its name or ticker changes. None of the three is in the stock universe.
+  // IPO LOCKUP (2026-11-22): the lockups ending in the next 30 days and the past 7, each an ESTIMATE (180 days after
+  // listing, the next session), from the last-year listings the server holds (GET /api/scans/ipo-lockups).
   { code: 'IPO', label: 'IPO calendar (upcoming and priced deals)', group: 'Calendar',
-    market: { panel: 'IpoCalendar' } },
+    market: { panel: 'IpoCalendar', args: [{ kind: 'ipoView', prop: 'view' }] } },
   // DVD MARKET (2026-11-21): every ex-dividend date and split this week and next for every stock the site
   // follows (GET /api/research/market-dividends, Massive's reference feed read by date range on the server).
   // ALL is a stock (Allstate), so the view word is MARKET; bare `DVD` and `NVDA DVD` are unchanged. Both variants
@@ -647,7 +652,11 @@ export const FUNCTIONS = [
   // FUNDS by their price over a window. GRPS is not in the site's universe.
   // GRPS RANK (2026-11-22): each group's weekly rank for a year by the median 6-month price change of its stocks (and
   // the 3-month), the places it moved over 4, 13 and 52 weeks, its best and worst week, and the movers; GRP's "Rank".
-  { code: 'GRPS', label: 'Every sector or industry: weekly rank, median growth, margins, valuation and breadth', group: 'Market',
+  // GRPS CROWDING (2026-11-22): positioning by group: each one's short interest (median % of float, days to cover, the
+  // change since the last report, the most shorted), open-market insider buying (buyers, dollars, the largest buys) and
+  // fund holdings (N-PORT: the share where more funds added than cut, the median net change), each with its own date;
+  // a group's stock count opens its stocks with their own figures. 13F is left out: no whole-market store of it is held.
+  { code: 'GRPS', label: 'Every sector or industry: weekly rank, median growth, margins, valuation, breadth and crowding', group: 'Market',
     market: { panel: 'GroupTable', args: [{ kind: 'groupsKind', prop: 'kind' }, { kind: 'groupsView', prop: 'view' }] } },
   // SEG (2026-11-21): one stock's revenue by product (or business line) and by region, the newest period ranked with
   // each segment's share and the last four side by side (GET /api/research/revenue-segments/{ticker}, read from
@@ -1039,8 +1048,9 @@ const FUNCTION_WORDS = {
     note: 'Past sessions with similar breadth and what the S&P 500 did after each. A record, not a forecast.' },
   MKTS: { example: 'MKTS', keywords: ['markets', 'cross asset', 'indexes', 'vix', 'bitcoin', 'markets board'],
     note: 'Index funds, VIX, Treasury yields and Bitcoin, each with its own source and time. No futures or commodity prices.' },
-  IPO: { example: 'IPO', keywords: ['ipo', 'ipos', 'ipo calendar', 'new issues', 'upcoming ipos', 'priced ipos'],
-    note: 'Deals from last week to next week, day by day. Stocks listed in the last year are on LEAD IPO.' },
+  IPO: { example: 'IPO', keywords: ['ipo', 'ipos', 'ipo calendar', 'new issues', 'upcoming ipos', 'priced ipos', 'lockup', 'lockups',
+    'ipo lockup', 'ipo lockups'],
+    note: 'Deals from last week to next week, day by day. IPO LOCKUP: lockups ending in the next 30 days, each an estimate (180 days after listing). Stocks listed in the last year are on LEAD IPO.' },
   DVD: { example: 'DVD', keywords: ['dividend', 'dividends', 'dividend calendar', 'ex dividend', 'ex-date', 'upcoming dividends',
     'upcoming splits', 'market dividends', 'ex dividend this week', 'splits this week'],
     note: 'Declared dividends and splits ahead for your stocks, for one stock (NVDA DVD), or the whole market this week and next (DVD MARKET). Nothing past.' },
@@ -1077,10 +1087,13 @@ const FUNCTION_WORDS = {
     note: 'Every decline of 10% or more on closing prices, the rally after each low and its leaders. A record, not a forecast.' },
   // 'breadth' stays with BRD, 'sectors' with RRG and 'sector performance' with SCTR: each still finds its own first.
   // 'sector rank' stays with SCTR and 'rank' with RSL: no word here starts with "rank" (2026-11-22, GRPS RANK).
+  // GRPS CROWDING (2026-11-22): no keyword holds "insider", "buying" or "positioning": the command line orders equal
+  // word matches by code, so GRPS would come before INS and POS for those words (functionWords.test.js caught it).
   GRPS: { example: 'GRPS INDUSTRIES', keywords: ['sector fundamentals', 'industry fundamentals', 'sector breadth', 'industry breadth',
     'sector valuation', 'sector margins', 'group fundamentals', 'sector table', 'industry table', 'industry rank', 'group rank',
-    'industry group rank', 'industry ranking', 'group rank history', 'leading industries'],
-    note: "Medians of each group's stocks from their SEC filings as known that day, its breadth from stored closes, and its weekly rank by the median 6-month change; worked out each evening." },
+    'industry group rank', 'industry ranking', 'group rank history', 'leading industries', 'sector short interest',
+    'industry short interest', 'sector crowding', 'industry crowding'],
+    note: "Medians of each group's stocks from their SEC filings as known that day, its breadth from stored closes, its weekly rank by the median 6-month change, and its short interest, insider buying and fund holdings; worked out each evening." },
   // 'revenue' stays with FA and 'geographic'/'regions' had no owner.
   SEG: { example: 'NVDA SEG', keywords: ['revenue by segment', 'segments', 'segment revenue', 'product revenue', 'revenue by product',
     'revenue by region', 'geographic revenue', 'business segments', 'revenue mix'],
@@ -1125,6 +1138,10 @@ const FUNCTION_WORDS = {
   FCTX: { example: 'NVDA FCTX', keywords: ['factor exposure', 'factor exposures', 'factor loadings', 'factors', 'style',
     'style factors', 'momentum exposure'],
     note: "From UCT's stored daily closes of the stock and the factor funds (settled sessions, price returns). Descriptive, not a forecast." },
+  // OSCR RICH / OSCR CHEAP: no keyword. "iv" and "implied volatility" stay IVH's, and any keyword holding "rank" would
+  // put OSCR ahead of RSL for a one-word search on "rank" (OSCR sits earlier in the registry).
+  OSCR: { example: 'OSCR RICH',
+    note: 'The option screen, unusual option volume and IV percentile. OSCR RICH and OSCR CHEAP: the highest and lowest IV rank across the options log, built each evening.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
