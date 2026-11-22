@@ -6872,6 +6872,9 @@ export function constantValueOf(node, budget = { left: MAX_FOLD_NODES }) {
     // stops a malformed tree reaching an implementation that would read
     // `undefined` and answer NaN rather than refusing.
     if (!spec || !isPointwise(spec) || typeof FN[node.name] !== 'function') return null
+    // ⛔ e95 unit 2b — a refused knob arm (`REFUSED_ARM_CALL`) is never a number: the fold declines it (its evaluation
+    // refuses by name, which is the bind's to say, never a translation's)
+    if (node.name === REFUSED_ARM_CALL) return null
     // ⛔ ENGINE 56 — the A3 marker is its operand where its flag is 0 and WITHHELD elsewhere
     // (`interpret.js::boolNaMask`): a constant flag that is not 0 withholds every bar, so it
     // folds only where the flag folds to 0
