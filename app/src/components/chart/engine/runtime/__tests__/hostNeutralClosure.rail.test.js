@@ -24,7 +24,7 @@ import {
 } from '../runtimeColumns.js'
 import {
   translatePine, Resolver, withTranslateClock, beginTranslateBudget, endTranslateBudget,
-  translateBudgetExpired, tickTranslateBudget,
+  translateBudgetExpired, tickTranslateBudget, PINE_TRANSLATE_BUDGET_MS,
 } from '../../ast/pine.js'
 import { TABLE } from '../../ast/parse.js'
 import { registeredObjectRuntimeValues, registerObjectRuntimeValues as viaSeam } from '../../objectRuntimeSeam.js'
@@ -194,12 +194,14 @@ describe('every wall clock a run reads is injectable (opts.now)', () => {
       expect(() => { for (let i = 0; i < 5000; i += 1) tickTranslateBudget() }).toThrow(/gave up after 10000ms/)
     } finally { endTranslateBudget() }
     expect(translateBudgetExpired(), 'closed window').toBe(false)
-    // a Resolver outside any window: its own deadline, on its own clock (opts.now)
+    // a Resolver outside any window: its own deadline, on its own clock (opts.now). Its own deadline is the shipped wall
+    // stop (`PINE_TRANSLATE_BUDGET_MS`, 18 minutes since engine 94, ruling (C)), so the message names that, never a literal.
+    const ownStop = new RegExp(`gave up after ${PINE_TRANSLATE_BUDGET_MS}ms`)
     const own = new Resolver(new Map(), TABLE, new Map(), { now: leap })
-    expect(() => own.checkClock(null)).toThrow(/gave up after 10000ms/)
+    expect(() => own.checkClock(null)).toThrow(ownStop)
     // ...or on the scoped clock (`withTranslateClock`), which is how the runtime lane hands it
     const scoped = withTranslateClock(leap, () => new Resolver(new Map(), TABLE, new Map(), {}))
-    expect(() => scoped.checkClock(null)).toThrow(/gave up after 10000ms/)
+    expect(() => scoped.checkClock(null)).toThrow(ownStop)
     // ...and inside a window, the window's clock
     const steady = counting()
     beginTranslateBudget(10000, null, steady)
