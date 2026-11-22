@@ -82,6 +82,11 @@ on:
       - 'docs/agent/program/**'
       - 'docs/terminal-research/09-security-licensing-cost/licensing-register.md'
       - '.github/workflows/agent-ci.yml'
+      # THE QUEUE'S JUDGES (2026-11-22, AUDIT F2 on #2501; it is AUDIT's list): the workflows that decide or post
+      # agent-ci-required. An edit to one is an Agent change, and being a workflow it is self-protected as well, so in
+      # a merge queue it lands only through AUDIT's local evidence.
+      - '.github/workflows/agent-ci-queue.yml'
+      - '.github/workflows/agent-ci-required.yml'
   pull_request:
     branches: [agent/int, master]
     paths:
@@ -118,6 +123,11 @@ on:
       - 'docs/agent/program/**'
       - 'docs/terminal-research/09-security-licensing-cost/licensing-register.md'
       - '.github/workflows/agent-ci.yml'
+      # THE QUEUE'S JUDGES (2026-11-22, AUDIT F2 on #2501; it is AUDIT's list): the workflows that decide or post
+      # agent-ci-required. An edit to one is an Agent change, and being a workflow it is self-protected as well, so in
+      # a merge queue it lands only through AUDIT's local evidence.
+      - '.github/workflows/agent-ci-queue.yml'
+      - '.github/workflows/agent-ci-required.yml'
   # RE-ARM (P2b; P2c 2026-11-18: repository_dispatch, the ONE re-arm path): ONE named PR's evidence run on its current
   # merge commit. Start it only through tools/agent_ci_rearm.py (it refuses a merge conflict, a closed / non-agent /
   # non-master PR). client_payload {pr, merge_sha} is attacker-controlled data: every job's FIRST step validates it and

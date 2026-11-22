@@ -17,15 +17,19 @@
 # THREE JOBS.
 #   scope    reads the queued pull request's own diff from git objects (a fetch and `git diff --name-only`; nothing
 #            of the pull request is checked out or executed) and answers with ONE code:
-#              unknown          the diff, the queue's branch name or the protected list could not be read
 #              no-agent-paths   the diff touches no Agent path (the `paths:` list of agent-ci.yml's push trigger,
 #                               read at run time, never restated). It needs no Agent evidence, WHETHER OR NOT it
-#                               touches a self-protected path, exactly as on a pull request today; when it does,
-#                               the status description says how many
+#                               touches a self-protected path, exactly as on a pull request today, and whether or
+#                               not the protected list can be read (the pull request that repairs an unreadable
+#                               list is one of these); the status description says which
 #              self-protected   it touches an Agent path AND a path its own run executes
 #                               (agent_ci_evidence.SELF_PROTECTED and the lists derived from the vite / vitest
 #                               configs): it needs Agent evidence, and its own run could vouch for itself
 #              agent-paths      it touches an Agent path and no self-protected one
+#              unknown          the diff or the queue's branch name could not be read; or, for a diff that touches
+#                               an Agent path, the protected list could not be read, or the files it is derived
+#                               from differ between master and the tree this entry is built on (an entry AHEAD in
+#                               the queue edits them, and master's copy is not the one this entry runs with)
 #   agent    ONLY for `agent-paths`: calls agent-ci.yml, so every Agent job (server, the 12 browser shards, the 3
 #            capability regression clock legs, their join, the union rail) runs on the merge group's commit and
 #            uploads its evidence record. In a called workflow `github` is THIS workflow's context: the event is
@@ -38,20 +42,32 @@
 #                        decides: such a pull request lands outside the queue after AUDIT signs off), unknown, a
 #                        scope job that did not succeed, a missing / skipped / cancelled / failed Agent job, a job
 #                        list that could not be read
-#            Never pending: it is the last word on that commit. A FAILED status POST makes the job exit non-zero
-#            and leaves NO status; the queue then removes the entry at its own check timeout.
+#            Never pending: it is the last word on that commit. Whatever goes wrong while deciding is POSTED as a
+#            failure, and the jobs GET and the status POST are each tried three times (transport errors, 5xx and
+#            429 only). Only a status POST that still fails leaves NO status: the job exits non-zero and the queue
+#            removes the entry at its own check timeout.
 #
 # THE DECIDING CODE IS MASTER'S. `scope` and `verdict` check out the DEFAULT BRANCH (as agent-ci-required.yml does),
 # so tools/agent_ci_required.py, tools/agent_ci_evidence.py, agent-ci.yml's path list and job names, and the configs
 # the protected list is derived from are master's copies, never the queued pull request's.
-# ⚠️ LIMIT (design 3.4, stated on purpose): THIS FILE and agent-ci.yml themselves are read from the merge group's
-#   commit, so they include the queued pull request's edits.
-#     * An edit to agent-ci.yml or to tools/agent_* IS an Agent path, so it is `self-protected`: failure, AUDIT decides.
-#     * An edit to THIS FILE alone, or to agent-ci-required.yml alone, is NOT an Agent path today. It is
-#       `no-agent-paths`: success, with "self-protected path(s) touched" in the status description and nothing else
-#       in its way. Whether those two files belong in the Agent path list is AUDIT's call (it is AUDIT's list).
-#     * And whatever the lists say, this file is what applies them: the rule holds against an accident, not against
-#       a deliberate rewrite of this file. agent-ci-required.yml has the same limit on a pull request today.
+# ⚠️ LIMITS (design 3.4 and AUDIT F1 on #2501, stated on purpose):
+#   * THIS FILE and agent-ci.yml are read from the merge group's commit, so they include the queued pull request's
+#     edits. What the lists say about such an edit:
+#       - agent-ci.yml, THIS FILE and agent-ci-required.yml are Agent paths (AUDIT F2) and, being workflows,
+#         self-protected: `self-protected`, failure, AUDIT decides.
+#       - Under tools/, every tools/agent_* file is an Agent path, but only tools/agent_ci_*.py,
+#         tools/agent_suite_lock.py, tools/agent_vitest_shards.py and its timings file are self-protected. An edit to
+#         any other tools/agent_* file is a plain Agent change: `agent-paths`, judged by its Agent jobs.
+#       - Any OTHER workflow file is self-protected and not an Agent path: `no-agent-paths`, success, with
+#         "self-protected path(s) touched" in the status description.
+#   * The status can be posted by more than this file. ANY workflow in the merge group's commit (added or edited by
+#     the queued pull request, or already on master) that listens for `merge_group` and holds `statuses: write` can
+#     post the context `agent-ci-required` on that commit, and so can a rewrite of this file. Every workflow token
+#     posts as the same source (GitHub Actions). So the rules above hold against an accident, NOT against a
+#     deliberate edit; agent-ci-required.yml has the same limit on a pull request today.
+#   * The per-entry verdict is sound only with merge method MERGE and grouping ALLGREEN. With HEADGREEN a failed
+#     entry can land behind a green one. With SQUASH or REBASE the merge group's commit is not a two-parent merge
+#     whose first parent is base_sha, and `scope` answers `unknown` for every entry (fail closed).
 #
 # CI COST. scope + verdict run for EVERY queued pull request: two sparse default-branch checkouts, PyYAML, one
 # depth-2 fetch, one API read and one POST; no node, no tests. The Agent jobs run only for a queued pull request

@@ -22,11 +22,15 @@ MERGE QUEUE (2026-11-22; inert until a queue exists on master). .github/workflow
   scope    the queued PR's OWN diff (git: the merge group's base_sha..head_sha; nothing of the PR is checked out or
            run) -> no-agent-paths | agent-paths | self-protected | unknown. `self-protected` = an Agent path AND a
            path the PR's own run executes; a PR that touches NO Agent path needs no Agent evidence and is
-           no-agent-paths whatever else it touches (as on a pull request today), with that said in the detail.
+           no-agent-paths whatever else it touches (as on a pull request today) and whatever the protected list
+           says, even unreadable, with that said in the detail. An Agent-path PR is `unknown` when that list is
+           unreadable, or when its sources differ between master and the entry's base (an entry ahead edits them).
   verdict  success ONLY for no-agent-paths, or for agent-paths when every required Agent job (agent-ci.yml, called by
            that workflow on the merge group's commit) is success in that run. self-protected is ALWAYS failure
            (AUDIT's local evidence decides), and so is an unreadable diff, a scope job that did not succeed, a missing /
            skipped / cancelled / failed job or an API error. Never pending: it is the last word on that commit.
+           Whatever goes wrong while deciding is POSTED as a failure; the jobs GET and the status POST are tried 3
+           times (transport / 5xx / 429 only). Only a POST that still fails leaves the commit without a status.
 
     python tools/agent_ci_required.py --event merge_group --stage scope   --sha <head> --base <base> --head-ref <ref>
     python tools/agent_ci_required.py --event merge_group --stage verdict --sha <head> --run-id <id> \
@@ -41,6 +45,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -113,7 +118,9 @@ def _glob_re(pattern: str) -> re.Pattern:
         else:
             out.append(re.escape(pattern[i]))
             i += 1
-    return re.compile("".join(out) + r"\Z")
+    # re.S (2026-11-22): `**` crosses a newline too. A file name may hold one, and without this such a path matched no
+    # `**` pattern at all, i.e. it was neither an Agent path nor a self-protected one. It only widens what matches.
+    return re.compile("".join(out) + r"\Z", re.S)
 
 
 def matches(path: str, patterns: list[str]) -> bool:
@@ -175,9 +182,24 @@ def combine(states: list[str]) -> str:
 
 
 # ---------------------------------------------------------------------------------------------- GitHub API
+#: (merge queue) how often one API call is tried there, and the pause in seconds before each further try. The
+#: pull_request / workflow_run paths keep ONE attempt, as before.
+RETRY_ATTEMPTS, RETRY_PAUSE_S = 3, (2, 5)
+
+
+def retryable(exc) -> bool:
+    """A failure worth another try: no answer at all (transport, timeout), a 5xx, or a 429. Never any other 4xx: that
+    is the server saying no, and asking again does not change it."""
+    if isinstance(exc, urllib.error.HTTPError):
+        return exc.code == 429 or 500 <= exc.code <= 599
+    return isinstance(exc, (urllib.error.URLError, TimeoutError))
+
+
 class Api:
-    def __init__(self, token: str, repo: str, base: str = "https://api.github.com"):
+    def __init__(self, token: str, repo: str, base: str = "https://api.github.com", attempts: int = 1,
+                 sleep=time.sleep, opener=urllib.request.urlopen):
         self.token, self.repo, self.base = token, repo, base.rstrip("/")
+        self.attempts, self.sleep, self.opener = max(1, int(attempts)), sleep, opener
 
     def call(self, method: str, path: str, body=None):
         url = path if path.startswith("http") else f"{self.base}/repos/{self.repo}/{path.lstrip('/')}"
@@ -185,11 +207,14 @@ class Api:
         req = urllib.request.Request(url, data=data, method=method, headers={
             "Authorization": f"Bearer {self.token}", "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "agent-ci-required"})
-        try:
-            with urllib.request.urlopen(req, timeout=30) as r:
-                return json.loads(r.read() or b"null")
-        except (urllib.error.URLError, TimeoutError, ValueError) as e:
-            raise ApiError(f"{method} {path}: {e}") from e
+        for attempt in range(1, self.attempts + 1):
+            try:
+                with self.opener(req, timeout=30) as r:
+                    return json.loads(r.read() or b"null")
+            except (urllib.error.URLError, TimeoutError, ValueError) as e:
+                if attempt >= self.attempts or not retryable(e):
+                    raise ApiError(f"{method} {path}: {e}") from e
+                self.sleep(RETRY_PAUSE_S[min(attempt, len(RETRY_PAUSE_S)) - 1])
 
     def get(self, path: str):
         return self.call("GET", path)
@@ -296,6 +321,8 @@ _SHA = re.compile(r"[0-9a-f]{40}\Z")
 _UNSAFE = re.compile(r"[^A-Za-z0-9 _./,()@+:'-]")
 AUDIT_DECIDES = "; its own run could vouch for itself: AUDIT's local evidence decides"
 NO_AGENT_PATHS = "no Agent paths changed"
+#: the pathspecs of the files the DERIVED protected list is read from, besides the files those import
+CONFIG_PATHSPECS = (":(glob)app/vite*.config.*", ":(glob)app/vitest*.config.*")
 
 
 def _evidence():
@@ -308,56 +335,100 @@ def _evidence():
     return agent_ci_evidence
 
 
-def merge_group_changed_paths(root, base_sha, head_sha, fetch: bool = True, run=subprocess.run):
+def _job_log(message: str) -> None:
+    """One line for the JOB LOG (stderr). Never a job output: it can carry git's own words about a queued PR's refs."""
+    print(f"[agent-ci-queue] {message}", file=sys.stderr)
+
+
+def _git_reader(root, run=subprocess.run, log=_job_log):
+    """`git(what, *args)` -> stdout bytes, or None when git could not answer. A failure is logged with WHICH step it
+    was and git's stderr, so a red verdict that says "could not be read" can be diagnosed from the job log."""
+    def git(what: str, *args):
+        try:
+            p = run(["git", "-C", str(root), *args], capture_output=True, timeout=300)
+        except (OSError, subprocess.SubprocessError) as e:
+            log(f"{what}: git {args[0]} could not run: {type(e).__name__}: {e}"[:400])
+            return None
+        if p.returncode != 0:
+            err = (getattr(p, "stderr", b"") or b"").decode("utf-8", "replace").strip()
+            log(f"{what}: git {args[0]} exited {p.returncode}: {err}"[:400])
+            return None
+        return p.stdout
+    return git
+
+
+def merge_group_changed_paths(root, base_sha, head_sha, fetch: bool = True, run=subprocess.run, log=_job_log):
     """The queued PR's OWN diff: every path that differs between a merge group's base_sha and its head_sha, read from
     git objects in the checkout at `root` (master's). Nothing of the PR is checked out or executed, and a rename lists
     both names. None = unknown (the caller fails closed): a value that is not a 40-hex commit (git never sees it), a
     failed fetch, a head that is not a two-parent merge whose FIRST parent is base_sha (so the diff could hold the
-    entries ahead, or less than the PR), or a failed diff. An empty list is a real answer: the range was proved."""
+    entries ahead, or less than the PR), or a failed diff. An empty list is a real answer: the range was proved.
+    Every None is explained in the job log (`log`), never in a job output."""
     if not (isinstance(base_sha, str) and isinstance(head_sha, str) and _SHA.match(base_sha) and _SHA.match(head_sha)):
+        log("the queued PR's diff: base_sha / head_sha is not a 40-hex commit; git was not asked")
         return None
-
-    def git(*args):
-        try:
-            p = run(["git", "-C", str(root), *args], capture_output=True, timeout=300)
-        except (OSError, subprocess.SubprocessError):
-            return None
-        return p.stdout if p.returncode == 0 else None
-
-    # depth 2 = the merge group's commit and its parents (base_sha is the first), with their trees
-    if fetch and git("fetch", "--no-tags", "--quiet", "--depth=2", "origin", head_sha) is None:
+    git = _git_reader(root, run, log)
+    # depth 2 = the merge group's commit and its parents (base_sha is the first). blob:none: commits and trees are all a
+    # name-only diff reads (a sparse actions/checkout is already such a clone; a server without filters ignores it)
+    if fetch and git("the queued PR's diff, fetching the merge group", "fetch", "--no-tags", "--quiet", "--depth=2",
+                     "--filter=blob:none", "origin", head_sha) is None:
         return None
-    commit = git("cat-file", "commit", head_sha)
+    commit = git("the queued PR's diff, reading the merge group's commit", "cat-file", "commit", head_sha)
     if commit is None:
         return None
     header = commit.decode("utf-8", "replace").split("\n\n", 1)[0]
     parents = [ln.split()[1] for ln in header.splitlines() if ln.startswith("parent ") and len(ln.split()) == 2]
     if len(parents) != 2 or parents[0] != base_sha:
+        log(f"the queued PR's diff: {head_sha} has parents {parents}, not a two-parent merge whose first parent is {base_sha}")
         return None
-    out = git("diff", "--no-renames", "--name-only", "-z", base_sha, head_sha)
+    out = git("the queued PR's diff, comparing base_sha with head_sha", "diff", "--no-renames", "--name-only", "-z", base_sha, head_sha)
     if out is None:
         return None
     return [p for p in out.decode("utf-8", "surrogateescape").split("\0") if p]
 
 
+def protected_sources_differ(root, base_sha, imported, run=subprocess.run, log=_job_log):
+    """STACKED ENTRIES. The derived half of the protected list is read from the checkout (master's tip): every vite /
+    vitest config under app/ and every file those import (`imported`: agent_ci_evidence.config_imports(root)). An entry
+    AHEAD in the queue that edits one of them changes what the entry behind it executes, and master does not have it
+    yet. True when any of those files differs between the checkout's HEAD and base_sha (the tree this entry is built
+    on), False when none does, None when git could not say."""
+    if not (isinstance(base_sha, str) and _SHA.match(base_sha)):
+        return None
+    specs = [*CONFIG_PATHSPECS, *(f":(literal){p}" for p in imported)]
+    out = _git_reader(root, run, log)("the protected list's sources, master against this entry's base",
+                                      "diff", "--no-renames", "--name-only", "-z", "HEAD", base_sha, "--", *specs)
+    if out is None:
+        return None
+    differing = [p for p in out.decode("utf-8", "surrogateescape").split("\0") if p]
+    if differing:
+        log(f"the protected list's sources differ between master and base {base_sha}: {differing[:5]}")
+    return bool(differing)
+
+
 def decide_scope(changed_paths, patterns, protected) -> tuple[str, str]:
     """(code, detail) for one queued PR. changed_paths: its own diff, or None (unknown). patterns: agent_paths().
     protected: agent_ci_evidence.protected_patterns(master root), or None (unreadable). The rule, in this order:
-      1. an unreadable diff or protected list is `unknown`, whatever the other one says (fail closed);
-      2. an Agent path AND a self-protected path: `self-protected`. The PR needs Agent evidence and its own run could
+      1. an unreadable diff is `unknown` (fail closed);
+      2. NO Agent path: `no-agent-paths`, whatever else it touches and whatever the protected list says, even
+         unreadable. It needs no Agent evidence, exactly as on a pull request today; the detail says so when it
+         touches a self-protected path, or when that list could not be read, so the status shows it. (An unreadable
+         list must not fail these: the pull request that repairs the list is one of them.)
+      3. an Agent path and an unreadable protected list: `unknown` (fail closed);
+      4. an Agent path AND a self-protected path: `self-protected`. The PR needs Agent evidence and its own run could
          vouch for itself, so AUDIT's local evidence decides (the rule `verify` applies today as self-protected-diff);
-      3. an Agent path, no self-protected path: `agent-paths`;
-      4. NO Agent path: `no-agent-paths`, whether or not it touches a self-protected path. It needs no Agent evidence,
-         exactly as on a pull request today; the detail says so when it does touch one, so the status shows it."""
+      5. an Agent path, no self-protected path: `agent-paths`."""
     if changed_paths is None:
         return SCOPE_UNKNOWN, "the queued PR's own diff could not be read"
     hits = _evidence().self_protected_hits(changed_paths, protected) if protected is not None else None
-    if hits is None:
-        return SCOPE_UNKNOWN, "the self-protected path list could not be read"
     if not touches_agent(changed_paths, patterns):
+        if hits is None:
+            return SCOPE_CLEAR, f"{NO_AGENT_PATHS} (the self-protected path list is unreadable, no Agent evidence needed)"
         if hits:
             return SCOPE_CLEAR, f"{NO_AGENT_PATHS} ({len(hits)} self-protected path(s) touched, no Agent evidence needed)"
         return SCOPE_CLEAR, NO_AGENT_PATHS
+    if hits is None:
+        return SCOPE_UNKNOWN, "the self-protected path list could not be read"
     if hits:
         return SCOPE_PROTECTED, f"{len(hits)} self-protected path(s), e.g. {hits[0]}"
     return SCOPE_AGENT, "Agent paths changed"
@@ -375,17 +446,22 @@ def queue_scope(root, doc, head_sha, base_sha, head_ref, tested_sha, fetch: bool
         return {"code": SCOPE_UNKNOWN, "pr": pr, "detail": "the merge group's head_sha is not the commit this run tests"}
     changed = merge_group_changed_paths(root, base_sha, head_sha, fetch=fetch)
     try:
-        protected = ev.protected_patterns(root)
-    except (OSError, ValueError):
-        protected = None
+        protected, imported = ev.protected_patterns(root), ev.config_imports(root)
+    except (OSError, ValueError) as e:
+        _job_log(f"the self-protected path list could not be derived from master's configs: {e}"[:400])
+        protected = imported = None
     code, detail = decide_scope(changed, agent_paths(doc), protected)
+    # only an entry that needs Agent evidence depends on the derived list being the right one for ITS tree
+    if code == SCOPE_AGENT and protected_sources_differ(root, base_sha, imported) is not False:
+        code, detail = SCOPE_UNKNOWN, "the protected list's sources differ between master and this entry's base (or are unreadable)"
     return {"code": code, "pr": pr, "detail": detail}
 
 
 def decide_queue(scope_result, scope_code, scope_detail, agent_result, jobs, jobs_required) -> tuple[str, str]:
     """`agent-ci-required` for a merge group's commit: SUCCESS or FAILURE, never pending (it is the last word on that
     commit). scope_result / agent_result: the two jobs' `needs.<job>.result`. jobs: THIS run's jobs as the API lists
-    them, [{"name", "conclusion"}], or anything else when they could not be read.
+    them, [{"name", "conclusion"}], or anything else when they could not be read. jobs_required is read only for
+    `agent-paths` (the caller need not load it for any other code).
     SUCCESS only when the scope job succeeded AND (it answered no-agent-paths and the Agent call was skipped, OR it
     answered agent-paths, the call concluded success, and every required job is listed under the call with conclusion
     success). The call's own result is not enough: a job skipped inside it would not turn it red."""
@@ -430,10 +506,31 @@ def write_outputs(values: dict, path=None) -> None:
             fh.write(f"{key}={_safe(value)}\n")
 
 
+def queue_verdict(api: Api, a) -> tuple[str, str]:
+    """The verdict stage's decision. agent-ci.yml's job names and this run's job list are read ONLY for `agent-paths`:
+    every other code is decided without touching the workflow file or the API, so neither can fail those entries.
+    ANY exception in here is a FAILURE with a short reason, never a crash: a verdict that dies before its POST leaves no
+    status, and the queue then holds every entry behind this one until its check timeout."""
+    try:
+        jobs, required = None, []
+        if a.scope_code == SCOPE_AGENT:
+            required = required_jobs(load_agent_ci(a.root))
+            try:
+                jobs = run_jobs(api, a.run_id)
+            except ApiError as e:
+                jobs = {"error": str(e)}
+        return decide_queue(a.scope_result, a.scope_code, a.scope_detail, a.agent_result, jobs, required)
+    except Exception as e:  # noqa: BLE001  fail closed AND say so on the commit
+        _job_log(f"the verdict could not be computed: {type(e).__name__}: {e}"[:400])
+        return FAILURE, f"the verdict could not be computed ({type(e).__name__}): fail closed"[:140]
+
+
 def _main_merge_group(a) -> int:
     """scope: prints the answer and writes the job outputs; exit 0 whatever the code (the verdict stage judges it).
-    verdict: posts the status, then exits 0 for success and 1 for failure, so the run is red when the status is. A
-    failed POST raises: no status at all, and the queue's own check timeout removes the entry."""
+    verdict: posts the status, then exits 0 for success and 1 for failure, so the run is red when the status is.
+    Nothing but the POST itself can leave the commit without a status: whatever goes wrong while deciding is posted as
+    a failure (queue_verdict), and the jobs GET and the status POST are each tried RETRY_ATTEMPTS times. A POST that
+    still fails raises: no status at all, and the queue's own check timeout removes the entry."""
     if a.stage == "scope":
         out = queue_scope(a.root, load_agent_ci(a.root), a.sha, a.base, a.head_ref, os.environ.get("GITHUB_SHA", ""))
         print(json.dumps({"stage": "scope", "sha": a.sha, **out}))
@@ -442,15 +539,9 @@ def _main_merge_group(a) -> int:
     if a.stage != "verdict" or not _SHA.match(a.sha or "") or not a.run_id:
         print("merge_group needs --stage scope, or --stage verdict with a 40-hex --sha and a --run-id", file=sys.stderr)
         return 2
-    api = Api(os.environ["GITHUB_TOKEN"], os.environ["GITHUB_REPOSITORY"], os.environ.get("GITHUB_API_URL", "https://api.github.com"))
-    jobs = None
-    if a.scope_code == SCOPE_AGENT:
-        try:
-            jobs = run_jobs(api, a.run_id)
-        except ApiError as e:
-            jobs = {"error": str(e)}
-    state, reason = decide_queue(a.scope_result, a.scope_code, a.scope_detail, a.agent_result, jobs,
-                                 required_jobs(load_agent_ci(a.root)))
+    api = Api(os.environ["GITHUB_TOKEN"], os.environ["GITHUB_REPOSITORY"], os.environ.get("GITHUB_API_URL", "https://api.github.com"),
+              attempts=RETRY_ATTEMPTS)
+    state, reason = queue_verdict(api, a)
     body = {"state": state, "context": CONTEXT, "description": reason[:140], "target_url": os.environ.get("TARGET_URL") or None}
     body = {k: v for k, v in body.items() if v is not None}
     print(json.dumps({"stage": "verdict", "sha": a.sha, **body}))

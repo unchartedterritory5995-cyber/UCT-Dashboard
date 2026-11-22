@@ -250,20 +250,32 @@ def test_MQ_the_scope_code_for_each_kind_of_diff():
     assert acr.decide_scope([AGENT_FILE, WORKFLOW_FILE], PATHS, PROTECTED) == (
         acr.SCOPE_PROTECTED, "1 self-protected path(s), e.g. " + WORKFLOW_FILE)
     assert acr.decide_scope([AGENT_FILE, WORKFLOW_FILE], PATHS, [])[0] == acr.SCOPE_AGENT       # control: the list is what decides
-    # an unreadable diff or protected list is never "clear", whatever the other one says
-    for changed, protected in ((None, PROTECTED), ([OTHER_FILE], None), ([AGENT_FILE], None), (None, None)):
+    # an unreadable DIFF is never clear; an unreadable protected LIST is `unknown` only for a diff that needs Agent evidence
+    for changed, protected in ((None, PROTECTED), (None, None), (None, []), ([AGENT_FILE], None), ([OTHER_FILE, AGENT_FILE], None)):
         assert acr.decide_scope(changed, PATHS, protected)[0] == acr.SCOPE_UNKNOWN, (changed, protected is None)
+    # ... and a diff with NO Agent path needs no Agent evidence whatever that list says, even unreadable (2026-11-22: an
+    # unreadable list failed EVERY entry, the pull request that repairs it included, so one bad config froze the queue)
+    unreadable = "no Agent paths changed (the self-protected path list is unreadable, no Agent evidence needed)"
+    for changed in ([OTHER_FILE], [], [WORKFLOW_FILE, "app/vite.config.js"]):
+        assert acr.decide_scope(changed, PATHS, None) == (acr.SCOPE_CLEAR, unreadable), changed
+    assert acr.decide_queue("success", acr.SCOPE_CLEAR, unreadable, "skipped", None, []) == ("success", unreadable)
+    # every detail the scope stage can write survives the one-line job-output filter unchanged (it is cut at 100)
+    for changed, protected in (([OTHER_FILE], None), ([WORKFLOW_FILE] * 250, PROTECTED), ([AGENT_FILE], None), (None, None)):
+        detail = acr.decide_scope(changed, PATHS, protected)[1]
+        assert acr._safe(detail) == detail, detail
 
 
-#: self-protected paths that are ALSO Agent paths: an edit to one needs Agent evidence all by itself
+#: self-protected paths that are ALSO Agent paths: an edit to one needs Agent evidence all by itself. The second and
+#: third are the queue's own judge and the pull-request side's: Agent paths since 2026-11-22 (AUDIT F2 on #2501, "every
+#: workflow that holds statuses: write or decides an Agent verdict belongs on that list").
 PROTECTED_AND_AGENT = [
-    ".github/workflows/agent-ci.yml", "tools/agent_ci_required.py", "tools/agent_ci_evidence.py", "tools/agent_ci_rearm.py",
+    ".github/workflows/agent-ci.yml", ".github/workflows/agent-ci-queue.yml", ".github/workflows/agent-ci-required.yml",
+    "tools/agent_ci_required.py", "tools/agent_ci_evidence.py", "tools/agent_ci_rearm.py",
     "tools/agent_suite_lock.py", "tools/agent_vitest_shards.py", "tools/agent_vitest_shard_timings.json",
 ]
-#: self-protected paths that are NOT Agent paths today: alone they need no Agent evidence. The first two are the queue's
-#: own judge and the pull-request side's; whether they belong in the Agent path list is AUDIT's call (PR #2501).
+#: self-protected paths that are NOT Agent paths: alone they need no Agent evidence
 PROTECTED_NOT_AGENT = [
-    ".github/workflows/agent-ci-queue.yml", ".github/workflows/agent-ci-required.yml", WORKFLOW_FILE, ".github/workflows/new.yml",
+    WORKFLOW_FILE, ".github/workflows/new.yml", ".github/workflows/gate-static-rails-pr.yml",
     "app/package.json", "app/package-lock.json", "app/vite.config.js", "app/scripts/chartLibraryPatch.mjs",
     "app/src/test-setup.js", "app/src/lib/marketClock/calendarCompact.js",
     "pytest.ini", "conftest.py", "tests/conftest.py", "requirements.txt", "api/requirements.txt",
@@ -431,15 +443,23 @@ AGENT_CI_TEXT = (ROOT / ".github" / "workflows" / "agent-ci.yml").read_text(enco
 VITEST_CONFIG = "export default {test: {setupFiles: ['./src/test-setup.js']}}\n"
 
 
-def _queue_repo(tmp_path, pr_files, pr_delete=(), with_config=True, number=7):
+AHEAD_FILES = {"app/src/agent/ahead.js": "x\n", ".github/workflows/ahead.yml": "name: x\n"}
+
+
+def _queue_repo(tmp_path, pr_files, pr_delete=(), with_config=True, number=7, ahead_files=None, landed=True):
     """What GitHub builds for one queued PR, and what the scope job has on disk.
-    origin: start -> `base` (master + an ENTRY AHEAD that itself edits an Agent path and a workflow), start -> the PR's
-    head, and the merge group commit = merge(base, head) on gh-readonly-queue/master/pr-<N>-<base>. master stays at `base`.
-    work: a depth-1 clone of master only, as actions/checkout leaves the default branch; it does not hold the merge group."""
+    origin: start -> `base` (an ENTRY AHEAD that itself edits an Agent path and a workflow, or `ahead_files`), start ->
+    the PR's head, and the merge group commit = merge(base, head) on gh-readonly-queue/master/pr-<N>-<base>.
+    landed=True: the entry ahead has landed, master is at `base`. landed=False: it is still in the queue, on its own
+    queue branch, and master is at `start` (a STACKED entry: its base is not on master yet).
+    work: a depth-1 clone of master only, as actions/checkout leaves the default branch; it does not hold the merge group.
+    The clone takes a plain path with --no-local (2026-11-22, AUDIT F4): a file:///C:/... URL is refused by some Git for
+    Windows builds, and without --no-local a local clone ignores --depth and copies every object, the merge group too."""
     origin = tmp_path / "origin"
-    origin.mkdir()
+    origin.mkdir(parents=True)
     _git(origin, "init", "-q", "-b", "master")
     _git(origin, "config", "uploadpack.allowAnySHA1InWant", "true")
+    _git(origin, "config", "uploadpack.allowFilter", "true")          # as GitHub's server does
     start_files = {"README.md": "r\n", "old-name.txt": "same body\n", ".github/workflows/agent-ci.yml": AGENT_CI_TEXT,
                    "app/src/agent/a.js": "a\n", "app/src/test-setup.js": "s\n"}
     if with_config:
@@ -448,15 +468,18 @@ def _queue_repo(tmp_path, pr_files, pr_delete=(), with_config=True, number=7):
     _git(origin, "checkout", "-q", "-b", "feature")
     head = _commit(origin, "the queued PR", pr_files, pr_delete)
     _git(origin, "checkout", "-q", "master")
-    base = _commit(origin, "an entry ahead in the queue", {"app/src/agent/ahead.js": "x\n", ".github/workflows/ahead.yml": "name: x\n"})
+    if not landed:
+        _git(origin, "checkout", "-q", "-b", f"gh-readonly-queue/master/pr-{number - 1}-{start}")
+    base = _commit(origin, "an entry ahead in the queue", AHEAD_FILES if ahead_files is None else ahead_files)
     ref = f"gh-readonly-queue/master/pr-{number}-{base}"
     _git(origin, "checkout", "-q", "-b", ref)
     _git(origin, "merge", "-q", "--no-ff", "-m", "merge group", "feature")
     merge = _git(origin, "rev-parse", "HEAD")
     _git(origin, "checkout", "-q", "master")
     work = tmp_path / "work"
-    subprocess.run(["git", "clone", "-q", "--depth=1", "--branch", "master", origin.as_uri(), str(work)], check=True, capture_output=True)
-    assert _git(work, "rev-parse", "HEAD") == base
+    subprocess.run(["git", "clone", "-q", "--no-local", "--depth=1", "--branch", "master", str(origin), str(work)],
+                   check=True, capture_output=True)
+    assert _git(work, "rev-parse", "HEAD") == (base if landed else start)
     assert subprocess.run(["git", "-C", str(work), "cat-file", "-e", merge], capture_output=True).returncode != 0   # not fetched yet
     return types.SimpleNamespace(origin=origin, work=work, start=start, base=base, head=head, merge=merge, ref="refs/heads/" + ref)
 
@@ -553,10 +576,16 @@ def test_MQ_scope_end_to_end_on_a_real_merge_group(tmp_path, pr_files, code):
         assert (got["code"], got["pr"]) == ("unknown", None), ref
 
 
-def test_MQ_scope_is_unknown_when_masters_protected_list_cannot_be_read(tmp_path):
-    r = _queue_repo(tmp_path, {"README.md": "r2\n"}, with_config=False)       # no vite / vitest config under root
+def test_MQ_an_unreadable_protected_list_fails_only_an_entry_that_needs_agent_evidence(tmp_path):
+    """master with no vite / vitest config under root: the derived protected list cannot be read. An entry that touches
+    an Agent path is `unknown` (fail closed). An entry that touches none is not held up by it, and says so."""
+    r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"}, with_config=False)
     out = acr.queue_scope(r.work, acr.load_agent_ci(r.work), r.merge, r.base, r.ref, r.merge)
-    assert out["code"] == "unknown" and "self-protected path list" in out["detail"], out
+    assert out["code"] == "unknown" and out["detail"] == "the self-protected path list could not be read", out
+    r = _queue_repo(tmp_path / "plain", {"README.md": "r2\n", "app/vitest.config.js": VITEST_CONFIG}, with_config=False)   # the repair
+    out = acr.queue_scope(r.work, acr.load_agent_ci(r.work), r.merge, r.base, r.ref, r.merge)
+    assert (out["code"], out["detail"]) == (
+        "no-agent-paths", "no Agent paths changed (the self-protected path list is unreadable, no Agent evidence needed)"), out
 
 
 # ---- the two stages as the workflow runs them --------------------------------------------------------------------------
@@ -577,7 +606,7 @@ def test_MQ_the_scope_stage_writes_three_plain_outputs_and_needs_no_token(tmp_pa
     assert out.read_text(encoding="utf-8").splitlines()[:2] == ["code=unknown", "pr="]
 
 
-def test_MQ_an_output_is_one_plain_line_whatever_a_file_is_called(tmp_path):
+def test_MQ_an_output_is_one_plain_line_whatever_a_file_is_called(tmp_path, monkeypatch):
     """The detail names a path from the queued PR, and a job output is a `key=value` LINE: a newline in a file name must
     never become a second output (e.g. a forged `code=`)."""
     hostile = "1 self-protected path(s), e.g. a\ncode=no-agent-paths\r\npr=1<<EOF$(id)`id`\x00 x"
@@ -587,7 +616,11 @@ def test_MQ_an_output_is_one_plain_line_whatever_a_file_is_called(tmp_path):
     assert lines[:2] == ["code=self-protected", "pr=7"] and lines[3:] == [""] and lines[2].startswith("detail=1 self-protected path(s), e.g. a?code")
     assert not set(lines[2]) & set("\r\n\x00$`<> ") and len(lines[2]) <= len("detail=") + 100
     assert acr._safe("AUDIT's (x), y: z/a.b_c-d@e+f") == "AUDIT's (x), y: z/a.b_c-d@e+f"        # control: ordinary text is kept
-    acr.write_outputs({"code": "x"}, None)                                                       # no GITHUB_OUTPUT: prints only
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)      # (inside Actions the variable is set: never write to the real one)
+    acr.write_outputs({"code": "x"}, None)                                                       # no GITHUB_OUTPUT: writes nothing
+    monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "env.txt"))
+    acr.write_outputs({"code": "x"}, None)
+    assert (tmp_path / "env.txt").read_text(encoding="utf-8") == "code=x" + chr(10)
 
 
 class _StatusApi:
@@ -595,8 +628,9 @@ class _StatusApi:
     def __init__(self, jobs=None, fail_get=False, fail_post=False):
         self.jobs, self.fail_get, self.fail_post, self.posted = jobs, fail_get, fail_post, []
 
-    def __call__(self, token, repo, base=None):          # stands in for the Api class
+    def __call__(self, token, repo, base=None, attempts=1):          # stands in for the Api class
         assert (token, repo) == ("t", "o/r")
+        self.attempts = attempts
         return self
 
     def get(self, path):
@@ -664,12 +698,18 @@ def test_MQ_a_verdict_call_that_names_no_commit_or_run_posts_nothing(monkeypatch
 
 def test_MQ_the_pull_request_and_workflow_run_paths_are_the_ones_they_were(monkeypatch, capsys):
     """Adding the merge_group stages changed no existing call: the same two commands still evaluate through the same
-    functions, and a merge_group flag does nothing to them."""
+    functions, a merge_group flag does nothing to them, and they still make ONE attempt per API call."""
     class Api(FakeApi):
-        def __init__(self, token, repo, base=None):
+        def __init__(self, token, repo, base=None, **more):
+            assert more == {}, f"the pull_request / workflow_run paths construct the API as before: {more}"
             super().__init__(files=[AGENT_FILE], runs=[GREEN])
             self.posted = []
             made.append(self)
+
+        def get(self, path):
+            if path == f"commits/{SHA}/pulls":           # workflow_run: which open PRs have this head
+                return [{"number": 1, "state": "open", "head": {"sha": SHA}}, {"number": 2, "state": "closed", "head": {"sha": SHA}}]
+            return super().get(path)
 
         def call(self, method, path, body=None):
             self.posted.append((method, path, body))
@@ -679,8 +719,13 @@ def test_MQ_the_pull_request_and_workflow_run_paths_are_the_ones_they_were(monke
     monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
     monkeypatch.delenv("TARGET_URL", raising=False)
     assert acr.main(["--event", "pull_request", "--sha", SHA, "--pr", "1", "--root", str(ROOT), "--stage", "verdict", "--scope-code", "self-protected"]) == 0
-    assert made[-1].posted == [("POST", f"statuses/{SHA}", {"state": "success", "context": "agent-ci-required",
-                                                            "description": "agent ci run passed all 18 required jobs"})]
+    want = [("POST", f"statuses/{SHA}", {"state": "success", "context": "agent-ci-required",
+                                         "description": "agent ci run passed all 18 required jobs"})]
+    assert made[-1].posted == want
+    # workflow_run (an agent ci run completed): the open PRs for the SHA are looked up, then the same evaluation
+    assert acr.main(["--event", "workflow_run", "--sha", SHA, "--root", str(ROOT), "--stage", "scope", "--scope-code", "unknown"]) == 0
+    assert len(made) == 2 and made[-1].posted == want
+    assert json.loads(capsys.readouterr().out.splitlines()[-1])["prs"] == [1]
     assert acr.run_jobs(FakeApi(), 9) == [{"name": n, "conclusion": "success"} for n in JOBS]
 
 
@@ -698,3 +743,228 @@ def test_MQ_run_jobs_reads_every_page():
     jobs = acr.run_jobs(api, 9)
     assert len(jobs) == 205 and api.pages == [1, 2, 3] and jobs[0] == {"name": "j1-0", "conclusion": "success"}
     assert jobs[-1] == {"name": "j3-4", "conclusion": "success"}
+
+
+# ---- 2026-11-22, the independent review of #2501 and AUDIT F2 / F4 ----------------------------------------------------------
+def test_MQ_the_queues_judges_are_agent_paths():
+    """AUDIT F2: an edit to the workflow that decides the queue's verdict, or to the pull-request side's, is an Agent
+    change. Being workflows they are self-protected too, so alone each is `self-protected`: AUDIT decides."""
+    for wf in (".github/workflows/agent-ci-queue.yml", ".github/workflows/agent-ci-required.yml"):
+        assert acr.matches(wf, PATHS) and (ROOT / wf).is_file(), wf
+        assert acr.decide_scope([wf], PATHS, PROTECTED) == (acr.SCOPE_PROTECTED, "1 self-protected path(s), e.g. " + wf)
+    raw = yaml.safe_load((ROOT / ".github" / "workflows" / "agent-ci.yml").read_text(encoding="utf-8"))
+    on = raw.get("on") or raw[True]
+    assert on["push"]["paths"] == on["pull_request"]["paths"] == PATHS            # both lists, held equal
+    assert not acr.matches(".github/workflows/gate-static-rails-pr.yml", PATHS)   # control: not every workflow is one
+
+
+@pytest.mark.parametrize("path,agent,protected", [
+    ("app/src/agent/a\nb.js", True, False), ("docs/agent/program/x\ny/z.md", True, False), ("app/src/pages/charts/grid/a\n/b.jsx", True, False),
+    (".github/workflows/a\nb.yml", False, True), ("tests/x\ny/conftest.py", False, True), ("api/x\n/requirements-dev.txt", False, True),
+    ("app/scripts/a\nb.mjs", False, True),
+    ("docs/a\nb.md", False, False), ("api/routers/sub\n/uct_agent.py", False, False),      # controls: a newline matches nothing by itself
+])
+def test_MQ_a_double_star_crosses_a_newline_in_a_path(path, agent, protected):
+    """A file name may hold a newline. `**` compiled without re.S stopped at it, so such a path matched NO `**` pattern:
+    neither an Agent path nor a self-protected one. re.S only widens what matches (`*` and `?` already crossed it)."""
+    assert acr.matches(path, PATHS) is agent and acr.matches(path, PROTECTED) is protected, path
+    assert acr.matches(path.replace("\n", "_"), PATHS) is agent and acr.matches(path.replace("\n", "_"), PROTECTED) is protected
+    if agent:
+        assert acr.decide_scope([path], PATHS, PROTECTED)[0] == acr.SCOPE_AGENT
+        assert acr.decide_scope([path, ".github/workflows/a\nb.yml"], PATHS, PROTECTED)[0] == acr.SCOPE_PROTECTED
+
+
+def test_MQ_a_single_star_still_stops_at_a_slash():
+    assert acr._glob_re("a/*").match("a/b\nc") and not acr._glob_re("a/*").match("a/b/c") and not acr._glob_re("a/?").match("a//")
+    assert acr._glob_re("a/**").match("a/b\n/c\n") and not acr._glob_re("a/**").match("b/a/c")
+
+
+# ---- stacked entries: the protected list's sources on master against the tree the entry is built on -------------------------
+STACKED_CONFIG = "import './lib/extra.js'\nexport default {test: {setupFiles: ['./src/test-setup.js']}}\n"
+
+
+@pytest.mark.parametrize("ahead,agent_code", [
+    (dict(AHEAD_FILES), "agent-paths"),                                                      # control: nothing the list reads
+    ({"app/vitest.config.js": STACKED_CONFIG, "app/lib/extra.js": "export {}\n"}, "unknown"),   # a config is edited ahead
+    ({"app/vite.lab.config.mjs": VITEST_CONFIG}, "unknown"),                                 # a config is ADDED ahead
+])
+def test_MQ_an_entry_stacked_on_a_config_edit_is_unknown_when_it_needs_agent_evidence(tmp_path, ahead, agent_code):
+    """The derived protected list is read from master's tip. An entry AHEAD that edits a vite / vitest config changes
+    what the entry behind it runs with, and master does not have it yet: for an Agent-path entry the answer is
+    `unknown`. An entry that touches no Agent path is not affected. Once the entry ahead has LANDED there is no gap."""
+    r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"}, ahead_files=ahead, landed=False)
+    out = acr.queue_scope(r.work, acr.load_agent_ci(r.work), r.merge, r.base, r.ref, r.merge)
+    assert out["code"] == agent_code, out
+    if agent_code == "unknown":
+        assert out["detail"] == "the protected list's sources differ between master and this entry's base (or are unreadable)"
+        assert acr._safe(out["detail"]) == out["detail"]
+    r = _queue_repo(tmp_path / "plain", {"README.md": "r2\n"}, ahead_files=ahead, landed=False)
+    assert acr.queue_scope(r.work, acr.load_agent_ci(r.work), r.merge, r.base, r.ref, r.merge)["code"] == "no-agent-paths"
+    r = _queue_repo(tmp_path / "landed", {"app/src/agent/a.js": "a2\n"}, ahead_files=ahead, landed=True)
+    assert acr.queue_scope(r.work, acr.load_agent_ci(r.work), r.merge, r.base, r.ref, r.merge)["code"] == "agent-paths"
+
+
+def test_MQ_the_protected_sources_are_the_configs_and_every_file_they_import(tmp_path):
+    ahead = {"app/vitest.config.js": STACKED_CONFIG, "app/lib/extra.js": "export {}\n"}
+    r = _queue_repo(tmp_path / "a", {"app/src/agent/a.js": "a2\n"}, ahead_files=ahead, landed=True)     # master imports ./lib/extra.js
+    assert ev.config_imports(r.work) == ["app/lib/extra.js"]
+    lines = []
+    diff = lambda sha, imported: acr.protected_sources_differ(r.work, sha, imported, log=lines.append)   # noqa: E731
+    assert acr.merge_group_changed_paths(r.work, r.base, r.merge) is not None                              # brings the commits in
+    assert diff(r.base, ["app/lib/extra.js"]) is False and lines == []                                     # HEAD is the base
+    # the PR head was cut from `start`: against it the config AND the file it imports differ
+    assert diff(r.head, ["app/lib/extra.js"]) is True and "app/lib/extra.js" in lines[-1] and "app/vitest.config.js" in lines[-1]
+    assert diff(r.head, []) is True                              # the config glob alone sees it
+    # an imported file is compared only because the list names it: a file no config imports is not a source
+    assert acr.protected_sources_differ(r.work, r.merge, ["app/src/agent/a.js"], log=lines.append) is True
+    assert acr.protected_sources_differ(r.work, r.merge, [], log=lines.append) is False
+    for bad in ("f" * 40, "HEAD", "", None, r.base[:39], "--output=x"):
+        assert diff(bad, []) is None, bad
+    assert acr.CONFIG_PATHSPECS == (":(glob)app/vite*.config.*", ":(glob)app/vitest*.config.*")
+
+
+# ---- an unreadable diff says WHICH step failed, in the job log and nowhere else ----------------------------------------------
+def test_MQ_an_unreadable_diff_names_the_failed_step_in_the_job_log_only(tmp_path, monkeypatch, capsys):
+    r = _queue_repo(tmp_path, {"README.md": "r2\n"})
+    lines = []
+    read = lambda base, head, **kw: acr.merge_group_changed_paths(r.work, base, head, log=lines.append, **kw)   # noqa: E731
+    assert read(r.base, r.merge) == ["README.md"] and lines == []                 # control: a good read logs nothing
+    assert read(r.base, "f" * 40) is None
+    assert "fetching the merge group" in lines[-1] and "git fetch exited" in lines[-1] and len(lines[-1]) > 60   # git's own words
+    assert read(r.start, r.merge) is None
+    assert "not a two-parent merge whose first parent is " + r.start in lines[-1] and r.base in lines[-1]
+    assert read(r.base, "HEAD") is None and "not a 40-hex commit" in lines[-1]
+    assert read(r.base, r.merge, fetch=False, run=lambda *a, **k: (_ for _ in ()).throw(OSError("no git"))) is None
+    assert "could not run: OSError: no git" in lines[-1]
+    for step, needle in (("cat-file", "reading the merge group's commit"), ("diff", "comparing base_sha with head_sha")):
+        def failing(argv, _s=step, **kw):
+            p = subprocess.run(argv, **kw)
+            return types.SimpleNamespace(returncode=3, stdout=p.stdout, stderr=b"fatal: boom") if _s in argv else p
+        assert read(r.base, r.merge, run=failing) is None
+        assert needle in lines[-1] and f"git {step} exited 3: fatal: boom" in lines[-1], lines[-1]
+    # through the scope stage: the reason is on stderr; the outputs and stdout carry only the fixed sentence
+    out = tmp_path / "github_output.txt"
+    monkeypatch.setenv("GITHUB_SHA", "f" * 40)
+    monkeypatch.setenv("GITHUB_OUTPUT", str(out))
+    capsys.readouterr()
+    ref = "refs/heads/gh-readonly-queue/master/pr-7-" + "f" * 40
+    assert acr.main(["--event", "merge_group", "--stage", "scope", "--sha=" + "f" * 40, f"--base={r.base}", f"--head-ref={ref}", "--root", str(r.work)]) == 0
+    io = capsys.readouterr()
+    assert "[agent-ci-queue] the queued PR's diff, fetching the merge group: git fetch exited" in io.err
+    assert out.read_text(encoding="utf-8") == "code=unknown\npr=7\ndetail=the queued PR's own diff could not be read\n"
+    assert "fetch" not in io.out and "exited" not in io.out
+
+
+# ---- the API is asked three times in a merge group, and only when asking again can help --------------------------------------
+class _Answer:
+    def __init__(self, body=b'{"ok": true}'):
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self):
+        return self.body
+
+
+def _http(code):
+    import io
+    import urllib.error
+    return urllib.error.HTTPError("https://api.github.invalid/x", code, "status %d" % code, {}, io.BytesIO(b""))
+
+
+def _api(script, attempts=3):
+    """A real acr.Api whose transport plays `script` (an exception is raised, anything else is the response body)."""
+    import urllib.error  # noqa: F401
+    calls, slept = [], []
+
+    def opener(req, timeout=None):
+        calls.append((req.get_method(), req.full_url))
+        step = script[len(calls) - 1]
+        if isinstance(step, BaseException):
+            raise step
+        return _Answer(step)
+    return acr.Api("t", "o/r", "https://api.github.invalid", attempts=attempts, sleep=slept.append, opener=opener), calls, slept
+
+
+def test_MQ_a_transport_error_a_5xx_and_a_429_are_tried_again():
+    import urllib.error
+    for first in (urllib.error.URLError("connection reset"), TimeoutError("timed out"), _http(500), _http(502), _http(503), _http(599), _http(429)):
+        api, calls, slept = _api([first, _http(502), b'{"jobs": []}'])
+        assert api.get("actions/runs/55/jobs?page=1") == {"jobs": []}, first
+        assert len(calls) == 3 and slept == [2, 5], (first, calls, slept)
+    api, calls, slept = _api([_http(503), b'{"id": 1}'])
+    assert api.call("POST", "statuses/" + SHA, {"state": "success"}) == {"id": 1}
+    assert calls == [("POST", "https://api.github.invalid/repos/o/r/statuses/" + SHA)] * 2 and slept == [2]
+    assert acr.RETRY_ATTEMPTS == 3 and acr.RETRY_PAUSE_S == (2, 5)
+
+
+def test_MQ_three_failures_are_an_api_error_and_no_fourth_try():
+    api, calls, slept = _api([_http(503), _http(503), _http(503), b'{"never": "read"}'])
+    with pytest.raises(acr.ApiError, match="503"):
+        api.call("POST", "statuses/" + SHA, {"state": "success"})
+    assert len(calls) == 3 and slept == [2, 5]
+
+
+@pytest.mark.parametrize("code", [400, 401, 403, 404, 409, 410, 422, 428, 451, 499])
+def test_MQ_a_4xx_that_says_no_is_never_asked_again(code):
+    api, calls, slept = _api([_http(code), b'{"never": "read"}'])
+    with pytest.raises(acr.ApiError, match=str(code)):
+        api.call("POST", "statuses/" + SHA, {"state": "success"})
+    assert len(calls) == 1 and slept == []
+    assert acr.retryable(_http(code)) is False and acr.retryable(_http(429)) is True and acr.retryable(ValueError("x")) is False
+
+
+def test_MQ_an_unparsable_answer_is_not_asked_again_and_one_attempt_is_one_attempt():
+    api, calls, slept = _api([b"<html>not json", b'{"never": "read"}'])
+    with pytest.raises(acr.ApiError):
+        api.get("actions/runs/55/jobs")
+    assert len(calls) == 1 and slept == []
+    api, calls, slept = _api([_http(502), b'{"never": "read"}'], attempts=1)      # the pull_request / workflow_run paths
+    with pytest.raises(acr.ApiError):
+        api.get("pulls/1")
+    assert len(calls) == 1 and slept == []
+    assert acr.Api("t", "o/r", attempts=0).attempts == 1 and acr.Api("t", "o/r").attempts == 1      # the default: as before
+
+
+def test_MQ_the_verdict_stage_asks_for_three_attempts(monkeypatch):
+    api = _StatusApi()
+    assert _verdict_cli(monkeypatch, api) == 0 and api.attempts == acr.RETRY_ATTEMPTS == 3
+
+
+# ---- nothing but the POST itself can leave a merge group's commit without a status -------------------------------------------
+def test_MQ_agent_ci_yml_is_read_only_for_an_entry_that_needs_agent_evidence(tmp_path, monkeypatch):
+    """The job names come from agent-ci.yml. An entry that touches no Agent path (or is already a failure) is decided
+    without reading it, so a missing or unparsable copy on master cannot leave those entries without a status."""
+    empty = ["--root", str(tmp_path)]                    # a root with no .github/workflows/agent-ci.yml at all
+    clear = _StatusApi(fail_get=True)
+    assert _verdict_cli(monkeypatch, clear, code="no-agent-paths", agent="skipped", detail="no Agent paths changed", extra=empty) == 0
+    assert clear.posted == [(f"statuses/{SHA}", {"state": "success", "context": "agent-ci-required", "description": "no Agent paths changed"})]
+    for code in ("self-protected", "unknown", "bogus"):
+        api = _StatusApi(fail_get=True)
+        assert _verdict_cli(monkeypatch, api, code=code, agent="skipped", detail="d", extra=empty) == 1
+        assert [b["state"] for _, b in api.posted] == ["failure"], code
+    # control: an Agent entry DOES need the file, and without it the answer is a posted failure, not a crash
+    agent = _StatusApi()
+    assert _verdict_cli(monkeypatch, agent, extra=empty) == 1
+    assert agent.posted == [(f"statuses/{SHA}", {"state": "failure", "context": "agent-ci-required",
+                                                 "description": "the verdict could not be computed (FileNotFoundError): fail closed"})]
+
+
+@pytest.mark.parametrize("where", ["required_jobs", "run_jobs", "decide_queue", "load_agent_ci"])
+def test_MQ_whatever_breaks_while_deciding_is_posted_as_a_failure(monkeypatch, capsys, where):
+    def boom(*a, **k):
+        raise RuntimeError("kaboom " + where)
+    monkeypatch.setattr(acr, where, boom)
+    api = _StatusApi()
+    assert _verdict_cli(monkeypatch, api) == 1
+    assert api.posted == [(f"statuses/{SHA}", {"state": "failure", "context": "agent-ci-required",
+                                               "description": "the verdict could not be computed (RuntimeError): fail closed"})]
+    assert "kaboom " + where in capsys.readouterr().err          # the detail is in the job log, never in the status
+    # control: with nothing broken the same call posts success (first test of this stage), and a POST that still
+    # fails after the retries is the ONE thing that leaves no status
+    with pytest.raises(acr.ApiError):
+        _verdict_cli(monkeypatch, _StatusApi(fail_post=True))

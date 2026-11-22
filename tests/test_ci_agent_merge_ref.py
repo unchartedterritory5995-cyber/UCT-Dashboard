@@ -1109,8 +1109,9 @@ class _QueueApi:
     posted: list = []
     jobs: list = []
 
-    def __init__(self, token, repo, base="https://api.github.com"):
+    def __init__(self, token, repo, base="https://api.github.com", attempts=1):
         assert token == "t" and repo == REPO
+        assert attempts == acr.RETRY_ATTEMPTS == 3, "the merge-group verdict tries each API call three times"
 
     def get(self, path):
         assert path.startswith("actions/runs/55/jobs?filter=latest"), path
