@@ -71,6 +71,9 @@ MEMBER_TABLES = (
     # (`user_definitions.record_status_headline`), served on their share links. Keyed by their
     # user_id and meaningless without the definitions it describes, so it leaves with them.
     "definition_status_headlines",
+    # TRACK 6 RE-TRANSLATE (b): the server's translations of the member's held script documents
+    # (`server_translations.py`). Keyed by their user_id and derived from their versions, so they leave with them.
+    "definition_server_translations",
 )
 
 # ⚠️ NOT IN THIS DATABASE, AND CORRECTLY NOT PURGED: `definition_evaluations` and the

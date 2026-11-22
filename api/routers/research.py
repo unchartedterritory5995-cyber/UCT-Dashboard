@@ -430,6 +430,12 @@ def research_ownership(sym: str = Depends(sym_path)):
         from api.services import sec_13f_list
         if isinstance(result, dict) and result:
             result = sec_13f_list.overlay(result, sym)
+        # Funds (N-PORT): the mutual funds and ETFs holding this stock, from the index this server
+        # builds out of the SEC's quarterly Form N-PORT data sets (fund_holders_nport.py). One
+        # read-only read of the held index: it never downloads, never builds, never raises.
+        from api.services import fund_holders_nport
+        if isinstance(result, dict) and result:
+            result = fund_holders_nport.overlay(result, sym)
         return result
     except Exception as exc:
         _read_failed("ownership", sym, exc)

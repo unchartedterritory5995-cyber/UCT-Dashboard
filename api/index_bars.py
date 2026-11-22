@@ -886,6 +886,9 @@ DEEP_FILL_WICK_MAX = 5e-3
 #: ETF reads one pass may make (the stock store's own bars: no vendor call).
 DEEP_FILL_MAX_PER_PASS = 8
 DEEP_FILL_ENV = "INDEX_INTRADAY_DEEP_FILL_ENABLED"
+#: The fill's rule version, kept on every fill record: a REFUSAL recorded under an older version is asked again at once
+#: (2: the ETF read's window ends on the session itself; version 1's 1m refusals were the window's, not the data's).
+DEEP_FILL_VERSION = 2
 _DEEP_T0 = time.monotonic()
 _deep_prefix: Dict[tuple, tuple] = {}
 _deep_prefix_lock = threading.Lock()
@@ -1083,8 +1086,10 @@ def _proxy_session_bars(proxy: str, d, lane: str = "5") -> Dict[int, dict]:
     import json as _json
     import datetime as _dt
     from api.routers import bars as _bars
-    r = _bars.serve_bars(proxy, lane, bars=400 if lane == "5" else 1000, to=(d + _dt.timedelta(days=1)).isoformat(),
-                         warm=1)
+    # ⛔ (2026-11-22) `to=` INCLUDES its whole day: asked with the NEXT day, the 1m answer's 1,000 rows were that day's
+    # 960 extended-hours bars plus d's evening, none of d's regular session (production: SPX 1m 2026-08-13 refused
+    # "no edge bar held by both", the run cut there). Asked with d itself, the window ends at d's last bar.
+    r = _bars.serve_bars(proxy, lane, bars=400 if lane == "5" else 1000, to=d.isoformat(), warm=1)
     body = getattr(r, "body", None)
     data = _json.loads(body) if body else (r if isinstance(r, dict) else {})
     out: Dict[int, dict] = {}
@@ -1185,7 +1190,8 @@ def deep_fill_step(yahoo_sym: str, now: Optional[float] = None, max_reads: int =
             f = e.get("fill") or {}
             if f.get("state") == "filled":
                 continue
-            if f.get("state") == "refused" and now - float(f.get("at") or 0) < DEEP_NEGATIVE_TTL_S:
+            if (f.get("state") == "refused" and int(f.get("v") or 1) >= DEEP_FILL_VERSION
+                    and now - float(f.get("at") or 0) < DEEP_NEGATIVE_TTL_S):
                 continue
             d = _dt.date.fromisoformat(iso)
             have = {int(b["t"]): b for b in e.get("bars") or [] if isinstance(b, dict)}
@@ -1199,7 +1205,7 @@ def deep_fill_step(yahoo_sym: str, now: Optional[float] = None, max_reads: int =
                 continue
             if not pb:
                 continue                               # shed or not yet stored: the next pass asks again
-            fill = dict(_fill_session(d, have, pb, lane), src=proxy, at=now)
+            fill = dict(_fill_session(d, have, pb, lane), src=proxy, at=now, v=DEEP_FILL_VERSION)
             stats["filled" if fill["state"] == "filled" else "refused"] += 1
             (logger.info if fill["state"] == "filled" else logger.warning)(
                 f"[index_bars] deep fill {yahoo_sym} {iso} from {proxy}: {fill['state']} "

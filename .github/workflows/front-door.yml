@@ -39,6 +39,9 @@ name: Front door
 
 on:
   push:
+    # The merge queue builds each queued pull request on a temporary gh-readonly-queue/** branch, and a push
+    # trigger with no branch filter runs on every one of them (rehearsed 2026-11-22). tests/test_ci_cost_rails.py.
+    branches-ignore: ['gh-readonly-queue/**']
     paths:
       - 'api/front_app.py'
       - 'api/main.py'
