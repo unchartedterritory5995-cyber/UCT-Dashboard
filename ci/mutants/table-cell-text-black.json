@@ -1,0 +1,24 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "A table cell's unset text colour is color.black (#363A45) in v4, v5 and v6 (fix/pine-table-cell-text-black, e93 unit 5): a named default for every version, and the library-version check no longer holds a v5 library's table.cell without text_color.",
+ "mutants": [
+  {
+   "id": "TC-M1",
+   "mutant": "the named cell default goes: v4 / v6 cells fall back to the renderer's fixed grey again",
+   "file": "app/src/components/chart/engine/objectDefaults.js",
+   "from": "  cell: Object.freeze({ text_color: Object.freeze(['color.black', null]) }),",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.c37ObjectColours.test.js",
+   "expectRed": "v4 and v6"
+  },
+  {
+   "id": "TC-M2",
+   "mutant": "a v5 library's table.cell without text_color is held again, as if the versions drew it differently",
+   "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
+   "from": "      if (v === 'box.new' && !t.member && isPunct(next, '(')) {",
+   "to": "      if ((v === 'box.new' || v === 'table.cell') && !t.member && isPunct(next, '(')) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "is not held"
+  }
+ ]
+}

@@ -108,7 +108,10 @@ def main() -> int:
         (a.out / comp).mkdir(exist_ok=True)
         for tf in a.tfs.split(","):
             t0 = time.time()
-            data, st = ffseed.build_tf(tf, syms, asof, "measure", comp=comp, read=store if tf == "D" else lake)
+            # a SIZE measurement over the lake's closed sessions: the completeness proof the nightly build
+            # packs by (ffseed_intraday's ledger, on the worker) does not exist here, so it is waived
+            data, st = ffseed.build_tf(tf, syms, asof, "measure", comp=comp, read=store if tf == "D" else lake,
+                                       complete=lambda _sym, _tf: True)
             (a.out / comp / f"{tf}.ffs").write_bytes(data)
             tr_len = int.from_bytes(data[-16:-8], "little")
             from api.services import ffseed_format as fmt

@@ -129,10 +129,25 @@ import { rescaleOf, rescalePriceFormat } from './rescale'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
 import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY, runHalfRefusedSentence, RUN_HALF_WHY_KEY } from './ast/objectLoss'
+import { runtimeFormingIdsOf } from './runtimeKill'
+
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 import { isRthBar } from '../barTime'
 import { windowedPoints, firstIndexAtOrAfter, PLOT_WINDOW_STEP } from './plotWindow'
 import { FIRST_PAINT_MAX } from '../../../utils/barsBackfill'
+
+/** The script a document's run half runs (`compute.runtimeObjects.source`, as `nativeRegistry.js::withRunHalf`
+ *  reads it), or null. */
+const runHalfSourceOf = (def) => {
+  const ro = def && def.compute && def.compute.runtimeObjects
+  return ro && typeof ro.source === 'string' && ro.source ? ro.source : null
+}
+/** The drawing note's sentence for a REFUSED run half (`runHalfOf`), or null. ⭐ G6 — a forming-bar refusal
+ *  says the reason the server named for THIS document's run-half script (`formingReason.js`). */
+export function runHalfWhyFor(def, runHalf) {
+  if (!runHalf || runHalf.state !== 'refused') return null
+  return runHalfRefusedSentence(runHalf.code, { formingIds: runtimeFormingIdsOf({ source: runHalfSourceOf(def) }) })
+}
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
  *  regular-session window (09:30 to the day's close, half-days included: barTime.isRthBar)
@@ -1630,7 +1645,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const runHalf = carriesRunHalf(def) ? runHalfOf((runCols ? runCols.get(inst.instanceId) : null)
         || (computeMemo.get(inst.instanceId) || {}).cols) : null
       const runHalfDraws = !!(runHalf && (runHalf.state === 'served' || runHalf.state === 'pending'))
-      const runHalfWhy = runHalf && runHalf.state === 'refused' ? runHalfRefusedSentence(runHalf.code) : null
+      const runHalfWhy = runHalfWhyFor(def, runHalf)
       // the run's branch: a document whose run draws its objects, or a strategy with no host program
       // ⭐⭐ PARITY UNIT LF — a run-owned document that carries its clean host program beside the run
       // draws that program instead whenever the run holds back a family it draws (`drawsRunObjectsOn`)

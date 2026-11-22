@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (787)
+## Member session reads (792)
 
 ### Limits
 
@@ -686,12 +686,16 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/financial-history/{sym}` | paid | research | {sym}, period=quarter |
 | GET | `/api/research/financials/{sym}` | paid | research | {sym} |
 | GET | `/api/research/ftd/{sym}` | paid | research | {sym} |
+| GET | `/api/research/group-stats` | paid | research | kind=sector, name |
 | GET | `/api/research/history/{sym}` | paid | research | {sym}, days=90 |
+| GET | `/api/research/index-changes` | paid | research | index=all, sym |
 | GET | `/api/research/iv-history/{sym}` | paid | research | {sym} |
 | GET | `/api/research/iv-history/{sym}/implied-vs-realized` | paid | research | {sym} |
+| GET | `/api/research/market-dividends` | paid | research |  |
 | GET | `/api/research/market-history` | paid | research |  |
 | GET | `/api/research/mention-series/{sym}` | paid | research | {sym}, days=90 |
 | GET | `/api/research/mention-series/{sym}/polarity` | paid | research | {sym}, window=1m, sort=newest, source=all, label=all, limit=50 |
+| GET | `/api/research/mergers` | paid | research | sym |
 | GET | `/api/research/metric-disagreement/{sym}` | paid | research | {sym} |
 | GET | `/api/research/news-desk/story/{news_id}/versions` | paid | research | {news_id} |
 | GET | `/api/research/news-desk/{sym}` | paid | research | {sym}, limit=25, cursor |
@@ -718,6 +722,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/quote/{sym}` | paid | research | {sym} |
 | GET | `/api/research/ratings/{sym}` | paid | research | {sym} |
 | GET | `/api/research/rename-notice/{sym}` | paid | research | {sym} |
+| GET | `/api/research/revenue-segments/{ticker}` | paid | research | {ticker}, period=annual |
 | GET | `/api/research/seasonality-board` | paid | research |  |
 | GET | `/api/research/seasonality/{sym}` | paid | research | {sym} |
 | GET | `/api/research/short-data/{ticker}` | paid | research | {ticker} |

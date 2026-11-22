@@ -11227,6 +11227,341 @@
    }
   },
   {
+   "id": "intraday-01",
+   "lane": "formula",
+   "words": "On a 5 minute chart, plot two lines: today's low so far plus the 14 day ATR, and today's high so far minus the 14 day ATR",
+   "rule": {
+    "digest": "b40b1d880b428031",
+    "history": [
+     {
+      "digest": "b40b1d880b428031",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "c7f99ed2c3"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The door accepted, on the first attempt, a patch whose reply is the word \"Placeholder\" and whose two lines add a weekly read of the constant 0 where the 14 day ATR should be (`sessionLow() + tf(0, W)`): labelled \"Session low + ATR\", it draws the session low. The door now refuses a scope read of nothing and a placeholder reply, so the assistant gets its repair. Graded on the daily market until the intraday one exists.",
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Session Range ATR Levels",
+      "placement": "price",
+      "primary": "lowPlusAtr",
+      "outputs": [
+       {
+        "key": "lowPlusAtr",
+        "label": "Session low + ATR",
+        "tree": {
+         "type": "op",
+         "name": "+",
+         "args": [
+          {
+           "type": "call",
+           "name": "sessionLow",
+           "args": []
+          },
+          {
+           "type": "tf",
+           "value": "W",
+           "args": [
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "highMinusAtr",
+        "label": "Session high - ATR",
+        "tree": {
+         "type": "op",
+         "name": "-",
+         "args": [
+          {
+           "type": "call",
+           "name": "sessionHigh",
+           "args": []
+          },
+          {
+           "type": "tf",
+           "value": "W",
+           "args": [
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "reply": "Placeholder"
+   }
+  },
+  {
+   "id": "date-start-01",
+   "lane": "formula",
+   "words": "Plot a trailing stop that starts on 2 June 2026 at 2 times the 14 day ATR below the close, and after that only ever moves up, staying 2 ATRs below the close when that is higher",
+   "rule": {
+    "digest": "f0253eefbe5df470",
+    "history": [
+     {
+      "digest": "f0253eefbe5df470",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "c7f99ed2c3"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The stop starts on 6 June 2026 under a sentence that says 2 June: the assistant worked the date's number out itself (`time < 1780718400`) and was four days off, because the door gave it no number for a date the member writes out. The door now resolves written dates, the assistant is told never to work one out or ask a member for one, and a date number the turn did not supply is refused.",
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Trailing Stop from 2 June 2026",
+      "placement": "price",
+      "primary": "stop",
+      "outputs": [
+       {
+        "key": "stop",
+        "label": "Trailing Stop",
+        "tree": {
+         "type": "op",
+         "name": "?:",
+         "args": [
+          {
+           "type": "op",
+           "name": "<",
+           "args": [
+            {
+             "type": "series",
+             "name": "time"
+            },
+            {
+             "type": "num",
+             "value": 1780718400
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "num",
+             "value": 0
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "accum",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 2
+                },
+                {
+                 "type": "call",
+                 "name": "atr",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  },
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 14
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": "<",
+               "args": [
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "time"
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 1780718400
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "-",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "op",
+                 "name": "*",
+                 "args": [
+                  {
+                   "type": "num",
+                   "value": 2
+                  },
+                  {
+                   "type": "call",
+                   "name": "atr",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "series",
+                     "name": "low"
+                    },
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "num",
+                     "value": 14
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "max",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "self"
+                },
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "op",
+                   "name": "*",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 2
+                    },
+                    {
+                     "type": "call",
+                     "name": "atr",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "series",
+                       "name": "low"
+                      },
+                      {
+                       "type": "series",
+                       "name": "close"
+                      },
+                      {
+                       "type": "num",
+                       "value": 14
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 900
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_style",
+      "output": "stop",
+      "color": "#F23645",
+      "width": 2,
+      "breaks": true
+     }
+    ],
+    "reply": "I've added a trailing stop on the price chart: from the first bar on or after 2 June 2026 it sits two 14-bar ATRs below the close, and after that it only ever ratchets up, holding its level whenever two ATRs below the close is lower. It shows nothing before that date."
+   }
+  },
+  {
    "id": "h03",
    "lane": "script",
    "chart": "daily",
@@ -11672,6 +12007,60 @@
     "turn": "script",
     "script": {
      "pine": "//@version=5\nindicator(\"100-bar high & low labels\", overlay=true)\n\nn = input.int(100, \"Lookback bars\", minval=2)\n\nhh = ta.highest(high, n)\nll = ta.lowest(low, n)\n\n// how many bars back the extreme sits (0 = current bar)\nhiOffset = -ta.highestbars(high, n)\nloOffset = -ta.lowestbars(low, n)\n\nvar label hiLbl = label.new(bar_index, high, \"\", style=label.style_label_down, color=color.green, textcolor=color.white, size=size.small)\nvar label loLbl = label.new(bar_index, low, \"\", style=label.style_label_up, color=color.red, textcolor=color.white, size=size.small)\n\nif not na(hh)\n    label.set_xy(hiLbl, bar_index - hiOffset, hh)\n    label.set_text(hiLbl, str.tostring(hh, format.mintick))\n\nif not na(ll)\n    label.set_xy(loLbl, bar_index - loOffset, ll)\n    label.set_text(loLbl, str.tostring(ll, format.mintick))\n\nplot(hh, \"Highest high\", color=color.new(color.green, 100))\nplot(ll, \"Lowest low\", color=color.new(color.red, 100))"
+    }
+   }
+  },
+  {
+   "id": "count-on-bars-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Count runs of closes that are each above the close 4 bars earlier, and write the count above each bar of the run as a number from 1 to 9, starting again at 1 after 9 and stopping when the run breaks",
+   "rule": {
+    "digest": "a81f7fe966560a0c",
+    "history": [
+     {
+      "digest": "a81f7fe966560a0c",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "6783fe2c1a"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The script writes NO number: `plotchar(cnt > 0 ? cnt : na, \"Count\", \"\", location.abovebar)` draws one fixed mark on every bar of the run (an empty character is the engine's default mark), so every bar reads the same and none reads its count. The count itself is right. The script document now says a number that changes bar to bar is written with a label, and that plotchar and plotshape draw one fixed character per call.",
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"TD-style setup count\", overlay=true)\nlookback = input.int(4, \"Bars back to compare\", minval=1)\nmaxCount = input.int(9, \"Count resets after\", minval=1)\nup = close > close[lookback]\nvar int cnt = 0\nif up\n    cnt := cnt >= maxCount ? 1 : cnt + 1\nelse\n    cnt := 0\nplotchar(cnt > 0 ? cnt : na, \"Count\", \"\", location.abovebar, color=color.green, size=size.tiny)\nplot(cnt, \"Count value\", color=color.new(color.gray, 100))\n"
+    }
+   }
+  },
+  {
+   "id": "table-format-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Show a table with yesterday's high and yesterday's low",
+   "rule": {
+    "digest": "0b43088a670147d6",
+    "history": [
+     {
+      "digest": "0b43088a670147d6",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-22",
+    "front": "6a532bd3a0"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The table shows its two labels and NO VALUES. The script adds a \"Decimal places\" setting and builds the number format from text (`fmt = \"#.\" + str.replace_all(...)`, then `str.tostring(pdh, fmt)`); the engine withholds a text whose format is not a string literal, with no error and no word to the member. What it reads is right (the prior bar, with no request for another timeframe). The script document now says to write the format as a string literal, until the engine serves a computed one.",
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Yesterday's High & Low Table\", overlay=true)\n\ndigits = input.int(2, \"Decimal places\", minval=0, maxval=8)\nfmt = digits == 0 ? \"#\" : \"#.\" + str.replace_all(str.substring(\"00000000\", 0, digits), \"0\", \"#\")\n\npdh = high[1]\npdl = low[1]\n\nvar table t = table.new(position.top_right, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Yesterday High\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(pdh, fmt), text_color=color.white)\ntable.cell(t, 0, 1, \"Yesterday Low\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(pdl, fmt), text_color=color.white)\n\nplot(pdh, \"Yesterday high\", color=color.new(color.gray, 100))\nplot(pdl, \"Yesterday low\", color=color.new(color.gray, 100))"
     }
    }
   },

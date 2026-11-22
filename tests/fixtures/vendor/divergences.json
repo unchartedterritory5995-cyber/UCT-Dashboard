@@ -684,6 +684,32 @@
         "_where": "Full readings in `uncharted-volume-v2-agen-1d-hve-2026-09-12.json::volume_source_boundary`."
       },
       "_T6_is_unaffected": "⭐ T6's comparison is of FLOAT series over the last 300 bars and is not touched by this row. The float columns are computed from volume, so a volume delta reaches them — but at 1e-6 on recent bars, four orders of magnitude under anything T6 measures, and the ~8e-4 deltas here are on individual bars rather than on a 50-bar average. Said plainly so nobody blocks T6 on a provenance question that does not gate it."
+    },
+    {
+      "id": "transcendental-composition-differs-by-one-ulp",
+      "shape": "stateless",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "`math.sin` and `math.asin` EACH agree with TradingView to within one ulp on every bar (vw-bi-sin S1 `math.sin(z)` maxRel 2.21e-16, S3 `math.sin(math.asin(y * 0.999))` maxRel 3.90e-16, S7 `math.sin(y)` 2.29e-16; `math.asin` alone bit for bit, vw-bi-asin A1). Their COMPOSITION, read through a residual amplified by 1e18, lands ONE ulp (1.11e-16) away from TradingView's on 123 of 8,512 AMEX:SPY daily bars (1.4%), scattered.",
+      "theirs": "On those 123 bars TradingView's round trip `math.sin(math.asin(y * 0.999))` returns `y * 0.999` exactly, so the amplified residual reads 0 where ours reads -111.02230246251565 (one ulp x 1e18; -55.51 on a half-ulp case).",
+      "why_it_matters": "SCOPE: only a check that AMPLIFIES a last-bit residual (the S2 shape, `(f(g(x)) - x) * 1e18`) or compares such a composition for EXACT equality can see it. No plotted value, level, cross or alert moves by it: every un-amplified series agrees to within an ulp. Coordinator ruling 2026-11-22: NO ENGINE CHANGE (TradingView's libm is not worth chasing bit for bit). Recorded so that no future grade reads an S2-style amplified check as a regression, and so this row, not a fix, is what a delta of exactly k ulps x the amplifier on such a check points to.",
+      "code": "the engine evaluates `math.sin` / `math.asin` with the platform's IEEE-754 Math.sin / Math.asin (both lanes alike); the probe is tools/visual_conformance/probes/vw-bi-sin.pine",
+      "probe": {
+        "case": "`(math.sin(math.asin(y * 0.999)) - y * 0.999) * 1e18` with `y = math.sin(bar_index * 0.7319) * 1.0000001`, every bar of AMEX:SPY 1D (vw-bi-sin S2, Q-BI-SIN-a)",
+        "under_ours": "-111.02230246251565 (or -55.51) on 123 of 8,512 bars, 0 on the rest",
+        "under_theirs": "0 on every bar",
+        "discriminates": "the residual is exactly zero under an exact round trip and exactly k ulps x 1e18 under a one-ulp one, so the two answers are distinct numbers on the same bar; the un-amplified S3 (the round trip's own value) agrees within an ulp, which is what scopes the row to amplified checks"
+      },
+      "observation_ids": [],
+      "measured": {
+        "by": "capture vw-bi-sin-spy-1d-2026-11-21 (Q-BI-SIN-a, docs/pine/capture-queue-2026-11-21-sin.md), graded on the production lane 2026-11-22: 8 of 9 plots MATCH, S2 DIVERGE on 123 of 8,512 bars, first at bar 113 (t 742570200)",
+        "worst_abs_delta": 111.02230246251565,
+        "shared_bars_compared": 8512
+      },
+      "decision": {
+        "ruled": "2026-11-22 — KEEP OURS. No engine change and no withhold of `math.sin`: TradingView's libm is not chased bit for bit (Pine coordinator).",
+        "why": "sin and asin each match within an ulp; only the composition is one ulp off on 1.4% of bars, visible only because the check multiplies by 1e18; no member picture moves unless a script tests such values for exact equality"
+      }
     }
   ]
 }

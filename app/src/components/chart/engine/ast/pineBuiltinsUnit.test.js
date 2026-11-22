@@ -453,6 +453,30 @@ describe('B4 — color(na) is na ("Casts na to color"): the same program whereve
   }
 })
 
+// ⭐ B4b (2026-11-21) — REFERENCE, `color()`: "The value of the argument after casting to color". A colour cast to
+// color is that colour: `color(c)` is `c` wherever `c` holds one (bolingger-bands-inside-bar-boxes draws every box with
+// `border_color = color(bgColor)`, an input colour, and the runtime lane refused the cast, so DRAW-1 killed its boxes).
+describe('B4b — color(x) is x when x holds a colour: the same program wherever it stands', () => {
+  const BOX = (border) => `c = input.color(color.red)\nvar float k = 0.0\nk := k + 1\nif k > 3\n    box.new(bar_index - 1, high, bar_index, low, border_color = ${border}, bgcolor = color.new(c, 80))\nplot(k)`
+  const PAIRS = {
+    'a box border colour from an input (the drawing build, bolingger-bands-inside-bar-boxes)': [BOX('color(c)'), BOX('c'), DRAW],
+    'a ternary arm': ['var float k = 0.0\nk := k + 1\nbgcolor(k > 3 ? color(color.red) : na)',
+      'var float k = 0.0\nk := k + 1\nbgcolor(k > 3 ? color.red : na)', {}],
+    'a binding it seeds, read later': ['var float k = 0.0\nk := k + 1\nc = color(color.new(color.blue, 50))\nbgcolor(k > 3 ? c : na)',
+      'var float k = 0.0\nk := k + 1\nc = color.new(color.blue, 50)\nbgcolor(k > 3 ? c : na)', {}],  }
+  for (const [what, [cast, plain, opts]] of Object.entries(PAIRS)) {
+    it(what, () => { expect(programOf(cast, opts)).toBe(programOf(plain, opts)) })
+  }
+  it('⛔ a number is no colour: `color(close)` is refused as before, never read as a colour', () => {
+    const b = buildRuntimeIr(V(6, 'bgcolor(color(close))'), { bars: [], inputs: {}, newestBarIsForming: false })
+    expect(b.ok).toBe(false)
+  })
+  it('⛔ a named argument is not the cast\'s one positional argument', () => {
+    const b = buildRuntimeIr(V(6, 'bgcolor(color(x = color.red))'), { bars: [], inputs: {}, newestBarIsForming: false })
+    expect(b.ok).toBe(false)
+  })
+})
+
 describe('B6 — extend.* bound to a name is the inline choice (session-tpo-profile)', () => {
   it('the drawing build reads `ext = c ? extend.right : extend.none` as RT5 reads it written inline', () => {
     const head = 'b = input.bool(true, "x")\nvar line poc = na\nif barstate.islast\n'

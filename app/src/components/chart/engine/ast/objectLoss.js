@@ -35,6 +35,7 @@
 import { ENUM_NA_SENTENCE } from '../enumNaRule.js'
 import { MERGED_HEAD_REWRITE_SENTENCE } from '../objectCells.js'
 import { COUNT_AT_CAP_GUARD, COUNT_AT_CAP_PREFIX } from '../objectPool.js'
+import { formingReasonOf } from '../formingReason.js'
 
 /** The five answers a lost operation can have. */
 export const LOSS = Object.freeze({
@@ -784,9 +785,8 @@ const RUN_HALF_WHY = Object.freeze({
   'pane:not-permitted': 'running scripts bar by bar is switched off for your account right now',
   'pane:killed': 'this script is switched off for running bar by bar',
   'pane:not-graded': "this script hasn't been checked against TradingView for running bar by bar yet",
-  // ⭐ G6 — `runtimeKill.js::RUNTIME_FORMING_GUARD`
-  'pane:forming-ungraded': "the script reads the state of the bar as it forms, which has only been checked "
-    + "against TradingView on finished bars, and this chart's newest bar is not known to be finished",
+  // ⭐ G6 — `runtimeKill.js::RUNTIME_FORMING_GUARD` is NOT here: its reason is the server's, per script
+  // (`runHalfFormingWhy`, from `formingReason.js`), never a fixed sentence
   'runtime:member-inputs': "a setting has been changed from the script's default, and the complete drawings "
     + "are only worked out at the script's own settings",
   'runtime:runtime.error': 'the script stops itself with its own error message on this chart',
@@ -827,11 +827,24 @@ const RUN_HALF_WHY_LIMIT = 'running the script bar by bar needed more work than 
 const RUN_HALF_WHY_OTHER = "part of the script can't be run bar by bar here"
 const LIMIT_CODE_RE = /^runtime:(limit|time-budget|worker-unresponsive|[A-Z][A-Z_]*)$/
 
-/** The member's sentence for a refused run half (`code` is the refusal's code). */
-export function runHalfRefusedSentence(code) {
+/** `runtimeKill.js::RUNTIME_FORMING_GUARD`, restated only as a value to compare against (this near-leaf
+ *  module must not import the lane; `formingReasonAgrees.test.js` holds the two equal). */
+export const RUN_HALF_FORMING_CODE = 'pane:forming-ungraded'
+
+/** Why a run half is held back on a forming bar, with the reason the server named for THIS script
+ *  (`formingIds`: `runtimeKill.js::runtimeFormingIdsOf`). No ids says "uses a part of Pine" (fail closed). */
+export function runHalfFormingWhy(formingIds) {
+  return `the script ${formingReasonOf(formingIds)}, which has only been checked `
+    + "against TradingView on finished bars, and this chart's newest bar is not known to be finished"
+}
+
+/** The member's sentence for a refused run half (`code` is the refusal's code; `formingIds` the server's
+ *  ids when the code is the forming guard). */
+export function runHalfRefusedSentence(code, { formingIds } = {}) {
   const c = String(code || '')
-  const why = Object.hasOwn(RUN_HALF_WHY, c) ? RUN_HALF_WHY[c]
-    : LIMIT_CODE_RE.test(c) ? RUN_HALF_WHY_LIMIT : RUN_HALF_WHY_OTHER
+  const why = c === RUN_HALF_FORMING_CODE ? runHalfFormingWhy(formingIds)
+    : Object.hasOwn(RUN_HALF_WHY, c) ? RUN_HALF_WHY[c]
+      : LIMIT_CODE_RE.test(c) ? RUN_HALF_WHY_LIMIT : RUN_HALF_WHY_OTHER
   return `The complete set of this script's drawings isn't shown on this chart: ${why}. `
     + 'The drawings shown are the ones this chart makes without that run.'
 }

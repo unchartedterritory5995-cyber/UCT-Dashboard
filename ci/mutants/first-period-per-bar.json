@@ -1,0 +1,33 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "The first-period codes on the per-bar channel (coordinator ruling 2026-11-21, after #2280): request:htf-first-period-partial and request:htf-lookahead-first-period-partial write their bars to __withheldBars (sinkPerBar), so the vendor harness grades a bar withheld by name \"not compared\", never DIVERGE; a first-week value drawn wrong still DIVERGES. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "FP1",
+   "mutant": "the look-ahead-off first-period bars never written to the per-bar channel (graded DIVERGE again)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    sinkPerBar(opts, TF_MERGE_FIRST_CODE, firstMask)",
+   "to": "    void firstMask",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/firstPeriodNotCompared.test.js",
+   "expectRed": "look-ahead off: tf_merge(W, high)"
+  },
+  {
+   "id": "FP2",
+   "mutant": "the look-ahead-on first-period bars never written to the per-bar channel",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  sinkPerBar(opts, TF_LIVE_FIRST_CODE, mask)",
+   "to": "  void mask",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/firstPeriodNotCompared.test.js",
+   "expectRed": "look-ahead on: tf_live(W, high)"
+  },
+  {
+   "id": "FP3",
+   "mutant": "every bar written to the channel under the first-period code (a drawn bar hidden from the grade)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    sinkPerBar(opts, TF_MERGE_FIRST_CODE, firstMask)",
+   "to": "    sinkPerBar(opts, TF_MERGE_FIRST_CODE, Float64Array.from(firstMask, () => 1))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/firstPeriodNotCompared.test.js",
+   "expectRed": "look-ahead off: tf_merge(W, high)"
+  }
+ ]
+}

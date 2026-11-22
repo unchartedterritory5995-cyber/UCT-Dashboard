@@ -81,7 +81,8 @@ def grade_run(data, run_dir):
         verdicts[case["id"]] = now
         lane["right"] += now == "right"
         # the record is held right by tests/test_value_cases.py; it is graded again only to describe a change
-        was = "right" if now == "right" else G.grade_case(case)["verdict"]
+        # (a case recorded WRONG is a known defect: `was` is that, so the run that gets it right names the change)
+        was = case.get("recorded_verdict") or ("right" if now == "right" else G.grade_case(case)["verdict"])
         if now != was:
             changed.append({"id": case["id"], "lane": case["lane"], "was": was, "now": now, "lines": lines})
     total = sum(v["of"] for v in scores.values())

@@ -30,6 +30,8 @@ import GroupDrillPanel, { GROUP_DRILL_CODE, GROUP_MAX_ROWS, GROUP_PAGE_ROWS, GRO
 import { periodChangeUrl, periodGroupsUrl } from './periodChangeModel'
 import { CONFLUENCE_URL } from './confluenceModel'
 import { THEMES_URL } from './imovModel'
+import { groupStatsUrl } from './groupStatsModel'
+import { SEMIS_DETAIL, TECH_DETAIL } from './__fixtures__/groupStatsFixture'
 import { PANEL_IMPORTERS } from '../panels'
 import parseCommand from '../parseCommand'
 import { applyArgs } from '../args'
@@ -84,9 +86,12 @@ const THEME_PERF = {
     { name: 'Quantum Computing', ticker: 'QTUM', theme_id: 'quantum', holdings: [{ sym: 'ENGY', source: 'engine' }] },
   ],
 }
+// the group's own fundamentals and breadth (GroupStatsSections, GET /api/research/group-stats), read once the group is known
+const TECH_STATS_URL = groupStatsUrl('sector', 'Technology')
+const SEMIS_STATS_URL = groupStatsUrl('industry', 'Semiconductors')
 const ALL = {
   [SECTORS_URL]: SECTORS, [INDUSTRIES_URL]: INDUSTRIES, [THEMES_LIST_URL]: THEMES_LIST, [STOCKS_URL]: STOCKS, [GROUP_RS_URL]: RS, [CONFLUENCE_URL]: BOARD,
-  [THEMES_URL]: THEME_PERF,
+  [THEMES_URL]: THEME_PERF, [TECH_STATS_URL]: TECH_DETAIL, [SEMIS_STATS_URL]: SEMIS_DETAIL,
 }
 
 const fail = (status, extra = {}) => Object.assign(new Error(`http ${status}`), { status }, extra)
@@ -180,11 +185,12 @@ describe('GRP: what is read, and when', () => {
     expect(screen.queryByTestId('terminal-grp-table')).toBeNull()
   })
 
-  it('a name with no kind word reads all three lists; RS and the confluence board follow the group', async () => {
+  it('a name with no kind word reads all three lists; RS, the confluence board and the group\'s own figures follow the group', async () => {
     serve(ALL)
     renderPanel({ group: 'SEMICONDUCTORS' })
     await screen.findByTestId('terminal-grp-table')
-    await waitFor(() => expect(asked().sort()).toEqual([SECTORS_URL, INDUSTRIES_URL, THEMES_LIST_URL, STOCKS_URL, GROUP_RS_URL, CONFLUENCE_URL].sort()))
+    await waitFor(() => expect(asked().sort()).toEqual([SECTORS_URL, INDUSTRIES_URL, THEMES_LIST_URL, STOCKS_URL, GROUP_RS_URL, CONFLUENCE_URL,
+      SEMIS_STATS_URL].sort()))
     // the theme list is only for a name no ranked list holds
     expect(asked()).not.toContain(THEMES_URL)
   })
@@ -656,6 +662,38 @@ describe('GRP is registered', () => {
     const cmd = parseCommand('grp theme ai / gpu chips 3m')
     expect(cmd).toMatchObject({ ok: true, code: 'GRP', sym: null, args: ['THEME', 'AI', '/', 'GPU', 'CHIPS', '3M'] })
     expect(applyArgs(BY_CODE.GRP.market, cmd.args)).toMatchObject({ props: { group: 'THEME AI / GPU CHIPS', range: 'm3' }, ignored: [] })
+  })
+})
+
+describe('GRP: the group\'s own fundamentals and breadth (two sections above the list)', () => {
+  it('⭐ a sector shows both sections, closed, ABOVE its ranked list, and the list is exactly as before', async () => {
+    serve(ALL)
+    renderPanel({ group: 'XLK' })
+    await settled()
+    const stats = await screen.findByTestId('terminal-grp-stats')
+    const table = screen.getByTestId('terminal-grp-table')
+    expect(stats.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByTestId('terminal-grp-fund-line').textContent).toContain('median revenue growth 14.2% (of 46)')
+    expect(screen.getByTestId('terminal-grp-breadth-line').textContent).toContain('58% above the 50-day')
+    expect(screen.getAllByRole('table')).toHaveLength(1)        // closed sections draw no table of their own
+    expect(rowsOf().map(cells)[0]).toEqual(['1AAA', '+212.5%', '99', 'Bullish, building', 'Semiconductors'])
+    expect(asked()).toContain(TECH_STATS_URL)
+  })
+
+  it('a UCT theme reads no group figures and says they are for sectors and industries', async () => {
+    serve(ALL)
+    renderPanel({ group: 'THEME AI / GPU CHIPS' })
+    await screen.findByTestId('terminal-grp-table')
+    expect(screen.getByTestId('terminal-grp-stats-theme').textContent).toContain('not for UCT themes')
+    expect(asked().some((u) => u.startsWith('/api/research/group-stats'))).toBe(false)
+  })
+
+  it('a failed read of the group figures is one line; the ranked list stands', async () => {
+    serve({ ...ALL, [TECH_STATS_URL]: fail(500) })
+    renderPanel({ group: 'XLK' })
+    await settled()
+    expect((await screen.findByTestId('terminal-grp-stats-error')).textContent).toContain('The stocks below are not affected.')
+    expect(rowsOf()).toHaveLength(8)
   })
 })
 

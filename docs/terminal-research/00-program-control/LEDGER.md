@@ -4980,6 +4980,25 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   the older file it keeps running lacks only what it never invokes.
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
 
+## Terminal `DVD MARKET`, `SEG`, `MNA`, `IDXC` + four `GET /api/research/*` routes · `feat/terminal-company-deals` · 2026-11-21
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: ADDITIVE, safe; NO marker bump** |
+| stranded files | `api/services/fmp_client.py`, `api/services/reference_corp_actions.py` |
+
+- **Additive.** `fmp_client.py` gains seven typed functions (`get_revenue_product_segmentation`,
+  `get_revenue_geographic_segmentation`, `get_mergers_acquisitions_latest`, `search_mergers_acquisitions`,
+  `get_historical_sp500_constituents`, `get_historical_nasdaq_constituents`, `get_historical_dowjones_constituents`);
+  `reference_corp_actions.py` gains `fetch_market_dividends_strict` and its page bound `_MARKET_READ_MAX_PAGES`. No
+  existing function, constant or import is changed; 0 deleted `api/` lines in either file.
+- **Callers.** Only the new web modules call them (`api/services/revenue_segments.py`, `mergers.py`, `index_changes.py`,
+  `dividends_market.py`, behind four new routers mounted in `api/main.py`); none is in flow-worker's import closure.
+- **Flow-worker.** Reaches `fmp_client` through `flow_exposure_history` -> `gex_service` -> `massive` ->
+  `catalyst.ticker_metadata`, and `reference_corp_actions` through `live_massive_router` -> `dividends_calendar`; it never
+  calls any of the new functions, so the older files it keeps running lack only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
 ## Screener fundamental trend filters (eight point-in-time columns from SEC filings) · `feat/screener-trend-filters` · 2026-11-21
 
 | | |

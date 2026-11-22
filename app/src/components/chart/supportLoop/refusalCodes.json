@@ -216,6 +216,7 @@
   "request:htf-lookahead-first-period-partial",
   "request:htf-lookahead-forming-unmeasured",
   "request:htf-newest-unconfirmed",
+  "request:htf-venue-calendar",
   "request:none",
   "request:other-timeframe",
   "resolve:arity",
