@@ -278,7 +278,10 @@ const NOT_MEASURED = ['CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', '
   'MarketDividendsPanel.jsx', 'RevenueSegmentsPanel.jsx', 'MergersPanel.jsx', 'IndexChangesPanel.jsx',
   // PUBR (2026-11-22): three- and four-column tables of two- and three-line cells that wrap between words; the trials'
   // enrollment and the lobbying issue areas fold on a phone through `phoneHide`
-  'PublicRecordsPanel.jsx']
+  'PublicRecordsPanel.jsx',
+  // EVST (2026-11-22): a four-column window table of two-line cells and an episode list of the date and up to four
+  // short return columns, all wrapping between words; nothing folds
+  'EventStudyPanel.jsx']
 const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
 const stepsIn = (src) => [...src.matchAll(/data-fold=(?:"([^"]*)"|\{paired \? undefined : '([^']*)'\})/g)].map((m) => m[1] ?? m[2])
 

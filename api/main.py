@@ -12345,6 +12345,8 @@ from api.routers import stock_stats as stock_stats_router  # noqa: E402  (STAT: 
 app.include_router(stock_stats_router.router)  # /api/research/stock-stats/{ticker}
 from api.routers import public_records as public_records_router  # noqa: E402  (PUBR: one company's contracts, trials, FDA approvals and lobbying from government records, paid)
 app.include_router(public_records_router.router)  # /api/research/public-records/{ticker}
+from api.routers import event_study as event_study_router  # noqa: E402  (EVST: a member's own historical event study over stored series, paid)
+app.include_router(event_study_router.router)  # /api/research/event-study, /api/research/event-study/series
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)

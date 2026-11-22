@@ -694,6 +694,15 @@ export const FUNCTIONS = [
   // PUBR is not in the site's universe and a web search on 2026-11-22 found no stock or fund trading under it.
   { code: 'PUBR', label: 'Public records (government contracts, clinical trials, FDA approvals, lobbying)', group: 'Security',
     ticker: { panel: 'PublicRecords', args: [{ kind: 'pubrView', prop: 'view' }] } },
+  // EVST (2026-11-22): "what happened next", a member's own historical study. Every time a condition held on
+  // a series (market breadth, a technical indicator over UCT's stored closes, CFTC futures positioning), what
+  // did a symbol do over up to four windows, against every session; every episode listed, the engine's method
+  // in words (GET /api/research/event-study and /series, worked out by the server's event-study engine from
+  // stored data only, held per spec per evening, paid). `EVST` measures SPY; `NVDA EVST` measures NVDA. The
+  // member's last study is kept in the browser. No arguments. EVST is not in the site's stock universe.
+  { code: 'EVST', label: 'What happened next (build your own historical study)', group: 'Market',
+    ticker: { panel: 'EventStudy' },
+    market: { panel: 'EventStudy' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -1065,6 +1074,10 @@ const FUNCTION_WORDS = {
   PUBR: { example: 'NVDA PUBR', keywords: ['government contracts', 'federal contracts', 'clinical trials', 'fda approvals',
     'drug approvals', 'lobbying', 'usaspending'],
     note: 'From the agencies\' own records, matched to the company by name, with the matched names shown. One section: NVDA PUBR TRIALS.' },
+  // EVST: "what happened next" stays ANLG's (days like today); "backtest" and "seasonality" stay where they are.
+  EVST: { example: 'EVST', keywords: ['event study', 'event studies', 'historical study', 'build a study', 'study builder',
+    'what happened after'],
+    note: "Pick a condition on market breadth, a technical indicator or COT positioning; see what a symbol did after every time it held. From stored data. A record, not a forecast." },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
