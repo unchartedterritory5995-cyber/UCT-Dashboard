@@ -335,3 +335,19 @@ def test_the_pass_runs_the_fill_and_the_30m_grid_rolls_through_a_filled_slot(fmp
     assert rec["joined"] and rec["from"] == NOV21.isoformat() and rec["filled"][0]["d"] == DEC2.isoformat()
     b13 = next(b for b in out if b["t"] == _ts(DEC2, "13:00"))
     assert b13["c"] == _true(DEC2, "13:25")["c"] and b13["o"] == _true(DEC2, "13:00")["o"]
+
+
+# ── F12 (2026-11-22: production served the filled run with no `filled` field) ────────────────────────────────────
+def test_the_answer_fields_carry_the_filled_sessions_cut_to_the_answers_span(fmp, etf, monkeypatch):
+    _hole(fmp, DEC2, HOLE)
+    _fill()
+    index_bars.deep_fill_step("^GSPC", now=NOW)
+    yahoo = _yahoo([DEC4, DEC5])
+    monkeypatch.setattr(index_bars, "_fetch_yf", lambda sym, interval, period, div: [dict(b) for b in yahoo])
+    monkeypatch.setattr(index_bars, "repair_rth_holes", lambda sym, tf, out: (out, {"history_rev": 5}))
+    info = {}
+    out = index_bars._fetch_full_series("SPX", "5", info)
+    fields = index_bars._repair_fields(info["repair"], out)
+    assert fields["deep"]["filled"] == [{"d": DEC2.isoformat(), "slots": 1, "src": "SPY"}]
+    tail = [b for b in out if b["t"] >= _ts(DEC3, "09:30")]          # an answer cut after the filled session
+    assert index_bars._repair_fields(info["repair"], tail)["deep"]["filled"] == []
