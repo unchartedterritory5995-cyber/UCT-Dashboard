@@ -7376,7 +7376,13 @@ export function barIndexMask(tree, bars, inputs, budget, scalars, opts) {
     if (wanted.has(node)) found.push({ t: wanted.get(node), nested, unbounded })
     const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE
     const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
-    const open = unbounded || !!(spec && spec.lookback === SERIES_LOOKBACK)
+    // ⭐⭐ e95 (unit 2) — NOT UNDER AN ANCHORED SUM (`ANCHOR_RESET_CALLS`): its memory ends at its next reset. A
+    // threshold here can only sit in its anchor (its source is a bar price, its weight `volume`), and is unknown on a
+    // PREFIX of the bars (a threshold is monotone in the bar index); `builtinWitnessMask` withholds every bar before the
+    // first anchor this chart KNOWS fired (`vwap:before-first-anchor`, the anchor read with this very mask applied), and
+    // from there the sums are exact. Carried forever, the built-in VWAP's own `na(src[1])` restart (`isfirst`) blanked
+    // every bar off the listing.
+    const open = unbounded || !!(spec && spec.lookback === SERIES_LOOKBACK && !ANCHOR_RESET_CALLS.includes(node.name))
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
   }
   // a threshold the walk did not meet is not one this mask can vouch for
