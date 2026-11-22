@@ -282,3 +282,83 @@ Nothing in section 3 waits on these.
 8. Translator performance (track 2).
 
 The sealed WRITE eval (track 7) starts now in the studio's lane. Nothing above blocks it.
+
+## 8. Progress log
+
+### 2026-11-22 (the night of 11-21)
+
+**Merged.**
+- #2394, the objects grader: orphan line fills; supply recorded before the session; a v1 MATCH cannot
+  stand over an objectsV2 DIVERGE. The grade diff moved only the expected rows. Member-visible: none.
+- #2029: host-parity digests re-recorded at engine 92 (167 of 167).
+- #2405: Agent CI now runs on the licensing register the data-terminal suites read. This was a latent red
+  on master.
+- #2411: a script held back on a forming bar names the server's reason ("reads another symbol or
+  timeframe", varip, or barstate), not always barstate.
+- Studio:
+  - #2389: last month's value with no offset;
+  - #2396: a value that starts on a date starts fresh;
+  - #2398, #2402, #2404, #2408, #2412: the WRITE eval, units 1 to 4 plus the j06 oracle fix;
+  - #2413: the door refuses a timeframe or symbol read of a constant, and a placeholder reply;
+  - #2410: a cross-timeframe or cross-symbol read the member did not ask for is sent back once.
+- #2422: FMP deep intraday history for SPX and NDX. Settled sessions come from FMP, the live tail stays on
+  yfinance, and half-days, the seam and the atomic store are railed. It fixes Fred RS's intraday line,
+  which was blank before about 60 days back.
+
+**Train e93** (#2418): #2280, #2302, #2331, #2388.
+- Prod ratchet 60 = 60. Runtime-on 93 -> 96, with 0 lost.
+- HP-0 moved nothing.
+
+**The WRITE eval** is on master and gates every PR that touches the door or the engine. The record now:
+
+| lane | right | the miss |
+|---|---|---|
+| formula | 101 of 101 | none |
+| wall | 28 of 28 | none |
+| script | 16 of 17 | j06, named |
+
+Its findings, each now fixed or in a PR:
+- **j06, oracle drift.** The rule was mirroring the script's `[1]`. A look-back placed outside
+  `request.security` made the value a whole period stale. Fix: rule 12, #2423.
+- **y02, a constant read as a timeframe.** The door accepted a placeholder reply and a `tf(0, W)`. Fixed
+  in #2413.
+- **Written dates.** The model's own epoch arithmetic was 4 days off, and when unsure it asked the member
+  for epoch seconds. Fix: the door resolves written dates, #2421.
+- **`plotchar` for numbers.** It draws nothing. Fix: a sentence telling the assistant to use a label
+  (queued).
+- **`request-other` written without being offered.** It stays not offered until track 1a's evidence lands.
+  A script that reads one the member did not ask for is repaired (#2410).
+
+**The paste chain (track 2).** The worker removes the main-thread stalls: A from 120 s to 3-5 s, B from
+40 s to 1 s.
+- But 3 of 6 AFTER runs were refused: the translator's 10 s wall window, and a clock-dependent door
+  answer.
+- **RULED: e94 = the paste chain (#2254, #2364, #2367) + the deterministic translate budgets, shipped
+  together.**
+- The next trace is taken with source maps. Its bar: 0 refusals, no door or translate task over 50 ms on
+  the main thread, and wall time within 10% of before or explained.
+
+**The live session (track 1a).**
+- `barstate.isnew` is refused on both lanes (RULING-0927: it needs per-tick evaluation). That becomes a
+  future unit.
+- Monday 11-23 Q-BSF: the barstate probe on SPY and QQQ (1D and 5) plus the community witness
+  renko-candles-overlay on SPY, QQQ, IWM and DIA (5).
+- Tuesday and Wednesday: Q-HTF-FORM v2, including an object-program table that reads another timeframe
+  (j06). That table draws all session with ungraded values, and this witnesses them.
+
+**Data.**
+- The 13-symbol pre-floor split heal was confirmed NOT served (the reboot killed the publish). The dry
+  re-check passed; the publish was re-run on the owner's go.
+- New evidence for track 4b: a 14-day ATR on a 5-minute chart is the U-DAILY wall.
+- New evidence for track 1: an event-latched `var` together with another symbol is the
+  `request-with-state` wall.
+
+**Next.**
+1. e93 lands, then the census at e93 on both lines.
+2. The e94 combined train.
+3. The first full live WRITE run, as bench@.
+4. Monday's captures.
+5. The engine follow-ups:
+   - the run-colour and run-half guard sentences take their reason from #2411's builder;
+   - the host door grades bars before an other-symbol supply begins as `na` instead of withholding them
+     (`SERIES_UNKNOWN_BEFORE_FIRST`).
