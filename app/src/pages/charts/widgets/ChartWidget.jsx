@@ -151,12 +151,21 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const paneExtRef = useRef(true)
   // `group`: the linked colour group shows a new symbol in ONE frame, every chart of it together
   // (useSymbolHandoff GROUP_SYNC_MS; owner's hard rule, 2026-11-20).
+  // ⭐ (imperative switch, docs/charts/imperative-switch-design.md §3.4) the ONE bridge between this widget's
+  // handoff and its chart's switch controller: the chart puts the controller here while the switch is on
+  // (`uct.imperativeSwitch`), and the handoff then shows a symbol by asking it to paint. Empty: today's path.
+  const switchPort = useRef(null)
   const sym = useSymbolHandoff(requestedSym, tf, {
     // ⭐ scope: the board whose setGroupSym decides the group's switch in the key handler (/charts only;
     // a host without a store, the drill or the screener, takes the round as before)
     showExtended: paneExtRef, group: chartGroupKey(activeColor), scope: groupSymsStore || null,
+    painter: switchPort,
     settle: { debounceMs: symDebounceMs, isWarm: symIsWarm },
   })
+  // The symbol the chart BODY is rendered with (the handoff writes it on the port each render). It is `sym` except
+  // for the frame or two after the chart's controller painted a symbol: this widget and the pane's header take the
+  // new symbol at once, with the candles, while the body's own render waits until after the paint.
+  const chartSym = switchPort.bodySym || sym
   // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
   const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
 
@@ -202,16 +211,21 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // re-rendered this widget and the whole StockChart subtree just to move one
   // line, and that render cost is what made the linked crosshair step/skip.
   // Identity is stable per bus, so the subscription isn't torn down on renders.
-  // `sym` is in the deps purely so a ticker switch re-subscribes, which makes
+  // The chart's symbol is in the deps purely so a ticker switch re-subscribes, which makes
   // StockChart's teardown clear any crosshair still drawn for the old symbol
   // (the state-based path did that with a null push on [sym]).
+  // ⛔ (imperative switch) THE CHART BODY'S SYMBOL (`chartSym`), NOT THIS WIDGET'S (`sym`). After the switch
+  // controller painted a symbol, `sym` moves in the key's task and the body is held on the old one until after the
+  // frame; a new identity here re-rendered the whole held chart in the key's task (this prop is not trampolined),
+  // which is the render the switch moves out of it (the browser A/B of 3cf50f94d5: no gain). With the switch off
+  // `chartSym === sym`, so the identity moves exactly as it did (ChartWidget.imperativeHold.test.jsx).
   const subscribeCrosshair = useCallback((cb) => {
     if (!crosshairBus) return () => {}
     return crosshairBus.subscribe(({ sourceId, payload }) => {
       if (sourceId !== widgetIdRef.current) cb(payload)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [crosshairBus, sym])
+  }, [crosshairBus, chartSym])
 
   // ── Hotkey dedupe: only the last-hovered chart widget handles keydowns ──
   // null-means-all preserves the legacy behavior until the first hover; after
@@ -740,6 +754,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       <ChartPane
         ref={paneRef}
         sym={sym}
+        chartSym={chartSym}
         tf={tf}
         onSymbolChange={handleSymbolChange}
         onTfChange={setTf}
@@ -758,6 +773,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         watermarkCustomized={!!wmPos}
         stockChartProps={{
           ...(hostPriceLines?.length ? { priceLines: hostPriceLines } : {}),
+          switchPort,
           onCrosshairMove: reportCrosshair,
           subscribeCrosshair,
           hotkeysActive: hotkeysIsActive,

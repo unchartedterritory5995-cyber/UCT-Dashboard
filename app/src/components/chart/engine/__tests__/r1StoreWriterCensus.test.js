@@ -12,9 +12,13 @@
 //      With the switch OFF they are the writers (non-vacuity).
 //   2. THE WRITE SITES OF THE CANDLE AND VOLUME SERIES IN StockChart, one row per (component-level
 //      statement, method) — setData / update directly, through a local alias, or through
-//      updateChart's `_applyData` helper, whose incremental last-point update() is its OWN row
+//      the pass's `_applyData` helper, whose incremental last-point update() is its OWN row
 //      (P3-S2b review: it was hidden inside "setData"). Ledger (CANDLE_SITES / VOLUME_SITES):
-//        • `updateChart`            — the BASE paint (P3-S3 replaces it with diffRenderer)
+//        • `applyFrame`             — the BASE paint (P3-S3 replaces it with diffRenderer). It was
+//          `updateChart`'s body until the imperative switch's stage 1 (2026-11-21) moved the pass,
+//          verbatim, into the module-level `applyFrame(ctx, frame)` that `updateChart` and the switch
+//          controller both call. The scan reads that function as one more statement, so the same
+//          three rows are ledgered under their new owner and `updateChart` itself must write nothing.
 //        • the candleFrameFade layout effect / volume re-tint — static Setup⇄Result crossfades
 //        • the setup-day highlight effect — a static Model Book recolour of the base frame
 //        • `_storeDevPaintRef.current = …` — THE store's developing-bar paint (snapshot.developing)
@@ -76,6 +80,7 @@ function applyDataMethods(ast) {
 }
 
 function label(st, text) {
+  if (st.type === 'FunctionDeclaration' && st.id?.name === 'applyFrame') return 'applyFrame'
   if (st.type === 'VariableDeclaration' && st.declarations[0]?.id?.name === 'updateChart') return 'updateChart'
   if (st.type === 'ExpressionStatement' && st.expression.type === 'AssignmentExpression' &&
       /^_storeDevPaintRef\.current\b/.test(SRC.slice(st.expression.left.start, st.expression.left.end))) return 'storeDevPaint'
@@ -103,7 +108,10 @@ function seriesWriteSites(refName) {
     n.object.name === refName && n.property.type === 'Identifier' && n.property.name === 'current'
   const helper = applyDataMethods(ast)
   const rows = new Map()
-  for (const st of comp.body.body) {
+  // …and the pass itself: `applyFrame`, the module-level function the body's `updateChart` calls (stage 1 of the
+  // imperative switch). A scan that stopped at the component would see none of the base paint's writes.
+  const pass = ast.body.filter((s) => s.type === 'FunctionDeclaration' && s.id && s.id.name === 'applyFrame')
+  for (const st of [...comp.body.body, ...pass]) {
     const scopes = new Map()
     const text = SRC.slice(st.start, st.end)
     const add = (method, line) => {
@@ -151,24 +159,24 @@ function seriesWriteSites(refName) {
   return [...rows.values()]
 }
 
-// THE LEDGER (P3-S3 replaces every `updateChart:*` row with diffRenderer). Under BARSTORE the only
-// DEVELOPING-bar writes are `storeDevPaint:update`; updateChart's `_applyData.update` is the base
+// THE LEDGER (P3-S3 replaces every `applyFrame:*` row with diffRenderer). Under BARSTORE the only
+// DEVELOPING-bar writes are `storeDevPaint:update`; applyFrame's `_applyData.update` is the base
 // paint's incremental last-point write of the BASE series (displayBars / volData), never a live one.
 const CANDLE_SITES = [
   'candleFrameFade:setData',        // static Setup⇄Result crossfade of the base frame (Model Book)
   'setupHighlight:setData',         // static Model Book setup-day recolour
   'storeDevPaint:update',           // THE store's developing-bar paint
-  'updateChart:_applyData.setData', // base paint (full)
-  'updateChart:_applyData.update',  // base paint (incremental last point of the base series)
-  'updateChart:setData',            // base paint: the empty-series clear
+  'applyFrame:_applyData.setData',  // base paint (full)
+  'applyFrame:_applyData.update',   // base paint (incremental last point of the base series)
+  'applyFrame:setData',             // base paint: the empty-series clear
 ]
 const VOLUME_SITES = [
   'candleFrameFade:setData',
   'volumeFadeRetint:setData',       // static Setup⇄Result volume crossfade re-tint (Model Book)
   'storeDevPaint:update',
-  'updateChart:_applyData.setData',
-  'updateChart:_applyData.update',
-  'updateChart:setData',
+  'applyFrame:_applyData.setData',
+  'applyFrame:_applyData.update',
+  'applyFrame:setData',
 ]
 
 describe('R1 — the series-write sites of StockChart (candle AND volume, per method)', () => {

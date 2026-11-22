@@ -66,7 +66,7 @@ import {
 const LEGEND_MODE_MENU_LABELS = { always: 'Always', hold: 'Hold to peek', off: 'Off' }
 import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from './chart/watermarkPrimitive'
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
-import { useChartTickerMeta, useChartTickerIpo } from './chart/restedReaders'
+import { useChartTickerMeta, useChartTickerIpo, chartStoredTickerMeta } from './chart/restedReaders'
 import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
 import { isStrategyWindowDefinition, strategyNeedsFullDailyHistory } from './chart/engine/strategyWindow'
 import { servedFromListingOf, listingReferenceDate, listingStartOf } from './chart/engine/listingSeed'
@@ -1800,7 +1800,7 @@ import { createHistoryLoader, wantsOlder, PREFETCH_WINDOWS, HISTORY_PREFETCH_TAR
 import { memPeek } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
 import { makeLiveSane } from './chart/liveTickBaseline'
-import { isCurrentEnoughForPaint, dailyMissingSessionsForPaint, DAILY_PAINT_MAX_GAP, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { dailyCachePaintVerdict, isCurrentEnoughForPaint, dailyMissingSessionsForPaint, DAILY_PAINT_MAX_GAP, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { tradingSessionTodayET } from './chart/tradingTodayMemo'   // isTradingSessionTodayET, one answer per minute
 import { tailRetriesExhausted, liveBadgeState } from '../utils/intradayTailPoll'
 import { parseTf } from './chart/timeframes'
@@ -1891,9 +1891,20 @@ import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
 import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, computeHVC } from './chart/chartDerived'
 import { neighborFramesOn, stableSig, identitySig } from './chart/neighborFrames'
 import {
-  useNeighborFrames, deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa,
+  useNeighborFrames, deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa, deriveVolExtremes,
 } from './chart/useNeighborFrames'
 import { BARSTORE } from './chart/barStoreSwitch'
+// (imperative switch, stage 3; docs/charts/imperative-switch-design.md) the React-free symbol switch
+import { imperativeSwitchOn } from './chart/imperativeSwitch'
+import { switchControllerFor } from './chart/switchController'
+import { buildFrame } from './chart/switchFrame'
+import { chartKeyFor, lastDailyBarInsane } from './chart/useBarSnapshotBars'
+import { resolveDailyTodaySeed } from './chart/useLegacyChartBars'
+import { getBarStore } from '../data/barStore/index'
+// what the app already holds of a symbol's metadata, read outside a render (as lib/symbolResourceWarm.js reads it)
+import { cache as swrCache } from 'swr/_internal'
+import { tickerMetaKey } from '../hooks/tickerMetaKey'
+import { tickerIpoKey } from '../hooks/tickerIpoKey'
 import {
   LEGACY_LIVE, devOnScreenSource, liveAfterSetData, liveAfterVolumeSetData,
   useLegacyGapWatchdog, useLegacyLiveReset, useLegacyWriterA, useLegacyPushWriterB, useLegacyHeldPushFold,
@@ -1904,6 +1915,11 @@ import {
 // module constant, so the hook order of every StockChart render is fixed. Off → the legacy
 // SWR / IDB / mem selector; on → the BarStore snapshot. Same parameters, same 24 bindings.
 const useChartBars = BARSTORE ? useBarSnapshotBars : useLegacyChartBars
+
+// ⭐ THE IMPERATIVE SWITCH, read ONCE at module load like the bar source (chart/imperativeSwitch.js: default OFF,
+// `uct.imperativeSwitch` = '1' turns it on, the server's chart-speed kill wins). OFF, no chart ever makes a switch
+// controller and `updateChart` calls `applyFrame` directly: today's path, statement for statement.
+const IMPERATIVE_SWITCH = imperativeSwitchOn()
 
 // ⭐ RT1 — HOW A SAVED RUNTIME-LANE DOCUMENT GETS ITS LANE on a chart that never
 // opened the member door. The registry asks this loader only when it meets a
@@ -3886,8 +3902,12 @@ function settleOnMetaLanded(s, inp) {
  * render, on purpose: the store keeps it for the chart's whole life, and a closure written inside a render would pin
  * that render's whole scope (its bars) for as long. It holds the refs it reads, nothing else.
  */
-function metaLandedListener({ metaStore, factsRef, inputsRef, nowRef, drawRef, futureWsRef, settleRef, rerender }) {
+function metaLandedListener({ metaStore, factsRef, inputsRef, nowRef, drawRef, futureWsRef, settleRef, rerender, stale = null }) {
   return function _onMetaLanded() {
+    // ⛔ (imperative switch) while a switch painted another symbol and React has not committed it, these refs are the
+    // OLD symbol's: an answer landing now would draw its markers and badges on the new candles. The commit's own
+    // feed publishes the new symbol's.
+    if (stale && stale()) return
     const f = factsRef.current
     const inp = inputsRef.current
     if (!f || !inp) return
@@ -4280,6 +4300,12 @@ function StockChartBody({
   noticeScope = null,
   // The shell's per-chart metadata store (`chart/chartMetaStore.js`): READ in render, never subscribed.
   metaStore,
+  // (imperative switch) `switchPort`: a ref the host shares with its symbol handoff; while the switch is on this
+  // chart puts its controller there, so the handoff can paint a symbol without importing the controller.
+  // `switchHostPlain(sym)`: does the host hand this chart the SAME props for `sym` as for any ordinary ticker (no
+  // breadth series, index, pair, ECON id)? Without it no switch is ever painted imperatively (`no-host`).
+  switchPort = null,
+  switchHostPlain = null,
 }) {
   // ⛔⛔ Heavy locals are read through `__heavy` by every closure below (StockChart.closureChains.test.jsx):
   // a closure that captured them kept them on this render's context, and chained renders kept them all.
@@ -4287,6 +4313,9 @@ function StockChartBody({
   // subscriptions, timers, the paint functions, updateChart) reads `__heavy.committed.x`, so a render React
   // abandoned (an interrupted transition) is never what the chart on screen indexes (chart/latestCallback.js).
   const __heavy = useRenderBox()
+  // (imperative switch, stage 3) this chart's switch controller: null unless the switch is on for this page load,
+  // then one per chart for its life (keyed by the render box above; not a hook, so the hook order is the same).
+  const switchCtl = IMPERATIVE_SWITCH ? switchControllerFor(__heavy, SWITCH_DEPS) : null
   const ownNoticeScope = useId()
   const binderNoticeScope = typeof noticeScope === 'string' && noticeScope ? noticeScope : ownNoticeScope
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
@@ -4404,46 +4433,9 @@ function StockChartBody({
       const typed = ct === csMerged.chartType ? csMerged : { ...csMerged, chartType: ct }
       return econPrimary.symbol ? withPrimaryEconomic(typed, econPrimary.symbol, econPrimary.meta) : typed
     }
-    const fam = canonicalFamily(sym)
-    const _primaryProduct = canonicalProduct(sym)
-    // ⛔⛔ AN UNCLASSIFIED SYMBOL IS NOT CLAMPED, AND THIS IS THE OPPOSITE DIRECTION
-    // FROM THE CANDLE GATE ON PURPOSE.
-    //
-    // `canonicalFamily` withholds `security` until BOTH registries have answered —
-    // fail-closed, because offering candles over a survey is the dangerous error for
-    // an INDICATOR output. On the PRIMARY chart the dangerous error is the mirror
-    // image: clamping an ordinary equity to a line because a catalogue had not
-    // arrived yet. ⚰️ MEASURED: building a capability from `'unknown'` turned every
-    // chart into a line until the registries landed — four StockChart suites went red
-    // with "the chart never created a candle series", which is exactly what a member
-    // would have seen as a flash of line on every load.
-    //
-    // ⚠️ SO `null` MEANS "SAY NOTHING", and `primaryChartTypeFor` returns the member's
-    // own setting untouched. The clamp applies only once the registry has actually
-    // classified the symbol — and the `miReady` dependency above is what re-runs this
-    // the moment it does.
-    // ⚠️ A PRODUCT IS ASKED BEFORE THE FAMILY. It is absent from the SERIES index by
-    // design, so `canonicalFamily` would answer `'security'` for it — the one
-    // classification that grants candles. Resolving as a product is itself proof the
-    // registry has landed, so the `unknown` guard below does not apply to it.
-    const cap = _primaryProduct
-      ? canonicalSourceCapability(sym, false)
-      : fam === 'unknown'
-        ? null
-        // (2026-10-10) breadth + indicator series may draw every chart type (owner ruling;
-        // their bodies are close-to-close). Surveys / economic / products stay scalar.
-        : canonicalSourceCapability(sym, ['security', 'volatility', 'breadth', 'indicator'].includes(fam))
-    const ct = primaryChartTypeFor(csMerged.chartType, cap)
-    const typed = ct === csMerged.chartType ? csMerged : { ...csMerged, chartType: ct }
-    // ⭐⭐ A PRODUCT IDENTITY BRINGS ITS OTHER COMPONENTS WITH IT. The price slot
-    // already holds the product's PRIMARY component (`series.build_bars` serves it
-    // under the product's own ticker); these are the rest, as ordinary `dataSeries`
-    // overlays on the price pane — no new renderer, no multi-bars contract.
-    //
-    // ⛔ DERIVED, NEVER PERSISTED. They live only in the blob the renderer reads, so
-    // charting a product does not write to a member's `chart_settings` and switching
-    // away removes them with no cleanup. Same discipline as the clamp above.
-    return withPrimaryProduct(typed, _primaryProduct)
+    // (imperative switch, stage 3) the rest is `settingsForSymbol` below the component: the switch controller asks
+    // the same question of the NEXT symbol, and paints it only when the answer is these very settings.
+    return settingsForSymbol(csMerged, sym)
   }, [csMerged, sym, miReady, _econId, econPrimary.symbol, econPrimary.meta])
 
   // ── Chart Settings → Canvas → Margins / Scale & time (chartViewOptions.js; absent = today's look) ──
@@ -10120,7 +10112,13 @@ function StockChartBody({
   }
   const _applyFutureWsRef = useRef(null)
   _applyFutureWsRef.current = _applyFutureWs
-  useEffect(() => { _applyFutureWs(earningsEvents) }, [earningsEvents, resolvedTf, filteredBars, adjustTime])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // ⛔ (imperative switch; review round 2, M1) while another symbol is painted this body is the OLD symbol's: its
+    // bars or its earnings rows moving must not write its axis under the painted one. The body's render of the
+    // painted symbol, or the replay of this one (`reactRepaint`), writes the axis.
+    if (switchCtl && switchCtl.pendingSym()) return
+    _applyFutureWs(earningsEvents)
+  }, [earningsEvents, resolvedTf, filteredBars, adjustTime])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Splits + dividends: snap each event date to its containing bar (same bucketing
   // as earnings) so they render as bottom-row "S"/"D" badges, one per bar.
@@ -10216,7 +10214,8 @@ function StockChartBody({
   useLayoutEffect(() => metaStore.subscribe(metaLandedListener({
     metaStore, factsRef: _metaFactsRef, inputsRef: _metaInputsRef, nowRef: _metaNowRef,
     drawRef: _drawMetaRef, futureWsRef: _applyFutureWsRef, settleRef: _metaSettleRef, rerender: _setMetaFactsRev,
-  })), [metaStore])
+    stale: switchCtl ? () => !!switchCtl.pendingSym() : null,
+  })), [metaStore])  // eslint-disable-line react-hooks/exhaustive-deps -- `switchCtl` is this chart's for its life
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
   // binder hands no document a window. Fixed for the tab once it lands.
@@ -10782,12 +10781,13 @@ function StockChartBody({
   // regular-session bars) + orange Pre/Post tag at the live ext price. Merged
   // into the price-line applier via allPriceLines below.
   // (a function of the ext price, so `_onLiveTick` places a new one between renders exactly as this memo would)
-  const _sessionTagLinesFor = (extPrice) => {
-    if (!sessionTagsActive || !__heavy.filteredBars?.length) return null
+  // (`bars`: the switch controller builds the NEXT symbol's tags over that symbol's bars; a render passes none)
+  const _sessionTagLinesFor = (extPrice, bars = __heavy.filteredBars) => {
+    if (!sessionTagsActive || !bars?.length) return null
     const effUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor
     const effDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor
     return computeSessionTagLines({
-      rthBars: __heavy.filteredBars, session: marketSession, extPrice,
+      rthBars: bars, session: marketSession, extPrice,
       upColor: effUp, downColor: effDown, extColor: SESSION_EXT_COLOR,
     })
   }
@@ -10827,8 +10827,8 @@ function StockChartBody({
   const intradaySessionTagLines = useMemo(() => _intradaySessionTagLinesFor(sessionExtPrice),
     [sessionTagsIntraday, sessionExtPrice, marketSession])  // eslint-disable-line react-hooks/exhaustive-deps
   /** The session tags this chart shows for an ext price (daily OR intraday — mutually exclusive by timeframe). */
-  const _activeSessionTagsFor = (extPrice) => {
-    const d = _sessionTagLinesFor(extPrice)
+  const _activeSessionTagsFor = (extPrice, bars) => {
+    const d = _sessionTagLinesFor(extPrice, bars)
     if (d?.length) return d
     const i = _intradaySessionTagLinesFor(extPrice)
     return i?.length ? i : null
@@ -10905,86 +10905,12 @@ function StockChartBody({
         const wickCol = userCandleColors ? (isUp ? (cs.candles.upWick || bodyCol) : (cs.candles.downWick || bodyCol)) : bodyCol
         arr[i] = { ...c, color: bodyCol, borderColor: borCol, wickColor: wickCol }
       }
-      // Load-anchor whitespace seed (candle series ONLY — filteredBars is untouched, so the live
-      // writers / indicators / crosshair never see it). See _developingBarISO: on a cold first
-      // paint the stale provisional ends at the last SEALED period; today's real bar then appends
-      // a commit later and LWC's shiftVisibleRangeOnNewBar slides the view. Appending a whitespace
-      // at the developing period makes that real bar a REPLACEMENT (same time) → no LWC shift.
-      // Self-cancels once the last real bar IS the developing period (then _lastRaw !< _dev).
-      if (_intradayLoadAnchorEnabled() && !_econId && !exactDateRange && !entryDate && !replayCutoff && arr.length && __heavy.displayBars.length) {
-        const _dev = _developingBarISO(resolvedTf)
-        const _lastRaw = __heavy.displayBars[__heavy.displayBars.length - 1]?.t
-        // ── DAILY: seed EXACTLY the slots the framing reserve holds ─────────────
-        // `_dailyReserveDates` is the same list `_intradayLoadReserve` counts, so the
-        // seed and the frame cannot disagree — the off-by-(reserve − seeded) that
-        // translated the chart is now unrepresentable. The FRONTIER slot gets the real
-        // current-session bar when one is available locally; earlier slots stay
-        // whitespace (their bars exist only on the server, which is exactly why the
-        // paint authority refuses to show such a set in the first place — reaching here
-        // with more than one slot means an unexpected right-edge arrival, and holding
-        // bounded whitespace for it is strictly better than translating the frame).
-        if (resolvedTf === 'D' && typeof _lastRaw === 'string') {
-          const _slots = _dailyReserveDates(_lastRaw)
-          if (_slots.length) {
-            const _seed = _resolveDailyTodaySeed()
-            const _frontier = _slots[_slots.length - 1]
-            for (const _iso of _slots) {
-              arr.push((_iso === _frontier && _seed && _seed.t === _iso)
-                ? { time: adjustTime(_iso), open: _seed.o, high: _seed.h, low: _seed.l, close: _seed.c }
-                : { time: adjustTime(_iso) })
-            }
-          } else {
-            // ── STALE-TODAY REPAIR, IN PLACE ────────────────────────────────────
-            // The set already reaches today, so the GEOMETRY is final — but the bar
-            // itself can be hours old (a cache written at 10:05, painted at 14:00),
-            // and /api/bars' own copy is only as fresh as the store row behind it.
-            // Replacing the values at the SAME date moves nothing and removes the
-            // "body right, wick corrects a beat later" flash.
-            //
-            // ⛔ NOT FABRICATION, AND NOT EXTRAPOLATION. Close is the live price — the
-            // one genuinely real-time field UCT has. High/low come from the provider's
-            // own `day` aggregate, the same object every other door serves; reconciling
-            // the two observations with max/min is valid because a session high never
-            // falls and a session low never rises. Nothing is invented, and no value
-            // moves except toward a later observation of the same quantity.
-            const _seed = dailyRepairTodayRef.current ? _resolveDailyTodaySeed() : null
-            const _i = arr.length - 1
-            const _cur = arr[_i]
-            if (_seed && _cur && _cur.time === adjustTime(_seed.t) && _cur.open !== undefined) {
-              arr[_i] = {
-                ..._cur,
-                high: Math.max(_cur.high, _seed.h),
-                low: Math.min(_cur.low, _seed.l),
-                close: _seed.c,
-              }
-            }
-          }
-        } else if (_dev && typeof _lastRaw === 'string' && _lastRaw < _dev) {
-          // ── WEEKLY / MONTHLY ONLY (daily is handled above) ────────────────────
-          // ⛔ UNCHANGED ON PURPOSE. A week/month period start is not "n sessions
-          // back", so the daily session walk is the wrong instrument here; W/M keep
-          // the single-slot rule until their own period semantics are designed. The
-          // today-PACK arm that used to live here was daily-only and is now
-          // unreachable from this branch, so it is gone rather than left as dead code
-          // that reads like a live path.
-          let _pt = null
-          if (_seedLiveEnabled()) {
-            try {
-              const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
-              const _px = _snap ? _effLivePrice(_snap) : null
-              // ⛔ REGULAR SESSION ONLY. Outside 09:30-16:00 ET `_effLivePrice` returns the
-              // EXTENDED-hours price, but the period candle is settled at the 4pm close.
-              if (_px && !_snap.ext_session && _liveSane(sym, _px)) {
-                const _o = (_snap.day_open && _snap.day_open > 0) ? _snap.day_open : _px
-                const _h = Math.max((_snap.day_high && _snap.day_high > 0) ? _snap.day_high : _px, _px)
-                const _l = Math.min((_snap.day_low && _snap.day_low > 0) ? _snap.day_low : _px, _px)
-                _pt = { time: adjustTime(_dev), open: _o, high: _h, low: _l, close: _px }
-              }
-            } catch { /* fall back to whitespace */ }
-          }
-          arr.push(_pt || { time: adjustTime(_dev) })
-        }
-      }
+      // (imperative switch, stage 3) the load-anchor tail is `ohlcLoadAnchorTail` below the component, comments and
+      // all, so the switch controller composes the very same tail for the next symbol outside a render.
+      ohlcLoadAnchorTail(arr, __heavy.displayBars, {
+        econ: _econId, exactDateRange, entryDate, replayCutoff, resolvedTf, adjustTime, sym,
+        dailySeed: _resolveDailyTodaySeed, repairToday: dailyRepairTodayRef.current, liveSane: _liveSane,
+      })
       return arr
     },
     // NOTE: livePrices is deliberately NOT a dep — the seed reads the live-price store
@@ -11196,6 +11122,11 @@ function StockChartBody({
   // only highlighted when it falls within the visible year.
   const volExtremes = useMemo(() => {
     if (!markVolumeExtremes || !__heavy.filteredBars?.length) return null
+    // (imperative switch ON, neighbour frames on) the shared rule, filed under the bars: the switch frame builds the
+    // next symbol's with it, so the body's render is handed the SAME object and its pass sets nothing again.
+    // ⛔ ONLY WITH THE SWITCH ON (review round 2, H1): off, this memo is master's loop below, statement for statement
+    // (StockChart.imperativeSwitch.test.jsx "H1" counts every derive call with the switch off).
+    if (_nfRecipes && IMPERATIVE_SWITCH) return deriveVolExtremes(__heavy.filteredBars, entryDate, exitDate)
     const inYear = b => (!entryDate || b.t >= entryDate) && (!exitDate || b.t <= exitDate)
     let hve = null
     for (const b of __heavy.filteredBars) if (b.v != null && (!hve || b.v > hve.v)) hve = b
@@ -11255,13 +11186,9 @@ function StockChartBody({
   }
   useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes })
   const overlayData = useMemo(() => {
-    if (!__heavy.sessionAppliedBars?.length || !resolvedOverlays?.length) return []
-    return resolvedOverlays.map(ov => {
-      const raw = ov.type === 'EMA'
-        ? computeEMA(__heavy.sessionAppliedBars, ov.period, overlaysFromStart)
-        : computeSMA(__heavy.sessionAppliedBars, ov.period, overlaysFromStart)
-      return { data: raw.map(p => ({ time: adjustTime(p.time), value: p.value })), color: ov.color }
-    })
+    // (imperative switch, stage 3) `overlayDataOf` below the component: the switch controller builds the next
+    // symbol's averages with it
+    return overlayDataOf(__heavy.sessionAppliedBars, resolvedOverlays, adjustTime, overlaysFromStart)
   }, [sessionAppliedBars, resolvedOverlays, adjustTime, overlaysFromStart])  /* eslint-disable-line react-hooks/exhaustive-deps -- the box (__heavy) is read at use time; the deps above are the values */
   // Drive the MA tail opacity each frame of the Setup⇄Result crossfade (the
   // overlay loop in updateChart owns the tail DATA; this only re-tints it as the
@@ -11837,7 +11764,9 @@ function StockChartBody({
   const _watermarkLinesOf = (watermarkMeta) => ((cs.watermark.visible && !hideWatermark && !hideBaseRef.current)
     ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines, tfWatermarkLabel(resolvedTf))
     : [])
-  const _drawMeta = (view, fresh, withWatermark) => {
+  // (`over`, imperative switch: the controller draws the NEXT symbol's metadata with this render's function, so
+  // the two inputs below that are this render's symbol's, its trade markers and its candles, are handed in.)
+  const _drawMeta = (view, fresh, withWatermark, over = null) => {
     if (withWatermark && wmCtrlRef.current) {
       try { wmCtrlRef.current.setOptions({ lines: _watermarkLinesOf(view.watermarkMeta) }) } catch { /* noop */ }
     }
@@ -11857,7 +11786,7 @@ function StockChartBody({
     // series) and a fresh chart. Never skip on either, or markers silently vanish.
     // Chart Settings → My trades (myTradeMarkers.js) rides the SAME controller: its markers join the list here, and
     // their own effect below re-hands the list when only they changed (never a second createSeriesMarkers).
-    const _myTradeMarkers = myTradeMarkersRef.current
+    const _myTradeMarkers = over ? over.myTradeMarkers : myTradeMarkersRef.current
     const _markersDirty = lastMarkersSrcRef.current !== mergedMarkers
       || lastMyTradesSrcRef.current !== _myTradeMarkers
       || !markersControllerRef.current
@@ -11890,7 +11819,7 @@ function StockChartBody({
         if (nextEarnSeriesRef.current !== _neSeries) {
           try { _neSeries.attachPrimitive(nextEarnRef.current.primitive); nextEarnSeriesRef.current = _neSeries } catch { /* primitive optional */ }
         }
-        const _neBars = _bigRef.current?.ohlcData
+        const _neBars = over ? over.ohlcData : _bigRef.current?.ohlcData
         let _neSet = null
         if (nextEarnRows) _neSet = nextEarningsMark(_neBars, resolvedTf, nextEarnRows, { extended: !!showExtendedRef.current })
         nextEarnRef.current.set(_neSet)
@@ -11964,3242 +11893,56 @@ function StockChartBody({
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
-    if (!containerRef.current) return
-    // The geometry of the frame ON SCREEN, measured against the series it was painted from,
-    // BEFORE this pass empties or replaces anything: the newest real bar's offset from the
-    // right edge (bars, net of that series' D/W/M developing-slot reserve) and the zoom width.
-    // A symbol switch that keeps the outgoing view reads it (framing, keep-present off).
-    // Invalidation: overwritten on every pass that finds a painted series; a black frame
-    // (series emptied, prevPaintBarsRef null) leaves the last painted frame's geometry, which
-    // is still the view the member last saw; a chart recreate resets lastBarCountRef → no read.
-    if (prevPaintBarsRef.current && lastBarCountRef.current > 0) {
-      try {
-        const _r = chartRef.current?.timeScale().getVisibleLogicalRange()
-        if (_r && _r.to > _r.from) {
-          // `_r` is a LOGICAL range → measure against the newest candle's LOGICAL index.
-          const _ni = newestLogicalIndex(chartRef.current, candleSeriesRef.current, lastBarCountRef.current)
-          paintedGeomRef.current = { ro: _r.to - _ni - paintedRsvRef.current, width: _r.to - _r.from }
-        }
-      } catch { /* no chart yet */ }
+    // (imperative switch, stage 1) The whole pass is `applyFrame` below the component: `ctx` is this chart's refs and
+    // setters (stable for its life), `frame` is everything the pass reads of THIS render. The controller (stage 3)
+    // calls the same function with a frame it built, so there is one copy of the series logic.
+    // ⛔ THE STALE-RENDER GUARD (stage 3): a pass of the symbol an imperative switch replaced, while React has not
+    // committed the new one yet, would repaint the old symbol. `switchCtl` is null unless the switch is on.
+    if (switchCtl && switchCtl.staleFor(sym)) return
+    const ctx = {
+      _drawMetaRef, _metaNowRef, _paintMarkedRef, _timingIdRef, alertLineOptsRef, alertLinesRef, axisWidthRatchetRef,
+      barColoursRef, barsPushActiveRef, candleSeriesRef, chartRef, compareSeriesRef, containerRef,
+      crosshairVisibleRef, divBadgeAttachedRef, earnBadgeAttachedRef, engineInstancesRef, engineRef, exactPinSigRef,
+      focusActiveRef, focusProviderInstalledRef, focusRangeRef, frameFadeAlphaRef, framingViewRef, hideBaseRef,
+      indexPaneSeriesRef, indicatorsHiddenRef, ipoBadgeAttachedRef, lastAppliedVolPctRef, lastBarCountRef,
+      lastBarOffRef, lastBarRef, lastBarSymRef, lastCfgSigRef, lastDpZonesRef, lastNetBarRef, lastNetCloseRef,
+      lastNetTimeRef, lastPriceLinesRef, lastServerCloseRef, lastServerCloseSymRef, lastShadeBandsRef,
+      lastShadeBandsVolRef, lastTfRef, latestLiveRef, liveBarRef, liveBarSeriesRef, markersControllerRef,
+      measureLockRef, netColorsRef, netPrevBarRef, netPrevCloseRef, overlaySeriesRefs, overlayTailSeriesRefs,
+      paintedGeomRef, paintedRsvRef, paintSymRef, paneLayoutRef, pdlAttachedRef, pdlCtlRef, pendingTfReframeRef,
+      plotWindowRef, pmLineRefs, pmLinesKeyRef, prevBarsRef, prevBarsSymRef, prevBarsTfRef, prevChartTypeRef,
+      prevPaintBarsRef, priceFormatRef, priceLineRefs, priceManualRangeRef, priceManualRef, provisionalStaleRef,
+      refreshCalcFrameRef, replayCutoffRef, replayLockedViewRef, replayViewLockedRef, respNewestTRef,
+      sessionBreaksAttachedRef, sessionBreaksRef, sessionOwnsDailyRef, sessionShadeAttachedRef, sessionShadeRef,
+      sessionShadeVolAttachedRef, sessionShadeVolRef, sessionViewRef, setChartGen, setChartReady, setPaneLegendKeys,
+      showExtendedRef, splitBadgeAttachedRef, swingAttachedRef, swingCtrlRef, tfSwitchHoldRef, unregisterManifestRef,
+      userLockedViewRef, userViewLockedRef, userViewMovedRef, vertMarginsRef, viewPointerRef, volDragLatchRef,
+      volMaSeriesRef, volMaTailSeriesRef, volPctSettingRef, volTagOffRef, volumeSeparatePaneRef, volumeSeriesRef,
+      wmAnchorRef, wmAttachedRef, wmCtrlRef, wmCustomRef, wmLogoEnabledRef, wmLogoRef, zonesAttachedRef, zonesCtlRef,
+      zoomKeyRef,
     }
-    // No bars yet for this sym/tf? Clear the existing series so the prior
-    // ticker's data doesn't visually persist on screen during transitions.
-    // Without this, switching tickers leaves the OLD ticker's candles drawn
-    // until the new SWR fetch returns — that's the "blended data" the user
-    // sees flipping between charts.
-    // A timeframe-switch HOLD (see `_tfSwitchHold`) keeps the PREVIOUS timeframe's series on
-    // screen untouched until the new tf's complete answer lands — never the black frame below.
-    if (!__heavy.committed.filteredBars?.length && tfSwitchHoldRef.current) return
-    if (!__heavy.committed.filteredBars?.length) {
-      // ⭐ COUNTED, NOT REASONED ABOUT. This arm is the black frame: every series
-      // is emptied, so whatever the member was looking at is gone and nothing has
-      // replaced it. Inferring the rate from "T4 was small" is how the stale-paint
-      // defect hid for a whole cycle.
-      timingMarkEmpty(_timingIdRef.current)
-      try { candleSeriesRef.current?.setData([]) } catch {}
-      try { volumeSeriesRef.current?.setData([]) } catch {}
-      for (const s of overlaySeriesRefs.current) {
-        try { s.setData([]) } catch {}
-      }
-      lastCfgSigRef.current = null
-      prevPaintBarsRef.current = null   // series were cleared — next paint must be full
-      // ⛔ THE READOUT'S SOURCE IS CLEARED WITH THE SERIES IT DESCRIBES. This arm
-      // emptied every series but left `prevBarsRef` holding the OUTGOING ticker's
-      // bars, and `computeLatestCrosshair` reads that ref — so the bar-info strip
-      // kept printing the old ticker's O/H/L/C and Volume under the new ticker's
-      // name, on top of an opaque skeleton. Worse, `ohlcData` recomputing to a
-      // fresh [] re-fires the readout effect, actively RE-publishing the stale
-      // payload. A chart with no bars must have no readout.
-      //
-      // ⚠️ `lastBarCountRef` is deliberately NOT reset here. It anchors the preserved
-      // view across a ticker switch (`oldBarCount`), which is separate machinery with
-      // its own feedback-loop history — this fix is about data identity, not framing.
-      prevBarsRef.current = null
-      prevBarsSymRef.current = null
-      prevBarsTfRef.current = null
-      return
+    const frame = {
+      __heavy, _econId, _exKey, _extendOverlaysLive, _h24, _hasOverride, _intradayLike, _liveSane, _overlayActive,
+      _paintStoreDev, _pinnedFull, _plotWindowFullKey, _shadeOn, _study, _tzId, adjustTime, allPriceLines,
+      anchorOwnsFrame, applyAnchorFrame, applyAverageZOrder, axisAuto, axisFloor, binderNoticeScope, blankVolume,
+      boldCandles, breadthLineColor, buildCrosshairOpts, calcFrames, candleFrameFade, canvasTheme,
+      carryDragPlacement, centerWatermarkOnPlot, chartId, colorByNetChange, compactAxes, comparisonData, cs, csView,
+      dailyDefaultBars, devOnScreen, dpZones, economicSources, ema9CandleColorFor, ema9MatchCandle, entryDate,
+      exactDateRange, exitDate, fadeCutoff, fitPriceToCandles, frameRightPadFrac, frozen, fundamentalSources,
+      hideLastValue, hidePriceLine, hideWatermark, historyFromListing, indexPaneHeightPct, isIntraday,
+      keepPresentOnSymbolChange, leftBarPad, listingUnserved, livePrices, liveUpdates, lowerTfSources,
+      mainPriceScale, marketCapAuthoritySources, mbDown, mbUp, mbUpOpaque, mbVolDown, mbVolUp, mergedMarkers,
+      modelBookLook, otherSymbolExchangeOf, overlayData, pinPriceChrome, priceScaleBottomMargin, priceScaleTopMargin,
+      replayCutoff, replayMode, resolvedOverlays, resolvedTf, rightPadBars, secondarySources, separatorColors,
+      sessionCandleActive, sessionExtReady, sessionPreviewLastBar, sessionShadeBands, showExtended, showVolume,
+      strategyHistoryWindow, strategyListingDepth, strategyWindowPending, studioPreview, subtleSeparator,
+      swingLabelsOn, swingPoints, sym, symbolMeta, themeColors, tickLabelChars, userCandleColors, userDefsGeneration,
+      visibleBarsOverride, volMaData, volMaPeriodEff, volumeLastValue, volumePaneByDefault, volumePaneExists,
+      volumePaneHeightPct, volumeSeparatePane, vwapOverride, watermark, watermarkBrandMark, watermarkCenterX,
+      watermarkOpacity, watermarkPad, watermarkPadTop, watermarkX, watermarkY, wmPending,
     }
-
-    // ── A2: incremental last-bar render (kills the 30s full repaint) ──────────
-    // During RTH the 30s SWR poll delivers a changed DEVELOPING bar, which re-runs
-    // this whole function and full-`setData`s every series (candle + volume + all
-    // MAs + all indicators + markers) — a periodic wholesale repaint. When ONLY
-    // the last bar's OHLCV changed AND the render config is byte-identical to the
-    // last paint, we instead `series.update()` just the last point of each series
-    // (which also makes MAs/indicators track the developing bar in real time
-    // instead of lagging 30s). `_applyData` below routes every setData call
-    // through this decision; it self-corrects to a full setData on ANY edge
-    // (empty series, timestamp mismatch) so a wrong incremental can't stick.
-    // Config guard: a config-only change yields plan 'noop' (bars identical) →
-    // not 'incremental' → full paint; a config change coinciding with a bar tick
-    // is caught by the cfgSig compare. Bias is hard to 'full' — a needless full
-    // repaint is a wasted frame; a wrong incremental would be a data bug.
-    // ⭐ 2026-11-13 — WHICH ROWS OF AN INDICATOR'S SERIES THE RENDERER IS HANDED
-    // (`chart/engine/plotWindow.js`). Decided HERE, before the signature below, because a
-    // change of window changes what the series hold: it has to read as a new configuration
-    // and repaint, never as the `noop` an identical set of bars would otherwise be.
-    // The row count is decided once per (symbol, timeframe) load, from the zoom the chart has
-    // as it opens (a ticker switch keeps the zoom); after that only the bar count moves the
-    // start, a whole step at a time, so a live bar never does.
-    // ⛔ WHOLE, ALWAYS: a pinned / replay / override chart (it frames history on purpose), a
-    // chart with a compare or index overlay (a logical index is then not a bar index), a
-    // chart whose view already came near the window start, and a browser with the switch set.
-    let _plotStart = 0
-    let _plotFrom = null
-    {
-      const _pw = plotWindowRef.current
-      const _pwKey = _exKey   // this render's symbol+timeframe key (the one-key census counts sites)
-      if (_pw.key !== _pwKey) {
-        let _span = 0
-        try {
-          const _r0 = chartRef.current?.timeScale().getVisibleLogicalRange()
-          if (_r0 && _r0.to > _r0.from) _span = _r0.to - _r0.from
-        } catch { /* no chart yet: the floor */ }
-        // Where the view's left edge sits, in bars left of the newest bar: the outgoing
-        // frame's own geometry, measured at the top of this pass (`paintedGeomRef`), which
-        // is the geometry a symbol switch carries when it keeps a scrolled-back view.
-        const _geom = paintedGeomRef.current
-        const _left = _geom && Number.isFinite(_geom.width) && Number.isFinite(_geom.ro) ? _geom.width - _geom.ro : 0
-        _pw.key = _pwKey
-        _pw.rows = plotWindowRows(_span, _left)
-      }
-      const _whole = _plotWindowFullKey === _pwKey || _pinnedFull || _overlayActive || _hasOverride
-        || replayMode || plotWindowDisabled()
-      _plotStart = _whole ? 0 : plotWindowStart(__heavy.committed.filteredBars.length, _pw.rows)
-      if (_plotStart > 0 && __heavy.committed.filteredBars[_plotStart]) _plotFrom = adjustTime(__heavy.committed.filteredBars[_plotStart].t)
-      else _plotStart = 0
-      _pw.start = _plotStart
-      _pw.fromTime = _plotFrom
-      // ⭐ THE RENDER WINDOW of every series, candles included (chart/windowedChart.js): set for each new load from
-      // the view it opens at, and off (every bar) wherever this chart frames history on purpose or a logical index
-      // is not a bar index (pinned / replay / override / compare or index overlay / the switch). A view that comes
-      // near its start extends it in place, so `_plotWindowFullKey` (the lines going whole) does not turn it off.
-      // Decided here for every pass; applied to the chart once per decision (`applyRenderWindow`), right here when
-      // the chart exists, else right after this pass creates it (the page's first chart).
-      const _rwWhole = _pinnedFull || _overlayActive || _hasOverride || replayMode
-      const _rwSig = `${_pwKey}|${_rwWhole ? 'whole' : 'win'}`
-      if (!_pw.rw || _pw.rw.sig !== _rwSig) {
-        let _span = 0
-        try {
-          const _r0 = chartRef.current?.timeScale().getVisibleLogicalRange()
-          if (_r0 && _r0.to > _r0.from) _span = _r0.to - _r0.from
-        } catch { /* no view yet */ }
-        const _geom = paintedGeomRef.current
-        const _left = _geom && Number.isFinite(_geom.width) && Number.isFinite(_geom.ro) ? _geom.width - _geom.ro : 0
-        _pw.rw = { sig: _rwSig, rows: _rwWhole ? null : renderWindowRows(_span, _left), span: _span, applied: false }
-      }
-      applyRenderWindow(chartRef.current, _pw.rw)
-    }
-    let _cfgSig
-    try {
-      _cfgSig = JSON.stringify({
-        sym, resolvedTf, chartType: cs.chartType, showVolume,
-        // the first row of the indicator window (0: every row), see above
-        plotWin: _plotStart,
-        // canvasTheme (workspace theme toggle, e.g. Sunset↔Default) recolors the
-        // candles + volume AND recreates the price series via _priceStyleKey below.
-        // It is NOT part of `cs`, so without it here a theme-only flip keeps an
-        // identical signature → plan 'noop' → the recreated series never gets its
-        // setData (candles vanish) and volume keeps the old theme's colors until a
-        // ticker change. Including it forces a full repaint on every theme switch.
-        canvasTheme,
-        cs, adjustTime, vwapOverride, hideWatermark, hidePriceLine, leftBarPad,
-        modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles,
-        watermark, watermarkOpacity,
-        // Covers ohlcData's remaining dep — the muted-white paint of the pre-market
-        // preview candle, which changes colors without changing any bar VALUE (so the
-        // render plan below can't see it).
-        sessionPreviewLastBar,
-        ovN: overlayData?.length ?? 0,
-        mkN: mergedMarkers?.length ?? 0,
-        plN: allPriceLines?.length ?? 0,
-        cmpN: comparisonData?.length ?? 0,
-        // ⭐ P2 Track B — WHAT `cs` CANNOT SEE. Create Indicator's preview lives in
-        // `csView` and the registry, never in `cs`, so a conversational patch
-        // ("make it 50") left this signature byte-identical, the plan read 'noop'
-        // and `_applyData` skipped the recomputed column — the chart kept drawing
-        // EMA 20 (measured in the browser). The registry generation moves on every
-        // definition install; the preview id on open/close.
-        defsGen: userDefsGeneration,
-        preview: studioPreview ? studioPreview.instanceId : null,
-      })
-    } catch {
-      // A non-serializable setting must never break the chart — fail safe to a
-      // full paint (null cfgSig guarantees _incr is false this run).
-      _cfgSig = null
-    }
-    // Plan against displayBars (what actually gets painted), NOT filteredBars. The
-    // session-preview candle rides ONLY the display path by design — filteredBars stays
-    // pure regular-session — so planning off filteredBars reports 'noop' the moment the
-    // "Include pre/post-market" toggle flips (and on every ext-price tick), and the
-    // synthetic candle never reaches the series. Intraday/RTH is unaffected: with no
-    // session candle and no Heikin-Ashi, displayBars IS filteredBars (same reference),
-    // so the extended-hours no-op guard this plan exists for behaves exactly as before.
-    const _plan = barsRenderPlan(prevPaintBarsRef.current, __heavy.committed.displayBars)
-    const _cfgSame = _cfgSig != null && _cfgSig === lastCfgSigRef.current
-    // A chart/series that doesn't exist yet gets CREATED later in this run —
-    // a 'noop'/'incremental' plan (latched from a destroyed predecessor with
-    // content-identical bars) must never skip its first real paint.
-    const _freshChart = !chartRef.current || !candleSeriesRef.current
-    const _incr = _cfgSame && _plan.mode === 'incremental' && !_freshChart
-    // Bars AND config byte-identical to the last paint → the series already hold
-    // exactly this data; re-`setData`ing would be a pure wipe/repaint. CRITICAL in
-    // EXTENDED HOURS: the live session price-tag (intradaySessionTagLines → allPriceLines)
-    // recomputes on EVERY tick, re-running this whole effect ~1×/sec. A full setData
-    // there erases the live-writer-painted DEVELOPING bar (which isn't in filteredBars
-    // when the server hasn't served the current partial bucket) — it vanished and got
-    // re-added every tick, shaking the chart. Skipping the no-op paint leaves the
-    // developing bar (and the live-extended MAs) untouched; the price tags still
-    // re-apply below.
-    const _noop = _cfgSame && _plan.mode === 'noop' && !_freshChart
-    lastCfgSigRef.current = _cfgSig
-    recordPaint(sym, resolvedTf, __heavy.committed.displayBars?.length ?? 0, _noop ? 'noop' : _incr ? 'incr' : 'full')
-    // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
-    // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
-    if (typeof window !== 'undefined' && window.__uctBarsDebug && paintSymRef.current !== `${sym}_${resolvedTf}`) {
-      console.log('[bars-paint]', 'PAINT', `${sym}_${resolvedTf}`, 'prev:', paintSymRef.current,
-        '| bars:', __heavy.committed.filteredBars.length, 'firstT:', __heavy.committed.filteredBars[0]?.t, 'lastT:', __heavy.committed.filteredBars[__heavy.committed.filteredBars.length - 1]?.t,
-        '| mode:', _incr ? 'incremental' : 'full')
-      paintSymRef.current = `${sym}_${resolvedTf}`
-    }
-    const _applyData = (series, data) => {
-      if (!series || !data) return
-      // Nothing changed since the last paint — don't touch the series (see _noop).
-      // A redundant setData here is what wiped the developing bar every tick in
-      // extended hours; leaving the series as-is preserves the live-writer bar.
-      if (_noop) return
-      // A trailing WHITESPACE point means this series has nothing ON the newest
-      // bar — Ichimoku's chikou is the real case: it plots each close 26 bars
-      // BACK, so its head value sits 26 bars from the right and `update()` with
-      // the newest (empty) point would leave that head frozen at the last full
-      // paint. Fall through to setData for those; every other series still takes
-      // the incremental path, which is the 30s-full-repaint fix.
-      if (_incr && data.length && !isWhitespacePoint(data[data.length - 1])) {
-        try { series.update(data[data.length - 1]); return } catch { /* fall through to full setData */ }
-      }
-      try { series.setData(data) } catch {}
-    }
-
-    let chart = chartRef.current
-
-    // Capture the TRUE pre-update visible range, BEFORE any setData below shifts it.
-    // The same-ticker backfill re-anchor (a depth jump like the 600→12025 dwell-warm)
-    // uses THIS instead of a post-setData read — LWC re-anchors the range to the new
-    // (much larger) extent during setData, so reading it afterward is unreliable and
-    // was letting the view snap back to default when deep history loaded.
-    let _preUpdateRange = null
-    try { _preUpdateRange = chart?.timeScale().getVisibleLogicalRange() } catch { /* no chart yet */ }
-
-    // ── WHOSE NUMBERS ARE THE CANDLES' `scaleMargins` RIGHT NOW? ──────────────
-    //
-    // `zoomKey` is hoisted here (the framing branch below consumes the same
-    // constant) so this pass can ask ONE question before it touches the price
-    // scale: is a manual price-axis pin in force ON THIS VERY CHART?
-    //
-    // ⚰️⚰️ BECAUSE A PIN AND A MARGIN SET ARE TWO REPRESENTATIONS OF ONE GESTURE,
-    // AND APPLYING BOTH APPLIES IT TWICE. `capturedPriceRange` pins the range that
-    // maps back to the pixels the member released on — *given the margins in force
-    // at that moment* (its own doc comment says so). `vertMarginsRef` then carries
-    // the SAME gesture as a normalised band, for the NEXT ticker. Re-asserting that
-    // band over the live pin insets the pinned range a second time and the candles
-    // compress the instant anything repaints — every live tick, every backfill,
-    // every re-render. The pin is the vertical view for THIS symbol; the band is
-    // the vertical view for the next one. Exactly one of them may be applied.
-    //
-    // ⭐ SO THE GESTURE OWNS THE MARGINS UNTIL IT IS RELEASED, and this pass leaves
-    // them alone — the same remedy, for the same reason, as the `rightOffset` /
-    // `rightBarStaysOnScroll` strip a hundred lines below. A ticker or timeframe
-    // switch changes `zoomKey`, so the pin stops owning them on the very pass that
-    // re-frames the new chart and the band lands normally.
-    const zoomKey = `${sym}_${resolvedTf}_${replayCutoff ?? ''}`
-    framingViewRef.current = zoomKeyRef.current !== zoomKey
-    const _pinOwnsMargins = !!priceManualRef.current && zoomKeyRef.current === zoomKey
-
-    // ── Capture the OUTGOING ticker's vertical candle placement (proportional lock) ──
-    // Runs only on a true ticker switch (same timeframe), BEFORE chartOpts re-applies
-    // scaleMargins. We measure where the visible candles sit within the price pane as
-    // top/bottom fractions. If that differs from the default headroom, the user has
-    // dragged the price scale to reposition the candles — remember it so the next stock
-    // lands in the same proportional spot (scaled to its own range). If it matches the
-    // default, treat as "not customized" (null) so volume/indicator pane toggles still
-    // re-flow normally.
-    if (exactDateRange || !carryDragPlacement) {
-      // Model Book frames each stock to a fixed year and should just autoscale —
-      // the carry-the-drag-placement-across-tickers lock is inappropriate here and
-      // compounds badly on huge back-adjusted/log-scale values (uploaded delisted
-      // data), ballooning the price scale until the candles are a sliver.
-      vertMarginsRef.current = null
-    } else {
-      // ── APPLY-ONLY view lock ──────────────────────────────────────────────
-      // The view lock is a FIXED target, written ONLY by an explicit user
-      // drag / zoom (the pointer-up + wheel capture, _captureUserLock below).
-      // A ticker (or phase / tf) switch must NEVER re-measure and re-store it.
-      // Re-measuring the freshly re-framed outgoing view round-trips
-      // imperfectly — future-axis padding, rightBarStaysOnScroll and the
-      // whitespace future-bars all nudge the settled range by a hair — so
-      // re-storing that nudged value on EVERY switch compounds into months of
-      // leftward drift (the "sends me back in time with each search" bug).
-      // Here we only APPLY: the vertical band (a proportional fraction, so it
-      // is TF-independent and carries across ticker AND timeframe switches),
-      // and the horizontal anchorFrac is applied straight from the stored value
-      // in the framing branch. Cleared only by right-click → "Reset view".
-      vertMarginsRef.current = (userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.top != null)
-        ? { top: userLockedViewRef.current.top, bottom: userLockedViewRef.current.bottom }
-        : null
-    }
-
-    // ── Create or update chart instance ──
-    // Axis-width pin, scaled with the user's scale text size. The 76px floor
-    // below was verified at fontSize 11 (see the rightPriceScale comment); a
-    // user-bumped cs.textSize widens every axis tag past that floor, un-pinning
-    // the axis so it re-flows on each live tick — the ~1/sec left-right shake
-    // came BACK for users with larger scale text. Scale the floor with the font
-    // so the pin holds at any size (never below the verified 76) — then ratchet
-    // it up to the widest column actually MEASURED this sym/tf, so even an
-    // environment the static floor never anticipated (DPR/zoom/font fallback)
-    // can only widen the axis once, never oscillate it (axisWidthRatchetRef).
-    let _measuredAxis = 0
-    try { _measuredAxis = chartRef.current?.priceScale('right')?.width() || 0 } catch { /* no chart yet */ }
-    if (_measuredAxis > axisWidthRatchetRef.current) axisWidthRatchetRef.current = _measuredAxis
-    const _axisMinWidth = Math.max(
-      compactAxes ? 0 : Math.ceil((axisFloor ?? 76) * Math.max(1, (cs.textSize ?? 11) / 11)),
-      axisWidthRatchetRef.current,
-    )
-    const chartOpts = {
-      layout: {
-        background: themeColors.layoutTransparent
-          ? { type: ColorType.Solid, color: 'rgba(255,255,255,0)' }   // transparent → container gradient shows through (continuous across panes)
-          : themeColors.backgroundGradient
-            ? { type: ColorType.VerticalGradient, topColor: themeColors.backgroundGradient.top, bottomColor: themeColors.backgroundGradient.bottom }
-            : { type: ColorType.Solid, color: themeColors.background },
-        // Auto-contrast ink derived from the canvas — deliberately NOT the user's
-        // scale color (see axisAuto).
-        textColor: axisAuto.ink,
-        // Tabular-figures build first so canvas-drawn axis labels (price + MA
-        // last-value chips) are equal-width and their boxes line up; falls back to
-        // the proportional face for any non-latin glyph. See index.html @font-face.
-        fontFamily: "'Instrument Sans Tab', 'Instrument Sans', sans-serif",
-        fontSize: compactAxes ? Math.min(cs.textSize ?? 11, 10) : (cs.textSize ?? 11),
-        attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
-        // Model Book: subtle (not bold gray) pane divider; still draggable.
-        //
-        // ⭐ FLIP C: SPEC §6 REQUIRES A DRAGGABLE DIVIDER, and under `'panes'`
-        // every oscillator has one. `enableResize` was already declared for the
-        // two surfaces that restyle the separator; in `'panes'` mode it is
-        // declared for ALL of them, so the answer is in the chart's own options
-        // rather than resting on the library default. (It is `!frozen` either
-        // way: a Setup Library exhibit is a static picture and its panes are not
-        // draggable — the one place spec §6 does not apply.)
-        //
-        // ⭐⭐ SUB-CHOICE 2.1, ANSWERED **TAKE THE TOKEN** BY THE OWNER ON
-        // 2026-08-05 (record §5). **2,400 px on `rsi_only`** — exactly one
-        // 1,200-px row per separator, and nothing else on the canvas moves
-        // (builds `1667183abbe0` → `d361f1585243`). `separatorColors` is already
-        // derived from the canvas AT THE SEPARATOR'S OWN HEIGHT and is what the
-        // Model Book and bold-candle surfaces use; leaving LWC's `#2B2B43` in
-        // place would put the app's one remaining hard-coded chrome colour
-        // between every pair of panes — invisible against a dark canvas and
-        // wrong against a light one, the exact defect `separatorColors` was
-        // written to fix. ⚠️ It restyles a divider that ALREADY EXISTS (the
-        // price/volume one), which is why it was priced as its own decision and
-        // not folded into the cutover's number.
-        ...((boldCandles || subtleSeparator || paneMode() === 'panes')
-          ? { panes: { separatorColor: separatorColors.color, separatorHoverColor: separatorColors.hover, enableResize: !frozen } }
-          : {}),
-      },
-      // Frozen (Setup Library examples): the chart is a static exhibit pinned to
-      // its framed window — no pan/zoom/axis-drag, and the wheel is left alone so
-      // it scrolls the PAGE instead of the chart.
-      // Plain mouse-drag PANS the chart (default). Drag-to-measure is gated behind
-      // Shift: onDown sets measureLockRef while Shift+dragging so the chart stays put.
-      // Computed here (re-runs on data polls) so a poll can't unlock mid-measure.
-      handleScroll: (frozen || measureLockRef.current) ? false : true,
-      handleScale: frozen || measureLockRef.current ? false : true,
-      // Chart Settings → Canvas → Grid → Lines: `grid.visible` is the master, `grid.lines` says which (absent = both).
-      grid: gridOptionsFor(cs, themeColors.gridColor),
-      // Crosshair lines + tracking axis labels. Visibility comes from the resolved
-      // three-way mode (always / hold / off) via `crosshairVisibleRef` — a ref so
-      // this (inside updateChart, which does NOT depend on the hold state) always
-      // reads the live value. The interactive press/release toggle is handled by
-      // the dedicated applyOptions effect above; both use `buildCrosshairOpts` so
-      // the shown/hidden shapes stay identical. (`hideCrosshair`, the Setup-Library
-      // host override, is already folded into `crosshairVisible`.)
-      crosshair: buildCrosshairOpts(crosshairVisibleRef.current),
-      rightPriceScale: {
-        borderColor: themeColors.borderColor,
-        // No vertical separator line between the plot and the axis — the values sit
-        // right against the plot (also lets the volume-pane scale align cleanly under
-        // the price scale, since both panes are now borderless).
-        borderVisible: false,
-        // Pin a stable minimum width so the axis can't re-flow as the developing
-        // bar's live last-value label re-renders. At fractional display scaling
-        // (e.g. Windows 125/150%) that label's sub-pixel width jitters every price
-        // tick; a floating price-scale width makes the whole plot shift left/right
-        // in lockstep with the quotes (the "chart jiggles on every tick" bug).
-        // ⚠️ DO NOT LOWER below the widest last-value TAG width or the bug returns —
-        // a $600–900 price ("695.34") + the tag's background padding overflows a
-        // 64px axis, so it auto-sized per tick and the intraday WS push feed
-        // (multiple ticks/sec) made it shake continuously. 76 is the value verified
-        // against a DPR-1.5 live-tick repro (0 shifts). Tightening the axis is not
-        // worth reintroducing the jitter. _axisMinWidth scales this floor with
-        // cs.textSize (larger scale text = wider tags = the same overflow class).
-        minimumWidth: _axisMinWidth,
-        // Locked proportional placement (carried across ticker switches) wins over the
-        // default headroom. vertMarginsRef is captured in fractions of the pane, so the
-        // candles land in the same relative spot regardless of the stock's price.
-        scaleMargins: vertMarginsRef.current || _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
-        // A Study chart prints a top or bottom price label only when the whole label fits (the screen check,
-        // 2026-11-14: "140.00" cut in half at the top and "52.00" sliced by the volume pane). Every other chart keeps
-        // the library default.
-        ...(_study ? { entireTextOnly: true } : {}),
-      },
-      localization: {
-        // Crosshair time label (the hover box on the axis): weekday + date +
-        // 12-hour time, e.g. "Tue 14 Jul '26 12:00 AM".
-        // Chart Settings → Time format / Time zone pick the pair (timeAxisFormattersFor).
-        timeFormatter: timeAxisFormattersFor(_h24, _tzId, _study).crosshair,
-      },
-      timeScale: {
-        borderColor: themeColors.borderColor,
-        // No horizontal separator line under the panes — matches the borderless right
-        // price scale so the bottom edge stays a clean single hairline (the widget's
-        // own border), not a doubled dark line.
-        borderVisible: false,
-        timeVisible: true,
-        secondsVisible: false,
-        // Bottom-axis tick labels: 12-hour on intraday (default is 24-hour). A Study chart names the month on a
-        // first-week day mark (studyTickMarkFormatter).
-        tickMarkFormatter: timeAxisFormattersFor(_h24, _tzId, _study).tick,
-        // A host that knows its labels are short sizes the library's label slot to them (`tickLabelChars`, opt-in; the
-        // Study drill on a wide screen). Unset, the library's own eight-character slot, as on every other chart.
-        ...(tickLabelChars > 0 ? { tickMarkMaxCharacterLength: tickLabelChars } : {}),
-        // Exact-range (Model Book) locks to a historical window, so don't pin the
-        // latest bar to the right edge — that re-expands the view to "now".
-        rightOffset: exactDateRange ? 0 : rightPadBars,
-        rightBarStaysOnScroll: exactDateRange ? false : true,
-        // Setup → Result appends the result-era bars while the view sits ON the
-        // last bar; LWC's default then shifts the window to the new last bar
-        // BEFORE the pin effect's glide starts — the "snaps right, then zooms"
-        // bug. Exact-range charts are frozen historical windows: never
-        // auto-shift them.
-        shiftVisibleRangeOnNewBar: exactDateRange ? false : true,
-      },
-    }
-
-    if (!chart) {
-      // Pinned 5.2.0 default is `true`, which re-orders draw order within a pane on
-      // hover. This chart stacks candles + MA overlays + VWAP + BB + Donchian + SAR
-      // + comparison in pane 0, so hovering would silently restack them (and later,
-      // float a band's constituent line above its own fill). Keep 5.1.0 rendering;
-      // opt in deliberately if we ever want the hit-testing that comes with it.
-      // ⭐ THE RENDER WINDOW (2026-11-20, owner: "I NEED THEM ALL BELOW 20MS"): the library is handed only a
-      // window of bars a few screens deep (chart/windowedChart.js); everything here keeps speaking full-history
-      // indices through the facade, and a view reaching left of the window extends it before the frame paints.
-      chart = createWindowedChart(createChart(containerRef.current, {
-        ...chartOpts,
-        autoSize: true,
-        hoveredSeriesOnTop: false,
-      }))
-      chartRef.current = chart
-      // The library's layout <table> is not a data table (utils/chartLayoutTable.js).
-      markChartLayoutPresentational(chart)
-      if (plotWindowRef.current?.rw) { plotWindowRef.current.rw.applied = false; applyRenderWindow(chart, plotWindowRef.current.rw) }
-      // Read-only debug handle for probes/rigs (the __uctBarsPush idiom):
-      // the mobile pinch gate needs the visible logical range and every
-      // pixel/UI side-channel for it proved unreliable (gridlines light every
-      // column; rightBarStaysOnScroll pins the pill away). Reads chartRef at
-      // CALL time; keyed by chartId so multi-chart pages don't collide.
-      if (typeof window !== 'undefined') {
-        window.__uctChartDebug = window.__uctChartDebug || {}
-        window.__uctChartDebug[chartId || 'main'] = chartDebugHandle({
-          chartRef, candleSeriesRef, plotWindowRef, engineRef, priceManualRangeRef, priceManualRef,
-          userLockedViewRef, userViewLockedRef, vertMarginsRef,
-        })
-      }
-      // ⭐ THE PANE MANIFEST'S ONE LINE — the chart announces ITSELF (Task 3 → 4).
-      //
-      // `pages/ChartRender.jsx` publishes `window.__paneManifest` for the parity
-      // harness, and it cannot reach this `IChartApi`: `StockChart` exposes it
-      // through no prop, no ref and no callback. So `engine/paneLayout.js` carries a
-      // one-slot registry and the renderer registers into it here, at creation,
-      // which is the only place the identity of the chart changes.
-      //
-      // ⚠️ THE BINDINGS ARE A THUNK, NOT A VALUE. The manifest must read the
-      // engine's CURRENT bindings at the moment the harness asks, and this line
-      // runs once per chart while the binder is rebuilt whenever the instance list
-      // moves. Reading `engineRef.current` inside the closure is what keeps the
-      // `key` on each series (its POOL KEY — stable, derived from the instance id,
-      // never object identity and never a shifting index) attached to the series
-      // actually on the chart.
-      //
-      // ⚠️ It returns `[]`, never `null`, when no binder exists: `paneManifest`
-      // treats a non-array as "no bindings" and would report every series' `key` as
-      // null, which reads identically to a chart whose engine drew nothing.
-      // Un-registering is the cleanup effect's job, beside `chart.remove()`.
-      unregisterManifestRef.current = registerManifestChart(
-        chart,
-        () => (engineRef.current ? engineRef.current.binder.bindings() : []),
-      )
-      setChartGen((g) => g + 1)
-      setChartReady(true)
-      // The page's first chart exists (it is created only once its bars are in): the background
-      // pack ingests may start now. Once per page; see `afterFirstChartPaint` in barsPackClient.
-      markFirstChartPaint()
-    } else {
-      // Re-apply cosmetic/config options on an EXISTING chart, but NOT the
-      // view-scroll options (rightOffset / rightBarStaysOnScroll /
-      // shiftVisibleRangeOnNewBar). Those are set once at creation; re-applying
-      // rightOffset here RE-SCROLLS the chart to the right edge, snapping the
-      // view back whenever the user has panned/zoomed/dragged the price scale
-      // ("chart skips periods / jumps"). Omitting them from the partial
-      // timeScale update leaves LWC's current scroll position untouched. The
-      // zoom-anchoring logic below still sets the visible range explicitly on
-      // sym/tf switches and data-phase swaps.
-      const { rightOffset: _ro, rightBarStaysOnScroll: _rbs, shiftVisibleRangeOnNewBar: _svr, ...tsSafe } = chartOpts.timeScale
-      // ⛔ AND `scaleMargins` JOINS THEM WHENEVER A MANUAL PRICE-AXIS PIN IS LIVE,
-      // for the identical reason: the member's gesture already placed the candles
-      // and this pass must not re-place them. See `_pinOwnsMargins`.
-      const { scaleMargins: _sm, ...psSafe } = chartOpts.rightPriceScale
-      chart.applyOptions({
-        ...chartOpts,
-        rightPriceScale: _pinOwnsMargins ? psSafe : chartOpts.rightPriceScale,
-        timeScale: tsSafe,
-      })
-    }
-
-    // ── Symbol watermark (custom v5 pane primitive, behind series) ──
-    if (!wmCtrlRef.current) {
-      wmCtrlRef.current = createWatermarkPrimitive({ x: cs.watermark.x, y: cs.watermark.y })
-    }
-    if (!wmAttachedRef.current) {
-      try {
-        // ⭐ THE WATERMARK IS PRICE-OWNED — the same `panes()[0]` assumption as
-        // the axis-drag capture above, and it belongs on the candles' pane
-        // wherever that now sits.
-        ;(candleSeriesRef.current?.getPane?.() || chart.panes()[0]).attachPrimitive(wmCtrlRef.current.primitive)
-        wmAttachedRef.current = true
-      } catch { /* older pane API — primitive optional */ }
-    }
-    {
-      const wmLines = (cs.watermark.visible && !hideWatermark && !hideBaseRef.current)
-        ? composeWatermarkLines(watermark ?? sym, _metaNowRef.current().watermarkMeta, cs.watermark.lines, tfWatermarkLabel(resolvedTf))
-        : []
-      // centerWatermarkOnPlot: pin the horizontal center to the middle of the
-      // WHOLE widget — the candle plot PLUS the right price-axis gutter — measured
-      // from the pane's left edge (= widget's left edge; there's no left axis). So
-      // it's centered between the outer left/right edges of the widget, not just
-      // the candle area. Falls back to watermarkCenterX otherwise.
-      let _wmCenterX = watermarkCenterX
-      if (centerWatermarkOnPlot) {
-        try {
-          const _tw = chart.timeScale().width()
-          let _aw = 0; try { _aw = chart.priceScale('right').width() || 0 } catch { /* no right axis */ }
-          if (_tw > 0) _wmCenterX = (_tw + _aw) / 2
-        } catch { /* keep fallback */ }
-      }
-      wmCtrlRef.current.setOptions({
-        lines: wmLines,
-        // The ENABLED fields (not merely the ones this ticker has data for) size the
-        // watermark's layout box, so the mark occupies the same rectangle on every
-        // symbol — DIA's long name can't widen it and MU's extra rows can't push its
-        // top edge up under the legend.
-        fields: cs.watermark.lines,
-        boxW: cs.watermark.boxW ?? DEFAULT_BOX_W,
-        color: cs.watermark.color,
-        opacity: watermarkOpacity ?? cs.watermark.opacity,
-        sizeScale: cs.watermark.sizeScale,
-        weight: cs.watermark.weight ?? 700,
-        // In adjust mode the PENDING dragged spot wins, so a data-poll re-render
-        // can't snap the mark back to its saved position mid-drag.
-        x: wmPending?.x ?? watermarkX ?? cs.watermark.x,
-        y: wmPending?.y ?? watermarkY ?? cs.watermark.y,
-        // Horizontal alignment (left/center/right) + whether a custom drag position
-        // is active (a custom position uses the centre anchor; align does text
-        // justification and the left/right non-custom placement).
-        align: cs.watermark.align || 'center',
-        custom: wmCustomRef.current,
-        // Pixel anchor for a hand-placed mark (omitted when there is none — see the
-        // placement effect: a null would wipe a derived anchor on every data poll).
-        ...(wmAnchorRef.current ? { anchor: wmAnchorRef.current } : {}),
-        // Re-asserted here (not only in the badge effect) so a primitive created
-        // AFTER the logo loaded still gets it — that race is what left the mark
-        // logo-less after a refresh.
-        logoEnabled: wmLogoEnabledRef.current,
-        logoImg: wmLogoRef.current,
-        logoScale: watermarkBrandMark ? 1.35 : 1,
-        ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPadTop ?? watermarkPad } : {}),
-        hardCenterXPx: wmCustomRef.current ? null : _wmCenterX,
-      })
-    }
-
-    // ── Extended-hours shading (custom v5 pane primitive, behind series) ──
-    if (!sessionShadeRef.current) {
-      sessionShadeRef.current = createSessionShadingPrimitive({})
-    }
-    if (!sessionShadeAttachedRef.current) {
-      try {
-        // ⭐ AND SO IS THE SESSION SHADE — it shades the candles' own pane.
-        ;(candleSeriesRef.current?.getPane?.() || chart.panes()[0]).attachPrimitive(sessionShadeRef.current.primitive)
-        sessionShadeAttachedRef.current = true
-      } catch { /* older pane API — primitive optional */ }
-    }
-    {
-      // `sessionShadeBands` is memoized on [filteredBars, adjustTime, shadeOn] — the
-      // band pass is O(bars) and this block runs on every updateChart, so computing
-      // it inline re-walked the whole (2.5×-longer, extended-hours) bar array on
-      // every repaint. setOptions also forces a primitive redraw, so re-setting
-      // identical bands was paying twice; skip when nothing changed.
-      if (lastShadeBandsRef.current !== sessionShadeBands) {
-        lastShadeBandsRef.current = sessionShadeBands
-        sessionShadeRef.current.setOptions({ enabled: _shadeOn, bands: sessionShadeBands })
-      }
-    }
-
-    // Price-scale mode (Normal/Log/Percent) is applied by a dedicated effect
-    // keyed on `effectiveScale`, so the A/L/% toggle and the forceLogScale
-    // default both take effect immediately (and survive data updates).
-
-    // ── Price series — reuse if chart type unchanged, else swap ──
-    // When swapping the candle series, the markers controller is bound to the
-    // old series — detach it so the next markers update creates a fresh
-    // controller against the new series.
-    // Include the effective candle colors so a color-picker change recreates the
-    // series (re-runs the `_bold` options + re-installs the net-change wrapper with
-    // the new palette). mbUp/mbDown resolve to the user's colors when userCandleColors.
-    // Effective candle colors — refreshed every run into netColorsRef so the wrapper
-    // and the live series options below read the latest WITHOUT recreating the series.
-    {
-      const _m = cs.candleColorMode || 'netchange'
-      const _u = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
-      const _d = boldCandles ? mbDown : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
-      // Sunrise is a fixed light theme: candle bodies are forced to SUNRISE_UP/DOWN
-      // (_u/_d), so the wick + border MUST follow the body — NOT the user's saved
-      // upWick/downWick/upBorder/downBorder (which are the dark-theme palette and
-      // render a brighter, mismatched red/green wick on the Sunrise canvas). This
-      // keeps NC in lockstep with the `_bold` sunrise series-creation options
-      // (wick/border = mbUp/mbDown) so the live color-apply below can't re-split them.
-      const _sruniform = canvasTheme === 'sunrise'
-      netColorsRef.current = {
-        mode: _m, up: _u, down: _d,
-        one: (userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : _u,
-        borUp: _sruniform ? _u : (userCandleColors ? (cs.candles.upBorder || _u) : _u),
-        borDown: _sruniform ? _d : (userCandleColors ? (cs.candles.downBorder || _d) : _d),
-        wickUp: _sruniform ? _u : (userCandleColors ? (cs.candles.upWick || _u) : _u),
-        wickDown: _sruniform ? _d : (userCandleColors ? (cs.candles.downWick || _d) : _d),
-        // Hollow bodies are a CANDLE-ONLY effect. A CandlestickSeries with a
-        // transparent body still draws its border (borderVisible below), so the bar
-        // stays visible as an outline — but BarSeries (chartType 'bars'/'hlc') has NO
-        // border to fall back on, so a transparent "body" is the bar's only stroke and
-        // the bar disappears outright. Left unguarded, every up-bar vanished under the
-        // Sunset/light canvas while the MAs (same data) drew normally.
-        hollow: (canvasTheme === 'sunrise' || cs.chartType === 'hollow')
-          && (cs.chartType === 'candles' || cs.chartType === 'hollow'),
-        insideBlack: canvasTheme === 'sunrise',
-        // Chart Settings → Price style → Colors → Body off (candles / hollow only): every body transparent, so
-        // the borders and wicks (each with its own on/off) are what draws. Absent = on, as before.
-        noBody: (cs.chartType === 'candles' || cs.chartType === 'hollow') && !candlePartsOf(cs).body,
-      }
-    }
-    // Only a change of the underlying LWC SERIES TYPE (+ theme) recreates the series.
-    // candles↔hollow share a Candlestick series and bars↔hlc share a Bar series — the
-    // difference (hollow body / hidden open tick) is applied live below, so toggling
-    // them (and colors, and the color mode) never destroys the series = no shake.
-    const _ct = cs.chartType || 'candles'
-    const _seriesType = (_ct === 'candles' || _ct === 'hollow') ? 'candle'
-      : (_ct === 'bars' || _ct === 'hlc') ? 'bar' : _ct
-    const _priceStyleKey = `${_seriesType}|${canvasTheme || ''}`
-    if (prevChartTypeRef.current !== _priceStyleKey && candleSeriesRef.current) {
-      try { chart.removeSeries(candleSeriesRef.current) } catch {}
-      candleSeriesRef.current = null
-      try { markersControllerRef.current?.detach?.() } catch {}
-      markersControllerRef.current = null
-      // The consumer's price lines (a pivot, an entry/stop) died with the old series. Their array
-      // identity does not move on a type change, so without this the identity guard below skips
-      // the rebuild and the new series comes up with no lines.
-      priceLineRefs.current = []
-      lastPriceLinesRef.current = undefined
-      focusProviderInstalledRef.current = false  // new series needs the focus autoscale provider re-attached
-      swingAttachedRef.current = false           // swing-label primitive must re-attach to the new series
-      earnBadgeAttachedRef.current = false       // earnings-badge primitive must re-attach to the new series
-      splitBadgeAttachedRef.current = false      // split-badge primitive must re-attach
-      divBadgeAttachedRef.current = false        // dividend-badge primitive must re-attach
-      ipoBadgeAttachedRef.current = false        // IPO-badge primitive must re-attach
-      zonesAttachedRef.current = false           // level-zones primitive must re-attach to the new series
-      pdlAttachedRef.current = false             // prev-day-levels primitive must re-attach to the new series
-      pmLineRefs.current = []                    // the PM high/low price lines died with the old series
-      pmLinesKeyRef.current = ''
-    }
-
-    if (!candleSeriesRef.current) {
-      let priceSeries
-      switch (cs.chartType) {
-        case 'hollow':
-          priceSeries = chart.addSeries(CandlestickSeries, {
-            upColor: 'transparent', downColor: cs.candles.downColor,
-            borderUpColor: cs.candles.upColor, borderDownColor: cs.candles.downColor,
-            wickUpColor: cs.candles.upWick, wickDownColor: cs.candles.downWick,
-          })
-          break
-        case 'bars':
-          priceSeries = chart.addSeries(BarSeries, {
-            upColor: cs.candles.upColor, downColor: cs.candles.downColor,
-            thinBars: cs.candles.thinBars !== false,
-          })
-          break
-        case 'hlc':
-          // HLC bar = OHLC bar with the left "open" tick hidden.
-          priceSeries = chart.addSeries(BarSeries, {
-            upColor: cs.candles.upColor, downColor: cs.candles.downColor,
-            openVisible: false,
-            thinBars: cs.candles.thinBars !== false,
-          })
-          break
-        case 'line': {
-          // One-color = the single color; net/open-close = per-segment (from
-          // closeData's per-point `color`), with the up color as the base. A breadth
-          // line overrides all of that with the canvas-contrasting ink.
-          const _lineBase = breadthLineColor || ((cs.candleColorMode === 'onecolor')
-            ? ((userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : mbUp)
-            : mbUp)
-          priceSeries = chart.addSeries(LineSeries, { color: _lineBase, lineWidth: 2 })
-          break
-        }
-        case 'area': {
-          const _areaBase = (cs.candleColorMode === 'onecolor')
-            ? ((userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : mbUp)
-            : mbUp
-          // The fill under an area chart is always a neutral, automatic transparent
-          // gray (per request) — only the LINE follows the color mode.
-          priceSeries = chart.addSeries(AreaSeries, {
-            lineColor: _areaBase,
-            topColor: 'rgba(140,140,140,0.16)',
-            bottomColor: 'rgba(140,140,140,0.0)',
-            lineWidth: 2,
-          })
-          break
-        }
-        default: // 'candles'
-          priceSeries = chart.addSeries(CandlestickSeries, {
-            upColor: cs.candles.upColor, downColor: cs.candles.downColor,
-            borderUpColor: cs.candles.upBorder, borderDownColor: cs.candles.downBorder,
-            wickUpColor: cs.candles.upWick, wickDownColor: cs.candles.downWick,
-          })
-      }
-      candleSeriesRef.current = priceSeries
-      chart.window?.setPrimary(priceSeries)   // the candles' rows define the render window
-      // Model Book studies a past year — the current (latest) price line is
-      // irrelevant there, so hide the dotted last-price line for exact-range.
-      // boldCandles paints solid bright green/red; hideLastValue drops the
-      // right-axis price tag. Both only apply to instances that opt in.
-      try {
-        // The intraday popup (modelBookLook) shares the Model Book main chart's
-        // solid bold green/red so the two charts match exactly — without it the
-        // popup falls back to the lighter default cs.candles palette.
-        // Model Book (boldCandles) gets the punchier TC2000 palette (vivid green
-        // / deep red); the intraday popup (modelBookLook) keeps the base bold one.
-        const _bUp = boldCandles ? mbUp : BOLD_UP
-        const _bDown = boldCandles ? mbDown : BOLD_DOWN
-        const _bold = (canvasTheme === 'sunrise' && _seriesType === 'candle') ? {
-          // Sunrise default = HOLLOW candles (TC2000 look): up = hollow body + dark
-          // green outline; down = filled dark red. Same palette as the volume bars.
-          upColor: 'rgba(0,0,0,0)', downColor: mbDown,
-          borderVisible: true, borderUpColor: mbUp, borderDownColor: mbDown,
-          wickUpColor: mbUp, wickDownColor: mbDown,
-        } : canvasTheme === 'sunrise' ? {
-          // Sunrise with a BAR series ('bars'/'hlc'): SOLID dark palette, never the
-          // hollow treatment above. BarSeries has no border, so a transparent upColor
-          // leaves the bar with no stroke at all and every up-bar disappears. The
-          // per-bar painter hides this in netchange mode but is a passthrough in
-          // open/close mode, where the series option is what actually paints.
-          upColor: mbUp, downColor: mbDown,
-        } : cs.chartType === 'hollow' ? {
-          // HOLLOW chart type in a non-sunrise theme (e.g. the default bold workspace):
-          // up = transparent body + colored outline, down = filled. Without this the
-          // boldCandles branch below forces borderVisible:false + a solid up body, so
-          // the hollow type rendered as normal filled candles (the reported bug).
-          upColor: 'rgba(0,0,0,0)', downColor: _bDown,
-          borderVisible: true, borderUpColor: _bUp, borderDownColor: _bDown,
-          wickUpColor: _bUp, wickDownColor: _bDown,
-        } : (boldCandles || modelBookLook) ? {
-          upColor: _bUp, downColor: _bDown,
-          // Workspace (userCandleColors): borders VISIBLE so the user's Border colors
-          // render (default border = body color → still looks solid). Model Book keeps
-          // pure solid bodies (no border line).
-          borderVisible: !!userCandleColors,
-          borderUpColor: userCandleColors ? (cs.candles.upBorder || _bUp) : _bUp,
-          borderDownColor: userCandleColors ? (cs.candles.downBorder || _bDown) : _bDown,
-          wickUpColor: userCandleColors ? (cs.candles.upWick || _bUp) : _bUp,
-          wickDownColor: userCandleColors ? (cs.candles.downWick || _bDown) : _bDown,
-        } : {}
-        // Optional integer-only price axis (DarkPool page passes precision:0
-        // for large-cap stocks so the axis shows "200" not "200.00").
-        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue && cs.showPriceLabels !== false && !lastBarOffRef.current, ..._bold })
-        applyPriceFormatToScale(priceSeries, priceFormatRef.current)
-      } catch { /* older LWC */ }
-
-      // ── colorByNetChange ── Color each candle by close-vs-PREVIOUS-close (TC2000 /
-      // StockCharts style) instead of LWC's built-in close-vs-open. LWC only auto-colors
-      // by open/close at the series level, so net-change coloring requires a per-bar
-      // color/borderColor/wickColor override on the DATA. Rather than touch the ~20
-      // developing-bar writer sites, we wrap the series' setData/update ONCE here so every
-      // write path (historical setData, gold setup/catalyst highlight, live ticks) is
-      // colored consistently. Gated on the prop → only opted-in charts are affected; the
-      // gold-highlight override is preserved (bars that already carry an explicit color
-      // are left untouched). Candles + OHLC bars only (line/area/hollow have no net-change
-      // notion). Same up/down palette the series itself uses so it looks identical apart
-      // from the coloring rule.
-      // Net-change eligibility: candles/bars always; on Sunrise ALSO 'hollow' (the
-      // Sunrise look is hollow, and without this a saved 'hollow' chart type skips the
-      // wrap entirely and LWC colors by close-vs-OPEN — the "up day shows red" bug).
-      // Candle color mode (user-selectable): 'openclose' colors natively by
-      // close-vs-open (LWC default) → NO per-bar wrap. 'netchange' (close-vs-prev-
-      // close) and 'onecolor' (every bar one color) paint each bar here.
-      const _netEligible = cs.chartType === 'candles' || cs.chartType === 'bars' || cs.chartType === 'hlc'
-        || cs.chartType === 'hollow'
-        || (canvasTheme === 'sunrise' && isOhlcType(cs.chartType))
-      // Install the wrapper for EVERY OHLC type (regardless of color mode) so a mode
-      // change doesn't need a recreate. In open-close mode _paintNet is a passthrough
-      // and LWC colors natively from the live series options.
-      if (colorByNetChange && _netEligible && !priceSeries.__uctNetWrap) {
-        const _isInside = (bar, prevBar) => (
-          prevBar
-          && bar.high != null && bar.low != null && prevBar.high != null && prevBar.low != null
-          && bar.high <= prevBar.high && bar.low >= prevBar.low
-        )
-        // Colors are read LIVE from netColorsRef (updated every render) so a color
-        // change repaints via setData without recreating the series (no shake).
-        const _paintNet = (bar, prevClose, prevBar) => {
-          if (!bar || bar.close == null) return bar
-          if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
-          const NC = netColorsRef.current
-          // Sunrise's black inside-day candles are part of the theme's signature
-          // look, so they paint in EVERY color mode — checked before the openclose
-          // passthrough (below) which otherwise skips all per-bar painting. The
-          // fill still follows close-vs-open (TC2000): an inside day that closed
-          // above its open is a HOLLOW black outline, below = filled black.
-          if (NC.insideBlack && _isInside(bar, prevBar)) {
-            const openUpIn = bar.open != null ? bar.close >= bar.open : true
-            return { ...bar, color: (NC.noBody || (NC.hollow && openUpIn)) ? 'rgba(0,0,0,0)' : '#000000', borderColor: '#000000', wickColor: '#000000' }
-          }
-          if (NC.mode === 'openclose') return bar   // native close-vs-open coloring (Body off rides the series colours)
-          // One color: every bar the same body/border/wick (shape still hollow on up).
-          if (NC.mode === 'onecolor') {
-            const up = bar.open != null ? bar.close >= bar.open : true
-            const body = NC.noBody ? 'rgba(0,0,0,0)' : (NC.hollow && up) ? _hollowFill(NC.one) : NC.one
-            return { ...bar, color: body, borderColor: NC.one, wickColor: NC.one }
-          }
-          // TC2000 hollow-candle semantics: COLOR and FILL are independent axes.
-          // Direction (net-change close-vs-prev-close, or close-vs-open in that
-          // mode) drives the green/red palette; close-vs-OPEN alone drives the
-          // hollow/filled body. So a green candle that closed below its open is
-          // FILLED green, and a red candle that closed above its open is HOLLOW
-          // red — all four combinations render.
-          let up
-          if (NC.mode === 'netchange') {
-            if (prevClose == null) return bar   // first bar — no prior close to compare
-            up = bar.close >= prevClose
-          } else {
-            up = bar.open != null ? bar.close >= bar.open : true
-          }
-          const openUp = bar.open != null ? bar.close >= bar.open : up
-          const body = NC.noBody ? 'rgba(0,0,0,0)' : (NC.hollow && openUp) ? _hollowFill(up ? NC.up : NC.down) : (up ? NC.up : NC.down)
-          return { ...bar, color: body, borderColor: (up ? NC.borUp : NC.borDown), wickColor: (up ? NC.wickUp : NC.wickDown) }
-        }
-        const _realSet = priceSeries.setData.bind(priceSeries)
-        const _realUpd = priceSeries.update.bind(priceSeries)
-        priceSeries.setData = (data) => {
-          if (!Array.isArray(data)) return _realSet(data)
-          let prev = null, lastPrev = null, prevBar = null, lastPrevBar = null
-          const painted = data.map((b) => {
-            if (b && b.close != null) {
-              lastPrev = prev
-              lastPrevBar = prevBar
-              const out = _paintNet(b, prev, prevBar)
-              prev = b.close
-              prevBar = { high: b.high, low: b.low }
-              return out
-            }
-            return b
-          })
-          // Refs the update() wrap reads for the developing bar: prev-of-last & the last bar.
-          netPrevCloseRef.current = lastPrev
-          lastNetCloseRef.current = prev
-          netPrevBarRef.current = lastPrevBar
-          lastNetBarRef.current = prevBar
-          lastNetTimeRef.current = painted.length ? data[data.length - 1]?.time : null
-          return _realSet(painted)
-        }
-        priceSeries.update = (bar) => {
-          if (!bar || bar.close == null) return _realUpd(bar)
-          const isNewBar = lastNetTimeRef.current != null && bar.time > lastNetTimeRef.current
-          const prevClose = isNewBar ? lastNetCloseRef.current : netPrevCloseRef.current
-          const prevBar = isNewBar ? lastNetBarRef.current : netPrevBarRef.current
-          const out = _paintNet(bar, prevClose, prevBar)
-          if (isNewBar) {
-            netPrevCloseRef.current = lastNetCloseRef.current
-            netPrevBarRef.current = lastNetBarRef.current
-            lastNetTimeRef.current = bar.time
-          }
-          lastNetCloseRef.current = bar.close
-          lastNetBarRef.current = { high: bar.high, low: bar.low }
-          return _realUpd(out)
-        }
-        priceSeries.__uctNetWrap = true
-      }
-      // ⭐ B1 — Pine `barcolor`: every write to an OHLC price series is recoloured
-      // from `barColoursRef` (time → colour). Installed once per series, AFTER the
-      // net-change wrap so it runs first and the net wrap keeps its colour.
-      if (isOhlcType(cs.chartType)) wrapSeriesForBarColours(priceSeries, () => barColoursRef.current)
-      prevChartTypeRef.current = _priceStyleKey
-    }
-
-    // ── Live color apply (no recreate) ── Colors are NOT in the price-style key, so
-    // a color change reaches here without destroying the series. For the WRAPPER modes
-    // (netchange/onecolor) the per-bar setData below repaints; for OPEN-CLOSE (native,
-    // no wrapper) we push the up/down colors onto the series here so the change still
-    // lands. Runs every render; cheap applyOptions, and it never re-fits the scale.
-    try {
-      const NC = netColorsRef.current
-      if (_ct === 'candles' || _ct === 'hollow') {
-        // Sunrise's TC2000 look = hollow up bodies, enforced at series creation
-        // (the `_bold` sunrise options). This live-apply runs every render and
-        // would clobber that with a solid NC.up in OPEN-CLOSE mode (where the
-        // per-bar wrapper passes through) — so the transparent up body must be
-        // kept for Sunrise here too, not just for the explicit 'hollow' type.
-        // Chart Settings → Price style → Colors → Body / Borders / Wick on/off (chartViewOptions; absent = on,
-        // which reproduces exactly the options this block applied before). Body off = transparent bodies here
-        // AND in the per-bar painter (NC.noBody); Borders off / Wick off = the library's own borderVisible /
-        // wickVisible, over whatever this surface would otherwise show.
-        const _parts = candlePartsOf(cs)
-        candleSeriesRef.current.applyOptions({
-          upColor: NC.noBody ? 'rgba(0,0,0,0)' : (_ct === 'hollow' || canvasTheme === 'sunrise') ? _hollowFill(NC.up) : NC.up,
-          downColor: NC.noBody ? 'rgba(0,0,0,0)' : NC.down,
-          borderVisible: _parts.borders && ((_ct === 'hollow') ? true : (canvasTheme === 'sunrise' ? true : !!userCandleColors)),
-          borderUpColor: NC.borUp, borderDownColor: NC.borDown,
-          wickVisible: _parts.wick,
-          wickUpColor: NC.wickUp, wickDownColor: NC.wickDown,
-        })
-      } else if (_ct === 'bars' || _ct === 'hlc') {
-        // thinBars rides this same live-apply path (it isn't in the price-style key),
-        // so toggling thickness repaints without destroying/recreating the series.
-        candleSeriesRef.current.applyOptions({
-          upColor: NC.up, downColor: NC.down, openVisible: _ct !== 'hlc',
-          thinBars: cs.candles.thinBars !== false,
-        })
-      } else if (_ct === 'line') {
-        candleSeriesRef.current.applyOptions({ color: breadthLineColor || (NC.mode === 'onecolor' ? NC.one : NC.up) })
-      } else if (_ct === 'area') {
-        candleSeriesRef.current.applyOptions({ lineColor: NC.mode === 'onecolor' ? NC.one : NC.up })
-      }
-      // Chart Settings → Price style → Price line: the last-price line on/off and its style, every chart type.
-      // The host's own rule (exact-range / hidePriceLine surfaces never draw it) still wins; absent = on + dashed,
-      // the library default, so an untouched chart gets exactly the options the creation block gave it.
-      // hidePriceLine is the host's DEFAULT only: a member who switched the line on gets it (owner 11-16).
-      const _pl = priceLineOf(cs, !hidePriceLine)
-      candleSeriesRef.current.applyOptions({
-        priceLineVisible: !exactDateRange && _pl.visible,
-        priceLineStyle: LINE_STYLE_NUM[_pl.style],
-      })
-    } catch { /* series may be mid-swap */ }
-
-    // Set price data. The separate gold-recolor effect below re-applies the
-    // setup-candle highlight right after every updateChart (it lists updateChart
-    // as a dep), so we keep plain data here — pulling highlightTimeSet into THIS
-    // effect's deps would re-run the whole updateChart (incl. the visible-range /
-    // zoom logic) on every focus change and fight the setup focus zoom.
-    _applyData(candleSeriesRef.current, isOhlcType(cs.chartType) ? __heavy.committed._big.ohlcData : __heavy.committed._big.closeData)
-    // ⭐ THE HEADLINE METRIC. Candles are now on the canvas for this (sym, tf) — the
-    // moment a scanning member stops seeing the previous chart and starts seeing this
-    // one. Marked HERE rather than at a React state change because `loading === false`
-    // is a decision, and this is the paint.
-    // ⛔⛔ RECORD WHAT WAS PAINTED, NOT ONLY WHEN. `paint` alone scored the MU
-    // stale-first-paint (a 10:00 tail shown at 15:55) as the FASTEST switch in the
-    // run. timingMarkPaint carries the newest bar's timestamp so the frontier gap
-    // is measured at the instant the member sees the frame, and TC is marked only
-    // once a CURRENT-ENOUGH frame reaches the canvas.
-    // ⚠️ Not latched on `paint` any more: a stale frame followed by the repaired
-    // one must leave BOTH marks, so the stale interval is measurable.
-    const _painted = isOhlcType(cs.chartType) ? __heavy.committed._big.ohlcData : __heavy.committed._big.closeData
-    if (_painted?.length) {
-      // ⚠️ INTRADAY ONLY. `filteredBars[].t` is unix SECONDS intraday but a
-      // 'YYYY-MM-DD' STRING on D/W/M, and the frontier math is bucket arithmetic
-      // over the former. Handing it a string would score every daily switch as
-      // Infinity-behind — a fabricated failure, which is worse than no metric.
-      // Daily keeps the plain timing mark it always had.
-      if (isIntraday) {
-        const _lastT = __heavy.committed.filteredBars[__heavy.committed.filteredBars.length - 1]?.t
-        timingMarkPaint(_timingIdRef.current, typeof _lastT === 'number' ? _lastT : null, {
-          session: showExtended ? 'extended' : 'rth',
-        })
-      } else if (!_paintMarkedRef.current) {
-        timingMark(_timingIdRef.current, 'paint')
-      }
-      _paintMarkedRef.current = true
-    }
-
-    // Trustworthy baseline for live-tick sanity gates: server bars are
-    // validated/quarantined upstream and proven clean. Unlike
-    // lastBarRef (which a bad tick can bake bad, then good ticks get
-    // rejected and the phantom sticks — DDOG 20798 = 100x lock-in),
-    // this is ONLY ever set from server data and can't be poisoned.
-    if (__heavy.committed.filteredBars.length) {
-      const last = __heavy.committed.filteredBars[__heavy.committed.filteredBars.length - 1]
-      if (Number.isFinite(last.c) && last.c > 0) { lastServerCloseRef.current = last.c; lastServerCloseSymRef.current = sym }
-    }
-    // ⭐ THE DEVELOPING BAR AFTER setData (P3-S2) — chart/legacyLiveWriters.liveAfterSetData, chosen
-    // once at module load: the legacy seed + push / Finnhub re-top (Writer D), or under BARSTORE the
-    // store's developing-bar paint (snapshot.developing; `_storeDevPaintRef` below).
-    liveAfterSetData({
-      H: LEGACY_LIVE_HELPERS, sym, resolvedTf, filteredBars: __heavy.committed.filteredBars, isIntraday, adjustTime, livePrices, cs, _liveSane, respNewestTRef,
-      lastBarRef, lastBarSymRef, liveBarRef, liveBarSeriesRef, latestLiveRef, barsPushActiveRef, provisionalStaleRef,
-      sessionOwnsDailyRef, sessionViewRef, showExtendedRef, candleSeriesRef, volumeSeriesRef, prevBarsRef,
-      colorByNetChange, userCandleColors, boldCandles, modelBookLook, mbVolUp, mbVolDown,
-    }, _paintStoreDev)
-
-    // ── THE INDICATOR ENGINE (Phase B) — what it owns, decided here ───────────
-    //
-    // ⭐⭐ B5 TASK 4 DELETED THE FLAG THAT USED TO BE READ HERE.
-    //
-    // What stood here was `const engineOn = cs.engineEnabled === true`, with two
-    // paragraphs explaining that the engine "LANDS DARK" until a user opts in.
-    // It never landed dark for anybody: `mergeChartSettings` computed the flag
-    // from the STORED BLOB, every blob in production predates the engine, and no
-    // action a user could take set it — so the opt-in was permanently off and the
-    // engine drew the flipped ids regardless, which is the only reason B3 shipped.
-    // A flag in that state is not an off switch, it is a branch nothing reaches.
-    // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
-    //
-    // ⛔ THE DARK CONTRACT SURVIVES IT, AND MOVED TO A HONEST PREDICATE. A chart
-    // with no instances still constructs no binder and makes zero
-    // lightweight-charts calls — see `engineNeeded` below, which asks
-    // `engineInstances.length > 0`. That is what the flag was supposed to mean and
-    // it is now measured from the thing that decides it.
-    //
-    // ── FLIP B: A FLIPPED DEFINITION HAS NO OTHER RENDERER ───────────────────
-    //
-    // The engine is ACTIVE whenever something is flipped, because for a FLIPPED id
-    // there is no hand-written block left: gating it on anything would not make
-    // the engine dark, it would DELETE the indicator.
-    //
-    // ⚠️ `engineDrawsAnything()` IS A CONSTANT TODAY and is deliberately
-    // still spelled as a read: it is the seam Task 13 turns into a registry lookup
-    // once every native is flipped. The `sync` CALL is further down, immediately
-    // before where the Bollinger block used to be — see the note there for why the
-    // position is load-bearing.
-    const engineActive = engineDrawsAnything()
-    // Normalised on the way in: a tombstone or a malformed record must never
-    // reach the planner. Cheap enough to do per paint at v1 instance counts, and
-    // it only ever runs with the engine ON.
-    //
-    // …and then filtered to the definitions whose legacy block actually stands
-    // down. See `ENGINE_OWNED`: an instance the engine DRAWS whose
-    // legacy block still draws too is a double-drawn indicator, and nothing about
-    // that is visible until a user reports a "bold" line. The filter makes the
-    // pairing structural instead of a thing B3 has to remember.
-    //
-    // ── FLIP A: THE LEGACY TOGGLE IS STILL THE SWITCH ────────────────────────
-    //
-    // …and the instance is only the RENDERER. FOUR controls write
-    // `cs.indicators.<id>.enabled`: the toolbar checkbox (`ChartToolbar.jsx:396`),
-    // Ctrl+I (`keyboardShortcuts.js:99` → `:3495`), the right-click
-    // **Indicators ▸** submenu (`:2214`) and right-click **Hide RSI** (`:2251`).
-    // Without this line every one of them SILENTLY HALF-WORKED once the engine
-    // owned the drawing: the flag reached the BAND LAYOUT and nothing else,
-    // so turning RSI off removed its reserved BAND and left the line behind —
-    // and `resolvePlacement` then fell through to `{top:0.82, bottom:0}`
-    // (`placement.js:103`), which OVERLAPS volume's `{top:0.85, bottom:0}`. The
-    // user pressed Ctrl+I and got an RSI drawn on top of the volume bars.
-    //
-    // `hidden`, not "dropped from the list": `engineOwnedDefIds` counted hidden
-    // instances, so the legacy block stayed stood down and no toggle could hand the
-    // drawing back to it mid-session. (It has no data to draw either way — a
-    // legacy block's `indicatorData` branch is `[]` while its toggle is off — but
-    // ownership is a rail, not a coincidence.) ⚠️ RSI is no longer the example:
-    // it is FLIPPED, so it has no block, no branch and no toggle-as-switch. The
-    // paragraph now describes `macd` and `vwap`, which are still Flip A.
-    //
-    // ── WHAT `hidden` COSTS, STATED CORRECTLY: IT IS `removeSeries`. ──────────
-    //
-    // An earlier version of this comment said the binder "releases the series to
-    // the POOL, so this is an applyOptions-and-park, never the mass
-    // `removeSeries` of #2049". **That was false**, and the branch's own test
-    // proves it: `planBindings` drops a hidden instance on its first line
-    // (`pool.js:652`), so nothing claims its binding, so it lands in
-    // `release = prev.filter(p => !claimed.has(p))` (`pool.js:743`) and
-    // `binder.sync` step 3 calls `chart.removeSeries` (`binder.js:316`) —
-    // `stockChartWiring.test.jsx` asserts exactly that (`H.removedSeries`
-    // contains it, and re-showing costs a second `addSeries`).
-    //
-    // **Removal is the RIGHT behaviour here, deliberately, and it is not the
-    // #2049 pattern.** Three reasons, in order of what would break first:
-    //
-    //   1. **PARITY — a parked series would not be invisible, it would be a
-    //      LAYOUT CHANGE.** MEASURED against the real bundle in
-    //      `engine/__tests__/hiddenIsRemovedNotParked.test.js`: `visible:false`
-    //      does NOT release the pane (`chart.panes()` still has it, it still
-    //      owns the series, it still claims a stretch factor); `removeSeries`
-    //      does. Park RSI and its pane survives the toggle — the price pane
-    //      stays short with an empty band under it, while the legacy path gives
-    //      the height back. Flip A's whole contract is pixel-identity with
-    //      legacy, so parking would fail the gate, and `engine_rsi_toggle_off`
-    //      is the pixel case that would catch it.
-    //   2. **The churn #2049 is about is MASS removal, and the pool already
-    //      prevents that.** `planBindings` releases only what NOTHING in the
-    //      same pass can use: an exact-key carry-over keeps its series, and an
-    //      unmatched binding re-purposes a compatible one from the pool FIRST
-    //      (step 3), so "RSI off + BB on in one settings write" hands BB the
-    //      line series RSI just gave up instead of removing one and creating
-    //      another. What is left over is genuinely wanted by nobody.
-    //   3. It is one series, on an explicit user action, matching what the
-    //      legacy block has always done on the same keystroke.
-    //
-    // ⛔ SO THE RAIL IS: never make visibility a per-PAINT decision. Toggling on
-    // a user action is fine; projecting `hidden` from something that recomputes
-    // every frame (a hover, a crosshair move, an extended-hours tick) would turn one
-    // removeSeries into fifteen a second, and THAT is #2049. Task 10 projects
-    // four pilots and Phase B eventually fifteen — the number that matters is
-    // removals per USER ACTION, not per indicator.
-    //
-    // ⭐ RESOLVED BY TASK 10, PER DEFINITION — not deleted wholesale. Flip B moves
-    // the authority the other way for a FLIPPED id: the geometry reads the
-    // INSTANCE LIST (through `computePaneLayout`; before Flip C it was
-    // `csForPaneMargins` projecting that list onto a settings blob), and
-    // `instanceControls` routes every write at the instance. The two rules are
-    // mirror images and cannot both hold for one definition — an instance whose
-    // legacy toggle is false would reserve a band (the projection) that this line
-    // then made sure nothing drew into. So the `hidden` projection below now
-    // SKIPS `ENGINE_OWNED` and still applies to `macd` and `vwap`,
-    // which are Flip A and whose legacy toggle is still their switch. Deleting it
-    // outright would have un-done Flip-A semantics for both of them in a task
-    // whose gate is that only rsi and bb move.
-    //
-    // ⚠️ A migrated definition whose enable signal is NOT `indicators.<id>.enabled`
-    // needs its own answer here before it joins `ENGINE_OWNED`. VWAP is
-    // that definition, it joined in Task 8, and its answer is the `vwap` branch
-    // below: the legacy memo reads `(vwapOverride || ind.vwap?.enabled)` (`:3962`),
-    // so the OVERRIDE alone is an enable signal and the projection has to agree or
-    // the Model Book popup would hand the engine a hidden instance and draw nothing.
-    // …filtered to the definitions whose legacy block actually stands down (see
-    // `ENGINE_OWNED`), then narrowed by ELIGIBILITY: a session
-    // indicator does not exist above 60-minute bars, and the render context —
-    // the Model Book's forced white, the bold-candle hairline — folds into the
-    // instance's inputs here so nothing downstream has to know about it.
-    //
-    // `vwapOverride` also FORCES the indicator on, exactly as the legacy memo
-    // does. That is an instance this blob does not contain, so it is manufactured
-    // HERE where instances are built, never inside `eligibility` — a hook that
-    // could invent instances would hand the binder an instance that never passed
-    // through this list at all.
-    const engineInstances = engineActive
-      ? (() => {
-          // ── READ-TIME MIGRATION, GATED ON THE FLIP SET ───────────────────────
-          //
-          // After Flip B the instance list is the authority, but a blob carrying
-          // only the legacy toggle must still render — a grid cell's
-          // `settingsOverride`, the `?indicators=` route, a user who has not
-          // touched a control since the flip. `migrateLegacyToInstances` projects
-          // the toggle into an instance, a STORED instance wins over the
-          // projection, and a TOMBSTONE reserves the id so a still-true legacy
-          // toggle cannot put a deleted indicator back. All three are pinned in
-          // `instances.test.js`. It is a fixed point, so running it every paint is
-          // safe; it is pure, so it writes nothing.
-          //
-          // ⛔ BUT IT CHANGES BEHAVIOUR THE MOMENT IT IS UNGATED, which is why it
-          // is not. The migrator projects `cs.indicators.rsi.enabled` into an
-          // instance even with nothing flipped, and `ENGINE_OWNED`
-          // already held rsi/bb/macd/vwap — so an ungated version would have moved
-          // all four onto the engine for every user, with no stored instance
-          // anywhere. That is *correct* for Flip A (the engine draws the same
-          // picture) but it was a behaviour change inside a task whose gate is
-          // "nothing changed".
-          //
-          // ⚠️ AND THE GATE IS PER DEFINITION, NOT `size > 0`. A whole-set gate
-          // is inert only until the FIRST flip, and then it moves all four pilots
-          // at once — which is precisely what flipping one indicator at a time
-          // with a pixel number each is supposed to prevent. So a PROJECTED
-          // instance is accepted only for a flipped id; anything the blob already
-          // STORED (including a tombstone) passes through untouched, exactly as
-          // it does today. `flipBWithANonEmptySet.test.jsx` drives this with a
-          // non-empty set and asserts an un-flipped `bb` is not projected.
-          // ⛔ THE STORED BLOB (`cs`), NOT `csView`. These two sets answer "does the
-          // blob HOLD this id / this definition", which blocks a legacy-toggle
-          // projection. On a symbol the COT indicator does not follow (AAPL) the view
-          // has no `dataSeries` left, so reading it here projected `legacy:dataSeries`
-          // — a stray `Series` line of the chart's own close (measured in the harness).
-          const stored = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
-          const storedIds = new Set(
-            stored.map(i => (i && typeof i === 'object' ? i.instanceId : undefined)),
-          )
-          // ⭐ …AND A DEFINITION THE BLOB ALREADY DRAWS IS NOT PROJECTED AGAIN.
-          //
-          // 🐛 THE DOUBLE-DRAW THIS PHASE EXISTS TO PREVENT, IN A NEW GUISE.
-          // `migrateLegacyToInstances` reserves ids PER INSTANCE ID (`legacy:rsi`),
-          // which is right for its own contract — two instances of one definition
-          // are legal. But the legacy TOGGLE is per DEFINITION, and it is a
-          // compatibility shim for a blob that has no instance for that definition
-          // at all. A blob holding `{instanceId: 'engine-test:rsi', defId: 'rsi'}`
-          // plus `indicators.rsi.enabled: true` therefore projected a SECOND
-          // `legacy:rsi` and drew TWO RSI lines — a `?instances=` URL, a grid
-          // cell's override or any custom-id instance is enough to reach it.
-          // `isIndicatorEnabled` already answers "a LIVE instance of the
-          // definition wins", so the migrator and the checkbox disagreed too.
-          //
-          // Applied HERE and not inside the migrator: the per-id contract is
-          // correct for every other caller, and the rule that a projection is
-          // outranked by a live instance of the same DEFINITION belongs to the
-          // read that turns instances into pixels.
-          // ⚠️ HIDDEN COUNTS. `normalizeInstances` keeps a hidden instance and
-          // drops a tombstone — exactly the line "does this definition EXIST in
-          // the blob" needs. A tombstone must NOT count (its whole job is to let
-          // "off" survive a still-true toggle), and it blocks the projection by
-          // its id anyway, inside the migrator's own `taken` set.
-          // ⭐ A1.4 (owner Q5) — …AND A STORED RECORD THAT CANNOT BE SHOWN COUNTS TOO. A
-          // broken stored RSI (an input it no longer declares, a value out of range) used to
-          // be DROPPED and then SUBSTITUTED by a default `legacy:rsi` drawn under the same
-          // name — the member saw "RSI 14" and never their RSI. Now the definition counts as
-          // stored, nothing default is drawn in its place, and the chart says it can't be
-          // shown, with Repair (UnavailableIndicators).
-          const _storedNorm = normalizeInstances(stored, engineRegistry)
-          const liveStoredDefIds = new Set([
-            ..._storedNorm.kept.map(i => i.defId),
-            ..._storedNorm.dropped.map(d => (d && d.inst && typeof d.inst === 'object' && typeof d.inst.defId === 'string' ? d.inst.defId : null)).filter(Boolean),
-          ])
-          const source = engineDrawsAnything()
-            ? migrateLegacyToInstances(csView, engineRegistry)   // instances are the authority…
-              .filter((i) => {
-                if (storedIds.has(i && i.instanceId)) return true   // stored: always
-                if (!ENGINE_OWNED.has(i && i.defId)) return false  // …projected: FLIPPED only
-                return !liveStoredDefIds.has(i.defId)              // …and not already drawn
-              })
-            : csView.indicatorInstances                      // Flip A: only STORED instances draw
-          const migrated = normalizeInstances(source, engineRegistry).kept
-            // ⚠️ ONE GATE NOW, AND IT USED TO BE TWO (B5 Task 4). The second read
-            // `|| (engineOn && ENGINE_OWNED.has(i.defId))` — a
-            // MIGRATED-but-UN-FLIPPED id is the engine's only while the flag is on.
-            // With the flag deleted that disjunct is `false && …` for every
-            // instance, and the category it served has been empty since Flip B and
-            // may not be re-created (`enumerationSites.test.js` refuses it while
-            // FLIPPED === MIGRATED). Deleting it is behaviour-identical TODAY and
-            // stops a dead disjunct reading as live logic.
-            .filter(i => ENGINE_OWNED.has(i.defId))
-            // ⛔ …AND FLIP A'S `hidden` PROJECTION IS GONE (B3 Task 11). It read
-            // "an instance of a MIGRATED-but-UN-FLIPPED definition whose legacy
-            // toggle is false is projected to hidden, because the toggle is still
-            // that definition's switch". `ENGINE_OWNED` now EQUALS
-            // `ENGINE_OWNED`, so the filter above cannot emit an
-            // un-flipped instance and the branch was unreachable — an inert
-            // `.map` whose absent subject nothing would have noticed. Deleted with
-            // its `legacyEnabled` helper rather than left to read as live logic.
-            //
-            // ⚠️ IT COMES BACK IF B4 MIGRATES WITHOUT FLIPPING. `flipB.test.jsx`
-            // asserts the two sets are EQUAL, so that day this decision is
-            // re-opened by a red test rather than by a double-drawn indicator.
-          // ⭐ `vwapOverride` FORCES A VWAP INSTANCE, UNCONDITIONALLY (B3 Task 11).
-          // It used to be gated on the engine flag, because `vwap` was un-flipped
-          // and its legacy block would otherwise have drawn a second copy. VWAP is
-          // flipped now: there IS no legacy block, so the flag-gated version would
-          // have taken the Model Book intraday popup's forced white VWAP off every
-          // existing user's chart — the flag was false in every stored blob, and
-          // the popup is a surface no user setting can turn off. B5 Task 4 deleted
-          // the flag outright, which retires the question.
-          // Driven in `flipB.test.jsx` ("vwapOverride still forces it on").
-          const withForced = (vwapOverride && !migrated.some(i => i.defId === 'vwap'))
-            ? [...migrated, {
-                instanceId: legacyInstanceId('vwap'), defId: 'vwap',
-                // ⚠️ FILTERED TO DECLARED INPUT KEYS. This instance never passes
-                // through `validateInstance` — it is manufactured after
-                // `normalizeInstances` has already run — so an undeclared key from
-                // the blob (`enabled`, which every legacy indicator carries) would
-                // reach `inputsSignature` and the folds unchecked. The validator
-                // would have rejected it; this does the same job explicitly.
-                inputs: Object.fromEntries(
-                  (engineRegistry.getDefinition('vwap')?.inputs || [])
-                    .map(d => d.key)
-                    .filter(k => cs.indicators?.vwap?.[k] !== undefined)
-                    .map(k => [k, cs.indicators.vwap[k]])),
-                placement: { target: 'price' }, hidden: false,
-              }]
-            : migrated
-          const kept = eligibleInstances(withForced, engineRegistry, {
-            tf: resolvedTf, vwapOverride, boldCandles, modelBookLook,
-            // ⭐ 2026-09-28 — THE MOVING AVERAGE'S SURFACE LOOK (`eligibility.averageLook`).
-            // These four are exactly what the retired `cs.overlays` renderer read
-            // off this component's props and settings, so an adopted default
-            // average draws as it always did — and an added one draws the same.
-            fitPriceToCandles: !!fitPriceToCandles,
-            showMaLabels: !!cs.showMaLabels,
-            lastBarOff: !!lastBarOffRef.current,
-            ema9Color: ema9MatchCandle ? mbUpOpaque : null,
-            targetOf: (inst) => resolveDisplayTarget(inst, csView),
-          }).kept
-          // ⭐ ON AN ECONOMIC PRIMARY, AN INSTANCE THAT READS THE CHART'S OWN
-          // O/H/L/C/V (the default EMA 9 / 20 / SMA 50 / 200, an RSI of close) has
-          // nothing to read — the rows carry none — so it is not drawn and not
-          // listed in the legend. Render-time only: nothing is written, and the
-          // member's averages are back on the next stock. An instance over another
-          // SOURCE (the series itself, `sym:`, `econ:`) is kept.
-          return _econId ? kept.filter((i) => keepOnEconomicPrimary(i, engineRegistry)) : kept
-        })()
-      : EMPTY_INSTANCES
-    // Mirrored for the crosshair legend (B3 carry #2). The handler needs each
-    // instance's INPUTS to print `RSI(7)` and to colour the chip the way the
-    // line is coloured, and it reads refs rather than props so a live tick does
-    // not tear down and re-subscribe it.
-    engineInstancesRef.current = engineInstances
-    // ── WHICH LEGACY BLOCKS STOOD DOWN — AND WHY THERE IS NO ARBITER HERE ────
-    //
-    // 🔴 A BINDING STOOD HERE AND IT HAD ZERO READERS. What was on this line was
-    //
-    //     const engineOwned = engineActive ? engineOwnedDefIds(…) : EMPTY_OWNED
-    //
-    // and — measured comment-stripped at B5 Task 1 — `engineOwned` occurred
-    // exactly ONCE in this whole file: its own declaration. The import, the
-    // `EMPTY_OWNED` constant and `engineOwnedDefIds`' only production call site in
-    // `app/src` existed to compute a value nothing read. B5 Task 4 deleted the
-    // chain; this paragraph replaces it, in the past tense, because "why is there
-    // no arbiter?" is a question the next reader would otherwise ask of an empty
-    // space.
-    //
-    // **What it was.** Flip A put the engine's series in the SAME band on the SAME
-    // scale as the legacy block, and that band existed only while
-    // `cs.indicators[key].enabled` was true (the retired `computePaneMargins`
-    // read exactly that). So the legacy toggle had to stay ON for the layout to
-    // be identical —
-    // which meant the legacy block would draw a SECOND copy on top.
-    // `engineOwnedDefIds` was the arbiter: an instance of definition `X` meant the
-    // engine drew X, and X's legacy block guarded on `!engineOwned.has('X')`.
-    //
-    // **Why it died silently.** Flip B DELETED the blocks rather than guarding
-    // them, so the last consumer went with `macd` and `vwap` at `400005ee`. And
-    // `enumerationSites.test.js` → *"keeps no Flip-A guard for a flipped id — the
-    // block should be GONE, not guarded"* asserts `engineOwned.has('<id>')` is
-    // ABSENT for every flipped id while `FLIPPED === MIGRATED` — so that rail
-    // DEMANDS the emptiness it produced, and the leftover it leaves behind is
-    // invisible to it by construction. Five comment paragraphs in this file went on
-    // calling it "the arbiter" for two phases.
-    //
-    // ⚠️ `engineOwnedDefIds` ITSELF IS NOT DEAD — it keeps its own suite in
-    // `engine/instances.test.js`. Only StockChart's call was.
-
-    // ── Volume-pane indicator overlay ──
-    // Chosen oscillators render INSIDE the volume pane on its left axis (volume
-    // keeps the right axis) instead of their own stacked band. This requires a
-    // real volume pane, so any overlay forces separate-pane mode.
-    const volOverlaySet = new Set(
-      (showVolume && Array.isArray(cs.volumeOverlayIndicators)) ? cs.volumeOverlayIndicators : [],
-    )
-
-    // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
-    // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
-    // draggable divider; overlay mode shares pane 0 via the layout's bands.
-    // ⭐ ONE SET OF INPUTS, ASKED ONCE — `chartDataMap` re-derived this rule and
-    // got a different answer; see `engine/volumePresentation.js`. The renderer is
-    // the caller that CAN supply every input, so it passes all of them.
-    //
-    // ⭐⭐ BUT TWO QUESTIONS, AND THEY ARE NOT THE SAME QUESTION.
-    //
-    //   `nativeVolSeparate` — are the BARS drawn in a pane instead of a band?
-    //                         Asked by the four places that create, scale and
-    //                         size the native volume series and its MA.
-    //   `volumePaneLive`    — does the RECTANGLE exist? Asked by pane order, pane
-    //                         count, stretch shares, `firstPaneIndex`, the
-    //                         realiser and `placement.js`'s guest branch.
-    //
-    // ⚰️⚰️ ONE VARIABLE ANSWERED BOTH, AND REMOVING VOLUME PROVED IT COULD NOT.
-    // `resolveVolumePresentation` returns `'absent'` the moment volume is not
-    // shown — before it ever asks whether anything is overlaid on it — so
-    // deleting the bars told the pane-existence consumers the pane was gone while
-    // an MA sent to Volume was still resident in it. `placement.js:476` is gated
-    // on the value handed to the binder below, so that guest did not just lose
-    // its rectangle: it bound nothing and disappeared from the chart.
-    const _volPresence = {
-      cs, instances: engineInstances, shown: showVolume, blankVolume, volumeSeparatePane, volumePaneByDefault,
-    }
-    const nativeVolSeparate = nativeVolumeOwnsPane(_volPresence)
-    const volumePaneLive = volumePaneRequired(_volPresence)
-    /** The instance ids drawing INSIDE the volume pane — `displayTarget`'s answer,
-     *  and the same set `excludeKeys` subtracts from the pane stack. */
-    const _volResidents = volumeResidentKeys(cs, engineInstances)
-    /**
-     * The physical pane a volume RESIDENT is in right now — or `null`.
-     *
-     * ⛔⛔ AND IT NEVER ANSWERS WITH THE CANDLES' PANE. A resident is named by
-     * `displayTarget`, which is an INTENT; the series itself does not move until
-     * the binder relocates it. So in the frame where a member sends an existing
-     * Price overlay to Volume, the "resident" is still sitting in Price — and
-     * answering with that pane told `prepareArrangement` that PRICE's rectangle
-     * was the volume one. It duly swapped Price out of slot 0 to make room, the
-     * binder placed the guest at the volume index (now Price's old pane), and the
-     * empty rectangle was reclaimed: ONE pane, and the member's "Display in:
-     * Volume" did nothing. MEASURED in the live harness 2026-09-18.
-     *
-     * ⭐ `null` IS THE HONEST ANSWER MID-TRANSITION — the volume key has no pane
-     * yet. `prepareArrangement` then simply creates one, the binder moves the
-     * guest into it, and the NEXT sync answers properly.
-     */
-    const _volResidentPane = () => {
-      if (!_volResidents.size) return null
-      try {
-        const priceIdx = candleSeriesRef.current?.getPane?.()?.paneIndex?.()
-        const gs = engineRef.current?.binder?.bindings?.()
-        if (!Array.isArray(gs)) return null
-        for (const g of gs) {
-          if (!g || !g.series || !_volResidents.has(g.instanceId)) continue
-          const gp = g.series.getPane?.()
-          if (!gp) continue
-          if (Number.isInteger(priceIdx) && gp.paneIndex?.() === priceIdx) continue
-          return gp
-        }
-      } catch { /* pane API unavailable */ }
-      return null
-    }
-    // ⭐ TRADINGVIEW OVERLAY (owner 11-16). On a host that defaults volume to its own pane
-    // (`volumePaneByDefault`), "Overlay on price" is NOT the legacy band (a strip the candles
-    // stop above): the bars sit BEHIND the candles in the bottom ~22% of the price pane, on
-    // the invisible overlay scale, and the candles keep the whole pane. So the layout is told
-    // there is no band — the candles' margins are the no-volume ones — and the volume scale
-    // takes `TV_VOLUME_OVERLAY_MARGINS` below.
-    const _tvVolOverlay = volumePaneByDefault && showVolume && __heavy.committed._big.volData.length > 0 && !nativeVolSeparate
-    volTagOffRef.current = _tvVolOverlay
-    const hasVolumeBand = showVolume && __heavy.committed._big.volData.length > 0 && !nativeVolSeparate && !_tvVolOverlay
-
-    // ── FLIP C, APPLIED: THE SAME STACK, AS REAL PANES ───────────────────────
-    //
-    // ⛔ COMPUTED IN BOTH MODES, WHICH IT WAS NOT BEFORE TASK 12. It used to be
-    // `null` under `'bands'` because it duplicated a `computePaneMargins` call
-    // nothing read. That second copy is what retired: the layout IS the band
-    // arithmetic now (`layout.bands`), so computing it once per sync is strictly
-    // cheaper than the two calls it replaces, and every consumer — the candles'
-    // margins, the volume band, the right-click resolver, the binder — reads ONE
-    // object instead of two that could disagree.
-    //
-    // The height comes from the RENDERER (`paneStackHeightPx`), not from the
-    // container: the budget LWC distributes is the chart's height minus the time
-    // axis, and the time axis' height is the renderer's own business. It is the
-    // same number `paneManifest` reports as `chartHeight`, on purpose — a layout
-    // and a manifest that disagree about the budget cannot be compared.
-    //
-    // `firstPaneIndex` says where the oscillator stack STARTS, because a separate
-    // volume pane and the Model Book's index pane sit between it and pane 0. Both
-    // are read from what exists RIGHT NOW; if that is ever wrong the binder's
-    // height check says so by name rather than drifting a pixel.
-    //
-    // ⭐ AND `abovePct` SAYS WHAT THOSE PANES MEASURE IN BANDS MODE — the ONE
-    // input `computePaneLayout` was missing, and the reason B5 Task 11 measured
-    // three separate defects (see paneLayout.js "THE FRAME OF REFERENCE"). These
-    // are the SAME two clamped percentages the volume block below applies with
-    // `setStretchFactor`, hoisted so there is one authority rather than two
-    // expressions that can drift; `stockChartWiring.test.jsx` asserts the layout
-    // is handed exactly what the renderer is told.
-    //
-    // ⛔ SETTINGS, NOT THE RENDERER. Reading the live stretch factors back would
-    // work on the first sync and never again: this layout WRITES pixel counts
-    // into those factors, so pass two would read `[353, 99]` as if it were the
-    // 78/22 the settings say and re-derive a different reference every pass.
-    // ⭐ …AND A USER'S DRAG OUTRANKS THE SETTING, which is what makes the divider
-    // stay where it was dropped. `layout.above` is re-asserted by the binder at
-    // the end of every sync, so the ONLY way a drag survives is for the layout to
-    // be computed from it. `resolveVolPanePct` falls back to the setting the
-    // instant the setting itself moves, so Settings still wins a genuine change.
-    // ⚠️ The other three readers of this expression (the index-pane effects and
-    // the range-grip position) stay settings-only ON PURPOSE: they run on a prop
-    // change, never on a data poll, so none of them can snap a drag back on its
-    // own — and the layout must have exactly one authority.
-    // `?? 22` because clampVolPct answers null for a value it cannot read; the
-    // expression this replaced produced NaN there, which reaches the layout and
-    // gives the volume pane 0 px.
-    const _volPctSetting = clampVolPct(volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22) ?? 22
-    volPctSettingRef.current = _volPctSetting
-    const _volPct = resolveVolPanePct(_volPctSetting, volDragLatchRef.current)
-    const _idxPct = Math.min(40, Math.max(8, indexPaneHeightPct ?? 18))
-    // The index pane is hoisted to pane 0 (`s.getPane().moveTo(0)` below), so it
-    // comes FIRST in pane order and the candles are pane 1 when it exists.
-    const _hasIdxPane = !!indexPaneSeriesRef.current
-    const _abovePct = _hasIdxPane
-      ? (volumePaneLive
-        ? [_idxPct, Math.max(20, 100 - _volPct - _idxPct), _volPct]
-        : [_idxPct, 100 - _idxPct])
-      : (volumePaneLive ? [100 - _volPct, _volPct] : [100])
-    // ─── THE MEMBER'S PANE ARRANGEMENT ───────────────────────────
-    //
-    // ⭐ ASKED FOR ONCE, HERE, AND PASSED DOWN. `defaultPaneKeys` answers what
-    // panes exist (same filters the layout itself applies); `resolvePaneOrder`
-    // turns that plus `cs.paneOrder` into a top-to-bottom list. Geometry never
-    // reads settings and `paneOrder` never imports geometry — this is the one
-    // place the two meet.
-    //
-    // ⚠️ A CHART WITH NO STORED ARRANGEMENT RESOLVES TO PRICE · VOLUME · STACK,
-    // which is what `firstPaneIndex`/`mainPaneIndex` below already describe. The
-    // two agree by construction rather than by coincidence, and the identity is
-    // asserted in `__tests__/paneOrderLayout.test.js`.
-    const _paneKeySets = {
-      excludeKeys: new Set([
-        ...volumeOverlayPaneKeys(engineInstances, cs),
-        ...paneFollowerKeys(engineInstances, cs),
-      ]),
-      keepKeys: paneOwnersNeeded(engineInstances, cs),
-      includeKeys: paneOwnKeys(engineInstances, cs),
-    }
-    const _paneOrder = resolvePaneOrder(
-      cs,
-      defaultPaneKeys(engineInstances, _paneKeySets),
-      { volumePane: volumePaneLive },
-    )
-    const paneLayout = computePaneLayout(engineInstances, {
-      order: _paneOrder,
-      // ⭐ THE MEMBER'S OWN PANE HEIGHTS. Absent → the computed default, which is
-      // every chart that has never had a separator dragged. See
-      // `engine/paneSizes.js` for why this is a SHARE and not a pixel count.
-      paneSizes: storedPaneSizes(cs),
-      chartHeight: paneStackHeightPx(chart),
-      hasVolumeBand,
-      // ⛔ IN PANE-KEY LANGUAGE. `volOverlaySet` is keyed by DEFINITION (the legacy
-      // list's own units); `excludeKeys` is matched against PANE KEYS, which are
-      // host instance ids. `volumeOverlayPaneKeys` is the same answer in the units
-      // this call site now speaks.
-      //
-      // ⭐⭐ AND A GUEST RESERVES NO PANE OF ITS OWN. A series drawn INSIDE another
-      // instance's pane must not also carve one — that would leave an empty
-      // rectangle and push every index below it out by one. `displayTarget` decides
-      // who follows whom; this consumes that answer rather than forming its own.
-      excludeKeys: new Set([
-        ...volumeOverlayPaneKeys(engineInstances, cs),
-        ...paneFollowerKeys(engineInstances, cs),
-      ]),
-      // ⭐ A HIDDEN HOST KEEPS ITS PANE WHILE SOMETHING VISIBLE DRAWS IN IT. Hiding
-      // QQQ must not take MA(QQQ) with it — the eye icon is about ink, not about
-      // existence.
-      keepKeys: paneOwnersNeeded(engineInstances, cs),
-      // ⭐⭐ AND THE ADDITIVE HALF: a definition whose DEFAULT is `price` still needs
-      // a pane when THIS instance's active placement resolved to `pane`.
-      // `excludeKeys` consumes `displayTarget`'s answer subtractively; this consumes
-      // the same answer in the other direction, so a writable placement is also a
-      // REALISABLE one. Without it "Display in: Own pane" stores correctly, reads
-      // back correctly, and draws nothing.
-      includeKeys: paneOwnKeys(engineInstances, cs),
-      separatorPx: SEPARATOR_PX,
-      firstPaneIndex: 1 + (volumePaneLive ? 1 : 0) + (_hasIdxPane ? 1 : 0),
-      abovePct: _abovePct,
-      mainPaneIndex: _hasIdxPane ? 1 : 0,
-    })
-    paneLayoutRef.current = paneLayout
-    // ⭐ WHERE THE VOLUME PANE ACTUALLY IS. A literal 1 until an arrangement could
-    // move it; the layout says now, and 1 is still the answer on every chart that
-    // has not been arranged.
-    const VOL_PANE_INDEX = Number.isInteger(paneLayout.volumeIndex) ? paneLayout.volumeIndex : 1
-    // ⭐ AND THE PANE LIST GOES OUT TO THE RENDER, so each oscillator pane can
-    // print its own name and value at its top-left. Guarded on a shallow compare
-    // because this effect runs on every settings write and an unconditional
-    // `setState` here would re-render the chart on each one for nothing.
-    {
-      const _keys = paneLayout.panes.map((p) => p.key)
-      setPaneLegendKeys((prev) => (
-        prev.length === _keys.length && _keys.every((k, i) => prev[i] === k)
-          ? prev
-          : (_keys.length ? _keys : NO_PANE_KEYS)
-      ))
-    }
-    // The BAND map — what `computePaneMargins(csMargins, hasVolumeBand,
-    // volOverlaySet)` returned, key for key, off the same quantised stack. Read
-    // by the volume band below, by `placement.js`'s `'bands'` branch through the
-    // binder ctx, and by the right-click region resolver.
-    const paneMargins = paneLayout.bands
-
-    // ⛔ AND THE CANDLES' OWN MARGINS HAVE TO BE RE-ASSERTED HERE, NOT LEFT TO
-    // THE OPTIONS EFFECT. MEASURED at B5 Task 10: `rightPriceScale.scaleMargins`
-    // is built in the chart-options effect, which runs BEFORE this one on the
-    // first paint — so `paneLayoutRef` is still `null` there and the FIRST
-    // painted frame carries the wrong rectangle. Every parity case is a fresh
-    // page load, so the first frame is the only one photographed: Task 12 would
-    // have measured the price pane in the wrong place and the §A6 identity would
-    // have looked broken when only the ordering was.
-    //
-    // ⚠️ WHAT THAT FIRST FRAME CARRIES CHANGED AT TASK 12, and the sentence above
-    // used to name it: it was the BANDS rectangle, because `_mainMargins` fell
-    // back to `computePaneMargins`. It is now `NO_STACK_MAIN_MARGINS` — the
-    // no-stack answer — because the helper takes a layout and there isn't one
-    // yet. Same defect, same fix, different wrong rectangle.
-    //
-    // A user who has DRAGGED the price axis outranks the layout, exactly as
-    // `vertMarginsRef` outranks `_mainMargins` in the options effect.
-    //
-    // ⛔ …AND A LIVE PRICE-AXIS PIN OUTRANKS BOTH. This re-assert fires on the
-    // pass where no lock is stored — which is precisely the FIRST drag a member
-    // ever makes — so without `_pinOwnsMargins` the "leave the margins alone"
-    // rule above would hold on the update path and be undone one block later.
-    if (!vertMarginsRef.current && !_pinOwnsMargins) {
-      try {
-        mainPriceScale()?.applyOptions({
-          scaleMargins: _mainMargins(
-            paneLayout, priceScaleTopMargin,
-            volumePaneExists ? priceScaleBottomMargin : null,
-          ),
-        })
-      } catch { /* one bad scale must not take the paint down */ }
-    }
-    // ⛔⭐ `indTarget` / `ensureIndTarget` / `applyIndScale` STOOD HERE AND WENT
-    // WITH THE LAST THREE RENDER BLOCKS (B5 Task 8) — they had no other callers.
-    // Together they were the legacy lane's placement: which pane and which named
-    // price scale an oscillator lands on, whether the volume-overlay toggle moved
-    // it to the volume pane's shared left axis, and what to assert on that scale.
-    // `engine/placement.js` answers all three now, as a PURE function returning
-    // `{paneIndex, scaleId, scaleOptions, autoscale}` — and `volOverlaySet` and
-    // `VOL_PANE_INDEX` above are handed to it at the sync call rather than closed
-    // over here.
-    //
-    // ⚠️ ONE OF THEM WAS A DESTROY/RECREATE AND THAT IS THE UPGRADE, not a
-    // like-for-like move: `ensureIndTarget` REMOVED an indicator's series and
-    // nulled its ref whenever its target scale changed, so every volume-overlay
-    // toggle destroyed and rebuilt the series — the exact pattern LWC #2049
-    // (still open) makes unsafe. The binder relocates the SAME series object with
-    // `moveToPane` + `moveSeriesToScale`, which `stockChartWiring.test.jsx` drives
-    // mid-session in both directions.
-
-    if (showVolume && __heavy.committed._big.volData.length) {
-      // Separate-pane volume sits on the pane's RIGHT axis (visible) so an
-      // overlaid indicator can take the LEFT axis. Overlay mode keeps the
-      // invisible overlay scale ('').
-      const volScaleId = nativeVolSeparate ? 'right' : ''
-      // Bar style: 'columns' = the built-in HistogramSeries (full-slot bars, the
-      // long-standing look); 'histogram' = ThinVolumeSeries (custom series drawing
-      // thin bars with a gap between each, TC2000-style).
-      // blankVolume feeds whitespace — the built-in HistogramSeries handles that
-      // natively, so force 'columns' rather than risk the custom ThinVolumeSeries.
-      const volBarStyle = (!blankVolume && cs.volume?.barStyle === 'histogram') ? 'histogram' : 'columns'
-      // priceScaleId / paneIndex / series TYPE are fixed at creation, so recreate
-      // when the target scale OR the bar style changes. The ref stores a composite
-      // key (was just the scale id) — only ever compared for equality.
-      const volSeriesKey = `${volScaleId}|${volBarStyle}|${_tvVolOverlay ? 'tv' : ''}`
-      if (volumeSeriesRef.current && volumeSeparatePaneRef.current !== volSeriesKey) {
-        try { chart.removeSeries(volumeSeriesRef.current) } catch {}
-        volumeSeriesRef.current = null
-      }
-      // ⭐⭐ WHICH PANE DO THE BARS GO INTO? A LITERAL `1` IS ONLY RIGHT ON A CHART
-      // THAT HAS NO VOLUME PANE YET.
-      //
-      // `addSeries(…, 1)` on a one-pane chart CREATES pane 1, and
-      // `prepareArrangement` then moves that pane wherever the member arranged it
-      // — which is why the literal survived. It stops being right the moment the
-      // volume pane ALREADY EXISTS at some other index, and residency is exactly
-      // what makes that reachable: a guest holds the rectangle open while the bars
-      // are away, the member restores Volume, and on a chart with Volume arranged
-      // ABOVE Price the bars are created into PRICE's pane instead.
-      //
-      // ⛔ THE RESIDENT'S OWN PANE, NOT `VOL_PANE_INDEX`. The layout's index is
-      // where the pane is going to BE once the arrangement settles; this needs
-      // where it IS at the moment `addSeries` runs, and only the series already
-      // drawing there can say. `_volResidents` is `displayTarget`'s answer — the
-      // same set `excludeKeys` subtracts — so there is no second rule here.
-      const _volCreateIndex = (() => {
-        if (!nativeVolSeparate) return 0
-        // ⛔ THE SAME EXCLUSION, FOR THE SAME REASON — a resident that has not been
-        // relocated yet is sitting in PRICE's pane, and creating the bars there
-        // would draw volume over the candles.
-        const i = _volResidentPane()?.paneIndex?.()
-        return Number.isInteger(i) ? i : 1
-      })()
-      if (!volumeSeriesRef.current) {
-        const volOpts = {
-          // Custom (not type:'volume') so the ThinVolumeSeries custom series
-          // abbreviates its axis too — see formatVolumeAxis. minMove:1 keeps the
-          // gridlines on whole-share intervals (identical look to type:'volume').
-          priceFormat: { type: 'custom', formatter: formatVolumeAxis, minMove: 1 },
-          priceScaleId: volScaleId,
-          // Model Book: no dashed last-volume price line / axis tag.
-          priceLineVisible: !boldCandles && !hidePriceLine,
-          // volumeLastValue opt-in shows the current-volume tag on the right scale
-          // (mirrors the main chart's price tag) even in the bold/charts-workspace look.
-          lastValueVisible: (volumeLastValue || (!boldCandles && !hidePriceLine)) && !lastBarOffRef.current && !_tvVolOverlay,
-          ...(_tvVolOverlay ? { priceLineVisible: false } : {}),
-        }
-        const vs = volBarStyle === 'histogram'
-          ? chart.addCustomSeries(new ThinVolumeSeries(), volOpts, _volCreateIndex)
-          : chart.addSeries(HistogramSeries, volOpts, _volCreateIndex)
-        // Overlay bars are drawn at reduced opacity. ONE place for every writer — the full
-        // setData here and every live writer's `update()` go through this series object.
-        if (_tvVolOverlay) dimVolumeSeries(vs)
-        volumeSeriesRef.current = vs
-        volumeSeparatePaneRef.current = volSeriesKey
-        lastAppliedVolPctRef.current = null  // fresh pane → force the height (re)apply below
-      }
-      if (nativeVolSeparate) {
-        // Own pane: small top margin so bars don't kiss the divider; size the
-        // pane to ~22% of the chart via stretch factors (main pane gets the rest).
-        // autoScale keeps the bars fitted to the SAME slice of the pane on every
-        // ticker/timeframe (a dragged volume axis otherwise pins a fixed range that
-        // makes a lower-volume name's bars tiny) — re-applied each pass so an
-        // accidental axis drag always snaps back to a consistent auto-fit.
-        // minimumWidth: v5 aligns all panes to one shared axis column — the VOLUME
-        // pane's scale was never pinned, so its developing-bar tag ("185.71K" →
-        // "1.02M") re-measuring on every ~1s live volume update could exceed the
-        // main pane's pinned width and re-flow the shared column each tick — the
-        // whole plot shakes left-right once a second. Pin it to the same floor.
-        volumeSeriesRef.current.priceScale().applyOptions({ borderVisible: false, autoScale: true, minimumWidth: _axisMinWidth, scaleMargins: { top: 0.12, bottom: 0 } })
-        try {
-          // Stretch factors are relative. Address panes by their series' own
-          // pane object (getPane) rather than raw index, so an index-comparison
-          // pane on top (Model Book) doesn't get mis-sized when this re-runs.
-          // ⛔ THE SAME `_volPct` / `_idxPct` THE LAYOUT WAS HANDED, not a second
-          // copy of the clamps: `computePaneLayout`'s whole bands-mode reference
-          // is "what these two `setStretchFactor` calls produce", so a drift
-          // between the two expressions is a layout computed against a chart that
-          // does not exist. One authority, declared above the layout call.
-          const pct = _volPct
-          const mainPane = candleSeriesRef.current?.getPane?.()
-          const volPane = volumeSeriesRef.current?.getPane?.()
-          // Only (re)apply when the TARGET height changed — otherwise a periodic
-          // data-poll re-run would snap the pane back and undo a user's drag.
-          // ⚰️⚰️ AND IT MAY ONLY SPEAK WHEN THESE TWO PANES ARE THE WHOLE CHART.
-          // Stretch factors are RELATIVE, so the `(100 - pct, pct)` pair below only
-          // means "volume is pct% of the chart" while main and volume are the only
-          // panes. Add a third — a data series, an RSI, any own-pane indicator — and
-          // volume's real share silently becomes `pct / (100 + thirdStretch)`,
-          // because the third pane keeps the weight `computePaneLayout` gave it and
-          // that weight is on a DIFFERENT BASIS: the layout hands out PIXEL heights
-          // (463 / 154 / 81 on a 700px stack), this writer hands out PERCENTAGES.
-          // Two writers, two incompatible numbering systems, one relative field.
-          //
-          // ⛔⛔ MEASURED 2026-09-15 (`__tests__/volumeStretchThirdPane.test.js`):
-          // apply 22 with a third pane at 81 and the volume pane measures **12**,
-          // while `lastAppliedVolPctRef` still says 22. The 300ms drag sampler
-          // compares exactly those two numbers, `latchOnDrag` fires at a two-point
-          // gap, and within 1.5s of any real separator drag it latches 12 as the
-          // member's choice and PERSISTS IT GLOBALLY. The next pass applies 12
-          // against the same inflated denominator, measures ~7, latches that — the
-          // volume pane ratchets down while the third pane, which nothing writes,
-          // is left holding ~45% of the chart. That is the owner's live cluster:
-          // "Volume snaps back only when QQQ is in it" and "the new QQQ pane is
-          // enormous", one defect wearing two costumes.
-          //
-          // ⭐ SO THE CANONICAL LAYOUT OWNS THE STACK, AND IT ALREADY DID. `binder`
-          // ends EVERY sync with `applyPaneStretch(ctx.paneLayout)` — ungated by
-          // instance count — and that plan sizes volume correctly in both cases
-          // (measured: `[545, 154]` for two panes, `[463, 154, 81]` for three; 22%
-          // either way). A member's dragged height reaches it through
-          // `cs.paneSizes`, the one durable authority. This writer is redundant the
-          // moment the stack is bigger than the pair it can describe, so it stands
-          // down rather than fighting — and says it has NO OPINION, which is what
-          // makes the sampler bail (`applied == null`) instead of latching a gap
-          // that only ever existed because the two writers were counting
-          // differently.
-          const paneCount = (() => {
-            try { return (chart.panes() || []).length } catch { return 0 }
-          })()
-          if (mainPane && volPane && !legacyPairOwnsStack(paneCount, !!indexPaneSeriesRef.current)) {
-            lastAppliedVolPctRef.current = null
-          } else if (mainPane && volPane && lastAppliedVolPctRef.current !== pct) {
-            lastAppliedVolPctRef.current = pct
-            if (indexPaneSeriesRef.current) {
-              const idxPct = _idxPct
-              try { indexPaneSeriesRef.current.getPane().setStretchFactor(idxPct) } catch {}
-              volPane.setStretchFactor(pct)
-              mainPane.setStretchFactor(Math.max(20, 100 - pct - idxPct))
-            } else {
-              mainPane.setStretchFactor(100 - pct)
-              volPane.setStretchFactor(pct)
-            }
-          }
-        } catch {}
-      } else {
-        // FLIP C: the volume row is still a BAND inside pane 0 (volume is not an
-        // indicator instance and gets no pane of its own), but pane 0 is shorter,
-        // so its fractions are the layout's — the same re-expression the candles'
-        // own margins get above.
-        const volMargins = _tvVolOverlay
-          ? TV_VOLUME_OVERLAY_MARGINS
-          : ((paneMode() === 'panes' ? paneLayout.pane0.volumeMargins : null)
-            || paneMargins.volume || { top: 0.82, bottom: 0 })
-        volumeSeriesRef.current.priceScale().applyOptions({ autoScale: true, scaleMargins: volMargins })
-      }
-      _applyData(volumeSeriesRef.current, __heavy.committed._big.volData)
-      // The developing VOLUME bar after this setData: the legacy roll-gap re-top, or the store's
-      // developing-bar paint (candle + volume) — chart/legacyLiveWriters.liveAfterVolumeSetData.
-      liveAfterVolumeSetData({
-        H: LEGACY_LIVE_HELPERS, liveBarRef, volData: __heavy.committed._big.volData, cs, volumeSeriesRef, userCandleColors, boldCandles, modelBookLook, mbVolUp,
-      }, _paintStoreDev)
-
-      // Subtle smooth volume MA line on the same pane/scale as the bars.
-      if (volMaPeriodEff && volMaData.length) {
-        // candleFrameFade: split the volume MA into base (≤ setup day) + a fading
-        // tail past it, so it crossfades with the candles / volume / price MAs.
-        const _vmFade = candleFrameFade && fadeCutoff != null
-        const _vmCut = _vmFade ? String(fadeCutoff) : null
-        const baseVM = _vmFade ? volMaData.filter(p => String(p.time) <= _vmCut) : volMaData
-        const tailVM = _vmFade ? volMaData.filter(p => String(p.time) >= _vmCut) : null
-        const _vmPane = nativeVolSeparate ? VOL_PANE_INDEX : 0
-        const _vmOpts = {
-          lineWidth: 1, lineType: LineType.Curved, priceScaleId: volScaleId,
-          priceLineVisible: false, lastValueVisible: false,
-          crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
-          // The volume price scale uses the formatter of its LOWEST-z-order series.
-          // The volume MA line shares this scale, and with the custom ThinVolumeSeries
-          // (histogram style) the MA line — not the bars — ends up the formatter
-          // source, so WITHOUT this its default price formatter rendered the axis raw
-          // ("2000000000.00"). Give every series on the scale the SAME volume
-          // formatter so the axis abbreviates no matter which source wins.
-          priceFormat: { type: 'custom', formatter: formatVolumeAxis, minMove: 1 },
-        }
-        const _vmColor = cs.volume?.maColor || VOL_MA_COLOR
-        const _vmWidth = Number(cs.volume?.maLineWidth) || 1
-        if (!volMaSeriesRef.current) {
-          volMaSeriesRef.current = chart.addSeries(LineSeries, { color: _vmColor, lineWidth: _vmWidth, ..._vmOpts }, _vmPane)
-        } else {
-          // Was set only at creation → changing the Volume MA color/width in settings
-          // had no effect until remount. Re-apply on every settings change.
-          try { volMaSeriesRef.current.applyOptions({ color: _vmColor, lineWidth: _vmWidth }) } catch { /* disposed */ }
-        }
-        _applyData(volMaSeriesRef.current, baseVM)
-        if (_vmFade) {
-          const vmTailColor = colorMulAlpha(VOL_MA_COLOR, frameFadeAlphaRef.current)
-          if (!volMaTailSeriesRef.current) {
-            volMaTailSeriesRef.current = chart.addSeries(LineSeries, { color: vmTailColor, ..._vmOpts }, _vmPane)
-          } else {
-            volMaTailSeriesRef.current.applyOptions({ color: vmTailColor })
-          }
-          volMaTailSeriesRef.current.setData(tailVM)
-        } else if (volMaTailSeriesRef.current) {
-          try { chart.removeSeries(volMaTailSeriesRef.current) } catch {}
-          volMaTailSeriesRef.current = null
-        }
-      } else if (volMaSeriesRef.current) {
-        try { chart.removeSeries(volMaSeriesRef.current) } catch {}
-        volMaSeriesRef.current = null
-        if (volMaTailSeriesRef.current) { try { chart.removeSeries(volMaTailSeriesRef.current) } catch {}; volMaTailSeriesRef.current = null }
-      }
-    } else if (volumeSeriesRef.current) {
-      try { chart.removeSeries(volumeSeriesRef.current) } catch {}
-      volumeSeriesRef.current = null
-      if (volMaSeriesRef.current) { try { chart.removeSeries(volMaSeriesRef.current) } catch {}; volMaSeriesRef.current = null }
-      if (volMaTailSeriesRef.current) { try { chart.removeSeries(volMaTailSeriesRef.current) } catch {}; volMaTailSeriesRef.current = null }
-    }
-
-    // ── Extended-hours shading in the VOLUME pane ──
-    // The price-pane shading primitive (attached to pane 0 above) fills only its own
-    // pane, so with volume in a SEPARATE pane the pre/post bands stopped at the volume
-    // divider. Attach a SECOND shading instance to the volume pane so the bands extend
-    // straight down through it too (owner ask). Only while that pane exists.
-    {
-      const _volPane = (volumePaneLive && showVolume && __heavy.committed._big.volData.length > 0) ? chart.panes()[VOL_PANE_INDEX] : null
-      if (_volPane) {
-        if (!sessionShadeVolRef.current) sessionShadeVolRef.current = createSessionShadingPrimitive({})
-        if (!sessionShadeVolAttachedRef.current) {
-          try { _volPane.attachPrimitive(sessionShadeVolRef.current.primitive); sessionShadeVolAttachedRef.current = true } catch { /* older pane API */ }
-        }
-        if (sessionShadeVolAttachedRef.current && lastShadeBandsVolRef.current !== sessionShadeBands) {
-          lastShadeBandsVolRef.current = sessionShadeBands
-          sessionShadeVolRef.current.setOptions({ enabled: _shadeOn, bands: sessionShadeBands })
-        }
-      } else if (sessionShadeVolRef.current && sessionShadeVolAttachedRef.current) {
-        // Volume pane gone (overlay mode / hidden) — the primitive detached with the
-        // pane; drop the flag so it re-attaches if the pane returns, and clear its bands.
-        sessionShadeVolAttachedRef.current = false
-        lastShadeBandsVolRef.current = null
-        try { sessionShadeVolRef.current.setOptions({ enabled: false, bands: EMPTY_BANDS }) } catch {}
-      }
-    }
-
-    // ── Overlay lines — reuse series where possible ──
-    // Remove excess overlay series
-    while (overlaySeriesRefs.current.length > overlayData.length) {
-      const old = overlaySeriesRefs.current.pop()
-      try { chart.removeSeries(old) } catch {}
-    }
-    // candleFrameFade: each MA is split into a base segment (up to the setup day,
-    // always full) + a tail segment (past it) whose opacity crossfades with the
-    // candles on a Setup⇄Result flip. At full opacity the two read as one line.
-    const _fadeMA = candleFrameFade && fadeCutoff != null
-    const _cut = _fadeMA ? String(fadeCutoff) : null
-    const _tailAlpha = frameFadeAlphaRef.current
-    while (overlayTailSeriesRefs.current.length > (_fadeMA ? overlayData.length : 0)) {
-      const old = overlayTailSeriesRefs.current.pop()
-      try { chart.removeSeries(old) } catch {}
-    }
-    // Update existing or add new overlay series. CRITICAL: when an existing
-    // overlay's new data is empty (e.g. switched to a recent IPO with too few
-    // bars to compute SMA200), we must explicitly clear it. The previous
-    // `if (!ovData.length) continue` left the OLD ticker's overlay line visible.
-    for (let i = 0; i < overlayData.length; i++) {
-      const { data: ovData } = overlayData[i]
-      let color = overlayData[i].color
-      // Charts workspace: repaint the 9-EMA in the candle up-color (MB_UP) so the
-      // fast MA matches the candles — but ONLY while it wears the stock default
-      // color; a user-picked color from the Indicators tab wins (ema9CandleColorFor).
-      const _ov = resolvedOverlays?.[i]
-      const _ema9Match = ema9CandleColorFor(_ov)
-      if (_ema9Match) color = _ema9Match
-      // Split into base (≤ setup day) + tail (≥ setup day) when fading; the shared
-      // cutoff point joins them so the line is seamless at full opacity.
-      const baseData = _fadeMA ? ovData.filter(p => String(p.time) <= _cut) : ovData
-      // The tail is the post-setup segment. In the steady SETUP view the frame ends
-      // ON the setup day, so the filter yields exactly one point (the cutoff itself)
-      // — and a single-point curved LineSeries renders as a stray flat horizontal
-      // dash past the last candle. Collapse it to empty so the MA just ends cleanly
-      // at the setup day; the tail only carries real data during the Setup⇄Result
-      // fade and in the Result view (where it has many points).
-      const _tailRaw = _fadeMA ? ovData.filter(p => String(p.time) >= _cut) : null
-      const tailData = _tailRaw && _tailRaw.length >= 2 ? _tailRaw : []
-      // Model Book renders MAs as smooth curves (TradingView look) instead of
-      // the default straight-segment polyline.
-      // Per-overlay width/style from the Indicators tab; unset falls back to the
-      // instance-wide defaults so stored blobs and Model Book are unaffected.
-      const _ovCfg = resolvedOverlays?.[i] || {}
-      const _ovStyleMap = { solid: 0, dotted: 1, dashed: 2 }
-      const _ovLineStyle = _ovStyleMap[_ovCfg.lineStyle] ?? 0
-      const _ovLineType = (boldCandles || modelBookLook) ? LineType.Curved : LineType.Simple
-      // 0.5 floors to a true 1px hairline on retina (lineWidth*dpr), thinner than
-      // the standard 1; non-retina stays ~1px. Model Book (boldCandles) + the
-      // intraday popup (modelBookLook) use it.
-      const _ovLineWidth = Number(_ovCfg.lineWidth) > 0 ? Number(_ovCfg.lineWidth) : ((boldCandles || modelBookLook) ? 0.5 : 1)
-      // fitPriceToCandles: MAs contribute NO price range, so the scale fits the
-      // candles only and a far 200MA clips off-screen instead of squashing price.
-      const _ovAutoscale = fitPriceToCandles ? () => ({ priceRange: null }) : () => null
-      if (i < overlaySeriesRefs.current.length) {
-        // Reuse existing series — always setData (even empty) to clear stale data.
-        // lastValueVisible = the colored right-axis chip showing this MA's latest
-        // value (opt-in via cs.showMaLabels; the chip auto-uses the series color).
-        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth, lineStyle: _ovLineStyle, lastValueVisible: !!cs.showMaLabels && !lastBarOffRef.current, autoscaleInfoProvider: _ovAutoscale })
-        _applyData(overlaySeriesRefs.current[i], baseData)
-      } else if (baseData.length) {
-        // Add new series only if there's data to show
-        const ls = chart.addSeries(LineSeries, {
-          color,
-          lineWidth: _ovLineWidth,
-          lineStyle: _ovLineStyle,
-          lineType: _ovLineType,
-          crosshairMarkerVisible: false,
-          priceLineVisible: false,
-          lastValueVisible: !!cs.showMaLabels && !lastBarOffRef.current,
-          autoscaleInfoProvider: _ovAutoscale,
-        })
-        ls.setData(baseData)
-        overlaySeriesRefs.current.push(ls)
-      }
-      // The fading tail (only the post-setup portion).
-      if (_fadeMA) {
-        const tailColor = colorWithAlpha(color, _tailAlpha)
-        if (i < overlayTailSeriesRefs.current.length) {
-          overlayTailSeriesRefs.current[i].applyOptions({ color: tailColor, lineType: _ovLineType, lineWidth: _ovLineWidth, autoscaleInfoProvider: _ovAutoscale })
-          overlayTailSeriesRefs.current[i].setData(tailData)
-        } else {
-          const ts = chart.addSeries(LineSeries, {
-            color: tailColor,
-            lineWidth: _ovLineWidth,
-            lineType: _ovLineType,
-            crosshairMarkerVisible: false,
-            priceLineVisible: false,
-            lastValueVisible: false,
-            autoscaleInfoProvider: _ovAutoscale,
-          })
-          ts.setData(tailData)
-          overlayTailSeriesRefs.current.push(ts)
-        }
-      }
-    }
-
-    // ── Per-MA z-order — overlap the candles, or sit behind them ──────────────
-    // Each overlay's `onTop` (resolvedOverlays[i].onTop) picks whether its MA
-    // line draws IN FRONT of the candles (true) or BEHIND them (false, default).
-    // LWC z-orders series by their index within the pane (higher index = drawn
-    // later = on top); `setSeriesOrder` moves one. We only ever lift an MA ABOVE
-    // the candle (onTop) or drop it back to just below the candle — NEVER to
-    // index 0, so the candle stays the lowest-index price series that drives the
-    // axis formatter (per LWC's setSeriesOrder note). Guarded so it's a no-op
-    // once each line is already on its chosen side, so it never churns per paint.
-    try {
-      const _czCandle = candleSeriesRef.current
-      if (_czCandle && typeof _czCandle.seriesOrder === 'function') {
-        for (let i = 0; i < overlaySeriesRefs.current.length; i++) {
-          const s = overlaySeriesRefs.current[i]
-          if (!s || typeof s.seriesOrder !== 'function') continue
-          const onTop = !!resolvedOverlays?.[i]?.onTop
-          const cOrd = _czCandle.seriesOrder()
-          const sOrd = s.seriesOrder()
-          if (onTop && sOrd < cOrd) s.setSeriesOrder(cOrd + 1)          // lift in front of candles
-          else if (!onTop && sOrd > cOrd) s.setSeriesOrder(cOrd)        // drop back behind candles
-        }
-      }
-    } catch { /* z-order is cosmetic — never break the paint */ }
-
-    // ── Re-top the MA overlays onto the developing bar, THIS paint ────────────
-    // The overlay setData above ends at the last FETCHED bar, but the post-setData
-    // re-top (Writer D, ~120 lines up) already advanced the CANDLE to the live
-    // developing bar in this same synchronous pass. Without matching that here, the
-    // MA line ends one bar behind the live candle for ~0.5-1s after every ticker
-    // switch — until the next livePrices tick (Writer A) fires `_extendOverlaysLive`
-    // (user report: "MAs lag one day back when I scan to a new stock, then snap to
-    // today"). Extend them now, off THIS render's own locals (overlayDataRef/
-    // prevBarsRef aren't mirrored until a later effect), so the MA is instant on
-    // today's candle exactly like the candle itself. Live charts only; replay/cutoff
-    // freeze the developing bar. sameBucket → recomputes the same last point (no-op)
-    // when the fetch already carried today; new bucket → appends today's MA point.
-    if (liveUpdates && !replayMode && !replayCutoffRef.current) {
-      const _dev = devOnScreen.tail()
-      if (_dev && _dev.time != null && Number.isFinite(_dev.close)) {
-        _extendOverlaysLive(_dev.time, _dev.close, {
-          defs: resolvedOverlays, ovAll: overlayData,
-          series: overlaySeriesRefs.current, bars: __heavy.committed.sessionAppliedBars, skipVwap: true,
-        })
-      }
-    }
-
-    // ── THE INDICATOR ENGINE — the one call site ──────────────────────────────
-    //
-    // WHY IT IS EXACTLY HERE, AND NOT WHERE IT WAS. lightweight-charts z-orders
-    // series by INSERTION ORDER within a pane, and under Flip A everything —
-    // candles, volume, the MA overlays, every price overlay and every oscillator
-    // band — shares pane 0. This call used to sit ~300 lines up, before the volume
-    // block, so an engine-drawn price overlay was inserted BEFORE the volume
-    // histogram and BEFORE the MA overlays, where its legacy twin is inserted
-    // after them. Wherever a Bollinger band, a VWAP line or an Ichimoku span
-    // crosses an MA or the volume bars, the crossing pixel changes colour. The
-    // RSI rehearsal could not see it by construction: RSI has its own scale in its
-    // own band and overlaps nothing.
-    //
-    // This position is the first legacy INDICATOR block, after volume, volume-MA
-    // and the MA overlays. So a migrated indicator is inserted where the legacy
-    // series it replaces was, relative to everything the engine does NOT draw:
-    //   · above volume, volume-MA and the MA overlays              (as legacy)
-    //   · below the comparison line, the pattern overlays and the index MA
-    //   · below every still-legacy indicator, and BB — the first of them, and
-    //     B3's first pilot — is precisely where this sits.
-    // Among the engine's OWN series, order is instance order, and the registry
-    // order a migrated blob is built in (bb, vwap, sar, ichimoku, donchian) is
-    // already the legacy render order for the five price overlays.
-    //
-    // ⭐ AND AS OF B5 TASK 6 FOUR OF THOSE FIVE LAND HERE. `bb`, `vwap`, `sar` and
-    // `ichimoku` are all engine-drawn and are inserted contiguously at this call,
-    // in registry order; `donchian` is the one still-legacy price overlay and its
-    // block runs BELOW, so it stays on top of the other four — which is exactly
-    // the shipped stacking. That is why the two tasks could not be reordered:
-    // migrating `donchian` first would have put the engine's copy of it UNDER
-    // `sar` and `ichimoku` instead of over them, and LWC z-stacks by insertion.
-    // `engine_price_overlay_zorder` is the pixel case for it.
-    //
-    // Everything it reads is still a LOCAL of `updateChart` — `chart`, the render
-    // plan (`_noop`/`_incr`/`_freshChart`), `_applyData`, `paneMargins`, the
-    // volume-overlay decision, `filteredBars`, `adjustTime`. That is why it is
-    // inline here rather than in an effect of its own: an effect would have to
-    // re-derive the render plan (a second copy of the decision that keeps the
-    // developing bar alive in extended hours) and would create its panes at a
-    // different point in the pass. Extraction is B5's job, when panes stop being
-    // bands.
-    //
-    // ⚠️ `engineNeeded`, not `engineActive`: after Flip B the engine is active on
-    // EVERY chart (something is always flipped), and constructing a binder for a
-    // chart with no instances would trade the "zero lightweight-charts calls when
-    // there is nothing to draw" property for nothing. A chart that later gains an
-    // instance builds one then; a chart that loses its last one syncs
-    // `enabled: false`, which releases what it held (`binder.js`) rather than
-    // leaving ghosts.
-    //
-    // ⭐ AND THIS IS NOW THE WHOLE OF THE DARK CONTRACT (B5 Task 4). It used to
-    // read `engineOn || engineInstances.length > 0`, where `engineOn` was the
-    // deleted flag. The disjunct did nothing a user could observe — it built a
-    // binder for a flag-on chart with no instances, and the flag was on for
-    // nobody — and it made the honest predicate look like a fallback. What is left
-    // says exactly what it means: no instances, no binder, zero library calls.
-    // ─── REALISING AN ARRANGEMENT ───────────────────────────────────────────
-    //
-    // ⭐ TWO STEPS, AND THE ORDER OF THEM IS THE FIX. `prepare` makes the
-    // physical chart able to hold the arrangement BEFORE the binder creates
-    // anything into it; `settle` asserts the result afterwards. See
-    // `engine/paneRealization.js` for why a final slot is not a safe place to
-    // create a series, and what happens on a cold rebuild when they are confused.
-    const _paneRealize = {
-      order: _paneOrder,
-      paneCountRequired: paneLayout.paneCountRequired,
-      pinned: _hasIdxPane ? 1 : 0,
-      priceKey: PRICE_PANE,
-      volumeKey: volumePaneLive ? VOLUME_PANE : null,
-      paneOf: (key) => {
-        try {
-          if (key === PRICE_PANE) return candleSeriesRef.current?.getPane?.() || null
-          if (key === VOLUME_PANE) {
-            if (!volumePaneLive) return null
-            // The native bars when they are there…
-            if (nativeVolSeparate) {
-              const vp = volumeSeriesRef.current?.getPane?.()
-              if (vp) return vp
-            }
-            // …and otherwise whichever GUEST is holding the rectangle open. The
-            // realiser needs the pane a key currently occupies; with the bars
-            // deleted that is the resident's pane, and returning null here would
-            // let the sweep reclaim a pane something is still drawing in.
-            return _volResidentPane()
-          }
-          const bs = engineRef.current?.binder?.bindings?.()
-          if (!Array.isArray(bs)) return null
-          const hit = bs.find((x) => x && x.instanceId === key && x.series)
-          return hit ? hit.series.getPane() : null
-        } catch { return null }
-      },
-    }
-    prepareArrangement(chart, _paneRealize)
-
-    const engineNeeded = engineInstances.length > 0
-    if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
-    if (engineNeeded && !engineRef.current) {
-      engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc(), scope: binderNoticeScope }) }
-    }
-    if (engineRef.current) {
-      engineRef.current.binder.sync({
-        enabled: engineNeeded,
-        cs,
-        instances: engineInstances,
-        // ⭐ THE THIRD SOURCE FAMILY'S DATA. Bars for any canonical symbol the
-        // instances name, already fetched and cached above. Absent is not an
-        // error: it is a chart with no symbol sources, and every lookup misses.
-        secondary: secondarySources,
-        exchangeOf: otherSymbolExchangeOf,
-        lowerTf: lowerTfSources,
-        // ⭐⭐ CALCULATION-TIMEFRAME FRAMES — the higher-timeframe canonical bars an
-        // instance with `calculationTimeframe` computes over (`useCalcFrames`), the
-        // chart's session rule for an intraday frame, and the door a frame the chart
-        // has outrun is refreshed through (throttled per window).
-        frames: calcFrames,
-        frameRthOnly: _intradayLike && !showExtended,
-        onFrameStale: (frame, s) => { try { refreshCalcFrameRef.current(frame, s) } catch { /* */ } },
-        // ⭐ Historical fundamentals, already resolved (see `useFundamentalSources`).
-        fundamentals: fundamentalSources,
-        marketCapAuthority: marketCapAuthoritySources,
-        // ⭐ Economic series, already resolved (see `useEconomicSources`): release-
-        // date placement, strict intraday, per-frequency max age, period-monotone.
-        economics: economicSources,
-        // ⭐⭐ WHICH PROVIDER FAMILY A CANONICAL SYMBOL BELONGS TO — the SEMANTIC
-        // half of `ohlcCapability`. The breadth registry is the same authority
-        // `api/routers/bars.py` routes on, read synchronously because the binder
-        // has no hooks; it answers `'unknown'` until it has loaded and the gate
-        // REFUSES `'unknown'`, so a breadth measure can never be mistaken for a
-        // security while the page is still starting.
-        //
-        // ⚠️ IT IS A CAPABILITY ORACLE, NOT A LIST OF SYMBOLS THAT GET CANDLES.
-        // No ticker, no prefix: the binder asks what KIND of thing this is, and
-        // `ohlcCapability` owns what each kind may be drawn as.
-        ohlcFamilyOf: canonicalFamily,
-        // ⭐⭐ WHAT THE SOURCE SAYS ABOUT HOW IT WANTS TO BE DRAWN — the other half
-        // of the presentation contract, and a STRICTLY DIFFERENT QUESTION from the
-        // one above. `ohlcFamilyOf` decides what a source may MEAN (and therefore
-        // whether a candle is honest); this decides what it should LOOK LIKE first,
-        // and it may never be routed into a capability gate — `canonicalPresentation`
-        // says so in its own header and the engine rail asserts it.
-        //
-        // ⚠️ IT READS METADATA THAT WAS ALREADY ON THE WIRE. Both catalogues have
-        // published `presentation` all along; until now nothing on the chart asked.
-        sourcePresentationOf: canonicalPresentation,
-        registry: engineRegistry,
-        // The SAME bars `indicatorData` computes from (`:3895`) — parity under
-        // Flip A means the engine's column and the legacy one are the same array.
-        bars: __heavy.committed.filteredBars,
-        // ⭐ THE SERVER LANE'S ONLY REQUIREMENT (Phase C Task 13). A native
-        // ignores both; a `compute.kind: 'server'` definition (the RS line) is
-        // fetched per (symbol, timeframe) and cannot resolve without them.
-        // `resolvedTf`, not the raw `tf` prop: the prop is optional and falls
-        // back to a preference, and a null timeframe would key the lane's cache
-        // differently from the request the hook actually makes.
-        sym,
-        // ⭐ R-K: the OBJECT beside the string. `sym` keys the server lane's
-        // fetch; `symbol` is what the bind-time fold reads. See `symbolMeta`.
-        symbol: symbolMeta,
-        tf: resolvedTf,
-        // ⭐⭐ THE BAR-CLOSE TRI-STATE, PRODUCED IN PYTHON. `/api/bars` computes it
-        // from `bar_close_state` because that is the side the NYSE calendar lives
-        // on; the browser is handed one tri-state and never a date set. Without it
-        // the four CLOCK_REALTIME columns render BLANK — correct under the
-        // fail-closed contract, and useless.
-        // ⛔ `?? null` IS THE FAIL-CLOSED DEFAULT AND MUST STAY. A server that has
-        // not shipped the field yet sends `undefined`; `null` means UNKNOWN and
-        // blanks the columns, whereas `false` would assert the newest bar is
-        // SETTLED and hand the column layer a confident `isconfirmed = 1`.
-        // ⭐ It rides WITH the payload it describes, so a cached or delta response
-        // carries the state of ITS OWN newest bar rather than of the wall clock.
-        newestBarIsForming: __heavy.committed.data?.newest_bar_is_forming ?? null,
-        // ⭐ C12w — the listing statement (see `historyFromListing` above). The
-        // engine also asks the DOCUMENT (`historyFromListingFor`), so a script from
-        // another translator keeps its bounded window whatever this says.
-        historyFromListing,
-        // ⭐⭐ (2026-11-20) the listing FACT where it holds and is not served (W / M), for a true sentence
-        ...(listingUnserved ? { listingStart: true } : {}),
-        // ⭐⭐ W9-T11-F1 — the strategy window (see `strategyHistoryWindow` above). The binder hands it
-        // to strategy documents only; every other document's ctx is unchanged.
-        historyWindowBars: strategyHistoryWindow,
-        // ⭐⭐ (2026-11-19, the strategy-only daily window) the depth a run from the listing is served at without the
-        // deep-start rule ([B-START-DEEP], `vm.js`): beside the window, from the same server answer
-        listingDepthBars: strategyListingDepth,
-        // r1 (N3): asked, not answered yet — the binder holds a strategy run instead of refusing it
-        historyWindowPending: strategyWindowPending,
-        adjustTime,
-        applyData: _applyData,
-        // ⭐ 2026-11-13 — the time of the first row an indicator's series is handed, or
-        // null for every row (`plotWindow.js`, decided above the signature).
-        plotWindowFrom: _plotFrom,
-        // ⭐⭐ B1 — Pine `bgcolor` on an overlay script that binds no series of its
-        // own is drawn on the price pane, through the candles' series.
-        priceSeries: () => candleSeriesRef.current,
-        // ⭐⭐ BATCH 2 — THE GLYPH CAPABILITY THE BINDER HAS ALWAYS ASKED FOR. `binder`
-        // draws `plots[].marker` (plotshape / plotchar, and the authoring door's
-        // `set_marker`) only through an injected `createSeriesMarkers`, and nothing
-        // injected it: every marker was planned, computed and never drawn on a live
-        // chart (measured 10-09, sandbox — the unit tests use a fake).
-        createSeriesMarkers,
-        // ⭐⭐ B1 — Pine `barcolor`: the binder hands the overrides here only when
-        // they CHANGE; the candles are re-applied from their own remembered data
-        // (one `update` of the last bar when only it changed). No React state.
-        // ⛔ NOT A SEVENTH DEVELOPING-BAR WRITER (`singleWriterIndex.test.js`): the
-        // re-apply writes back the LAST bar the writers themselves wrote (the wrap's
-        // raw copy tracks every `update`), recoloured — never a new price.
-        setBarColours: (map) => {
-          const prev = barColoursRef.current
-          barColoursRef.current = map
-          try { reapplyBarColours(candleSeriesRef.current, prev, map) } catch { /* series mid-swap */ }
-        },
-        // ⭐⭐ C3B — THE GRAPHICAL-OBJECT CAPABILITY. Injected exactly like every
-        // other chart-library capability the binder uses: a host that cannot
-        // provide it draws no lines, labels or boxes and everything else — the
-        // columns, the legend, the scan — is untouched. One canvas per INSTANCE,
-        // because two copies of one indicator are two independent lifetimes.
-        createObjectLayer: (inst) => createObjectLayer({
-          instanceId: inst && inst.instanceId,
-          container: chart.chartElement ? chart.chartElement() : null,
-          // ⭐⭐ THE CHROME THIS HOST FLOATS OVER ITS OWN CHART, so a table
-          // anchored to a TOP corner lands where a member can see it. The
-          // drawing toolbar is `absolute; top: 4px; height: 26px; z-index: 5`
-          // over this very container — measured live on the first run, both of
-          // Volume v2's dashboards drew correctly and were painted over by it.
-          // ⛔ It reaches the layer as a NUMBER FROM THE COMPONENT THAT OWNS THE
-          // TOOLBAR, never as a measurement inside the adapter: the adapter's
-          // freedom from `getBoundingClientRect` is what makes a pane resize cost
-          // nothing, and one `insets` argument is the price of keeping it.
-          insets: { top: CHART_TOOLBAR_FOOTPRINT_PX },
-          mapping: () => {
-            const series = candleSeriesRef.current
-            const ts = chart.timeScale ? chart.timeScale() : null
-            if (!series || !ts) return null
-            const el = chart.chartElement ? chart.chartElement() : null
-            // ⭐⭐ ITEM 4 — THE PRICE SCALE IS NOT PLOT AREA, AND A TABLE ANCHORED
-            // TO THE RIGHT CORNER LANDS ON TOP OF IT.
-            //
-            // ⚰⚰ MEASURED at both touch tiers, 2026-09-13. The container is
-            // 390px on a phone and the right scale owns its last 104px
-            // (x=286..390); a `right: 8px` table therefore ran from 264 to 382,
-            // straight over the price labels. At 1024 the same thing happens at
-            // x=550..654. Pine's `position.top_right` means the top right of the
-            // PLOT, which is what the vendor draws — not the top right of the
-            // widget including its axis.
-            //
-            // ⛔ READ FROM THE CHART, NEVER ASSUMED. LWC sizes the scale to the
-            // widest label in view, so it changes with the symbol and the zoom;
-            // a constant here would be right for SPY and wrong for a four-digit
-            // price. `priceScale('right').width()` is the chart's own answer.
-            let rightInset = 0
-            try {
-              const ps = chart.priceScale ? chart.priceScale('right') : null
-              const w = ps && typeof ps.width === 'function' ? ps.width() : 0
-              if (Number.isFinite(w) && w > 0) rightInset = Math.round(w)
-            } catch { rightInset = 0 }
-            // ⭐ THE PANE THIS INSTANCE DRAWS IN, so its tables stay inside it
-            // (`objectLayer.js`). Read off the renderer: the pane of one of the
-            // instance's own series (a visible one first), else the candles' pane.
-            // ⛔ Unreadable → no `pane`, and the table layer keeps the whole container.
-            // …and the PRICE pane, the layer's fallback when its own pane is too short
-            // for its tables (a calculator's one-line pane).
-            let pane = null
-            let mainPane = null
-            try {
-              const rectOf = (lwPane) => {
-                const pel = lwPane?.getHTMLElement?.()
-                if (!pel || !el || !pel.getBoundingClientRect || !el.getBoundingClientRect) return null
-                const pr = pel.getBoundingClientRect()
-                const cr = el.getBoundingClientRect()
-                return pr.height > 0 ? { top: pr.top - cr.top, height: pr.height } : null
-              }
-              const mine = (engineRef.current?.binder?.bindings?.() || [])
-                .filter((b) => b && b.instanceId === (inst && inst.instanceId) && b.series)
-              const shown = mine.find((b) => b.series.options?.()?.visible !== false) || mine[0]
-              mainPane = rectOf(series.getPane?.())
-              pane = rectOf(shown?.series?.getPane?.()) || mainPane
-            } catch { pane = null; mainPane = null }
-            return {
-              timeToX: (t) => ts.timeToCoordinate(adjustTime(t)),
-              priceToY: (p) => series.priceToCoordinate(p),
-              width: el ? el.clientWidth : 0,
-              height: el ? el.clientHeight : 0,
-              rightInset,
-              pane,
-              mainPane,
-            }
-          },
-        }),
-        plan: { noop: _noop, incr: _incr, fresh: _freshChart },
-        // ⭐⭐ (switch smoothness, 2026-11-20) a heavy pass may hand the indicator series it already drew their data
-        // over several tasks (`binder.js`, `SERIES_DATA_DEFER_MIN_ROWS`): only while the candles are built from the
-        // very bars the indicators are (no session-preview candle, no Heikin-Ashi), so every point an indicator holds
-        // meanwhile is on the candles' own time scale and the framing below reads the same index space either way.
-        deferSeriesData: __heavy.committed.displayBars === __heavy.committed.filteredBars,
-        // The declutter toggle. `visible` is part of the option set the binder
-        // re-asserts on every bind, so without this a hidden engine series would
-        // reappear on the next paint. Read from a ref, not a dependency — see the
-        // ref's declaration.
-        // …also hidden in "Group only" theme view (base MAs/indicators suppressed).
-        indicatorsHidden: indicatorsHiddenRef.current || hideBaseRef.current,
-        // The price axis's format, for engine series that share the candles' axis (see binder).
-        mainPriceFormat: priceFormatRef.current,
-        // Placement inputs. `resolvePlacement` reads these and nothing else, so
-        // the engine lands in the legacy bands by construction.
-        paneMargins,
-        // FLIP C. `null` in `'bands'` mode, and `resolvePlacement` ignores it
-        // there — asserted deep-equal to the pre-Flip-C answer for every pane
-        // oscillator in `engine/__tests__/flipCGeometry.test.jsx`.
-        paneLayout,
-        volOverlaySet,
-        // ⭐ …AND SEPARATELY, WHETHER THE BARS ARE ACTUALLY IN THAT PANE. The
-        // guest branch hands out the LEFT axis *so Volume keeps the right one*;
-        // with the bars removed there is no right axis to keep, and a volume pane
-        // whose only resident sits on the left wedges lightweight-charts'
-        // `_adjustSizeImpl` on every draw. One fact, asked where it is known.
-        nativeVolumeInPane: nativeVolSeparate && showVolume && __heavy.committed._big.volData.length > 0,
-        // ⛔⛔ PANE EXISTENCE, NOT THE BARS — `placement.js:476` gates the whole
-        // guest branch on this. A member who deletes Volume while an MA of it is
-        // displayed there has removed the BARS, not the pane; handing the native
-        // answer here made that guest fall through to the own-pane branch, find
-        // no pane of its own (a volume guest is a FOLLOWER, so the layout
-        // allocates it none) and bind nothing.
-        volSeparatePane: volumePaneLive,
-        VOL_PANE_INDEX,
-        // ⭐⭐ THE RESOLVED TARGET, NOT THE DECLARED ONE. `resolvePlacement` read
-        // `instance.placement.target || def.placement.target` itself, which is fine
-        // for a static answer and blind to a DERIVED one: an average of QQQ belongs
-        // in QQQ's pane, and nothing in the definition or the instance says so — it
-        // is computed from the source. Handing the resolver `displayTarget`'s answer
-        // is what keeps ONE module deciding where an indicator draws, and it is the
-        // same authority the LAYOUT above consumes, so the pane that gets allocated
-        // and the pane that gets resolved cannot disagree.
-        targetOf: (inst) => resolveDisplayTarget(inst, cs),
-        resolvePlacement,
-        resolvePreset,
-      })
-    }
-    // …and now that every series exists, settle the final order and drop any
-    // placeholder the binder did not claim.
-    settleArrangement(chart, _paneRealize)
-    // ── Per-average z-order — the "Overlap candles" rule, now for instances ──
-    // The retired overlay block (see "Per-MA z-order" above) put every average
-    // BEHIND the candles unless its `onTop` said otherwise. Averages are
-    // `movingAverage` instances now (`maAdoption.js`), so the same rule runs on
-    // their bindings: `presentation.overlap` lifts one in front, everything else
-    // drops back behind. Same guards — a no-op once each line is on its side, and
-    // never index 0, so the candle stays the lowest price series.
-    applyAverageZOrder(engineInstances)
-    // ⚠️ MEASURE PRICE'S CHROME FROM THE **FINAL** POSITION, never the temporary
-    // one `prepare` left it in.
-    pinPriceChrome()
-
-
-    // ── Bollinger Bands and RSI: FLIPPED (B3 Task 10) ────────────────────────
-    //
-    // Both are drawn by the ENGINE, from the instance list, at the sync call
-    // above. Their hand-written blocks, their `useRef`s, their `indicatorData`
-    // branches, their entries in the hide-all array and RSI's crosshair fallback
-    // are all GONE — that deletion IS Flip B, and it is what stops each of them
-    // being enumerated in six places. `ENGINE_OWNED` names them; the
-    // enable signal reaches the geometry through the instance list itself, and
-    // the engine is ACTIVE for them unconditionally because there is nothing else
-    // left that could draw them. (It used to say "regardless of `engineEnabled`" —
-    // B5 Task 4 deleted that flag, so there is no longer anything to be regardless
-    // of.)
-    //
-    // ⚠️ RSI's block sat BELOW VWAP's and BB's ABOVE it. Order still matters for
-    // the price overlays (LWC z-stacks by insertion), and it is preserved: the
-    // engine inserts everything it owns at the sync call, which is where BB — the
-    // FIRST legacy indicator block — used to be. RSI has its own scale in its own
-    // band and crosses nothing.
-
-    // ── Session VWAP: FLIPPED (B3 Task 11) ───────────────────────────────────
-    //
-    // Drawn by the ENGINE, from the instance list, at the sync call above — and
-    // its whole render context (the intraday-only gate, colour × opacity, the
-    // Model Book's forced white, the bold-candle hairline) is folded into the
-    // instance's inputs by `engine/eligibility.js` before the binder sees it.
-    // That is the module's entire reason to exist: four facts about the CHART
-    // that no definition schema can state.
-    //
-    // ⚠️ ON A DAILY CHART NOTHING DRAWS AND NOBODY OWNS IT. The gate is
-    // `def.meta.timeframes` (mirrored by `eligibility.VWAP_TIMEFRAMES`, which is
-    // where `VWAP_TFS` went), so the instance is dropped above 60-minute bars —
-    // it never reaches `engineInstances`, and the binder is handed nothing for it.
-
-    // ── Stochastic sub-pane: FLIPPED (B5 Task 5) ─────────────────────────────
-    //
-    // %K, %D and the 80/20 guides are drawn by the ENGINE, from one instance, at
-    // the sync call above. `stochKRef`/`stochDRef`, the `indicatorData.stoch`
-    // branch and the hide-all entries are deleted with the block — that deletion
-    // IS Flip B.
-    //
-    // ⚠️ ITS TWO LEGEND CHIPS DID NOT MOVE FILE, THEY MOVED LANE. `%K` and `%D`
-    // used to be `registerLegacyChip('stoch', …)` calls right here; they are now
-    // produced by `engineChips` from the SAME `plots[].legend` blocks, through
-    // the same `chipsFrom` pipeline, with the same text to the character. The
-    // developing-bar fallback rides `binding.lastValue` instead of the thunk that
-    // closed over `indicatorDataRef`. `legendFromDefinitions.test.jsx` asserts
-    // both the text AND the lane, because a chip drawn twice is invisible in text.
-
-    // ── MACD sub-pane: FLIPPED (B3 Task 11) ──────────────────────────────────
-    //
-    // Line, signal AND histogram are drawn by the ENGINE, from one instance, at
-    // the sync call above. The three `useRef`s, the `indicatorData.macd` IIFE,
-    // the hide-all entries and the crosshair fallbacks are all deleted with the
-    // block — that deletion IS Flip B.
-    //
-    // ⚠️ THE HISTOGRAM'S SIGN COLOURS AND THE HEAD-MASK LEFT THIS FILE WITH IT.
-    // `MACD_HIST_UP`/`MACD_HIST_DOWN` and the `MACD_HEAD_MASK` read both lived in
-    // that IIFE and both now exist only in `nativeRegistry` — one switch, one
-    // reader, which is what "one switch, both lanes" turns into when there is
-    // only one lane left.
-
-    // ── ATR sub-pane: FLIPPED (B5 Task 5) ────────────────────────────────────
-    //
-    // ⚠️ AND IT IS NOT A SECOND STOCHASTIC, WHICH IS WHY THE TWO MIGRATED
-    // TOGETHER RATHER THAN SEPARATELY. ATR's band is AUTOSCALED — the legacy
-    // create branch passed `{autoScale: true}` where every 0-100 oscillator
-    // passes `{autoScale: false, minimum: 0, maximum: 100}` — so it is the first
-    // definition whose `placement` declares NO `scale` at all, and
-    // `engine_atr_vs_legacy` is the first parity case on this branch to render an
-    // autoscaled engine band. Its band is also SHORTER (`pane.height` 0.13 vs
-    // 0.15, i.e. `{top: 0.87}` vs `{top: 0.85}`), it draws no guides, and its
-    // chip carries the period in brackets where Stochastic's two carry none.
-
-    // ── Parabolic SAR: FLIPPED (B5 Task 6) ───────────────────────────────────
-    //
-    // Drawn by the ENGINE, from the instance list, at the sync call above.
-    // `sarSeriesRef`, the `indicatorData.sar` branch and the hide-all entry are
-    // deleted with the block — that deletion IS Flip B.
-    //
-    // ⚠️ IT IS THE FIRST `markers` PLOT THE BINDER HAS EVER CREATED, and that is
-    // not a spelling difference. `poolKey('markers') === 'line'` — a `markers`
-    // plot IS a LineSeries with `lineWidth: 0` and point markers on, which is
-    // what this block built by hand — so the POOL can re-purpose SAR's series as
-    // any other line, and `pool.js`'s header records the measured leak that
-    // follows: `sar → rsi` left `pointMarkersVisible: true` behind, i.e. an RSI
-    // line with a dot on every bar. The complete-key-set rule closes it, and
-    // `sarIchimokuFlipParity.test.js` asserts it on that exact pair.
-    //
-    // ⚠️ AND IT IS A PRICE OVERLAY ON THE CANDLES' SHARED SCALE, so
-    // `autoscaleInfoProvider: () => null` — B3 Task 1's seam, measured at 38,491
-    // changed pixels when a price overlay was allowed to drive the main scale —
-    // is carried by `placement.target: 'price'` rather than by this call.
-
-    // ── Ichimoku Cloud: FLIPPED (B5 Task 6) ──────────────────────────────────
-    //
-    // All FIVE lines are drawn by the ENGINE, from ONE instance, at the sync call
-    // above. The five `useRef`s, the `indicatorData.ichimoku` branch and the five
-    // hide-all entries are deleted with the block.
-    //
-    // ⚠️ THREE PRESERVED QUIRKS CAME ACROSS UNTOUCHED, and `indicators.js`
-    // records all three deliberately: spanA and spanB are NOT forward-displaced
-    // (every other product draws the cloud 26 bars ahead of price), and chikou IS
-    // back-shifted 26 bars, so the last 26 slots of that column are the NaN pad.
-    // TRANSCRIBED, NOT CORRECTED — correcting any of them is a measured,
-    // owner-facing decision of the shape the MACD head-mask (88 px) and the VWAP
-    // session anchor (2,590 px) got, never something a migration does in passing.
-    //
-    // ⚠️ AND THE THREE PERIODS ARE LIVE NOW. This block called
-    // `computeIchimoku(filteredBars)` with NO arguments, so `tenkanPeriod`,
-    // `kijunPeriod` and `senkouBPeriod` were declared by the definition, absent
-    // from `CHART_DEFAULTS.indicators.ichimoku`, and the only greyed controls in
-    // the whole app (`indicatorCatalog.unwiredKeys`). `computeIchimoku` DOES
-    // honour its three arguments and the engine passes the instance's, whose
-    // defaults are the same 9/26/52 the no-argument call fell back to — so they
-    // become working controls at zero pixels.
-    //
-    // ⭐ ONE NAMED BEHAVIOUR CHANGE, AND IT IS THE ONLY ONE: TK and KJ now print
-    // on the DEVELOPING bar. This block registered them with a series and NO
-    // thunk, so on the newest bar — the one the bars-push writer appends before
-    // the indicator series has a point — the two chips printed nothing. The
-    // engine lane's `lastValue` is a number, so they print, which is the same gap
-    // B3 closed for RSI (review finding I-3) and which every other chip already
-    // had. No pixel case can see it; `legendFromDefinitions.test.jsx` asserts it
-    // in the DOM, with the control that it really is the developing bar.
-
-    // ⭐ FLIP B, B5 TASK 7 — MFI, CCI AND WILLIAMS %R ARE GONE FROM HERE.
-    //
-    // Three single-line pane oscillators, migrated and flipped in one commit
-    // (with `engineEnabled` deleted at Task 4, a migrated-but-un-flipped
-    // definition is drawn by NOTHING). Each was one `addSeries` plus a handful
-    // of `createPriceLine` guides; all three are drawn by the ENGINE now, from
-    // the instance list, at the sync call above. The three `useRef`s, the three
-    // `indicatorData` branches and the three hide-all entries went with them.
-    //
-    // ⚠️ THE GUIDES WERE THE WHOLE JOB. The series halves are a repeat of ATR's;
-    // what is not a repeat is that an omitted SERIES option means "keep what's
-    // there" while an omitted `createPriceLine` option means LWC's OWN DEFAULT
-    // — which for `lineStyle` is Dashed. That asymmetry cost 379 changed pixels
-    // on RSI's 50-midline at B3, and this task carried SEVEN guides in THREE
-    // shapes across it: MFI's 80/20 dashed pair, CCI's ±100 dashed bands with a
-    // LARGE-dashed zero line (the only definition in the registry with two
-    // guide styles), and Williams %R's −20/−80 on a NEGATIVE scale.
-    //
-    // ⚠️ ONE MEASURED DIFFERENCE, AND IT IS ORDER ONLY: this block created CCI's
-    // three lines as `100, 0, -100`; the engine walks plots in declaration order
-    // and each plot's levels in array order, so it creates them as `100, -100,
-    // 0`. Three horizontal lines at three distinct prices never overlap, so
-    // insertion order is invisible in the picture — stated here and asserted in
-    // `mfiCciWilliamsFlipParity.test.js` rather than left to be re-discovered.
-    //
-    // ⚠️ AND WILLIAMS %R'S SCALE IS `-100..0`, WHOSE `max` IS ZERO. The engine
-    // picks the pinned branch on `Number.isFinite(min) && Number.isFinite(max)`
-    // (`placement.js`); a truthiness guard would send BOTH williamsR (max 0) and
-    // mfi (min 0) down the `autoScale: true` branch and lose the `autoScale:
-    // false` that freezes a pooled scale against re-invalidation.
-
-    // ⭐⭐ FLIP B, B5 TASK 8 — ADX, OBV AND DONCHIAN ARE GONE FROM HERE, AND SO
-    // IS THE LANE. There is not one hand-written indicator render block left in
-    // this file: all fourteen series-expressible definitions are drawn by the
-    // ENGINE, from the instance list, at the sync call above. Four ledger rows
-    // retire together because they were ONE mechanism — the `useRef`s, the
-    // `indicatorData` memo, these blocks, and the hide-all array.
-    //
-    // ⚠️ THREE DIFFERENT SHAPES, AND EACH NEEDED SOMETHING A SYMMETRY ARGUMENT
-    // WOULD HAVE MISSED:
-    //
-    //   · `adx` — THREE lines on ONE named scale, plus a single guide at 25 on
-    //     the ADX line (not on +DI). Its `fixedPane(0, 100)` has a **min of
-    //     ZERO**, which is FALSY: `resolvePlacement` reaches the pinned branch on
-    //     `Number.isFinite`, and a `scale.min && scale.max` guard would send it to
-    //     `autoScale: true` and lose the `autoScale: false` that freezes a pooled
-    //     scale (TRAP #2). Williams %R sprang the same trap from the `max` end at
-    //     Task 7. ⚠️ The binder asserts a price scale per BINDING, so ADX's three
-    //     lines make THREE identical `priceScale().applyOptions` calls where this
-    //     block made one — a call count, not a picture, because all three carry
-    //     `priceScaleId: 'adx'` and therefore share one scale object.
-    //   · `obv` — the only definition with NO period input at all, and the only
-    //     one whose values run to 1e8, so it is the case that actually exercises
-    //     the autoscale seam on a REAL scale (B3 Task 1 measured `exclude` on an
-    //     autoscaled band collapsing it to -0.5..0.5, moving a price of 30 from
-    //     y=371 to y=-1640.78). ⭐ AND ITS ZERO SEED IS PRESERVED: `computeOBV`
-    //     starts bar 0 at `0` where every other native NaN-pads its head, so OBV
-    //     is the one series here with no whitespace at all. TRANSCRIBED, NOT
-    //     CORRECTED — correcting it is a measured, owner-facing decision of the
-    //     shape the MACD head-mask (88 px) and the VWAP anchor (2,590 px) got.
-    //   · `donchian` — the LAST price overlay, which is why it lands last: LWC
-    //     z-stacks by insertion and the engine draws its whole set contiguously
-    //     where BB's block used to be, so migrating it ahead of `sar`/`ichimoku`
-    //     would have put it UNDER two overlays it sits on top of today.
-    //     ⛔⭐ AND ITS MIDDLE LINE IS `LargeDashed`, WHICH THE DEFINITION DID NOT
-    //     SAY. This block built its three with `style: 0, 3, 0`; `donchian.middle`
-    //     carried no `lineStyle` behind a comment calling LineStyle 3
-    //     "unnameable" — true before `largeDashed` joined `PLOT_LINE_STYLES`,
-    //     false after. `pool.seriesOptionsForPlot` resolves an absent plot style
-    //     to SOLID (complete key set), so the engine would have drawn the mid-line
-    //     solid. No series count and no scale assertion could see it; the
-    //     definition names it now and `adxObvDonchianFlipParity.test.js` asserts
-    //     it. This block also passed NO `priceScaleId` and no pane argument, so
-    //     LWC defaulted both; `placement.js` resolves `price` to
-    //     `MAIN_PRICE_SCALE_ID` explicitly — the same answer, and the explicit
-    //     form is what stops a pooled band stranding on somebody else's scale.
-    // ── Symbol comparison overlay ──
-    if (comparisonData.length) {
-      if (!compareSeriesRef.current) {
-        compareSeriesRef.current = chart.addSeries(LineSeries, {
-          priceScaleId: 'compare',
-          color: '#fb923c',
-          lineWidth: 2,
-          priceLineVisible: false,
-          lastValueVisible: true,
-          crosshairMarkerVisible: true,
-          crosshairMarkerRadius: 4,
-        })
-        chart.priceScale('compare').applyOptions({
-          scaleMargins: { top: 0.1, bottom: 0.1 },
-          borderVisible: false,
-          visible: false,  // hide the right-axis label — value shown in legend instead
-        })
-      }
-      _applyData(compareSeriesRef.current, comparisonData)
-    } else if (compareSeriesRef.current) {
-      try { chart.removeSeries(compareSeriesRef.current) } catch {}
-      compareSeriesRef.current = null
-    }
-
-    // ── Price lines — remove old, add new (only when array reference changes) ──
-    if (lastPriceLinesRef.current !== allPriceLines) {
-      lastPriceLinesRef.current = allPriceLines
-      for (const pl of priceLineRefs.current) {
-        try { candleSeriesRef.current.removePriceLine(pl) } catch {}
-      }
-      priceLineRefs.current = []
-      if (allPriceLines?.length && candleSeriesRef.current) {
-        for (const pl of allPriceLines) {
-          const ref = candleSeriesRef.current.createPriceLine({
-            price: pl.price,
-            color: pl.color || cs.textColor,
-            lineWidth: pl.lineWidth || 1,
-            lineStyle: pl.lineStyle ?? 2,
-            axisLabelVisible: pl.axisLabelVisible ?? true,
-            lineVisible: pl.lineVisible ?? true,   // session ext tag = chip only (no line)
-            title: pl.title || '',
-            // An axis tag drawn in its own chip colours, only when the line asks (the Study trade levels' dark chips,
-            // tradeMarks.tradeLevelLines); every other line keeps the library's colour-filled tag.
-            ...(pl.axisLabelColor ? { axisLabelColor: pl.axisLabelColor } : {}),
-            ...(pl.axisLabelTextColor ? { axisLabelTextColor: pl.axisLabelTextColor } : {}),
-          })
-          priceLineRefs.current.push(ref)
-        }
-      }
-    }
-
-    // ── Swing high/low price labels (custom v5 series primitive, above series) ──
-    if (candleSeriesRef.current) {
-      if (!swingCtrlRef.current) swingCtrlRef.current = createSwingLabelsPrimitive({})
-      if (!swingAttachedRef.current) {
-        try {
-          candleSeriesRef.current.attachPrimitive(swingCtrlRef.current.primitive)
-          swingAttachedRef.current = true
-        } catch { /* older series API — primitive optional */ }
-      }
-      const sl = cs.swingLabels || {}
-      swingCtrlRef.current.setOptions({
-        enabled: swingLabelsOn,   // D/W/M-gated (see swingLabelsOn) — never on intraday
-        color: sl.color || '#d4d0c4',
-        tintByType: !!sl.tintByType,
-        upColor: sl.upColor || '#4ade80',
-        downColor: sl.downColor || '#f87171',
-        // The label's background box. showBg toggles it; a user-set color wins,
-        // unset matches the canvas so it reads as a clean plate over candles.
-        showBg: sl.bgEnabled !== false,
-        bg: sl.bg || cs.background,
-      })
-      swingCtrlRef.current.setPoints(swingPoints)
-    }
-
-    // ── Dark-pool level zones (custom v5 series primitive, behind the series) ──
-    // Attached to the CANDLE series, not the volume series: the band edges are
-    // placed with priceToCoordinate, which maps against the series' own scale —
-    // on the volume series these prices would map against the VOLUME scale.
-    if (candleSeriesRef.current) {
-      if (!zonesCtlRef.current) zonesCtlRef.current = createLevelZonesPrimitive({})
-      if (!zonesAttachedRef.current) {
-        try {
-          candleSeriesRef.current.attachPrimitive(zonesCtlRef.current.primitive)
-          zonesAttachedRef.current = true
-        } catch { /* older series API — primitive optional */ }
-      }
-      // setZones forces a primitive redraw and this block runs on EVERY
-      // updateChart, so re-setting an identical list pays for a repaint that
-      // draws the same pixels — the lastShadeBandsRef guard, one primitive over.
-      // `dpZones` is the single channel for data AND visibility: the hook nulls
-      // its SWR key when the toggle is off or the viewer is unpaid, so "off" is
-      // already `[]` (the primitive's own off switch) with a stable identity.
-      if (lastDpZonesRef.current !== dpZones) {
-        lastDpZonesRef.current = dpZones
-        zonesCtlRef.current.setZones(dpZones)
-      }
-    }
-
-    // ── Previous-day High / Low / Close lines (custom v5 series primitive) ──
-    // INTRADAY only: each line anchors at the candle that made that level and
-    // extends to the current candle (redrawn every frame → grows as bars form).
-    // Off (empty draw-list) on D/W/M or when all three are disabled.
-    if (candleSeriesRef.current) {
-      if (!pdlCtlRef.current) pdlCtlRef.current = createPrevDayLevelsPrimitive()
-      if (!pdlAttachedRef.current) {
-        try {
-          candleSeriesRef.current.attachPrimitive(pdlCtlRef.current.primitive)
-          pdlAttachedRef.current = true
-        } catch { /* older series API — primitive optional */ }
-      }
-      const pdl = cs.prevDayLevels
-      const pdlIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
-      const pdlOn = pdlIntraday && pdl && (pdl.high?.enabled || pdl.low?.enabled || pdl.close?.enabled)
-      if (pdlOn) {
-        const lv = computePrevDayLevels(__heavy.committed._big.ohlcData)
-        pdlCtlRef.current.setLines(buildPrevDayLines(lv, pdl), lv?.endTime)
-      } else {
-        pdlCtlRef.current.setLines([], null)
-      }
-    }
-
-    // ── Session breaks + Pre-market high & low (Chart Settings, owner 11-15; sessionMarks.js) ──
-    // INTRADAY only (any minute timeframe — parseTf, not a hand-typed list). Both default OFF (absent key), so a chart
-    // that never set them draws exactly what it drew before. Computed from the LOADED bars (`_big.ohlcData`, ET chart
-    // times): no pre-market bars loaded (extended hours off) → no PM lines, no error.
-    {
-      const _smIntraday = parseTf(resolvedTf).minutes != null
-      if (!sessionBreaksRef.current) sessionBreaksRef.current = createSessionBreaksPrimitive()
-      if (!sessionBreaksAttachedRef.current) {
-        try {
-          ;(candleSeriesRef.current?.getPane?.() || chart.panes()[0]).attachPrimitive(sessionBreaksRef.current.primitive)
-          sessionBreaksAttachedRef.current = true
-        } catch { /* older pane API — primitive optional */ }
-      }
-      const _sbOn = _smIntraday && sessionBreaksOf(cs)
-      sessionBreaksRef.current.set(
-        _sbOn ? sessionBreakTimes(__heavy.committed._big.ohlcData) : [],
-        sessionBreakColor(themeColors.textColor || cs.textColor, themeColors.borderColor),
-      )
-      const _pmSeries = candleSeriesRef.current
-      if (_pmSeries) {
-        const _pmColor = themeColors.textColor || cs.textColor || '#93939a'
-        const _pmLines = (_smIntraday && preMarketLevelsOf(cs)) ? preMarketPriceLines(preMarketRange(__heavy.committed._big.ohlcData), _pmColor) : []
-        const _pmKey = _pmLines.map((l) => `${l.price}|${l.color}`).join(',')
-        if (_pmKey !== pmLinesKeyRef.current) {
-          for (const pl of pmLineRefs.current) { try { _pmSeries.removePriceLine(pl) } catch { /* series gone */ } }
-          pmLineRefs.current = []
-          for (const o of _pmLines) {
-            try { pmLineRefs.current.push(_pmSeries.createPriceLine(o)) } catch { /* series gone */ }
-          }
-          pmLinesKeyRef.current = _pmKey
-        }
-      }
-    }
-    // ── Price alerts (Chart Settings → Markers → Your activity; priceAlertLines.js) ── re-applied here so a chart-type
-    // swap or a recreated chart (a new candle series) gets its alert lines back; alert changes apply in their own effect.
-    syncAlertPriceLines(alertLinesRef.current, candleSeriesRef.current, alertLineOptsRef.current)
-
-    // ── The markers and the next-earnings / E / S / D / IPO badges: `_drawMeta` (above; the same code the between-
-    // render redraw runs when a metadata answer lands). Same place in the pass, same guards.
-    _drawMetaRef.current(_metaNowRef.current(), _freshChart, false)
-
-    // ⭐ EVERY FRAME THIS PASS SETS GOES THROUGH _setFrame (W-R 2026-11-11). It remembers the
-    // INTENDED range, and the restate below re-applies THAT as an offset from the newest bar.
-    // ⛔ Never a read-back: lightweight-charts applies setVisibleLogicalRange against its axis
-    // as it stands at the next paint, and mid symbol switch reading the range back in the same
-    // pass returns it shifted by the new series' extra tail (real browser, SOFI→NVDA: asked for
-    // the newest bar 4.05 bars from the edge, read back 15.95 PAST it — and the restate then
-    // cemented that until the next timeframe switch). Rail:
-    // tools/intraday_symswitch_framing_harness.py (real lightweight-charts, painted frames).
-    let _framedRange = null
-    const _newestOf = () => candleSeriesRef.current?.data?.()?.length || __heavy.committed.filteredBars.length
-    // The framing arms compute in CANDLE-index space (filteredBars / the candle series), but
-    // scrollToPosition is LOGICAL: an offset from the axis' base, which a compare/overlay
-    // series moves (interior times; a compare bar newer than the candle's newest). Convert
-    // ONCE here: the newest real candle `a` sits at logical timeToIndex(its time); the base
-    // is read off the time scale (visible to − rightOffset). null → fall back (no answer).
-    const _logicalOffsetOf = (ts, r) => {
-      const d = candleSeriesRef.current?.data?.() || []
-      let a = d.length - 1
-      while (a >= 0 && isWhitespacePoint(d[a])) a--
-      if (a < 0) return null
-      const la = ts.timeToIndex?.(d[a].time, false)
-      const cur = ts.getVisibleLogicalRange()
-      const rightOffset = ts.scrollPosition?.()
-      if (typeof la !== 'number' || !Number.isFinite(la) || !cur || typeof rightOffset !== 'number' || !Number.isFinite(rightOffset)) return null
-      const base = cur.to - rightOffset
-      return (r.to - a + la) - base
-    }
-    const _setFrame = (r) => { chart.timeScale().setVisibleLogicalRange(r); _framedRange = r }
-    // View handling on initial load / timeframe change / ticker switch.
-    // (NOT on SWR refetches — those keep zoomKey stable so the user never loses position.)
-    //
-    // LOCK BEHAVIOR (always on): when ONLY the ticker changes (same timeframe), we carry
-    // the user's current view to the next chart instead of snapping back to a default fit:
-    //   • Horizontal: re-anchor the visible logical range to the right edge so the same
-    //     "scrolled-back distance + zoom width" lines up even when the two tickers have
-    //     different history lengths.
-    //   • Vertical: auto-fit the new ticker into the candle band defined by chartOpts'
-    //     scaleMargins. When the user has dragged the candles to a custom spot, that band
-    //     was captured above (vertMarginsRef), so the new stock lands in the same
-    //     PROPORTIONAL position — scaled to its own price range, never showing the old
-    //     stock's absolute prices. Double-click the axis won't clear it; use the
-    //     "Auto-scale" context-menu item to reset to default headroom.
-    // Fold the replay cutoff in so entering/leaving replay (or changing the cutoff) counts
-    // as a "fresh load" → routes through the default-zoom path so the chart re-frames to the
-    // default window with the cutoff bar as the newest visible candle.
-    // (`zoomKey` is hoisted to the top of this pass — `_pinOwnsMargins` needs it.)
-    // Capture the outgoing view BEFORE deciding. setData() preserves the logical
-    // range NUMERICALLY, so this reflects where the user was — on the previous
-    // ticker (sym switch) or right now (same-ticker data-phase swap / backfill).
-    let oldRange = null
-    try { oldRange = chart.timeScale().getVisibleLogicalRange() } catch {}
-    const oldBarCount = lastBarCountRef.current
-    if (zoomKeyRef.current !== zoomKey) {
-      const isFirstLoad = zoomKeyRef.current === null
-      const tfChanged = lastTfRef.current !== null && lastTfRef.current !== resolvedTf
-
-      zoomKeyRef.current = zoomKey
-      lastTfRef.current = resolvedTf
-      // A fresh symbol/timeframe re-frames — drop any manual price-scale pin so the
-      // new chart auto-fits its own range instead of inheriting the old vertical.
-      priceManualRef.current = false
-      priceManualRangeRef.current = null
-      // Exiting replay (or a TF change) clears the replay view lock so the next frame
-      // uses the normal default; a plain ticker switch WITHIN replay keeps it locked.
-      if (!replayCutoff || tfChanged) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
-      const _replayLocked = replayCutoff && replayViewLockedRef.current
-      // Horizontal view lock is applicable only when its captured timeframe matches
-      // the current one (`width` is in logical BARS — a daily 232-bar window means
-      // nothing on a weekly chart). A legacy lock with no tf tag applies on any tf.
-      const _hLockActive = !!(userViewLockedRef.current && userLockedViewRef.current
-        && userLockedViewRef.current.anchorFrac != null && userLockedViewRef.current.width > 0
-        && (userLockedViewRef.current.tf == null || userLockedViewRef.current.tf === resolvedTf))
-      // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety net that a
-      // user pan on the PREVIOUS symbol had latched off — EXCEPT under the replay lock,
-      // where keeping it latched is exactly what stops the settling/pinned-right guards
-      // from snapping the locked view back to present on the next data commit.
-      if (!_replayLocked) userViewMovedRef.current = false
-      framingViewRef.current = false
-      // A timeframe switch must PRESERVE the viewport: keep the last candle at the
-      // exact same screen position AND the same zoom width, then just swap in the new
-      // tf's bars — no reset to the tf default, no leftward snap ("just flip the
-      // timeframe"). Capture the outgoing anchor + width now; the guard below re-asserts
-      // it on every settling commit until the bar count stops changing.
-      if (tfChanged) {
-        // Preserve the zoom WIDTH from the outgoing view; the newest candle is re-pinned
-        // to the fixed right anchor (LAST_CANDLE_POS) below. Do NOT derive the anchor from
-        // oldRange + oldBarCount: after setData() with the new tf's bars, getVisibleLogicalRange
-        // is clamped to the NEW data extent while oldBarCount is the OLD tf's count, so that
-        // ratio is garbage when the two tfs have different bar counts — it snapped the chart
-        // to the middle (SMH 1H bug).
-        const _w = oldRange ? (oldRange.to - oldRange.from) : null
-        pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
-      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange && !_replayLocked) {
-        if (_hLockActive) {
-          // Horizontal lock owns the frame across phases (via the anchorFrac branch).
-          // CLEAR any stale settling guard so it can't re-pin newest-at-right over it.
-          pendingTfReframeRef.current = null
-        } else {
-          // SYMBOL switch on a "newest always at right" surface (Charts workspace). The
-          // new ticker's bars arrive in PHASES (IDB cache → network → older-history
-          // backfill), each a separate updateChart commit with a DIFFERENT bar count.
-          // Hold the outgoing zoom width and let the settling-guard re-assert
-          // newest-at-LAST_CANDLE_POS on EVERY commit until the bar count settles.
-          const _w = oldRange ? (oldRange.to - oldRange.from) : null
-          pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
-        }
-      }
-
-      // Vertical: always auto-fit the new ticker into the current candle band. chartOpts
-      // already applied that band's scaleMargins (= the captured proportional placement,
-      // or the default headroom), so autoScale fills it with THIS stock's own range.
-      try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch {}
-
-      let didPreserve = false
-      // !anchorOwnsFrame(): a SYMBOL switch under a live anchor (the Desk follow-along
-      // pane walks `sym` with anchorDate held constant) must re-anchor on the NEW
-      // ticker's bars, not inherit the previous ticker's relative position. Falling
-      // through leaves didPreserve false so the anchor branch below gets the frame.
-      if (!anchorOwnsFrame() && !isFirstLoad && !tfChanged && !entryDate && oldRange && oldBarCount > 0) {
-        const newBarCount = __heavy.committed.filteredBars.length
-        const width = oldRange.to - oldRange.from
-        // Symbol switch: keep the user's ZOOM LEVEL (width), but choose the anchor.
-        // keepPresentOnSymbolChange (Charts workspace) always pins the newest candle to
-        // the right so a newly-typed ticker loads at PRESENT DAY — never inheriting a
-        // scrolled-back (past) position from the prior symbol. Otherwise preserve the
-        // prior bars-from-right (flip tickers at the exact same historical view).
-        let to, from
-        // REPLAY view lock: once the user has moved the view in replay, keep the EXACT
-        // right-relative view (same distance from the cutoff + same zoom) on every ticker,
-        // overriding keepPresent's snap-to-present — until "Reset view" / exit replay. Use
-        // the params CAPTURED at pan/zoom time (replayLockedViewRef) — oldRange here is
-        // already clamped to the new ticker's extent, which loses the deep scroll-back.
-        if (_replayLocked && replayLockedViewRef.current) {
-          to = newBarCount - replayLockedViewRef.current.barsFromRight
-          from = to - replayLockedViewRef.current.width
-        } else if (_hLockActive) {
-          // NORMAL horizontal lock (workspace): place the NEWEST bar at the same
-          // SCREEN FRACTION the user left it — drift-proof (a fraction, not a bar
-          // count), so deep-history backfill never shifts it. Cleared by "Reset view".
-          const _w = userLockedViewRef.current.width
-          from = (newBarCount - 1) - userLockedViewRef.current.anchorFrac * _w
-          to = from + _w
-          // BACK-IN-TIME GUARD: anchorFrac > 1 means the stored view had the newest
-          // candle scrolled OFF the right edge (equivalently to < lastIdx). Restoring
-          // that on a ticker switch lands THIS ticker on old bars with the latest
-          // price off-screen, and autoScale then fits the old price band → a black
-          // chart "sent back in time on every search" (the 8/19 RTH incident, exposed
-          // once instant paint stopped forcing a view-resetting refetch). Only in-range
-          // locks (0 ≤ anchorFrac ≤ 1, newest stays visible) are legitimate to carry;
-          // otherwise re-anchor to the latest-bars default.
-          if (to < (newBarCount - 1) - 0.5) {
-            const _def = computeDefaultLogicalRange(
-              newBarCount, resolvedTf,
-              { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf) }
-            )
-            from = _def.from; to = _def.to
-          }
-        } else if (keepPresentOnSymbolChange) {
-          // Reserve the developing intraday bucket's slot so the frame doesn't shift when the
-          // fresh fetch's newer buckets land (see _intradayLoadReserve). 0 off-gate / on daily.
-          ;({ from, to } = pinNewestRange(newBarCount - 1, width, plotWidthOf(chart, containerRef.current), _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf)))
-        } else if (paintedGeomRef.current) {
-          // Keep the OUTGOING frame's geometry: the newest bar's offset from the right edge
-          // and the zoom width, both MEASURED on the outgoing series before this pass touched
-          // it (see paintedGeomRef) — so "the same view, on the new ticker" holds exactly,
-          // scrolled back or at present. ⚰️ This used to be inferred from the POST-setData
-          // range against the stale old count (`rangeDescribesOldExtent`): LWC has already
-          // re-based that range on the new series, and whenever the two symbols' counts
-          // differed by less than its ±8-bar window the guess was wrong — the newest candle
-          // landed (newCount − oldCount) bars off (W-R invariant rail). The developing-slot
-          // reserve (D/W/M only) is re-applied for THIS series; it was subtracted at capture.
-          const _swRsv = _switchReserveEnabled() ? _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf) : 0
-          to = (newBarCount - 1) + paintedGeomRef.current.ro + _swRsv
-          from = to - paintedGeomRef.current.width
-        }
-        if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
-          try {
-            _setFrame({ from, to })
-            didPreserve = true
-          } catch {}
-        }
-      }
-
-      if (!didPreserve) {
-        // Holding-period zoom: when entryDate is supplied (e.g. TradeDrawer),
-        // center the view on the trade window with 20-bar padding each side.
-        if (entryDate && exactDateRange && __heavy.committed.filteredBars.length > 0) {
-          // Exact window: first bar >= entryDate .. last bar <= exitDate, no padding.
-          // Used by Model Book to show exactly one calendar year's move.
-          let startIdx = __heavy.committed.filteredBars.findIndex(b => b.t >= entryDate)
-          let endIdx = __heavy.committed.filteredBars.length - 1
-          if (exitDate) {
-            for (let i = __heavy.committed.filteredBars.length - 1; i >= 0; i--) {
-              if (__heavy.committed.filteredBars[i].t <= exitDate) { endIdx = i; break }
-            }
-          }
-          // Reused-ticker guard (see the exact-range pin below): if the selected
-          // year has no bars in the loaded series (it fell in a delisting gap),
-          // show the most recent ~year instead of anchoring to the oldest
-          // (delisted-era) bar. Without this, findIndex<0 → startIdx 0 streamed
-          // 2016/2008-era data onto a recent-year view.
-          const yearHasData = startIdx >= 0 && endIdx >= startIdx
-            && (!exitDate || __heavy.committed.filteredBars[startIdx].t <= exitDate)
-          if (!yearHasData) { endIdx = __heavy.committed.filteredBars.length - 1; startIdx = Math.max(0, endIdx - 251) }
-          // Frame start predates the first bar (e.g. before an IPO): pad with
-          // blank space on the left instead of clamping to bar 0.
-          let fromIdx = startIdx
-          if (yearHasData && startIdx === 0) {
-            fromIdx = -leadingBlankBars(_dateToMs(entryDate), _dateToMs(__heavy.committed.filteredBars[0].t), resolvedTf)
-          }
-          const _padR = frameRightPadFrac > 0 ? Math.round((endIdx - fromIdx) * frameRightPadFrac) : 0
-          _setFrame({ from: fromIdx, to: endIdx + _padR })
-        } else if (entryDate && __heavy.committed.filteredBars.length > 0) {
-          const entryIdx = __heavy.committed.filteredBars.findIndex(b => b.t >= entryDate)
-          const exitIdx  = exitDate
-            ? __heavy.committed.filteredBars.findIndex(b => b.t >= exitDate)
-            : -1
-          const fromBar = Math.max(0, (entryIdx >= 0 ? entryIdx : 0) - 20)
-          const toBar   = (exitIdx >= 0 ? exitIdx : __heavy.committed.filteredBars.length - 1) + 28
-          _setFrame({ from: fromBar, to: toBar })
-        } else if (anchorOwnsFrame() && applyAnchorFrame(chart)) {
-          // Anchored+reveal handled — nothing else to frame.
-        } else {
-          const _pt = pendingTfReframeRef.current
-          if (tfChanged && _pt && _pt.width > 0) {
-            // TF switch: keep the same zoom WIDTH and pin the newest candle to the fixed
-            // right anchor, so the chart doesn't move — only the timeframe flips.
-            const lastIdx = __heavy.committed.filteredBars.length - 1
-            const { from, to } = pinNewestRange(lastIdx, _pt.width, plotWidthOf(chart, containerRef.current), _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf))
-            _setFrame({ from, to })
-          } else if (_hLockActive) {
-            // A persisted horizontal lock restored on refresh (first load): open at
-            // the user's exact position — newest bar at its saved screen fraction.
-            const _w = userLockedViewRef.current.width
-            let _from = (__heavy.committed.filteredBars.length - 1) - userLockedViewRef.current.anchorFrac * _w
-            let _to = _from + _w
-            // Same back-in-time guard as the symbol-switch path (see there): a stored
-            // anchorFrac > 1 (newest off the right edge) would open a fresh load
-            // scrolled into the past with the latest price off-screen → black chart.
-            if (_to < (__heavy.committed.filteredBars.length - 1) - 0.5) {
-              const _def = computeDefaultLogicalRange(
-                __heavy.committed.filteredBars.length, resolvedTf,
-                { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf) }
-              )
-              _from = _def.from; _to = _def.to
-            }
-            if (Number.isFinite(_from) && Number.isFinite(_to)) { try { _setFrame({ from: _from, to: _to }) } catch { /* mid-load */ } }
-          } else {
-            // First load (no prior view): canonical default zoom — newest candle at
-            // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
-            // ⚠️ THE COLD-FIRST-PAINT ANCHOR. The served TAIL includes today, but a COLD
-            // first paint renders the STALE IDB/pack provisional first — which ends at the last
-            // SEALED period (yesterday) — so `filteredBars.length` frames yesterday-at-0.95, and
-            // when today's bar lands a commit later the frame slides ("today's candle opens on
-            // tomorrow, then snaps back"). rightReserve pins today's slot up front so it doesn't.
-            const { from: _from, to: _to } = computeDefaultLogicalRange(
-              __heavy.committed.filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf) }
-            )
-            _setFrame({ from: _from, to: _to })
-          }
-        }
-      }
-    } else if (!entryDate && !exactDateRange && _preUpdateRange && oldBarCount > 0
-               && oldBarCount !== __heavy.committed.filteredBars.length) {
-      // Anchored chart: a backfill prepends older bars, shifting the anchor's index —
-      // recompute the anchor frame from data instead of preserving relative position.
-      // The moment the user moves the view, userViewMovedRef latches and this stops.
-      if (anchorOwnsFrame() && applyAnchorFrame(chart)) { /* framed */ } else {
-      // SAME ticker/tf, but the bar COUNT changed since the last render — the
-      // IDB-cache → network full-fetch swap OR a viewport-first older-history
-      // backfill / dwell-warm (FIRST_PAINT→full, 600→12025). A backfill only
-      // PREPENDS older history — the newest bar is unchanged — so the user's view
-      // is invariant in "bars-from-right + width". Re-anchor to exactly that using
-      // the PRE-setData range (captured at updateChart top, before LWC could shift
-      // it), so a big depth jump keeps the user exactly where they were instead of
-      // snapping to the default window. (Model Book / entryDate have their own pins.)
-      const newBarCount = __heavy.committed.filteredBars.length
-      const pr = _preUpdateRange
-      const barsFromRight = oldBarCount - pr.to
-      const width = pr.to - pr.from
-      const to = newBarCount - barsFromRight
-      const from = to - width
-      const lastIdx = newBarCount - 1
-      // The bars-from-right remap ASSUMES a PREPEND (older history added at the
-      // front, newest bar unchanged) → the view is invariant in bars-from-right.
-      // A full no-`since` REPLACE refetch (more common since the intraday freshness
-      // gate was tightened) can instead return a DIFFERENT count with a SLID window,
-      // making `barsFromRight` stale and pushing the computed window ENTIRELY into
-      // the empty right-pad — the chart then shows only the price axis until "Reset
-      // view" (the pinned-right net below is disabled once the user has panned). So
-      // apply the remap ONLY when it lands on REAL bars (the last bar stays in view:
-      // to > 0 AND from < lastIdx). Otherwise the mapping is invalid → re-pin the
-      // newest candle at its default on-screen position (keeping the zoom width) so
-      // the view is NEVER left blank.
-      if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 0 && from < lastIdx) {
-        try { _setFrame({ from, to }) } catch {}
-      } else if (width > 0 && lastIdx > 0) {
-        const { from: from2, to: to2 } = pinNewestRange(lastIdx, width, plotWidthOf(chart, containerRef.current))
-        try { _setFrame({ from: from2, to: to2 }) } catch {}
-      }
-      }   // ← closes the `if (anchorOwnsFrame() …) {} else {` wrapper above
-    }
-
-    // ── Keep-the-newest-candle-pinned-right safety net (workspace live charts) ──
-    // After ALL the zoom branches above have run, if the user was viewing the
-    // latest bars and the newest candle has drifted off the right edge, snap it
-    // back. This is mechanism-agnostic: whatever repositioned the view (a
-    // background data-count change re-anchor, LWC's own setData behavior, a
-    // backfill, a resize settle), the end state is enforced — the view must not
-    // move on its own (user requirement). A deliberately scrolled-back view (last
-    // bar NOT near the right before this update) is left completely untouched.
-    if (!entryDate && !exactDateRange && oldRange && oldBarCount > 0 && __heavy.committed.filteredBars.length > 1) {
-      const preLastIdx = oldBarCount - 1
-      const prePad = oldRange.to - preLastIdx      // empty bars right of the last bar, BEFORE the update
-      const preWidth = oldRange.to - oldRange.from
-      if (anchorOwnsFrame() && applyAnchorFrame(chart)) {
-        // ANCHOR WINS over both settling guards, and this is the SINGLE place that
-        // enforces it against them. A TF flip / keepPresent symbol switch arms
-        // pendingTfReframeRef, whose arm below re-asserts NEWEST-at-right on every
-        // settling commit — the clobber that flickered an anchored chart back to
-        // present. Disarming at the ARMING SITE instead was tried and rejected: it
-        // cannot cover a ref armed BEFORE anchorDate became active (flip the timeframe,
-        // then open a moment), whereas this runs on every commit whatever armed it.
-        // Verified load-bearing: disable this and the TF-flip test reds.
-        pendingTfReframeRef.current = null
-      } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf && userViewMovedRef.current) {
-        // ⛔⛔ THE MEMBER MOVED THE VIEW SINCE THE SWITCH: THE SETTLING IS OVER FOR THE FRAME.
-        // Release WITHOUT re-asserting. `userViewMovedRef` is cleared by the switch itself (the
-        // zoomKey branch above), so here it can only mean a drag, a wheel, a Go-to-date or a
-        // synced chart's range AFTER the switch. ⚰️ (2026-11-17) The re-assert below ran first
-        // and the release check after it, so the first framing pass after a member's move put
-        // the outgoing frame back: drag a chart the moment it appears and the next late answer
-        // (its name and sector, its listing date) snapped it to newest-at-right. The rest gate
-        // (#1207) moved those answers past the first paint, which is how a negative control saw
-        // it (dailyFirstPaintAcceptance.test.jsx, NC-D and SETTLING).
-        pendingTfReframeRef.current = null
-      } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf) {
-        // Just switched INTO this timeframe: deterministically re-assert the PRESERVED
-        // viewport (same last-candle position + zoom width as the outgoing view) on every
-        // settling commit (the bars arrive in phases — IDB cache → network → backfill —
-        // each a separate commit). This keeps the chart from snapping during the load.
-        // Once the count stops changing, data has settled; release control so ordinary
-        // scroll/zoom is respected again.
-        // (the frame and its release: `settlingFrameOf` / `settlingDone`, the one derivation a metadata answer landing
-        // between renders re-asserts too, `settleOnMetaLanded`. Today's developing daily bar is in the served history,
-        // server-include in api/routers/bars.py, so on daily the loaded last bar IS today.)
-        const _pt = pendingTfReframeRef.current
-        const { from, to } = settlingFrameOf(_pt, { bars: __heavy.committed.filteredBars, tf: resolvedTf, plotWidthPx: plotWidthOf(chart, containerRef.current), dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride })
-        try { _setFrame({ from, to }) } catch { /* mid-load */ }
-        // The session preview candle is part of SETTLING, not a post-settle live bar.
-        // It lands ~1s after the RTH bars (separate per-symbol /api/bars?tf=5 fetch),
-        // so keying release on the RTH count alone released the guard one commit too
-        // early: the candle then appended with nothing re-asserting the range, and
-        // shiftVisibleRangeOnNewBar walked the whole view left by a bar — the "opens,
-        // then repositions once" jitter when flipping tickers in pre/post market.
-        // Holding the guard until the aggregate resolves keeps the RTH bars exactly
-        // put; the preview candle just appears in the right pad.
-        // HOLD the guard while the developing bar is still MISSING (reserve > 0). A cold first paint
-        // renders the stale provisional (ends at the last SEALED period); the developing bar appends
-        // a SEPARATE commit later — often AFTER the count already looked "settled" — and that append
-        // is where shiftVisibleRangeOnNewBar + the non-reserved pinned-right net slide the frame one
-        // bar ("today's candle opens on tomorrow, then snaps back"). Keeping the guard armed means
-        // THIS reserve-aware re-assert (above) runs on that commit and cancels the slide — `to` is
-        // invariant across the yesterday→today flip (idx(yesterday)+1 == idx(today)+0). A user pan
-        // ends the guard before this branch (the `userViewMovedRef` arm above, the one place that
-        // rule lives), so a deliberate scroll is never fought, and off-gate the reserve is 0 so the
-        // release timing is byte-identical to before.
-        if (settlingDone({ bars: __heavy.committed.filteredBars, tf: resolvedTf, oldBarCount, sessionCandleActive, sessionExtReady })) pendingTfReframeRef.current = null
-      } else {
-        // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
-        // Width-proportional floor (was a flat -1): LWC-side drift during a
-        // warm-cache commit storm can park the newest candle ~2 bars past the
-        // right edge (observed prePad -2.2 at width 90 on grid-cell remounts) —
-        // still "viewing the latest". Proportional so a tightly-zoomed intraday
-        // chart keeps the old -1 floor and a deliberate 2-bar nudge there is
-        // never snapped back; wide windows are additionally protected by the
-        // pos<0.85/pos>1.02 gate below, which a small nudge doesn't trip.
-        const _padFloor = Math.max(1, preWidth * 0.03)
-        const wasViewingLatest = preWidth > 0 && prePad >= -_padFloor && prePad <= Math.max(8, preWidth * 0.25)
-        // …but ONLY when the user hasn't deliberately moved the view. This net
-        // corrects DRIFT (LWC/data-commit side effects); a pan or zoom that walks
-        // the newest candle left is the user's intent, and re-pinning it made the
-        // chart snap back to the default window on the very next live commit —
-        // i.e. panning left was impossible. The latch clears on symbol/timeframe
-        // change and on an explicit "Reset view" (see userViewMovedRef).
-        // Horizontal lock active for THIS tf (see the same-named var in updateChart;
-        // this settling block is a separate closure, so recompute it locally).
-        const _hLockActive = !!(userViewLockedRef.current && userLockedViewRef.current
-          && userLockedViewRef.current.anchorFrac != null && userLockedViewRef.current.width > 0
-          && (userLockedViewRef.current.tf == null || userLockedViewRef.current.tf === resolvedTf))
-        if (wasViewingLatest && !userViewMovedRef.current && !_hLockActive) {
-          let fr = null
-          try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
-          if (fr) {
-            const w = fr.to - fr.from
-            const lastIdx = __heavy.committed.filteredBars.length - 1
-            const pos = w > 0 ? (lastIdx - fr.from) / w : 1  // newest candle's 0..1 screen position
-            // Drifted: newest candle pushed left into the middle (pos < 0.85) or shoved
-            // off the right edge (pos > 1.02). Re-pin it to the standard load position.
-            if (w > 0 && (pos < 0.85 || pos > 1.02)) {
-              const { from: from2, to: to2 } = pinNewestRange(lastIdx, w, plotWidthOf(chart, containerRef.current))
-              try { _setFrame({ from: from2, to: to2 }) } catch { /* out of range mid-load */ }
-            }
-          }
-        }
-      }
-    }
-
-    // Replay view lock — re-assert the captured right-relative view on EVERY commit so a
-    // load PHASE that changes the bar count (IDB → network → backfill) can't shift it, and
-    // no other guard can snap it to present. Skipped while the user is actively dragging
-    // (pointer down), which would fight a live pan; the drag's own onUp re-captures.
-    if (replayCutoff && replayViewLockedRef.current && replayLockedViewRef.current
-        && !viewPointerRef.current && !entryDate && !exactDateRange && __heavy.committed.filteredBars.length > 1) {
-      const _lw = replayLockedViewRef.current.width
-      const _to = __heavy.committed.filteredBars.length - replayLockedViewRef.current.barsFromRight
-      const _from = _to - _lw
-      if (_lw > 0 && Number.isFinite(_from) && Number.isFinite(_to) && _to > 1 && _from < __heavy.committed.filteredBars.length) {
-        try { _setFrame({ from: _from, to: _to }) } catch { /* mid-load */ }
-      }
-    }
-
-    // ── NEVER-BLANK backstop (mechanism-agnostic) ──
-    // A blank chart — the visible logical range landing so far off the data that NO
-    // real candle is on screen (just the price axis) — is never intended, whatever
-    // produced it: a series-length REPLACE re-anchor near-miss, a same-count slid
-    // REPLACE with no re-anchor, or a far-ahead developing bar + shiftVisibleRange.
-    // Unlike the pinned-right net above, this fires EVEN after a user pan
-    // (userViewMovedRef), because it triggers ONLY when <0.5 of a real bar is
-    // visible — a legitimately scrolled-back or zoomed view always shows bars and is
-    // left untouched. Recovers what previously required a manual "Reset view".
-    if (!entryDate && !exactDateRange && __heavy.committed.filteredBars.length > 1) {
-      let fr = null
-      try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
-      if (fr) {
-        const lastIdx2 = __heavy.committed.filteredBars.length - 1
-        const visibleReal = Math.min(fr.to, lastIdx2) - Math.max(fr.from, 0)
-        if (visibleReal < 0.5) {
-          const w = Math.max(1, fr.to - fr.from)
-          const { from: from2, to: to2 } = pinNewestRange(lastIdx2, w, plotWidthOf(chart, containerRef.current))
-          try { _setFrame({ from: from2, to: to2 }) } catch { /* mid-load */ }
-        }
-      }
-    }
-
-    // Model Book (exactDateRange): the year frame is DETERMINISTIC for this (stock,
-    // year), so re-apply it on EVERY data update — not only on the sym/tf switch
-    // handled above. The bars load in phases (IDB cache → network refetch), and a
-    // later phase with a different bar count would otherwise leave the prior logical
-    // range mapping to the wrong dates for one frame: the chart (and the ^IXIC pane
-    // that rides its time scale) glitches to a wrong spot and snaps back while
-    // scrolling fast. Applying it here, in the SAME effect as setData above, makes
-    // the new bars + correct year frame paint atomically — no transient. Skipped
-    // while a setup/catalyst focus zoom owns the view (focusActiveRef).
-    if (exactDateRange && entryDate && __heavy.committed.filteredBars.length > 0) {
-      if (focusActiveRef.current) {
-        // A setup-focus zoom owns the view. A background bars refetch (SWR network
-        // swap after the IDB cache) re-runs updateChart, and the setData() above
-        // perturbs the horizontal logical range. Without re-asserting the focus
-        // window here the chart snaps back to the default/year view (candles shift
-        // left, empty space on the right) WHILE the vertical stays pinned to the
-        // focus band via focusPriceRangeRef — the "glitches to the left" bug.
-        // Re-pin to the settled focus range; the year re-pin below is skipped.
-        const r = focusRangeRef.current
-        if (r) { try { _setFrame({ from: r.from, to: r.to }) } catch { /* out of range mid-load */ } }
-      } else if (exactPinSigRef.current
-                 && exactPinSigRef.current.startsWith(`${sym}_${resolvedTf}|`)
-                 && exactPinSigRef.current !== `${sym}_${resolvedTf}|${entryDate}|${exitDate}`) {
-        // The exact-range dates just changed on the SAME chart (Setup ⇄ Result
-        // flip). Don't snap to the new frame here — leave the view at the
-        // outgoing frame so the exact-range pin effect (which runs after this in
-        // the same commit) can start its animated glide FROM it. Snapping first
-        // would zero the animation's start range and kill the transition.
-      } else {
-        let _s = __heavy.committed.filteredBars.findIndex(b => b.t >= entryDate)
-        let _e = __heavy.committed.filteredBars.length - 1
-        if (exitDate) {
-          for (let i = __heavy.committed.filteredBars.length - 1; i >= 0; i--) {
-            if (__heavy.committed.filteredBars[i].t <= exitDate) { _e = i; break }
-          }
-        }
-        const _has = _s >= 0 && _e >= _s && (!exitDate || __heavy.committed.filteredBars[_s].t <= exitDate)
-        if (!_has) { _e = __heavy.committed.filteredBars.length - 1; _s = Math.max(0, _e - 251) }  // year fell in a delisting gap → recent ~year
-        // Frame start predates the first bar (before an IPO) → blank-space pad.
-        let _from = _s
-        if (_has && _s === 0) {
-          _from = -leadingBlankBars(_dateToMs(entryDate), _dateToMs(__heavy.committed.filteredBars[0].t), resolvedTf)
-        }
-        const _padR = frameRightPadFrac > 0 ? Math.round((_e - _from) * frameRightPadFrac) : 0
-        try { _setFrame({ from: _from, to: _e + _padR }) } catch { /* out of range mid-load */ }
-      }
-    }
-
-    // ⭐ RESTATE THIS PASS'S FRAME AS A DISTANCE FROM THE NEWEST BAR (2026-10-18).
-    // LWC keeps a view as an offset from the NEWEST index of its time axis, and it merges a
-    // new series' dates into that axis at its next render. On a symbol switch, the frame set
-    // above is therefore stored against the PREVIOUS symbol's axis: measured on production,
-    // CDNA (600 bars) -> AAPL (300) framed AAPL at [178,306], LWC stored it as 294 bars left
-    // of CDNA's newest, and after the merge AAPL showed its first bars; the deep-history merge
-    // then kept that, so the chart sat on Feb-Aug 2025 under a price reading Oct 2026.
-    // scrollToPosition sets the same right offset against the newest bar, which the pending
-    // merge cannot move. Only when the view moved during this pass; with no merge pending it
-    // is the offset LWC already holds, so it changes nothing.
-    try {
-      const _ts = chart?.timeScale()
-      const _r = _framedRange || _ts?.getVisibleLogicalRange()
-      // Against the range BEFORE this pass's setData: on a switch LWC already reports the
-      // re-based range after setData, so comparing with that would miss the very frame at fault.
-      const _base = _preUpdateRange || oldRange
-      if (_r && _base && (_r.from !== _base.from || _r.to !== _base.to)) {
-        const _off = _framedRange ? _logicalOffsetOf(_ts, _framedRange) : null
-        if (_off != null) _ts.scrollToPosition(_off, false)
-        else {
-          const _n = _newestOf()
-          if (_n > 0) _ts.scrollToPosition(_r.to - (_n - 1), false)
-        }
-      }
-    } catch { /* mid-load: the frame above stands */ }
-    // Track current bar count + bars so the next ticker switch can right-anchor the
-    // preserved view and measure the outgoing vertical placement.
-    lastBarCountRef.current = __heavy.committed.filteredBars.length
-    paintedRsvRef.current = _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf)
-    prevBarsRef.current = __heavy.committed.filteredBars
-    // ⛔ STAMPED WITH THIS CALLBACK'S OWN `sym`, NOT `symRef.current`. `filteredBars`
-    // and `sym` come from the same render, so this is the bars' true owner. The
-    // ref lags: on a switch the pre-paint layout effect below runs this before
-    // `symRef` is mirrored, which stamped B's bars as A — the readout then saw a
-    // mismatch and printed NOTHING (the A → blank → B legend flicker).
-    prevBarsSymRef.current = sym   // whose bars these are — see the ref's note
-    prevBarsTfRef.current = resolvedTf   // …and of which timeframe (the same render's own tf)
-    // Baseline for the next render plan — the bars this paint actually put on screen.
-    prevPaintBarsRef.current = __heavy.committed.displayBars
-    // ⚠️ `userDefsGeneration` IS A DEPENDENCY ON MODULE STATE, AND IT IS
-    // REDUNDANT TODAY. This body resolves every instance through
-    // `engineRegistry.getDefinition`, and a user's saved definition is installed
-    // asynchronously (SWR) after the first paint — so the version of that state
-    // belongs here. Task 16's gauntlet measured that removing it changes nothing
-    // (mutation M3 SURVIVED): something else in this list is already unstable per
-    // render. Kept as the one declaration that names this dependency; the full
-    // reasoning is at the `useInstalledUserDefinitions` call site above.
-    // ⭐ (2026-11-18) `data?.newest_bar_is_forming` is read into every run's context (the binder sync above), so it
-    // is named here: a flag that lands with the same bars re-syncs, and the binder's memo (keyed on it) recomputes.
+    if (switchCtl) switchCtl.reactPass(ctx, frame)   // notes what was handed over, then runs the same applyFrame
+    else applyFrame(ctx, frame)
   }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, markers, j2.markers, flowMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, _engineSymbolDep, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, listingUnserved, strategyHistoryWindow, strategyWindowPending, strategyListingDepth, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
@@ -15229,6 +11972,9 @@ function StockChartBody({
   // the one already painted / the series tail, is refused. Reassigned each render, so it always
   // closes over this render's settings and base series.
   _storeDevPaintRef.current = (afterSetData = false) => {
+    // ⛔ (imperative switch) this closure is the symbol React shows. While a switch painted another one and React
+    // has not committed it, the old key's subscription still calls here: it must write nothing.
+    if (switchCtl && switchCtl.pendingSym()) return
     const series = candleSeriesRef.current
     if (!series) return
     const sid = `${sym}|${resolvedTf}|${showExtended ? 'eth' : 'rth'}`
@@ -15368,6 +12114,115 @@ function StockChartBody({
     // ⛔ `csIndicatorsRef.current = cs.indicators` stood here — the LEGACY chip
     // lane's inputs. That lane has no producer after B5 Task 6, and the engine
     // lane resolves inputs per INSTANCE inside `engineChips`.
+    // ⭐ (imperative switch, stage 3) WHAT THE SWITCH CONTROLLER MAY READ OF THIS COMMIT (chart/switchController.js).
+    // `refuse`: the first reason THIS chart, as it stands, cannot paint another symbol without a render: one name
+    // per per-symbol layer it cannot clear in the frame and per input it cannot build. ⛔ A new per-symbol layer
+    // gets a line here (a refusal) until the controller can clear it. Nothing below runs with the switch off.
+    if (switchCtl) {
+      switchCtl.noteView({
+        sym, tf: resolvedTf, showExtended, recipes: _nfRecipes,
+        refuse: !BARSTORE ? 'legacy-live'
+          : !_nfRecipes ? 'neighbor-frames-off'
+          : !_nfRecipes.plain ? 'not-plain'
+          // W / M: their load-anchor tail (one slot at the developing period) has no rail yet
+          : (resolvedTf === 'W' || resolvedTf === 'M') ? 'weekly-monthly'
+          : _econId ? 'econ'
+          : typeof switchHostPlain !== 'function' ? 'no-host'
+          : !switchHostPlain(sym) ? 'host-symbol'
+          : cs !== csMerged ? 'settings-clamped'
+          : csView !== cs ? 'instances-follow-symbol'
+          : anchorDate ? 'anchor'
+          : drawings && drawings.length ? 'drawings'
+          : chartIqActive ? 'chart-iq'
+          : showPatterns ? 'patterns'
+          : uctIntelOn ? 'uct-intel'
+          : (dpSettingEnabled || darkPoolBars) ? 'dark-pool'
+          : cs.indicators?.volumeProfile?.enabled ? 'volume-profile'
+          : deskCallLevels ? 'desk-call'
+          : archiveRefLines ? 'archive-lines'
+          : (positionTool.entry || positionTool.stop || positionTool.target) ? 'position-tool'
+          // the period-sort mode: the host's `onPeriodSelected` is new on every host render and closes over the HOST's
+          // symbol, so a held body would render in the key's task and report the new symbol for the old one's candles
+          : periodSelect ? 'period-select'
+          // a definition the engine does not compute natively (a member's, a Pine one) may read the symbol's facts
+          // (exchange, sector, first trade date), which only the metadata feed of a render holds
+          : (csView.indicatorInstances || []).some((i) => { const d = i && engineRegistry.getDefinition(i.defId); return !!d && d.compute?.kind !== 'native' }) ? 'non-native-instance'
+          // (an indicator input of the symbol, the `sources` refusal, is the controller's own rule: FRAME_RULES)
+          : null,
+        symbolRefusal: (s) => (isEconomicId(s) ? 'econ'
+          : !switchHostPlain(s) ? 'host-symbol'
+          : settingsForSymbol(csMerged, s) !== csMerged ? 'settings-clamped'
+          : null),
+        snapshot: (s) => switchSnapshotFor(s, resolvedTf, showExtended),
+        tail: (built, s, snap) => switchTailFor(built, s, snap, resolvedTf, adjustTime),
+        overlayData: (bars) => overlayDataOf(bars, resolvedOverlays, adjustTime, overlaysFromStart),
+        shadeBands: (bars) => (_shadeOn ? computeSessionBands(bars, adjustTime) : EMPTY_BANDS),
+        // the listing date the app holds for the symbol, or none (as a render before it lands)
+        listing: (bars, s) => {
+          const ipo = switchPeek(tickerIpoKey(s)) || SWITCH_NO_IPO
+          const h = historyFromListingFor(bars, resolvedTf, ipo)
+          return { historyFromListing: h, listingUnserved: listingUnservedFor(h, bars, resolvedTf, ipo) }
+        },
+        symbolMeta: (s) => ({ ticker: s, exchange: null, industry: null, sector: null, securityType: null }),
+        // ⭐ THE NEW SYMBOL'S METADATA, AS FAR AS THE APP ALREADY HOLDS IT: what the metadata feed's hooks would be
+        // handed for it on their first render (the SWR cache, the stored ticker meta), put through the same view
+        // functions. Its name is on the watermark and its event badges on the candles in the frame of the paint;
+        // what the app does not hold yet arrives with the body's render, as it does on the React path.
+        metaFor: (s, built) => switchMetaFor(s, built, metaStore.getConfig(), !_study, _metaInputsRef.current),
+        // …drawn by this render's own `_drawMeta`, with the two inputs that are the symbol's handed in
+        drawMeta: (m, fresh, tail) => {
+          // ⛔ THE MARKERS ARE SET HERE, IN THE PAINT'S OWN TASK. `_drawMeta` sets them after a dynamic import, which
+          // is fine for a render and late for this frame: the old symbol's markers would sit on the new candles
+          // until it resolved. So the layer that exists is handed the new symbol's markers (none, when the app
+          // holds none) now, and `_drawMeta` finds them already drawn.
+          const layer = markersControllerRef.current
+          if (layer && typeof layer.setMarkers === 'function') {
+            const all = [...(m.mergedMarkers || [])].sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
+            try { layer.setMarkers(all) } catch { /* series gone */ }
+            lastMarkersSrcRef.current = m.mergedMarkers
+            lastMyTradesSrcRef.current = SWITCH_NO_MARKERS
+          }
+          _drawMeta(m, fresh, false, { myTradeMarkers: SWITCH_NO_MARKERS, ohlcData: tail.ohlcData })
+        },
+        // ⭐ THE SESSION TAGS (the Pre/Post chip at the extended-hours price, the RTH close chip) ARE BUILT, NOT
+        // REFUSED. They are on every chart outside the regular session, so refusing them refused every switch
+        // there (the browser A/B of 2026-11-21: applied 0 of 31). They are a function of the symbol's bars, the
+        // clock and the quote the app already holds (`readLiveQuote`, what the live tick itself reads): the
+        // render's own builders make them over the next symbol's bars, and the render's own applier sets the
+        // price lines in the paint's task. The chip that follows the tag reads the line, so it moves with it.
+        sessionTags: (built, s) => _activeSessionTagsFor(_extPriceOf(readLiveQuote(s)), built.filteredBars),
+        // the member's alert lines on the next symbol (Chart Settings -> Price alerts): the list this render holds is
+        // ONE for every symbol, so they are the render's own function of it (`alertLineOpts` above), for `s`
+        alertLines: (s) => (_alertLinesOn ? alertPriceLines(activeAlertLevels(_alertRows, s)) : null),
+        applySessionTags: (tags, s) => {
+          _liveExtAppliedRef.current = _extPriceOf(readLiveQuote(s))
+          _applySessionTags(tags)
+          _seatExtTag(tags, null)
+        },
+        // the chart's own pass of the symbol React shows, in full (`switchController.replay`), its tags included
+        reactRepaint: () => {
+          updateChart()
+          // the axis this body's bars and earnings rows ask for (an update skipped while the switch was pending)
+          _applyFutureWs(earningsEvents)
+          _liveExtAppliedRef.current = sessionExtPrice
+          _applySessionTags(activeSessionTags)
+          _seatExtTag(activeSessionTags, devOnScreen.dev()?.close)
+          if (chartReady) refreshOffCursorReadout()
+        },
+        laneShows: (s) => chartShows(laneSlotRef.current, s, resolvedTf),
+        // the developing bar the readers of `devOnScreen` are handed is the old symbol's. (Its PAINT is stopped in
+        // one place, the guard at the top of `_storeDevPaintRef.current`; the body's next pass re-arms it.)
+        closeChannel: () => { _storeDevBarRef.current = null },
+        // the off-cursor readout (the legend's O/H/L/C, the indicator values, the end-tag chips) is the OLD symbol's:
+        // emptied in the frame, refilled by the commit's `refreshOffCursorReadout`
+        clearReadout: () => { setCrosshairData(null); setOffHoverEndTagChips(EMPTY_CHIPS) },
+      })
+      if (switchPort) switchPort.current = switchCtl
+      if (typeof window !== 'undefined') {
+        window.__uctSwitchDiag = window.__uctSwitchDiag || {}
+        window.__uctSwitchDiag[chartId || 'main'] = switchCtl.diag
+      }
+    }
   })
   const _appliedSymTfRef = useRef(null)
   useLayoutEffect(() => {
@@ -15453,8 +12308,25 @@ function StockChartBody({
     }
     sessionTagRefs.current = tags.map((t) => series.createPriceLine(opts(t)))
   }
-  useEffect(() => { _applySessionTags(activeSessionTags) },
-    [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels, lastBarOff, extTagInline])  // eslint-disable-line react-hooks/exhaustive-deps
+  // (imperative switch) In Extended-hours intraday mode the applier above leaves the Pre/Post tag's PRICE to the
+  // loop that glues it to the developing candle. A paint of ANOTHER symbol has no developing candle yet (its
+  // channel opens at the body's render), so the tag would stay at the old symbol's price over the new candles.
+  // The paint seats it: at the developing close when one is on screen (`px`), else at the tag's own price (the
+  // symbol's extended-hours print, what a newly created tag starts at). The loop takes it from there.
+  const _seatExtTag = (tags, px) => {
+    if (!sessionTagsIntraday || !showExtended || !tags) return
+    const i = tags.findIndex((t) => t._sessionTag === 'ext')
+    const line = i >= 0 ? sessionTagRefs.current?.[i] : null
+    const p = (Number.isFinite(px) && px > 0) ? px : tags[i]?.price
+    if (line && Number.isFinite(p) && p > 0) { try { line.applyOptions({ price: p }) } catch { /* series gone */ } }
+  }
+  useEffect(() => {
+    // ⛔ (imperative switch; review round 2, M1) while another symbol is painted, the tags on the axis are THAT
+    // symbol's (the paint applied them); a render of this body (its quote or bars moved) must not put its own back.
+    // The body's render of the painted symbol, or the replay of this one, applies the tags.
+    if (switchCtl && switchCtl.pendingSym()) return
+    _applySessionTags(activeSessionTags)
+  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels, lastBarOff, extTagInline])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ⭐ A PUBLISH BETWEEN RENDERS (2026-11-20, `useQuietRealtimePrices`): what it changes that this chart shows without a render.
   // The newest render's function, so it reads that render's settings; the quote is read fresh.
@@ -15465,6 +12337,9 @@ function StockChartBody({
   const _activeSessionTagsForRef = useRef(null)
   _activeSessionTagsForRef.current = _activeSessionTagsFor
   _onLiveTickRef.current = () => {
+    // ⛔ (imperative switch) this is the symbol React shows. While another one is painted, its quote must not move
+    // the session tags (they are the painted symbol's now) or the last price.
+    if (switchCtl && switchCtl.pendingSym()) return
     const s = _liveSymRef.current
     const q = s ? readLiveQuote(s) : null
     livePricesRef.current = q ? { [s]: q } : EMPTY_LIVE_PRICES
@@ -16638,6 +13513,10 @@ function StockChartBody({
     // we update at most once per animation frame (~60Hz). Read data from refs
     // so the subscription survives live ticks without tearing down.
     const processCrosshair = (param) => {
+      // ⛔ (imperative switch) between a switch's paint and this body's render the refs below are the OLD symbol's
+      // (its averages, its name): a hover would print them beside the new candle's prices, and report the old
+      // symbol to the linked charts. Nothing is read or reported until the body has rendered the new symbol.
+      if (switchCtl && switchCtl.pendingSym()) return
       const overlayData = overlayDataRef.current
       const comparisonData = comparisonDataRef.current
       const livePrices = livePricesRef.current
@@ -16829,6 +13708,9 @@ function StockChartBody({
     }
 
     const handler = (param) => {
+      // ⛔ (imperative switch) the same rule as in `processCrosshair`, for the pointer LEAVING the chart: its
+      // off-hover readout and its `null` report are computed from this render's refs, the old symbol's.
+      if (switchCtl && switchCtl.pendingSym()) return
       // Empty-state events bypass the rAF queue so the legend clears immediately
       if (!param.point || !param.time) {
         if (crosshairRafRef.current != null) { cancelAnimationFrame(crosshairRafRef.current); crosshairRafRef.current = null }
@@ -19120,20 +16002,28 @@ function StockChartBody({
   // Chart Settings → Price alerts: an alert set, deleted or gone off (the list revalidates), a symbol switch, or the
   // switch itself redraws the lines on the current candle series — without re-running updateChart.
   useEffect(() => {
+    // ⛔ (imperative switch) while another symbol is painted, the series carries THAT symbol's lines (the paint drew
+    // them); a render of the replaced symbol in between (the list revalidated) must not put its lines back. The
+    // body's render of the painted symbol, or the replay of this one, syncs them (both read the newest list).
+    if (switchCtl && switchCtl.pendingSym()) return
     syncAlertPriceLines(alertLinesRef.current, candleSeriesRef.current, alertLineOpts)
-  }, [alertLineOpts, chartReady])
+  }, [alertLineOpts, chartReady])  // eslint-disable-line react-hooks/exhaustive-deps -- `switchCtl` is this chart's for its life
 
   // Chart Settings → My trades: new fills, a new bar range, a symbol switch or the switch itself re-hands the ONE markers
   // controller the whole list (the chart's markers + these) — without re-running updateChart. No controller yet: the
   // next updateChart creates it with these already in (it reads myTradeMarkersRef).
   useEffect(() => {
+    // ⛔ (imperative switch; review round 2, M1) this hands the marker layer the WHOLE list, this body's symbol's.
+    // While another symbol is painted the layer is that symbol's; the body's render of it, or the replay of this
+    // one (its pass re-hands the list), sets it.
+    if (switchCtl && switchCtl.pendingSym()) return
     const ctl = markersControllerRef.current
     if (!ctl || typeof ctl.setMarkers !== 'function' || !candleSeriesRef.current) return
     if (lastMyTradesSrcRef.current === myTrades.markers) return
     lastMyTradesSrcRef.current = myTrades.markers
     lastMarkersSrcRef.current = mergedMarkers
     try { ctl.setMarkers(withMyTradeMarkers(mergedMarkers, myTrades.markers)) } catch { /* series gone */ }
-  }, [myTrades, mergedMarkers, chartReady])
+  }, [myTrades, mergedMarkers, chartReady])  // eslint-disable-line react-hooks/exhaustive-deps -- `switchCtl` is this chart's for its life
 
   // Chart Settings → My trades: hovering one of its markers shows "Bought 100 @ 12.34 · <date time>" (or "3 fills · net
   // +200") as the chart's tooltip — lightweight-charts reports the hovered marker's `id`. Subscribed only while ON.
@@ -23013,4 +19903,3533 @@ function StockChartBody({
       />
     </div>
   )
+}
+
+// ─── ⭐⭐ applyFrame: ONE CHART PASS, CALLED WITH A FRAME (imperative switch, stage 1; 2026-11-21) ───────────────
+//
+// This is `updateChart`'s body, moved out of StockChartBody VERBATIM (docs/charts/imperative-switch-design.md §3.1).
+// It closes over nothing of a render: every name it reads is a module binding, a field of `ctx` (the chart's refs and
+// state setters, stable for the chart's life) or a field of `frame` (what one pass reads: the symbol, the settings,
+// the data arrays, the render box). `updateChart` builds both and calls it; the stage-3 controller calls it with a
+// frame it built for the next symbol. ⛔ There is ONE copy of this logic: never fork a second apply path.
+// ⛔ `__heavy` is read as `__heavy.committed.x` only (StockChart.heavyBoxReads.test.js): this runs after a commit.
+// The names below are the pass's free variables, listed by the extraction (StockChart.applyFrameShape.test.js holds
+// the two lists equal to what `updateChart` hands over).
+function applyFrame(ctx, frame) {
+  const {
+    _drawMetaRef, _metaNowRef, _paintMarkedRef, _timingIdRef, alertLineOptsRef, alertLinesRef, axisWidthRatchetRef,
+    barColoursRef, barsPushActiveRef, candleSeriesRef, chartRef, compareSeriesRef, containerRef, crosshairVisibleRef,
+    divBadgeAttachedRef, earnBadgeAttachedRef, engineInstancesRef, engineRef, exactPinSigRef, focusActiveRef,
+    focusProviderInstalledRef, focusRangeRef, frameFadeAlphaRef, framingViewRef, hideBaseRef, indexPaneSeriesRef,
+    indicatorsHiddenRef, ipoBadgeAttachedRef, lastAppliedVolPctRef, lastBarCountRef, lastBarOffRef, lastBarRef,
+    lastBarSymRef, lastCfgSigRef, lastDpZonesRef, lastNetBarRef, lastNetCloseRef, lastNetTimeRef, lastPriceLinesRef,
+    lastServerCloseRef, lastServerCloseSymRef, lastShadeBandsRef, lastShadeBandsVolRef, lastTfRef, latestLiveRef,
+    liveBarRef, liveBarSeriesRef, markersControllerRef, measureLockRef, netColorsRef, netPrevBarRef, netPrevCloseRef,
+    overlaySeriesRefs, overlayTailSeriesRefs, paintedGeomRef, paintedRsvRef, paintSymRef, paneLayoutRef,
+    pdlAttachedRef, pdlCtlRef, pendingTfReframeRef, plotWindowRef, pmLineRefs, pmLinesKeyRef, prevBarsRef,
+    prevBarsSymRef, prevBarsTfRef, prevChartTypeRef, prevPaintBarsRef, priceFormatRef, priceLineRefs,
+    priceManualRangeRef, priceManualRef, provisionalStaleRef, refreshCalcFrameRef, replayCutoffRef,
+    replayLockedViewRef, replayViewLockedRef, respNewestTRef, sessionBreaksAttachedRef, sessionBreaksRef,
+    sessionOwnsDailyRef, sessionShadeAttachedRef, sessionShadeRef, sessionShadeVolAttachedRef, sessionShadeVolRef,
+    sessionViewRef, setChartGen, setChartReady, setPaneLegendKeys, showExtendedRef, splitBadgeAttachedRef,
+    swingAttachedRef, swingCtrlRef, tfSwitchHoldRef, unregisterManifestRef, userLockedViewRef, userViewLockedRef,
+    userViewMovedRef, vertMarginsRef, viewPointerRef, volDragLatchRef, volMaSeriesRef, volMaTailSeriesRef,
+    volPctSettingRef, volTagOffRef, volumeSeparatePaneRef, volumeSeriesRef, wmAnchorRef, wmAttachedRef, wmCtrlRef,
+    wmCustomRef, wmLogoEnabledRef, wmLogoRef, zonesAttachedRef, zonesCtlRef, zoomKeyRef,
+  } = ctx
+  const {
+    __heavy, _econId, _exKey, _extendOverlaysLive, _h24, _hasOverride, _intradayLike, _liveSane, _overlayActive,
+    _paintStoreDev, _pinnedFull, _plotWindowFullKey, _shadeOn, _study, _tzId, adjustTime, allPriceLines,
+    anchorOwnsFrame, applyAnchorFrame, applyAverageZOrder, axisAuto, axisFloor, binderNoticeScope, blankVolume,
+    boldCandles, breadthLineColor, buildCrosshairOpts, calcFrames, candleFrameFade, canvasTheme, carryDragPlacement,
+    centerWatermarkOnPlot, chartId, colorByNetChange, compactAxes, comparisonData, cs, csView, dailyDefaultBars,
+    devOnScreen, dpZones, economicSources, ema9CandleColorFor, ema9MatchCandle, entryDate, exactDateRange, exitDate,
+    fadeCutoff, fitPriceToCandles, frameRightPadFrac, frozen, fundamentalSources, hideLastValue, hidePriceLine,
+    hideWatermark, historyFromListing, indexPaneHeightPct, isIntraday, keepPresentOnSymbolChange, leftBarPad,
+    listingUnserved, livePrices, liveUpdates, lowerTfSources, mainPriceScale, marketCapAuthoritySources, mbDown,
+    mbUp, mbUpOpaque, mbVolDown, mbVolUp, mergedMarkers, modelBookLook, otherSymbolExchangeOf, overlayData,
+    pinPriceChrome, priceScaleBottomMargin, priceScaleTopMargin, replayCutoff, replayMode, resolvedOverlays,
+    resolvedTf, rightPadBars, secondarySources, separatorColors, sessionCandleActive, sessionExtReady,
+    sessionPreviewLastBar, sessionShadeBands, showExtended, showVolume, strategyHistoryWindow, strategyListingDepth,
+    strategyWindowPending, studioPreview, subtleSeparator, swingLabelsOn, swingPoints, sym, symbolMeta, themeColors,
+    tickLabelChars, userCandleColors, userDefsGeneration, visibleBarsOverride, volMaData, volMaPeriodEff,
+    volumeLastValue, volumePaneByDefault, volumePaneExists, volumePaneHeightPct, volumeSeparatePane, vwapOverride,
+    watermark, watermarkBrandMark, watermarkCenterX, watermarkOpacity, watermarkPad, watermarkPadTop, watermarkX,
+    watermarkY, wmPending,
+  } = frame
+    if (!containerRef.current) return
+    // The geometry of the frame ON SCREEN, measured against the series it was painted from,
+    // BEFORE this pass empties or replaces anything: the newest real bar's offset from the
+    // right edge (bars, net of that series' D/W/M developing-slot reserve) and the zoom width.
+    // A symbol switch that keeps the outgoing view reads it (framing, keep-present off).
+    // Invalidation: overwritten on every pass that finds a painted series; a black frame
+    // (series emptied, prevPaintBarsRef null) leaves the last painted frame's geometry, which
+    // is still the view the member last saw; a chart recreate resets lastBarCountRef → no read.
+    if (prevPaintBarsRef.current && lastBarCountRef.current > 0) {
+      try {
+        const _r = chartRef.current?.timeScale().getVisibleLogicalRange()
+        if (_r && _r.to > _r.from) {
+          // `_r` is a LOGICAL range → measure against the newest candle's LOGICAL index.
+          const _ni = newestLogicalIndex(chartRef.current, candleSeriesRef.current, lastBarCountRef.current)
+          paintedGeomRef.current = { ro: _r.to - _ni - paintedRsvRef.current, width: _r.to - _r.from }
+        }
+      } catch { /* no chart yet */ }
+    }
+    // No bars yet for this sym/tf? Clear the existing series so the prior
+    // ticker's data doesn't visually persist on screen during transitions.
+    // Without this, switching tickers leaves the OLD ticker's candles drawn
+    // until the new SWR fetch returns — that's the "blended data" the user
+    // sees flipping between charts.
+    // A timeframe-switch HOLD (see `_tfSwitchHold`) keeps the PREVIOUS timeframe's series on
+    // screen untouched until the new tf's complete answer lands — never the black frame below.
+    if (!__heavy.committed.filteredBars?.length && tfSwitchHoldRef.current) return
+    if (!__heavy.committed.filteredBars?.length) {
+      // ⭐ COUNTED, NOT REASONED ABOUT. This arm is the black frame: every series
+      // is emptied, so whatever the member was looking at is gone and nothing has
+      // replaced it. Inferring the rate from "T4 was small" is how the stale-paint
+      // defect hid for a whole cycle.
+      timingMarkEmpty(_timingIdRef.current)
+      try { candleSeriesRef.current?.setData([]) } catch {}
+      try { volumeSeriesRef.current?.setData([]) } catch {}
+      for (const s of overlaySeriesRefs.current) {
+        try { s.setData([]) } catch {}
+      }
+      lastCfgSigRef.current = null
+      prevPaintBarsRef.current = null   // series were cleared — next paint must be full
+      // ⛔ THE READOUT'S SOURCE IS CLEARED WITH THE SERIES IT DESCRIBES. This arm
+      // emptied every series but left `prevBarsRef` holding the OUTGOING ticker's
+      // bars, and `computeLatestCrosshair` reads that ref — so the bar-info strip
+      // kept printing the old ticker's O/H/L/C and Volume under the new ticker's
+      // name, on top of an opaque skeleton. Worse, `ohlcData` recomputing to a
+      // fresh [] re-fires the readout effect, actively RE-publishing the stale
+      // payload. A chart with no bars must have no readout.
+      //
+      // ⚠️ `lastBarCountRef` is deliberately NOT reset here. It anchors the preserved
+      // view across a ticker switch (`oldBarCount`), which is separate machinery with
+      // its own feedback-loop history — this fix is about data identity, not framing.
+      prevBarsRef.current = null
+      prevBarsSymRef.current = null
+      prevBarsTfRef.current = null
+      return
+    }
+
+    // ── A2: incremental last-bar render (kills the 30s full repaint) ──────────
+    // During RTH the 30s SWR poll delivers a changed DEVELOPING bar, which re-runs
+    // this whole function and full-`setData`s every series (candle + volume + all
+    // MAs + all indicators + markers) — a periodic wholesale repaint. When ONLY
+    // the last bar's OHLCV changed AND the render config is byte-identical to the
+    // last paint, we instead `series.update()` just the last point of each series
+    // (which also makes MAs/indicators track the developing bar in real time
+    // instead of lagging 30s). `_applyData` below routes every setData call
+    // through this decision; it self-corrects to a full setData on ANY edge
+    // (empty series, timestamp mismatch) so a wrong incremental can't stick.
+    // Config guard: a config-only change yields plan 'noop' (bars identical) →
+    // not 'incremental' → full paint; a config change coinciding with a bar tick
+    // is caught by the cfgSig compare. Bias is hard to 'full' — a needless full
+    // repaint is a wasted frame; a wrong incremental would be a data bug.
+    // ⭐ 2026-11-13 — WHICH ROWS OF AN INDICATOR'S SERIES THE RENDERER IS HANDED
+    // (`chart/engine/plotWindow.js`). Decided HERE, before the signature below, because a
+    // change of window changes what the series hold: it has to read as a new configuration
+    // and repaint, never as the `noop` an identical set of bars would otherwise be.
+    // The row count is decided once per (symbol, timeframe) load, from the zoom the chart has
+    // as it opens (a ticker switch keeps the zoom); after that only the bar count moves the
+    // start, a whole step at a time, so a live bar never does.
+    // ⛔ WHOLE, ALWAYS: a pinned / replay / override chart (it frames history on purpose), a
+    // chart with a compare or index overlay (a logical index is then not a bar index), a
+    // chart whose view already came near the window start, and a browser with the switch set.
+    let _plotStart = 0
+    let _plotFrom = null
+    {
+      const _pw = plotWindowRef.current
+      const _pwKey = _exKey   // this render's symbol+timeframe key (the one-key census counts sites)
+      if (_pw.key !== _pwKey) {
+        let _span = 0
+        try {
+          const _r0 = chartRef.current?.timeScale().getVisibleLogicalRange()
+          if (_r0 && _r0.to > _r0.from) _span = _r0.to - _r0.from
+        } catch { /* no chart yet: the floor */ }
+        // Where the view's left edge sits, in bars left of the newest bar: the outgoing
+        // frame's own geometry, measured at the top of this pass (`paintedGeomRef`), which
+        // is the geometry a symbol switch carries when it keeps a scrolled-back view.
+        const _geom = paintedGeomRef.current
+        const _left = _geom && Number.isFinite(_geom.width) && Number.isFinite(_geom.ro) ? _geom.width - _geom.ro : 0
+        _pw.key = _pwKey
+        _pw.rows = plotWindowRows(_span, _left)
+      }
+      const _whole = _plotWindowFullKey === _pwKey || _pinnedFull || _overlayActive || _hasOverride
+        || replayMode || plotWindowDisabled()
+      _plotStart = _whole ? 0 : plotWindowStart(__heavy.committed.filteredBars.length, _pw.rows)
+      if (_plotStart > 0 && __heavy.committed.filteredBars[_plotStart]) _plotFrom = adjustTime(__heavy.committed.filteredBars[_plotStart].t)
+      else _plotStart = 0
+      _pw.start = _plotStart
+      _pw.fromTime = _plotFrom
+      // ⭐ THE RENDER WINDOW of every series, candles included (chart/windowedChart.js): set for each new load from
+      // the view it opens at, and off (every bar) wherever this chart frames history on purpose or a logical index
+      // is not a bar index (pinned / replay / override / compare or index overlay / the switch). A view that comes
+      // near its start extends it in place, so `_plotWindowFullKey` (the lines going whole) does not turn it off.
+      // Decided here for every pass; applied to the chart once per decision (`applyRenderWindow`), right here when
+      // the chart exists, else right after this pass creates it (the page's first chart).
+      const _rwWhole = _pinnedFull || _overlayActive || _hasOverride || replayMode
+      const _rwSig = `${_pwKey}|${_rwWhole ? 'whole' : 'win'}`
+      if (!_pw.rw || _pw.rw.sig !== _rwSig) {
+        let _span = 0
+        try {
+          const _r0 = chartRef.current?.timeScale().getVisibleLogicalRange()
+          if (_r0 && _r0.to > _r0.from) _span = _r0.to - _r0.from
+        } catch { /* no view yet */ }
+        const _geom = paintedGeomRef.current
+        const _left = _geom && Number.isFinite(_geom.width) && Number.isFinite(_geom.ro) ? _geom.width - _geom.ro : 0
+        _pw.rw = { sig: _rwSig, rows: _rwWhole ? null : renderWindowRows(_span, _left), span: _span, applied: false }
+      }
+      applyRenderWindow(chartRef.current, _pw.rw)
+    }
+    let _cfgSig
+    try {
+      _cfgSig = JSON.stringify({
+        sym, resolvedTf, chartType: cs.chartType, showVolume,
+        // the first row of the indicator window (0: every row), see above
+        plotWin: _plotStart,
+        // canvasTheme (workspace theme toggle, e.g. Sunset↔Default) recolors the
+        // candles + volume AND recreates the price series via _priceStyleKey below.
+        // It is NOT part of `cs`, so without it here a theme-only flip keeps an
+        // identical signature → plan 'noop' → the recreated series never gets its
+        // setData (candles vanish) and volume keeps the old theme's colors until a
+        // ticker change. Including it forces a full repaint on every theme switch.
+        canvasTheme,
+        cs, adjustTime, vwapOverride, hideWatermark, hidePriceLine, leftBarPad,
+        modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles,
+        watermark, watermarkOpacity,
+        // Covers ohlcData's remaining dep — the muted-white paint of the pre-market
+        // preview candle, which changes colors without changing any bar VALUE (so the
+        // render plan below can't see it).
+        sessionPreviewLastBar,
+        ovN: overlayData?.length ?? 0,
+        mkN: mergedMarkers?.length ?? 0,
+        plN: allPriceLines?.length ?? 0,
+        cmpN: comparisonData?.length ?? 0,
+        // ⭐ P2 Track B — WHAT `cs` CANNOT SEE. Create Indicator's preview lives in
+        // `csView` and the registry, never in `cs`, so a conversational patch
+        // ("make it 50") left this signature byte-identical, the plan read 'noop'
+        // and `_applyData` skipped the recomputed column — the chart kept drawing
+        // EMA 20 (measured in the browser). The registry generation moves on every
+        // definition install; the preview id on open/close.
+        defsGen: userDefsGeneration,
+        preview: studioPreview ? studioPreview.instanceId : null,
+      })
+    } catch {
+      // A non-serializable setting must never break the chart — fail safe to a
+      // full paint (null cfgSig guarantees _incr is false this run).
+      _cfgSig = null
+    }
+    // Plan against displayBars (what actually gets painted), NOT filteredBars. The
+    // session-preview candle rides ONLY the display path by design — filteredBars stays
+    // pure regular-session — so planning off filteredBars reports 'noop' the moment the
+    // "Include pre/post-market" toggle flips (and on every ext-price tick), and the
+    // synthetic candle never reaches the series. Intraday/RTH is unaffected: with no
+    // session candle and no Heikin-Ashi, displayBars IS filteredBars (same reference),
+    // so the extended-hours no-op guard this plan exists for behaves exactly as before.
+    const _plan = barsRenderPlan(prevPaintBarsRef.current, __heavy.committed.displayBars)
+    const _cfgSame = _cfgSig != null && _cfgSig === lastCfgSigRef.current
+    // A chart/series that doesn't exist yet gets CREATED later in this run —
+    // a 'noop'/'incremental' plan (latched from a destroyed predecessor with
+    // content-identical bars) must never skip its first real paint.
+    const _freshChart = !chartRef.current || !candleSeriesRef.current
+    const _incr = _cfgSame && _plan.mode === 'incremental' && !_freshChart
+    // Bars AND config byte-identical to the last paint → the series already hold
+    // exactly this data; re-`setData`ing would be a pure wipe/repaint. CRITICAL in
+    // EXTENDED HOURS: the live session price-tag (intradaySessionTagLines → allPriceLines)
+    // recomputes on EVERY tick, re-running this whole effect ~1×/sec. A full setData
+    // there erases the live-writer-painted DEVELOPING bar (which isn't in filteredBars
+    // when the server hasn't served the current partial bucket) — it vanished and got
+    // re-added every tick, shaking the chart. Skipping the no-op paint leaves the
+    // developing bar (and the live-extended MAs) untouched; the price tags still
+    // re-apply below.
+    const _noop = _cfgSame && _plan.mode === 'noop' && !_freshChart
+    lastCfgSigRef.current = _cfgSig
+    recordPaint(sym, resolvedTf, __heavy.committed.displayBars?.length ?? 0, _noop ? 'noop' : _incr ? 'incr' : 'full')
+    // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
+    // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
+    if (typeof window !== 'undefined' && window.__uctBarsDebug && paintSymRef.current !== `${sym}_${resolvedTf}`) {
+      console.log('[bars-paint]', 'PAINT', `${sym}_${resolvedTf}`, 'prev:', paintSymRef.current,
+        '| bars:', __heavy.committed.filteredBars.length, 'firstT:', __heavy.committed.filteredBars[0]?.t, 'lastT:', __heavy.committed.filteredBars[__heavy.committed.filteredBars.length - 1]?.t,
+        '| mode:', _incr ? 'incremental' : 'full')
+      paintSymRef.current = `${sym}_${resolvedTf}`
+    }
+    const _applyData = (series, data) => {
+      if (!series || !data) return
+      // Nothing changed since the last paint — don't touch the series (see _noop).
+      // A redundant setData here is what wiped the developing bar every tick in
+      // extended hours; leaving the series as-is preserves the live-writer bar.
+      if (_noop) return
+      // A trailing WHITESPACE point means this series has nothing ON the newest
+      // bar — Ichimoku's chikou is the real case: it plots each close 26 bars
+      // BACK, so its head value sits 26 bars from the right and `update()` with
+      // the newest (empty) point would leave that head frozen at the last full
+      // paint. Fall through to setData for those; every other series still takes
+      // the incremental path, which is the 30s-full-repaint fix.
+      if (_incr && data.length && !isWhitespacePoint(data[data.length - 1])) {
+        try { series.update(data[data.length - 1]); return } catch { /* fall through to full setData */ }
+      }
+      try { series.setData(data) } catch {}
+    }
+
+    let chart = chartRef.current
+
+    // Capture the TRUE pre-update visible range, BEFORE any setData below shifts it.
+    // The same-ticker backfill re-anchor (a depth jump like the 600→12025 dwell-warm)
+    // uses THIS instead of a post-setData read — LWC re-anchors the range to the new
+    // (much larger) extent during setData, so reading it afterward is unreliable and
+    // was letting the view snap back to default when deep history loaded.
+    let _preUpdateRange = null
+    try { _preUpdateRange = chart?.timeScale().getVisibleLogicalRange() } catch { /* no chart yet */ }
+
+    // ── WHOSE NUMBERS ARE THE CANDLES' `scaleMargins` RIGHT NOW? ──────────────
+    //
+    // `zoomKey` is hoisted here (the framing branch below consumes the same
+    // constant) so this pass can ask ONE question before it touches the price
+    // scale: is a manual price-axis pin in force ON THIS VERY CHART?
+    //
+    // ⚰️⚰️ BECAUSE A PIN AND A MARGIN SET ARE TWO REPRESENTATIONS OF ONE GESTURE,
+    // AND APPLYING BOTH APPLIES IT TWICE. `capturedPriceRange` pins the range that
+    // maps back to the pixels the member released on — *given the margins in force
+    // at that moment* (its own doc comment says so). `vertMarginsRef` then carries
+    // the SAME gesture as a normalised band, for the NEXT ticker. Re-asserting that
+    // band over the live pin insets the pinned range a second time and the candles
+    // compress the instant anything repaints — every live tick, every backfill,
+    // every re-render. The pin is the vertical view for THIS symbol; the band is
+    // the vertical view for the next one. Exactly one of them may be applied.
+    //
+    // ⭐ SO THE GESTURE OWNS THE MARGINS UNTIL IT IS RELEASED, and this pass leaves
+    // them alone — the same remedy, for the same reason, as the `rightOffset` /
+    // `rightBarStaysOnScroll` strip a hundred lines below. A ticker or timeframe
+    // switch changes `zoomKey`, so the pin stops owning them on the very pass that
+    // re-frames the new chart and the band lands normally.
+    const zoomKey = `${sym}_${resolvedTf}_${replayCutoff ?? ''}`
+    framingViewRef.current = zoomKeyRef.current !== zoomKey
+    const _pinOwnsMargins = !!priceManualRef.current && zoomKeyRef.current === zoomKey
+
+    // ── Capture the OUTGOING ticker's vertical candle placement (proportional lock) ──
+    // Runs only on a true ticker switch (same timeframe), BEFORE chartOpts re-applies
+    // scaleMargins. We measure where the visible candles sit within the price pane as
+    // top/bottom fractions. If that differs from the default headroom, the user has
+    // dragged the price scale to reposition the candles — remember it so the next stock
+    // lands in the same proportional spot (scaled to its own range). If it matches the
+    // default, treat as "not customized" (null) so volume/indicator pane toggles still
+    // re-flow normally.
+    if (exactDateRange || !carryDragPlacement) {
+      // Model Book frames each stock to a fixed year and should just autoscale —
+      // the carry-the-drag-placement-across-tickers lock is inappropriate here and
+      // compounds badly on huge back-adjusted/log-scale values (uploaded delisted
+      // data), ballooning the price scale until the candles are a sliver.
+      vertMarginsRef.current = null
+    } else {
+      // ── APPLY-ONLY view lock ──────────────────────────────────────────────
+      // The view lock is a FIXED target, written ONLY by an explicit user
+      // drag / zoom (the pointer-up + wheel capture, _captureUserLock below).
+      // A ticker (or phase / tf) switch must NEVER re-measure and re-store it.
+      // Re-measuring the freshly re-framed outgoing view round-trips
+      // imperfectly — future-axis padding, rightBarStaysOnScroll and the
+      // whitespace future-bars all nudge the settled range by a hair — so
+      // re-storing that nudged value on EVERY switch compounds into months of
+      // leftward drift (the "sends me back in time with each search" bug).
+      // Here we only APPLY: the vertical band (a proportional fraction, so it
+      // is TF-independent and carries across ticker AND timeframe switches),
+      // and the horizontal anchorFrac is applied straight from the stored value
+      // in the framing branch. Cleared only by right-click → "Reset view".
+      vertMarginsRef.current = (userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.top != null)
+        ? { top: userLockedViewRef.current.top, bottom: userLockedViewRef.current.bottom }
+        : null
+    }
+
+    // ── Create or update chart instance ──
+    // Axis-width pin, scaled with the user's scale text size. The 76px floor
+    // below was verified at fontSize 11 (see the rightPriceScale comment); a
+    // user-bumped cs.textSize widens every axis tag past that floor, un-pinning
+    // the axis so it re-flows on each live tick — the ~1/sec left-right shake
+    // came BACK for users with larger scale text. Scale the floor with the font
+    // so the pin holds at any size (never below the verified 76) — then ratchet
+    // it up to the widest column actually MEASURED this sym/tf, so even an
+    // environment the static floor never anticipated (DPR/zoom/font fallback)
+    // can only widen the axis once, never oscillate it (axisWidthRatchetRef).
+    let _measuredAxis = 0
+    try { _measuredAxis = chartRef.current?.priceScale('right')?.width() || 0 } catch { /* no chart yet */ }
+    if (_measuredAxis > axisWidthRatchetRef.current) axisWidthRatchetRef.current = _measuredAxis
+    const _axisMinWidth = Math.max(
+      compactAxes ? 0 : Math.ceil((axisFloor ?? 76) * Math.max(1, (cs.textSize ?? 11) / 11)),
+      axisWidthRatchetRef.current,
+    )
+    const chartOpts = {
+      layout: {
+        background: themeColors.layoutTransparent
+          ? { type: ColorType.Solid, color: 'rgba(255,255,255,0)' }   // transparent → container gradient shows through (continuous across panes)
+          : themeColors.backgroundGradient
+            ? { type: ColorType.VerticalGradient, topColor: themeColors.backgroundGradient.top, bottomColor: themeColors.backgroundGradient.bottom }
+            : { type: ColorType.Solid, color: themeColors.background },
+        // Auto-contrast ink derived from the canvas — deliberately NOT the user's
+        // scale color (see axisAuto).
+        textColor: axisAuto.ink,
+        // Tabular-figures build first so canvas-drawn axis labels (price + MA
+        // last-value chips) are equal-width and their boxes line up; falls back to
+        // the proportional face for any non-latin glyph. See index.html @font-face.
+        fontFamily: "'Instrument Sans Tab', 'Instrument Sans', sans-serif",
+        fontSize: compactAxes ? Math.min(cs.textSize ?? 11, 10) : (cs.textSize ?? 11),
+        attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
+        // Model Book: subtle (not bold gray) pane divider; still draggable.
+        //
+        // ⭐ FLIP C: SPEC §6 REQUIRES A DRAGGABLE DIVIDER, and under `'panes'`
+        // every oscillator has one. `enableResize` was already declared for the
+        // two surfaces that restyle the separator; in `'panes'` mode it is
+        // declared for ALL of them, so the answer is in the chart's own options
+        // rather than resting on the library default. (It is `!frozen` either
+        // way: a Setup Library exhibit is a static picture and its panes are not
+        // draggable — the one place spec §6 does not apply.)
+        //
+        // ⭐⭐ SUB-CHOICE 2.1, ANSWERED **TAKE THE TOKEN** BY THE OWNER ON
+        // 2026-08-05 (record §5). **2,400 px on `rsi_only`** — exactly one
+        // 1,200-px row per separator, and nothing else on the canvas moves
+        // (builds `1667183abbe0` → `d361f1585243`). `separatorColors` is already
+        // derived from the canvas AT THE SEPARATOR'S OWN HEIGHT and is what the
+        // Model Book and bold-candle surfaces use; leaving LWC's `#2B2B43` in
+        // place would put the app's one remaining hard-coded chrome colour
+        // between every pair of panes — invisible against a dark canvas and
+        // wrong against a light one, the exact defect `separatorColors` was
+        // written to fix. ⚠️ It restyles a divider that ALREADY EXISTS (the
+        // price/volume one), which is why it was priced as its own decision and
+        // not folded into the cutover's number.
+        ...((boldCandles || subtleSeparator || paneMode() === 'panes')
+          ? { panes: { separatorColor: separatorColors.color, separatorHoverColor: separatorColors.hover, enableResize: !frozen } }
+          : {}),
+      },
+      // Frozen (Setup Library examples): the chart is a static exhibit pinned to
+      // its framed window — no pan/zoom/axis-drag, and the wheel is left alone so
+      // it scrolls the PAGE instead of the chart.
+      // Plain mouse-drag PANS the chart (default). Drag-to-measure is gated behind
+      // Shift: onDown sets measureLockRef while Shift+dragging so the chart stays put.
+      // Computed here (re-runs on data polls) so a poll can't unlock mid-measure.
+      handleScroll: (frozen || measureLockRef.current) ? false : true,
+      handleScale: frozen || measureLockRef.current ? false : true,
+      // Chart Settings → Canvas → Grid → Lines: `grid.visible` is the master, `grid.lines` says which (absent = both).
+      grid: gridOptionsFor(cs, themeColors.gridColor),
+      // Crosshair lines + tracking axis labels. Visibility comes from the resolved
+      // three-way mode (always / hold / off) via `crosshairVisibleRef` — a ref so
+      // this (inside updateChart, which does NOT depend on the hold state) always
+      // reads the live value. The interactive press/release toggle is handled by
+      // the dedicated applyOptions effect above; both use `buildCrosshairOpts` so
+      // the shown/hidden shapes stay identical. (`hideCrosshair`, the Setup-Library
+      // host override, is already folded into `crosshairVisible`.)
+      crosshair: buildCrosshairOpts(crosshairVisibleRef.current),
+      rightPriceScale: {
+        borderColor: themeColors.borderColor,
+        // No vertical separator line between the plot and the axis — the values sit
+        // right against the plot (also lets the volume-pane scale align cleanly under
+        // the price scale, since both panes are now borderless).
+        borderVisible: false,
+        // Pin a stable minimum width so the axis can't re-flow as the developing
+        // bar's live last-value label re-renders. At fractional display scaling
+        // (e.g. Windows 125/150%) that label's sub-pixel width jitters every price
+        // tick; a floating price-scale width makes the whole plot shift left/right
+        // in lockstep with the quotes (the "chart jiggles on every tick" bug).
+        // ⚠️ DO NOT LOWER below the widest last-value TAG width or the bug returns —
+        // a $600–900 price ("695.34") + the tag's background padding overflows a
+        // 64px axis, so it auto-sized per tick and the intraday WS push feed
+        // (multiple ticks/sec) made it shake continuously. 76 is the value verified
+        // against a DPR-1.5 live-tick repro (0 shifts). Tightening the axis is not
+        // worth reintroducing the jitter. _axisMinWidth scales this floor with
+        // cs.textSize (larger scale text = wider tags = the same overflow class).
+        minimumWidth: _axisMinWidth,
+        // Locked proportional placement (carried across ticker switches) wins over the
+        // default headroom. vertMarginsRef is captured in fractions of the pane, so the
+        // candles land in the same relative spot regardless of the stock's price.
+        scaleMargins: vertMarginsRef.current || _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
+        // A Study chart prints a top or bottom price label only when the whole label fits (the screen check,
+        // 2026-11-14: "140.00" cut in half at the top and "52.00" sliced by the volume pane). Every other chart keeps
+        // the library default.
+        ...(_study ? { entireTextOnly: true } : {}),
+      },
+      localization: {
+        // Crosshair time label (the hover box on the axis): weekday + date +
+        // 12-hour time, e.g. "Tue 14 Jul '26 12:00 AM".
+        // Chart Settings → Time format / Time zone pick the pair (timeAxisFormattersFor).
+        timeFormatter: timeAxisFormattersFor(_h24, _tzId, _study).crosshair,
+      },
+      timeScale: {
+        borderColor: themeColors.borderColor,
+        // No horizontal separator line under the panes — matches the borderless right
+        // price scale so the bottom edge stays a clean single hairline (the widget's
+        // own border), not a doubled dark line.
+        borderVisible: false,
+        timeVisible: true,
+        secondsVisible: false,
+        // Bottom-axis tick labels: 12-hour on intraday (default is 24-hour). A Study chart names the month on a
+        // first-week day mark (studyTickMarkFormatter).
+        tickMarkFormatter: timeAxisFormattersFor(_h24, _tzId, _study).tick,
+        // A host that knows its labels are short sizes the library's label slot to them (`tickLabelChars`, opt-in; the
+        // Study drill on a wide screen). Unset, the library's own eight-character slot, as on every other chart.
+        ...(tickLabelChars > 0 ? { tickMarkMaxCharacterLength: tickLabelChars } : {}),
+        // Exact-range (Model Book) locks to a historical window, so don't pin the
+        // latest bar to the right edge — that re-expands the view to "now".
+        rightOffset: exactDateRange ? 0 : rightPadBars,
+        rightBarStaysOnScroll: exactDateRange ? false : true,
+        // Setup → Result appends the result-era bars while the view sits ON the
+        // last bar; LWC's default then shifts the window to the new last bar
+        // BEFORE the pin effect's glide starts — the "snaps right, then zooms"
+        // bug. Exact-range charts are frozen historical windows: never
+        // auto-shift them.
+        shiftVisibleRangeOnNewBar: exactDateRange ? false : true,
+      },
+    }
+
+    if (!chart) {
+      // Pinned 5.2.0 default is `true`, which re-orders draw order within a pane on
+      // hover. This chart stacks candles + MA overlays + VWAP + BB + Donchian + SAR
+      // + comparison in pane 0, so hovering would silently restack them (and later,
+      // float a band's constituent line above its own fill). Keep 5.1.0 rendering;
+      // opt in deliberately if we ever want the hit-testing that comes with it.
+      // ⭐ THE RENDER WINDOW (2026-11-20, owner: "I NEED THEM ALL BELOW 20MS"): the library is handed only a
+      // window of bars a few screens deep (chart/windowedChart.js); everything here keeps speaking full-history
+      // indices through the facade, and a view reaching left of the window extends it before the frame paints.
+      chart = createWindowedChart(createChart(containerRef.current, {
+        ...chartOpts,
+        autoSize: true,
+        hoveredSeriesOnTop: false,
+      }))
+      chartRef.current = chart
+      // The library's layout <table> is not a data table (utils/chartLayoutTable.js).
+      markChartLayoutPresentational(chart)
+      if (plotWindowRef.current?.rw) { plotWindowRef.current.rw.applied = false; applyRenderWindow(chart, plotWindowRef.current.rw) }
+      // Read-only debug handle for probes/rigs (the __uctBarsPush idiom):
+      // the mobile pinch gate needs the visible logical range and every
+      // pixel/UI side-channel for it proved unreliable (gridlines light every
+      // column; rightBarStaysOnScroll pins the pill away). Reads chartRef at
+      // CALL time; keyed by chartId so multi-chart pages don't collide.
+      if (typeof window !== 'undefined') {
+        window.__uctChartDebug = window.__uctChartDebug || {}
+        window.__uctChartDebug[chartId || 'main'] = chartDebugHandle({
+          chartRef, candleSeriesRef, plotWindowRef, engineRef, priceManualRangeRef, priceManualRef,
+          userLockedViewRef, userViewLockedRef, vertMarginsRef,
+        })
+      }
+      // ⭐ THE PANE MANIFEST'S ONE LINE — the chart announces ITSELF (Task 3 → 4).
+      //
+      // `pages/ChartRender.jsx` publishes `window.__paneManifest` for the parity
+      // harness, and it cannot reach this `IChartApi`: `StockChart` exposes it
+      // through no prop, no ref and no callback. So `engine/paneLayout.js` carries a
+      // one-slot registry and the renderer registers into it here, at creation,
+      // which is the only place the identity of the chart changes.
+      //
+      // ⚠️ THE BINDINGS ARE A THUNK, NOT A VALUE. The manifest must read the
+      // engine's CURRENT bindings at the moment the harness asks, and this line
+      // runs once per chart while the binder is rebuilt whenever the instance list
+      // moves. Reading `engineRef.current` inside the closure is what keeps the
+      // `key` on each series (its POOL KEY — stable, derived from the instance id,
+      // never object identity and never a shifting index) attached to the series
+      // actually on the chart.
+      //
+      // ⚠️ It returns `[]`, never `null`, when no binder exists: `paneManifest`
+      // treats a non-array as "no bindings" and would report every series' `key` as
+      // null, which reads identically to a chart whose engine drew nothing.
+      // Un-registering is the cleanup effect's job, beside `chart.remove()`.
+      unregisterManifestRef.current = registerManifestChart(
+        chart,
+        () => (engineRef.current ? engineRef.current.binder.bindings() : []),
+      )
+      setChartGen((g) => g + 1)
+      setChartReady(true)
+      // The page's first chart exists (it is created only once its bars are in): the background
+      // pack ingests may start now. Once per page; see `afterFirstChartPaint` in barsPackClient.
+      markFirstChartPaint()
+    } else {
+      // Re-apply cosmetic/config options on an EXISTING chart, but NOT the
+      // view-scroll options (rightOffset / rightBarStaysOnScroll /
+      // shiftVisibleRangeOnNewBar). Those are set once at creation; re-applying
+      // rightOffset here RE-SCROLLS the chart to the right edge, snapping the
+      // view back whenever the user has panned/zoomed/dragged the price scale
+      // ("chart skips periods / jumps"). Omitting them from the partial
+      // timeScale update leaves LWC's current scroll position untouched. The
+      // zoom-anchoring logic below still sets the visible range explicitly on
+      // sym/tf switches and data-phase swaps.
+      const { rightOffset: _ro, rightBarStaysOnScroll: _rbs, shiftVisibleRangeOnNewBar: _svr, ...tsSafe } = chartOpts.timeScale
+      // ⛔ AND `scaleMargins` JOINS THEM WHENEVER A MANUAL PRICE-AXIS PIN IS LIVE,
+      // for the identical reason: the member's gesture already placed the candles
+      // and this pass must not re-place them. See `_pinOwnsMargins`.
+      const { scaleMargins: _sm, ...psSafe } = chartOpts.rightPriceScale
+      chart.applyOptions({
+        ...chartOpts,
+        rightPriceScale: _pinOwnsMargins ? psSafe : chartOpts.rightPriceScale,
+        timeScale: tsSafe,
+      })
+    }
+
+    // ── Symbol watermark (custom v5 pane primitive, behind series) ──
+    if (!wmCtrlRef.current) {
+      wmCtrlRef.current = createWatermarkPrimitive({ x: cs.watermark.x, y: cs.watermark.y })
+    }
+    if (!wmAttachedRef.current) {
+      try {
+        // ⭐ THE WATERMARK IS PRICE-OWNED — the same `panes()[0]` assumption as
+        // the axis-drag capture above, and it belongs on the candles' pane
+        // wherever that now sits.
+        ;(candleSeriesRef.current?.getPane?.() || chart.panes()[0]).attachPrimitive(wmCtrlRef.current.primitive)
+        wmAttachedRef.current = true
+      } catch { /* older pane API — primitive optional */ }
+    }
+    {
+      const wmLines = (cs.watermark.visible && !hideWatermark && !hideBaseRef.current)
+        ? composeWatermarkLines(watermark ?? sym, _metaNowRef.current().watermarkMeta, cs.watermark.lines, tfWatermarkLabel(resolvedTf))
+        : []
+      // centerWatermarkOnPlot: pin the horizontal center to the middle of the
+      // WHOLE widget — the candle plot PLUS the right price-axis gutter — measured
+      // from the pane's left edge (= widget's left edge; there's no left axis). So
+      // it's centered between the outer left/right edges of the widget, not just
+      // the candle area. Falls back to watermarkCenterX otherwise.
+      let _wmCenterX = watermarkCenterX
+      if (centerWatermarkOnPlot) {
+        try {
+          const _tw = chart.timeScale().width()
+          let _aw = 0; try { _aw = chart.priceScale('right').width() || 0 } catch { /* no right axis */ }
+          if (_tw > 0) _wmCenterX = (_tw + _aw) / 2
+        } catch { /* keep fallback */ }
+      }
+      wmCtrlRef.current.setOptions({
+        lines: wmLines,
+        // The ENABLED fields (not merely the ones this ticker has data for) size the
+        // watermark's layout box, so the mark occupies the same rectangle on every
+        // symbol — DIA's long name can't widen it and MU's extra rows can't push its
+        // top edge up under the legend.
+        fields: cs.watermark.lines,
+        boxW: cs.watermark.boxW ?? DEFAULT_BOX_W,
+        color: cs.watermark.color,
+        opacity: watermarkOpacity ?? cs.watermark.opacity,
+        sizeScale: cs.watermark.sizeScale,
+        weight: cs.watermark.weight ?? 700,
+        // In adjust mode the PENDING dragged spot wins, so a data-poll re-render
+        // can't snap the mark back to its saved position mid-drag.
+        x: wmPending?.x ?? watermarkX ?? cs.watermark.x,
+        y: wmPending?.y ?? watermarkY ?? cs.watermark.y,
+        // Horizontal alignment (left/center/right) + whether a custom drag position
+        // is active (a custom position uses the centre anchor; align does text
+        // justification and the left/right non-custom placement).
+        align: cs.watermark.align || 'center',
+        custom: wmCustomRef.current,
+        // Pixel anchor for a hand-placed mark (omitted when there is none — see the
+        // placement effect: a null would wipe a derived anchor on every data poll).
+        ...(wmAnchorRef.current ? { anchor: wmAnchorRef.current } : {}),
+        // Re-asserted here (not only in the badge effect) so a primitive created
+        // AFTER the logo loaded still gets it — that race is what left the mark
+        // logo-less after a refresh.
+        logoEnabled: wmLogoEnabledRef.current,
+        logoImg: wmLogoRef.current,
+        logoScale: watermarkBrandMark ? 1.35 : 1,
+        ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPadTop ?? watermarkPad } : {}),
+        hardCenterXPx: wmCustomRef.current ? null : _wmCenterX,
+      })
+    }
+
+    // ── Extended-hours shading (custom v5 pane primitive, behind series) ──
+    if (!sessionShadeRef.current) {
+      sessionShadeRef.current = createSessionShadingPrimitive({})
+    }
+    if (!sessionShadeAttachedRef.current) {
+      try {
+        // ⭐ AND SO IS THE SESSION SHADE — it shades the candles' own pane.
+        ;(candleSeriesRef.current?.getPane?.() || chart.panes()[0]).attachPrimitive(sessionShadeRef.current.primitive)
+        sessionShadeAttachedRef.current = true
+      } catch { /* older pane API — primitive optional */ }
+    }
+    {
+      // `sessionShadeBands` is memoized on [filteredBars, adjustTime, shadeOn] — the
+      // band pass is O(bars) and this block runs on every updateChart, so computing
+      // it inline re-walked the whole (2.5×-longer, extended-hours) bar array on
+      // every repaint. setOptions also forces a primitive redraw, so re-setting
+      // identical bands was paying twice; skip when nothing changed.
+      if (lastShadeBandsRef.current !== sessionShadeBands) {
+        lastShadeBandsRef.current = sessionShadeBands
+        sessionShadeRef.current.setOptions({ enabled: _shadeOn, bands: sessionShadeBands })
+      }
+    }
+
+    // Price-scale mode (Normal/Log/Percent) is applied by a dedicated effect
+    // keyed on `effectiveScale`, so the A/L/% toggle and the forceLogScale
+    // default both take effect immediately (and survive data updates).
+
+    // ── Price series — reuse if chart type unchanged, else swap ──
+    // When swapping the candle series, the markers controller is bound to the
+    // old series — detach it so the next markers update creates a fresh
+    // controller against the new series.
+    // Include the effective candle colors so a color-picker change recreates the
+    // series (re-runs the `_bold` options + re-installs the net-change wrapper with
+    // the new palette). mbUp/mbDown resolve to the user's colors when userCandleColors.
+    // Effective candle colors — refreshed every run into netColorsRef so the wrapper
+    // and the live series options below read the latest WITHOUT recreating the series.
+    {
+      const _m = cs.candleColorMode || 'netchange'
+      const _u = boldCandles ? mbUp : (modelBookLook ? BOLD_UP : cs.candles.upColor)
+      const _d = boldCandles ? mbDown : (modelBookLook ? BOLD_DOWN : cs.candles.downColor)
+      // Sunrise is a fixed light theme: candle bodies are forced to SUNRISE_UP/DOWN
+      // (_u/_d), so the wick + border MUST follow the body — NOT the user's saved
+      // upWick/downWick/upBorder/downBorder (which are the dark-theme palette and
+      // render a brighter, mismatched red/green wick on the Sunrise canvas). This
+      // keeps NC in lockstep with the `_bold` sunrise series-creation options
+      // (wick/border = mbUp/mbDown) so the live color-apply below can't re-split them.
+      const _sruniform = canvasTheme === 'sunrise'
+      netColorsRef.current = {
+        mode: _m, up: _u, down: _d,
+        one: (userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : _u,
+        borUp: _sruniform ? _u : (userCandleColors ? (cs.candles.upBorder || _u) : _u),
+        borDown: _sruniform ? _d : (userCandleColors ? (cs.candles.downBorder || _d) : _d),
+        wickUp: _sruniform ? _u : (userCandleColors ? (cs.candles.upWick || _u) : _u),
+        wickDown: _sruniform ? _d : (userCandleColors ? (cs.candles.downWick || _d) : _d),
+        // Hollow bodies are a CANDLE-ONLY effect. A CandlestickSeries with a
+        // transparent body still draws its border (borderVisible below), so the bar
+        // stays visible as an outline — but BarSeries (chartType 'bars'/'hlc') has NO
+        // border to fall back on, so a transparent "body" is the bar's only stroke and
+        // the bar disappears outright. Left unguarded, every up-bar vanished under the
+        // Sunset/light canvas while the MAs (same data) drew normally.
+        hollow: (canvasTheme === 'sunrise' || cs.chartType === 'hollow')
+          && (cs.chartType === 'candles' || cs.chartType === 'hollow'),
+        insideBlack: canvasTheme === 'sunrise',
+        // Chart Settings → Price style → Colors → Body off (candles / hollow only): every body transparent, so
+        // the borders and wicks (each with its own on/off) are what draws. Absent = on, as before.
+        noBody: (cs.chartType === 'candles' || cs.chartType === 'hollow') && !candlePartsOf(cs).body,
+      }
+    }
+    // Only a change of the underlying LWC SERIES TYPE (+ theme) recreates the series.
+    // candles↔hollow share a Candlestick series and bars↔hlc share a Bar series — the
+    // difference (hollow body / hidden open tick) is applied live below, so toggling
+    // them (and colors, and the color mode) never destroys the series = no shake.
+    const _ct = cs.chartType || 'candles'
+    const _seriesType = (_ct === 'candles' || _ct === 'hollow') ? 'candle'
+      : (_ct === 'bars' || _ct === 'hlc') ? 'bar' : _ct
+    const _priceStyleKey = `${_seriesType}|${canvasTheme || ''}`
+    if (prevChartTypeRef.current !== _priceStyleKey && candleSeriesRef.current) {
+      try { chart.removeSeries(candleSeriesRef.current) } catch {}
+      candleSeriesRef.current = null
+      try { markersControllerRef.current?.detach?.() } catch {}
+      markersControllerRef.current = null
+      // The consumer's price lines (a pivot, an entry/stop) died with the old series. Their array
+      // identity does not move on a type change, so without this the identity guard below skips
+      // the rebuild and the new series comes up with no lines.
+      priceLineRefs.current = []
+      lastPriceLinesRef.current = undefined
+      focusProviderInstalledRef.current = false  // new series needs the focus autoscale provider re-attached
+      swingAttachedRef.current = false           // swing-label primitive must re-attach to the new series
+      earnBadgeAttachedRef.current = false       // earnings-badge primitive must re-attach to the new series
+      splitBadgeAttachedRef.current = false      // split-badge primitive must re-attach
+      divBadgeAttachedRef.current = false        // dividend-badge primitive must re-attach
+      ipoBadgeAttachedRef.current = false        // IPO-badge primitive must re-attach
+      zonesAttachedRef.current = false           // level-zones primitive must re-attach to the new series
+      pdlAttachedRef.current = false             // prev-day-levels primitive must re-attach to the new series
+      pmLineRefs.current = []                    // the PM high/low price lines died with the old series
+      pmLinesKeyRef.current = ''
+    }
+
+    if (!candleSeriesRef.current) {
+      let priceSeries
+      switch (cs.chartType) {
+        case 'hollow':
+          priceSeries = chart.addSeries(CandlestickSeries, {
+            upColor: 'transparent', downColor: cs.candles.downColor,
+            borderUpColor: cs.candles.upColor, borderDownColor: cs.candles.downColor,
+            wickUpColor: cs.candles.upWick, wickDownColor: cs.candles.downWick,
+          })
+          break
+        case 'bars':
+          priceSeries = chart.addSeries(BarSeries, {
+            upColor: cs.candles.upColor, downColor: cs.candles.downColor,
+            thinBars: cs.candles.thinBars !== false,
+          })
+          break
+        case 'hlc':
+          // HLC bar = OHLC bar with the left "open" tick hidden.
+          priceSeries = chart.addSeries(BarSeries, {
+            upColor: cs.candles.upColor, downColor: cs.candles.downColor,
+            openVisible: false,
+            thinBars: cs.candles.thinBars !== false,
+          })
+          break
+        case 'line': {
+          // One-color = the single color; net/open-close = per-segment (from
+          // closeData's per-point `color`), with the up color as the base. A breadth
+          // line overrides all of that with the canvas-contrasting ink.
+          const _lineBase = breadthLineColor || ((cs.candleColorMode === 'onecolor')
+            ? ((userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : mbUp)
+            : mbUp)
+          priceSeries = chart.addSeries(LineSeries, { color: _lineBase, lineWidth: 2 })
+          break
+        }
+        case 'area': {
+          const _areaBase = (cs.candleColorMode === 'onecolor')
+            ? ((userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : mbUp)
+            : mbUp
+          // The fill under an area chart is always a neutral, automatic transparent
+          // gray (per request) — only the LINE follows the color mode.
+          priceSeries = chart.addSeries(AreaSeries, {
+            lineColor: _areaBase,
+            topColor: 'rgba(140,140,140,0.16)',
+            bottomColor: 'rgba(140,140,140,0.0)',
+            lineWidth: 2,
+          })
+          break
+        }
+        default: // 'candles'
+          priceSeries = chart.addSeries(CandlestickSeries, {
+            upColor: cs.candles.upColor, downColor: cs.candles.downColor,
+            borderUpColor: cs.candles.upBorder, borderDownColor: cs.candles.downBorder,
+            wickUpColor: cs.candles.upWick, wickDownColor: cs.candles.downWick,
+          })
+      }
+      candleSeriesRef.current = priceSeries
+      chart.window?.setPrimary(priceSeries)   // the candles' rows define the render window
+      // Model Book studies a past year — the current (latest) price line is
+      // irrelevant there, so hide the dotted last-price line for exact-range.
+      // boldCandles paints solid bright green/red; hideLastValue drops the
+      // right-axis price tag. Both only apply to instances that opt in.
+      try {
+        // The intraday popup (modelBookLook) shares the Model Book main chart's
+        // solid bold green/red so the two charts match exactly — without it the
+        // popup falls back to the lighter default cs.candles palette.
+        // Model Book (boldCandles) gets the punchier TC2000 palette (vivid green
+        // / deep red); the intraday popup (modelBookLook) keeps the base bold one.
+        const _bUp = boldCandles ? mbUp : BOLD_UP
+        const _bDown = boldCandles ? mbDown : BOLD_DOWN
+        const _bold = (canvasTheme === 'sunrise' && _seriesType === 'candle') ? {
+          // Sunrise default = HOLLOW candles (TC2000 look): up = hollow body + dark
+          // green outline; down = filled dark red. Same palette as the volume bars.
+          upColor: 'rgba(0,0,0,0)', downColor: mbDown,
+          borderVisible: true, borderUpColor: mbUp, borderDownColor: mbDown,
+          wickUpColor: mbUp, wickDownColor: mbDown,
+        } : canvasTheme === 'sunrise' ? {
+          // Sunrise with a BAR series ('bars'/'hlc'): SOLID dark palette, never the
+          // hollow treatment above. BarSeries has no border, so a transparent upColor
+          // leaves the bar with no stroke at all and every up-bar disappears. The
+          // per-bar painter hides this in netchange mode but is a passthrough in
+          // open/close mode, where the series option is what actually paints.
+          upColor: mbUp, downColor: mbDown,
+        } : cs.chartType === 'hollow' ? {
+          // HOLLOW chart type in a non-sunrise theme (e.g. the default bold workspace):
+          // up = transparent body + colored outline, down = filled. Without this the
+          // boldCandles branch below forces borderVisible:false + a solid up body, so
+          // the hollow type rendered as normal filled candles (the reported bug).
+          upColor: 'rgba(0,0,0,0)', downColor: _bDown,
+          borderVisible: true, borderUpColor: _bUp, borderDownColor: _bDown,
+          wickUpColor: _bUp, wickDownColor: _bDown,
+        } : (boldCandles || modelBookLook) ? {
+          upColor: _bUp, downColor: _bDown,
+          // Workspace (userCandleColors): borders VISIBLE so the user's Border colors
+          // render (default border = body color → still looks solid). Model Book keeps
+          // pure solid bodies (no border line).
+          borderVisible: !!userCandleColors,
+          borderUpColor: userCandleColors ? (cs.candles.upBorder || _bUp) : _bUp,
+          borderDownColor: userCandleColors ? (cs.candles.downBorder || _bDown) : _bDown,
+          wickUpColor: userCandleColors ? (cs.candles.upWick || _bUp) : _bUp,
+          wickDownColor: userCandleColors ? (cs.candles.downWick || _bDown) : _bDown,
+        } : {}
+        // Optional integer-only price axis (DarkPool page passes precision:0
+        // for large-cap stocks so the axis shows "200" not "200.00").
+        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue && cs.showPriceLabels !== false && !lastBarOffRef.current, ..._bold })
+        applyPriceFormatToScale(priceSeries, priceFormatRef.current)
+      } catch { /* older LWC */ }
+
+      // ── colorByNetChange ── Color each candle by close-vs-PREVIOUS-close (TC2000 /
+      // StockCharts style) instead of LWC's built-in close-vs-open. LWC only auto-colors
+      // by open/close at the series level, so net-change coloring requires a per-bar
+      // color/borderColor/wickColor override on the DATA. Rather than touch the ~20
+      // developing-bar writer sites, we wrap the series' setData/update ONCE here so every
+      // write path (historical setData, gold setup/catalyst highlight, live ticks) is
+      // colored consistently. Gated on the prop → only opted-in charts are affected; the
+      // gold-highlight override is preserved (bars that already carry an explicit color
+      // are left untouched). Candles + OHLC bars only (line/area/hollow have no net-change
+      // notion). Same up/down palette the series itself uses so it looks identical apart
+      // from the coloring rule.
+      // Net-change eligibility: candles/bars always; on Sunrise ALSO 'hollow' (the
+      // Sunrise look is hollow, and without this a saved 'hollow' chart type skips the
+      // wrap entirely and LWC colors by close-vs-OPEN — the "up day shows red" bug).
+      // Candle color mode (user-selectable): 'openclose' colors natively by
+      // close-vs-open (LWC default) → NO per-bar wrap. 'netchange' (close-vs-prev-
+      // close) and 'onecolor' (every bar one color) paint each bar here.
+      const _netEligible = cs.chartType === 'candles' || cs.chartType === 'bars' || cs.chartType === 'hlc'
+        || cs.chartType === 'hollow'
+        || (canvasTheme === 'sunrise' && isOhlcType(cs.chartType))
+      // Install the wrapper for EVERY OHLC type (regardless of color mode) so a mode
+      // change doesn't need a recreate. In open-close mode _paintNet is a passthrough
+      // and LWC colors natively from the live series options.
+      if (colorByNetChange && _netEligible && !priceSeries.__uctNetWrap) {
+        const _isInside = (bar, prevBar) => (
+          prevBar
+          && bar.high != null && bar.low != null && prevBar.high != null && prevBar.low != null
+          && bar.high <= prevBar.high && bar.low >= prevBar.low
+        )
+        // Colors are read LIVE from netColorsRef (updated every render) so a color
+        // change repaints via setData without recreating the series (no shake).
+        const _paintNet = (bar, prevClose, prevBar) => {
+          if (!bar || bar.close == null) return bar
+          if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
+          const NC = netColorsRef.current
+          // Sunrise's black inside-day candles are part of the theme's signature
+          // look, so they paint in EVERY color mode — checked before the openclose
+          // passthrough (below) which otherwise skips all per-bar painting. The
+          // fill still follows close-vs-open (TC2000): an inside day that closed
+          // above its open is a HOLLOW black outline, below = filled black.
+          if (NC.insideBlack && _isInside(bar, prevBar)) {
+            const openUpIn = bar.open != null ? bar.close >= bar.open : true
+            return { ...bar, color: (NC.noBody || (NC.hollow && openUpIn)) ? 'rgba(0,0,0,0)' : '#000000', borderColor: '#000000', wickColor: '#000000' }
+          }
+          if (NC.mode === 'openclose') return bar   // native close-vs-open coloring (Body off rides the series colours)
+          // One color: every bar the same body/border/wick (shape still hollow on up).
+          if (NC.mode === 'onecolor') {
+            const up = bar.open != null ? bar.close >= bar.open : true
+            const body = NC.noBody ? 'rgba(0,0,0,0)' : (NC.hollow && up) ? _hollowFill(NC.one) : NC.one
+            return { ...bar, color: body, borderColor: NC.one, wickColor: NC.one }
+          }
+          // TC2000 hollow-candle semantics: COLOR and FILL are independent axes.
+          // Direction (net-change close-vs-prev-close, or close-vs-open in that
+          // mode) drives the green/red palette; close-vs-OPEN alone drives the
+          // hollow/filled body. So a green candle that closed below its open is
+          // FILLED green, and a red candle that closed above its open is HOLLOW
+          // red — all four combinations render.
+          let up
+          if (NC.mode === 'netchange') {
+            if (prevClose == null) return bar   // first bar — no prior close to compare
+            up = bar.close >= prevClose
+          } else {
+            up = bar.open != null ? bar.close >= bar.open : true
+          }
+          const openUp = bar.open != null ? bar.close >= bar.open : up
+          const body = NC.noBody ? 'rgba(0,0,0,0)' : (NC.hollow && openUp) ? _hollowFill(up ? NC.up : NC.down) : (up ? NC.up : NC.down)
+          return { ...bar, color: body, borderColor: (up ? NC.borUp : NC.borDown), wickColor: (up ? NC.wickUp : NC.wickDown) }
+        }
+        const _realSet = priceSeries.setData.bind(priceSeries)
+        const _realUpd = priceSeries.update.bind(priceSeries)
+        priceSeries.setData = (data) => {
+          if (!Array.isArray(data)) return _realSet(data)
+          let prev = null, lastPrev = null, prevBar = null, lastPrevBar = null
+          const painted = data.map((b) => {
+            if (b && b.close != null) {
+              lastPrev = prev
+              lastPrevBar = prevBar
+              const out = _paintNet(b, prev, prevBar)
+              prev = b.close
+              prevBar = { high: b.high, low: b.low }
+              return out
+            }
+            return b
+          })
+          // Refs the update() wrap reads for the developing bar: prev-of-last & the last bar.
+          netPrevCloseRef.current = lastPrev
+          lastNetCloseRef.current = prev
+          netPrevBarRef.current = lastPrevBar
+          lastNetBarRef.current = prevBar
+          lastNetTimeRef.current = painted.length ? data[data.length - 1]?.time : null
+          return _realSet(painted)
+        }
+        priceSeries.update = (bar) => {
+          if (!bar || bar.close == null) return _realUpd(bar)
+          const isNewBar = lastNetTimeRef.current != null && bar.time > lastNetTimeRef.current
+          const prevClose = isNewBar ? lastNetCloseRef.current : netPrevCloseRef.current
+          const prevBar = isNewBar ? lastNetBarRef.current : netPrevBarRef.current
+          const out = _paintNet(bar, prevClose, prevBar)
+          if (isNewBar) {
+            netPrevCloseRef.current = lastNetCloseRef.current
+            netPrevBarRef.current = lastNetBarRef.current
+            lastNetTimeRef.current = bar.time
+          }
+          lastNetCloseRef.current = bar.close
+          lastNetBarRef.current = { high: bar.high, low: bar.low }
+          return _realUpd(out)
+        }
+        priceSeries.__uctNetWrap = true
+      }
+      // ⭐ B1 — Pine `barcolor`: every write to an OHLC price series is recoloured
+      // from `barColoursRef` (time → colour). Installed once per series, AFTER the
+      // net-change wrap so it runs first and the net wrap keeps its colour.
+      if (isOhlcType(cs.chartType)) wrapSeriesForBarColours(priceSeries, () => barColoursRef.current)
+      prevChartTypeRef.current = _priceStyleKey
+    }
+
+    // ── Live color apply (no recreate) ── Colors are NOT in the price-style key, so
+    // a color change reaches here without destroying the series. For the WRAPPER modes
+    // (netchange/onecolor) the per-bar setData below repaints; for OPEN-CLOSE (native,
+    // no wrapper) we push the up/down colors onto the series here so the change still
+    // lands. Runs every render; cheap applyOptions, and it never re-fits the scale.
+    try {
+      const NC = netColorsRef.current
+      if (_ct === 'candles' || _ct === 'hollow') {
+        // Sunrise's TC2000 look = hollow up bodies, enforced at series creation
+        // (the `_bold` sunrise options). This live-apply runs every render and
+        // would clobber that with a solid NC.up in OPEN-CLOSE mode (where the
+        // per-bar wrapper passes through) — so the transparent up body must be
+        // kept for Sunrise here too, not just for the explicit 'hollow' type.
+        // Chart Settings → Price style → Colors → Body / Borders / Wick on/off (chartViewOptions; absent = on,
+        // which reproduces exactly the options this block applied before). Body off = transparent bodies here
+        // AND in the per-bar painter (NC.noBody); Borders off / Wick off = the library's own borderVisible /
+        // wickVisible, over whatever this surface would otherwise show.
+        const _parts = candlePartsOf(cs)
+        candleSeriesRef.current.applyOptions({
+          upColor: NC.noBody ? 'rgba(0,0,0,0)' : (_ct === 'hollow' || canvasTheme === 'sunrise') ? _hollowFill(NC.up) : NC.up,
+          downColor: NC.noBody ? 'rgba(0,0,0,0)' : NC.down,
+          borderVisible: _parts.borders && ((_ct === 'hollow') ? true : (canvasTheme === 'sunrise' ? true : !!userCandleColors)),
+          borderUpColor: NC.borUp, borderDownColor: NC.borDown,
+          wickVisible: _parts.wick,
+          wickUpColor: NC.wickUp, wickDownColor: NC.wickDown,
+        })
+      } else if (_ct === 'bars' || _ct === 'hlc') {
+        // thinBars rides this same live-apply path (it isn't in the price-style key),
+        // so toggling thickness repaints without destroying/recreating the series.
+        candleSeriesRef.current.applyOptions({
+          upColor: NC.up, downColor: NC.down, openVisible: _ct !== 'hlc',
+          thinBars: cs.candles.thinBars !== false,
+        })
+      } else if (_ct === 'line') {
+        candleSeriesRef.current.applyOptions({ color: breadthLineColor || (NC.mode === 'onecolor' ? NC.one : NC.up) })
+      } else if (_ct === 'area') {
+        candleSeriesRef.current.applyOptions({ lineColor: NC.mode === 'onecolor' ? NC.one : NC.up })
+      }
+      // Chart Settings → Price style → Price line: the last-price line on/off and its style, every chart type.
+      // The host's own rule (exact-range / hidePriceLine surfaces never draw it) still wins; absent = on + dashed,
+      // the library default, so an untouched chart gets exactly the options the creation block gave it.
+      // hidePriceLine is the host's DEFAULT only: a member who switched the line on gets it (owner 11-16).
+      const _pl = priceLineOf(cs, !hidePriceLine)
+      candleSeriesRef.current.applyOptions({
+        priceLineVisible: !exactDateRange && _pl.visible,
+        priceLineStyle: LINE_STYLE_NUM[_pl.style],
+      })
+    } catch { /* series may be mid-swap */ }
+
+    // Set price data. The separate gold-recolor effect below re-applies the
+    // setup-candle highlight right after every updateChart (it lists updateChart
+    // as a dep), so we keep plain data here — pulling highlightTimeSet into THIS
+    // effect's deps would re-run the whole updateChart (incl. the visible-range /
+    // zoom logic) on every focus change and fight the setup focus zoom.
+    _applyData(candleSeriesRef.current, isOhlcType(cs.chartType) ? __heavy.committed._big.ohlcData : __heavy.committed._big.closeData)
+    // ⭐ THE HEADLINE METRIC. Candles are now on the canvas for this (sym, tf) — the
+    // moment a scanning member stops seeing the previous chart and starts seeing this
+    // one. Marked HERE rather than at a React state change because `loading === false`
+    // is a decision, and this is the paint.
+    // ⛔⛔ RECORD WHAT WAS PAINTED, NOT ONLY WHEN. `paint` alone scored the MU
+    // stale-first-paint (a 10:00 tail shown at 15:55) as the FASTEST switch in the
+    // run. timingMarkPaint carries the newest bar's timestamp so the frontier gap
+    // is measured at the instant the member sees the frame, and TC is marked only
+    // once a CURRENT-ENOUGH frame reaches the canvas.
+    // ⚠️ Not latched on `paint` any more: a stale frame followed by the repaired
+    // one must leave BOTH marks, so the stale interval is measurable.
+    const _painted = isOhlcType(cs.chartType) ? __heavy.committed._big.ohlcData : __heavy.committed._big.closeData
+    if (_painted?.length) {
+      // ⚠️ INTRADAY ONLY. `filteredBars[].t` is unix SECONDS intraday but a
+      // 'YYYY-MM-DD' STRING on D/W/M, and the frontier math is bucket arithmetic
+      // over the former. Handing it a string would score every daily switch as
+      // Infinity-behind — a fabricated failure, which is worse than no metric.
+      // Daily keeps the plain timing mark it always had.
+      if (isIntraday) {
+        const _lastT = __heavy.committed.filteredBars[__heavy.committed.filteredBars.length - 1]?.t
+        timingMarkPaint(_timingIdRef.current, typeof _lastT === 'number' ? _lastT : null, {
+          session: showExtended ? 'extended' : 'rth',
+        })
+      } else if (!_paintMarkedRef.current) {
+        timingMark(_timingIdRef.current, 'paint')
+      }
+      _paintMarkedRef.current = true
+    }
+
+    // Trustworthy baseline for live-tick sanity gates: server bars are
+    // validated/quarantined upstream and proven clean. Unlike
+    // lastBarRef (which a bad tick can bake bad, then good ticks get
+    // rejected and the phantom sticks — DDOG 20798 = 100x lock-in),
+    // this is ONLY ever set from server data and can't be poisoned.
+    if (__heavy.committed.filteredBars.length) {
+      const last = __heavy.committed.filteredBars[__heavy.committed.filteredBars.length - 1]
+      if (Number.isFinite(last.c) && last.c > 0) { lastServerCloseRef.current = last.c; lastServerCloseSymRef.current = sym }
+    }
+    // ⭐ THE DEVELOPING BAR AFTER setData (P3-S2) — chart/legacyLiveWriters.liveAfterSetData, chosen
+    // once at module load: the legacy seed + push / Finnhub re-top (Writer D), or under BARSTORE the
+    // store's developing-bar paint (snapshot.developing; `_storeDevPaintRef` below).
+    liveAfterSetData({
+      H: LEGACY_LIVE_HELPERS, sym, resolvedTf, filteredBars: __heavy.committed.filteredBars, isIntraday, adjustTime, livePrices, cs, _liveSane, respNewestTRef,
+      lastBarRef, lastBarSymRef, liveBarRef, liveBarSeriesRef, latestLiveRef, barsPushActiveRef, provisionalStaleRef,
+      sessionOwnsDailyRef, sessionViewRef, showExtendedRef, candleSeriesRef, volumeSeriesRef, prevBarsRef,
+      colorByNetChange, userCandleColors, boldCandles, modelBookLook, mbVolUp, mbVolDown,
+    }, _paintStoreDev)
+
+    // ── THE INDICATOR ENGINE (Phase B) — what it owns, decided here ───────────
+    //
+    // ⭐⭐ B5 TASK 4 DELETED THE FLAG THAT USED TO BE READ HERE.
+    //
+    // What stood here was `const engineOn = cs.engineEnabled === true`, with two
+    // paragraphs explaining that the engine "LANDS DARK" until a user opts in.
+    // It never landed dark for anybody: `mergeChartSettings` computed the flag
+    // from the STORED BLOB, every blob in production predates the engine, and no
+    // action a user could take set it — so the opt-in was permanently off and the
+    // engine drew the flipped ids regardless, which is the only reason B3 shipped.
+    // A flag in that state is not an off switch, it is a branch nothing reaches.
+    // Record: `docs/decisions/2026-08-04-engine-enabled-deleted.md`.
+    //
+    // ⛔ THE DARK CONTRACT SURVIVES IT, AND MOVED TO A HONEST PREDICATE. A chart
+    // with no instances still constructs no binder and makes zero
+    // lightweight-charts calls — see `engineNeeded` below, which asks
+    // `engineInstances.length > 0`. That is what the flag was supposed to mean and
+    // it is now measured from the thing that decides it.
+    //
+    // ── FLIP B: A FLIPPED DEFINITION HAS NO OTHER RENDERER ───────────────────
+    //
+    // The engine is ACTIVE whenever something is flipped, because for a FLIPPED id
+    // there is no hand-written block left: gating it on anything would not make
+    // the engine dark, it would DELETE the indicator.
+    //
+    // ⚠️ `engineDrawsAnything()` IS A CONSTANT TODAY and is deliberately
+    // still spelled as a read: it is the seam Task 13 turns into a registry lookup
+    // once every native is flipped. The `sync` CALL is further down, immediately
+    // before where the Bollinger block used to be — see the note there for why the
+    // position is load-bearing.
+    const engineActive = engineDrawsAnything()
+    // Normalised on the way in: a tombstone or a malformed record must never
+    // reach the planner. Cheap enough to do per paint at v1 instance counts, and
+    // it only ever runs with the engine ON.
+    //
+    // …and then filtered to the definitions whose legacy block actually stands
+    // down. See `ENGINE_OWNED`: an instance the engine DRAWS whose
+    // legacy block still draws too is a double-drawn indicator, and nothing about
+    // that is visible until a user reports a "bold" line. The filter makes the
+    // pairing structural instead of a thing B3 has to remember.
+    //
+    // ── FLIP A: THE LEGACY TOGGLE IS STILL THE SWITCH ────────────────────────
+    //
+    // …and the instance is only the RENDERER. FOUR controls write
+    // `cs.indicators.<id>.enabled`: the toolbar checkbox (`ChartToolbar.jsx:396`),
+    // Ctrl+I (`keyboardShortcuts.js:99` → `:3495`), the right-click
+    // **Indicators ▸** submenu (`:2214`) and right-click **Hide RSI** (`:2251`).
+    // Without this line every one of them SILENTLY HALF-WORKED once the engine
+    // owned the drawing: the flag reached the BAND LAYOUT and nothing else,
+    // so turning RSI off removed its reserved BAND and left the line behind —
+    // and `resolvePlacement` then fell through to `{top:0.82, bottom:0}`
+    // (`placement.js:103`), which OVERLAPS volume's `{top:0.85, bottom:0}`. The
+    // user pressed Ctrl+I and got an RSI drawn on top of the volume bars.
+    //
+    // `hidden`, not "dropped from the list": `engineOwnedDefIds` counted hidden
+    // instances, so the legacy block stayed stood down and no toggle could hand the
+    // drawing back to it mid-session. (It has no data to draw either way — a
+    // legacy block's `indicatorData` branch is `[]` while its toggle is off — but
+    // ownership is a rail, not a coincidence.) ⚠️ RSI is no longer the example:
+    // it is FLIPPED, so it has no block, no branch and no toggle-as-switch. The
+    // paragraph now describes `macd` and `vwap`, which are still Flip A.
+    //
+    // ── WHAT `hidden` COSTS, STATED CORRECTLY: IT IS `removeSeries`. ──────────
+    //
+    // An earlier version of this comment said the binder "releases the series to
+    // the POOL, so this is an applyOptions-and-park, never the mass
+    // `removeSeries` of #2049". **That was false**, and the branch's own test
+    // proves it: `planBindings` drops a hidden instance on its first line
+    // (`pool.js:652`), so nothing claims its binding, so it lands in
+    // `release = prev.filter(p => !claimed.has(p))` (`pool.js:743`) and
+    // `binder.sync` step 3 calls `chart.removeSeries` (`binder.js:316`) —
+    // `stockChartWiring.test.jsx` asserts exactly that (`H.removedSeries`
+    // contains it, and re-showing costs a second `addSeries`).
+    //
+    // **Removal is the RIGHT behaviour here, deliberately, and it is not the
+    // #2049 pattern.** Three reasons, in order of what would break first:
+    //
+    //   1. **PARITY — a parked series would not be invisible, it would be a
+    //      LAYOUT CHANGE.** MEASURED against the real bundle in
+    //      `engine/__tests__/hiddenIsRemovedNotParked.test.js`: `visible:false`
+    //      does NOT release the pane (`chart.panes()` still has it, it still
+    //      owns the series, it still claims a stretch factor); `removeSeries`
+    //      does. Park RSI and its pane survives the toggle — the price pane
+    //      stays short with an empty band under it, while the legacy path gives
+    //      the height back. Flip A's whole contract is pixel-identity with
+    //      legacy, so parking would fail the gate, and `engine_rsi_toggle_off`
+    //      is the pixel case that would catch it.
+    //   2. **The churn #2049 is about is MASS removal, and the pool already
+    //      prevents that.** `planBindings` releases only what NOTHING in the
+    //      same pass can use: an exact-key carry-over keeps its series, and an
+    //      unmatched binding re-purposes a compatible one from the pool FIRST
+    //      (step 3), so "RSI off + BB on in one settings write" hands BB the
+    //      line series RSI just gave up instead of removing one and creating
+    //      another. What is left over is genuinely wanted by nobody.
+    //   3. It is one series, on an explicit user action, matching what the
+    //      legacy block has always done on the same keystroke.
+    //
+    // ⛔ SO THE RAIL IS: never make visibility a per-PAINT decision. Toggling on
+    // a user action is fine; projecting `hidden` from something that recomputes
+    // every frame (a hover, a crosshair move, an extended-hours tick) would turn one
+    // removeSeries into fifteen a second, and THAT is #2049. Task 10 projects
+    // four pilots and Phase B eventually fifteen — the number that matters is
+    // removals per USER ACTION, not per indicator.
+    //
+    // ⭐ RESOLVED BY TASK 10, PER DEFINITION — not deleted wholesale. Flip B moves
+    // the authority the other way for a FLIPPED id: the geometry reads the
+    // INSTANCE LIST (through `computePaneLayout`; before Flip C it was
+    // `csForPaneMargins` projecting that list onto a settings blob), and
+    // `instanceControls` routes every write at the instance. The two rules are
+    // mirror images and cannot both hold for one definition — an instance whose
+    // legacy toggle is false would reserve a band (the projection) that this line
+    // then made sure nothing drew into. So the `hidden` projection below now
+    // SKIPS `ENGINE_OWNED` and still applies to `macd` and `vwap`,
+    // which are Flip A and whose legacy toggle is still their switch. Deleting it
+    // outright would have un-done Flip-A semantics for both of them in a task
+    // whose gate is that only rsi and bb move.
+    //
+    // ⚠️ A migrated definition whose enable signal is NOT `indicators.<id>.enabled`
+    // needs its own answer here before it joins `ENGINE_OWNED`. VWAP is
+    // that definition, it joined in Task 8, and its answer is the `vwap` branch
+    // below: the legacy memo reads `(vwapOverride || ind.vwap?.enabled)` (`:3962`),
+    // so the OVERRIDE alone is an enable signal and the projection has to agree or
+    // the Model Book popup would hand the engine a hidden instance and draw nothing.
+    // …filtered to the definitions whose legacy block actually stands down (see
+    // `ENGINE_OWNED`), then narrowed by ELIGIBILITY: a session
+    // indicator does not exist above 60-minute bars, and the render context —
+    // the Model Book's forced white, the bold-candle hairline — folds into the
+    // instance's inputs here so nothing downstream has to know about it.
+    //
+    // `vwapOverride` also FORCES the indicator on, exactly as the legacy memo
+    // does. That is an instance this blob does not contain, so it is manufactured
+    // HERE where instances are built, never inside `eligibility` — a hook that
+    // could invent instances would hand the binder an instance that never passed
+    // through this list at all.
+    const engineInstances = engineActive
+      ? (() => {
+          // ── READ-TIME MIGRATION, GATED ON THE FLIP SET ───────────────────────
+          //
+          // After Flip B the instance list is the authority, but a blob carrying
+          // only the legacy toggle must still render — a grid cell's
+          // `settingsOverride`, the `?indicators=` route, a user who has not
+          // touched a control since the flip. `migrateLegacyToInstances` projects
+          // the toggle into an instance, a STORED instance wins over the
+          // projection, and a TOMBSTONE reserves the id so a still-true legacy
+          // toggle cannot put a deleted indicator back. All three are pinned in
+          // `instances.test.js`. It is a fixed point, so running it every paint is
+          // safe; it is pure, so it writes nothing.
+          //
+          // ⛔ BUT IT CHANGES BEHAVIOUR THE MOMENT IT IS UNGATED, which is why it
+          // is not. The migrator projects `cs.indicators.rsi.enabled` into an
+          // instance even with nothing flipped, and `ENGINE_OWNED`
+          // already held rsi/bb/macd/vwap — so an ungated version would have moved
+          // all four onto the engine for every user, with no stored instance
+          // anywhere. That is *correct* for Flip A (the engine draws the same
+          // picture) but it was a behaviour change inside a task whose gate is
+          // "nothing changed".
+          //
+          // ⚠️ AND THE GATE IS PER DEFINITION, NOT `size > 0`. A whole-set gate
+          // is inert only until the FIRST flip, and then it moves all four pilots
+          // at once — which is precisely what flipping one indicator at a time
+          // with a pixel number each is supposed to prevent. So a PROJECTED
+          // instance is accepted only for a flipped id; anything the blob already
+          // STORED (including a tombstone) passes through untouched, exactly as
+          // it does today. `flipBWithANonEmptySet.test.jsx` drives this with a
+          // non-empty set and asserts an un-flipped `bb` is not projected.
+          // ⛔ THE STORED BLOB (`cs`), NOT `csView`. These two sets answer "does the
+          // blob HOLD this id / this definition", which blocks a legacy-toggle
+          // projection. On a symbol the COT indicator does not follow (AAPL) the view
+          // has no `dataSeries` left, so reading it here projected `legacy:dataSeries`
+          // — a stray `Series` line of the chart's own close (measured in the harness).
+          const stored = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
+          const storedIds = new Set(
+            stored.map(i => (i && typeof i === 'object' ? i.instanceId : undefined)),
+          )
+          // ⭐ …AND A DEFINITION THE BLOB ALREADY DRAWS IS NOT PROJECTED AGAIN.
+          //
+          // 🐛 THE DOUBLE-DRAW THIS PHASE EXISTS TO PREVENT, IN A NEW GUISE.
+          // `migrateLegacyToInstances` reserves ids PER INSTANCE ID (`legacy:rsi`),
+          // which is right for its own contract — two instances of one definition
+          // are legal. But the legacy TOGGLE is per DEFINITION, and it is a
+          // compatibility shim for a blob that has no instance for that definition
+          // at all. A blob holding `{instanceId: 'engine-test:rsi', defId: 'rsi'}`
+          // plus `indicators.rsi.enabled: true` therefore projected a SECOND
+          // `legacy:rsi` and drew TWO RSI lines — a `?instances=` URL, a grid
+          // cell's override or any custom-id instance is enough to reach it.
+          // `isIndicatorEnabled` already answers "a LIVE instance of the
+          // definition wins", so the migrator and the checkbox disagreed too.
+          //
+          // Applied HERE and not inside the migrator: the per-id contract is
+          // correct for every other caller, and the rule that a projection is
+          // outranked by a live instance of the same DEFINITION belongs to the
+          // read that turns instances into pixels.
+          // ⚠️ HIDDEN COUNTS. `normalizeInstances` keeps a hidden instance and
+          // drops a tombstone — exactly the line "does this definition EXIST in
+          // the blob" needs. A tombstone must NOT count (its whole job is to let
+          // "off" survive a still-true toggle), and it blocks the projection by
+          // its id anyway, inside the migrator's own `taken` set.
+          // ⭐ A1.4 (owner Q5) — …AND A STORED RECORD THAT CANNOT BE SHOWN COUNTS TOO. A
+          // broken stored RSI (an input it no longer declares, a value out of range) used to
+          // be DROPPED and then SUBSTITUTED by a default `legacy:rsi` drawn under the same
+          // name — the member saw "RSI 14" and never their RSI. Now the definition counts as
+          // stored, nothing default is drawn in its place, and the chart says it can't be
+          // shown, with Repair (UnavailableIndicators).
+          const _storedNorm = normalizeInstances(stored, engineRegistry)
+          const liveStoredDefIds = new Set([
+            ..._storedNorm.kept.map(i => i.defId),
+            ..._storedNorm.dropped.map(d => (d && d.inst && typeof d.inst === 'object' && typeof d.inst.defId === 'string' ? d.inst.defId : null)).filter(Boolean),
+          ])
+          const source = engineDrawsAnything()
+            ? migrateLegacyToInstances(csView, engineRegistry)   // instances are the authority…
+              .filter((i) => {
+                if (storedIds.has(i && i.instanceId)) return true   // stored: always
+                if (!ENGINE_OWNED.has(i && i.defId)) return false  // …projected: FLIPPED only
+                return !liveStoredDefIds.has(i.defId)              // …and not already drawn
+              })
+            : csView.indicatorInstances                      // Flip A: only STORED instances draw
+          const migrated = normalizeInstances(source, engineRegistry).kept
+            // ⚠️ ONE GATE NOW, AND IT USED TO BE TWO (B5 Task 4). The second read
+            // `|| (engineOn && ENGINE_OWNED.has(i.defId))` — a
+            // MIGRATED-but-UN-FLIPPED id is the engine's only while the flag is on.
+            // With the flag deleted that disjunct is `false && …` for every
+            // instance, and the category it served has been empty since Flip B and
+            // may not be re-created (`enumerationSites.test.js` refuses it while
+            // FLIPPED === MIGRATED). Deleting it is behaviour-identical TODAY and
+            // stops a dead disjunct reading as live logic.
+            .filter(i => ENGINE_OWNED.has(i.defId))
+            // ⛔ …AND FLIP A'S `hidden` PROJECTION IS GONE (B3 Task 11). It read
+            // "an instance of a MIGRATED-but-UN-FLIPPED definition whose legacy
+            // toggle is false is projected to hidden, because the toggle is still
+            // that definition's switch". `ENGINE_OWNED` now EQUALS
+            // `ENGINE_OWNED`, so the filter above cannot emit an
+            // un-flipped instance and the branch was unreachable — an inert
+            // `.map` whose absent subject nothing would have noticed. Deleted with
+            // its `legacyEnabled` helper rather than left to read as live logic.
+            //
+            // ⚠️ IT COMES BACK IF B4 MIGRATES WITHOUT FLIPPING. `flipB.test.jsx`
+            // asserts the two sets are EQUAL, so that day this decision is
+            // re-opened by a red test rather than by a double-drawn indicator.
+          // ⭐ `vwapOverride` FORCES A VWAP INSTANCE, UNCONDITIONALLY (B3 Task 11).
+          // It used to be gated on the engine flag, because `vwap` was un-flipped
+          // and its legacy block would otherwise have drawn a second copy. VWAP is
+          // flipped now: there IS no legacy block, so the flag-gated version would
+          // have taken the Model Book intraday popup's forced white VWAP off every
+          // existing user's chart — the flag was false in every stored blob, and
+          // the popup is a surface no user setting can turn off. B5 Task 4 deleted
+          // the flag outright, which retires the question.
+          // Driven in `flipB.test.jsx` ("vwapOverride still forces it on").
+          const withForced = (vwapOverride && !migrated.some(i => i.defId === 'vwap'))
+            ? [...migrated, {
+                instanceId: legacyInstanceId('vwap'), defId: 'vwap',
+                // ⚠️ FILTERED TO DECLARED INPUT KEYS. This instance never passes
+                // through `validateInstance` — it is manufactured after
+                // `normalizeInstances` has already run — so an undeclared key from
+                // the blob (`enabled`, which every legacy indicator carries) would
+                // reach `inputsSignature` and the folds unchecked. The validator
+                // would have rejected it; this does the same job explicitly.
+                inputs: Object.fromEntries(
+                  (engineRegistry.getDefinition('vwap')?.inputs || [])
+                    .map(d => d.key)
+                    .filter(k => cs.indicators?.vwap?.[k] !== undefined)
+                    .map(k => [k, cs.indicators.vwap[k]])),
+                placement: { target: 'price' }, hidden: false,
+              }]
+            : migrated
+          const kept = eligibleInstances(withForced, engineRegistry, {
+            tf: resolvedTf, vwapOverride, boldCandles, modelBookLook,
+            // ⭐ 2026-09-28 — THE MOVING AVERAGE'S SURFACE LOOK (`eligibility.averageLook`).
+            // These four are exactly what the retired `cs.overlays` renderer read
+            // off this component's props and settings, so an adopted default
+            // average draws as it always did — and an added one draws the same.
+            fitPriceToCandles: !!fitPriceToCandles,
+            showMaLabels: !!cs.showMaLabels,
+            lastBarOff: !!lastBarOffRef.current,
+            ema9Color: ema9MatchCandle ? mbUpOpaque : null,
+            targetOf: (inst) => resolveDisplayTarget(inst, csView),
+          }).kept
+          // ⭐ ON AN ECONOMIC PRIMARY, AN INSTANCE THAT READS THE CHART'S OWN
+          // O/H/L/C/V (the default EMA 9 / 20 / SMA 50 / 200, an RSI of close) has
+          // nothing to read — the rows carry none — so it is not drawn and not
+          // listed in the legend. Render-time only: nothing is written, and the
+          // member's averages are back on the next stock. An instance over another
+          // SOURCE (the series itself, `sym:`, `econ:`) is kept.
+          return _econId ? kept.filter((i) => keepOnEconomicPrimary(i, engineRegistry)) : kept
+        })()
+      : EMPTY_INSTANCES
+    // Mirrored for the crosshair legend (B3 carry #2). The handler needs each
+    // instance's INPUTS to print `RSI(7)` and to colour the chip the way the
+    // line is coloured, and it reads refs rather than props so a live tick does
+    // not tear down and re-subscribe it.
+    engineInstancesRef.current = engineInstances
+    // ── WHICH LEGACY BLOCKS STOOD DOWN — AND WHY THERE IS NO ARBITER HERE ────
+    //
+    // 🔴 A BINDING STOOD HERE AND IT HAD ZERO READERS. What was on this line was
+    //
+    //     const engineOwned = engineActive ? engineOwnedDefIds(…) : EMPTY_OWNED
+    //
+    // and — measured comment-stripped at B5 Task 1 — `engineOwned` occurred
+    // exactly ONCE in this whole file: its own declaration. The import, the
+    // `EMPTY_OWNED` constant and `engineOwnedDefIds`' only production call site in
+    // `app/src` existed to compute a value nothing read. B5 Task 4 deleted the
+    // chain; this paragraph replaces it, in the past tense, because "why is there
+    // no arbiter?" is a question the next reader would otherwise ask of an empty
+    // space.
+    //
+    // **What it was.** Flip A put the engine's series in the SAME band on the SAME
+    // scale as the legacy block, and that band existed only while
+    // `cs.indicators[key].enabled` was true (the retired `computePaneMargins`
+    // read exactly that). So the legacy toggle had to stay ON for the layout to
+    // be identical —
+    // which meant the legacy block would draw a SECOND copy on top.
+    // `engineOwnedDefIds` was the arbiter: an instance of definition `X` meant the
+    // engine drew X, and X's legacy block guarded on `!engineOwned.has('X')`.
+    //
+    // **Why it died silently.** Flip B DELETED the blocks rather than guarding
+    // them, so the last consumer went with `macd` and `vwap` at `400005ee`. And
+    // `enumerationSites.test.js` → *"keeps no Flip-A guard for a flipped id — the
+    // block should be GONE, not guarded"* asserts `engineOwned.has('<id>')` is
+    // ABSENT for every flipped id while `FLIPPED === MIGRATED` — so that rail
+    // DEMANDS the emptiness it produced, and the leftover it leaves behind is
+    // invisible to it by construction. Five comment paragraphs in this file went on
+    // calling it "the arbiter" for two phases.
+    //
+    // ⚠️ `engineOwnedDefIds` ITSELF IS NOT DEAD — it keeps its own suite in
+    // `engine/instances.test.js`. Only StockChart's call was.
+
+    // ── Volume-pane indicator overlay ──
+    // Chosen oscillators render INSIDE the volume pane on its left axis (volume
+    // keeps the right axis) instead of their own stacked band. This requires a
+    // real volume pane, so any overlay forces separate-pane mode.
+    const volOverlaySet = new Set(
+      (showVolume && Array.isArray(cs.volumeOverlayIndicators)) ? cs.volumeOverlayIndicators : [],
+    )
+
+    // ── Volume series — overlay band in pane 0 (default) OR its own pane 1 ──
+    // Separate-pane mode uses a real LW Charts pane (3rd addSeries arg) with a
+    // draggable divider; overlay mode shares pane 0 via the layout's bands.
+    // ⭐ ONE SET OF INPUTS, ASKED ONCE — `chartDataMap` re-derived this rule and
+    // got a different answer; see `engine/volumePresentation.js`. The renderer is
+    // the caller that CAN supply every input, so it passes all of them.
+    //
+    // ⭐⭐ BUT TWO QUESTIONS, AND THEY ARE NOT THE SAME QUESTION.
+    //
+    //   `nativeVolSeparate` — are the BARS drawn in a pane instead of a band?
+    //                         Asked by the four places that create, scale and
+    //                         size the native volume series and its MA.
+    //   `volumePaneLive`    — does the RECTANGLE exist? Asked by pane order, pane
+    //                         count, stretch shares, `firstPaneIndex`, the
+    //                         realiser and `placement.js`'s guest branch.
+    //
+    // ⚰️⚰️ ONE VARIABLE ANSWERED BOTH, AND REMOVING VOLUME PROVED IT COULD NOT.
+    // `resolveVolumePresentation` returns `'absent'` the moment volume is not
+    // shown — before it ever asks whether anything is overlaid on it — so
+    // deleting the bars told the pane-existence consumers the pane was gone while
+    // an MA sent to Volume was still resident in it. `placement.js:476` is gated
+    // on the value handed to the binder below, so that guest did not just lose
+    // its rectangle: it bound nothing and disappeared from the chart.
+    const _volPresence = {
+      cs, instances: engineInstances, shown: showVolume, blankVolume, volumeSeparatePane, volumePaneByDefault,
+    }
+    const nativeVolSeparate = nativeVolumeOwnsPane(_volPresence)
+    const volumePaneLive = volumePaneRequired(_volPresence)
+    /** The instance ids drawing INSIDE the volume pane — `displayTarget`'s answer,
+     *  and the same set `excludeKeys` subtracts from the pane stack. */
+    const _volResidents = volumeResidentKeys(cs, engineInstances)
+    /**
+     * The physical pane a volume RESIDENT is in right now — or `null`.
+     *
+     * ⛔⛔ AND IT NEVER ANSWERS WITH THE CANDLES' PANE. A resident is named by
+     * `displayTarget`, which is an INTENT; the series itself does not move until
+     * the binder relocates it. So in the frame where a member sends an existing
+     * Price overlay to Volume, the "resident" is still sitting in Price — and
+     * answering with that pane told `prepareArrangement` that PRICE's rectangle
+     * was the volume one. It duly swapped Price out of slot 0 to make room, the
+     * binder placed the guest at the volume index (now Price's old pane), and the
+     * empty rectangle was reclaimed: ONE pane, and the member's "Display in:
+     * Volume" did nothing. MEASURED in the live harness 2026-09-18.
+     *
+     * ⭐ `null` IS THE HONEST ANSWER MID-TRANSITION — the volume key has no pane
+     * yet. `prepareArrangement` then simply creates one, the binder moves the
+     * guest into it, and the NEXT sync answers properly.
+     */
+    const _volResidentPane = () => {
+      if (!_volResidents.size) return null
+      try {
+        const priceIdx = candleSeriesRef.current?.getPane?.()?.paneIndex?.()
+        const gs = engineRef.current?.binder?.bindings?.()
+        if (!Array.isArray(gs)) return null
+        for (const g of gs) {
+          if (!g || !g.series || !_volResidents.has(g.instanceId)) continue
+          const gp = g.series.getPane?.()
+          if (!gp) continue
+          if (Number.isInteger(priceIdx) && gp.paneIndex?.() === priceIdx) continue
+          return gp
+        }
+      } catch { /* pane API unavailable */ }
+      return null
+    }
+    // ⭐ TRADINGVIEW OVERLAY (owner 11-16). On a host that defaults volume to its own pane
+    // (`volumePaneByDefault`), "Overlay on price" is NOT the legacy band (a strip the candles
+    // stop above): the bars sit BEHIND the candles in the bottom ~22% of the price pane, on
+    // the invisible overlay scale, and the candles keep the whole pane. So the layout is told
+    // there is no band — the candles' margins are the no-volume ones — and the volume scale
+    // takes `TV_VOLUME_OVERLAY_MARGINS` below.
+    const _tvVolOverlay = volumePaneByDefault && showVolume && __heavy.committed._big.volData.length > 0 && !nativeVolSeparate
+    volTagOffRef.current = _tvVolOverlay
+    const hasVolumeBand = showVolume && __heavy.committed._big.volData.length > 0 && !nativeVolSeparate && !_tvVolOverlay
+
+    // ── FLIP C, APPLIED: THE SAME STACK, AS REAL PANES ───────────────────────
+    //
+    // ⛔ COMPUTED IN BOTH MODES, WHICH IT WAS NOT BEFORE TASK 12. It used to be
+    // `null` under `'bands'` because it duplicated a `computePaneMargins` call
+    // nothing read. That second copy is what retired: the layout IS the band
+    // arithmetic now (`layout.bands`), so computing it once per sync is strictly
+    // cheaper than the two calls it replaces, and every consumer — the candles'
+    // margins, the volume band, the right-click resolver, the binder — reads ONE
+    // object instead of two that could disagree.
+    //
+    // The height comes from the RENDERER (`paneStackHeightPx`), not from the
+    // container: the budget LWC distributes is the chart's height minus the time
+    // axis, and the time axis' height is the renderer's own business. It is the
+    // same number `paneManifest` reports as `chartHeight`, on purpose — a layout
+    // and a manifest that disagree about the budget cannot be compared.
+    //
+    // `firstPaneIndex` says where the oscillator stack STARTS, because a separate
+    // volume pane and the Model Book's index pane sit between it and pane 0. Both
+    // are read from what exists RIGHT NOW; if that is ever wrong the binder's
+    // height check says so by name rather than drifting a pixel.
+    //
+    // ⭐ AND `abovePct` SAYS WHAT THOSE PANES MEASURE IN BANDS MODE — the ONE
+    // input `computePaneLayout` was missing, and the reason B5 Task 11 measured
+    // three separate defects (see paneLayout.js "THE FRAME OF REFERENCE"). These
+    // are the SAME two clamped percentages the volume block below applies with
+    // `setStretchFactor`, hoisted so there is one authority rather than two
+    // expressions that can drift; `stockChartWiring.test.jsx` asserts the layout
+    // is handed exactly what the renderer is told.
+    //
+    // ⛔ SETTINGS, NOT THE RENDERER. Reading the live stretch factors back would
+    // work on the first sync and never again: this layout WRITES pixel counts
+    // into those factors, so pass two would read `[353, 99]` as if it were the
+    // 78/22 the settings say and re-derive a different reference every pass.
+    // ⭐ …AND A USER'S DRAG OUTRANKS THE SETTING, which is what makes the divider
+    // stay where it was dropped. `layout.above` is re-asserted by the binder at
+    // the end of every sync, so the ONLY way a drag survives is for the layout to
+    // be computed from it. `resolveVolPanePct` falls back to the setting the
+    // instant the setting itself moves, so Settings still wins a genuine change.
+    // ⚠️ The other three readers of this expression (the index-pane effects and
+    // the range-grip position) stay settings-only ON PURPOSE: they run on a prop
+    // change, never on a data poll, so none of them can snap a drag back on its
+    // own — and the layout must have exactly one authority.
+    // `?? 22` because clampVolPct answers null for a value it cannot read; the
+    // expression this replaced produced NaN there, which reaches the layout and
+    // gives the volume pane 0 px.
+    const _volPctSetting = clampVolPct(volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22) ?? 22
+    volPctSettingRef.current = _volPctSetting
+    const _volPct = resolveVolPanePct(_volPctSetting, volDragLatchRef.current)
+    const _idxPct = Math.min(40, Math.max(8, indexPaneHeightPct ?? 18))
+    // The index pane is hoisted to pane 0 (`s.getPane().moveTo(0)` below), so it
+    // comes FIRST in pane order and the candles are pane 1 when it exists.
+    const _hasIdxPane = !!indexPaneSeriesRef.current
+    const _abovePct = _hasIdxPane
+      ? (volumePaneLive
+        ? [_idxPct, Math.max(20, 100 - _volPct - _idxPct), _volPct]
+        : [_idxPct, 100 - _idxPct])
+      : (volumePaneLive ? [100 - _volPct, _volPct] : [100])
+    // ─── THE MEMBER'S PANE ARRANGEMENT ───────────────────────────
+    //
+    // ⭐ ASKED FOR ONCE, HERE, AND PASSED DOWN. `defaultPaneKeys` answers what
+    // panes exist (same filters the layout itself applies); `resolvePaneOrder`
+    // turns that plus `cs.paneOrder` into a top-to-bottom list. Geometry never
+    // reads settings and `paneOrder` never imports geometry — this is the one
+    // place the two meet.
+    //
+    // ⚠️ A CHART WITH NO STORED ARRANGEMENT RESOLVES TO PRICE · VOLUME · STACK,
+    // which is what `firstPaneIndex`/`mainPaneIndex` below already describe. The
+    // two agree by construction rather than by coincidence, and the identity is
+    // asserted in `__tests__/paneOrderLayout.test.js`.
+    const _paneKeySets = {
+      excludeKeys: new Set([
+        ...volumeOverlayPaneKeys(engineInstances, cs),
+        ...paneFollowerKeys(engineInstances, cs),
+      ]),
+      keepKeys: paneOwnersNeeded(engineInstances, cs),
+      includeKeys: paneOwnKeys(engineInstances, cs),
+    }
+    const _paneOrder = resolvePaneOrder(
+      cs,
+      defaultPaneKeys(engineInstances, _paneKeySets),
+      { volumePane: volumePaneLive },
+    )
+    const paneLayout = computePaneLayout(engineInstances, {
+      order: _paneOrder,
+      // ⭐ THE MEMBER'S OWN PANE HEIGHTS. Absent → the computed default, which is
+      // every chart that has never had a separator dragged. See
+      // `engine/paneSizes.js` for why this is a SHARE and not a pixel count.
+      paneSizes: storedPaneSizes(cs),
+      chartHeight: paneStackHeightPx(chart),
+      hasVolumeBand,
+      // ⛔ IN PANE-KEY LANGUAGE. `volOverlaySet` is keyed by DEFINITION (the legacy
+      // list's own units); `excludeKeys` is matched against PANE KEYS, which are
+      // host instance ids. `volumeOverlayPaneKeys` is the same answer in the units
+      // this call site now speaks.
+      //
+      // ⭐⭐ AND A GUEST RESERVES NO PANE OF ITS OWN. A series drawn INSIDE another
+      // instance's pane must not also carve one — that would leave an empty
+      // rectangle and push every index below it out by one. `displayTarget` decides
+      // who follows whom; this consumes that answer rather than forming its own.
+      excludeKeys: new Set([
+        ...volumeOverlayPaneKeys(engineInstances, cs),
+        ...paneFollowerKeys(engineInstances, cs),
+      ]),
+      // ⭐ A HIDDEN HOST KEEPS ITS PANE WHILE SOMETHING VISIBLE DRAWS IN IT. Hiding
+      // QQQ must not take MA(QQQ) with it — the eye icon is about ink, not about
+      // existence.
+      keepKeys: paneOwnersNeeded(engineInstances, cs),
+      // ⭐⭐ AND THE ADDITIVE HALF: a definition whose DEFAULT is `price` still needs
+      // a pane when THIS instance's active placement resolved to `pane`.
+      // `excludeKeys` consumes `displayTarget`'s answer subtractively; this consumes
+      // the same answer in the other direction, so a writable placement is also a
+      // REALISABLE one. Without it "Display in: Own pane" stores correctly, reads
+      // back correctly, and draws nothing.
+      includeKeys: paneOwnKeys(engineInstances, cs),
+      separatorPx: SEPARATOR_PX,
+      firstPaneIndex: 1 + (volumePaneLive ? 1 : 0) + (_hasIdxPane ? 1 : 0),
+      abovePct: _abovePct,
+      mainPaneIndex: _hasIdxPane ? 1 : 0,
+    })
+    paneLayoutRef.current = paneLayout
+    // ⭐ WHERE THE VOLUME PANE ACTUALLY IS. A literal 1 until an arrangement could
+    // move it; the layout says now, and 1 is still the answer on every chart that
+    // has not been arranged.
+    const VOL_PANE_INDEX = Number.isInteger(paneLayout.volumeIndex) ? paneLayout.volumeIndex : 1
+    // ⭐ AND THE PANE LIST GOES OUT TO THE RENDER, so each oscillator pane can
+    // print its own name and value at its top-left. Guarded on a shallow compare
+    // because this effect runs on every settings write and an unconditional
+    // `setState` here would re-render the chart on each one for nothing.
+    {
+      const _keys = paneLayout.panes.map((p) => p.key)
+      setPaneLegendKeys((prev) => (
+        prev.length === _keys.length && _keys.every((k, i) => prev[i] === k)
+          ? prev
+          : (_keys.length ? _keys : NO_PANE_KEYS)
+      ))
+    }
+    // The BAND map — what `computePaneMargins(csMargins, hasVolumeBand,
+    // volOverlaySet)` returned, key for key, off the same quantised stack. Read
+    // by the volume band below, by `placement.js`'s `'bands'` branch through the
+    // binder ctx, and by the right-click region resolver.
+    const paneMargins = paneLayout.bands
+
+    // ⛔ AND THE CANDLES' OWN MARGINS HAVE TO BE RE-ASSERTED HERE, NOT LEFT TO
+    // THE OPTIONS EFFECT. MEASURED at B5 Task 10: `rightPriceScale.scaleMargins`
+    // is built in the chart-options effect, which runs BEFORE this one on the
+    // first paint — so `paneLayoutRef` is still `null` there and the FIRST
+    // painted frame carries the wrong rectangle. Every parity case is a fresh
+    // page load, so the first frame is the only one photographed: Task 12 would
+    // have measured the price pane in the wrong place and the §A6 identity would
+    // have looked broken when only the ordering was.
+    //
+    // ⚠️ WHAT THAT FIRST FRAME CARRIES CHANGED AT TASK 12, and the sentence above
+    // used to name it: it was the BANDS rectangle, because `_mainMargins` fell
+    // back to `computePaneMargins`. It is now `NO_STACK_MAIN_MARGINS` — the
+    // no-stack answer — because the helper takes a layout and there isn't one
+    // yet. Same defect, same fix, different wrong rectangle.
+    //
+    // A user who has DRAGGED the price axis outranks the layout, exactly as
+    // `vertMarginsRef` outranks `_mainMargins` in the options effect.
+    //
+    // ⛔ …AND A LIVE PRICE-AXIS PIN OUTRANKS BOTH. This re-assert fires on the
+    // pass where no lock is stored — which is precisely the FIRST drag a member
+    // ever makes — so without `_pinOwnsMargins` the "leave the margins alone"
+    // rule above would hold on the update path and be undone one block later.
+    if (!vertMarginsRef.current && !_pinOwnsMargins) {
+      try {
+        mainPriceScale()?.applyOptions({
+          scaleMargins: _mainMargins(
+            paneLayout, priceScaleTopMargin,
+            volumePaneExists ? priceScaleBottomMargin : null,
+          ),
+        })
+      } catch { /* one bad scale must not take the paint down */ }
+    }
+    // ⛔⭐ `indTarget` / `ensureIndTarget` / `applyIndScale` STOOD HERE AND WENT
+    // WITH THE LAST THREE RENDER BLOCKS (B5 Task 8) — they had no other callers.
+    // Together they were the legacy lane's placement: which pane and which named
+    // price scale an oscillator lands on, whether the volume-overlay toggle moved
+    // it to the volume pane's shared left axis, and what to assert on that scale.
+    // `engine/placement.js` answers all three now, as a PURE function returning
+    // `{paneIndex, scaleId, scaleOptions, autoscale}` — and `volOverlaySet` and
+    // `VOL_PANE_INDEX` above are handed to it at the sync call rather than closed
+    // over here.
+    //
+    // ⚠️ ONE OF THEM WAS A DESTROY/RECREATE AND THAT IS THE UPGRADE, not a
+    // like-for-like move: `ensureIndTarget` REMOVED an indicator's series and
+    // nulled its ref whenever its target scale changed, so every volume-overlay
+    // toggle destroyed and rebuilt the series — the exact pattern LWC #2049
+    // (still open) makes unsafe. The binder relocates the SAME series object with
+    // `moveToPane` + `moveSeriesToScale`, which `stockChartWiring.test.jsx` drives
+    // mid-session in both directions.
+
+    if (showVolume && __heavy.committed._big.volData.length) {
+      // Separate-pane volume sits on the pane's RIGHT axis (visible) so an
+      // overlaid indicator can take the LEFT axis. Overlay mode keeps the
+      // invisible overlay scale ('').
+      const volScaleId = nativeVolSeparate ? 'right' : ''
+      // Bar style: 'columns' = the built-in HistogramSeries (full-slot bars, the
+      // long-standing look); 'histogram' = ThinVolumeSeries (custom series drawing
+      // thin bars with a gap between each, TC2000-style).
+      // blankVolume feeds whitespace — the built-in HistogramSeries handles that
+      // natively, so force 'columns' rather than risk the custom ThinVolumeSeries.
+      const volBarStyle = (!blankVolume && cs.volume?.barStyle === 'histogram') ? 'histogram' : 'columns'
+      // priceScaleId / paneIndex / series TYPE are fixed at creation, so recreate
+      // when the target scale OR the bar style changes. The ref stores a composite
+      // key (was just the scale id) — only ever compared for equality.
+      const volSeriesKey = `${volScaleId}|${volBarStyle}|${_tvVolOverlay ? 'tv' : ''}`
+      if (volumeSeriesRef.current && volumeSeparatePaneRef.current !== volSeriesKey) {
+        try { chart.removeSeries(volumeSeriesRef.current) } catch {}
+        volumeSeriesRef.current = null
+      }
+      // ⭐⭐ WHICH PANE DO THE BARS GO INTO? A LITERAL `1` IS ONLY RIGHT ON A CHART
+      // THAT HAS NO VOLUME PANE YET.
+      //
+      // `addSeries(…, 1)` on a one-pane chart CREATES pane 1, and
+      // `prepareArrangement` then moves that pane wherever the member arranged it
+      // — which is why the literal survived. It stops being right the moment the
+      // volume pane ALREADY EXISTS at some other index, and residency is exactly
+      // what makes that reachable: a guest holds the rectangle open while the bars
+      // are away, the member restores Volume, and on a chart with Volume arranged
+      // ABOVE Price the bars are created into PRICE's pane instead.
+      //
+      // ⛔ THE RESIDENT'S OWN PANE, NOT `VOL_PANE_INDEX`. The layout's index is
+      // where the pane is going to BE once the arrangement settles; this needs
+      // where it IS at the moment `addSeries` runs, and only the series already
+      // drawing there can say. `_volResidents` is `displayTarget`'s answer — the
+      // same set `excludeKeys` subtracts — so there is no second rule here.
+      const _volCreateIndex = (() => {
+        if (!nativeVolSeparate) return 0
+        // ⛔ THE SAME EXCLUSION, FOR THE SAME REASON — a resident that has not been
+        // relocated yet is sitting in PRICE's pane, and creating the bars there
+        // would draw volume over the candles.
+        const i = _volResidentPane()?.paneIndex?.()
+        return Number.isInteger(i) ? i : 1
+      })()
+      if (!volumeSeriesRef.current) {
+        const volOpts = {
+          // Custom (not type:'volume') so the ThinVolumeSeries custom series
+          // abbreviates its axis too — see formatVolumeAxis. minMove:1 keeps the
+          // gridlines on whole-share intervals (identical look to type:'volume').
+          priceFormat: { type: 'custom', formatter: formatVolumeAxis, minMove: 1 },
+          priceScaleId: volScaleId,
+          // Model Book: no dashed last-volume price line / axis tag.
+          priceLineVisible: !boldCandles && !hidePriceLine,
+          // volumeLastValue opt-in shows the current-volume tag on the right scale
+          // (mirrors the main chart's price tag) even in the bold/charts-workspace look.
+          lastValueVisible: (volumeLastValue || (!boldCandles && !hidePriceLine)) && !lastBarOffRef.current && !_tvVolOverlay,
+          ...(_tvVolOverlay ? { priceLineVisible: false } : {}),
+        }
+        const vs = volBarStyle === 'histogram'
+          ? chart.addCustomSeries(new ThinVolumeSeries(), volOpts, _volCreateIndex)
+          : chart.addSeries(HistogramSeries, volOpts, _volCreateIndex)
+        // Overlay bars are drawn at reduced opacity. ONE place for every writer — the full
+        // setData here and every live writer's `update()` go through this series object.
+        if (_tvVolOverlay) dimVolumeSeries(vs)
+        volumeSeriesRef.current = vs
+        volumeSeparatePaneRef.current = volSeriesKey
+        lastAppliedVolPctRef.current = null  // fresh pane → force the height (re)apply below
+      }
+      if (nativeVolSeparate) {
+        // Own pane: small top margin so bars don't kiss the divider; size the
+        // pane to ~22% of the chart via stretch factors (main pane gets the rest).
+        // autoScale keeps the bars fitted to the SAME slice of the pane on every
+        // ticker/timeframe (a dragged volume axis otherwise pins a fixed range that
+        // makes a lower-volume name's bars tiny) — re-applied each pass so an
+        // accidental axis drag always snaps back to a consistent auto-fit.
+        // minimumWidth: v5 aligns all panes to one shared axis column — the VOLUME
+        // pane's scale was never pinned, so its developing-bar tag ("185.71K" →
+        // "1.02M") re-measuring on every ~1s live volume update could exceed the
+        // main pane's pinned width and re-flow the shared column each tick — the
+        // whole plot shakes left-right once a second. Pin it to the same floor.
+        volumeSeriesRef.current.priceScale().applyOptions({ borderVisible: false, autoScale: true, minimumWidth: _axisMinWidth, scaleMargins: { top: 0.12, bottom: 0 } })
+        try {
+          // Stretch factors are relative. Address panes by their series' own
+          // pane object (getPane) rather than raw index, so an index-comparison
+          // pane on top (Model Book) doesn't get mis-sized when this re-runs.
+          // ⛔ THE SAME `_volPct` / `_idxPct` THE LAYOUT WAS HANDED, not a second
+          // copy of the clamps: `computePaneLayout`'s whole bands-mode reference
+          // is "what these two `setStretchFactor` calls produce", so a drift
+          // between the two expressions is a layout computed against a chart that
+          // does not exist. One authority, declared above the layout call.
+          const pct = _volPct
+          const mainPane = candleSeriesRef.current?.getPane?.()
+          const volPane = volumeSeriesRef.current?.getPane?.()
+          // Only (re)apply when the TARGET height changed — otherwise a periodic
+          // data-poll re-run would snap the pane back and undo a user's drag.
+          // ⚰️⚰️ AND IT MAY ONLY SPEAK WHEN THESE TWO PANES ARE THE WHOLE CHART.
+          // Stretch factors are RELATIVE, so the `(100 - pct, pct)` pair below only
+          // means "volume is pct% of the chart" while main and volume are the only
+          // panes. Add a third — a data series, an RSI, any own-pane indicator — and
+          // volume's real share silently becomes `pct / (100 + thirdStretch)`,
+          // because the third pane keeps the weight `computePaneLayout` gave it and
+          // that weight is on a DIFFERENT BASIS: the layout hands out PIXEL heights
+          // (463 / 154 / 81 on a 700px stack), this writer hands out PERCENTAGES.
+          // Two writers, two incompatible numbering systems, one relative field.
+          //
+          // ⛔⛔ MEASURED 2026-09-15 (`__tests__/volumeStretchThirdPane.test.js`):
+          // apply 22 with a third pane at 81 and the volume pane measures **12**,
+          // while `lastAppliedVolPctRef` still says 22. The 300ms drag sampler
+          // compares exactly those two numbers, `latchOnDrag` fires at a two-point
+          // gap, and within 1.5s of any real separator drag it latches 12 as the
+          // member's choice and PERSISTS IT GLOBALLY. The next pass applies 12
+          // against the same inflated denominator, measures ~7, latches that — the
+          // volume pane ratchets down while the third pane, which nothing writes,
+          // is left holding ~45% of the chart. That is the owner's live cluster:
+          // "Volume snaps back only when QQQ is in it" and "the new QQQ pane is
+          // enormous", one defect wearing two costumes.
+          //
+          // ⭐ SO THE CANONICAL LAYOUT OWNS THE STACK, AND IT ALREADY DID. `binder`
+          // ends EVERY sync with `applyPaneStretch(ctx.paneLayout)` — ungated by
+          // instance count — and that plan sizes volume correctly in both cases
+          // (measured: `[545, 154]` for two panes, `[463, 154, 81]` for three; 22%
+          // either way). A member's dragged height reaches it through
+          // `cs.paneSizes`, the one durable authority. This writer is redundant the
+          // moment the stack is bigger than the pair it can describe, so it stands
+          // down rather than fighting — and says it has NO OPINION, which is what
+          // makes the sampler bail (`applied == null`) instead of latching a gap
+          // that only ever existed because the two writers were counting
+          // differently.
+          const paneCount = (() => {
+            try { return (chart.panes() || []).length } catch { return 0 }
+          })()
+          if (mainPane && volPane && !legacyPairOwnsStack(paneCount, !!indexPaneSeriesRef.current)) {
+            lastAppliedVolPctRef.current = null
+          } else if (mainPane && volPane && lastAppliedVolPctRef.current !== pct) {
+            lastAppliedVolPctRef.current = pct
+            if (indexPaneSeriesRef.current) {
+              const idxPct = _idxPct
+              try { indexPaneSeriesRef.current.getPane().setStretchFactor(idxPct) } catch {}
+              volPane.setStretchFactor(pct)
+              mainPane.setStretchFactor(Math.max(20, 100 - pct - idxPct))
+            } else {
+              mainPane.setStretchFactor(100 - pct)
+              volPane.setStretchFactor(pct)
+            }
+          }
+        } catch {}
+      } else {
+        // FLIP C: the volume row is still a BAND inside pane 0 (volume is not an
+        // indicator instance and gets no pane of its own), but pane 0 is shorter,
+        // so its fractions are the layout's — the same re-expression the candles'
+        // own margins get above.
+        const volMargins = _tvVolOverlay
+          ? TV_VOLUME_OVERLAY_MARGINS
+          : ((paneMode() === 'panes' ? paneLayout.pane0.volumeMargins : null)
+            || paneMargins.volume || { top: 0.82, bottom: 0 })
+        volumeSeriesRef.current.priceScale().applyOptions({ autoScale: true, scaleMargins: volMargins })
+      }
+      _applyData(volumeSeriesRef.current, __heavy.committed._big.volData)
+      // The developing VOLUME bar after this setData: the legacy roll-gap re-top, or the store's
+      // developing-bar paint (candle + volume) — chart/legacyLiveWriters.liveAfterVolumeSetData.
+      liveAfterVolumeSetData({
+        H: LEGACY_LIVE_HELPERS, liveBarRef, volData: __heavy.committed._big.volData, cs, volumeSeriesRef, userCandleColors, boldCandles, modelBookLook, mbVolUp,
+      }, _paintStoreDev)
+
+      // Subtle smooth volume MA line on the same pane/scale as the bars.
+      if (volMaPeriodEff && volMaData.length) {
+        // candleFrameFade: split the volume MA into base (≤ setup day) + a fading
+        // tail past it, so it crossfades with the candles / volume / price MAs.
+        const _vmFade = candleFrameFade && fadeCutoff != null
+        const _vmCut = _vmFade ? String(fadeCutoff) : null
+        const baseVM = _vmFade ? volMaData.filter(p => String(p.time) <= _vmCut) : volMaData
+        const tailVM = _vmFade ? volMaData.filter(p => String(p.time) >= _vmCut) : null
+        const _vmPane = nativeVolSeparate ? VOL_PANE_INDEX : 0
+        const _vmOpts = {
+          lineWidth: 1, lineType: LineType.Curved, priceScaleId: volScaleId,
+          priceLineVisible: false, lastValueVisible: false,
+          crosshairMarkerVisible: false, autoscaleInfoProvider: () => null,
+          // The volume price scale uses the formatter of its LOWEST-z-order series.
+          // The volume MA line shares this scale, and with the custom ThinVolumeSeries
+          // (histogram style) the MA line — not the bars — ends up the formatter
+          // source, so WITHOUT this its default price formatter rendered the axis raw
+          // ("2000000000.00"). Give every series on the scale the SAME volume
+          // formatter so the axis abbreviates no matter which source wins.
+          priceFormat: { type: 'custom', formatter: formatVolumeAxis, minMove: 1 },
+        }
+        const _vmColor = cs.volume?.maColor || VOL_MA_COLOR
+        const _vmWidth = Number(cs.volume?.maLineWidth) || 1
+        if (!volMaSeriesRef.current) {
+          volMaSeriesRef.current = chart.addSeries(LineSeries, { color: _vmColor, lineWidth: _vmWidth, ..._vmOpts }, _vmPane)
+        } else {
+          // Was set only at creation → changing the Volume MA color/width in settings
+          // had no effect until remount. Re-apply on every settings change.
+          try { volMaSeriesRef.current.applyOptions({ color: _vmColor, lineWidth: _vmWidth }) } catch { /* disposed */ }
+        }
+        _applyData(volMaSeriesRef.current, baseVM)
+        if (_vmFade) {
+          const vmTailColor = colorMulAlpha(VOL_MA_COLOR, frameFadeAlphaRef.current)
+          if (!volMaTailSeriesRef.current) {
+            volMaTailSeriesRef.current = chart.addSeries(LineSeries, { color: vmTailColor, ..._vmOpts }, _vmPane)
+          } else {
+            volMaTailSeriesRef.current.applyOptions({ color: vmTailColor })
+          }
+          volMaTailSeriesRef.current.setData(tailVM)
+        } else if (volMaTailSeriesRef.current) {
+          try { chart.removeSeries(volMaTailSeriesRef.current) } catch {}
+          volMaTailSeriesRef.current = null
+        }
+      } else if (volMaSeriesRef.current) {
+        try { chart.removeSeries(volMaSeriesRef.current) } catch {}
+        volMaSeriesRef.current = null
+        if (volMaTailSeriesRef.current) { try { chart.removeSeries(volMaTailSeriesRef.current) } catch {}; volMaTailSeriesRef.current = null }
+      }
+    } else if (volumeSeriesRef.current) {
+      try { chart.removeSeries(volumeSeriesRef.current) } catch {}
+      volumeSeriesRef.current = null
+      if (volMaSeriesRef.current) { try { chart.removeSeries(volMaSeriesRef.current) } catch {}; volMaSeriesRef.current = null }
+      if (volMaTailSeriesRef.current) { try { chart.removeSeries(volMaTailSeriesRef.current) } catch {}; volMaTailSeriesRef.current = null }
+    }
+
+    // ── Extended-hours shading in the VOLUME pane ──
+    // The price-pane shading primitive (attached to pane 0 above) fills only its own
+    // pane, so with volume in a SEPARATE pane the pre/post bands stopped at the volume
+    // divider. Attach a SECOND shading instance to the volume pane so the bands extend
+    // straight down through it too (owner ask). Only while that pane exists.
+    {
+      const _volPane = (volumePaneLive && showVolume && __heavy.committed._big.volData.length > 0) ? chart.panes()[VOL_PANE_INDEX] : null
+      if (_volPane) {
+        if (!sessionShadeVolRef.current) sessionShadeVolRef.current = createSessionShadingPrimitive({})
+        if (!sessionShadeVolAttachedRef.current) {
+          try { _volPane.attachPrimitive(sessionShadeVolRef.current.primitive); sessionShadeVolAttachedRef.current = true } catch { /* older pane API */ }
+        }
+        if (sessionShadeVolAttachedRef.current && lastShadeBandsVolRef.current !== sessionShadeBands) {
+          lastShadeBandsVolRef.current = sessionShadeBands
+          sessionShadeVolRef.current.setOptions({ enabled: _shadeOn, bands: sessionShadeBands })
+        }
+      } else if (sessionShadeVolRef.current && sessionShadeVolAttachedRef.current) {
+        // Volume pane gone (overlay mode / hidden) — the primitive detached with the
+        // pane; drop the flag so it re-attaches if the pane returns, and clear its bands.
+        sessionShadeVolAttachedRef.current = false
+        lastShadeBandsVolRef.current = null
+        try { sessionShadeVolRef.current.setOptions({ enabled: false, bands: EMPTY_BANDS }) } catch {}
+      }
+    }
+
+    // ── Overlay lines — reuse series where possible ──
+    // Remove excess overlay series
+    while (overlaySeriesRefs.current.length > overlayData.length) {
+      const old = overlaySeriesRefs.current.pop()
+      try { chart.removeSeries(old) } catch {}
+    }
+    // candleFrameFade: each MA is split into a base segment (up to the setup day,
+    // always full) + a tail segment (past it) whose opacity crossfades with the
+    // candles on a Setup⇄Result flip. At full opacity the two read as one line.
+    const _fadeMA = candleFrameFade && fadeCutoff != null
+    const _cut = _fadeMA ? String(fadeCutoff) : null
+    const _tailAlpha = frameFadeAlphaRef.current
+    while (overlayTailSeriesRefs.current.length > (_fadeMA ? overlayData.length : 0)) {
+      const old = overlayTailSeriesRefs.current.pop()
+      try { chart.removeSeries(old) } catch {}
+    }
+    // Update existing or add new overlay series. CRITICAL: when an existing
+    // overlay's new data is empty (e.g. switched to a recent IPO with too few
+    // bars to compute SMA200), we must explicitly clear it. The previous
+    // `if (!ovData.length) continue` left the OLD ticker's overlay line visible.
+    for (let i = 0; i < overlayData.length; i++) {
+      const { data: ovData } = overlayData[i]
+      let color = overlayData[i].color
+      // Charts workspace: repaint the 9-EMA in the candle up-color (MB_UP) so the
+      // fast MA matches the candles — but ONLY while it wears the stock default
+      // color; a user-picked color from the Indicators tab wins (ema9CandleColorFor).
+      const _ov = resolvedOverlays?.[i]
+      const _ema9Match = ema9CandleColorFor(_ov)
+      if (_ema9Match) color = _ema9Match
+      // Split into base (≤ setup day) + tail (≥ setup day) when fading; the shared
+      // cutoff point joins them so the line is seamless at full opacity.
+      const baseData = _fadeMA ? ovData.filter(p => String(p.time) <= _cut) : ovData
+      // The tail is the post-setup segment. In the steady SETUP view the frame ends
+      // ON the setup day, so the filter yields exactly one point (the cutoff itself)
+      // — and a single-point curved LineSeries renders as a stray flat horizontal
+      // dash past the last candle. Collapse it to empty so the MA just ends cleanly
+      // at the setup day; the tail only carries real data during the Setup⇄Result
+      // fade and in the Result view (where it has many points).
+      const _tailRaw = _fadeMA ? ovData.filter(p => String(p.time) >= _cut) : null
+      const tailData = _tailRaw && _tailRaw.length >= 2 ? _tailRaw : []
+      // Model Book renders MAs as smooth curves (TradingView look) instead of
+      // the default straight-segment polyline.
+      // Per-overlay width/style from the Indicators tab; unset falls back to the
+      // instance-wide defaults so stored blobs and Model Book are unaffected.
+      const _ovCfg = resolvedOverlays?.[i] || {}
+      const _ovStyleMap = { solid: 0, dotted: 1, dashed: 2 }
+      const _ovLineStyle = _ovStyleMap[_ovCfg.lineStyle] ?? 0
+      const _ovLineType = (boldCandles || modelBookLook) ? LineType.Curved : LineType.Simple
+      // 0.5 floors to a true 1px hairline on retina (lineWidth*dpr), thinner than
+      // the standard 1; non-retina stays ~1px. Model Book (boldCandles) + the
+      // intraday popup (modelBookLook) use it.
+      const _ovLineWidth = Number(_ovCfg.lineWidth) > 0 ? Number(_ovCfg.lineWidth) : ((boldCandles || modelBookLook) ? 0.5 : 1)
+      // fitPriceToCandles: MAs contribute NO price range, so the scale fits the
+      // candles only and a far 200MA clips off-screen instead of squashing price.
+      const _ovAutoscale = fitPriceToCandles ? () => ({ priceRange: null }) : () => null
+      if (i < overlaySeriesRefs.current.length) {
+        // Reuse existing series — always setData (even empty) to clear stale data.
+        // lastValueVisible = the colored right-axis chip showing this MA's latest
+        // value (opt-in via cs.showMaLabels; the chip auto-uses the series color).
+        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth, lineStyle: _ovLineStyle, lastValueVisible: !!cs.showMaLabels && !lastBarOffRef.current, autoscaleInfoProvider: _ovAutoscale })
+        _applyData(overlaySeriesRefs.current[i], baseData)
+      } else if (baseData.length) {
+        // Add new series only if there's data to show
+        const ls = chart.addSeries(LineSeries, {
+          color,
+          lineWidth: _ovLineWidth,
+          lineStyle: _ovLineStyle,
+          lineType: _ovLineType,
+          crosshairMarkerVisible: false,
+          priceLineVisible: false,
+          lastValueVisible: !!cs.showMaLabels && !lastBarOffRef.current,
+          autoscaleInfoProvider: _ovAutoscale,
+        })
+        ls.setData(baseData)
+        overlaySeriesRefs.current.push(ls)
+      }
+      // The fading tail (only the post-setup portion).
+      if (_fadeMA) {
+        const tailColor = colorWithAlpha(color, _tailAlpha)
+        if (i < overlayTailSeriesRefs.current.length) {
+          overlayTailSeriesRefs.current[i].applyOptions({ color: tailColor, lineType: _ovLineType, lineWidth: _ovLineWidth, autoscaleInfoProvider: _ovAutoscale })
+          overlayTailSeriesRefs.current[i].setData(tailData)
+        } else {
+          const ts = chart.addSeries(LineSeries, {
+            color: tailColor,
+            lineWidth: _ovLineWidth,
+            lineType: _ovLineType,
+            crosshairMarkerVisible: false,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            autoscaleInfoProvider: _ovAutoscale,
+          })
+          ts.setData(tailData)
+          overlayTailSeriesRefs.current.push(ts)
+        }
+      }
+    }
+
+    // ── Per-MA z-order — overlap the candles, or sit behind them ──────────────
+    // Each overlay's `onTop` (resolvedOverlays[i].onTop) picks whether its MA
+    // line draws IN FRONT of the candles (true) or BEHIND them (false, default).
+    // LWC z-orders series by their index within the pane (higher index = drawn
+    // later = on top); `setSeriesOrder` moves one. We only ever lift an MA ABOVE
+    // the candle (onTop) or drop it back to just below the candle — NEVER to
+    // index 0, so the candle stays the lowest-index price series that drives the
+    // axis formatter (per LWC's setSeriesOrder note). Guarded so it's a no-op
+    // once each line is already on its chosen side, so it never churns per paint.
+    try {
+      const _czCandle = candleSeriesRef.current
+      if (_czCandle && typeof _czCandle.seriesOrder === 'function') {
+        for (let i = 0; i < overlaySeriesRefs.current.length; i++) {
+          const s = overlaySeriesRefs.current[i]
+          if (!s || typeof s.seriesOrder !== 'function') continue
+          const onTop = !!resolvedOverlays?.[i]?.onTop
+          const cOrd = _czCandle.seriesOrder()
+          const sOrd = s.seriesOrder()
+          if (onTop && sOrd < cOrd) s.setSeriesOrder(cOrd + 1)          // lift in front of candles
+          else if (!onTop && sOrd > cOrd) s.setSeriesOrder(cOrd)        // drop back behind candles
+        }
+      }
+    } catch { /* z-order is cosmetic — never break the paint */ }
+
+    // ── Re-top the MA overlays onto the developing bar, THIS paint ────────────
+    // The overlay setData above ends at the last FETCHED bar, but the post-setData
+    // re-top (Writer D, ~120 lines up) already advanced the CANDLE to the live
+    // developing bar in this same synchronous pass. Without matching that here, the
+    // MA line ends one bar behind the live candle for ~0.5-1s after every ticker
+    // switch — until the next livePrices tick (Writer A) fires `_extendOverlaysLive`
+    // (user report: "MAs lag one day back when I scan to a new stock, then snap to
+    // today"). Extend them now, off THIS render's own locals (overlayDataRef/
+    // prevBarsRef aren't mirrored until a later effect), so the MA is instant on
+    // today's candle exactly like the candle itself. Live charts only; replay/cutoff
+    // freeze the developing bar. sameBucket → recomputes the same last point (no-op)
+    // when the fetch already carried today; new bucket → appends today's MA point.
+    if (liveUpdates && !replayMode && !replayCutoffRef.current) {
+      const _dev = devOnScreen.tail()
+      if (_dev && _dev.time != null && Number.isFinite(_dev.close)) {
+        _extendOverlaysLive(_dev.time, _dev.close, {
+          defs: resolvedOverlays, ovAll: overlayData,
+          series: overlaySeriesRefs.current, bars: __heavy.committed.sessionAppliedBars, skipVwap: true,
+        })
+      }
+    }
+
+    // ── THE INDICATOR ENGINE — the one call site ──────────────────────────────
+    //
+    // WHY IT IS EXACTLY HERE, AND NOT WHERE IT WAS. lightweight-charts z-orders
+    // series by INSERTION ORDER within a pane, and under Flip A everything —
+    // candles, volume, the MA overlays, every price overlay and every oscillator
+    // band — shares pane 0. This call used to sit ~300 lines up, before the volume
+    // block, so an engine-drawn price overlay was inserted BEFORE the volume
+    // histogram and BEFORE the MA overlays, where its legacy twin is inserted
+    // after them. Wherever a Bollinger band, a VWAP line or an Ichimoku span
+    // crosses an MA or the volume bars, the crossing pixel changes colour. The
+    // RSI rehearsal could not see it by construction: RSI has its own scale in its
+    // own band and overlaps nothing.
+    //
+    // This position is the first legacy INDICATOR block, after volume, volume-MA
+    // and the MA overlays. So a migrated indicator is inserted where the legacy
+    // series it replaces was, relative to everything the engine does NOT draw:
+    //   · above volume, volume-MA and the MA overlays              (as legacy)
+    //   · below the comparison line, the pattern overlays and the index MA
+    //   · below every still-legacy indicator, and BB — the first of them, and
+    //     B3's first pilot — is precisely where this sits.
+    // Among the engine's OWN series, order is instance order, and the registry
+    // order a migrated blob is built in (bb, vwap, sar, ichimoku, donchian) is
+    // already the legacy render order for the five price overlays.
+    //
+    // ⭐ AND AS OF B5 TASK 6 FOUR OF THOSE FIVE LAND HERE. `bb`, `vwap`, `sar` and
+    // `ichimoku` are all engine-drawn and are inserted contiguously at this call,
+    // in registry order; `donchian` is the one still-legacy price overlay and its
+    // block runs BELOW, so it stays on top of the other four — which is exactly
+    // the shipped stacking. That is why the two tasks could not be reordered:
+    // migrating `donchian` first would have put the engine's copy of it UNDER
+    // `sar` and `ichimoku` instead of over them, and LWC z-stacks by insertion.
+    // `engine_price_overlay_zorder` is the pixel case for it.
+    //
+    // Everything it reads is still a LOCAL of `updateChart` — `chart`, the render
+    // plan (`_noop`/`_incr`/`_freshChart`), `_applyData`, `paneMargins`, the
+    // volume-overlay decision, `filteredBars`, `adjustTime`. That is why it is
+    // inline here rather than in an effect of its own: an effect would have to
+    // re-derive the render plan (a second copy of the decision that keeps the
+    // developing bar alive in extended hours) and would create its panes at a
+    // different point in the pass. Extraction is B5's job, when panes stop being
+    // bands.
+    //
+    // ⚠️ `engineNeeded`, not `engineActive`: after Flip B the engine is active on
+    // EVERY chart (something is always flipped), and constructing a binder for a
+    // chart with no instances would trade the "zero lightweight-charts calls when
+    // there is nothing to draw" property for nothing. A chart that later gains an
+    // instance builds one then; a chart that loses its last one syncs
+    // `enabled: false`, which releases what it held (`binder.js`) rather than
+    // leaving ghosts.
+    //
+    // ⭐ AND THIS IS NOW THE WHOLE OF THE DARK CONTRACT (B5 Task 4). It used to
+    // read `engineOn || engineInstances.length > 0`, where `engineOn` was the
+    // deleted flag. The disjunct did nothing a user could observe — it built a
+    // binder for a flag-on chart with no instances, and the flag was on for
+    // nobody — and it made the honest predicate look like a fallback. What is left
+    // says exactly what it means: no instances, no binder, zero library calls.
+    // ─── REALISING AN ARRANGEMENT ───────────────────────────────────────────
+    //
+    // ⭐ TWO STEPS, AND THE ORDER OF THEM IS THE FIX. `prepare` makes the
+    // physical chart able to hold the arrangement BEFORE the binder creates
+    // anything into it; `settle` asserts the result afterwards. See
+    // `engine/paneRealization.js` for why a final slot is not a safe place to
+    // create a series, and what happens on a cold rebuild when they are confused.
+    const _paneRealize = {
+      order: _paneOrder,
+      paneCountRequired: paneLayout.paneCountRequired,
+      pinned: _hasIdxPane ? 1 : 0,
+      priceKey: PRICE_PANE,
+      volumeKey: volumePaneLive ? VOLUME_PANE : null,
+      paneOf: (key) => {
+        try {
+          if (key === PRICE_PANE) return candleSeriesRef.current?.getPane?.() || null
+          if (key === VOLUME_PANE) {
+            if (!volumePaneLive) return null
+            // The native bars when they are there…
+            if (nativeVolSeparate) {
+              const vp = volumeSeriesRef.current?.getPane?.()
+              if (vp) return vp
+            }
+            // …and otherwise whichever GUEST is holding the rectangle open. The
+            // realiser needs the pane a key currently occupies; with the bars
+            // deleted that is the resident's pane, and returning null here would
+            // let the sweep reclaim a pane something is still drawing in.
+            return _volResidentPane()
+          }
+          const bs = engineRef.current?.binder?.bindings?.()
+          if (!Array.isArray(bs)) return null
+          const hit = bs.find((x) => x && x.instanceId === key && x.series)
+          return hit ? hit.series.getPane() : null
+        } catch { return null }
+      },
+    }
+    prepareArrangement(chart, _paneRealize)
+
+    const engineNeeded = engineInstances.length > 0
+    if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
+    if (engineNeeded && !engineRef.current) {
+      engineRef.current = { chart, binder: createBinder({ chart, LWC: engineLwc(), scope: binderNoticeScope }) }
+    }
+    if (engineRef.current) {
+      engineRef.current.binder.sync({
+        enabled: engineNeeded,
+        cs,
+        instances: engineInstances,
+        // ⭐ THE THIRD SOURCE FAMILY'S DATA. Bars for any canonical symbol the
+        // instances name, already fetched and cached above. Absent is not an
+        // error: it is a chart with no symbol sources, and every lookup misses.
+        secondary: secondarySources,
+        exchangeOf: otherSymbolExchangeOf,
+        lowerTf: lowerTfSources,
+        // ⭐⭐ CALCULATION-TIMEFRAME FRAMES — the higher-timeframe canonical bars an
+        // instance with `calculationTimeframe` computes over (`useCalcFrames`), the
+        // chart's session rule for an intraday frame, and the door a frame the chart
+        // has outrun is refreshed through (throttled per window).
+        frames: calcFrames,
+        frameRthOnly: _intradayLike && !showExtended,
+        onFrameStale: (frame, s) => { try { refreshCalcFrameRef.current(frame, s) } catch { /* */ } },
+        // ⭐ Historical fundamentals, already resolved (see `useFundamentalSources`).
+        fundamentals: fundamentalSources,
+        marketCapAuthority: marketCapAuthoritySources,
+        // ⭐ Economic series, already resolved (see `useEconomicSources`): release-
+        // date placement, strict intraday, per-frequency max age, period-monotone.
+        economics: economicSources,
+        // ⭐⭐ WHICH PROVIDER FAMILY A CANONICAL SYMBOL BELONGS TO — the SEMANTIC
+        // half of `ohlcCapability`. The breadth registry is the same authority
+        // `api/routers/bars.py` routes on, read synchronously because the binder
+        // has no hooks; it answers `'unknown'` until it has loaded and the gate
+        // REFUSES `'unknown'`, so a breadth measure can never be mistaken for a
+        // security while the page is still starting.
+        //
+        // ⚠️ IT IS A CAPABILITY ORACLE, NOT A LIST OF SYMBOLS THAT GET CANDLES.
+        // No ticker, no prefix: the binder asks what KIND of thing this is, and
+        // `ohlcCapability` owns what each kind may be drawn as.
+        ohlcFamilyOf: canonicalFamily,
+        // ⭐⭐ WHAT THE SOURCE SAYS ABOUT HOW IT WANTS TO BE DRAWN — the other half
+        // of the presentation contract, and a STRICTLY DIFFERENT QUESTION from the
+        // one above. `ohlcFamilyOf` decides what a source may MEAN (and therefore
+        // whether a candle is honest); this decides what it should LOOK LIKE first,
+        // and it may never be routed into a capability gate — `canonicalPresentation`
+        // says so in its own header and the engine rail asserts it.
+        //
+        // ⚠️ IT READS METADATA THAT WAS ALREADY ON THE WIRE. Both catalogues have
+        // published `presentation` all along; until now nothing on the chart asked.
+        sourcePresentationOf: canonicalPresentation,
+        registry: engineRegistry,
+        // The SAME bars `indicatorData` computes from (`:3895`) — parity under
+        // Flip A means the engine's column and the legacy one are the same array.
+        bars: __heavy.committed.filteredBars,
+        // ⭐ THE SERVER LANE'S ONLY REQUIREMENT (Phase C Task 13). A native
+        // ignores both; a `compute.kind: 'server'` definition (the RS line) is
+        // fetched per (symbol, timeframe) and cannot resolve without them.
+        // `resolvedTf`, not the raw `tf` prop: the prop is optional and falls
+        // back to a preference, and a null timeframe would key the lane's cache
+        // differently from the request the hook actually makes.
+        sym,
+        // ⭐ R-K: the OBJECT beside the string. `sym` keys the server lane's
+        // fetch; `symbol` is what the bind-time fold reads. See `symbolMeta`.
+        symbol: symbolMeta,
+        tf: resolvedTf,
+        // ⭐⭐ THE BAR-CLOSE TRI-STATE, PRODUCED IN PYTHON. `/api/bars` computes it
+        // from `bar_close_state` because that is the side the NYSE calendar lives
+        // on; the browser is handed one tri-state and never a date set. Without it
+        // the four CLOCK_REALTIME columns render BLANK — correct under the
+        // fail-closed contract, and useless.
+        // ⛔ `?? null` IS THE FAIL-CLOSED DEFAULT AND MUST STAY. A server that has
+        // not shipped the field yet sends `undefined`; `null` means UNKNOWN and
+        // blanks the columns, whereas `false` would assert the newest bar is
+        // SETTLED and hand the column layer a confident `isconfirmed = 1`.
+        // ⭐ It rides WITH the payload it describes, so a cached or delta response
+        // carries the state of ITS OWN newest bar rather than of the wall clock.
+        newestBarIsForming: __heavy.committed.data?.newest_bar_is_forming ?? null,
+        // ⭐ C12w — the listing statement (see `historyFromListing` above). The
+        // engine also asks the DOCUMENT (`historyFromListingFor`), so a script from
+        // another translator keeps its bounded window whatever this says.
+        historyFromListing,
+        // ⭐⭐ (2026-11-20) the listing FACT where it holds and is not served (W / M), for a true sentence
+        ...(listingUnserved ? { listingStart: true } : {}),
+        // ⭐⭐ W9-T11-F1 — the strategy window (see `strategyHistoryWindow` above). The binder hands it
+        // to strategy documents only; every other document's ctx is unchanged.
+        historyWindowBars: strategyHistoryWindow,
+        // ⭐⭐ (2026-11-19, the strategy-only daily window) the depth a run from the listing is served at without the
+        // deep-start rule ([B-START-DEEP], `vm.js`): beside the window, from the same server answer
+        listingDepthBars: strategyListingDepth,
+        // r1 (N3): asked, not answered yet — the binder holds a strategy run instead of refusing it
+        historyWindowPending: strategyWindowPending,
+        adjustTime,
+        applyData: _applyData,
+        // ⭐ 2026-11-13 — the time of the first row an indicator's series is handed, or
+        // null for every row (`plotWindow.js`, decided above the signature).
+        plotWindowFrom: _plotFrom,
+        // ⭐⭐ B1 — Pine `bgcolor` on an overlay script that binds no series of its
+        // own is drawn on the price pane, through the candles' series.
+        priceSeries: () => candleSeriesRef.current,
+        // ⭐⭐ BATCH 2 — THE GLYPH CAPABILITY THE BINDER HAS ALWAYS ASKED FOR. `binder`
+        // draws `plots[].marker` (plotshape / plotchar, and the authoring door's
+        // `set_marker`) only through an injected `createSeriesMarkers`, and nothing
+        // injected it: every marker was planned, computed and never drawn on a live
+        // chart (measured 10-09, sandbox — the unit tests use a fake).
+        createSeriesMarkers,
+        // ⭐⭐ B1 — Pine `barcolor`: the binder hands the overrides here only when
+        // they CHANGE; the candles are re-applied from their own remembered data
+        // (one `update` of the last bar when only it changed). No React state.
+        // ⛔ NOT A SEVENTH DEVELOPING-BAR WRITER (`singleWriterIndex.test.js`): the
+        // re-apply writes back the LAST bar the writers themselves wrote (the wrap's
+        // raw copy tracks every `update`), recoloured — never a new price.
+        setBarColours: (map) => {
+          const prev = barColoursRef.current
+          barColoursRef.current = map
+          try { reapplyBarColours(candleSeriesRef.current, prev, map) } catch { /* series mid-swap */ }
+        },
+        // ⭐⭐ C3B — THE GRAPHICAL-OBJECT CAPABILITY. Injected exactly like every
+        // other chart-library capability the binder uses: a host that cannot
+        // provide it draws no lines, labels or boxes and everything else — the
+        // columns, the legend, the scan — is untouched. One canvas per INSTANCE,
+        // because two copies of one indicator are two independent lifetimes.
+        createObjectLayer: (inst) => createObjectLayer({
+          instanceId: inst && inst.instanceId,
+          container: chart.chartElement ? chart.chartElement() : null,
+          // ⭐⭐ THE CHROME THIS HOST FLOATS OVER ITS OWN CHART, so a table
+          // anchored to a TOP corner lands where a member can see it. The
+          // drawing toolbar is `absolute; top: 4px; height: 26px; z-index: 5`
+          // over this very container — measured live on the first run, both of
+          // Volume v2's dashboards drew correctly and were painted over by it.
+          // ⛔ It reaches the layer as a NUMBER FROM THE COMPONENT THAT OWNS THE
+          // TOOLBAR, never as a measurement inside the adapter: the adapter's
+          // freedom from `getBoundingClientRect` is what makes a pane resize cost
+          // nothing, and one `insets` argument is the price of keeping it.
+          insets: { top: CHART_TOOLBAR_FOOTPRINT_PX },
+          mapping: () => {
+            const series = candleSeriesRef.current
+            const ts = chart.timeScale ? chart.timeScale() : null
+            if (!series || !ts) return null
+            const el = chart.chartElement ? chart.chartElement() : null
+            // ⭐⭐ ITEM 4 — THE PRICE SCALE IS NOT PLOT AREA, AND A TABLE ANCHORED
+            // TO THE RIGHT CORNER LANDS ON TOP OF IT.
+            //
+            // ⚰⚰ MEASURED at both touch tiers, 2026-09-13. The container is
+            // 390px on a phone and the right scale owns its last 104px
+            // (x=286..390); a `right: 8px` table therefore ran from 264 to 382,
+            // straight over the price labels. At 1024 the same thing happens at
+            // x=550..654. Pine's `position.top_right` means the top right of the
+            // PLOT, which is what the vendor draws — not the top right of the
+            // widget including its axis.
+            //
+            // ⛔ READ FROM THE CHART, NEVER ASSUMED. LWC sizes the scale to the
+            // widest label in view, so it changes with the symbol and the zoom;
+            // a constant here would be right for SPY and wrong for a four-digit
+            // price. `priceScale('right').width()` is the chart's own answer.
+            let rightInset = 0
+            try {
+              const ps = chart.priceScale ? chart.priceScale('right') : null
+              const w = ps && typeof ps.width === 'function' ? ps.width() : 0
+              if (Number.isFinite(w) && w > 0) rightInset = Math.round(w)
+            } catch { rightInset = 0 }
+            // ⭐ THE PANE THIS INSTANCE DRAWS IN, so its tables stay inside it
+            // (`objectLayer.js`). Read off the renderer: the pane of one of the
+            // instance's own series (a visible one first), else the candles' pane.
+            // ⛔ Unreadable → no `pane`, and the table layer keeps the whole container.
+            // …and the PRICE pane, the layer's fallback when its own pane is too short
+            // for its tables (a calculator's one-line pane).
+            let pane = null
+            let mainPane = null
+            try {
+              const rectOf = (lwPane) => {
+                const pel = lwPane?.getHTMLElement?.()
+                if (!pel || !el || !pel.getBoundingClientRect || !el.getBoundingClientRect) return null
+                const pr = pel.getBoundingClientRect()
+                const cr = el.getBoundingClientRect()
+                return pr.height > 0 ? { top: pr.top - cr.top, height: pr.height } : null
+              }
+              const mine = (engineRef.current?.binder?.bindings?.() || [])
+                .filter((b) => b && b.instanceId === (inst && inst.instanceId) && b.series)
+              const shown = mine.find((b) => b.series.options?.()?.visible !== false) || mine[0]
+              mainPane = rectOf(series.getPane?.())
+              pane = rectOf(shown?.series?.getPane?.()) || mainPane
+            } catch { pane = null; mainPane = null }
+            return {
+              timeToX: (t) => ts.timeToCoordinate(adjustTime(t)),
+              priceToY: (p) => series.priceToCoordinate(p),
+              width: el ? el.clientWidth : 0,
+              height: el ? el.clientHeight : 0,
+              rightInset,
+              pane,
+              mainPane,
+            }
+          },
+        }),
+        plan: { noop: _noop, incr: _incr, fresh: _freshChart },
+        // ⭐⭐ (switch smoothness, 2026-11-20) a heavy pass may hand the indicator series it already drew their data
+        // over several tasks (`binder.js`, `SERIES_DATA_DEFER_MIN_ROWS`): only while the candles are built from the
+        // very bars the indicators are (no session-preview candle, no Heikin-Ashi), so every point an indicator holds
+        // meanwhile is on the candles' own time scale and the framing below reads the same index space either way.
+        deferSeriesData: __heavy.committed.displayBars === __heavy.committed.filteredBars,
+        // The declutter toggle. `visible` is part of the option set the binder
+        // re-asserts on every bind, so without this a hidden engine series would
+        // reappear on the next paint. Read from a ref, not a dependency — see the
+        // ref's declaration.
+        // …also hidden in "Group only" theme view (base MAs/indicators suppressed).
+        indicatorsHidden: indicatorsHiddenRef.current || hideBaseRef.current,
+        // The price axis's format, for engine series that share the candles' axis (see binder).
+        mainPriceFormat: priceFormatRef.current,
+        // Placement inputs. `resolvePlacement` reads these and nothing else, so
+        // the engine lands in the legacy bands by construction.
+        paneMargins,
+        // FLIP C. `null` in `'bands'` mode, and `resolvePlacement` ignores it
+        // there — asserted deep-equal to the pre-Flip-C answer for every pane
+        // oscillator in `engine/__tests__/flipCGeometry.test.jsx`.
+        paneLayout,
+        volOverlaySet,
+        // ⭐ …AND SEPARATELY, WHETHER THE BARS ARE ACTUALLY IN THAT PANE. The
+        // guest branch hands out the LEFT axis *so Volume keeps the right one*;
+        // with the bars removed there is no right axis to keep, and a volume pane
+        // whose only resident sits on the left wedges lightweight-charts'
+        // `_adjustSizeImpl` on every draw. One fact, asked where it is known.
+        nativeVolumeInPane: nativeVolSeparate && showVolume && __heavy.committed._big.volData.length > 0,
+        // ⛔⛔ PANE EXISTENCE, NOT THE BARS — `placement.js:476` gates the whole
+        // guest branch on this. A member who deletes Volume while an MA of it is
+        // displayed there has removed the BARS, not the pane; handing the native
+        // answer here made that guest fall through to the own-pane branch, find
+        // no pane of its own (a volume guest is a FOLLOWER, so the layout
+        // allocates it none) and bind nothing.
+        volSeparatePane: volumePaneLive,
+        VOL_PANE_INDEX,
+        // ⭐⭐ THE RESOLVED TARGET, NOT THE DECLARED ONE. `resolvePlacement` read
+        // `instance.placement.target || def.placement.target` itself, which is fine
+        // for a static answer and blind to a DERIVED one: an average of QQQ belongs
+        // in QQQ's pane, and nothing in the definition or the instance says so — it
+        // is computed from the source. Handing the resolver `displayTarget`'s answer
+        // is what keeps ONE module deciding where an indicator draws, and it is the
+        // same authority the LAYOUT above consumes, so the pane that gets allocated
+        // and the pane that gets resolved cannot disagree.
+        targetOf: (inst) => resolveDisplayTarget(inst, cs),
+        resolvePlacement,
+        resolvePreset,
+      })
+    }
+    // …and now that every series exists, settle the final order and drop any
+    // placeholder the binder did not claim.
+    settleArrangement(chart, _paneRealize)
+    // ── Per-average z-order — the "Overlap candles" rule, now for instances ──
+    // The retired overlay block (see "Per-MA z-order" above) put every average
+    // BEHIND the candles unless its `onTop` said otherwise. Averages are
+    // `movingAverage` instances now (`maAdoption.js`), so the same rule runs on
+    // their bindings: `presentation.overlap` lifts one in front, everything else
+    // drops back behind. Same guards — a no-op once each line is on its side, and
+    // never index 0, so the candle stays the lowest price series.
+    applyAverageZOrder(engineInstances)
+    // ⚠️ MEASURE PRICE'S CHROME FROM THE **FINAL** POSITION, never the temporary
+    // one `prepare` left it in.
+    pinPriceChrome()
+
+
+    // ── Bollinger Bands and RSI: FLIPPED (B3 Task 10) ────────────────────────
+    //
+    // Both are drawn by the ENGINE, from the instance list, at the sync call
+    // above. Their hand-written blocks, their `useRef`s, their `indicatorData`
+    // branches, their entries in the hide-all array and RSI's crosshair fallback
+    // are all GONE — that deletion IS Flip B, and it is what stops each of them
+    // being enumerated in six places. `ENGINE_OWNED` names them; the
+    // enable signal reaches the geometry through the instance list itself, and
+    // the engine is ACTIVE for them unconditionally because there is nothing else
+    // left that could draw them. (It used to say "regardless of `engineEnabled`" —
+    // B5 Task 4 deleted that flag, so there is no longer anything to be regardless
+    // of.)
+    //
+    // ⚠️ RSI's block sat BELOW VWAP's and BB's ABOVE it. Order still matters for
+    // the price overlays (LWC z-stacks by insertion), and it is preserved: the
+    // engine inserts everything it owns at the sync call, which is where BB — the
+    // FIRST legacy indicator block — used to be. RSI has its own scale in its own
+    // band and crosses nothing.
+
+    // ── Session VWAP: FLIPPED (B3 Task 11) ───────────────────────────────────
+    //
+    // Drawn by the ENGINE, from the instance list, at the sync call above — and
+    // its whole render context (the intraday-only gate, colour × opacity, the
+    // Model Book's forced white, the bold-candle hairline) is folded into the
+    // instance's inputs by `engine/eligibility.js` before the binder sees it.
+    // That is the module's entire reason to exist: four facts about the CHART
+    // that no definition schema can state.
+    //
+    // ⚠️ ON A DAILY CHART NOTHING DRAWS AND NOBODY OWNS IT. The gate is
+    // `def.meta.timeframes` (mirrored by `eligibility.VWAP_TIMEFRAMES`, which is
+    // where `VWAP_TFS` went), so the instance is dropped above 60-minute bars —
+    // it never reaches `engineInstances`, and the binder is handed nothing for it.
+
+    // ── Stochastic sub-pane: FLIPPED (B5 Task 5) ─────────────────────────────
+    //
+    // %K, %D and the 80/20 guides are drawn by the ENGINE, from one instance, at
+    // the sync call above. `stochKRef`/`stochDRef`, the `indicatorData.stoch`
+    // branch and the hide-all entries are deleted with the block — that deletion
+    // IS Flip B.
+    //
+    // ⚠️ ITS TWO LEGEND CHIPS DID NOT MOVE FILE, THEY MOVED LANE. `%K` and `%D`
+    // used to be `registerLegacyChip('stoch', …)` calls right here; they are now
+    // produced by `engineChips` from the SAME `plots[].legend` blocks, through
+    // the same `chipsFrom` pipeline, with the same text to the character. The
+    // developing-bar fallback rides `binding.lastValue` instead of the thunk that
+    // closed over `indicatorDataRef`. `legendFromDefinitions.test.jsx` asserts
+    // both the text AND the lane, because a chip drawn twice is invisible in text.
+
+    // ── MACD sub-pane: FLIPPED (B3 Task 11) ──────────────────────────────────
+    //
+    // Line, signal AND histogram are drawn by the ENGINE, from one instance, at
+    // the sync call above. The three `useRef`s, the `indicatorData.macd` IIFE,
+    // the hide-all entries and the crosshair fallbacks are all deleted with the
+    // block — that deletion IS Flip B.
+    //
+    // ⚠️ THE HISTOGRAM'S SIGN COLOURS AND THE HEAD-MASK LEFT THIS FILE WITH IT.
+    // `MACD_HIST_UP`/`MACD_HIST_DOWN` and the `MACD_HEAD_MASK` read both lived in
+    // that IIFE and both now exist only in `nativeRegistry` — one switch, one
+    // reader, which is what "one switch, both lanes" turns into when there is
+    // only one lane left.
+
+    // ── ATR sub-pane: FLIPPED (B5 Task 5) ────────────────────────────────────
+    //
+    // ⚠️ AND IT IS NOT A SECOND STOCHASTIC, WHICH IS WHY THE TWO MIGRATED
+    // TOGETHER RATHER THAN SEPARATELY. ATR's band is AUTOSCALED — the legacy
+    // create branch passed `{autoScale: true}` where every 0-100 oscillator
+    // passes `{autoScale: false, minimum: 0, maximum: 100}` — so it is the first
+    // definition whose `placement` declares NO `scale` at all, and
+    // `engine_atr_vs_legacy` is the first parity case on this branch to render an
+    // autoscaled engine band. Its band is also SHORTER (`pane.height` 0.13 vs
+    // 0.15, i.e. `{top: 0.87}` vs `{top: 0.85}`), it draws no guides, and its
+    // chip carries the period in brackets where Stochastic's two carry none.
+
+    // ── Parabolic SAR: FLIPPED (B5 Task 6) ───────────────────────────────────
+    //
+    // Drawn by the ENGINE, from the instance list, at the sync call above.
+    // `sarSeriesRef`, the `indicatorData.sar` branch and the hide-all entry are
+    // deleted with the block — that deletion IS Flip B.
+    //
+    // ⚠️ IT IS THE FIRST `markers` PLOT THE BINDER HAS EVER CREATED, and that is
+    // not a spelling difference. `poolKey('markers') === 'line'` — a `markers`
+    // plot IS a LineSeries with `lineWidth: 0` and point markers on, which is
+    // what this block built by hand — so the POOL can re-purpose SAR's series as
+    // any other line, and `pool.js`'s header records the measured leak that
+    // follows: `sar → rsi` left `pointMarkersVisible: true` behind, i.e. an RSI
+    // line with a dot on every bar. The complete-key-set rule closes it, and
+    // `sarIchimokuFlipParity.test.js` asserts it on that exact pair.
+    //
+    // ⚠️ AND IT IS A PRICE OVERLAY ON THE CANDLES' SHARED SCALE, so
+    // `autoscaleInfoProvider: () => null` — B3 Task 1's seam, measured at 38,491
+    // changed pixels when a price overlay was allowed to drive the main scale —
+    // is carried by `placement.target: 'price'` rather than by this call.
+
+    // ── Ichimoku Cloud: FLIPPED (B5 Task 6) ──────────────────────────────────
+    //
+    // All FIVE lines are drawn by the ENGINE, from ONE instance, at the sync call
+    // above. The five `useRef`s, the `indicatorData.ichimoku` branch and the five
+    // hide-all entries are deleted with the block.
+    //
+    // ⚠️ THREE PRESERVED QUIRKS CAME ACROSS UNTOUCHED, and `indicators.js`
+    // records all three deliberately: spanA and spanB are NOT forward-displaced
+    // (every other product draws the cloud 26 bars ahead of price), and chikou IS
+    // back-shifted 26 bars, so the last 26 slots of that column are the NaN pad.
+    // TRANSCRIBED, NOT CORRECTED — correcting any of them is a measured,
+    // owner-facing decision of the shape the MACD head-mask (88 px) and the VWAP
+    // session anchor (2,590 px) got, never something a migration does in passing.
+    //
+    // ⚠️ AND THE THREE PERIODS ARE LIVE NOW. This block called
+    // `computeIchimoku(filteredBars)` with NO arguments, so `tenkanPeriod`,
+    // `kijunPeriod` and `senkouBPeriod` were declared by the definition, absent
+    // from `CHART_DEFAULTS.indicators.ichimoku`, and the only greyed controls in
+    // the whole app (`indicatorCatalog.unwiredKeys`). `computeIchimoku` DOES
+    // honour its three arguments and the engine passes the instance's, whose
+    // defaults are the same 9/26/52 the no-argument call fell back to — so they
+    // become working controls at zero pixels.
+    //
+    // ⭐ ONE NAMED BEHAVIOUR CHANGE, AND IT IS THE ONLY ONE: TK and KJ now print
+    // on the DEVELOPING bar. This block registered them with a series and NO
+    // thunk, so on the newest bar — the one the bars-push writer appends before
+    // the indicator series has a point — the two chips printed nothing. The
+    // engine lane's `lastValue` is a number, so they print, which is the same gap
+    // B3 closed for RSI (review finding I-3) and which every other chip already
+    // had. No pixel case can see it; `legendFromDefinitions.test.jsx` asserts it
+    // in the DOM, with the control that it really is the developing bar.
+
+    // ⭐ FLIP B, B5 TASK 7 — MFI, CCI AND WILLIAMS %R ARE GONE FROM HERE.
+    //
+    // Three single-line pane oscillators, migrated and flipped in one commit
+    // (with `engineEnabled` deleted at Task 4, a migrated-but-un-flipped
+    // definition is drawn by NOTHING). Each was one `addSeries` plus a handful
+    // of `createPriceLine` guides; all three are drawn by the ENGINE now, from
+    // the instance list, at the sync call above. The three `useRef`s, the three
+    // `indicatorData` branches and the three hide-all entries went with them.
+    //
+    // ⚠️ THE GUIDES WERE THE WHOLE JOB. The series halves are a repeat of ATR's;
+    // what is not a repeat is that an omitted SERIES option means "keep what's
+    // there" while an omitted `createPriceLine` option means LWC's OWN DEFAULT
+    // — which for `lineStyle` is Dashed. That asymmetry cost 379 changed pixels
+    // on RSI's 50-midline at B3, and this task carried SEVEN guides in THREE
+    // shapes across it: MFI's 80/20 dashed pair, CCI's ±100 dashed bands with a
+    // LARGE-dashed zero line (the only definition in the registry with two
+    // guide styles), and Williams %R's −20/−80 on a NEGATIVE scale.
+    //
+    // ⚠️ ONE MEASURED DIFFERENCE, AND IT IS ORDER ONLY: this block created CCI's
+    // three lines as `100, 0, -100`; the engine walks plots in declaration order
+    // and each plot's levels in array order, so it creates them as `100, -100,
+    // 0`. Three horizontal lines at three distinct prices never overlap, so
+    // insertion order is invisible in the picture — stated here and asserted in
+    // `mfiCciWilliamsFlipParity.test.js` rather than left to be re-discovered.
+    //
+    // ⚠️ AND WILLIAMS %R'S SCALE IS `-100..0`, WHOSE `max` IS ZERO. The engine
+    // picks the pinned branch on `Number.isFinite(min) && Number.isFinite(max)`
+    // (`placement.js`); a truthiness guard would send BOTH williamsR (max 0) and
+    // mfi (min 0) down the `autoScale: true` branch and lose the `autoScale:
+    // false` that freezes a pooled scale against re-invalidation.
+
+    // ⭐⭐ FLIP B, B5 TASK 8 — ADX, OBV AND DONCHIAN ARE GONE FROM HERE, AND SO
+    // IS THE LANE. There is not one hand-written indicator render block left in
+    // this file: all fourteen series-expressible definitions are drawn by the
+    // ENGINE, from the instance list, at the sync call above. Four ledger rows
+    // retire together because they were ONE mechanism — the `useRef`s, the
+    // `indicatorData` memo, these blocks, and the hide-all array.
+    //
+    // ⚠️ THREE DIFFERENT SHAPES, AND EACH NEEDED SOMETHING A SYMMETRY ARGUMENT
+    // WOULD HAVE MISSED:
+    //
+    //   · `adx` — THREE lines on ONE named scale, plus a single guide at 25 on
+    //     the ADX line (not on +DI). Its `fixedPane(0, 100)` has a **min of
+    //     ZERO**, which is FALSY: `resolvePlacement` reaches the pinned branch on
+    //     `Number.isFinite`, and a `scale.min && scale.max` guard would send it to
+    //     `autoScale: true` and lose the `autoScale: false` that freezes a pooled
+    //     scale (TRAP #2). Williams %R sprang the same trap from the `max` end at
+    //     Task 7. ⚠️ The binder asserts a price scale per BINDING, so ADX's three
+    //     lines make THREE identical `priceScale().applyOptions` calls where this
+    //     block made one — a call count, not a picture, because all three carry
+    //     `priceScaleId: 'adx'` and therefore share one scale object.
+    //   · `obv` — the only definition with NO period input at all, and the only
+    //     one whose values run to 1e8, so it is the case that actually exercises
+    //     the autoscale seam on a REAL scale (B3 Task 1 measured `exclude` on an
+    //     autoscaled band collapsing it to -0.5..0.5, moving a price of 30 from
+    //     y=371 to y=-1640.78). ⭐ AND ITS ZERO SEED IS PRESERVED: `computeOBV`
+    //     starts bar 0 at `0` where every other native NaN-pads its head, so OBV
+    //     is the one series here with no whitespace at all. TRANSCRIBED, NOT
+    //     CORRECTED — correcting it is a measured, owner-facing decision of the
+    //     shape the MACD head-mask (88 px) and the VWAP anchor (2,590 px) got.
+    //   · `donchian` — the LAST price overlay, which is why it lands last: LWC
+    //     z-stacks by insertion and the engine draws its whole set contiguously
+    //     where BB's block used to be, so migrating it ahead of `sar`/`ichimoku`
+    //     would have put it UNDER two overlays it sits on top of today.
+    //     ⛔⭐ AND ITS MIDDLE LINE IS `LargeDashed`, WHICH THE DEFINITION DID NOT
+    //     SAY. This block built its three with `style: 0, 3, 0`; `donchian.middle`
+    //     carried no `lineStyle` behind a comment calling LineStyle 3
+    //     "unnameable" — true before `largeDashed` joined `PLOT_LINE_STYLES`,
+    //     false after. `pool.seriesOptionsForPlot` resolves an absent plot style
+    //     to SOLID (complete key set), so the engine would have drawn the mid-line
+    //     solid. No series count and no scale assertion could see it; the
+    //     definition names it now and `adxObvDonchianFlipParity.test.js` asserts
+    //     it. This block also passed NO `priceScaleId` and no pane argument, so
+    //     LWC defaulted both; `placement.js` resolves `price` to
+    //     `MAIN_PRICE_SCALE_ID` explicitly — the same answer, and the explicit
+    //     form is what stops a pooled band stranding on somebody else's scale.
+    // ── Symbol comparison overlay ──
+    if (comparisonData.length) {
+      if (!compareSeriesRef.current) {
+        compareSeriesRef.current = chart.addSeries(LineSeries, {
+          priceScaleId: 'compare',
+          color: '#fb923c',
+          lineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          crosshairMarkerVisible: true,
+          crosshairMarkerRadius: 4,
+        })
+        chart.priceScale('compare').applyOptions({
+          scaleMargins: { top: 0.1, bottom: 0.1 },
+          borderVisible: false,
+          visible: false,  // hide the right-axis label — value shown in legend instead
+        })
+      }
+      _applyData(compareSeriesRef.current, comparisonData)
+    } else if (compareSeriesRef.current) {
+      try { chart.removeSeries(compareSeriesRef.current) } catch {}
+      compareSeriesRef.current = null
+    }
+
+    // ── Price lines — remove old, add new (only when array reference changes) ──
+    if (lastPriceLinesRef.current !== allPriceLines) {
+      lastPriceLinesRef.current = allPriceLines
+      for (const pl of priceLineRefs.current) {
+        try { candleSeriesRef.current.removePriceLine(pl) } catch {}
+      }
+      priceLineRefs.current = []
+      if (allPriceLines?.length && candleSeriesRef.current) {
+        for (const pl of allPriceLines) {
+          const ref = candleSeriesRef.current.createPriceLine({
+            price: pl.price,
+            color: pl.color || cs.textColor,
+            lineWidth: pl.lineWidth || 1,
+            lineStyle: pl.lineStyle ?? 2,
+            axisLabelVisible: pl.axisLabelVisible ?? true,
+            lineVisible: pl.lineVisible ?? true,   // session ext tag = chip only (no line)
+            title: pl.title || '',
+            // An axis tag drawn in its own chip colours, only when the line asks (the Study trade levels' dark chips,
+            // tradeMarks.tradeLevelLines); every other line keeps the library's colour-filled tag.
+            ...(pl.axisLabelColor ? { axisLabelColor: pl.axisLabelColor } : {}),
+            ...(pl.axisLabelTextColor ? { axisLabelTextColor: pl.axisLabelTextColor } : {}),
+          })
+          priceLineRefs.current.push(ref)
+        }
+      }
+    }
+
+    // ── Swing high/low price labels (custom v5 series primitive, above series) ──
+    if (candleSeriesRef.current) {
+      if (!swingCtrlRef.current) swingCtrlRef.current = createSwingLabelsPrimitive({})
+      if (!swingAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(swingCtrlRef.current.primitive)
+          swingAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      const sl = cs.swingLabels || {}
+      swingCtrlRef.current.setOptions({
+        enabled: swingLabelsOn,   // D/W/M-gated (see swingLabelsOn) — never on intraday
+        color: sl.color || '#d4d0c4',
+        tintByType: !!sl.tintByType,
+        upColor: sl.upColor || '#4ade80',
+        downColor: sl.downColor || '#f87171',
+        // The label's background box. showBg toggles it; a user-set color wins,
+        // unset matches the canvas so it reads as a clean plate over candles.
+        showBg: sl.bgEnabled !== false,
+        bg: sl.bg || cs.background,
+      })
+      swingCtrlRef.current.setPoints(swingPoints)
+    }
+
+    // ── Dark-pool level zones (custom v5 series primitive, behind the series) ──
+    // Attached to the CANDLE series, not the volume series: the band edges are
+    // placed with priceToCoordinate, which maps against the series' own scale —
+    // on the volume series these prices would map against the VOLUME scale.
+    if (candleSeriesRef.current) {
+      if (!zonesCtlRef.current) zonesCtlRef.current = createLevelZonesPrimitive({})
+      if (!zonesAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(zonesCtlRef.current.primitive)
+          zonesAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      // setZones forces a primitive redraw and this block runs on EVERY
+      // updateChart, so re-setting an identical list pays for a repaint that
+      // draws the same pixels — the lastShadeBandsRef guard, one primitive over.
+      // `dpZones` is the single channel for data AND visibility: the hook nulls
+      // its SWR key when the toggle is off or the viewer is unpaid, so "off" is
+      // already `[]` (the primitive's own off switch) with a stable identity.
+      if (lastDpZonesRef.current !== dpZones) {
+        lastDpZonesRef.current = dpZones
+        zonesCtlRef.current.setZones(dpZones)
+      }
+    }
+
+    // ── Previous-day High / Low / Close lines (custom v5 series primitive) ──
+    // INTRADAY only: each line anchors at the candle that made that level and
+    // extends to the current candle (redrawn every frame → grows as bars form).
+    // Off (empty draw-list) on D/W/M or when all three are disabled.
+    if (candleSeriesRef.current) {
+      if (!pdlCtlRef.current) pdlCtlRef.current = createPrevDayLevelsPrimitive()
+      if (!pdlAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(pdlCtlRef.current.primitive)
+          pdlAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      const pdl = cs.prevDayLevels
+      const pdlIntraday = ['1', '5', '15', '30', '60'].includes(resolvedTf)
+      const pdlOn = pdlIntraday && pdl && (pdl.high?.enabled || pdl.low?.enabled || pdl.close?.enabled)
+      if (pdlOn) {
+        const lv = computePrevDayLevels(__heavy.committed._big.ohlcData)
+        pdlCtlRef.current.setLines(buildPrevDayLines(lv, pdl), lv?.endTime)
+      } else {
+        pdlCtlRef.current.setLines([], null)
+      }
+    }
+
+    // ── Session breaks + Pre-market high & low (Chart Settings, owner 11-15; sessionMarks.js) ──
+    // INTRADAY only (any minute timeframe — parseTf, not a hand-typed list). Both default OFF (absent key), so a chart
+    // that never set them draws exactly what it drew before. Computed from the LOADED bars (`_big.ohlcData`, ET chart
+    // times): no pre-market bars loaded (extended hours off) → no PM lines, no error.
+    {
+      const _smIntraday = parseTf(resolvedTf).minutes != null
+      if (!sessionBreaksRef.current) sessionBreaksRef.current = createSessionBreaksPrimitive()
+      if (!sessionBreaksAttachedRef.current) {
+        try {
+          ;(candleSeriesRef.current?.getPane?.() || chart.panes()[0]).attachPrimitive(sessionBreaksRef.current.primitive)
+          sessionBreaksAttachedRef.current = true
+        } catch { /* older pane API — primitive optional */ }
+      }
+      const _sbOn = _smIntraday && sessionBreaksOf(cs)
+      sessionBreaksRef.current.set(
+        _sbOn ? sessionBreakTimes(__heavy.committed._big.ohlcData) : [],
+        sessionBreakColor(themeColors.textColor || cs.textColor, themeColors.borderColor),
+      )
+      const _pmSeries = candleSeriesRef.current
+      if (_pmSeries) {
+        const _pmColor = themeColors.textColor || cs.textColor || '#93939a'
+        const _pmLines = (_smIntraday && preMarketLevelsOf(cs)) ? preMarketPriceLines(preMarketRange(__heavy.committed._big.ohlcData), _pmColor) : []
+        const _pmKey = _pmLines.map((l) => `${l.price}|${l.color}`).join(',')
+        if (_pmKey !== pmLinesKeyRef.current) {
+          for (const pl of pmLineRefs.current) { try { _pmSeries.removePriceLine(pl) } catch { /* series gone */ } }
+          pmLineRefs.current = []
+          for (const o of _pmLines) {
+            try { pmLineRefs.current.push(_pmSeries.createPriceLine(o)) } catch { /* series gone */ }
+          }
+          pmLinesKeyRef.current = _pmKey
+        }
+      }
+    }
+    // ── Price alerts (Chart Settings → Markers → Your activity; priceAlertLines.js) ── re-applied here so a chart-type
+    // swap or a recreated chart (a new candle series) gets its alert lines back; alert changes apply in their own effect.
+    syncAlertPriceLines(alertLinesRef.current, candleSeriesRef.current, alertLineOptsRef.current)
+
+    // ── The markers and the next-earnings / E / S / D / IPO badges: `_drawMeta` (above; the same code the between-
+    // render redraw runs when a metadata answer lands). Same place in the pass, same guards.
+    _drawMetaRef.current(_metaNowRef.current(), _freshChart, false)
+
+    // ⭐ EVERY FRAME THIS PASS SETS GOES THROUGH _setFrame (W-R 2026-11-11). It remembers the
+    // INTENDED range, and the restate below re-applies THAT as an offset from the newest bar.
+    // ⛔ Never a read-back: lightweight-charts applies setVisibleLogicalRange against its axis
+    // as it stands at the next paint, and mid symbol switch reading the range back in the same
+    // pass returns it shifted by the new series' extra tail (real browser, SOFI→NVDA: asked for
+    // the newest bar 4.05 bars from the edge, read back 15.95 PAST it — and the restate then
+    // cemented that until the next timeframe switch). Rail:
+    // tools/intraday_symswitch_framing_harness.py (real lightweight-charts, painted frames).
+    let _framedRange = null
+    const _newestOf = () => candleSeriesRef.current?.data?.()?.length || __heavy.committed.filteredBars.length
+    // The framing arms compute in CANDLE-index space (filteredBars / the candle series), but
+    // scrollToPosition is LOGICAL: an offset from the axis' base, which a compare/overlay
+    // series moves (interior times; a compare bar newer than the candle's newest). Convert
+    // ONCE here: the newest real candle `a` sits at logical timeToIndex(its time); the base
+    // is read off the time scale (visible to − rightOffset). null → fall back (no answer).
+    const _logicalOffsetOf = (ts, r) => {
+      const d = candleSeriesRef.current?.data?.() || []
+      let a = d.length - 1
+      while (a >= 0 && isWhitespacePoint(d[a])) a--
+      if (a < 0) return null
+      const la = ts.timeToIndex?.(d[a].time, false)
+      const cur = ts.getVisibleLogicalRange()
+      const rightOffset = ts.scrollPosition?.()
+      if (typeof la !== 'number' || !Number.isFinite(la) || !cur || typeof rightOffset !== 'number' || !Number.isFinite(rightOffset)) return null
+      const base = cur.to - rightOffset
+      return (r.to - a + la) - base
+    }
+    const _setFrame = (r) => { chart.timeScale().setVisibleLogicalRange(r); _framedRange = r }
+    // View handling on initial load / timeframe change / ticker switch.
+    // (NOT on SWR refetches — those keep zoomKey stable so the user never loses position.)
+    //
+    // LOCK BEHAVIOR (always on): when ONLY the ticker changes (same timeframe), we carry
+    // the user's current view to the next chart instead of snapping back to a default fit:
+    //   • Horizontal: re-anchor the visible logical range to the right edge so the same
+    //     "scrolled-back distance + zoom width" lines up even when the two tickers have
+    //     different history lengths.
+    //   • Vertical: auto-fit the new ticker into the candle band defined by chartOpts'
+    //     scaleMargins. When the user has dragged the candles to a custom spot, that band
+    //     was captured above (vertMarginsRef), so the new stock lands in the same
+    //     PROPORTIONAL position — scaled to its own price range, never showing the old
+    //     stock's absolute prices. Double-click the axis won't clear it; use the
+    //     "Auto-scale" context-menu item to reset to default headroom.
+    // Fold the replay cutoff in so entering/leaving replay (or changing the cutoff) counts
+    // as a "fresh load" → routes through the default-zoom path so the chart re-frames to the
+    // default window with the cutoff bar as the newest visible candle.
+    // (`zoomKey` is hoisted to the top of this pass — `_pinOwnsMargins` needs it.)
+    // Capture the outgoing view BEFORE deciding. setData() preserves the logical
+    // range NUMERICALLY, so this reflects where the user was — on the previous
+    // ticker (sym switch) or right now (same-ticker data-phase swap / backfill).
+    let oldRange = null
+    try { oldRange = chart.timeScale().getVisibleLogicalRange() } catch {}
+    const oldBarCount = lastBarCountRef.current
+    if (zoomKeyRef.current !== zoomKey) {
+      const isFirstLoad = zoomKeyRef.current === null
+      const tfChanged = lastTfRef.current !== null && lastTfRef.current !== resolvedTf
+
+      zoomKeyRef.current = zoomKey
+      lastTfRef.current = resolvedTf
+      // A fresh symbol/timeframe re-frames — drop any manual price-scale pin so the
+      // new chart auto-fits its own range instead of inheriting the old vertical.
+      priceManualRef.current = false
+      priceManualRangeRef.current = null
+      // Exiting replay (or a TF change) clears the replay view lock so the next frame
+      // uses the normal default; a plain ticker switch WITHIN replay keeps it locked.
+      if (!replayCutoff || tfChanged) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
+      const _replayLocked = replayCutoff && replayViewLockedRef.current
+      // Horizontal view lock is applicable only when its captured timeframe matches
+      // the current one (`width` is in logical BARS — a daily 232-bar window means
+      // nothing on a weekly chart). A legacy lock with no tf tag applies on any tf.
+      const _hLockActive = !!(userViewLockedRef.current && userLockedViewRef.current
+        && userLockedViewRef.current.anchorFrac != null && userLockedViewRef.current.width > 0
+        && (userLockedViewRef.current.tf == null || userLockedViewRef.current.tf === resolvedTf))
+      // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety net that a
+      // user pan on the PREVIOUS symbol had latched off — EXCEPT under the replay lock,
+      // where keeping it latched is exactly what stops the settling/pinned-right guards
+      // from snapping the locked view back to present on the next data commit.
+      if (!_replayLocked) userViewMovedRef.current = false
+      framingViewRef.current = false
+      // A timeframe switch must PRESERVE the viewport: keep the last candle at the
+      // exact same screen position AND the same zoom width, then just swap in the new
+      // tf's bars — no reset to the tf default, no leftward snap ("just flip the
+      // timeframe"). Capture the outgoing anchor + width now; the guard below re-asserts
+      // it on every settling commit until the bar count stops changing.
+      if (tfChanged) {
+        // Preserve the zoom WIDTH from the outgoing view; the newest candle is re-pinned
+        // to the fixed right anchor (LAST_CANDLE_POS) below. Do NOT derive the anchor from
+        // oldRange + oldBarCount: after setData() with the new tf's bars, getVisibleLogicalRange
+        // is clamped to the NEW data extent while oldBarCount is the OLD tf's count, so that
+        // ratio is garbage when the two tfs have different bar counts — it snapped the chart
+        // to the middle (SMH 1H bug).
+        const _w = oldRange ? (oldRange.to - oldRange.from) : null
+        pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
+      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange && !_replayLocked) {
+        if (_hLockActive) {
+          // Horizontal lock owns the frame across phases (via the anchorFrac branch).
+          // CLEAR any stale settling guard so it can't re-pin newest-at-right over it.
+          pendingTfReframeRef.current = null
+        } else {
+          // SYMBOL switch on a "newest always at right" surface (Charts workspace). The
+          // new ticker's bars arrive in PHASES (IDB cache → network → older-history
+          // backfill), each a separate updateChart commit with a DIFFERENT bar count.
+          // Hold the outgoing zoom width and let the settling-guard re-assert
+          // newest-at-LAST_CANDLE_POS on EVERY commit until the bar count settles.
+          const _w = oldRange ? (oldRange.to - oldRange.from) : null
+          pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
+        }
+      }
+
+      // Vertical: always auto-fit the new ticker into the current candle band. chartOpts
+      // already applied that band's scaleMargins (= the captured proportional placement,
+      // or the default headroom), so autoScale fills it with THIS stock's own range.
+      try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch {}
+
+      let didPreserve = false
+      // !anchorOwnsFrame(): a SYMBOL switch under a live anchor (the Desk follow-along
+      // pane walks `sym` with anchorDate held constant) must re-anchor on the NEW
+      // ticker's bars, not inherit the previous ticker's relative position. Falling
+      // through leaves didPreserve false so the anchor branch below gets the frame.
+      if (!anchorOwnsFrame() && !isFirstLoad && !tfChanged && !entryDate && oldRange && oldBarCount > 0) {
+        const newBarCount = __heavy.committed.filteredBars.length
+        const width = oldRange.to - oldRange.from
+        // Symbol switch: keep the user's ZOOM LEVEL (width), but choose the anchor.
+        // keepPresentOnSymbolChange (Charts workspace) always pins the newest candle to
+        // the right so a newly-typed ticker loads at PRESENT DAY — never inheriting a
+        // scrolled-back (past) position from the prior symbol. Otherwise preserve the
+        // prior bars-from-right (flip tickers at the exact same historical view).
+        let to, from
+        // REPLAY view lock: once the user has moved the view in replay, keep the EXACT
+        // right-relative view (same distance from the cutoff + same zoom) on every ticker,
+        // overriding keepPresent's snap-to-present — until "Reset view" / exit replay. Use
+        // the params CAPTURED at pan/zoom time (replayLockedViewRef) — oldRange here is
+        // already clamped to the new ticker's extent, which loses the deep scroll-back.
+        if (_replayLocked && replayLockedViewRef.current) {
+          to = newBarCount - replayLockedViewRef.current.barsFromRight
+          from = to - replayLockedViewRef.current.width
+        } else if (_hLockActive) {
+          // NORMAL horizontal lock (workspace): place the NEWEST bar at the same
+          // SCREEN FRACTION the user left it — drift-proof (a fraction, not a bar
+          // count), so deep-history backfill never shifts it. Cleared by "Reset view".
+          const _w = userLockedViewRef.current.width
+          from = (newBarCount - 1) - userLockedViewRef.current.anchorFrac * _w
+          to = from + _w
+          // BACK-IN-TIME GUARD: anchorFrac > 1 means the stored view had the newest
+          // candle scrolled OFF the right edge (equivalently to < lastIdx). Restoring
+          // that on a ticker switch lands THIS ticker on old bars with the latest
+          // price off-screen, and autoScale then fits the old price band → a black
+          // chart "sent back in time on every search" (the 8/19 RTH incident, exposed
+          // once instant paint stopped forcing a view-resetting refetch). Only in-range
+          // locks (0 ≤ anchorFrac ≤ 1, newest stays visible) are legitimate to carry;
+          // otherwise re-anchor to the latest-bars default.
+          if (to < (newBarCount - 1) - 0.5) {
+            const _def = computeDefaultLogicalRange(
+              newBarCount, resolvedTf,
+              { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf) }
+            )
+            from = _def.from; to = _def.to
+          }
+        } else if (keepPresentOnSymbolChange) {
+          // Reserve the developing intraday bucket's slot so the frame doesn't shift when the
+          // fresh fetch's newer buckets land (see _intradayLoadReserve). 0 off-gate / on daily.
+          ;({ from, to } = pinNewestRange(newBarCount - 1, width, plotWidthOf(chart, containerRef.current), _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf)))
+        } else if (paintedGeomRef.current) {
+          // Keep the OUTGOING frame's geometry: the newest bar's offset from the right edge
+          // and the zoom width, both MEASURED on the outgoing series before this pass touched
+          // it (see paintedGeomRef) — so "the same view, on the new ticker" holds exactly,
+          // scrolled back or at present. ⚰️ This used to be inferred from the POST-setData
+          // range against the stale old count (`rangeDescribesOldExtent`): LWC has already
+          // re-based that range on the new series, and whenever the two symbols' counts
+          // differed by less than its ±8-bar window the guess was wrong — the newest candle
+          // landed (newCount − oldCount) bars off (W-R invariant rail). The developing-slot
+          // reserve (D/W/M only) is re-applied for THIS series; it was subtracted at capture.
+          const _swRsv = _switchReserveEnabled() ? _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf) : 0
+          to = (newBarCount - 1) + paintedGeomRef.current.ro + _swRsv
+          from = to - paintedGeomRef.current.width
+        }
+        if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
+          try {
+            _setFrame({ from, to })
+            didPreserve = true
+          } catch {}
+        }
+      }
+
+      if (!didPreserve) {
+        // Holding-period zoom: when entryDate is supplied (e.g. TradeDrawer),
+        // center the view on the trade window with 20-bar padding each side.
+        if (entryDate && exactDateRange && __heavy.committed.filteredBars.length > 0) {
+          // Exact window: first bar >= entryDate .. last bar <= exitDate, no padding.
+          // Used by Model Book to show exactly one calendar year's move.
+          let startIdx = __heavy.committed.filteredBars.findIndex(b => b.t >= entryDate)
+          let endIdx = __heavy.committed.filteredBars.length - 1
+          if (exitDate) {
+            for (let i = __heavy.committed.filteredBars.length - 1; i >= 0; i--) {
+              if (__heavy.committed.filteredBars[i].t <= exitDate) { endIdx = i; break }
+            }
+          }
+          // Reused-ticker guard (see the exact-range pin below): if the selected
+          // year has no bars in the loaded series (it fell in a delisting gap),
+          // show the most recent ~year instead of anchoring to the oldest
+          // (delisted-era) bar. Without this, findIndex<0 → startIdx 0 streamed
+          // 2016/2008-era data onto a recent-year view.
+          const yearHasData = startIdx >= 0 && endIdx >= startIdx
+            && (!exitDate || __heavy.committed.filteredBars[startIdx].t <= exitDate)
+          if (!yearHasData) { endIdx = __heavy.committed.filteredBars.length - 1; startIdx = Math.max(0, endIdx - 251) }
+          // Frame start predates the first bar (e.g. before an IPO): pad with
+          // blank space on the left instead of clamping to bar 0.
+          let fromIdx = startIdx
+          if (yearHasData && startIdx === 0) {
+            fromIdx = -leadingBlankBars(_dateToMs(entryDate), _dateToMs(__heavy.committed.filteredBars[0].t), resolvedTf)
+          }
+          const _padR = frameRightPadFrac > 0 ? Math.round((endIdx - fromIdx) * frameRightPadFrac) : 0
+          _setFrame({ from: fromIdx, to: endIdx + _padR })
+        } else if (entryDate && __heavy.committed.filteredBars.length > 0) {
+          const entryIdx = __heavy.committed.filteredBars.findIndex(b => b.t >= entryDate)
+          const exitIdx  = exitDate
+            ? __heavy.committed.filteredBars.findIndex(b => b.t >= exitDate)
+            : -1
+          const fromBar = Math.max(0, (entryIdx >= 0 ? entryIdx : 0) - 20)
+          const toBar   = (exitIdx >= 0 ? exitIdx : __heavy.committed.filteredBars.length - 1) + 28
+          _setFrame({ from: fromBar, to: toBar })
+        } else if (anchorOwnsFrame() && applyAnchorFrame(chart)) {
+          // Anchored+reveal handled — nothing else to frame.
+        } else {
+          const _pt = pendingTfReframeRef.current
+          if (tfChanged && _pt && _pt.width > 0) {
+            // TF switch: keep the same zoom WIDTH and pin the newest candle to the fixed
+            // right anchor, so the chart doesn't move — only the timeframe flips.
+            const lastIdx = __heavy.committed.filteredBars.length - 1
+            const { from, to } = pinNewestRange(lastIdx, _pt.width, plotWidthOf(chart, containerRef.current), _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf))
+            _setFrame({ from, to })
+          } else if (_hLockActive) {
+            // A persisted horizontal lock restored on refresh (first load): open at
+            // the user's exact position — newest bar at its saved screen fraction.
+            const _w = userLockedViewRef.current.width
+            let _from = (__heavy.committed.filteredBars.length - 1) - userLockedViewRef.current.anchorFrac * _w
+            let _to = _from + _w
+            // Same back-in-time guard as the symbol-switch path (see there): a stored
+            // anchorFrac > 1 (newest off the right edge) would open a fresh load
+            // scrolled into the past with the latest price off-screen → black chart.
+            if (_to < (__heavy.committed.filteredBars.length - 1) - 0.5) {
+              const _def = computeDefaultLogicalRange(
+                __heavy.committed.filteredBars.length, resolvedTf,
+                { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf) }
+              )
+              _from = _def.from; _to = _def.to
+            }
+            if (Number.isFinite(_from) && Number.isFinite(_to)) { try { _setFrame({ from: _from, to: _to }) } catch { /* mid-load */ } }
+          } else {
+            // First load (no prior view): canonical default zoom — newest candle at
+            // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
+            // ⚠️ THE COLD-FIRST-PAINT ANCHOR. The served TAIL includes today, but a COLD
+            // first paint renders the STALE IDB/pack provisional first — which ends at the last
+            // SEALED period (yesterday) — so `filteredBars.length` frames yesterday-at-0.95, and
+            // when today's bar lands a commit later the frame slides ("today's candle opens on
+            // tomorrow, then snaps back"). rightReserve pins today's slot up front so it doesn't.
+            const { from: _from, to: _to } = computeDefaultLogicalRange(
+              __heavy.committed.filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf) }
+            )
+            _setFrame({ from: _from, to: _to })
+          }
+        }
+      }
+    } else if (!entryDate && !exactDateRange && _preUpdateRange && oldBarCount > 0
+               && oldBarCount !== __heavy.committed.filteredBars.length) {
+      // Anchored chart: a backfill prepends older bars, shifting the anchor's index —
+      // recompute the anchor frame from data instead of preserving relative position.
+      // The moment the user moves the view, userViewMovedRef latches and this stops.
+      if (anchorOwnsFrame() && applyAnchorFrame(chart)) { /* framed */ } else {
+      // SAME ticker/tf, but the bar COUNT changed since the last render — the
+      // IDB-cache → network full-fetch swap OR a viewport-first older-history
+      // backfill / dwell-warm (FIRST_PAINT→full, 600→12025). A backfill only
+      // PREPENDS older history — the newest bar is unchanged — so the user's view
+      // is invariant in "bars-from-right + width". Re-anchor to exactly that using
+      // the PRE-setData range (captured at updateChart top, before LWC could shift
+      // it), so a big depth jump keeps the user exactly where they were instead of
+      // snapping to the default window. (Model Book / entryDate have their own pins.)
+      const newBarCount = __heavy.committed.filteredBars.length
+      const pr = _preUpdateRange
+      const barsFromRight = oldBarCount - pr.to
+      const width = pr.to - pr.from
+      const to = newBarCount - barsFromRight
+      const from = to - width
+      const lastIdx = newBarCount - 1
+      // The bars-from-right remap ASSUMES a PREPEND (older history added at the
+      // front, newest bar unchanged) → the view is invariant in bars-from-right.
+      // A full no-`since` REPLACE refetch (more common since the intraday freshness
+      // gate was tightened) can instead return a DIFFERENT count with a SLID window,
+      // making `barsFromRight` stale and pushing the computed window ENTIRELY into
+      // the empty right-pad — the chart then shows only the price axis until "Reset
+      // view" (the pinned-right net below is disabled once the user has panned). So
+      // apply the remap ONLY when it lands on REAL bars (the last bar stays in view:
+      // to > 0 AND from < lastIdx). Otherwise the mapping is invalid → re-pin the
+      // newest candle at its default on-screen position (keeping the zoom width) so
+      // the view is NEVER left blank.
+      if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 0 && from < lastIdx) {
+        try { _setFrame({ from, to }) } catch {}
+      } else if (width > 0 && lastIdx > 0) {
+        const { from: from2, to: to2 } = pinNewestRange(lastIdx, width, plotWidthOf(chart, containerRef.current))
+        try { _setFrame({ from: from2, to: to2 }) } catch {}
+      }
+      }   // ← closes the `if (anchorOwnsFrame() …) {} else {` wrapper above
+    }
+
+    // ── Keep-the-newest-candle-pinned-right safety net (workspace live charts) ──
+    // After ALL the zoom branches above have run, if the user was viewing the
+    // latest bars and the newest candle has drifted off the right edge, snap it
+    // back. This is mechanism-agnostic: whatever repositioned the view (a
+    // background data-count change re-anchor, LWC's own setData behavior, a
+    // backfill, a resize settle), the end state is enforced — the view must not
+    // move on its own (user requirement). A deliberately scrolled-back view (last
+    // bar NOT near the right before this update) is left completely untouched.
+    if (!entryDate && !exactDateRange && oldRange && oldBarCount > 0 && __heavy.committed.filteredBars.length > 1) {
+      const preLastIdx = oldBarCount - 1
+      const prePad = oldRange.to - preLastIdx      // empty bars right of the last bar, BEFORE the update
+      const preWidth = oldRange.to - oldRange.from
+      if (anchorOwnsFrame() && applyAnchorFrame(chart)) {
+        // ANCHOR WINS over both settling guards, and this is the SINGLE place that
+        // enforces it against them. A TF flip / keepPresent symbol switch arms
+        // pendingTfReframeRef, whose arm below re-asserts NEWEST-at-right on every
+        // settling commit — the clobber that flickered an anchored chart back to
+        // present. Disarming at the ARMING SITE instead was tried and rejected: it
+        // cannot cover a ref armed BEFORE anchorDate became active (flip the timeframe,
+        // then open a moment), whereas this runs on every commit whatever armed it.
+        // Verified load-bearing: disable this and the TF-flip test reds.
+        pendingTfReframeRef.current = null
+      } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf && userViewMovedRef.current) {
+        // ⛔⛔ THE MEMBER MOVED THE VIEW SINCE THE SWITCH: THE SETTLING IS OVER FOR THE FRAME.
+        // Release WITHOUT re-asserting. `userViewMovedRef` is cleared by the switch itself (the
+        // zoomKey branch above), so here it can only mean a drag, a wheel, a Go-to-date or a
+        // synced chart's range AFTER the switch. ⚰️ (2026-11-17) The re-assert below ran first
+        // and the release check after it, so the first framing pass after a member's move put
+        // the outgoing frame back: drag a chart the moment it appears and the next late answer
+        // (its name and sector, its listing date) snapped it to newest-at-right. The rest gate
+        // (#1207) moved those answers past the first paint, which is how a negative control saw
+        // it (dailyFirstPaintAcceptance.test.jsx, NC-D and SETTLING).
+        pendingTfReframeRef.current = null
+      } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf) {
+        // Just switched INTO this timeframe: deterministically re-assert the PRESERVED
+        // viewport (same last-candle position + zoom width as the outgoing view) on every
+        // settling commit (the bars arrive in phases — IDB cache → network → backfill —
+        // each a separate commit). This keeps the chart from snapping during the load.
+        // Once the count stops changing, data has settled; release control so ordinary
+        // scroll/zoom is respected again.
+        // (the frame and its release: `settlingFrameOf` / `settlingDone`, the one derivation a metadata answer landing
+        // between renders re-asserts too, `settleOnMetaLanded`. Today's developing daily bar is in the served history,
+        // server-include in api/routers/bars.py, so on daily the loaded last bar IS today.)
+        const _pt = pendingTfReframeRef.current
+        const { from, to } = settlingFrameOf(_pt, { bars: __heavy.committed.filteredBars, tf: resolvedTf, plotWidthPx: plotWidthOf(chart, containerRef.current), dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride })
+        try { _setFrame({ from, to }) } catch { /* mid-load */ }
+        // The session preview candle is part of SETTLING, not a post-settle live bar.
+        // It lands ~1s after the RTH bars (separate per-symbol /api/bars?tf=5 fetch),
+        // so keying release on the RTH count alone released the guard one commit too
+        // early: the candle then appended with nothing re-asserting the range, and
+        // shiftVisibleRangeOnNewBar walked the whole view left by a bar — the "opens,
+        // then repositions once" jitter when flipping tickers in pre/post market.
+        // Holding the guard until the aggregate resolves keeps the RTH bars exactly
+        // put; the preview candle just appears in the right pad.
+        // HOLD the guard while the developing bar is still MISSING (reserve > 0). A cold first paint
+        // renders the stale provisional (ends at the last SEALED period); the developing bar appends
+        // a SEPARATE commit later — often AFTER the count already looked "settled" — and that append
+        // is where shiftVisibleRangeOnNewBar + the non-reserved pinned-right net slide the frame one
+        // bar ("today's candle opens on tomorrow, then snaps back"). Keeping the guard armed means
+        // THIS reserve-aware re-assert (above) runs on that commit and cancels the slide — `to` is
+        // invariant across the yesterday→today flip (idx(yesterday)+1 == idx(today)+0). A user pan
+        // ends the guard before this branch (the `userViewMovedRef` arm above, the one place that
+        // rule lives), so a deliberate scroll is never fought, and off-gate the reserve is 0 so the
+        // release timing is byte-identical to before.
+        if (settlingDone({ bars: __heavy.committed.filteredBars, tf: resolvedTf, oldBarCount, sessionCandleActive, sessionExtReady })) pendingTfReframeRef.current = null
+      } else {
+        // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
+        // Width-proportional floor (was a flat -1): LWC-side drift during a
+        // warm-cache commit storm can park the newest candle ~2 bars past the
+        // right edge (observed prePad -2.2 at width 90 on grid-cell remounts) —
+        // still "viewing the latest". Proportional so a tightly-zoomed intraday
+        // chart keeps the old -1 floor and a deliberate 2-bar nudge there is
+        // never snapped back; wide windows are additionally protected by the
+        // pos<0.85/pos>1.02 gate below, which a small nudge doesn't trip.
+        const _padFloor = Math.max(1, preWidth * 0.03)
+        const wasViewingLatest = preWidth > 0 && prePad >= -_padFloor && prePad <= Math.max(8, preWidth * 0.25)
+        // …but ONLY when the user hasn't deliberately moved the view. This net
+        // corrects DRIFT (LWC/data-commit side effects); a pan or zoom that walks
+        // the newest candle left is the user's intent, and re-pinning it made the
+        // chart snap back to the default window on the very next live commit —
+        // i.e. panning left was impossible. The latch clears on symbol/timeframe
+        // change and on an explicit "Reset view" (see userViewMovedRef).
+        // Horizontal lock active for THIS tf (see the same-named var in updateChart;
+        // this settling block is a separate closure, so recompute it locally).
+        const _hLockActive = !!(userViewLockedRef.current && userLockedViewRef.current
+          && userLockedViewRef.current.anchorFrac != null && userLockedViewRef.current.width > 0
+          && (userLockedViewRef.current.tf == null || userLockedViewRef.current.tf === resolvedTf))
+        if (wasViewingLatest && !userViewMovedRef.current && !_hLockActive) {
+          let fr = null
+          try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+          if (fr) {
+            const w = fr.to - fr.from
+            const lastIdx = __heavy.committed.filteredBars.length - 1
+            const pos = w > 0 ? (lastIdx - fr.from) / w : 1  // newest candle's 0..1 screen position
+            // Drifted: newest candle pushed left into the middle (pos < 0.85) or shoved
+            // off the right edge (pos > 1.02). Re-pin it to the standard load position.
+            if (w > 0 && (pos < 0.85 || pos > 1.02)) {
+              const { from: from2, to: to2 } = pinNewestRange(lastIdx, w, plotWidthOf(chart, containerRef.current))
+              try { _setFrame({ from: from2, to: to2 }) } catch { /* out of range mid-load */ }
+            }
+          }
+        }
+      }
+    }
+
+    // Replay view lock — re-assert the captured right-relative view on EVERY commit so a
+    // load PHASE that changes the bar count (IDB → network → backfill) can't shift it, and
+    // no other guard can snap it to present. Skipped while the user is actively dragging
+    // (pointer down), which would fight a live pan; the drag's own onUp re-captures.
+    if (replayCutoff && replayViewLockedRef.current && replayLockedViewRef.current
+        && !viewPointerRef.current && !entryDate && !exactDateRange && __heavy.committed.filteredBars.length > 1) {
+      const _lw = replayLockedViewRef.current.width
+      const _to = __heavy.committed.filteredBars.length - replayLockedViewRef.current.barsFromRight
+      const _from = _to - _lw
+      if (_lw > 0 && Number.isFinite(_from) && Number.isFinite(_to) && _to > 1 && _from < __heavy.committed.filteredBars.length) {
+        try { _setFrame({ from: _from, to: _to }) } catch { /* mid-load */ }
+      }
+    }
+
+    // ── NEVER-BLANK backstop (mechanism-agnostic) ──
+    // A blank chart — the visible logical range landing so far off the data that NO
+    // real candle is on screen (just the price axis) — is never intended, whatever
+    // produced it: a series-length REPLACE re-anchor near-miss, a same-count slid
+    // REPLACE with no re-anchor, or a far-ahead developing bar + shiftVisibleRange.
+    // Unlike the pinned-right net above, this fires EVEN after a user pan
+    // (userViewMovedRef), because it triggers ONLY when <0.5 of a real bar is
+    // visible — a legitimately scrolled-back or zoomed view always shows bars and is
+    // left untouched. Recovers what previously required a manual "Reset view".
+    if (!entryDate && !exactDateRange && __heavy.committed.filteredBars.length > 1) {
+      let fr = null
+      try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+      if (fr) {
+        const lastIdx2 = __heavy.committed.filteredBars.length - 1
+        const visibleReal = Math.min(fr.to, lastIdx2) - Math.max(fr.from, 0)
+        if (visibleReal < 0.5) {
+          const w = Math.max(1, fr.to - fr.from)
+          const { from: from2, to: to2 } = pinNewestRange(lastIdx2, w, plotWidthOf(chart, containerRef.current))
+          try { _setFrame({ from: from2, to: to2 }) } catch { /* mid-load */ }
+        }
+      }
+    }
+
+    // Model Book (exactDateRange): the year frame is DETERMINISTIC for this (stock,
+    // year), so re-apply it on EVERY data update — not only on the sym/tf switch
+    // handled above. The bars load in phases (IDB cache → network refetch), and a
+    // later phase with a different bar count would otherwise leave the prior logical
+    // range mapping to the wrong dates for one frame: the chart (and the ^IXIC pane
+    // that rides its time scale) glitches to a wrong spot and snaps back while
+    // scrolling fast. Applying it here, in the SAME effect as setData above, makes
+    // the new bars + correct year frame paint atomically — no transient. Skipped
+    // while a setup/catalyst focus zoom owns the view (focusActiveRef).
+    if (exactDateRange && entryDate && __heavy.committed.filteredBars.length > 0) {
+      if (focusActiveRef.current) {
+        // A setup-focus zoom owns the view. A background bars refetch (SWR network
+        // swap after the IDB cache) re-runs updateChart, and the setData() above
+        // perturbs the horizontal logical range. Without re-asserting the focus
+        // window here the chart snaps back to the default/year view (candles shift
+        // left, empty space on the right) WHILE the vertical stays pinned to the
+        // focus band via focusPriceRangeRef — the "glitches to the left" bug.
+        // Re-pin to the settled focus range; the year re-pin below is skipped.
+        const r = focusRangeRef.current
+        if (r) { try { _setFrame({ from: r.from, to: r.to }) } catch { /* out of range mid-load */ } }
+      } else if (exactPinSigRef.current
+                 && exactPinSigRef.current.startsWith(`${sym}_${resolvedTf}|`)
+                 && exactPinSigRef.current !== `${sym}_${resolvedTf}|${entryDate}|${exitDate}`) {
+        // The exact-range dates just changed on the SAME chart (Setup ⇄ Result
+        // flip). Don't snap to the new frame here — leave the view at the
+        // outgoing frame so the exact-range pin effect (which runs after this in
+        // the same commit) can start its animated glide FROM it. Snapping first
+        // would zero the animation's start range and kill the transition.
+      } else {
+        let _s = __heavy.committed.filteredBars.findIndex(b => b.t >= entryDate)
+        let _e = __heavy.committed.filteredBars.length - 1
+        if (exitDate) {
+          for (let i = __heavy.committed.filteredBars.length - 1; i >= 0; i--) {
+            if (__heavy.committed.filteredBars[i].t <= exitDate) { _e = i; break }
+          }
+        }
+        const _has = _s >= 0 && _e >= _s && (!exitDate || __heavy.committed.filteredBars[_s].t <= exitDate)
+        if (!_has) { _e = __heavy.committed.filteredBars.length - 1; _s = Math.max(0, _e - 251) }  // year fell in a delisting gap → recent ~year
+        // Frame start predates the first bar (before an IPO) → blank-space pad.
+        let _from = _s
+        if (_has && _s === 0) {
+          _from = -leadingBlankBars(_dateToMs(entryDate), _dateToMs(__heavy.committed.filteredBars[0].t), resolvedTf)
+        }
+        const _padR = frameRightPadFrac > 0 ? Math.round((_e - _from) * frameRightPadFrac) : 0
+        try { _setFrame({ from: _from, to: _e + _padR }) } catch { /* out of range mid-load */ }
+      }
+    }
+
+    // ⭐ RESTATE THIS PASS'S FRAME AS A DISTANCE FROM THE NEWEST BAR (2026-10-18).
+    // LWC keeps a view as an offset from the NEWEST index of its time axis, and it merges a
+    // new series' dates into that axis at its next render. On a symbol switch, the frame set
+    // above is therefore stored against the PREVIOUS symbol's axis: measured on production,
+    // CDNA (600 bars) -> AAPL (300) framed AAPL at [178,306], LWC stored it as 294 bars left
+    // of CDNA's newest, and after the merge AAPL showed its first bars; the deep-history merge
+    // then kept that, so the chart sat on Feb-Aug 2025 under a price reading Oct 2026.
+    // scrollToPosition sets the same right offset against the newest bar, which the pending
+    // merge cannot move. Only when the view moved during this pass; with no merge pending it
+    // is the offset LWC already holds, so it changes nothing.
+    try {
+      const _ts = chart?.timeScale()
+      const _r = _framedRange || _ts?.getVisibleLogicalRange()
+      // Against the range BEFORE this pass's setData: on a switch LWC already reports the
+      // re-based range after setData, so comparing with that would miss the very frame at fault.
+      const _base = _preUpdateRange || oldRange
+      if (_r && _base && (_r.from !== _base.from || _r.to !== _base.to)) {
+        const _off = _framedRange ? _logicalOffsetOf(_ts, _framedRange) : null
+        if (_off != null) _ts.scrollToPosition(_off, false)
+        else {
+          const _n = _newestOf()
+          if (_n > 0) _ts.scrollToPosition(_r.to - (_n - 1), false)
+        }
+      }
+    } catch { /* mid-load: the frame above stands */ }
+    // Track current bar count + bars so the next ticker switch can right-anchor the
+    // preserved view and measure the outgoing vertical placement.
+    lastBarCountRef.current = __heavy.committed.filteredBars.length
+    paintedRsvRef.current = _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf)
+    prevBarsRef.current = __heavy.committed.filteredBars
+    // ⛔ STAMPED WITH THIS CALLBACK'S OWN `sym`, NOT `symRef.current`. `filteredBars`
+    // and `sym` come from the same render, so this is the bars' true owner. The
+    // ref lags: on a switch the pre-paint layout effect below runs this before
+    // `symRef` is mirrored, which stamped B's bars as A — the readout then saw a
+    // mismatch and printed NOTHING (the A → blank → B legend flicker).
+    prevBarsSymRef.current = sym   // whose bars these are — see the ref's note
+    prevBarsTfRef.current = resolvedTf   // …and of which timeframe (the same render's own tf)
+    // Baseline for the next render plan — the bars this paint actually put on screen.
+    prevPaintBarsRef.current = __heavy.committed.displayBars
+    // ⚠️ `userDefsGeneration` IS A DEPENDENCY ON MODULE STATE, AND IT IS
+    // REDUNDANT TODAY. This body resolves every instance through
+    // `engineRegistry.getDefinition`, and a user's saved definition is installed
+    // asynchronously (SWR) after the first paint — so the version of that state
+    // belongs here. Task 16's gauntlet measured that removing it changes nothing
+    // (mutation M3 SURVIVED): something else in this list is already unstable per
+    // render. Kept as the one declaration that names this dependency; the full
+    // reasoning is at the `useInstalledUserDefinitions` call site above.
+    // ⭐ (2026-11-18) `data?.newest_bar_is_forming` is read into every run's context (the binder sync above), so it
+    // is named here: a flag that lands with the same bars re-syncs, and the binder's memo (keyed on it) recomputes.
+}
+
+// ─── ⭐⭐ THE IMPERATIVE SWITCH'S CHART-SIDE HELPERS (stage 3; chart/switchController.js is the other half) ────────
+//
+// Module-level on purpose: each is the ONE implementation of something a render and the switch controller both
+// do. The memo that used to hold the logic calls the function; the controller calls it for the next symbol.
+
+/** What `StockChartBody` hands every controller it makes. */
+const SWITCH_DEPS = { applyFrame, buildFrame }
+
+/** The settings a chart of `sym` reads (the non-ECON half of the `cs` memo, moved here verbatim). Returns
+ *  `csMerged` ITSELF when `sym` neither clamps the chart type nor brings product components: the test the
+ *  imperative switch makes of both symbols before it carries the settings across. */
+function settingsForSymbol(csMerged, sym) {
+  const fam = canonicalFamily(sym)
+  const _primaryProduct = canonicalProduct(sym)
+  // ⛔⛔ AN UNCLASSIFIED SYMBOL IS NOT CLAMPED, AND THIS IS THE OPPOSITE DIRECTION
+  // FROM THE CANDLE GATE ON PURPOSE.
+  //
+  // `canonicalFamily` withholds `security` until BOTH registries have answered —
+  // fail-closed, because offering candles over a survey is the dangerous error for
+  // an INDICATOR output. On the PRIMARY chart the dangerous error is the mirror
+  // image: clamping an ordinary equity to a line because a catalogue had not
+  // arrived yet. ⚰️ MEASURED: building a capability from `'unknown'` turned every
+  // chart into a line until the registries landed — four StockChart suites went red
+  // with "the chart never created a candle series", which is exactly what a member
+  // would have seen as a flash of line on every load.
+  //
+  // ⚠️ SO `null` MEANS "SAY NOTHING", and `primaryChartTypeFor` returns the member's
+  // own setting untouched. The clamp applies only once the registry has actually
+  // classified the symbol — and the `miReady` dependency above is what re-runs this
+  // the moment it does.
+  // ⚠️ A PRODUCT IS ASKED BEFORE THE FAMILY. It is absent from the SERIES index by
+  // design, so `canonicalFamily` would answer `'security'` for it — the one
+  // classification that grants candles. Resolving as a product is itself proof the
+  // registry has landed, so the `unknown` guard below does not apply to it.
+  const cap = _primaryProduct
+    ? canonicalSourceCapability(sym, false)
+    : fam === 'unknown'
+      ? null
+      // (2026-10-10) breadth + indicator series may draw every chart type (owner ruling;
+      // their bodies are close-to-close). Surveys / economic / products stay scalar.
+      : canonicalSourceCapability(sym, ['security', 'volatility', 'breadth', 'indicator'].includes(fam))
+  const ct = primaryChartTypeFor(csMerged.chartType, cap)
+  const typed = ct === csMerged.chartType ? csMerged : { ...csMerged, chartType: ct }
+  // ⭐⭐ A PRODUCT IDENTITY BRINGS ITS OTHER COMPONENTS WITH IT. The price slot
+  // already holds the product's PRIMARY component (`series.build_bars` serves it
+  // under the product's own ticker); these are the rest, as ordinary `dataSeries`
+  // overlays on the price pane — no new renderer, no multi-bars contract.
+  //
+  // ⛔ DERIVED, NEVER PERSISTED. They live only in the blob the renderer reads, so
+  // charting a product does not write to a member's `chart_settings` and switching
+  // away removes them with no cleanup. Same discipline as the clamp above.
+  return withPrimaryProduct(typed, _primaryProduct)
+}
+
+/** The legacy moving-average overlays over `sessionAppliedBars` (the `overlayData` memo's body). */
+function overlayDataOf(sessionAppliedBars, resolvedOverlays, adjustTime, overlaysFromStart) {
+  if (!sessionAppliedBars?.length || !resolvedOverlays?.length) return []
+  return resolvedOverlays.map(ov => {
+    const raw = ov.type === 'EMA'
+      ? computeEMA(sessionAppliedBars, ov.period, overlaysFromStart)
+      : computeSMA(sessionAppliedBars, ov.period, overlaysFromStart)
+    return { data: raw.map(p => ({ time: adjustTime(p.time), value: p.value })), color: ov.color }
+  })
+}
+
+/** The load-anchor tail of the candles (StockChart's `ohlcData` memo calls this over its own copy; the switch
+ *  controller calls it over the next symbol's, with a seed and a live-sanity it can prove are not needed). */
+export function ohlcLoadAnchorTail(arr, displayBars, o) {
+  const { econ, exactDateRange, entryDate, replayCutoff, resolvedTf, adjustTime, sym, dailySeed, repairToday, liveSane: _liveSane } = o
+  // Load-anchor whitespace seed (candle series ONLY — filteredBars is untouched, so the live
+  // writers / indicators / crosshair never see it). See _developingBarISO: on a cold first
+  // paint the stale provisional ends at the last SEALED period; today's real bar then appends
+  // a commit later and LWC's shiftVisibleRangeOnNewBar slides the view. Appending a whitespace
+  // at the developing period makes that real bar a REPLACEMENT (same time) → no LWC shift.
+  // Self-cancels once the last real bar IS the developing period (then _lastRaw !< _dev).
+  if (_intradayLoadAnchorEnabled() && !econ && !exactDateRange && !entryDate && !replayCutoff && arr.length && displayBars.length) {
+    const _dev = _developingBarISO(resolvedTf)
+    const _lastRaw = displayBars[displayBars.length - 1]?.t
+    // ── DAILY: seed EXACTLY the slots the framing reserve holds ─────────────
+    // `_dailyReserveDates` is the same list `_intradayLoadReserve` counts, so the
+    // seed and the frame cannot disagree — the off-by-(reserve − seeded) that
+    // translated the chart is now unrepresentable. The FRONTIER slot gets the real
+    // current-session bar when one is available locally; earlier slots stay
+    // whitespace (their bars exist only on the server, which is exactly why the
+    // paint authority refuses to show such a set in the first place — reaching here
+    // with more than one slot means an unexpected right-edge arrival, and holding
+    // bounded whitespace for it is strictly better than translating the frame).
+    if (resolvedTf === 'D' && typeof _lastRaw === 'string') {
+      const _slots = _dailyReserveDates(_lastRaw)
+      if (_slots.length) {
+        const _seed = dailySeed()
+        const _frontier = _slots[_slots.length - 1]
+        for (const _iso of _slots) {
+          arr.push((_iso === _frontier && _seed && _seed.t === _iso)
+            ? { time: adjustTime(_iso), open: _seed.o, high: _seed.h, low: _seed.l, close: _seed.c }
+            : { time: adjustTime(_iso) })
+        }
+      } else {
+        // ── STALE-TODAY REPAIR, IN PLACE ────────────────────────────────────
+        // The set already reaches today, so the GEOMETRY is final — but the bar
+        // itself can be hours old (a cache written at 10:05, painted at 14:00),
+        // and /api/bars' own copy is only as fresh as the store row behind it.
+        // Replacing the values at the SAME date moves nothing and removes the
+        // "body right, wick corrects a beat later" flash.
+        //
+        // ⛔ NOT FABRICATION, AND NOT EXTRAPOLATION. Close is the live price — the
+        // one genuinely real-time field UCT has. High/low come from the provider's
+        // own `day` aggregate, the same object every other door serves; reconciling
+        // the two observations with max/min is valid because a session high never
+        // falls and a session low never rises. Nothing is invented, and no value
+        // moves except toward a later observation of the same quantity.
+        const _seed = repairToday ? dailySeed() : null
+        const _i = arr.length - 1
+        const _cur = arr[_i]
+        if (_seed && _cur && _cur.time === adjustTime(_seed.t) && _cur.open !== undefined) {
+          arr[_i] = {
+            ..._cur,
+            high: Math.max(_cur.high, _seed.h),
+            low: Math.min(_cur.low, _seed.l),
+            close: _seed.c,
+          }
+        }
+      }
+    } else if (_dev && typeof _lastRaw === 'string' && _lastRaw < _dev) {
+      // ── WEEKLY / MONTHLY ONLY (daily is handled above) ────────────────────
+      // ⛔ UNCHANGED ON PURPOSE. A week/month period start is not "n sessions
+      // back", so the daily session walk is the wrong instrument here; W/M keep
+      // the single-slot rule until their own period semantics are designed. The
+      // today-PACK arm that used to live here was daily-only and is now
+      // unreachable from this branch, so it is gone rather than left as dead code
+      // that reads like a live path.
+      let _pt = null
+      if (_seedLiveEnabled()) {
+        try {
+          const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
+          const _px = _snap ? _effLivePrice(_snap) : null
+          // ⛔ REGULAR SESSION ONLY. Outside 09:30-16:00 ET `_effLivePrice` returns the
+          // EXTENDED-hours price, but the period candle is settled at the 4pm close.
+          if (_px && !_snap.ext_session && _liveSane(sym, _px)) {
+            const _o = (_snap.day_open && _snap.day_open > 0) ? _snap.day_open : _px
+            const _h = Math.max((_snap.day_high && _snap.day_high > 0) ? _snap.day_high : _px, _px)
+            const _l = Math.min((_snap.day_low && _snap.day_low > 0) ? _snap.day_low : _px, _px)
+            _pt = { time: adjustTime(_dev), open: _o, high: _h, low: _l, close: _px }
+          }
+        } catch { /* fall back to whitespace */ }
+      }
+      arr.push(_pt || { time: adjustTime(_dev) })
+    }
+  }
+  return arr
+}
+
+/** The bar store's base snapshot of `sym` on this chart's key, or null when the store does not hold it. */
+function switchSnapshotFor(sym, tf, showExtended) {
+  if (!BARSTORE) return null
+  const key = chartKeyFor({ sym, resolvedTf: tf, showExtended, replayCutoff: null, hasOverride: false })
+  if (!key) return null
+  const store = getBarStore()
+  return store.registry.has(key) ? store.getBaseSnapshot(key) : null
+}
+
+/**
+ * The candles of a built frame (chart/switchFrame.js) with the memo's own tail: `{ok, ohlcData, kind}`.
+ * ⛔ NEVER APPROXIMATED. Today's seed and the W/M live point ask the symbol's live-price sanity (`_liveSane`), which
+ * is the symbol's own hook state. The real resolvers run here with a probe in its place: when a resolver reaches
+ * for it, the answer depended on that state, and the switch is refused (`tail`). When it does not, the resolver
+ * returned what it returns for the render too. ⛔ And the points appended must be the framing's reserve
+ * (`_intradayLoadReserve`), or the chart would translate: a disagreement is a refusal as well.
+ */
+export function switchTailFor(built, sym, snapshot, resolvedTf, adjustTime) {
+  const arr = built.ohlcBase.slice()
+  const n0 = arr.length
+  let asked = false
+  const liveSane = () => { asked = true; return false }
+  const dailySeed = () => resolveDailyTodaySeed({ sym, resolvedTf, _developingBarISO, _effLivePrice, _liveSane: liveSane })
+  ohlcLoadAnchorTail(arr, built.displayBars, {
+    econ: false, exactDateRange: false, entryDate: null, replayCutoff: null, resolvedTf, adjustTime, sym,
+    dailySeed, repairToday: resolvedTf === 'D' && !!snapshot && !snapshot.restSeen, liveSane,
+  })
+  if (asked) return { ok: false }
+  // ⛔ A DAILY COPY THE SERVER HAS NOT ANSWERED IN THIS PAGE'S LIFE is painted only when the chart's own authority
+  // says so (useBarSnapshotBars `_dailyLocalRefused`: a copy cached while today's bar was forming, or one whose
+  // last bar is not plausible, is NOT drawn; the chart waits for the server). The same two questions, with no
+  // seed: a seed would have asked the live-price sanity above, and that already refused.
+  if (resolvedTf === 'D' && snapshot && !snapshot.restSeen) {
+    const all = built.bars
+    const savedAt = getBarStore().persist?.savedAtOf?.(snapshot.key) ?? null
+    if (dailyCachePaintVerdict(all[all.length - 1]?.t, savedAt, { hasSeed: false }) !== 'ok' || lastDailyBarInsane(all)) {
+      return { ok: false, why: 'daily-local' }
+    }
+  }
+  const appended = arr.length - n0
+  if (appended !== _intradayLoadReserve(built.filteredBars, resolvedTf)) return { ok: false }
+  return { ok: true, ohlcData: arr, kind: appended ? 'whitespace' : 'none' }
+}
+
+const SWITCH_NO_MARKERS = Object.freeze([])
+const SWITCH_NO_IPO = Object.freeze({ list_date: null })
+/** What SWR holds under `key` right now, or undefined (read outside a render; nothing is fetched). */
+function switchPeek(key) {
+  if (!key) return undefined
+  try { const hit = swrCache.get(key); return hit ? hit.data : undefined } catch { return undefined }
+}
+
+/**
+ * The metadata view of a symbol the chart has not rendered: what `ChartMetaFeed`'s hooks would be handed for it
+ * on their first render (SWR's cache; for the ticker meta also its stored copy, the hook's own first-paint
+ * fallback), through `chartMetaDrawView`, the function a render uses. Nothing is fetched.
+ *
+ * Per layer, what the paint of a new symbol shows:
+ *   • watermark name / sector / industry: DRAWN when the app holds the ticker meta (cache or stored copy);
+ *   • earnings / split / dividend badges, the next-earnings mark, news and desk markers: DRAWN when the feed is
+ *     on and its answer for the symbol is in the cache; otherwise empty, as on a render before the answer lands;
+ *   • the IPO badge: DRAWN when the listing date is in the cache;
+ *   • the member's own markers (journal, my trades, flow) and a host's `markers` prop: EMPTY. Only a render of
+ *     the symbol holds them (hook state, host props); a render before they land shows none either;
+ *   • a curated watermark name (a host prop for one symbol): not carried.
+ * @param {object} cfg   the feed's config (`metaStore.getConfig()`: which answers the chart asks for at all)
+ * @param {boolean} live the feed's own `live` (false in study mode: it asks for nothing)
+ * @param {object} inp   the chart's metadata inputs of its last render (settings; the symbol's own are replaced)
+ */
+function switchMetaFor(sym, built, cfg, live, inp) {
+  const on = live && !!sym
+  const meta = {
+    tickerMeta: on ? (switchPeek(tickerMetaKey(sym)) || chartStoredTickerMeta(sym) || null) : null,
+    ipoInfo: on ? (switchPeek(tickerIpoKey(sym)) || SWITCH_NO_IPO) : SWITCH_NO_IPO,
+    markersData: on && cfg.markers ? switchPeek(markersKeyOf(sym)) : undefined,
+    newsData: on && cfg.news ? switchPeek(newsKeyOf(sym)) : undefined,
+    deskData: on && cfg.desk ? switchPeek(deskKeyOf(sym)) : undefined,
+    nextEarningsHint: null,
+  }
+  return chartMetaDrawView(createChartMetaView(), meta, {
+    ...inp,
+    filteredBars: built.filteredBars,
+    markers: null, j2Markers: null, flowMarkers: SWITCH_NO_MARKERS,
+    watermarkName: null, watermarkSector: null, watermarkIndustry: null,
+  })
 }

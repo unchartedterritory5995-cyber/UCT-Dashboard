@@ -233,8 +233,20 @@ const NO_DECISION = () => null
  * @param group        the linked group's key (handoffGroups.chartGroupKey), or null
  * @param scope        the board whose setGroupSym DECIDES (its groupSymsStore), or null: a chart with a scope is a
  *                     member of the key handler's decision; without one it takes the round alone (today's path)
+ * @param painter      a ref the host also hands its chart (`switchPort`), or null. While the imperative switch is
+ *                     on, the chart puts its switch controller there; the key handler's decision then SHOWS a
+ *                     symbol by asking it to paint (`apply`). The round never paints (see `show` below). Empty (the
+ *                     switch off, or the controller refusing that symbol) is today's path. ⛔ This hook imports
+ *                     nothing of the controller: the ref is the whole bridge (docs/charts/imperative-switch-design.md
+ *                     §3.4).
+ *                     ⭐ The hook writes one field back on that ref object each render, `painter.bodySym`: the
+ *                     symbol to render the chart BODY with. It is the returned symbol except for the frame or
+ *                     two after the controller painted: the host's own chrome takes the new symbol at once, in
+ *                     the task of the paint (the label and the candles change in one frame), while the body is
+ *                     still rendered with the symbol it showed, so its heavy render runs after the paint.
+ * @returns the symbol the host shows (its header, its badge, its focus)
  */
-export default function useSymbolHandoff(requestedSym, tf, { enabled = true, showExtended, group = null, settle = null, scope = null } = {}) {
+export default function useSymbolHandoff(requestedSym, tf, { enabled = true, showExtended, group = null, settle = null, scope = null, painter = null } = {}) {
   // Seed with the request so a FIRST mount never lags — there is no previous
   // chart to protect, and lagging here would be a blank chart on page load.
   const [displayedSym, setDisplayedSym] = useState(requestedSym)
@@ -248,13 +260,75 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   const memberIdRef = useRef(0)
   if (!memberIdRef.current) memberIdRef.current = ++_memberIds
   const scoped = !!(scope && group && enabled)
+  // ⭐ THE IMPERATIVE SWITCH (2026-11-21). `bodyHold`: while this chart's controller has painted a symbol the chart
+  // body has not been rendered with yet, the symbol the body KEEPS being rendered with (the one it showed at the
+  // paint). null at every other time, and always while `painter` holds no controller: then `chartSym` IS
+  // `displayedSym`, today's path.
+  //   • the paint sets the hold (a paint over a hold keeps it: the body never renders a symbol that was replaced);
+  //   • a task after the next frame releases it, and the body is rendered with whatever is displayed THEN, so a
+  //     newer switch is never overwritten by an older one's commit;
+  //   • a symbol shown through React (the decision in render, the round) releases it in that same update, so a
+  //     group shown through React still renders its bodies in one task.
+  const [bodyHold, setBodyHold] = useState(null)
+  const chartSym = bodyHold != null ? bodyHold : displayedSym
+  const bodyRef = useRef(chartSym)
+  bodyRef.current = chartSym
+  const shownRef = useRef(displayedSym)
+  shownRef.current = displayedSym
+  const paintSeqRef = useRef(0)
+  // the hold as of the last render (a release reports only a hold it freed: review round 2, L3)
+  const holdRef = useRef(bodyHold)
+  holdRef.current = bodyHold
+  // ⛔ THE CONTROLLER IS TOLD WHAT THE HOST SHOWS: in the key handler's decision (the same task as the label's
+  // render), in the layout phase of the commit that carries a label (the round's shows: see the round-join layout
+  // effect below), and at each release. If the host is back on the symbol the body is still rendered with while
+  // another one is painted, the body will not render (its prop does not change): the controller then ends its
+  // switch and puts that symbol's own frame back (`reconcile`). Without this the canvas kept the painted symbol
+  // under the old one's label. ⛔ Never earlier than the commit of that label (review round 2, H2): the replay
+  // writes the canvas, and a label rendered in a later task can be a presented frame behind it.
+  const tellRef = useRef(null)
+  if (!tellRef.current) {
+    tellRef.current = (sym) => {
+      const p = painter && painter.current
+      if (p && typeof p.reconcile === 'function') { try { p.reconcile(sym) } catch { /* the next pass paints */ } }
+    }
+  }
+  const paintRef = useRef(null)
+  if (!paintRef.current) {
+    /** Ask the chart's controller to paint `sym` (`token`: what its `canApply` built in this task, if any).
+     *  true: painted, the body is held and released after the paint. false: the caller shows it through React. */
+    paintRef.current = (sym, token = null) => {
+      const p = painter && painter.current
+      if (!p || typeof p.apply !== 'function') return false
+      let r
+      try { r = p.apply(sym, token) } catch { r = false }
+      if (r !== 'applied') return false
+      const from = bodyRef.current
+      setBodyHold((h) => (h != null ? h : from))
+      // ⛔ ONE RELEASE PER HOLD, THE NEWEST PAINT'S: an older paint's release must not let the body render before
+      // the newest paint is on screen (a held key).
+      const seq = ++paintSeqRef.current
+      const release = () => setTimeout(() => {
+        if (paintSeqRef.current !== seq) return
+        const freed = holdRef.current != null   // a React show may have cleared it already: nothing to count then
+        setBodyHold(null)
+        const now = painter && painter.current
+        if (freed && now && typeof now.noteReleased === 'function') { try { now.noteReleased() } catch { /* a counter */ } }
+        tellRef.current(shownRef.current)
+      }, 0)
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(release)
+      else release()
+      return true
+    }
+  }
 
   // ⭐⭐ ONE SYNCHRONOUS PASS FROM THE KEYDOWN (2026-11-21). The board's setGroupSym asks every member of the group
   // whether it can show the symbol in this task (canShowNow); when every one can, the decision is published in the
   // same batch as the symbol and each chart ADOPTS it here, in the render the symbol arrives in: React re-runs this
   // component at once (a render-phase update of its own state, nothing is committed between), so the group's
   // charts take the symbol in ONE synchronous render and ONE commit. No passive effect, no poll, no round, no
-  // second render. A member whose own switch path painted it ('applied': the imperative switch) does not adopt.
+  // second render. A member whose own controller painted it ('applied': the imperative switch) takes it here too:
+  // this is the HOST's symbol (its header changes with the candles); only its chart BODY waits (`bodyHold`).
   // ⛔ Only a decision made for THIS request (its symbol, a fresh one: handoffGroups.DECISION_TTL_MS) and one this
   // chart was asked for. ⛔⛔ ALL OR NOTHING: no condition here may differ between the group's charts, or one of
   // them takes the symbol and its sibling does not, which is the mixed frame this exists to prevent. A timeframe
@@ -263,8 +337,10 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   const decision = useSyncExternalStore(scoped ? subscribeDecisions : NO_SUBSCRIPTION, scoped ? () => decisionFor(scope, group) : NO_DECISION)
   const memberId = memberIdRef.current
   if (decision && scoped && requestedSym && tf && requestedSym !== displayedSym && decision.sym === requestedSym
-      && memberId in decision.tfs && !decision.applied[memberId]) {
+      && memberId in decision.tfs) {
     setDisplayedSym(requestedSym)
+    // shown through React (not painted by this chart's controller): the body is rendered with it in this render
+    if (!decision.applied[memberId] && bodyHold != null) setBodyHold(null)
   }
   // the member's view, for canShowNow: written each commit, read by the key handler (never during a render)
   const viewRef = useRef({ tf, showExtended })
@@ -278,10 +354,22 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     return registerMember(scope, group, memberIdRef.current, {
       tf: () => viewRef.current.tf,
       prime: (sym) => primeRef.current(sym),
-      canShowNow: (sym, settleNow) => canShowNowFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), settleRef.current, settleNow),
-      showDecided: (sym) => {
+      // ⭐ an imperative member also asks its controller whether the symbol's frame builds whole; its answer is
+      // the token `showDecided` paints from. A controller that refuses changes nothing: this member shows the
+      // symbol through React in the same task, so the group still lands in one frame.
+      canShowNow: (sym, settleNow) => {
+        if (!canShowNowFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), settleRef.current, settleNow)) return false
+        const p = painter && painter.current
+        let paint = null
+        if (p && typeof p.canApply === 'function') { try { paint = p.canApply(sym) } catch { paint = null } }
+        return paint ? { paint } : true
+      },
+      showDecided: (sym, _decision, token) => {
         lastOutcomeRef.current = null   // the synchronous warm path, as the effect's same-tick commit records it
         noteDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), null)
+        if (token && token.paint && paintRef.current(sym, token.paint)) return 'applied'
+        tellRef.current(sym)   // shown through React in this task: the controller hears which symbol
+        return undefined
       },
     })
   }, [scoped, scope, group])
@@ -289,6 +377,10 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   // ⭐⭐ ONE FRAME FOR THE GROUP, WHEN THE DECISION SAID NO: join the round for the requested symbol in the LAYOUT
   // phase (see GROUP_SYNC_MS), so every sibling of this commit is a member before any of them can be ready.
   useLayoutEffect(() => {
+    // (imperative switch; review round 2, H2) the controller hears what the host shows HERE, in the commit that
+    // carries the label: a way back by the round replays the canvas in the label's own commit, one frame. With no
+    // controller in the port this is nothing. (Not a hook of its own: the switch-off path keeps master's hooks.)
+    tellRef.current(displayedSym)
     if (!group || !enabled || !requestedSym || !tf || requestedSym === displayedSym) return undefined
     const id = memberIdRef.current
     groupJoin(group, requestedSym, id)
@@ -316,7 +408,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     // Disabled / nothing requested: pass straight through, same tick. The
     // synchronous setState is the bypass working correctly, not a cascade.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!enabled || !requestedSym || !tf) { setDisplayedSym(requestedSym); return undefined }
+    if (!enabled || !requestedSym || !tf) { setDisplayedSym(requestedSym); setBodyHold(null); return undefined }
     if (requestedSym === displayedSym) return undefined
 
     // ⭐ (2026-11-20, the trace) THE SETTLE IS DECIDED HERE, IN THE SAME PASS (it was useSymbolSettle, a layout
@@ -344,7 +436,19 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     function run() {
       const gen = ++genRef.current
       // the chart is ready: it is SHOWN with its group (groupReady), or alone when it has none
-      const show = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
+      // ⛔⛔ (imperative switch; review round 2, H2) THE ROUND NEVER PAINTS. It runs from a timer, a promise or a
+      // passive effect, and from there React renders `setDisplayedSym` (the host's label) and every React-path
+      // sibling in a LATER task than this one: a paint here would write the canvas a task, and possibly a presented
+      // frame, before the label and the siblings. So every member takes the symbol through React, in one commit,
+      // as on master; only the key handler's decision paints (its React work is synchronous in the same task). The
+      // controller counts the switch (`round`), so the share on the new path stays honest.
+      const show = () => {
+        if (genRef.current !== gen) return
+        const p = painter && painter.current
+        if (p && typeof p.noteRound === 'function') { try { p.noteRound(requestedSym) } catch { /* a counter */ } }
+        setBodyHold(null)
+        setDisplayedSym(requestedSym)
+      }
       const commitNow = () => { if (genRef.current === gen) groupReady(group, requestedSym, memberIdRef.current, show, String(tf)) }
       // ⭐ ONE PAINT, PANES INCLUDED (2026-11-17): every path below commits through here, and B is
       // shown only once the server columns its panes draw have landed (serverCompute.columnsReadyFor),
@@ -504,6 +608,8 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     }
   }, [requestedSym, tf, enabled, displayedSym, showExtended, group, scope, scoped])
 
+  // what the host renders its chart body with (read by the host in this same render; see `painter` above)
+  if (painter) painter.bodySym = chartSym
   return displayedSym
 }
 

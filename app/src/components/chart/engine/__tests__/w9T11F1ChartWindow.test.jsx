@@ -524,8 +524,12 @@ describe('W9-T11-F1 StockChart hands the binder the window from the hook', () =>
     expect(count(/historyWindowBars:/g)).toBe(1)
     expect(SRC.indexOf('historyWindowPending: strategyWindowPending,')).toBeGreaterThan(sync)
     // the sync effect's dependency list carries it, so a window that lands re-syncs the binder
-    // (the first effect close after the ctx line is the sync effect's: it also lists `historyFromListing`)
-    const deps = SRC.slice(line).match(/\n {2}\}, \[([^\]]*)\]\)/)
+    // (the sync pass is `applyFrame`, a module-level function since the imperative switch's stage 1, so the ctx
+    // line is no longer inside the callback; the list is `updateChart`'s own, the first close after its
+    // declaration: it also lists `historyFromListing`)
+    const decl = SRC.indexOf('const updateChart = useCallback(')
+    expect(decl).toBeGreaterThan(-1)
+    const deps = SRC.slice(decl).match(/\n {2}\}, \[([^\]]*)\]\)/)
     const names = deps ? deps[1].split(',').map((x) => x.trim()) : []
     expect(names).toContain('historyFromListing')
     expect(names).toContain('strategyHistoryWindow')

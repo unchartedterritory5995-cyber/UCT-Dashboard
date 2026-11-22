@@ -54,7 +54,7 @@ import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
 import useMarketIndicators from '../../../hooks/useMarketIndicators'
-import { pairQuoteView, pairSourceLine, useCryptoPair, useCryptoQuote } from '../../../lib/cryptoPairs'
+import { pairQuoteView, pairSourceLine, useCryptoPair, useCryptoQuote, pairCandidate } from '../../../lib/cryptoPairs'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import { useChartTickerMeta as useTickerMeta, useChartDelisted as useDelisted } from '../restedReaders'
 import { chordById, matchesChord } from '../../../pages/command/chords.js'
@@ -79,6 +79,8 @@ import { resolveShowExtended } from '../../../utils/viewSession'
 const TICKER_KEY_RE = /^[A-Za-z.]$/
 
 const DWM = ['D', 'W', 'M']
+/** A chart that is not delisted gets no delisted props (spread as nothing). */
+const NO_DELISTED_PROPS = Object.freeze({})
 
 /** What can change a header row's width WITHOUT asking for a layout: its text, how many elements it holds and their
  *  classes (an abbreviated label, a shed button, a bolded active timeframe). The fit checks below read layout
@@ -171,6 +173,10 @@ function ChartPane({
   chartId = null,
   chartsTheme = null,
   stockChartProps = null,
+  // (imperative switch) the symbol to render the chart BODY with, when the host holds it a frame behind `sym`
+  // (ChartWidget, while the chart's switch controller has painted `sym` and React has not rendered the body yet).
+  // null: the body is rendered with `sym`, as every other host does.
+  chartSym = null,
   slots = null,
   onActivate = undefined,
   showTfBar = true,
@@ -303,6 +309,37 @@ function ChartPane({
   // the WRONG company), and the identity row shows a "Delisted <date>" badge. null = live.
   const delistedInfo = useDelisted((synthDailyOnly || exhibit || isPair) ? null : sym)
   const isDelisted = !!delistedInfo
+  // ⭐ (imperative switch, stage 3) DOES THIS PANE HAND ITS CHART THE SAME PROPS FOR `s` AS FOR ANY ORDINARY
+  // TICKER? StockChart's switch controller asks before it paints a symbol without a render: everything this pane
+  // decides per symbol above (a breadth or indicator series, a theme index, a pair, an ECON id, an exhibit) is a
+  // prop the chart would otherwise carry over from the previous symbol. A delisted ticker is ordinary here (its
+  // props are the watermark's name lines, which the controller clears, and `liveUpdates`).
+  // ⛔ ONE STABLE FUNCTION (the latest rule is read through a ref): a new identity per render would re-render the
+  // memoised chart on every pane render.
+  const hostPlainRef = useRef(null)
+  hostPlainRef.current = (s) => {
+    const t = typeof s === 'string' ? s.trim() : ''
+    if (!t || exhibit || isEconomicId(t) || t.startsWith('$') || t.startsWith('^') || pairCandidate(t)) return false
+    return !breadth.get(t) && !marketIndicators.get(t)
+  }
+  const switchHostPlain = useCallback((s) => hostPlainRef.current(s), [])
+  // The delisted props the CHART is handed (frozen live paths, the curated watermark name and sector). ⛔ (imperative
+  // switch) They are the chart BODY's symbol's: while its switch controller holds the body on the old symbol
+  // (`chartSym` is not `sym`), the ones it was rendered with are kept, so the held body neither renders in the key's
+  // task (a changed prop re-renders the memoised chart) nor takes the new symbol's name. With the switch off
+  // `chartSym` is `sym` (or not passed), and these are exactly the props this pane always handed it.
+  const delistedProps = (!themeIdx.isIndex && isDelisted) ? {
+    // DELISTED (never a theme index): freeze live updates + curated watermark
+    // name/sector so a reused symbol's live meta can't mislabel the dead company.
+    liveUpdates: false,
+    watermarkName: delistedInfo.name || undefined,
+    watermarkSector: delistedInfo.sector || undefined,
+    watermarkIndustry: delistedInfo.industry || undefined,
+  } : NO_DELISTED_PROPS
+  const bodyHeld = !!chartSym && chartSym !== sym
+  const bodyDelistedRef = useRef(delistedProps)
+  if (!bodyHeld) bodyDelistedRef.current = delistedProps
+  const chartDelistedProps = bodyHeld ? bodyDelistedRef.current : delistedProps
   const companyName = (isPair && pair.name) || (isDelisted && delistedInfo.name) || meta?.name || sym
   const indexLabel = themeIdx.isIndex
     ? (themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
@@ -1359,7 +1396,7 @@ function ChartPane({
         onKeyDown={handleChartKeyDown}
       >
         <StableStockChart
-          sym={sym}
+          sym={chartSym || sym}
           nextEarningsHint={nextEarningsHintDate}
           headerCustomStats={shownCustomStats}
           onHeaderCustomStats={shownCustomStats ? onHeaderCustomStats : null}
@@ -1418,14 +1455,7 @@ function ChartPane({
             watermark: econSym,
             watermarkName: econName && econName !== econSym ? econName : undefined,
           } : {})}
-          {...(!themeIdx.isIndex && isDelisted ? {
-            // DELISTED (never a theme index): freeze live updates + curated watermark
-            // name/sector so a reused symbol's live meta can't mislabel the dead company.
-            liveUpdates: false,
-            watermarkName: delistedInfo.name || undefined,
-            watermarkSector: delistedInfo.sector || undefined,
-            watermarkIndustry: delistedInfo.industry || undefined,
-          } : {})}
+          {...chartDelistedProps}
           /* Per-surface settings isolation: this surface's own full settings
              blob (null = inherit the global default). onSettingsPersist routes
              ALL of StockChart's internal settings writes to the same sink the
@@ -1491,6 +1521,7 @@ function ChartPane({
           showRangeSelector
           onVolumePaneResize={handleVolPaneResize}
           sessionView={sessionView}
+          switchHostPlain={switchHostPlain}
           {...(stockChartProps || {})}
           /* AFTER the host spread on purpose (the last prop wins): record the
              visible time-range for journal capture, CHAINING any host-supplied

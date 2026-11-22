@@ -18,7 +18,7 @@
 // would stop nothing (the name and sector are read by the pane AND by the chart; the
 // leveraged family by the widget AND by its control).
 import { useRestGate } from '../../lib/symbolPace'
-import useTickerMeta from '../../hooks/useTickerMeta'
+import useTickerMeta, { storedTickerMeta } from '../../hooks/useTickerMeta'
 import { tickerMetaKey } from '../../hooks/tickerMetaKey'
 import useTickerIpo from '../../hooks/useTickerIpo'
 import { tickerIpoKey } from '../../hooks/tickerIpoKey'
@@ -37,6 +37,11 @@ import { snapshotBatchKey } from '../../hooks/watchlistMetaKey'
 import useVolumeCurve from '../../hooks/useVolumeCurve'
 import { volumeCurveKey } from '../../hooks/volumeCurveKey'
 import useWatchlistFacts, { watchlistFactsKey } from '../../hooks/useWatchlistFacts'
+
+/** The stored copy of a symbol's ticker meta, or null: a READ of what this browser already holds (the hook's own
+ *  first-paint fallback). Nothing is fetched and nothing is subscribed, so there is no gate to rest behind; it is
+ *  here so the chart still reaches the ticker-meta module only through this file (symbolPace.readers census). */
+export const chartStoredTickerMeta = (sym) => storedTickerMeta(sym)
 
 /** Name, sector, industry, theme, exchange (`useTickerMeta`). */
 export function useChartTickerMeta(sym) {

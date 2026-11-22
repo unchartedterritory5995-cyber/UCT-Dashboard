@@ -169,8 +169,10 @@ describe('C41 — the hook is wired into StockChart once, and reaches the binder
 
   it('its result is handed to `binder.sync` and is a dependency of the paint', () => {
     expect(SRC).toMatch(/exchangeOf: otherSymbolExchangeOf,\s*lowerTf: lowerTfSources,/)
-    // every other mention is the declaration, the hand-off and ONE dependency list
-    expect((SRC.match(/\blowerTfSources\b/g) || [])).toHaveLength(3)
+    // every other mention is the declaration, the hand-off and ONE dependency list; and, since the pass moved
+    // into the module-level `applyFrame(ctx, frame)` (imperative switch, stage 1), the frame `updateChart` builds
+    // and the list `applyFrame` takes it apart with (StockChart.applyFrameShape.test.js holds those two equal)
+    expect((SRC.match(/\blowerTfSources\b/g) || [])).toHaveLength(5)
     expect(SRC).toMatch(/otherSymbolExchangeOf, lowerTfSources, csView, secondarySources/)
   })
 })
