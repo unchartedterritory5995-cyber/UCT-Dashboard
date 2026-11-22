@@ -9,7 +9,7 @@ Rails (each mutation-proved, `docs/pine/evidence/2026-11-13-capability-admission
   A1 a non-conformant row admits          A2 an unknown capability admits
   A3 an env variable adds a capability    A4 the kill list is ignored
   A5 a bad JSON admits                    A7 an object family admits without v2-run evidence
-  A8 phantom evidence                     A9 a server lane admits by capability
+  A8 phantom evidence                     A9 a server lane admits what the pane does not (track 6)
   A10 a row added or changed on evidence graded at an older engine (2026-11-18)
 (A6, the detector under-declaring, is `tests/test_pine_capabilities.py`.)
 And: with the variable OFF (the default) every answer is the one before Part 2.
@@ -1600,19 +1600,132 @@ def test_A10_C7_the_snapshot_writer_stamps_the_engine_from_its_one_authority():
     assert "scriptEngineVersion: SCRIPT_ENGINE_VERSION," in block, "the writer no longer stamps the engine"
 
 
-# ═══ A9 — the server lanes stay per-script ═════════════════════════════════════
+# ═══ A9 — the server lanes admit EXACTLY what the pane serves (track 6, 2026-11-22) ═══
+# Owner ruling 2026-11-22 ("Any TradingView pine script able to be converted by anyone") and
+# coordinator ruling D3 supersede ruling Q8's "only allowlisted documents": a server lane admits a
+# script on the graded list OR one capability admission admits, under the committed,
+# evidence-backed registry. Unchanged: NEVER the operator variable `PINE_RUNTIME_ALLOWLIST`; the
+# kill list first on every lane; a pending detector refuses by name. A script using a capability
+# admitted for closed-bar history only (G6) runs only on a lane that evaluates CLOSED bars.
+# Rewritten, not deleted: the A9 mutant is now "a server lane admits what the pane does not".
 
-def test_A9_a_server_lane_never_admits_by_capability(monkeypatch, on):
+ALL_LANES = ("alert", "sweep", "on-demand", "backtest", "record")
+
+
+def _server_armed(monkeypatch):
     monkeypatch.setenv(rt.STAGE_ENV, "all")
     monkeypatch.setenv(rt.SERVER_STAGE_ENV, "all")
     monkeypatch.setenv(rt.SERVICE_URL_ENV, "http://pine-runtime.internal")
     monkeypatch.setenv(rt.SERVICE_SECRET_ENV, "x" * 32)
-    row = {"def_id": ADX["id"], "user_id": USER, "definition": member_doc()}
+
+
+def _member_row(source=MEMBER_COPY):
+    return {"def_id": ADX["id"], "user_id": USER, "definition": member_doc(source)}
+
+
+def test_A9_a_member_copy_the_pane_serves_runs_on_every_server_lane(monkeypatch, on):
+    _server_armed(monkeypatch)
     assert rt.not_graded(MEMBER_COPY) is None                       # the pane admits it ...
     assert rt.not_graded(MEMBER_COPY, graded_only=True)             # ... the graded list does not
-    assert rt.server_lane_refusal(row, lane="alert")[0] == "runtime:not-yet-graded"
+    for lane in ALL_LANES:
+        assert rt.server_lane_refusal(_member_row(), lane=lane) is None, lane
     graded = {"def_id": ADX["id"], "user_id": USER, "definition": copy.deepcopy(ADX)}
-    assert rt.server_lane_refusal(graded, lane="alert") is None     # CONTROL: the graded copy runs
+    assert rt.server_lane_refusal(graded, lane="alert") is None     # CONTROL: the graded copy runs too
+
+
+def test_A9_with_capability_admission_off_the_lanes_answer_as_before_track_6(monkeypatch):
+    _server_armed(monkeypatch)
+    monkeypatch.delenv(rt.CAPABILITY_ADMISSION_ENV, raising=False)
+    ungraded = rt.not_graded(MEMBER_COPY, graded_only=True)
+    for lane in ALL_LANES:
+        assert rt.server_lane_refusal(_member_row(), lane=lane) == ("runtime:not-yet-graded", ungraded), lane
+
+
+def test_A9_with_capability_admission_off_a_server_lane_never_runs_the_detector(monkeypatch):
+    """B1's rule on the server lanes: OFF is a constant answer, so no cycle or sweep spends detector
+    time on an admission that admits nothing (a SPY, not a raiser: a raise is swallowed as refused)."""
+    _server_armed(monkeypatch)
+    calls = []
+    monkeypatch.setattr(rt, "capabilities_for", lambda source, **kw: calls.append(1) or frozenset({"core"}))
+    for lane in ALL_LANES:
+        assert rt.server_lane_refusal(_member_row(), lane=lane)[0] == "runtime:not-yet-graded"
+    assert calls == []
+
+
+def test_A9_a_script_the_pane_refuses_is_refused_on_every_server_lane(monkeypatch, on):
+    _server_armed(monkeypatch)
+    assert rt.not_graded(UNADMITTED_SCRIPT)                          # the pane refuses it
+    for lane in ALL_LANES:
+        got = rt.server_lane_refusal(_member_row(UNADMITTED_SCRIPT), lane=lane)
+        assert got is not None and got[0] == "runtime:not-yet-graded", (lane, got)
+
+
+def test_A9_the_operator_variable_never_admits_on_a_server_lane(monkeypatch, on):
+    """It admits on the pane (no evidence needed there, an operator override) and NEVER here."""
+    _server_armed(monkeypatch)
+    monkeypatch.setenv(rt.ALLOW_ENV, rt.source_hash(UNADMITTED_SCRIPT))
+    assert rt.not_graded(UNADMITTED_SCRIPT) is None                  # the pane: the variable admits it
+    for lane in ALL_LANES:
+        got = rt.server_lane_refusal(_member_row(UNADMITTED_SCRIPT), lane=lane)
+        assert got is not None and got[0] == "runtime:not-yet-graded", (lane, got)
+
+
+def test_A9_the_kill_list_is_asked_first_on_every_server_lane(monkeypatch, on):
+    _server_armed(monkeypatch)
+    monkeypatch.setenv(rt.KILL_ENV, rt.source_hash(MEMBER_COPY))
+    for lane in ALL_LANES:
+        got = rt.server_lane_refusal(_member_row(), lane=lane)
+        assert got is not None and got[0] == "runtime:killed", (lane, got)
+
+
+def test_A9_a_detector_that_has_not_answered_refuses_by_name_on_every_server_lane(monkeypatch, on):
+    _server_armed(monkeypatch)
+    monkeypatch.setattr(rt, "capabilities_for", lambda source, **kw: None)
+    for lane in ALL_LANES:
+        got = rt.server_lane_refusal(_member_row(), lane=lane)
+        assert got is not None and got[0] == "runtime:not-yet-graded", (lane, got)
+        assert "still being checked" in got[1] and rt.source_hash(MEMBER_COPY)[:12] in got[1], (lane, got)
+
+
+def test_A9_an_unreadable_admission_refuses_never_admits(monkeypatch, on):
+    _server_armed(monkeypatch)
+
+    def boom(source, **kw):
+        raise RuntimeError("registry unreadable")
+    monkeypatch.setattr(rt, "capability_admitted", boom)
+    for lane in ALL_LANES:
+        got = rt.server_lane_refusal(_member_row(), lane=lane)
+        assert got is not None and got[0] == "runtime:not-yet-graded", (lane, got)
+
+
+def test_A9_a_closed_bar_only_script_runs_only_where_the_lane_evaluates_closed_bars(tmp_path, monkeypatch, on):
+    _with_realtime_row(tmp_path, monkeypatch, scope="closed-bar-history")
+    _server_armed(monkeypatch)
+    assert rt.CLOSED_BAR_LANES == frozenset({"alert", "sweep"})
+    row = _member_row(RT_SCRIPT)
+    for lane in ("alert", "sweep"):
+        assert rt.server_lane_refusal(row, lane=lane) is None, lane
+    for lane in ("on-demand", "backtest", "record"):
+        got = rt.server_lane_refusal(row, lane=lane)
+        assert got is not None and got[0] == rt.FORMING_GUARD == "runtime:server-forming-bar", (lane, got)
+        assert "realtime-state" in got[1] and "finished bars" in got[1] and f"({lane} lane)" in got[1], got
+    # CONTROL: a script that reads no bar state runs on every lane
+    for lane in ALL_LANES:
+        assert rt.server_lane_refusal(_member_row(), lane=lane) is None, lane
+
+
+def test_A9_the_server_lane_and_the_pane_agree_on_every_source(tmp_path, monkeypatch, on):
+    """One authority: on a closed-bar lane the server admits a source exactly when the pane's own
+    `not_graded` does (the operator variable unset), over admitted, refused and graded sources."""
+    _with_realtime_row(tmp_path, monkeypatch, scope="closed-bar-history")
+    _server_armed(monkeypatch)
+    monkeypatch.delenv(rt.ALLOW_ENV, raising=False)
+    sources = [MEMBER_COPY, UNADMITTED_SCRIPT, RT_SCRIPT, ADX["compute"]["source"],
+               MEMBER_COPY + POLYLINE_SNIPPET]
+    for src in sources:
+        pane = rt.not_graded(src) is None
+        for lane in ("alert", "sweep"):
+            assert (rt.server_lane_refusal(_member_row(src), lane=lane) is None) is pane, (lane, src[-40:])
 
 
 # ═══ the door: POST /api/user-definitions/runtime-admission ════════════════════

@@ -938,6 +938,19 @@ Each ruling cites the evidence it rests on, the risk it accepts, and the conditi
   allowlist only (`graded_allow_list`, the served half of `allow_report`). The operator variable
   `PINE_RUNTIME_ALLOWLIST` carries no evidence, so it keeps working for the browser pane only and
   never admits on a server lane; otherwise Q8 would hold only while that variable is unset.
+- **SUPERSEDED 2026-11-22 (track 6; owner ruling "Any TradingView pine script able to be converted
+  by anyone", coordinator ruling D3).** With `PINE_RUNTIME_CAPABILITY_ADMISSION=on`, step 2 also admits
+  a script that capability admission admits (the committed, evidence-backed registry), so a server lane
+  admits exactly what the chart pane serves. Unchanged:
+  - `PINE_RUNTIME_ALLOWLIST` still never admits on a server lane;
+  - the kill list is still asked first on every lane;
+  - a pending detector still refuses by name.
+
+  A script using a capability admitted for closed-bar history only (G6) runs only on a lane that
+  evaluates closed bars (`CLOSED_BAR_LANES`: alert, sweep). On on-demand, backtest and record it is
+  refused `runtime:server-forming-bar`: the store can hold today's evolving daily bar, and nothing calls
+  record yet. Code: `runtime_definitions._server_capability_refusal`. Rail A9 (rewritten):
+  `tests/test_pine_capability_admission.py`.
 
 ---
 

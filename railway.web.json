@@ -39,6 +39,7 @@
       "app/src/components/chart/engine/ast/symbolScope.json",
       "app/src/components/chart/engine/heldWithholds.json",
       "app/src/components/chart/engine/hostKnownDivergence.json",
+      "app/src/components/chart/engine/pineDataCatalog.json",
       "app/src/components/chart/engine/pineCompare.js",
       "app/src/components/chart/engine/runtime/ir.js",
       "app/src/components/chart/engine/runtime/runtimeRepaint.json",

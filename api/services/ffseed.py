@@ -791,15 +791,143 @@ def forced_rebuild_due(now: Optional[datetime] = None) -> Optional[date]:
         log.warning("[ffseed] FFSEED_FORCE_ASOF=%s is not the newest closed session (%s): ignored", raw, target)
         return None
     if _read_forced() == want.isoformat():
+        global _force_spent_said
+        if _force_spent_said != raw:                 # once per process: the variable may stay set
+            _force_spent_said = raw
+            log.warning("[ffseed] FFSEED_FORCE_ASOF=%s was already force-built (recorded in %s): ignored. "
+                        "Timeframes refused in that build are retried on their own (gated retry); to force "
+                        "the whole build again remove that file", raw, _forced_path())
         return None
     return want
+
+
+_force_spent_said = ""
+
+
+# --------------------------------------------------------------------------------------------
+# the gated retry: a refused 5m / 15m / 30m / 60m is not final for the night
+# --------------------------------------------------------------------------------------------
+#
+# A build publishes D and 1m even when gated timeframes were refused (the intraday pass could not run:
+# the session was not settled, a later session had begun, the provider failed, the worker restarted).
+# The session's marker is then written, and before 2026-11-22 that made the refusal final: nothing
+# built that session again, and a FORCED rebuild that refused could not be forced a second time.
+#
+# Now a publish with `refused` leaves <DATA_DIR>/.ffseed_gated_retry = {asof, tries, tfs}. On a later
+# tick (every FFSEED_LOOP_SECONDS), while that session is STILL the newest closed one, the intraday
+# pass may run (`ffseed_intraday.cannot_run`: the session's quiet gap) and fewer than
+# FFSEED_GATED_RETRIES (default 2) retries were spent: the pass runs again (it asks only for what is
+# not proven), and ONLY IF it proved something new the whole session is built and published again
+# (a new build id; a device holding the previous one takes each timeframe's delta). A retry that
+# proves nothing new does not republish. Every step is logged. The retry never runs during a later
+# trading day's session: once that day's 04:00 ET has passed the refused timeframes of the older
+# session stay refused, and that day's own build (after its close) supersedes them.
+
+_RETRY_FILE = ".ffseed_gated_retry"
+
+
+def gated_retries() -> int:
+    return max(0, _int_env("FFSEED_GATED_RETRIES", 2))
+
+
+def _retry_path() -> str:
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), _RETRY_FILE)
+
+
+def _read_retry() -> dict:
+    """{"asof": iso, "tries": n, "tfs": [...]} or {} (none pending, or unreadable)."""
+    try:
+        with open(_retry_path(), encoding="ascii") as f:
+            st = json.load(f)
+        date.fromisoformat(st["asof"])
+        return {"asof": st["asof"], "tries": int(st.get("tries", 0)), "tfs": list(st.get("tfs") or [])}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _write_retry(st: Optional[dict]) -> None:
+    try:
+        if not st:
+            if os.path.exists(_retry_path()):
+                os.remove(_retry_path())
+            return
+        tmp = _retry_path() + ".tmp"
+        with open(tmp, "w", encoding="ascii") as f:
+            json.dump(st, f, sort_keys=True)
+        os.replace(tmp, _retry_path())
+    except Exception:  # noqa: BLE001
+        log.warning("[ffseed] could not record the gated retry state")
+
+
+def note_refused(asof: date, m: dict) -> None:
+    """Record (or clear) the pending gated retry after a publish for `asof`. The tries already spent on
+    that session are kept: a rebuild never resets its own bound."""
+    refused = sorted((m.get("refused") or {}))
+    cur = _read_retry()
+    if not refused:
+        if cur:
+            _write_retry(None)
+        return
+    tries = cur["tries"] if cur.get("asof") == asof.isoformat() else 0
+    _write_retry({"asof": asof.isoformat(), "tries": tries, "tfs": refused})
+    left = max(0, gated_retries() - tries)
+    log.warning("[ffseed] as-of %s: %s refused; %d retr%s left, tried on a later tick while %s is the newest "
+                "closed session and the next session has not opened", asof, ",".join(refused), left,
+                "y" if left == 1 else "ies", asof)
+
+
+def gated_retry_due(now: Optional[datetime] = None) -> Optional[date]:
+    """The session whose refused gated timeframes should be retried now, or None (see the block above)."""
+    from api.services import ffseed_intraday as intraday
+    st = _read_retry()
+    if not st or st["tries"] >= gated_retries() or not intraday.enabled():
+        return None
+    now = now or datetime.now(ET)
+    asof = date.fromisoformat(st["asof"])
+    # the quiet gap is the whole condition: once a later session has begun (and so before any later
+    # session can be the newest closed one) the pass may not run, and that session's build owns it
+    if intraday.cannot_run(asof, now.timestamp()) is not None:
+        return None
+    return asof
+
+
+def retry_gated(asof: date) -> Optional[dict]:
+    """One bounded retry of `asof`'s refused gated timeframes: the intraday pass again, and a whole
+    rebuild only when it proved something new. Returns the published manifest, or None."""
+    from api.services import ffseed_intraday as intraday
+    st = _read_retry()
+    n, limit = int(st.get("tries", 0)) + 1, gated_retries()
+    # counted BEFORE the work: a crash or a refusal inside it can never make the retry unbounded
+    _write_retry({"asof": asof.isoformat(), "tries": n, "tfs": st.get("tfs") or []})
+    log.warning("[ffseed] gated retry %d of %d for as-of %s (refused: %s): running the intraday pass again",
+                n, limit, asof, ",".join(st.get("tfs") or []))
+    try:
+        stats = intraday.run_pass(asof)
+    except Exception:  # noqa: BLE001
+        log.exception("[ffseed] gated retry %d of %d: the intraday pass failed", n, limit)
+        return None
+    if stats.get("skipped"):
+        log.warning("[ffseed] gated retry %d of %d: the pass did not run (%s)", n, limit, stats["skipped"])
+        return None
+    new = sum(int(t.get("done", 0)) for t in (stats.get("tfs") or {}).values())
+    if not new:
+        log.warning("[ffseed] gated retry %d of %d for %s proved nothing new: not rebuilding (the refusal "
+                    "stands: %s)", n, limit, asof, ",".join(st.get("tfs") or []))
+        return None
+    m = build_and_publish(asof=asof)
+    note_refused(asof, m)
+    log.warning("[ffseed] gated retry %d of %d for %s proved %d more series: published %s with %s%s", n, limit,
+                asof, new, m["build"], ",".join(m["tfs"]),
+                f"; STILL refused: {sorted(m['refused'])}" if m.get("refused") else "; nothing refused")
+    return m
 
 
 def nightly(asof: date) -> dict:
     """One session's build: the long-tail 1m pass, the intraday completion pass (5m / 15m fetched,
     30m / 60m derived: `ffseed_intraday`), the build and publish, the marker, then the 1m retention.
     Neither pass nor the retention can stop a publish: what the intraday pass did not prove complete is
-    left out of its timeframe by the build, and a timeframe left too thin is refused alone."""
+    left out of its timeframe by the build, and a timeframe left too thin is refused alone. A refused
+    gated timeframe is then retried on later ticks (`note_refused`, `gated_retry_due`)."""
     from api.services import ffseed_intraday as intraday
     from api.services import ffseed_onemin as onemin
     if onemin.backfill_enabled():
@@ -809,7 +937,10 @@ def nightly(asof: date) -> dict:
             log.exception("[ffseed] 1m backfill failed (building with what the store has)")
     if intraday.enabled():
         try:
-            intraday.run_pass(asof)
+            st = intraday.run_pass(asof) or {}
+            if st.get("skipped"):
+                log.warning("[ffseed] as-of %s: the intraday pass did not run (%s). 5m/15m/30m/60m pack only "
+                            "what an earlier pass proved; D and 1m are published as usual", asof, st["skipped"])
         except Exception:  # noqa: BLE001
             log.exception("[ffseed] intraday completion pass failed (unproven symbols are left out)")
     else:
@@ -822,6 +953,7 @@ def nightly(asof: date) -> dict:
     if m.get("refused"):
         log.warning("[ffseed] %s as-of %s REFUSED timeframes (not published): %s", m["build"], m["asof"],
                     {tf: r["reason"] for tf, r in m["refused"].items()})
+    note_refused(asof, m)
     try:
         onemin.retention(asof)
     except Exception:  # noqa: BLE001
@@ -830,8 +962,9 @@ def nightly(asof: date) -> dict:
 
 
 def tick(now: Optional[datetime] = None) -> Optional[dict]:
-    """One pass of the builder loop: a forced rebuild when one is due, else the nightly build when due.
-    Returns the published manifest, or None when nothing was built."""
+    """One pass of the builder loop: a forced rebuild when one is due, else the nightly build when due,
+    else a bounded retry of the newest session's refused gated timeframes. Returns the published
+    manifest, or None when nothing was built."""
     from api.services import data_sync
     now = now or datetime.now(ET)
     if not data_sync.credentials_ok():
@@ -840,9 +973,16 @@ def tick(now: Optional[datetime] = None) -> Optional[dict]:
     if forced is not None:
         m = nightly(forced)
         _write_forced(forced.isoformat())
+        if m.get("refused"):
+            log.warning("[ffseed] the forced rebuild of %s REFUSED %s. FFSEED_FORCE_ASOF is spent for that "
+                        "date (%s); the refused timeframes are retried by the gated retry, not by the force",
+                        forced, sorted(m["refused"]), _forced_path())
         return m
     if should_build(now):
         return nightly(last_closed_session(now, after_min=BUILD_AFTER_MIN))
+    retry = gated_retry_due(now)
+    if retry is not None:
+        return retry_gated(retry)
     # Not build time yet: the session's long-tail 1m pass runs as soon as the session has closed (or on
     # the first tick after a boot past that point), so the build itself finds the store current.
     from api.services import ffseed_onemin as onemin
@@ -880,6 +1020,7 @@ def status() -> dict:
     return {"enabled": os.environ.get("FFSEED_ENABLED", "0") == "1",
             "published_session": _read_marker(), "should_build_now": should_build(),
             "forced_session": _read_forced() or None,
+            "gated_retry": _read_retry() or None,
             "depth": {tf: depth_for(tf) for tf in SEED_TFS}}
 
 

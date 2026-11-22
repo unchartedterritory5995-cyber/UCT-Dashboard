@@ -68,6 +68,11 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
 /** Is this a document a Pine SCRIPT door wrote (the member pane, or a hand edit
  *  of one, which carries its stamps)? Only these can be translated again. */
+/** A stored RUNTIME document (`compute.kind === 'runtime'`): the member's Pine, recompiled on every run. */
+export function isRuntimeDocument(def) {
+  return !!(isObj(def) && isObj(def.compute) && def.compute.kind === 'runtime')
+}
+
 export function isScriptDocument(def) {
   return !!(isObj(def) && isObj(def.compute) && def.compute.kind === 'ast'
     && isObj(def.meta) && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
@@ -120,7 +125,10 @@ export function upgradeKindOf(row, current = SCRIPT_ENGINE_VERSION) {
   // answer from the store's maths identity: a no-op Undo, a cosmetic studio save, a
   // share install) is held exactly as `engine_withheld_reason` holds it. A real maths
   // edit (`same_maths: false`) is the member's own maths and runs.
-  if (kind !== 'retranslate' && kind !== 'refused') {
+  // ⭐ TRACK 6 (a) (coordinator ruling 2026-11-22): NOT for a RUNTIME document. It is recompiled from its
+  // own source on every run, here and on the pine-runtime service, so an older engine's refusal expires with
+  // that engine and today's engine answers on the next run. The server (`engine_withheld_reason`) agrees.
+  if (kind !== 'retranslate' && kind !== 'refused' && !isRuntimeDocument(row && row.definition)) {
     const st = row && row.engine_status
     if (isObj(st) && st.status === 'refused' && st.same_maths === true) return 'refused'
   }

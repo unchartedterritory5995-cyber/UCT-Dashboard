@@ -65,6 +65,7 @@ concurrency:
 jobs:
   a11y:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 

@@ -3104,6 +3104,25 @@ def register_screener_jobs(scheduler):
                       id="rs_history_stale_watchdog", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
 
+    # -- Fundamental trends: the evening run behind the eight trend columns ------------
+    #
+    # Hourly ticks from 20:35 to 02:35 ET (`fund_trends.TICK_HOURS_ET`), all inside the
+    # quiet span `scan_period` keeps whole-universe work to and all before the 03:00
+    # build that reads the answer. Each tick is a no-op once the evening is stored (one
+    # SELECT), so the later ticks only matter when a deploy or a failed read cost the
+    # first one; `fund_trends.run_evening` runs one build at a time, never more than
+    # `TRIES_PER_EVENING` an evening, and never on a member's request.
+    #
+    # REGISTERED UNCONDITIONALLY (depth 0 under `_add_job_gate_depth`): the switch is
+    # `FUNDAMENTALS_PIT_ENABLED` (the store's own, read per call inside the job), so the
+    # store's routes and this job go dark together with no deploy.
+    from api.services.screener import fund_trends as _fund_trends
+    scheduler.add_job(_fund_trends.scheduled_run,
+                      trigger=CronTrigger(hour=_fund_trends.TICK_HOURS_ET,
+                                          minute=_fund_trends.TICK_MINUTE_ET, timezone=_ET),
+                      id="screener_fund_trends_evening", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=1800)
+
     # -- UCT Relative Strength evidence: the web pull of the worker's artifact --
     #
     # 04:30 ET (unit 2b-03): after the worker's 21:30 ET evidence run has
@@ -12262,6 +12281,8 @@ from api.routers import dilution_watch as dilution_watch_router  # noqa: E402  (
 app.include_router(dilution_watch_router.router)  # /api/research/dilution-watch/{ticker}
 from api.routers import corporate_actions as corporate_actions_router  # noqa: E402  (CACT: splits and dividends the server already holds, paid)
 app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
+from api.routers import pine_events as pine_events_router  # noqa: E402  (track 4 E1: a chart symbol's earnings, dividends and splits for Pine, paid, DARK: admins unless PINE_EVENTS_SUPPLY_ENABLED=all)
+app.include_router(pine_events_router.router)  # /api/pine/events/{ticker}
 from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
 app.include_router(fed_watch_router.router)  # /api/research/fed-watch
 from api.routers import market_history as market_history_router  # noqa: E402  (MKTH: corrections, bear markets, the rallies and their leaders, paid)
@@ -12276,6 +12297,8 @@ from api.routers import mergers as mergers_router  # noqa: E402  (MNA: the lates
 app.include_router(mergers_router.router)  # /api/research/mergers
 from api.routers import index_changes as index_changes_router  # noqa: E402  (IDXC: S&P 500, Nasdaq 100 and Dow additions and removals, paid)
 app.include_router(index_changes_router.router)  # /api/research/index-changes
+from api.routers import stock_stats as stock_stats_router  # noqa: E402  (STAT: one stock's volatility, beta, returns, drawdowns, corrections, paid)
+app.include_router(stock_stats_router.router)  # /api/research/stock-stats/{ticker}
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
