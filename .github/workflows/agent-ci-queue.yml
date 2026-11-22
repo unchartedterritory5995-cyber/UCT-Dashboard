@@ -17,12 +17,15 @@
 # THREE JOBS.
 #   scope    reads the queued pull request's own diff from git objects (a fetch and `git diff --name-only`; nothing
 #            of the pull request is checked out or executed) and answers with ONE code:
-#              no-agent-paths   the diff touches no Agent path (the `paths:` list of agent-ci.yml's push trigger,
-#                               read at run time, never restated)
-#              agent-paths      it touches one
-#              self-protected   it touches a path its own run executes (agent_ci_evidence.SELF_PROTECTED and the
-#                               lists derived from the vite / vitest configs)
 #              unknown          the diff, the queue's branch name or the protected list could not be read
+#              no-agent-paths   the diff touches no Agent path (the `paths:` list of agent-ci.yml's push trigger,
+#                               read at run time, never restated). It needs no Agent evidence, WHETHER OR NOT it
+#                               touches a self-protected path, exactly as on a pull request today; when it does,
+#                               the status description says how many
+#              self-protected   it touches an Agent path AND a path its own run executes
+#                               (agent_ci_evidence.SELF_PROTECTED and the lists derived from the vite / vitest
+#                               configs): it needs Agent evidence, and its own run could vouch for itself
+#              agent-paths      it touches an Agent path and no self-protected one
 #   agent    ONLY for `agent-paths`: calls agent-ci.yml, so every Agent job (server, the 12 browser shards, the 3
 #            capability regression clock legs, their join, the union rail) runs on the merge group's commit and
 #            uploads its evidence record. In a called workflow `github` is THIS workflow's context: the event is
@@ -42,9 +45,13 @@
 # so tools/agent_ci_required.py, tools/agent_ci_evidence.py, agent-ci.yml's path list and job names, and the configs
 # the protected list is derived from are master's copies, never the queued pull request's.
 # ⚠️ LIMIT (design 3.4, stated on purpose): THIS FILE and agent-ci.yml themselves are read from the merge group's
-#   commit, so they include the queued pull request's edits. The self-protected rule answers that (any edit under
-#   .github/workflows/ fails the verdict), but this file is what enforces it: it holds against an accident, not
-#   against a deliberate rewrite of this file. agent-ci-required.yml has the same limit on a pull request today.
+#   commit, so they include the queued pull request's edits.
+#     * An edit to agent-ci.yml or to tools/agent_* IS an Agent path, so it is `self-protected`: failure, AUDIT decides.
+#     * An edit to THIS FILE alone, or to agent-ci-required.yml alone, is NOT an Agent path today. It is
+#       `no-agent-paths`: success, with "self-protected path(s) touched" in the status description and nothing else
+#       in its way. Whether those two files belong in the Agent path list is AUDIT's call (it is AUDIT's list).
+#     * And whatever the lists say, this file is what applies them: the rule holds against an accident, not against
+#       a deliberate rewrite of this file. agent-ci-required.yml has the same limit on a pull request today.
 #
 # CI COST. scope + verdict run for EVERY queued pull request: two sparse default-branch checkouts, PyYAML, one
 # depth-2 fetch, one API read and one POST; no node, no tests. The Agent jobs run only for a queued pull request

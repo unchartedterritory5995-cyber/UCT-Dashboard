@@ -20,9 +20,11 @@ job, or a changed-file list too long to read whole.
 MERGE QUEUE (2026-11-22; inert until a queue exists on master). .github/workflows/agent-ci-queue.yml runs on
 `merge_group` and posts this same status on the merge group's commit, in two stages, both from MASTER's copy of this file:
   scope    the queued PR's OWN diff (git: the merge group's base_sha..head_sha; nothing of the PR is checked out or
-           run) -> no-agent-paths | agent-paths | self-protected | unknown
+           run) -> no-agent-paths | agent-paths | self-protected | unknown. `self-protected` = an Agent path AND a
+           path the PR's own run executes; a PR that touches NO Agent path needs no Agent evidence and is
+           no-agent-paths whatever else it touches (as on a pull request today), with that said in the detail.
   verdict  success ONLY for no-agent-paths, or for agent-paths when every required Agent job (agent-ci.yml, called by
-           that workflow on the merge group's commit) is success in that run. A self-protected path is ALWAYS failure
+           that workflow on the merge group's commit) is success in that run. self-protected is ALWAYS failure
            (AUDIT's local evidence decides), and so is an unreadable diff, a scope job that did not succeed, a missing /
            skipped / cancelled / failed job or an API error. Never pending: it is the last word on that commit.
 
@@ -293,6 +295,7 @@ SCOPE_CODES = (SCOPE_CLEAR, SCOPE_AGENT, SCOPE_PROTECTED, SCOPE_UNKNOWN)
 _SHA = re.compile(r"[0-9a-f]{40}\Z")
 _UNSAFE = re.compile(r"[^A-Za-z0-9 _./,()@+:'-]")
 AUDIT_DECIDES = "; its own run could vouch for itself: AUDIT's local evidence decides"
+NO_AGENT_PATHS = "no Agent paths changed"
 
 
 def _evidence():
@@ -339,18 +342,25 @@ def merge_group_changed_paths(root, base_sha, head_sha, fetch: bool = True, run=
 
 def decide_scope(changed_paths, patterns, protected) -> tuple[str, str]:
     """(code, detail) for one queued PR. changed_paths: its own diff, or None (unknown). patterns: agent_paths().
-    protected: agent_ci_evidence.protected_patterns(master root), or None (unreadable). The ORDER is the rule:
-    unknown first, then self-protected (whatever else the diff holds, Agent path or not), then the Agent paths."""
+    protected: agent_ci_evidence.protected_patterns(master root), or None (unreadable). The rule, in this order:
+      1. an unreadable diff or protected list is `unknown`, whatever the other one says (fail closed);
+      2. an Agent path AND a self-protected path: `self-protected`. The PR needs Agent evidence and its own run could
+         vouch for itself, so AUDIT's local evidence decides (the rule `verify` applies today as self-protected-diff);
+      3. an Agent path, no self-protected path: `agent-paths`;
+      4. NO Agent path: `no-agent-paths`, whether or not it touches a self-protected path. It needs no Agent evidence,
+         exactly as on a pull request today; the detail says so when it does touch one, so the status shows it."""
     if changed_paths is None:
         return SCOPE_UNKNOWN, "the queued PR's own diff could not be read"
     hits = _evidence().self_protected_hits(changed_paths, protected) if protected is not None else None
     if hits is None:
         return SCOPE_UNKNOWN, "the self-protected path list could not be read"
+    if not touches_agent(changed_paths, patterns):
+        if hits:
+            return SCOPE_CLEAR, f"{NO_AGENT_PATHS} ({len(hits)} self-protected path(s) touched, no Agent evidence needed)"
+        return SCOPE_CLEAR, NO_AGENT_PATHS
     if hits:
         return SCOPE_PROTECTED, f"{len(hits)} self-protected path(s), e.g. {hits[0]}"
-    if touches_agent(changed_paths, patterns):
-        return SCOPE_AGENT, "Agent paths changed"
-    return SCOPE_CLEAR, "no Agent paths changed"
+    return SCOPE_AGENT, "Agent paths changed"
 
 
 def queue_scope(root, doc, head_sha, base_sha, head_ref, tested_sha, fetch: bool = True) -> dict:
@@ -389,7 +399,8 @@ def decide_queue(scope_result, scope_code, scope_detail, agent_result, jobs, job
     if scope_code == SCOPE_CLEAR:
         if agent_result != "skipped":
             return FAILURE, f"no Agent paths changed, yet the Agent jobs were not skipped ({agent_result!r}): fail closed"[:140]
-        return SUCCESS, "no Agent paths changed"
+        # the scope stage's own sentence when it is one (it may add that self-protected paths were touched), else the plain one
+        return SUCCESS, detail[:140] if detail.startswith(NO_AGENT_PATHS) else NO_AGENT_PATHS
     if agent_result != SUCCESS:
         return FAILURE, f"the Agent jobs concluded {agent_result!r} on the merge group's commit"[:140]
     if not isinstance(jobs, list):

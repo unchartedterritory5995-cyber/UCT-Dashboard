@@ -227,7 +227,8 @@ def test_agent_ci_jobs_run_on_pull_request_for_non_agent_heads():
 # ── MERGE QUEUE (2026-11-22; inert until a queue exists on master). .github/workflows/agent-ci-queue.yml posts this same
 #    status on a merge group's commit: `scope` reads the queued PR's OWN diff with master's code, the Agent jobs run on the
 #    merge group's commit only for an Agent change, and `verdict` is success ONLY for "no Agent path" or "every Agent job
-#    green in this run". A self-protected path is ALWAYS failure. The workflow's own shape: tests/test_ci_agent_merge_ref.py.
+#    green in this run". A PR that needs Agent evidence AND edits a self-protected path is ALWAYS failure; one that touches
+#    no Agent path needs none, whatever else it touches. The workflow's own shape: tests/test_ci_agent_merge_ref.py.
 PROTECTED = ev.protected_patterns(ROOT)
 WORKFLOW_FILE = ".github/workflows/web-start.yml"      # self-protected (any workflow) and NOT an Agent path
 CALL = acr.QUEUE_CALL_JOB + " / "
@@ -239,24 +240,67 @@ def test_MQ_the_scope_code_for_each_kind_of_diff():
     assert acr.decide_scope([OTHER_FILE], PATHS, PROTECTED) == (acr.SCOPE_CLEAR, "no Agent paths changed")
     assert acr.decide_scope([], PATHS, PROTECTED)[0] == acr.SCOPE_CLEAR
     assert acr.decide_scope([OTHER_FILE, AGENT_FILE], PATHS, PROTECTED) == (acr.SCOPE_AGENT, "Agent paths changed")
+    # NO Agent path: no Agent evidence is needed, whether or not a self-protected path is touched (as on a pull request
+    # today, where self-protected-diff exists only inside `verify`). The detail says so, and it is what the status shows.
+    assert acr.decide_scope([WORKFLOW_FILE], PATHS, PROTECTED) == (
+        acr.SCOPE_CLEAR, "no Agent paths changed (1 self-protected path(s) touched, no Agent evidence needed)")
+    assert acr.decide_scope([OTHER_FILE, WORKFLOW_FILE, "requirements.txt", "app/package.json"], PATHS, PROTECTED) == (
+        acr.SCOPE_CLEAR, "no Agent paths changed (3 self-protected path(s) touched, no Agent evidence needed)")
+    # an Agent path AND a self-protected path: its own run could vouch for itself
+    assert acr.decide_scope([AGENT_FILE, WORKFLOW_FILE], PATHS, PROTECTED) == (
+        acr.SCOPE_PROTECTED, "1 self-protected path(s), e.g. " + WORKFLOW_FILE)
+    assert acr.decide_scope([AGENT_FILE, WORKFLOW_FILE], PATHS, [])[0] == acr.SCOPE_AGENT       # control: the list is what decides
     # an unreadable diff or protected list is never "clear", whatever the other one says
     for changed, protected in ((None, PROTECTED), ([OTHER_FILE], None), ([AGENT_FILE], None), (None, None)):
         assert acr.decide_scope(changed, PATHS, protected)[0] == acr.SCOPE_UNKNOWN, (changed, protected is None)
 
 
-@pytest.mark.parametrize("path", [
-    WORKFLOW_FILE, ".github/workflows/agent-ci.yml", ".github/workflows/agent-ci-queue.yml", ".github/workflows/new.yml",
-    "tools/agent_ci_required.py", "tools/agent_ci_evidence.py", "tools/agent_suite_lock.py", "tools/agent_vitest_shards.py",
-    "tools/agent_vitest_shard_timings.json", "app/package.json", "app/package-lock.json", "app/vite.config.js",
-    "app/scripts/chartLibraryPatch.mjs", "app/src/test-setup.js", "app/src/lib/marketClock/calendarCompact.js",
+#: self-protected paths that are ALSO Agent paths: an edit to one needs Agent evidence all by itself
+PROTECTED_AND_AGENT = [
+    ".github/workflows/agent-ci.yml", "tools/agent_ci_required.py", "tools/agent_ci_evidence.py", "tools/agent_ci_rearm.py",
+    "tools/agent_suite_lock.py", "tools/agent_vitest_shards.py", "tools/agent_vitest_shard_timings.json",
+]
+#: self-protected paths that are NOT Agent paths today: alone they need no Agent evidence. The first two are the queue's
+#: own judge and the pull-request side's; whether they belong in the Agent path list is AUDIT's call (PR #2501).
+PROTECTED_NOT_AGENT = [
+    ".github/workflows/agent-ci-queue.yml", ".github/workflows/agent-ci-required.yml", WORKFLOW_FILE, ".github/workflows/new.yml",
+    "app/package.json", "app/package-lock.json", "app/vite.config.js", "app/scripts/chartLibraryPatch.mjs",
+    "app/src/test-setup.js", "app/src/lib/marketClock/calendarCompact.js",
     "pytest.ini", "conftest.py", "tests/conftest.py", "requirements.txt", "api/requirements.txt",
-])
-def test_MQ_a_self_protected_path_decides_whatever_else_the_diff_holds(path):
-    """Design 3.4: in a merge group the workflow, the tools, the test config and the dependencies come from the merge
-    group's commit. A queued PR that edits one could vouch for itself, so it is never `agent-paths` and never clear."""
-    for diff in ([path], [OTHER_FILE, path], [AGENT_FILE, path], [path, AGENT_FILE, OTHER_FILE]):
+]
+
+
+def test_MQ_the_two_lists_of_self_protected_examples_are_what_they_say():
+    """Control for the two rails below: each example IS self-protected, and the split is the real path lists' split."""
+    for path in PROTECTED_AND_AGENT + PROTECTED_NOT_AGENT:
+        assert acr.matches(path, PROTECTED), path
+    assert [p for p in PROTECTED_AND_AGENT if not acr.matches(p, PATHS)] == []
+    assert [p for p in PROTECTED_NOT_AGENT if acr.matches(p, PATHS)] == []
+
+
+@pytest.mark.parametrize("path", PROTECTED_AND_AGENT + PROTECTED_NOT_AGENT)
+def test_MQ_a_self_protected_path_beside_an_agent_path_is_never_agent_paths(path):
+    """Design 3.4, as corrected 2026-11-22: in a merge group the workflow, the tools, the test config and the
+    dependencies come from the merge group's commit. A queued PR that NEEDS Agent evidence and edits one of them could
+    vouch for itself: `self-protected`, never `agent-paths` and never clear."""
+    for diff in ([AGENT_FILE, path], [path, AGENT_FILE, OTHER_FILE], [path, "api/services/uct_agent/x.py"]):
         code, detail = acr.decide_scope(diff, PATHS, PROTECTED)
         assert code == acr.SCOPE_PROTECTED and path in detail and "self-protected" in detail, (diff, code, detail)
+
+
+@pytest.mark.parametrize("path", PROTECTED_AND_AGENT)
+def test_MQ_a_self_protected_agent_path_needs_agent_evidence_all_by_itself(path):
+    for diff in ([path], [OTHER_FILE, path]):
+        assert acr.decide_scope(diff, PATHS, PROTECTED)[0] == acr.SCOPE_PROTECTED, diff
+
+
+@pytest.mark.parametrize("path", PROTECTED_NOT_AGENT)
+def test_MQ_a_self_protected_path_with_no_agent_path_needs_no_agent_evidence(path):
+    """Today's rule on a pull request (self-protected-diff exists only inside `verify`, i.e. only for a PR that needs
+    Agent evidence), kept in the queue: 35 of 718 merges on 2026-11-17..21 were of this kind. The status still says so."""
+    for diff in ([path], [OTHER_FILE, path]):
+        assert acr.decide_scope(diff, PATHS, PROTECTED) == (
+            acr.SCOPE_CLEAR, "no Agent paths changed (1 self-protected path(s) touched, no Agent evidence needed)"), diff
 
 
 def test_MQ_ordinary_agent_paths_are_not_self_protected():
@@ -280,6 +324,14 @@ def _verdict(scope_result="success", code=acr.SCOPE_AGENT, agent="success", jobs
 def test_MQ_the_two_ways_to_success():
     skipped_call = [{"name": acr.QUEUE_CALL_JOB, "conclusion": "skipped"}, {"name": "agent-ci-queue scope", "conclusion": "success"}]
     assert _verdict(code=acr.SCOPE_CLEAR, agent="skipped", jobs=skipped_call, detail="no Agent paths changed") == ("success", "no Agent paths changed")
+    # the scope stage's sentence is the status description, so "self-protected path(s) touched" is visible on the commit;
+    # it survives the job-output sanitiser unchanged; and a detail that is not that sentence never becomes a success text
+    touched = acr.decide_scope([WORKFLOW_FILE, "requirements.txt"], PATHS, PROTECTED)[1]
+    assert touched == "no Agent paths changed (2 self-protected path(s) touched, no Agent evidence needed)" and acr._safe(touched) == touched
+    assert _verdict(code=acr.SCOPE_CLEAR, agent="skipped", jobs=skipped_call, detail=touched) == ("success", touched)
+    for odd in ("", None, "all 18 Agent jobs passed", "x" * 300):
+        assert _verdict(code=acr.SCOPE_CLEAR, agent="skipped", jobs=skipped_call, detail=odd) == ("success", "no Agent paths changed")
+    assert len(_verdict(code=acr.SCOPE_CLEAR, agent="skipped", jobs=skipped_call, detail="no Agent paths changed " + "x" * 300)[1]) == 140
     assert _verdict() == ("success", "all 18 Agent jobs passed on the merge group's commit")
 
 
@@ -472,17 +524,25 @@ def test_MQ_a_queued_pr_that_changes_nothing_is_an_empty_diff_not_an_unknown_one
     ({"README.md": "r2\n", "docs/x.md": "x\n"}, "no-agent-paths"),
     ({"app/src/agent/a.js": "a2\n"}, "agent-paths"),
     ({"README.md": "r2\n", "api/services/uct_agent/new.py": "x = 1\n"}, "agent-paths"),
-    ({".github/workflows/other.yml": "name: y\n"}, "self-protected"),
-    ({".github/workflows/agent-ci.yml": AGENT_CI_TEXT + "# edited\n"}, "self-protected"),
+    # an Agent path AND a self-protected path: its own run could vouch for itself
+    ({".github/workflows/agent-ci.yml": AGENT_CI_TEXT + "# edited\n"}, "self-protected"),      # both at once
     ({"app/src/agent/a.js": "a2\n", "requirements.txt": "x\n"}, "self-protected"),
-    ({"app/src/test-setup.js": "s2\n"}, "self-protected"),                    # derived from master's vitest config
-    ({"app/vitest.config.js": "export default {test: {setupFiles: ['./src/other.js']}}\n"}, "self-protected"),
+    ({"app/src/agent/a.js": "a2\n", ".github/workflows/other.yml": "name: y\n"}, "self-protected"),
+    ({"app/src/agent/a.js": "a2\n", "app/src/test-setup.js": "s2\n"}, "self-protected"),    # derived from master's vitest config
+    ({"app/src/agent/a.js": "a2\n", "app/vitest.config.js": "export default {test: {setupFiles: ['./src/other.js']}}\n"}, "self-protected"),
+    # a self-protected path and NO Agent path: no Agent evidence needed
+    ({".github/workflows/other.yml": "name: y\n"}, "no-agent-paths"),
+    ({"app/src/test-setup.js": "s2\n", "requirements.txt": "x\n"}, "no-agent-paths"),
 ])
 def test_MQ_scope_end_to_end_on_a_real_merge_group(tmp_path, pr_files, code):
     r = _queue_repo(tmp_path, pr_files)
     doc = acr.load_agent_ci(r.work)
     out = acr.queue_scope(r.work, doc, r.merge, r.base, r.ref, r.merge)
     assert (out["code"], out["pr"]) == (code, 7), out
+    touched = [f for f in pr_files if acr.matches(f, ev.protected_patterns(r.work))]
+    if code == "no-agent-paths":
+        want = f" ({len(touched)} self-protected path(s) touched, no Agent evidence needed)" if touched else ""
+        assert out["detail"] == "no Agent paths changed" + want, out
     # each way the event can fail to describe this merge group is `unknown`, never the code above
     assert acr.queue_scope(r.work, doc, r.merge, r.base, r.ref, r.base)["code"] == "unknown"          # GITHUB_SHA is another commit
     assert acr.queue_scope(r.work, doc, r.merge, r.base, r.ref, "")["code"] == "unknown"
