@@ -316,8 +316,12 @@ class TestRoute:
         monkeypatch.setattr(eo, "form4_snapshot", lambda s: pytest.fail("flag off reached EDGAR"))
         r = self._client(monkeypatch).get("/api/research/ownership/AAPL")
         assert r.status_code == 200
-        assert r.json() == self.BASE
-        assert "insider_source" not in r.json()
+        # Byte-identical apart from the Funds (N-PORT) block, which the route adds for every stock
+        # (fund_holders_nport.overlay: a read of its own held index, nothing of EDGAR's).
+        body = r.json()
+        assert {k: v for k, v in body.items() if k != "funds_nport"} == self.BASE
+        assert body["funds_nport"]["source"].startswith("SEC Form N-PORT")
+        assert "insider_source" not in body
 
     def test_flag_on_serves_edgar_rows_with_accessions(self, monkeypatch):
         monkeypatch.setenv("EDGAR_OWNERSHIP_ENABLED", "1")
@@ -332,7 +336,7 @@ class TestRoute:
         src = body["insider_source"]
         assert src["state"] == "ok" and src["vendor"] == "sec_edgar" and src["licensing_class"] == "A"
         assert src["compare"]["incumbent_only"] == ["COOK TIMOTHY D"]
-        assert {k: v for k, v in body.items() if k not in ("insider", "insider_source")} == \
+        assert {k: v for k, v in body.items() if k not in ("insider", "insider_source", "funds_nport")} == \
             {k: v for k, v in self.BASE.items() if k != "insider"}
 
 

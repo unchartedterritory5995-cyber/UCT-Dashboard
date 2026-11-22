@@ -539,7 +539,8 @@ class TestRoute:
         })
         r = self._client().get("/api/research/ownership/AAPL")
         assert r.status_code == 200
-        assert set(r.json().keys()) == {"sym", "institutional", "short", "insider"}
+        # funds_nport: the Funds (N-PORT) block the route adds for every stock (fund_holders_nport.overlay)
+        assert set(r.json().keys()) == {"sym", "institutional", "short", "insider", "funds_nport"}
 
     def test_route_failure_is_a_503_not_an_empty_record(self, monkeypatch):
         # R10: a 200 with no holders read as "nobody owns this".

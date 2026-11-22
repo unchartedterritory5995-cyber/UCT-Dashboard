@@ -742,6 +742,16 @@ describe('3 · the comparator', () => {
     expect(compareCapture(atDefault, ours).verdict).toBe('MATCH')
   })
 
+  it('⭐ a refused script captured at moved settings names OUR refusal first, and keeps the moved settings', () => {
+    const edited = { ...SMA_CAPTURE, study: { ...SMA_CAPTURE.study, inputs: [
+      { id: 'in_0', name: 'Anchor Period', defval: 'Session', value: 'Earnings', isHidden: false },
+    ] } }
+    const r = compareCapture(edited, { ok: false, refusal: 'pine:reassign' })
+    expect(r).toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/^refused on our side: pine:reassign \(the vendor study also ran with non-default inputs: Anchor Period="Earnings" vs default "Session"\)$/) })
+    // ⛔ CONTROL — our side ran and did not take the settings: still the settings sentence
+    expect(compareCapture(edited, runOurSide(SMA_CAPTURE)).reason).toMatch(/non-default inputs .*re-capture at defaults/)
+  })
+
   it('a refused script and an invalid capture are INCONCLUSIVE with the reason', () => {
     expect(compareCapture(SMA_CAPTURE, { ok: false, refusal: 'pine:function' })).toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/refused.*pine:function/) })
     expect(compareCapture(SMA_CAPTURE, null, { integrity: { ok: false, errors: ['receipt: broken'] } })).toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/receipt: broken/) })

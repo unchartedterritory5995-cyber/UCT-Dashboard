@@ -58,6 +58,9 @@ SERVICES = {
     # stores RAILPACK for both yet builds them with Nixpacks; see the runbook.
     "stream-ingest": "railway.ingest.json",
     "stream-edge": "railway.edge.json",
+    # Track 6 (2026-11-22): the private Pine runtime service, created as a NEW service (which never
+    # reads a config file), so its file reaches Railway only through `--apply --service pine-runtime`.
+    "pine-runtime": "services/pine_runtime/railway.json",
 }
 
 #: (section, key) in a config file -> field of Railway's `ServiceInstanceUpdateInput`.

@@ -356,31 +356,58 @@ THE RULES
 9. Say what the script MEANS by a term that has more than one reading (which pivot rule, which window, which average) in `reply`, in plain words.
 10. For a well-known indicator, when this document lists Pine's OWN function for it, CALL that function: do not re-derive its maths by hand. {own_functions}When this document lists none, write the published calculation yourself and say in `reply` which definition you used.
 11. Draw ONLY what the member asked for. A request for a count or a signal is that one plot or mark: do not add a label on every event, a summary table, a background colour, extra shapes or an `alertcondition` the request did not name. Each extra clutters the chart and is one more claim that has to be right. If something more would help, OFFER it in `reply` in one short sentence ("I can also mark each day or add a table") and leave it out of the script. When the request is ONLY a drawing (a box, a line, labels, a table) and names no plotted line, still `plot` the value the drawing is made from, because a script with a plot can be used in alerts and one without cannot; but make that plot INVISIBLE with a fully transparent colour (`plot(level, "Level", color=color.new(color.gray, 100))`) and say in `reply` that a hidden plot is there for alerts. Never hide a plot the member asked to see.
-12. {other_timeframe}"""
+12. {number_on_bars}
+13. {format_literal}
+14. {fill_in}"""
 
-#: ⭐ RULE 12: WHERE A LOOK-BACK GOES WHEN THE MEMBER ASKS FOR ANOTHER TIMEFRAME (found by the value cases'
-#: oracle check, 2026-11-22). Asked whether the close is above "the 10 week moving average", the assistant wrote
-#: `wMA = request.security(syminfo.tickerid, "W", ta.sma(close, 10))` and then read `wMA[1]`: one bar of the
-#: CHART back, not one week. On the bar that completes a week the table showed the average one whole week stale.
-#: `request-other` is NOT offered to the assistant (`NOT_FOR_THE_ASSISTANT`) and gains no wording by this: the rule
-#: only stops a request the member's words ASKED for (`other_read_asked` keeps those) being written wrongly.
-#: ⛔ EACH HALF TEACHES ONLY WHAT A COMMITTED CAPTURE GRADES. The capture is
-#: `vw-request-htf-alignment-spy-1d-2026-10-02` (AMEX:SPY 1D, 1,800 bars, the newest one finished; rail
-#: `vendorHarness.reqLookaheadAlignment.test.js`):
-#:   * AS IT STANDS (look-ahead off, nothing after the request): its rows A02 (`close`, "W") and A05 ("M") equal
-#:     TradingView on every bar but the newest, MATCH 7 of 7 on both lanes
-#:     (docs/pine/evidence/2026-11-18-htf-calendar-merge/EVIDENCE.md);
-#:   * THE LOOK-BACK INSIDE, look-ahead on: its row A06 (`close[1]`: last week's close) is exact on every graded
-#:     bar (docs/pine/evidence/2026-11-16-req-request-security/EVIDENCE.md). That form IS "last week's value", on
-#:     every bar of the week, its last bar included: taught for "the 10 week average" it would be a week stale on
-#:     the bar that completes the week, exactly as the look-back outside is (measured before this was written).
-#: Neither row grades a FORMING bar: the member's chart says what it does there, this rule does not.
-OTHER_TIMEFRAME_RULE = (
-    "A value on ANOTHER TIMEFRAME, only when the member's words ask for one (a 10 week average, the monthly close): "
-    "read it AS IT STANDS with `request.security(syminfo.tickerid, \"W\", expr)`, and put nothing after it. `x[1]` "
-    "after a request is one bar of THIS chart, not one week: on the bar that completes a week it shows the week "
-    "before. ONLY when the words say LAST week's or the PREVIOUS month's value, put the look-back INSIDE the request: "
-    "`request.security(syminfo.tickerid, \"W\", expr[1], lookahead = barmerge.lookahead_on)`.")
+#: ⭐ RULE 14: A FIGURE THE MEMBER MUST FILL IN (found by the first full live run of the value cases, 2026-11-22). On
+#: the formula door an "average cost" setting was drawn bare: a line at price 0 until filled, squeezing the chart. A
+#: script reaches the same shape with `avg = input.float(0, ...)` and `plot(avg)`. The member's own figures are never
+#: invented (a default of 0), and a figure at 0 is not drawn.
+FILL_IN_RULE = (
+    "A FIGURE THE MEMBER MUST FILL IN (shares, an entry, an average cost, a stop): never invent it. Give the "
+    "setting a default of 0 and draw NOTHING until it is filled: `plot(avg > 0 ? avg : na)`, and a table cell that "
+    "shows it only when it is above 0. A bare `plot(avg)` is a line at price 0 that squeezes the chart. Say in "
+    "`reply` that the member's own figures cannot be read here and where to enter them.")
+
+#: ⭐ RULE 13, INTERIM (coordinator's ruling, 2026-11-22). Found by the live re-check of the rule above it: asked for a
+#: table of yesterday's high and low, the assistant added a "Decimal places" setting and BUILT the number format from
+#: text (`fmt = "#." + str.replace_all(...)`, then `str.tostring(x, fmt)`). The engine WITHHOLDS a text whose format is
+#: not a string literal (it cannot know the pattern, and the ten-decimal default would be a different text), so the
+#: table drew its labels and NO VALUES, with no error and no word to the member. Measured through the engine: a literal
+#: format, `format.mintick` and `format.volume` draw; a format held in a variable, joined from text, or
+#: `format.percent` draws nothing. Measured over the 101 scripts on file: 1 builds a format (that one).
+#: ⛔ THIS SENTENCE COMES OUT WHEN THE ENGINE SERVES A FOLDED FORMAT (the engine unit that names the withhold and folds
+#: a format made of literals and inputs). `tests/test_script_format_is_a_literal.py` runs the shape through the engine
+#: on every run and goes RED the day it draws, naming this constant: remove it then, in that commit.
+FORMAT_LITERAL_RULE = (
+    "Write `str.tostring`'s format as a string literal (\"#.##\"). For a decimals setting, choose among literal "
+    "formats (`digits == 0 ? str.tostring(x, \"#\") : digits == 1 ? str.tostring(x, \"#.#\") : str.tostring(x, "
+    "\"#.##\")`); never build a format from text or hold one in a variable. `format.mintick` and `format.volume` are "
+    "served; for a percent write the number and add \"%\" yourself.")
+
+#: ⭐ RULE 12: A NUMBER WRITTEN ON BARS (found by a value check of a live round, 2026-11-22). Asked to "write the
+#: count above each bar of the run as a number from 1 to 9", the assistant wrote
+#: `plotchar(cnt > 0 ? cnt : na, "Count", "", location.abovebar)`. `plotchar` draws ONE fixed character wherever
+#: its series has a value; with an empty character this engine draws its default mark. Every bar of the run got the
+#: same mark and no bar got its number. The next round's answer to the same shape used
+#: `label.new(bar_index, low, str.tostring(n))` and was right on every bar it was checked on.
+NUMBER_ON_BARS_RULE = (
+    "A NUMBER WRITTEN ON BARS that changes from bar to bar (a count, a rank, a value) is written with a label, one "
+    "per bar: `if n > 0` then `label.new(bar_index, high, str.tostring(n), style = label.style_none, textcolor = "
+    "color.green)`, with `max_labels_count = 500` in `indicator(...)`. `plotchar` and `plotshape` draw ONE FIXED "
+    "character or text per call, the same on every bar: `plotchar(n, char = \"\")` writes no number at all.")
+
+#: ⚰️ RULE 12 (a value on another timeframe is read AS IT STANDS, a look-back goes INSIDE the request) WAS HERE,
+#: 2026-11-22, for nine hours. It shipped with a condition: `j06` ("a table that says whether the close is above the
+#: 10 week and the 10 month moving average"), re-recorded live with the rule served, must be RIGHT. It was not.
+#: Measured from recorded answers only: the rule changed that script's FORM (`wMA[1]` after the request became the
+#: look-back inside it) and not its VALUE (the same two numbers, one period stale on the bar that completes a week
+#: or month), and it made no value case right. The cause is not wording: the engine serves no "as it stands" value
+#: of a FORMING higher-timeframe bar (G6), so no last-bar table is right on both a live weekday and a finished
+#: Friday. `j06` stays recorded WRONG and is an acceptance case of the engine unit that serves that value.
+#: What the measurement could NOT see: no recorded script PLOTS a weekly value, so a benefit to plots was never
+#: tested. The pending value case `weekly-plot-01` asks exactly that; bring a rule back on what it shows.
 
 #: ⭐⭐ ADMITTED FOR FINISHED BARS ONLY, SAID TO THE ASSISTANT (found live 2026-11-19). The engine admits some
 #: capabilities on CLOSED-BAR evidence only (G6, `historyOnly` in the generated reference, held equal to the
@@ -523,7 +550,8 @@ def _lines(title: str, rows: List[str]) -> List[str]:
 def contract(ref: Optional[Mapping[str, Any]] = None) -> str:
     """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference."""
     return (CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
-            .replace("{other_timeframe}", OTHER_TIMEFRAME_RULE))
+            .replace("{number_on_bars}", NUMBER_ON_BARS_RULE)
+            .replace("{format_literal}", FORMAT_LITERAL_RULE).replace("{fill_in}", FILL_IN_RULE))
 
 
 def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:
@@ -739,9 +767,10 @@ RUN_STOP_RELIEFS: Dict[str, Tuple[str, str]] = {
     "higher-timeframe-one-bar-back": (
         "higher-timeframe-newest-bar",
         "The way through: that value ONE BAR BACK, `x[1]` read alone (not inside `nz()` or a condition that "
-        "also reads `x`), DOES have a value on the newest bar: it is the last finished week or month. When "
-        "the script needs the value on the last bar (a table, a label, a level), read `x[1]` and say in "
-        "`reply` that it shows the last finished period."),
+        "also reads `x`), DOES have a value on the newest bar: it is the last finished week or month, except on "
+        "the bar that completes one, where it is the period before. When the script needs the value on the last "
+        "bar (a table, a label, a level), read `x[1]` and say in `reply` that it shows the last finished period "
+        "and moves when the next one starts."),
 }
 
 

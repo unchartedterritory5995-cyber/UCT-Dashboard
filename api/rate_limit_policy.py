@@ -150,6 +150,11 @@ TIER_INTAKE = "60/minute"
 #: minute. 2,400 is that plus 20%. The bytes are immutable (7-day Cache-Control), so
 #: only a member's first view of a post spends this at all.
 TIER_IMAGES = "2400/minute"
+#: A member's own historical study (EVST): each NEW spec runs a whole-history computation on the
+#: server, far heavier than a cached read. A member runs one study per click; the panel re-asks
+#: every few seconds while one is computing and reads the series menu once per open. 30 a minute is
+#: a run every two seconds, well past a person at the form, and a twentieth of the research tier.
+TIER_STUDY = "30/minute"
 
 
 class Family(NamedTuple):
@@ -242,6 +247,13 @@ FAMILIES: dict[str, Family] = {
          # batched team-calls read: cached archive reads behind the research sections, the
          # chart's pattern side panel and the Trader Archive page, one per view or click.
          "/api/wisdom"),
+    ),
+    "research-studies": Family(
+        TIER_STUDY,
+        "EVST, a member's own historical event study and its series menu: every new spec computes over "
+        "the whole stored history (on a two-worker pool, held per spec per evening), so it gets a "
+        "TIGHTER bucket than the research reads its prefix sits under (longest prefix wins).",
+        ("/api/research/event-study",),
     ),
     "screener": Family(
         TIER_STANDARD,
