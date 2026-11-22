@@ -1,11 +1,11 @@
 {
  "populations": {
   "capture": {
-   "scripts": 1012,
-   "admitted": 813,
-   "runtimeLane": 226,
-   "hostLane": 310,
-   "refused": 277,
+   "scripts": 1027,
+   "admitted": 828,
+   "runtimeLane": 227,
+   "hostLane": 312,
+   "refused": 289,
    "coreOnly": 47
   },
   "committed": {
@@ -34,7 +34,7 @@
   }
  },
  "populationSizes": {
-  "capture": 1012,
+  "capture": 1027,
   "committed": 266,
   "reference": 271,
   "builtin": 142
@@ -5539,6 +5539,31 @@
   {
    "capture": "rs-rating-fred6724-w-nvda-1w-2026-11-17",
    "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "DIVERGE",
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "realtime-state",
+    "reassign",
+    "request-other",
+    "switch",
+    "ternary",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
+   "capture": "rs-rating-fred6724-w-nvda-1w-2026-11-21",
+   "lane": "host",
    "runtimeOn": "MATCH_SUBSTITUTED",
    "production": "DIVERGE",
    "caps": [
@@ -5563,6 +5588,31 @@
   },
   {
    "capture": "rs-rating-fred6724-w-rddt-1w-2026-11-17",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "DIVERGE",
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "realtime-state",
+    "reassign",
+    "request-other",
+    "switch",
+    "ternary",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
+   "capture": "rs-rating-fred6724-w-rddt-1w-2026-11-21",
    "lane": "host",
    "runtimeOn": "MATCH_SUBSTITUTED",
    "production": "DIVERGE",
@@ -5859,6 +5909,162 @@
   },
   {
    "capture": "rs-syminfo-industry-msft-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nhdot-a-1d-2026-11-19",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nhdot-adt-1d-2026-11-19",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nhdot-aer-1d-2026-11-19",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nhdot-appn-1d-2026-11-19",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nhdot-avpt-1d-2026-11-19",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nhdot-azta-1d-2026-11-19",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nhdot-bgin-1d-2026-11-19",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nhdot-box-1d-2026-11-19",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nhdot-brkr-1d-2026-11-19",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nhdot-cyrx-1d-2026-11-19",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nhdot-frog-1d-2026-11-19",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nhdot-gct-1d-2026-11-19",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
@@ -11613,6 +11819,25 @@
    "caps": [
     "collections:array",
     "core"
+   ]
+  },
+  {
+   "capture": "vw-w3-loop-helper-text-spy-1d-2026-11-16",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "DIVERGE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "obj:table",
+    "realtime-state",
+    "ternary",
+    "typed-array",
+    "var"
    ]
   },
   {

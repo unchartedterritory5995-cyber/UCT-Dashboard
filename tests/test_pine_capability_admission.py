@@ -28,6 +28,7 @@ from fastapi.testclient import TestClient
 
 from api.middleware.auth_middleware import get_current_user_with_plan
 from api.routers import user_definitions as router_mod
+from api.services import host_known_divergence as hkd
 from api.services import pine_capabilities as pc
 from api.services import rollout_gate as rg
 from api.services import runtime_definitions as rt
@@ -1219,29 +1220,60 @@ def _draw1_justifies(r: dict) -> bool:
     return r.get("verdict") == "INCONCLUSIVE" and DRAW1_UNPOSITIONED in withheld
 
 
-def _draw1_unkilled_diverging(kills: dict) -> list:
+def _capture_source_text(r: dict) -> str | None:
+    """The Pine source a committed verdict row's capture holds (read where it lives: the repo, or the local store
+    for a licence-held capture), or None when it cannot be read."""
+    at = licence_held.fixture_path(r["file"])
+    try:
+        text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+    except (OSError, ValueError):
+        return None
+    return text if isinstance(text, str) else None
+
+
+def _draw1_host_exempt(sha: str, host: dict, rt_verdicts: dict) -> bool:
+    """⭐ (coordinator ruling 2026-11-22, the e93 snapshots) Is this DRAW-1 source exempt from the kill? Only when it is on
+    the HOST known-divergence list (its production DIVERGE is refused by name on the host lane, pine:known-divergence)
+    AND every committed runtime-on capture of it grades MATCH (the runtime lane draws what TradingView draws).
+    Positive evidence only: a runtime-on INCONCLUSIVE (the member door refusing it by name) or DIVERGE keeps the kill."""
+    got = rt_verdicts.get(sha)
+    return sha in host and bool(got) and all(v == "MATCH" for v in got)
+
+
+def _draw1_unkilled_diverging(kills: dict, rt_results: list | None = None, host: dict | None = None) -> list:
     """Sources using obj:box / obj:table, admitted on capabilities, with a committed capture grading DIVERGE on
-    either lane (or the unpositioned partial grade, `_draw1_justifies`), whose sha256 is not in `kills`."""
+    either lane (or the unpositioned partial grade, `_draw1_justifies`), whose sha256 is not in `kills` and that is
+    not exempt (`_draw1_host_exempt`). `rt_results` / `host`: the runtime-on rows and the host known-divergence list,
+    the committed ones when not given (the controls hand their own)."""
     admitted = set(rt.admitted_capabilities()["admitted"])
-    lanes = [json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"],
+    if rt_results is None:
+        rt_results = json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"]
+    lanes = [rt_results,
              json.loads((ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json")
                         .read_text(encoding="utf-8"))["results"]]
     out = set()
+    titles = set()
     for results in lanes:
         for r in results:
             if not _draw1_justifies(r):
                 continue
-            at = licence_held.fixture_path(r["file"])
-            try:
-                text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
-            except (OSError, ValueError):
-                continue
-            if not isinstance(text, str):
+            text = _capture_source_text(r)
+            if text is None:
                 continue
             caps = pc.capabilities_of(text)
             if caps & DRAW1_NEW_OBJECT_FAMILIES and not rt.missing_capabilities(caps, admitted) and rt.source_hash(text) not in kills:
                 out.add((r["id"], rt.source_hash(text)))
-    return sorted(out)
+                titles.add(r.get("script"))
+    # each named source's runtime-on grades (a source's captures share its script title; the hash confirms it)
+    host = hkd.committed() if host is None else host
+    rt_verdicts: dict = {}
+    for r in rt_results:
+        if r.get("script") not in titles:
+            continue
+        text = _capture_source_text(r)
+        if text is not None:
+            rt_verdicts.setdefault(rt.source_hash(text), []).append(r.get("verdict"))
+    return sorted((cid, sha) for cid, sha in out if not _draw1_host_exempt(sha, host, rt_verdicts))
 
 
 def test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_killed():
@@ -1253,6 +1285,32 @@ def test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_kill
     draw1 = {s["sha256"] for s in doc["scripts"] if s["slug"] in DRAW1_KILLED_SLUGS}
     named = {sha for _cid, sha in _draw1_unkilled_diverging({k: v for k, v in kills.items() if k not in draw1})}
     assert named == draw1, (named, draw1)
+
+
+#: ⭐ (coordinator ruling 2026-11-22, the e93 snapshots) the sources the host known-divergence exemption frees from a DRAW-1
+#: kill, MEASURED on the committed snapshots: our own probe only (its capture -spy-1d-2026-11-16 re-grades MATCH runtime-on
+#: at engine 93; production stays DIVERGE, refused by name on the host lane). A community script here is a member-served
+#: change and needs its own ruling.
+DRAW1_HOST_EXEMPT_SLUGS = {"vw-w3-loop-helper-text"}
+
+
+def test_DRAW1_a_host_listed_source_the_runtime_lane_draws_MATCH_is_not_a_kill():
+    host = hkd.committed()
+    by_slug = {e.get("slug"): sha for sha, e in host.items()}
+    with_exemption = {sha for _cid, sha in _draw1_unkilled_diverging({})}
+    without = {sha for _cid, sha in _draw1_unkilled_diverging({}, host={})}
+    freed = without - with_exemption
+    assert {host[s].get("slug") for s in freed} == DRAW1_HOST_EXEMPT_SLUGS
+    for s in freed:
+        assert str(host[s].get("source") or "").startswith("tools/visual_conformance/probes/"), host[s]
+    # ⛔ CONTROL: a host-listed source whose runtime-on capture is INCONCLUSIVE (the door refuses it by name) is still named
+    assert by_slug["vw-tf-tostring-built-fmt"] in with_exemption
+    # ⛔ CONTROL: the exempt probe made to grade DIVERGE on runtime-on is named again
+    rows = copy.deepcopy(json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"])
+    flipped = [r for r in rows if r["id"] == "vw-w3-loop-helper-text-spy-1d-2026-11-16"]
+    assert len(flipped) == 1 and flipped[0]["verdict"] == "MATCH"
+    flipped[0]["verdict"] = "DIVERGE"
+    assert by_slug["vw-w3-loop-helper-text"] in {sha for _cid, sha in _draw1_unkilled_diverging({}, rt_results=rows)}
 
 
 #: ⭐⭐ admit:request-other (coordinator ruling 2026-11-19): admitting `request-other` admits every source whose only missing

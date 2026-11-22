@@ -3900,6 +3900,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "",
+      "path": "/api/options-screener/iv-rank",
+      "rate_limit_family": "options-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
       "path": "/api/options-screener/more-strategies",
       "rate_limit_family": "options-analytics",
       "tier": "paid"
@@ -5005,6 +5013,14 @@
       "method": "GET",
       "params": "",
       "path": "/api/scans/ipo-1y/status",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/scans/ipo-lockups",
       "rate_limit_family": "screener",
       "tier": "paid"
     },

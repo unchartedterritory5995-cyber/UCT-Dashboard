@@ -5018,3 +5018,26 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   the older files it keeps running lack only what it never invokes. `fund_trends.py` and `api/main.py` are not in its
   closure.
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal `OSCR RICH` / `OSCR CHEAP` (IV rank list) + `IPO LOCKUP` · `feat/terminal-ivrank-lockups` · 2026-11-22
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/research/iv_history.py`, `api/services/scan_ipo.py` |
+
+- **Additive.** `iv_history.py` gains `summary_rule(fieldnames)`, the one place a summary file's ATM read rule is decided
+  from its header, and `_day_row` now calls it (the same rule, the same values). `scan_ipo.py` gains an optional `sources`
+  dict to `_build_ipo_set` (filled with each ticker's winning listing-date source; without it the map is unchanged), two
+  held keys (`sources`, and `live`: the last non-empty live answer) and the read-only `held_listings()`. No existing
+  function's result changes.
+- **Callers.** Only new web code reads them: `research/iv_rank_leaders.py` (the evening job registered in `api/main.py`,
+  read by `GET /api/options-screener/iv-rank`) and `ipo_lockups.py` (read by `GET /api/scans/ipo-lockups`). None of these
+  is in flow-worker's closure.
+- **Flow-worker.** Reaches the two files only through static chains whose hops are function-level imports
+  (`flow_worker_main` -> `auth_surface_check` -> `flow_proxy` -> `auth_service` -> `auth_db` -> `journal_two.db` ->
+  `journal_two.notes` -> `ticker_meta` -> `groups` -> `theme_performance` -> `scan_period` -> `scan_ipo`; `... ->
+  journal_two.template_gallery` -> `notebook_widgets` -> `routers.scan_results` -> `screener.snapshot_db` ->
+  `screener.rs_post_pass` -> `routers.auth` -> `research.iv_history`). It never runs the IPO scan, the IV history read or
+  either new job; the older files it keeps running lack only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.

@@ -67,9 +67,27 @@ def test_the_fixture_is_whole():
         # a case may be recorded WRONG: a known defect of the door, named, never silently passed
         assert case.get("recorded_verdict", "wrong" if "defect" in case else None) in (None, "wrong"), case["id"]
         assert ("defect" in case) == (case.get("recorded_verdict") == "wrong") and len(case.get("defect") or "x" * 99) > 80, case["id"]
-    # e95 unit 1 (2026-11-22): `table-format-01` left the list: its recorded answer (a computed number format) draws its
-    # values since the engine folds a format that is fixed (`tests/test_script_format_is_a_literal.py`)
-    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "date-start-01", "wall-18", "j06", "count-on-bars-01", "wall-26", "intraday-02"]     # every one is named here, on purpose
+    # e95 unit 1 (2026-11-22): `table-format-01` is off the list: its recorded answer (a computed number format) draws its
+    # values since the engine folds a format that is fixed (`tests/test_script_format_is_a_literal.py`); master keeps
+    # its wrong answer as the case's fixed specimen (`found`)
+    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "date-start-01", "wall-18", "j06", "wall-26", "intraday-02", "wall-31", "wall-32"]     # every one is named here, on purpose
+
+
+def _floor(case):
+    """A RIGHT formula answer must be compared on MORE bars than this. 200 for a value that exists over the whole
+    chart. A value that starts on a date the member wrote (`from`) has one only from that date: then it must be
+    compared on EVERY bar from it (one fewer than their number is the floor)."""
+    if not case.get("from"):
+        return 200
+    return sum(1 for b in market.STOCK if str(b["t"])[:10] >= case["from"]) - 1
+
+
+def test_CONTROL_a_value_that_starts_on_a_date_is_compared_on_every_bar_from_it():
+    assert _floor({}) == 200
+    assert _floor({"from": "2026-03-03"}) == 188 and _floor({"from": "2026-09-01"}) == 58      # 189 and 59 bars from those dates
+    for case in FORMULA:
+        if case.get("from"):
+            assert 50 <= _floor(case) < 200 and case["id"].startswith("date-start-"), case["id"]
 
 
 @pytest.mark.parametrize("case", HERE, ids=[c["id"] for c in HERE])
@@ -86,7 +104,7 @@ def test_the_recorded_answer_is_right_on_the_lane_the_request_belongs_on(case):
     if case["lane"] == "formula":
         # something was compared: "right" over no bars would be a pass by silence
         compared = [int(line.rsplit(" on ", 1)[1].split()[0]) for line in result["lines"] if " = " in line]
-        assert compared and min(compared) > 200, result["lines"]
+        assert compared and min(compared) > _floor(case), result["lines"]
 
 
 def test_every_formula_case_has_a_rule_that_covers_the_whole_market():
