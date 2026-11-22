@@ -19,13 +19,19 @@ vi.mock('../hooks/livePriceStore', () => ({
 }))
 
 let M
+let MS          // utils/marketSession: the daily paint authority the chart's hook asks
 let clock
+/** key -> when the local copy was saved (what `persist.savedAtOf` answers); unset: unknown, as for a copy never hydrated */
+const SAVED = {}
 beforeAll(async () => {
   clock = pinWallClock('2026-09-22T17:17:00Z')   // Tue 13:17 ET, the regular session in progress
   M = await import('./StockChart')
+  MS = await import('../utils/marketSession')
+  const store = (await import('../data/barStore/index')).getBarStore()
+  vi.spyOn(store.persist, 'savedAtOf').mockImplementation((k) => SAVED[k] ?? null)
 }, 60_000)
-afterAll(() => clock.restore())
-beforeEach(() => { S.prices = {} })
+afterAll(() => { clock.restore(); vi.restoreAllMocks() })
+beforeEach(() => { S.prices = {}; for (const k of Object.keys(SAVED)) delete SAVED[k] })
 
 const adjust = (t) => t
 const LIVE = { price: 10.4, day_open: 10, day_high: 11, day_low: 9, ext_session: false, observed_at: Date.now() }
@@ -46,14 +52,16 @@ const fiveMin = () => {
   for (let i = 0; i < 40; i++) out.push({ t: open + i * 300, o: 10, h: 11, l: 9, c: 10.5, v: 100 })
   return out
 }
-/** What `switchFrame.buildFrame` hands over, as far as the tail reads it. */
+/** What `switchFrame.buildFrame` hands over, as far as the tail reads it (`bars`: the snapshot's rows, which the
+ *  daily paint authority reads; buildFrame returns them under that name). */
 const builtOf = (bars) => ({
+  bars,
   ohlcBase: bars.map((b) => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c })),
   displayBars: bars,
   filteredBars: bars,
 })
-const VERIFIED = { restSeen: true }    // a server-answered snapshot
-const LOCAL = { restSeen: false }      // a local copy the server has not answered for yet
+const VERIFIED = { restSeen: true, key: 'BBB_D' }    // a server-answered snapshot
+const LOCAL = { restSeen: false, key: 'BBB_D' }      // a local copy the server has not answered for yet
 
 describe('the clock and the reserve under it (the cases below are not vacuous)', () => {
   it('Friday\'s tail is behind the frontier during Tuesday\'s session, and the frontier is today', () => {
@@ -89,11 +97,32 @@ describe('switchTailFor: a daily switch whose bars reach today', () => {
     S.prices = { BBB: LIVE }
     expect(M.switchTailFor(builtOf(bars()), 'BBB', LOCAL, 'D', adjust)).toEqual({ ok: false })
   })
-  it('a local-only snapshot with NO live price: nothing to repair with, no tail', () => {
+  // ⛔ A LOCAL DAILY COPY IS PAINTED ONLY WHEN THE CHART'S OWN AUTHORITY SAYS SO (useBarSnapshotBars
+  // `_dailyLocalRefused`: `dailyCachePaintVerdict` and `lastDailyBarInsane`). Mid-session, a copy whose last bar is
+  // today is current only if it was saved moments ago; of unknown age it is not drawn, and the chart waits for the
+  // server. The controller asks the same two questions (with no seed: a seed would have asked the live-price
+  // sanity, and that refuses above), and refuses by name.
+  it('a local-only snapshot with NO live price, of UNKNOWN age: today\'s bar may be stale, the chart would not draw it, so the switch is REFUSED (daily-local)', () => {
+    const built = builtOf(bars())
+    expect(MS.dailyCachePaintVerdict('2026-09-22', null, { hasSeed: false })).toBe('today-stale')   // the authority's own answer
+    expect(M.switchTailFor(built, 'BBB', LOCAL, 'D', adjust)).toEqual({ ok: false, why: 'daily-local' })
+  })
+  it('a local-only snapshot with NO live price, saved seconds ago: nothing to repair with, no tail', () => {
+    SAVED.BBB_D = Date.now() - 20_000
+    expect(MS.dailyCachePaintVerdict('2026-09-22', SAVED.BBB_D, { hasSeed: false })).toBe('ok')
     const built = builtOf(bars())
     const r = M.switchTailFor(built, 'BBB', LOCAL, 'D', adjust)
     expect(r).toMatchObject({ ok: true, kind: 'none' })
     expect(r.ohlcData).toEqual(built.ohlcBase)
+  })
+  it('a local-only snapshot saved seconds ago whose last bar is not plausible: REFUSED (daily-local), as the chart refuses it', () => {
+    SAVED.BBB_D = Date.now() - 20_000
+    const rows = bars()
+    rows[rows.length - 1] = { ...rows[rows.length - 1], o: 10, h: 31, l: 9, c: 30 }   // open 10, close 30: a 200% body
+    expect(M.switchTailFor(builtOf(rows), 'BBB', LOCAL, 'D', adjust)).toEqual({ ok: false, why: 'daily-local' })
+  })
+  it('a server-answered snapshot of unknown age is never asked (the authority is for a local copy only)', () => {
+    expect(M.switchTailFor(builtOf(bars()), 'BBB', VERIFIED, 'D', adjust)).toMatchObject({ ok: true, kind: 'none' })
   })
 })
 
