@@ -27,7 +27,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { settleAction, BURST_SETTLE_MS } from './useSymbolSettle'
-import { groupJoin, groupLeave, groupReady, registerMember, settleClock, createSettleClock, decisionFor, subscribeDecisions } from './handoffGroups'
+import { groupJoin, groupLeave, groupReady, registerMember, settleClock, createSettleClock, decisionFor, subscribeDecisions, latestOnly } from './handoffGroups'
 import { memPeek } from '../utils/barsMemCache'
 import * as legacyPrefetch from '../utils/prefetchBars'
 import * as storePrefetch from '../data/barStore/prefetch'
@@ -159,15 +159,31 @@ function sameTaskRoute(sym, tf, sess) {
 /** ⭐ DIAGNOSTICS (device store on only): ONE record per switch, at its commit, of what the first frame is built
  *  from and, when it is not the device copy, which rule refused it (data/deviceStore/diag.js). Read by no
  *  decision; a failure here never costs the switch. */
-function noteDeviceFor(sym, tf, sess, outcome) {
+function noteDeviceFor(sym, tf, sess, outcome, pre = null) {
   if (!DEVICE) return
   try {
     const intraday = INTRADAY.has(String(tf))
     const vtf = intraday ? fetchTf(tf) : tf
     const v = storePrefetch.deviceVerdict(sym, vtf, intraday ? sess : {})
-    const rec = noteDeviceSwitch({ sym, tf: String(tf), at: performance.now(), outcome, painted: v.held, reason: v.reason, why: null })
+    // queue: the device client's reads in flight at this commit (a held arrow's backlog, if any)
+    let queue = null
+    try { queue = deviceSource()?.inFlight?.() ?? null } catch { queue = null }
+    const rec = noteDeviceSwitch({ sym, tf: String(tf), at: performance.now(), outcome, painted: v.held, reason: v.reason, why: null, queue, pre })
     if (v.held !== 'device') deviceWhy(sym, vtf).then((w) => { rec.why = w }, () => { rec.why = 'error' })
   } catch { /* diagnostics only */ }
+}
+
+/** ⭐ DIAGNOSTICS (2026-11-21): the device rule's answer for this chart's key NOW, while no server answer holds it
+ *  (null once one does, and with the device store off). A switch that waited commits after the server answered, and
+ *  its record's own verdict then reads 'held:rest' whatever kept the device copy from painting in the meantime
+ *  (devgates 2026-11-21: 107 of 116 typed and 70-row records said only that). The last answer seen here is the record's `pre`. */
+function deviceRuleBeforeAnswer(sym, tf, sess) {
+  if (!DEVICE) return null
+  try {
+    const intraday = INTRADAY.has(String(tf))
+    const v = storePrefetch.deviceVerdict(sym, intraday ? fetchTf(tf) : tf, intraday ? sess : {})
+    return v && v.held !== 'rest' && v.held !== 'server' ? v.reason : null
+  } catch { return null }
 }
 
 /** ⭐ CAN THIS CHART SHOW `sym` IN THIS TASK (the key handler's decision, handoffGroups.decideGroupShow)? The same
@@ -179,6 +195,24 @@ function canShowNowFor(sym, tf, sess, st, settle) {
   const route = sameTaskRoute(sym, tf, sess)
   if (route === 'econ') return true
   return route === 'now' && columnsReadyFor(sym, tf)
+}
+
+/** ⭐ (2026-11-21, the cold switch) START THIS CHART'S DEVICE READ for `sym` now (the key press: handoffGroups
+ *  primeGroup), on the key its switch will read (the intraday fetch key and session, or the D/W/M key). */
+function primeDeviceFor(sym, tf, sess) {
+  if (!DEVICE || !sym || !tf || !isNativeTf(tf) || /^ECON:/i.test(String(sym))) return undefined
+  const intraday = INTRADAY.has(String(tf))
+  try { return storePrefetch.deviceWarm(sym, intraday ? fetchTf(tf) : tf, intraday ? sess : {}) } catch { return undefined }
+}
+
+/** ⭐ (2026-11-21, the cold switch) Wake `cb` on each change of the entry (sym, tf) shows, instead of polling it
+ *  every POLL_MS; null under the legacy source (no store to watch: the caller polls). */
+// ⛔ DEVICE STORE ON ONLY (2026-11-21, to ship in the chart train): with the device store off, every waiter keeps
+// today's POLL_MS poll, so this branch changes NOTHING for a member without it (cold gates 1, 3 and 4 are device-only
+// by construction: the prime returns at !DEVICE; the worker and its minute replay only run with the store on).
+const watchEntry = (sym, tf, opts, cb) => {
+  if (!BARSTORE || !DEVICE) return null
+  try { return storePrefetch.watch?.(sym, tf, opts, cb) || null } catch { return null }
 }
 
 const NO_SUBSCRIPTION = () => () => {}
@@ -310,11 +344,16 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   }
   // the member's view, for canShowNow: written each commit, read by the key handler (never during a render)
   const viewRef = useRef({ tf, showExtended })
+  // this chart's device read in the key press, LATEST-ONLY (handoffGroups.latestOnly): a held arrow never queues
+  // a read per row it passes
+  const primeRef = useRef(null)
+  if (!primeRef.current) primeRef.current = latestOnly((sym) => primeDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended)))
   useLayoutEffect(() => { viewRef.current = { tf, showExtended } })
   useLayoutEffect(() => {
     if (!scoped) return undefined
     return registerMember(scope, group, memberIdRef.current, {
       tf: () => viewRef.current.tf,
+      prime: (sym) => primeRef.current(sym),
       // ⭐ an imperative member also asks its controller whether the symbol's frame builds whole; its answer is
       // the token `showDecided` paints from. A controller that refuses changes nothing: this member shows the
       // symbol through React in the same task, so the group still lands in one frame.
@@ -358,6 +397,12 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   // DEGRADED handoff separately from a successful one. Diagnostic only — no
   // rendering decision reads it.
   const lastOutcomeRef = useRef(null)
+  // ⛔⛔ (2026-11-21, the held key) A REQUEST THAT IS LEFT NEVER SHOWS. Every answer below is checked against the
+  // generation that started it, but a generation only ended when the NEXT request RAN, and inside a burst the next
+  // request waits BURST_SETTLE_MS before it runs (or never runs: a newer key replaces it). So a superseded request
+  // stayed current that long, and a late answer of it (its panes' columns landing) showed it, alone, over the newer
+  // one. It ends HERE, in the commit that leaves it: a layout cleanup, so before any late answer can run.
+  useLayoutEffect(() => () => { genRef.current += 1 }, [requestedSym, tf, enabled, group])
 
   useEffect(() => {
     // Disabled / nothing requested: pass straight through, same tick. The
@@ -411,10 +456,14 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       const sess = sessOf(showExtended)
       // one device diagnostics record per switch, at its commit (noteDeviceFor)
       let noted = false
+      // `pre`: the device rule's last answer while this switch waited with no server answer on the key
+      // (deviceRuleBeforeAnswer); asked wherever the switch itself asks the rule, never on a timer of its own
+      let pre = null
+      const seePre = () => { const r = deviceRuleBeforeAnswer(requestedSym, tf, sess); if (r) pre = r }
       const noteDevice = () => {
         if (noted) return
         noted = true
-        noteDeviceFor(requestedSym, tf, sess, lastOutcomeRef.current)
+        noteDeviceFor(requestedSym, tf, sess, lastOutcomeRef.current, pre)
       }
       const commit = () => {
         if (genRef.current !== gen) return
@@ -458,16 +507,28 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         // of this key's life, never a saved copy alone: a copy from an earlier day is behind, and the chart
         // refuses to paint it (useBarSnapshotBars, dailyCachePaintVerdict), so committing on it would show a
         // loading chart instead of A.
+        // ⭐ (2026-11-21) with the device store on: woken by prefetch.watch (the device copy landing, the tail's
+        // answer being noted), never a poll; off, the POLL_MS poll as before (watchEntry)
         let devTimer = null
-        const devPoll = () => {
-          devTimer = null
-          if (!live) return
-          if (devicePaints(requestedSym, tf)) { land('device'); return }
-          if (covers(requestedSym, tf, { answered: true })) { land('covered'); return }
-          devTimer = setTimeout(devPoll, POLL_MS)
+        let unwatch = null
+        // ⛔ ONE STOP, SAFE TO CALL AGAIN: a look at the entry can wake the watcher INSIDE it (the device rule
+        // re-reads the device), and that nested wake lands the switch and stops watching first
+        const stopWatch = () => { const u = unwatch; unwatch = null; if (u) u() }
+        const ready = () => {
+          if (!live) return true
+          seePre()
+          if (devicePaints(requestedSym, tf)) { land('device'); return true }
+          if (covers(requestedSym, tf, { answered: true })) { land('covered'); return true }
+          return false
         }
-        if (DEVICE || BARSTORE) devTimer = setTimeout(devPoll, 0)
-        return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); ctl.abort() }
+        if (DEVICE || BARSTORE) {
+          unwatch = watchEntry(requestedSym, tf, {}, () => { if (unwatch && ready()) stopWatch() })
+          if (unwatch) { if (ready()) stopWatch() } else {
+            const devPoll = () => { devTimer = null; if (!ready()) devTimer = setTimeout(devPoll, POLL_MS) }
+            devTimer = setTimeout(devPoll, 0)
+          }
+        }
+        return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); stopWatch(); ctl.abort() }
       }
 
       // displayable and whole (paintsWholeNow), or a code this coordinator does not govern: commit now. The
@@ -508,13 +569,24 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // symbol from the shared queue before our own prepare resolves — committing
       // the moment the cache is good is strictly better than waiting for our
       // request to come back.
+      // ⭐ (2026-11-21) with the device store on it is woken by prefetch.watch (a repair, a device copy, the
+      // answer), never a POLL_MS poll; off (and under the legacy source) it keeps the poll (watchEntry).
       let timer = null
+      let unwatchI = null
+      const stopWatchI = () => { const u = unwatchI; unwatchI = null; if (u) u() }   // (safe to call again: see stopWatch)
       const tick = () => {
         if (!alive || genRef.current !== gen) return
+        seePre()
         if (paintsWholeNow(requestedSym, tf, sess)) { commitHere(); return }
         timer = setTimeout(tick, POLL_MS)
       }
-      timer = setTimeout(tick, POLL_MS)
+      seePre()   // (the route was just decided on this entry: what the device rule said of it then)
+      unwatchI = watchEntry(requestedSym, fetchTf(tf), sess, () => {
+        if (!unwatchI || !alive || genRef.current !== gen || committed) return
+        seePre()
+        if (paintsWholeNow(requestedSym, tf, sess)) { stopWatchI(); commitHere() }
+      })
+      if (!unwatchI) timer = setTimeout(tick, POLL_MS)
 
       // ⚠️ THE BACKSTOP IS A HANG GUARD, NOT A RESULT. `prepareForDisplay` resolves
       // on success AND on failure, so the only way to reach this is a request that
@@ -527,7 +599,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         commitHere()
       }, HANDOFF_HANG_MS)
 
-      return () => { alive = false; if (timer) clearTimeout(timer); clearTimeout(deadline); if (!committed) { try { prepCtl?.abort() } catch { /* ignore */ } } }
+      return () => { alive = false; if (timer) clearTimeout(timer); stopWatchI(); clearTimeout(deadline); if (!committed) { try { prepCtl?.abort() } catch { /* ignore */ } } }
       // ⚠️ `displayedSym` IS A DEPENDENCY, NOT A REF READ DURING RENDER. Reading a
       // ref while rendering is unsafe under concurrent rendering (and the lint rule
       // says so). Depending on it re-runs this effect exactly once after a commit,

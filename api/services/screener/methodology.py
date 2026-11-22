@@ -1553,6 +1553,152 @@ def rs_columns_section() -> dict:
     }
 
 
+# ── Fundamental trends (2026-11-21) ──────────────────────────────────────────
+# ⛔ THE SAME RULE AS EVERY SECTION HERE: each number is read from the writer
+# (`fund_trends`) and each store rule from the store's own catalogue
+# (`fundamentals_pit.catalog`: the TTM rule, when a value takes effect, the filing
+# lag) at call time, so a re-tuned window or a reworded store note moves this page
+# on the same deploy. `test_the_fund_trend_methods_are_read_from_the_writer`
+# proves it by moving one.
+FUND_TRENDS_FAMILY = "fundamental_trends"
+
+
+def _fund_trend_params() -> dict:
+    from api.services.fundamentals_pit import catalog as _cat          # noqa: PLC0415
+    from api.services.screener import fund_trends as _ft               # noqa: PLC0415
+    by = _cat.by_id()
+    return {"ft": _ft, "ttm": _cat.TTM, "when": _cat.WHEN, "lag": _cat.FILING_LAG_NOTE,
+            "ifrs": _cat.DEFERRED.get("ifrs_filers", ""),
+            "rev_q": by["revenue_q"].methodology, "eps_q": by["eps_q"].methodology,
+            "gross_limit": by["gross_margin"].limitations, "gross_cov": by["gross_margin"].coverage,
+            "shares_limit": by["shares_outstanding"].limitations}
+
+
+def _fund_trend_common(p: dict) -> str:
+    ft = p["ft"]
+    lo, hi = ft.ACCEL_GAP_DAYS
+    return (f"From SEC filings (XBRL) through UCT's point-in-time fundamentals store, the series the "
+            f"charts and the FUND panel read; never a vendor. Worked out each evening after "
+            f"{ft.REBUILD_AT_ET[0]}:{ft.REBUILD_AT_ET[1]:02d} ET from the quarters public by that "
+            f"session's 16:00 ET close (no look-ahead) and read into the row by the next 03:00 ET build. "
+            f"{p['when']} {p['lag']} Two quarters are consecutive when their period ends are {lo} to "
+            f"{hi} days apart; a missing quarter is never compared across. Each quarter's figure is the "
+            f"last one published while it was the company's newest quarter, so a restatement made then "
+            f"is used and a later restatement of an older quarter is not. A newest quarter that ended "
+            f"more than {ft.MAX_PERIOD_AGE_DAYS} days ago is no longer current, and the column is blank.")
+
+
+def _fund_trend_methods() -> list:
+    """The eight fundamental trend columns (`fund_trends.COLUMNS`), every number and store rule read
+    from the writer and the store's catalogue so the page cannot drift from either."""
+    p = _fund_trend_params()
+    ft = p["ft"]
+    common = _fund_trend_common(p)
+    blank = ("Blank, never 0, when it cannot be worked out, and a filter on it leaves the stock out; "
+             "US-GAAP filers only (companies filing IFRS 20-F/40-F reports have no figures).")
+    y0, y1 = ft.YEAR_GAP_DAYS
+    s0, s1 = ft.SHARES_YEAR_DAYS
+    thr = f"{ft.EPS_STREAK_THRESHOLD:g}%"
+    neg = ("A quarter whose year-earlier EPS was zero or negative has no growth rate (the store leaves "
+           "it blank: growth off a loss is not a number), so it never counts")
+    out = [
+        {"column": "rev_accel_q", "label": "Revenue Growth Acceleration (quarters)",
+         "one_line": "How many quarters in a row year-over-year revenue growth has risen.",
+         "scale": f"0 to {ft.ACCEL_MAX} quarters",
+         "how": (f"Each quarter's revenue against the same fiscal quarter a year earlier ({p['rev_q']}). "
+                 f"Starting from the newest quarter: 1 when its growth is higher than the quarter before "
+                 f"it, 2 when that quarter's was also higher than the one before it, and so on, up to "
+                 f"{ft.ACCEL_MAX}. The count stops at the first quarter whose growth did not rise or cannot "
+                 f"be compared, so 2 means two confirmed rises in a row; 0 means the newest quarter's growth "
+                 f"did not rise. 1 or more is the same rule as the group views' revenue growth "
+                 f"accelerating. " + common),
+         "caveat": ("Blank when the newest quarter and the one before it cannot both be read: fewer than "
+                    "two quarters, a missing quarter between them, or a growth rate the store leaves blank "
+                    "because the year-earlier revenue was zero or negative. A rise from -20% to -10% counts "
+                    "as a rise. " + blank)},
+        {"column": "eps_streak_25", "label": f"EPS Growth {thr}+ Streak (quarters)",
+         "one_line": f"How many quarters in a row diluted EPS grew at least {thr} year over year.",
+         "scale": f"0 to {ft.EPS_STREAK_MAX} quarters",
+         "how": (f"Quarterly GAAP diluted EPS against the same fiscal quarter a year earlier, on one share "
+                 f"basis ({p['eps_q']}), each growth rate taken to two decimals. Counted from the newest "
+                 f"quarter back while each quarter grew at least {thr} and is the quarter right before the "
+                 f"last one counted, up to {ft.EPS_STREAK_MAX}; 0 means the newest quarter grew less than "
+                 f"{thr}. " + common),
+         "caveat": (f"{neg}: it ends a streak, and when it is the newest quarter this column is blank, so "
+                    f"a turnaround from a loss never qualifies however large. {thr} is UCT's default here "
+                    f"(the threshold the EPS Growth filter's preset uses), not an owner ruling; for any "
+                    f"other threshold use the EPS Growth, Weakest of Last N Quarters columns. Not the EPS "
+                    f"Growth column, which is the data provider's newest-quarter earnings growth. " + blank)},
+    ]
+    for n in ft.EPS_MIN_WINDOWS:
+        out.append({
+            "column": f"eps_growth_min_{n}q", "label": f"EPS Growth, Weakest of Last {n} Quarters",
+            "one_line": f"The lowest year-over-year EPS growth among the last {n} quarters.",
+            "scale": "percent (25 = 25%)",
+            "how": (f"Quarterly GAAP diluted EPS against the same fiscal quarter a year earlier ({p['eps_q']}), "
+                    f"for each of the newest {n} consecutive quarters, to two decimals; this column is the "
+                    f"lowest of the {n}. \"At least X% in each of the last {n} quarters\" is this column at X "
+                    f"or above, for any X: at {thr} it is exactly the EPS growth streak at {n} or more. "
+                    + common),
+            "caveat": (f"{neg}, so a stock with one inside the last {n} quarters is blank here, as is one "
+                       f"with fewer than {n} consecutive quarters held. " + blank)})
+    out.extend([
+        {"column": "net_margin_chg_1y", "label": "Net Margin Change vs Year Ago",
+         "one_line": "Trailing-twelve-month net margin now against a year earlier, in percentage points.",
+         "scale": "percentage points (2.5 = up 2.5 points)",
+         "how": (f"Net margin TTM (net income TTM / revenue TTM over the same four quarters) at the newest "
+                 f"quarter minus the same figure at the quarter one fiscal year earlier (period ends {y0} to "
+                 f"{y1} days apart), to two decimals. {p['ttm']} " + common),
+         "caveat": ("Blank without both quarters (a fiscal-year change that moves the quarter ends finds no "
+                    "match a year back). Not the Net Margin column, which is the data provider's current "
+                    "figure. " + blank)},
+        {"column": "gross_margin_chg_1y", "label": "Gross Margin Change vs Year Ago",
+         "one_line": "Trailing-twelve-month gross margin now against a year earlier, in percentage points.",
+         "scale": "percentage points (2.5 = up 2.5 points)",
+         "how": (f"Gross margin TTM (gross profit TTM / revenue TTM over the same four quarters) at the newest "
+                 f"quarter minus the same figure at the quarter one fiscal year earlier (period ends {y0} to "
+                 f"{y1} days apart), to two decimals. {p['ttm']} " + common),
+         "caveat": (f"{p['gross_limit']} When the store's coverage was measured, about "
+                    f"{round(100 * p['gross_cov'])}% of the screener universe had a current gross margin, so "
+                    "this column is blank for most companies. Not the Gross Margin column, which is the data "
+                    "provider's current figure. " + blank)},
+        {"column": "shares_chg_1y", "label": "Share Count Change vs Year Ago",
+         "one_line": "Shares outstanding now against a year earlier, in percent: below 0 is a net buyback, "
+                     "above 0 is dilution.",
+         "scale": "percent (-3 = 3% fewer shares)",
+         "how": (f"The newest cover-page count of common shares outstanding (as of the date the filing "
+                 f"states, on today's share basis, so a stock split is not dilution) against the cover-page "
+                 f"count closest to 365 days earlier, between {s0} and {s1} days back, to two decimals. "
+                 + common),
+         "caveat": (f"{p['shares_limit']} A company whose split history cannot be verified has its share "
+                    f"counts withheld. A cover-page count is as of the filing's own date, not the quarter "
+                    f"end. " + blank)},
+    ])
+    for m in out:
+        m["family"] = FUND_TRENDS_FAMILY
+    return out
+
+
+def fund_trends_section() -> dict:
+    """The shared paragraph for the eight fundamental trend columns: where they come from, when they
+    move, and what they do not claim. The per-column entries sit in `all_methods()["methods"]`."""
+    p = _fund_trend_params()
+    ft = p["ft"]
+    return {
+        "label": "Fundamental trend columns",
+        "columns": list(ft.COLUMNS),
+        "timing": (f"Worked out once each evening, after {ft.REBUILD_AT_ET[0]}:{ft.REBUILD_AT_ET[1]:02d} ET "
+                   f"(the quiet span), from the quarters public by that session's 16:00 ET close, and read "
+                   f"into every row by the next 03:00 ET build. An evening more than "
+                   f"{ft.MAX_LAG_SESSIONS} sessions behind the build is not shown (the columns are blank) "
+                   f"until a newer one is stored."),
+        "notes": [p["ttm"], p["when"], p["lag"], p["ifrs"]],
+        "honesty": ("Every column here describes filed quarters, which follow the earnings release by days. "
+                    "A trend is not a forecast: a streak ends, and accelerating growth decelerates. None of "
+                    "these columns is a recommendation."),
+    }
+
+
 def all_methods(user=None) -> dict:
     """Every composite column we publish, with how it is computed.
 
@@ -1590,14 +1736,19 @@ def all_methods(user=None) -> dict:
             m["scale"] = f"{_percentile_scale()} percentile within the sector"
         out.append(m)
     out.extend(_rs_column_methods())
+    out.extend(_fund_trend_methods())
+    evening = _fund_trend_params()["ft"].REBUILD_AT_ET
     doc = {
         "methods": out,
         "rs_columns": rs_columns_section(),
+        "fundamental_trends": fund_trends_section(),
         "as_of_note": (
             "Every column here is recomputed by the nightly 03:00 ET build; the "
             "IBD-style RS Rating columns are read by that build from the 04:15 ET "
-            "rating job, so they carry the prior session's rating. "
-            "None of them is an intraday number."),
+            "rating job, so they carry the prior session's rating, and the "
+            "fundamental trend columns are read by that build from the evening job "
+            f"that works them out after {evening[0]}:{evening[1]:02d} ET, as of that "
+            "session's close. None of them is an intraday number."),
     }
     # The five RS screens' own page (unit U4), only while they are served to this user:
     # otherwise the payload carries no key for it.

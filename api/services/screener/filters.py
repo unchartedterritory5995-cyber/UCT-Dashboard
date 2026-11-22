@@ -1112,6 +1112,34 @@ FILTERS = dict([
           "pattern_engine_vcp"),
     _bool("pattern_engine_flat_base", "Flat Base (Pattern Engine)", "pattern",
           "pattern_engine_flat_base"),
+    # ── fundamental trends (2026-11-21): the TREND across quarters, from SEC filings
+    # through the point-in-time fundamentals store (`fund_trends`, one writer). ──
+    # All bare (E-8): the member types the threshold. The one number inside a
+    # definition, the 25% of `eps_streak_25`, is the builder's default (the EPS Growth
+    # filter's "Over 25%" preset), named in the label; the three "weakest of the last
+    # N quarters" columns are how a member screens ANY other threshold ("at least X%
+    # in each of the last N quarters" is that column at X or above).
+    # The latest-quarter revenue and EPS growth a growth screen also asks for are NOT
+    # new controls: `rev_growth` and `eps_growth` above already are those quarterly
+    # (not TTM) facts, and the Fundamental Trends view shows them beside these.
+    # `_agent_omit`: member controls; UCT Agent's field list (sent with every screen
+    # request under a fixed context budget) is unchanged.
+    _agent_omit(_open_range("rev_accel_q", "Revenue Growth Acceleration (quarters)",
+                            "fundamental_trends", "rev_accel_q")),
+    _agent_omit(_open_range("eps_streak_25", "EPS Growth 25%+ Streak (quarters)",
+                            "fundamental_trends", "eps_streak_25")),
+    _agent_omit(_open_range("eps_growth_min_2q", "EPS Growth, Weakest of Last 2 Quarters",
+                            "fundamental_trends", "eps_growth_min_2q", unit="%")),
+    _agent_omit(_open_range("eps_growth_min_3q", "EPS Growth, Weakest of Last 3 Quarters",
+                            "fundamental_trends", "eps_growth_min_3q", unit="%")),
+    _agent_omit(_open_range("eps_growth_min_4q", "EPS Growth, Weakest of Last 4 Quarters",
+                            "fundamental_trends", "eps_growth_min_4q", unit="%")),
+    _agent_omit(_open_range("net_margin_chg_1y", "Net Margin Change vs Year Ago",
+                            "fundamental_trends", "net_margin_chg_1y", unit="pts")),
+    _agent_omit(_open_range("gross_margin_chg_1y", "Gross Margin Change vs Year Ago",
+                            "fundamental_trends", "gross_margin_chg_1y", unit="pts")),
+    _agent_omit(_open_range("shares_chg_1y", "Share Count Change vs Year Ago",
+                            "fundamental_trends", "shares_chg_1y", unit="%")),
 ])
 
 # ⚠️ `gt`/`lt`/`eq` JOINED "range" FOR THE FACTUAL PRESETS, and the strictness
@@ -1388,6 +1416,12 @@ VIEWS = {
         "ticker", "company", "price", "chg_pct_1d", "rs_rank", "rs_rating_pos",
         "rs_setup", "rs_tight", "rs_flag", "rs_near_buy", "atr_ext_sma50",
         "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21", "dist_52w_high_pct"]},
+    # FUNDAMENTAL TRENDS (2026-11-21): every trend column has its seat here, beside the
+    # latest-quarter revenue and EPS growth the Screener already carries.
+    "fundamental_trends": {"label": "Fundamental Trends", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rev_growth", "rev_accel_q",
+        "eps_growth", "eps_streak_25", "eps_growth_min_2q", "eps_growth_min_3q",
+        "eps_growth_min_4q", "net_margin_chg_1y", "gross_margin_chg_1y", "shares_chg_1y"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1427,6 +1461,9 @@ CATEGORIES = [
     # scattered across Technical and Momentum. Appended for the same reason
     # `flow` was.
     {"key": "relative_strength", "label": "Relative Strength"},
+    # Fundamental trends (2026-11-21): the eight point-in-time trend columns from SEC
+    # filings (`fund_trends`). Appended for the same reason `flow` was.
+    {"key": "fundamental_trends", "label": "Fundamental Trends"},
 ]
 
 

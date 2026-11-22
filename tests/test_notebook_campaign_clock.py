@@ -193,9 +193,12 @@ def test_wave9_today_et_and_a_routines_day_binding_read_the_shifted_sunday(shift
 def test_an_et_evening_that_is_already_tomorrow_in_utc_stays_on_the_et_day():
     sh = sc.ClockShift(sc.parse_clock("2026-11-22T20:30:00-05:00"))       # 01:30Z Monday
     from api.services.journal_two import trading_days
+    before = datetime.now(timezone.utc)
     sh.install()
     try:
-        assert datetime.now(timezone.utc).date() != date(2026, 11, 23)     # this test module: real clock
+        # this test module reads the REAL clock: installing the shift did not move it. (It was written as "the
+        # real UTC date is not 2026-11-23", which is false for the whole of that real day.)
+        assert abs((datetime.now(timezone.utc) - before).total_seconds()) < 5
         assert trading_days.today_et() == date(2026, 11, 22)
     finally:
         sh.uninstall()
@@ -779,7 +782,7 @@ def test_w11_clock_rail_the_shim_shifts_the_clock_the_merged_tool_binding_reads(
                                                                                 bind, label, day):
     """THE clock rail. Under the launcher's shift, the MERGED tool_binding module's own `datetime` reads the persona's
     instant, and the day it binds and the words it labels are exactly what personas.json asserts; uninstalled, it
-    reads the real clock again (the control: the same call is NOT the persona's answer today)."""
+    reads the real clock again (the control: the same call answers with the REAL New York day)."""
     td, tb = merged_binding
     shift = sc.ClockShift(sc.parse_clock(instant)).install()
     try:
@@ -793,8 +796,9 @@ def test_w11_clock_rail_the_shim_shifts_the_clock_the_merged_tool_binding_reads(
         shift.uninstall()
     real = tb.datetime.now(timezone.utc)
     assert abs((real - datetime.now(timezone.utc)).total_seconds()) < 5           # back on the real clock
-    assert tb.note_day(daily_date=None, created_at=None, now=real) != sc.parse_clock(instant).astimezone(
-        sc._et()).date().isoformat()
+    # It was written as "not the persona's day", which is false on each real day a persona's instant names
+    # (2026-11-22, 11-24, 11-25, 11-28 and 12-26 ET: red on every pull request all of 2026-11-22).
+    assert tb.note_day(daily_date=None, created_at=None, now=real) == real.astimezone(sc._et()).date().isoformat()
 
 
 def test_w11_clock_rail_the_shim_shifts_the_template_gallerys_now(merged_binding):

@@ -185,6 +185,23 @@ def test_env_allowlist_admits_exactly_the_bundles_build_args():
     assert {n for n in allowed if n.startswith("VITE_")} == _bundle_vite_names()
 
 
+def test_web_builds_and_ships_the_server_bundle_its_client_hashes():
+    """Track 6 (2026-11-22, measured on the first armed run): web's runtime client signs every run with an
+    engine identity that includes the sha256 of app/dist-server/pine-runtime.mjs (caller_identity, BUNDLE_PATH).
+    web's image did not build it, so the identity was None and every server-lane run was withheld
+    runtime:server-unavailable while the service smoke passed. web must build the bundle with the SAME command
+    as the service image, after the same frontend build, and ship it at the path the client reads."""
+    web_rt = [ln for ln in _stage(WEB, "frontend") if ln.startswith("RUN cd app && node scripts/build-pine-runtime.mjs")]
+    assert len(web_rt) == 1, "web's frontend stage does not build the server bundle"
+    img = [ln for ln in _stage(IMG, "frontend") if ln.startswith("RUN cd app && npm install")]
+    assert img and img[0].endswith("node scripts/build-pine-runtime.mjs"), "the service image builds it the same way"
+    from api.services import pine_runtime_client as prc
+    rel = os.path.relpath(prc.BUNDLE_PATH, REPO).replace(os.sep, "/")
+    assert rel == "app/dist-server/pine-runtime.mjs"
+    copies = [ln for ln in _stage(WEB, "runtime") if ln.startswith("COPY --from=frontend") and "dist-server" in ln]
+    assert copies == ["COPY --from=frontend /src/app/dist-server/pine-runtime.mjs /app/" + rel], copies
+
+
 def test_the_build_runs_the_same_frontend_build_then_the_bundle():
     web = [ln for ln in _stage(WEB, "frontend") if ln.startswith("RUN cd app && npm install")]
     img = [ln for ln in _stage(IMG, "frontend") if ln.startswith("RUN cd app && npm install")]

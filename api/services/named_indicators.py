@@ -185,6 +185,90 @@ def built_in_answer(e: Mapping[str, Any]) -> str:
     return f"{named}: {b['what']}.{differs} It is not a formula to build here."
 
 
+#: ⭐ ANOTHER PUBLISHER'S OWN NUMBER (found by the first full live run of the value cases, 2026-11-22). Asked for "the
+#: same proprietary RS Rating number IBD publishes", the door answered by name: "RS Rating is one of UCT's own
+#: indicators, UCT RS Rating: ...", with the offer to add it. It never said it is NOT IBD's number. A named offer under
+#: the words of another publisher's proprietary number reads as a yes.
+#: Each row: the name the member is told, and the words that name that publisher. Only publishers of ratings, ranks
+#: and scores of their own; a data vendor or a charting site named in passing is not one.
+OTHER_PUBLISHERS: Tuple[Tuple[str, str], ...] = (
+    ("IBD", r"\bibd\b|investor'?s\s+business\s+daily|\bmarket\s?smith\b|\bmarket\s?surge\b"),
+    ("Zacks", r"\bzacks\b"),
+    ("Morningstar", r"\bmorningstar\b"),
+    ("Value Line", r"\bvalue\s+line\b"),
+    ("TipRanks", r"\btip\s?ranks\b"),
+    ("Barchart", r"\bbarchart\b"),
+    ("Seeking Alpha", r"\bseeking\s+alpha\b"),
+)
+
+
+def other_publisher(message: Any) -> Optional[str]:
+    """The other publisher the member's words name (the first of the table that they do), or None."""
+    if not isinstance(message, str):
+        return None
+    import re
+    for name, words in OTHER_PUBLISHERS:
+        if re.search(words, message, re.I):
+            return name
+    return None
+
+
+#: What the member is told for a publisher's own number UCT has NOTHING by the name of (`their_unknown_name`).
+THEIR_UNKNOWN_NAME = ('"{name}" is {publisher}\'s own number and is not available here. UCT has nothing by that name. '
+                      "To build something of your own, describe the rule (what it measures, over how many bars) and "
+                      "the assistant will build exactly that.")
+
+
+def publisher_of(message: Any, phrase: Any) -> Optional[str]:
+    """The publisher an unknown name BELONGS to in the member's words, or None. It belongs to a publisher when the
+    publisher's word is in the name itself ("Zacks Rank"), stands right before it ("IBD's Composite Rating", "the IBD
+    Composite Rating"), or right after it with "from", "by" or "of" ("the Composite Rating from IBD"). A publisher
+    named elsewhere in the sentence ("plot the Foo Line, I saw it on Barchart") does not claim the name."""
+    if not isinstance(message, str) or not isinstance(phrase, str) or not phrase.strip():
+        return None
+    import re
+    said = re.escape(phrase.strip()).replace(r"\ ", r"\s+")
+    for name, words in OTHER_PUBLISHERS:
+        if re.search(words, phrase, re.I):
+            return name
+        if re.search(rf"(?:{words})(?:'s|\u2019s)?\s+(?:own\s+|proprietary\s+)?{said}", message, re.I):
+            return name
+        if re.search(rf"{said}\s+(?:from|by|of)\s+(?:the\s+)?(?:{words})", message, re.I):
+            return name
+    return None
+
+
+def their_unknown_name(message: Any, phrase: Any) -> Optional[str]:
+    """The door's sentence for an unknown name that is a publisher's own number, or None (the usual sentence stands)."""
+    publisher = publisher_of(message, phrase)
+    return None if publisher is None else THEIR_UNKNOWN_NAME.format(name=str(phrase).strip(), publisher=publisher)
+
+
+def is_their_unknown_name(reason: Any, phrase: Any) -> bool:
+    """`reason` is that sentence for `phrase`, whichever publisher it names."""
+    return isinstance(reason, str) and isinstance(phrase, str) and any(
+        reason == THEIR_UNKNOWN_NAME.format(name=phrase.strip(), publisher=name) for name, _words in OTHER_PUBLISHERS)
+
+
+def their_number(message: Any, e: Mapping[str, Any], can_add: bool) -> Optional[str]:
+    """What the door says, IN PLACE of its usual sentence, when the member asked for another publisher's own number
+    and named something UCT holds by that name. None when the words name no other publisher (the usual sentence
+    stands). It says FIRST that the publisher's number cannot be given here; only then that UCT has its own, what
+    that is (the built-in's own `what`, said once), and that it is not theirs. `can_add`: this browser can add the
+    built-in now (the one-tap offer rides beside the sentence), else where to look for it."""
+    publisher = other_publisher(message)
+    if publisher is None:
+        return None
+    first = f"{publisher}'s {e['name']} is {publisher}'s own and is not available here."
+    b = built_in(e)
+    if b is None:
+        return f"{first} {way_forward(e)}"
+    defect = open_defect(b.get("indicator"))
+    differs = f" UCT's built-in differs from the published indicator today: {defect}; a fix is pending." if defect else ""
+    said = f"{first} UCT has its own, {b['name']}: {b['what']}.{differs} It is not {publisher}'s number"
+    return said + (", and it is not a formula to build here." if can_add else f". Look for {b['name']} in the Indicators list.")
+
+
 def needs_script(e: Any) -> Optional[str]:
     """Why a held name can only be a script (its published form is more than a formula holds), or None."""
     because = e.get("needs_script") if isinstance(e, Mapping) else None

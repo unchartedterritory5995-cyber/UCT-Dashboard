@@ -327,6 +327,11 @@ def test_the_answer_carries_the_record_and_history_rev_moves_with_the_store(fmp,
     fields = index_bars._repair_fields(info["repair"], out)
     assert fields["deep"]["joined"] and fields["deep"]["from"] == NOV21.isoformat()
     assert fields["deep"]["seam"]["equal"] == 78
+    # ⭐ (2026-11-22) the prefix's newest session: Yahoo's own bars begin the session after it (NOV27 is Thanksgiving)
+    assert fields["deep"]["through"] == NOV28.isoformat()
+    first_yahoo = min(b["t"] for b in yahoo)
+    newest_prefix = max(b["t"] for b in out if b["t"] < first_yahoo)
+    assert index_bars._et_date(newest_prefix).isoformat() == fields["deep"]["through"]
 
 
 # ── H12 ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -353,3 +358,15 @@ def test_the_backfill_waits_for_the_boot_settle_and_never_runs_on_the_warm_threa
     monkeypatch.setattr(bg_lane, "enabled", lambda environ=None: False)
     index_bars._deep_settle_wait()
     assert sum(slept) >= index_bars.DEEP_BOOT_SETTLE_S - 1
+
+
+# ── H13 (2026-11-22) ──────────────────────────────────────────────────────────────────────────────────────
+def test_the_5m_grid_is_served_at_most_its_own_depth_while_the_coarser_grids_use_the_whole_store(fmp, monkeypatch):
+    _fill()
+    monkeypatch.setattr(index_bars, "DEEP_5M_SERVED_DAYS", 5)          # 12-05 minus 5 days: sessions from 11-30
+    out5, rec5 = _merge([DEC4, DEC5])
+    assert rec5["from"] == DEC1.isoformat(), rec5["from"]
+    yahoo = [b for d in (DEC4, DEC5) for b in index_bars._roll_into_buckets(
+        "30", d, {b["t"]: b for b in _bars(d, _base(d))}, 300).values()]
+    out30, rec30 = index_bars._merge_deep("SPX", "30", sorted(yahoo, key=lambda b: b["t"]))
+    assert rec30["from"] == NOV21.isoformat(), "15 / 30 / 60 keep the whole store"

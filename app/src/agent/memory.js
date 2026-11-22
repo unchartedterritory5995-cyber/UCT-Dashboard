@@ -25,6 +25,11 @@
 //                 what "the first one", "those", "the fast one" point at. A later turn that only restyles them
 //                 keeps the set ("make the first one green" → "make the second one red"). Every use re-checks
 //                 that each one is still on its chart (agent/conversation.js).
+//   pointing back ⭐ STALE-REFERENT GUARD (11-18): the latest member message that committed a change or pointed back at the
+//                 conversation's objects (noteEngaged). A bare pronoun ("make it red", "hide it", "make it a 50") points at
+//                 what the conversation last did only while no member message since then did neither: a message about
+//                 something else that committed nothing (a refused or no-op request, a question, a request the model
+//                 answered in words or asked about) leaves "it" unbound — read by the model / asked, never the old object.
 //   cleared       on a new chat, a chat switch and a reload (session-only by design: nothing persists)
 // Content-free toward the server: the model may receive tickers and labels from here, never values.
 
@@ -54,6 +59,7 @@ export function createMemory({ now = () => Date.now() } = {}) {
   let ment = null               // ⭐ PHASE 2: { turn, list, at, epoch } — every indicator the latest turn acted on
   let seq = 0
   let visit = null              // the host's layout-visit count when memory last looked (`seeBoard`)
+  let engaged = 0               // ⭐ STALE-REFERENT GUARD: the latest member message that committed or pointed back (turn id)
 
   const fresh = (x) => !!x && now() - x.at <= MEMORY_TTL_MS
   const sameBoard = (x, epoch) => !!x && (x.epoch == null || epoch == null || x.epoch === epoch)
@@ -75,6 +81,7 @@ export function createMemory({ now = () => Date.now() } = {}) {
       const clean = (ops || []).filter(o => o?.action).map(o => ({ action: o.action, args: o.args || {}, target: o.target || null }))
       if (!clean.length) return
       last = { ops: clean, at: now(), epoch, undoId: undoId || null }
+      engaged = turnId
       // ⭐ PHASE 2: the steps of ONE member message are one turn ("add the 9 and 20" commits two steps)
       if (!turn || turn.id !== turnId || !sameBoard(turn, epoch)) turn = { id: turnId, steps: [], at: now(), epoch }
       if (turn.steps.length < MAX_TURN_STEPS) turn.steps.push({ ops: clean, undoId: undoId || null })
@@ -101,6 +108,12 @@ export function createMemory({ now = () => Date.now() } = {}) {
     /** PLANNER v2: the turn now open, and re-opening a paused turn so the card's outcome joins ITS Undo group. */
     currentTurn() { return turnId },
     resumeTurn(id) { if (typeof id === 'number' && id > 0 && id <= turnId) turnId = id },
+    /** ⭐ STALE-REFERENT GUARD: the message now being answered pointed back at the conversation's objects (a follow-up read
+     *  them: "make it red" when it already is, "which one?" asked about them) — the thread is still about them. */
+    noteEngaged() { engaged = turnId },
+    /** ⭐ STALE-REFERENT GUARD: may a bare pronoun in the message now being answered point at what the conversation last did?
+     *  Only when the message before it (or this one) committed a change or pointed back — no unrelated message since. */
+    pronounLive() { return engaged >= turnId - 1 },
 
     /** The indicator a change added or edited (from the mutation module's own report). */
     noteIndicator({ chart, instanceId, defId = null, label = null, epoch = null }) {

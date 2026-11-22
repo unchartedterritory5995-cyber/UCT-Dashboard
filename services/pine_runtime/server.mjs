@@ -32,9 +32,12 @@
 // copies the env on duplication) before it serves a single request. NODE_OPTIONS is deliberately
 // absent: it could drop the node flags T10 sets. On win32 only, SYSTEMROOT is admitted too
 // (WIN32_ENV_ALLOWLIST: Windows needs it to open a socket and seed its RNG; Railway runs Linux).
+// Track 6 (2026-11-22): ONE narrow family is admitted by pattern (ENV_ALLOWLIST_PATTERNS, below), the
+// sibling services' public hostnames Railway injects into every service of the project.
 import { createServer as createHttpServer } from 'node:http'
 import { connect } from 'node:net'
 import { readFileSync } from 'node:fs'
+import { availableParallelism } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
@@ -71,7 +74,33 @@ export const ENV_ALLOWLIST = Object.freeze([
   // variable, so mirroring web's value of one must not refuse the boot. Nothing reads them at run
   // time (the bundle baked them); a rail holds this pair equal to the build script's list.
   'VITE_PINE_LOWER_TF_ENABLED', 'VITE_PINE_RUNTIME_PANE_ENABLED',
+  // Track 6 (2026-11-22): the pool's worker count (`workersOf`), a whole number; not a credential.
+  'PINE_RUNTIME_WORKERS',
+  // Track 6 (2026-11-22): a Railway runtime flag, injected into the running process of every service
+  // (measured: /proc/1/environ NAMES of chart-renderer, a service with no public domain). Not a credential.
+  'RAILWAY_BETA_ENABLE_RUNTIME_V2',
 ])
+
+/** Track 6 (2026-11-22, coordinator ruling D2): the ONE family admitted by pattern. Railway injects
+ *  `RAILWAY_SERVICE_<NAME>_URL` (the PUBLIC hostname of each sibling service that has a domain) into
+ *  every service of the project, this one included, even though this service has no domain itself.
+ *  Measured the same day from chart-renderer's running process: six such names, one per sibling with
+ *  a domain. Listing them one by one would make any new public service in the project stop this one
+ *  from booting. A hostname is not a credential.
+ *  ⛔ The pattern is anchored at BOTH ends and names the family's own prefix and suffix, so
+ *  `RAILWAY_TOKEN`, `RAILWAY_PUBLIC_DOMAIN`, `RAILWAY_STATIC_URL` and `RAILWAY_SERVICE_X_HOST` stay
+ *  refused; ENV_PATTERN_DENY then refuses any name in it that mentions a credential word, so a
+ *  `RAILWAY_SERVICE_<x>_TOKEN_URL` (or any *_TOKEN / *_SECRET) can never pass through it. */
+export const ENV_ALLOWLIST_PATTERNS = Object.freeze([/^RAILWAY_SERVICE_[A-Z0-9_]+_URL$/])
+/** A name matching a pattern is still refused when it carries one of these words. Exact-listed names
+ *  (PINE_RUNTIME_SERVICE_SECRET, the one key this service holds) are not subject to it. */
+export const ENV_PATTERN_DENY = /TOKEN|SECRET|PASSWORD|KEY|CREDENTIAL/
+
+/** Does the boot admit this variable NAME on this platform? The exact list first, then the one pattern. */
+export function envNameAdmitted(name, platform = process.platform) {
+  if (envAllowlistFor(platform).includes(name)) return true
+  return ENV_ALLOWLIST_PATTERNS.some((re) => re.test(name)) && !ENV_PATTERN_DENY.test(name)
+}
 
 /** WINDOWS ONLY (local recording at an engine bump, tools/pine_runtime_service_smoke.py --record): Node
  *  on Windows cannot open a socket (Winsock, Node 20) or seed its RNG (ncrypto CSPRNG, Node 24)
@@ -86,11 +115,28 @@ export function envAllowlistFor(platform = process.platform) {
 
 /** The sentence when `env` holds a variable outside the allowlist, else null. Names only, never values. */
 export function envRefusal(env, platform = process.platform) {
-  const allowed = envAllowlistFor(platform)
-  const extra = Object.keys(env).filter((k) => !allowed.includes(k)).sort()
+  const extra = Object.keys(env).filter((k) => !envNameAdmitted(k, platform)).sort()
   if (extra.length === 0) return null
   return `the pine-runtime service refuses to start: ${extra.length} variable(s) outside its allowlist are set `
     + `(${extra.join(', ')}). It holds no credentials by design; remove them.`
+}
+
+/** Track 6 (2026-11-22) -- THE POOL FOLLOWS THE CONTAINER'S CPU LIMIT, NOT THE HOST'S CPU COUNT. Measured on the
+ *  first Railway deploy: `availableParallelism()` answered 48 (the host's CPUs) inside a container limited to
+ *  2 vCPU / 2 GB, so the boot started 48 workers and sat at 1.63 GB idle, one canary away from the 2 GB limit
+ *  (each worker may grow to its resourceLimits heap). Node 20 does not read the cgroup CPU quota, and the L4
+ *  permission model reads nothing outside /app, so the count is stated: `PINE_RUNTIME_WORKERS` when set, else
+ *  DEFAULT_SERVICE_WORKERS, the design's "workers = vCPU" for the Q2 size of 2 vCPU. Never more than the
+ *  host's parallelism when unset; a malformed value refuses the boot, like PORT. */
+export const DEFAULT_SERVICE_WORKERS = 2
+export const MAX_SERVICE_WORKERS = 16
+export function workersOf(env, available = availableParallelism()) {
+  const raw = env.PINE_RUNTIME_WORKERS
+  if (raw === undefined || raw === '') return Math.max(1, Math.min(DEFAULT_SERVICE_WORKERS, available))
+  if (!/^\d{1,2}$/.test(raw) || Number(raw) < 1 || Number(raw) > MAX_SERVICE_WORKERS) {
+    throw new Error(`PINE_RUNTIME_WORKERS is not a whole number from 1 to ${MAX_SERVICE_WORKERS}; the service refuses to start.`)
+  }
+  return Number(raw)
 }
 
 /** The listening port: PORT when it is a whole number 1-65535, DEFAULT_PORT when unset. */
@@ -302,7 +348,7 @@ export async function main({ env = process.env, bundle = DEFAULT_BUNDLE, runner 
   const secrets = parseSecrets(env.PINE_RUNTIME_SERVICE_SECRET)
   const port = portOf(env)
   const door = await loadBundle(bundle)
-  const pool = !runner && poolOpts ? await createPool({ ...poolOpts, bundle }) : null
+  const pool = !runner && poolOpts ? await createPool({ workers: workersOf(env), ...poolOpts, bundle }) : null
   const canary = pool && canaryOn
     ? createCanary({ run: pool.run, inputs: loadCanaryInputs(), identity: door.identity, log })
     : null

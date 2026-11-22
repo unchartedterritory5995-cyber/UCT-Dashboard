@@ -9,7 +9,7 @@
   ],
   "summary": {
     "named_access_count": 2,
-    "positional_count": 57,
+    "positional_count": 58,
     "named_access": [
       "api/services/canonical/resolver.py",
       "api/services/ticker_returns.py"
@@ -33,6 +33,7 @@
       "api/services/desk_article_anchors.py",
       "api/services/discord_render/symbols.py",
       "api/services/ffseed.py",
+      "api/services/ffseed_intraday.py",
       "api/services/fundamentals_pit/beta_store.py",
       "api/services/indicator_alert_evaluator.py",
       "api/services/intraday_gap_audit.py",
@@ -394,6 +395,18 @@
       "calls": [
         {
           "function": "get_bars"
+        }
+      ],
+      "evidence": {
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/ffseed_intraday.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before"
         }
       ],
       "evidence": {

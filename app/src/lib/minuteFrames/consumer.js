@@ -67,12 +67,17 @@ class HttpError extends Error {
  * @param {number} [o.jitterMs]            spread over this many ms (so a crowd does not land at once)
  * @param {number} [o.retryMs]             frame not there yet: ask again after this
  * @param {Function} [o.setTimer] / [o.clearTimer]
+ * @param {number} [o.sliceMs]             the today.bin replay yields after this much work (loadToday)
+ * @param {Function} [o.yieldTo]           () => Promise: how it yields (default: a 0 ms timer, a new task)
+ * @param {Function} [o.elapsed]           a monotonic ms clock for the slices (default performance.now)
  */
 export function createMinuteFrameConsumer({
   sink, base = DEFAULT_BASE, fetchImpl = (...a) => fetch(...a), now = () => Date.now(),
   isVisible = isAppVisible, rollup: rollupOpts = {}, maxMinuteFetches = 20, pollDelayMs = 7000,
   jitterMs = 3000, retryMs = 2000, setTimer = (fn, ms) => setTimeout(fn, ms),
   clearTimer = (t) => clearTimeout(t), random = Math.random,
+  sliceMs = 8, yieldTo = () => new Promise((r) => setTimeout(r, 0)),
+  elapsed = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
 } = {}) {
   const rollup = createMinuteRollup({ sink, ...rollupOpts })
   let day = null            // 'YYYY-MM-DD' being followed
@@ -181,9 +186,15 @@ export function createMinuteFrameConsumer({
     const raw = await getBytes(`${base}/${day}/today.bin`)
     const info = todayInfo(raw)
     st.todayLoads++
+    // ⭐ (2026-11-21, the cold switch) THE REPLAY YIELDS. A day file is up to 960 minutes of the whole universe;
+    // applied in one go it held the worker for the whole replay, and every device read a switch made in that
+    // time waited behind it. Now it gives the thread back every `sliceMs` of work (a read answers in between,
+    // from the minutes applied so far: its `through` says how far that is).
+    let t0 = elapsed()
     for (const f of todayFrames(raw, { refused: true })) {
       if (f.seq > upTo) break
       applyChecked(f)
+      if (elapsed() - t0 >= sliceMs) { await yieldTo(); t0 = elapsed() }
     }
     return info.seq
   }

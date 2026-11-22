@@ -1,4 +1,4 @@
-"""A NUMBER WRITTEN ON BARS: rule 13 of the script document, and a value case that can hold one.
+"""A NUMBER WRITTEN ON BARS: rule 12 of the script document, and a value case that can hold one.
 
 Found by a value check of a live round, 2026-11-22. Asked to "count runs of closes that are each above the close 4
 bars earlier, and write the count above each bar of the run as a number from 1 to 9", the assistant counted right
@@ -23,12 +23,15 @@ from pathlib import Path
 import pytest
 
 from api.services import pine_authoring as pa
+from tools.value_cases import grade as G
 from tools.value_cases import script_rules
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json").read_text(encoding="utf-8"))["cases"]
 CASE = next(c for c in CASES if c["id"] == "count-on-bars-01")
-RECORDED = CASE["answer"]["script"]["pine"]
+#: the script the finding rests on: the case's record while it is recorded WRONG, its `found` specimen after
+FOUND = G.specimen(CASE)
+RECORDED = FOUND["answer"]["script"]["pine"]
 
 HEAD = '//@version=5\nindicator("Run count", overlay=true, max_labels_count=500)\n'
 HEAD_50 = '//@version=5\nindicator("Run count", overlay=true)\n'
@@ -66,15 +69,15 @@ FORMS = {**RIGHT, **{name: source for name, (source, _why) in WRONG.items()}}
 
 def test_the_document_carries_the_rule_once_after_rule_12():
     doc = pa.document()
-    assert "\n13. A NUMBER WRITTEN ON BARS that changes from bar to bar" in doc
-    rule = doc.split("\n13. ")[1].split("\n")[0]
+    assert "\n12. A NUMBER WRITTEN ON BARS that changes from bar to bar" in doc
+    rule = doc.split("\n12. ")[1].split("\n")[0]
     assert rule == pa.NUMBER_ON_BARS_RULE and doc.count(pa.NUMBER_ON_BARS_RULE) == 1 and "{number_on_bars}" not in doc
     for piece in ("is written with a label, one per bar", "`label.new(bar_index, high, str.tostring(n), style = label.style_none",
                   "`max_labels_count = 500` in `indicator(...)`",
                   "`plotchar` and `plotshape` draw ONE FIXED character or text per call, the same on every bar",
                   '`plotchar(n, char = "")` writes no number at all'):
         assert piece in rule, piece
-    assert doc.index("\n12. ") < doc.index("\n13. ")
+    assert doc.index("\n11. ") < doc.index("\n12. ")
 
 
 # ── by value ──
@@ -150,6 +153,6 @@ def test_labels_are_held_on_every_bar_they_are_kept_on(ran):
 
 
 def test_the_recorded_answer_is_a_case_recorded_WRONG():
-    assert CASE["lane"] == "script" and CASE["recorded_verdict"] == "wrong" and "writes NO number" in CASE["defect"]
+    assert CASE["lane"] == "script" and "writes NO number" in FOUND["defect"]
     assert 'plotchar(cnt > 0 ? cnt : na, "Count", ""' in RECORDED
     assert script_rules.has_rule("count-on-bars-01") and "count-on-bars-01" not in script_rules.RULES      # held by what is DRAWN
