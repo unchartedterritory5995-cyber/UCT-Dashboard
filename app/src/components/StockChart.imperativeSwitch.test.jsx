@@ -867,8 +867,15 @@ describe('(review) the seam: the real handoff drives the real controller on the 
   let took     // the controller takes the way back itself
   let refused  // the controller refuses the way back (its apply answers false): React shows it
 
-  /** AAA -> BBB (painted), then BBB -> AAA before the body's hold is released. */
-  async function run(controllerRefusesTheWayBack) {
+  /**
+   * AAA -> BBB (painted), then BBB -> AAA before the body's hold is released.
+   * `historySplit`: the bars-history split as production has it (100% rollout). Then a daily target that holds one
+   * tail answer (here 380 rows, under FIRST_PAINT_BARS) still waits for its deep join: the handoff's route is
+   * `daily-hold`, the key handler's decision says no, and the ROUND shows it. Off (the default here): the decision
+   * takes the switch, which is the path that paints. `keyOneOnly`: stop after key 1.
+   */
+  async function run(controllerRefusesTheWayBack, { historySplit = false, keyOneOnly = false } = {}) {
+    localStorage.setItem('uct.barsHistory.enabled', historySplit ? '1' : '0')
     S.log.length = 0; S.n = 0; S.range = null; S.crosshairs.length = 0
     stubBars()
     // the app's cache is one for the whole file: AAA's name as the server answers it, whatever a run before left
@@ -903,13 +910,22 @@ describe('(review) the seam: the real handoff drives the real controller on the 
       // ── key 1: AAA -> BBB ──
       const views0 = ctl ? ctl.diag.views : -1
       S.log.length = 0
+      const hostAt = host.length
       pressTo('BBB')
-      await until(() => ctl && ctl.diag.applied >= 1)
+      await until(() => (ctl && ctl.diag.applied >= 1) || host.at(-1).startsWith('BBB:'))
       const first = {
         applied: ctl ? ctl.diag.applied : 0, refusedAs: ctl ? JSON.stringify(ctl.diag.last) : null,
         views: ctl ? ctl.diag.views - views0 : -1, stale: ctl ? ctl.diag.stale : -1,
         host: host.at(-1), pending: ctl ? ctl.pendingSym() : null,
         candles: S.log.some((l) => /^candle#1 setData \[380\]sha:/.test(l)),
+        // the first render of the host that carried BBB: its label, and the symbol its chart body had
+        firstWithBBB: host.slice(hostAt).find((h) => h.startsWith('BBB:')) || null,
+        round: ctl ? (ctl.diag.refused.round || 0) : 0,
+      }
+      if (keyOneOnly) {
+        await wait(300)
+        out = { first: { ...first, hostEnd: host.at(-1), pendingEnd: ctl ? ctl.pendingSym() : null } }
+        return out
       }
       // ── key 2: back to AAA, inside the hold ──
       if (ctl && controllerRefusesTheWayBack) {
@@ -944,10 +960,28 @@ describe('(review) the seam: the real handoff drives the real controller on the 
       cleanup()
       M.store.registry.release(keyB)
       M.nf.__setNeighborFramesForTests(null)
+      localStorage.removeItem('uct.barsHistory.enabled')
     }
     return out
   }
-  beforeAll(async () => { took = await run(false); refused = await run(true) }, 180_000)
+  let viaRound  // (review round 2, H2) the history split on: the decision says no, the round shows BBB
+  beforeAll(async () => {
+    took = await run(false)
+    refused = await run(true)
+    viaRound = await run(false, { historySplit: true, keyOneOnly: true })
+  }, 180_000)
+
+  // ⛔ (review round 2, H2) THE ROUND NEVER PAINTS: from where it runs (here the daily hold's promise), React renders
+  // the label a task after a paint would write the canvas. So it takes the React path: the label and the chart body
+  // take BBB in ONE render, and the controller counts the switch (`round`) instead of painting it.
+  it('H2: a daily target waiting for its deep join goes by the round: no paint; the label and the body take it in one render', () => {
+    const f = viaRound.first
+    expect(f.applied, `painted (${f.refusedAs})`).toBe(0)
+    expect(f.round).toBeGreaterThanOrEqual(1)
+    expect(f.firstWithBBB).toBe('BBB:BBB')
+    expect(f.hostEnd).toBe('BBB:BBB')
+    expect(f.pendingEnd).toBe(null)
+  })
 
   it('key 1: the real handoff had the real controller paint BBB, and the chart body did not render before the paint', () => {
     expect(took.first.applied, `refused as ${took.first.refusedAs}`).toBe(1)
