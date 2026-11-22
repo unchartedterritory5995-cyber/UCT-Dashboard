@@ -605,6 +605,7 @@ describe('coverage: a default-settings chart is applied by the controller', () =
         got[c.name] = {
           result, last: ctl ? JSON.stringify(ctl.diag.last) : 'no controller', refused: ctl ? { ...ctl.diag.refused } : null,
           mountLog, paintLog, commitLog: S.log.slice(), pending: ctl ? ctl.pendingSym() : null,
+          catchUp: ctl ? { ...ctl.diag.catchUp } : null, lateBoxReads: ctl ? ctl.diag.lateBoxReads : null,
         }
         t.done()
       } finally { clock.restore(); S.prices = {}; S.rows = null }
@@ -616,6 +617,14 @@ describe('coverage: a default-settings chart is applied by the controller', () =
     expect(got[name].refused).toEqual({})
     expect(got[name].paintLog.some((l) => /^candle#\d+ setData /.test(l))).toBe(true)
     expect(got[name].pending).toBe(null)   // …and the body's render ended the switch
+  })
+
+  // the pane's look changes which arrays the frame carries (the marked volume bar): the body's own pass must
+  // still find every one of them already on the renderer, or the applier's work is done twice per switch
+  it.each(CASES.map((c) => c.name))('%s: the render of the body hands the renderer no data again, and nothing kept the built frame', (name) => {
+    const data = got[name].commitLog.filter((l) => / setData /.test(l))
+    expect(got[name].catchUp, `data set again at the body's render: ${data.join(' | ')}`).toEqual({ noop: 1, repaint: 0 })
+    expect(got[name].lateBoxReads).toBe(0)
   })
 
   it.each(CASES.filter((c) => c.tags).map((c) => c.name))('%s: the case is the one the browser met (AAA carries a session tag at its extended-hours price)', (name) => {
