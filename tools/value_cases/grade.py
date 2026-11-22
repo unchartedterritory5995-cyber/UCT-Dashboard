@@ -127,6 +127,10 @@ def lane_of(answer):
     return 'formula' if built else 'wall'
 
 
+#: the plain words that say a number cannot be given here
+CANNOT_GIVE = ('not available', "can't", 'cannot', 'can not', "isn't available", 'is not something')
+
+
 def grade_wall(case, answer):
     """A request that cannot be served: right when nothing is built, the door refuses, and the reply names the wall."""
     answer = answer or {}
@@ -134,10 +138,38 @@ def grade_wall(case, answer):
     built, _inputs = trees_of(answer)
     if built or lane_of(answer) == 'script':
         return {'verdict': 'wrong', 'lines': ['something was BUILT for a request that cannot be served']}
-    if answer.get('disposition') != 'unsupported':
+    offers = case['wall'].get('offers')
+    theirs = case['wall'].get('theirs')
+    questions = [q for q in answer.get('questions') or [] if isinstance(q, dict)]
+    # a wall WITH OFFERS may be refused as a question that says so and carries the offers as one-tap choices; a wall
+    # that is ANOTHER PUBLISHER'S OWN NUMBER may be an answer that says so and then offers UCT's own
+    refusals = ('unsupported',) + (('clarify',) if offers else ()) + (('answer',) if theirs else ())
+    if answer.get('disposition') not in refusals or (answer.get('disposition') == 'clarify' and not questions):
         right = False
         lines.append(f"the door did not refuse (it answered {answer.get('disposition')!r})")
-    reply = ' '.join(str(answer.get('reply') or '').lower().split())
+    said = [str(answer.get('reply') or '')] + [str(q.get('text') or '') for q in questions]
+    reply = ' '.join(' '.join(said).lower().split())
+    choices = [' '.join(str(c).lower().split()) for q in questions for c in q.get('choices') or []]
+    for offer in offers or []:
+        words = [w.lower() for w in offer['words']]
+        made = next((c for c in (choices if questions else [reply]) if all(w in c for w in words)), None)
+        if made is None:
+            right = False
+            lines.append(f"NOT OFFERED: {offer['what']} (no {'choice' if questions else 'sentence'} holds {offer['words']})")
+        else:
+            lines.append(f"offered: {offer['what']}")
+    if theirs:
+        cannot = min((reply.find(p) for p in CANNOT_GIVE if p in reply), default=-1)
+        ours = reply.find('uct')
+        if cannot < 0:
+            right = False
+            lines.append(f"it never says {theirs}'s own number cannot be given here")
+        elif 0 <= ours < cannot:
+            right = False
+            lines.append(f"it names UCT's own BEFORE saying {theirs}'s number cannot be given")
+        if ours >= 0 and f"not {theirs.lower()}'s" not in reply:
+            right = False
+            lines.append(f"it offers UCT's own without saying it is not {theirs}'s")
     named = [w for w in case['wall']['names'] if w.lower() in reply]
     if named:
         lines.append(f'the reply names the wall: {named[0]!r}')
