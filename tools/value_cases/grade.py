@@ -209,6 +209,10 @@ def lane_of(answer):
 CANNOT_GIVE = ('not available', "can't", 'cannot', 'can not', "isn't available", 'is not something')
 
 
+#: the one way a reply may name UCT without offering anything of UCT's
+UCT_HAS_NOTHING = 'uct has nothing by that name'
+
+
 def grade_wall(case, answer):
     """A request that cannot be served: right when nothing is built, the door refuses, and the reply names the wall."""
     answer = answer or {}
@@ -245,7 +249,11 @@ def grade_wall(case, answer):
         elif 0 <= ours < cannot:
             right = False
             lines.append(f"it names UCT's own BEFORE saying {theirs}'s number cannot be given")
-        if ours >= 0 and f"not {theirs.lower()}'s" not in reply:
+        # "it is not <publisher>'s" is owed where the reply names UCT as HAVING something, and only there: the plain
+        # statement that UCT has nothing by that name offers nothing of UCT's. (Not decided by a catalogue name in the
+        # reply: "RS Rating" is also what the publisher calls its own number.)
+        offers_ours = 'uct' in reply.replace(UCT_HAS_NOTHING, '')
+        if offers_ours and f"not {theirs.lower()}'s" not in reply:
             right = False
             lines.append(f"it offers UCT's own without saying it is not {theirs}'s")
     named = [w for w in case['wall']['names'] if w.lower() in reply]

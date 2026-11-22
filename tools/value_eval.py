@@ -51,7 +51,9 @@ def answer_of(body):
     # what the MEMBER was told: the reply, or, when the door declined by a gate (`ok` false: the script door's "I can't"
     # carries no reply), the gate's own member sentence, `reason`
     said = body.get("reply") or env.get("reply") or (body.get("reason") if body.get("ok") is False else None) or ""
-    out = {"disposition": body.get("disposition"), "reply": said}
+    # a refusal AT THE DOOR by a gate carries `ok` false and its member sentence, and no disposition: it IS a refusal
+    refused_at_the_door = body.get("ok") is False and bool(body.get("reason")) and not body.get("disposition")
+    out = {"disposition": "unsupported" if refused_at_the_door else body.get("disposition"), "reply": said}
     if env.get("ops"):
         out["ops"] = env["ops"]
     if env.get("questions"):
