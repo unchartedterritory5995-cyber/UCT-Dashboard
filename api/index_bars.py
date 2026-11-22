@@ -757,7 +757,7 @@ def _repair_fields(rep: dict, out: list) -> dict:
         fields["holes_total"] = len(holes_all)
     deep = rep.get("deep")
     if isinstance(deep, dict):
-        fields["deep"] = {k: deep.get(k) for k in ("src", "joined", "sessions", "from", "reason")}
+        fields["deep"] = {k: deep.get(k) for k in ("src", "joined", "sessions", "from", "through", "reason")}
         seam = deep.get("seam")
         if isinstance(seam, dict):
             fields["deep"]["seam"] = {k: seam.get(k) for k in ("d", "compared", "equal", "worst_rel")}
@@ -1376,7 +1376,10 @@ def _merge_deep(sym: str, tf: str, out: list) -> tuple:
                 f"worst {overlap['worst_rel']}")
         if seam["ok"]:
             prefix, n, oldest, fills = _build_deep_prefix(sym, rtf, data, first_day, divisor)
-            rec = {"src": DEEP_SOURCE, "joined": True, "sessions": n, "from": oldest, "reason": None,
+            # ⭐ (2026-11-22) `through`: the prefix's newest session (Yahoo's own bars begin the session after), so a
+            # recorder knows each served bar's source: FMP (or its roll-up) through it, Yahoo after (index provenance)
+            through = _et_date(prefix[-1]["t"]).isoformat() if prefix else None
+            rec = {"src": DEEP_SOURCE, "joined": True, "sessions": n, "from": oldest, "through": through, "reason": None,
                    "seam": seam, "overlap": overlap, "rev": data.get("changed_at"), "filled": fills}
         else:
             prefix = []
