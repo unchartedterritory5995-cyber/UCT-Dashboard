@@ -359,6 +359,19 @@ export function recordedSupplyOf(capture, dir = _supplyDir) {
         && ![true, false, null].includes(e.newestBarIsForming)) {
       bad(`other.${ticker}.newestBarIsForming must be the route's tri-state (true, false or null), not ${JSON.stringify(e.newestBarIsForming)}`)
     }
+    // ⭐⭐ INDEX PROVENANCE (coordinator ruling 2026-11-22): where the served series came from, as the route named it
+    // (`deep.from` / `deep.through` / `deep.filled`): read by `compare.mjs::provenanceBarsOf`. Optional; a record
+    // without it grades exactly as before.
+    if (Object.prototype.hasOwnProperty.call(e, 'provenance')) {
+      const pv = e.provenance
+      const iso = (x) => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x)
+      if (!pv || typeof pv !== 'object') bad(`other.${ticker}.provenance is not an object`)
+      if (!['index:fmp', 'index:fmp-rollup'].includes(pv.class)) bad(`other.${ticker}.provenance.class must be index:fmp or index:fmp-rollup, not ${JSON.stringify(pv.class)}`)
+      for (const k of ['deepFrom', 'deepThrough', 'firstOwnSession']) {
+        if (pv[k] !== null && pv[k] !== undefined && !iso(pv[k])) bad(`other.${ticker}.provenance.${k} is not an ISO session date`)
+      }
+      if (!Array.isArray(pv.filled) || !pv.filled.every(iso)) bad(`other.${ticker}.provenance.filled must list ISO session dates`)
+    }
     if (forms[1]) e.bars = outOfGitRows(ticker, e, bad)            // [] -> e.notOnThisMachine
   }
   for (const [field, e] of Object.entries(rec.symbol || {})) {
@@ -453,6 +466,7 @@ export function otherSymbolSupply(def, capture) {
   // symbols it names (`recordedSupplyOf`); every other symbol keeps C26's committed captures.
   const recorded = recordedSupplyOf(capture)
   const unrecorded = []
+  const indexProvenance = []
   for (const { ticker, spellings } of requests) {
     // the key the chart fetches it under: a witnessed spelling's row's store key (`SPX`,
     // `SEED_FRED6725_RS_RATING:RSRATING`), else our store's ticker (`fetchableOtherSymbols`)
@@ -472,6 +486,12 @@ export function otherSymbolSupply(def, capture) {
         const flagged = Object.prototype.hasOwnProperty.call(rec, 'newestBarIsForming')
         secondary.set(cacheKey, { bars: over || rec.bars, status: 'available',
           ...(flagged ? { newestBarIsForming: rec.newestBarIsForming } : {}) })
+        if (rec.provenance) {
+          indexProvenance.push({ symbol: storeKey, ...rec.provenance })
+          notes.push(`other symbol ${ticker}: index provenance ${rec.provenance.class} ${rec.provenance.deepFrom}..${rec.provenance.deepThrough}`
+            + (rec.provenance.filled.length ? `, ETF-filled ${rec.provenance.filled.join(', ')}` : '')
+            + ': those bars are graded into the provenance block, never into matching')
+        }
         notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
           + `(${rec.servedBy}; ${rec.source})`
           + (flagged ? `; newest bar forming: ${rec.newestBarIsForming}` : '')
@@ -529,7 +549,7 @@ export function otherSymbolSupply(def, capture) {
     const e = secondary.get(t)
     return e && e.exchange ? e.exchange : null
   }
-  return { secondary, exchangeOf, notes, unrecorded }
+  return { secondary, exchangeOf, notes, unrecorded, indexProvenance }
 }
 
 // ─── ⭐⭐ RC1 — WARM BARS: THE SAME SERIES' OWN HISTORY, FROM COMMITTED CAPTURES ─
@@ -2093,6 +2113,8 @@ function runOurSideOnTheParityClock(capture) {
       // (`substitutedInputsOf`); `[]` until a lane feeds one.
       // ⭐ RS RATING L3 — `syminfo.industry` / `sector`, fed the capture's value (`symbolOf`).
       substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol, capture)),
+      // ⭐⭐ INDEX PROVENANCE — where each recorded index series came from (`compare.mjs::provenanceBarsOf`)
+      indexProvenance: supply.indexProvenance || [],
       // ⭐⭐ (2026-11-17) — a broker document's run: its record, or why it published none (`strategyRunOf`);
       // null for every other document. Graded by `strategyLane.js`.
       strategy,

@@ -459,7 +459,53 @@ export function mapPlots(vendorValuePlots, ourPlots) {
  *                                   See `colourWarmupOf`.
  * @param {object} a.tol             from `tolerancePolicy`
  */
-export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null, unsettledBars = null, behindBars = null }) {
+// ─── ⭐⭐ INDEX PROVENANCE (coordinator ruling 2026-11-22, option 3) ───────────────────────────────────────────────────────
+// Since 2026-11-22 our server serves SPX / NDX intraday bars from THREE sources: Yahoo's own (the newest 60 days on 1-30m,
+// 730 on 60m), FMP's settled history before them (`index:fmp`: FMP's own 5m / 1m bars; `index:fmp-rollup`: FMP's 5m
+// rolled to 15 / 30 / 60), and slots FMP never answered completed from the ETF (`index:etf-fill`). A chart bar whose
+// other-symbol read lands on a non-Yahoo bar IS compared, but into the plot's `provenance` block
+// (`{class: {compared, equal, worst}}`), NEVER into `matching`: that keeps the evidence of how close FMP and the fill
+// really are to TradingView without letting it stand as a MATCH.
+// ⛔ GUARD 1: the plot's verdict speaks ONLY for the Yahoo-sourced bars, and they must reach PROVENANCE_SOURCED_MIN on
+// their own, or the plot is INCONCLUSIVE ("too few vendor-sourced bars"). GUARD 2: provenance equality never counts
+// toward a MATCH tally or capability admission (`evidence_engine.py` shows each row's provenance share beside it).
+export const PROVENANCE_CLASSES = Object.freeze(['index:fmp', 'index:fmp-rollup', 'index:etf-fill'])
+/** ⛔ GUARD 1's floor: the Yahoo-sourced steady bars a provenance-bearing plot must compare on their own. */
+export const PROVENANCE_SOURCED_MIN = 100
+
+const _ET_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit',
+  day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+function _etDayMin(sec) {
+  const parts = Object.fromEntries(_ET_FMT.formatToParts(new Date(sec * 1000)).map((x) => [x.type, x.value]))
+  return { day: `${parts.year}-${parts.month}-${parts.day}`, min: (Number(parts.hour) % 24) * 60 + Number(parts.minute) }
+}
+
+/**
+ * The provenance class of every capture bar (aligned with `times`), or null when no bar has one.
+ * `provenance` = our side's `indexProvenance`: `[{symbol, class, deepFrom, deepThrough, filled: [iso]}]`, one per
+ * index series the run read. A bar on session `d` reads that session's bar: `index:etf-fill` on a filled session,
+ * the series' class from `deepFrom` through `deepThrough`, else Yahoo's own (null). ⭐ A bar BEFORE 09:30 ET on the
+ * session after `deepThrough` reads the prefix's last bar (an extended-hours chart's pre-market): the prefix class.
+ * Daily (ISO-dated) captures carry none: the daily index rows are FMP's primary, never a deep prefix.
+ */
+export function provenanceBarsOf(times, provenance) {
+  const list = Array.isArray(provenance) ? provenance.filter((e) => e && PROVENANCE_CLASSES.includes(e.class)) : []
+  if (!list.length || !Array.isArray(times) || !times.length) return null
+  let any = false
+  const out = times.map((t) => {
+    if (typeof t !== 'number' || !Number.isFinite(t)) return null
+    const { day, min } = _etDayMin(t > 1e11 ? t / 1000 : t)
+    for (const e of list) {
+      if (Array.isArray(e.filled) && e.filled.includes(day)) { any = true; return 'index:etf-fill' }
+      if (e.deepFrom && e.deepThrough && day >= e.deepFrom && day <= e.deepThrough) { any = true; return e.class }
+      if (e.deepThrough && day > e.deepThrough && min < 570 && e.firstOwnSession === day) { any = true; return e.class }
+    }
+    return null
+  })
+  return any ? out : null
+}
+
+export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null, unsettledBars = null, behindBars = null, provenanceBars = null }) {
   const n = times.length
   const res = {
     bars: n,
@@ -516,6 +562,25 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
     // SUPPLY BEHIND THE CAPTURE (coordinator ruling, 2026-11-18): the forming newest bar a recorded supply cannot
     // answer (`supplyAttribution.js::supplyBehindOf`) is not compared; it is named on the plot (`supplyBehind`)
     if (behindBars && behindBars[i]) { res.supplyBehindBars = (res.supplyBehindBars || 0) + 1; continue }
+    // ⭐⭐ INDEX PROVENANCE: compared into its own block, NEVER into `matching` / `compared` / `steady` (above)
+    if (provenanceBars && provenanceBars[i]) {
+      if (withheldBars && withheldBars[i]) continue
+      const cls = provenanceBars[i]
+      if (!res.provenance) res.provenance = {}
+      const blk = res.provenance[cls] || (res.provenance[cls] = { compared: 0, equal: 0, naMismatches: 0, worst: 0 })
+      const o = ours[i]
+      blk.compared += 1
+      if (isNa(v) === isNa(o)) {
+        if (isNa(v)) blk.equal += 1
+        else {
+          const rel = Math.abs(o - v) / Math.max(Math.abs(v), Number.MIN_VALUE)
+          if (rel > blk.worst) blk.worst = rel
+          const floor = floatOrderFloor && Number.isFinite(floatOrderFloor[i]) ? floatOrderFloor[i] : 0
+          if (valuesAgree(o, v, tol) || (floor > 0 && valuesAgree(o, v, tol, floor))) blk.equal += 1
+        }
+      } else blk.naMismatches += 1
+      continue
+    }
     if (withheldBars && withheldBars[i]) {
       res.withheldBars += 1
       // only a steady-state bar weighs on the verdict; a warm-up bar is reported, as a warm-up
@@ -678,6 +743,11 @@ export function colourWarmupOf({ bar0, capture, warmupBars, colorLookback, repla
   return reach !== null && reach > warmupBars ? reach : warmupBars
 }
 
+/** The provenance block as words: `index:fmp-rollup 812/830 equal (worst 1.2e-3)`. */
+export function provenanceText(prov) {
+  return Object.entries(prov || {}).map(([k, b]) => `${k} ${b.equal}/${b.compared} equal (worst ${Number(b.worst).toExponential(1)})`).join('; ')
+}
+
 /** One plot's verdict from its comparison, with the reason written out. */
 export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReason = null, ourColorReason = null, ourColorWithheldBy = null }) {
   if (r.vendorRowGapsAfterStart > 0) {
@@ -690,6 +760,13 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
       ? ` — a CONVERGING PREFIX: bars ${f.bar}..${p.lastDivergentBar}${p.contiguous ? '' : ' (with agreeing bars inside the run)'} differ with |err| falling ${p.absErrFirst.toExponential(2)} → ${p.absErrLast.toExponential(2)}, then all ${p.agreeingAfter} later bars agree (the recursive-state-seeded-at-the-window signature)`
       : p ? ` — ${p.kind}, last at bar ${p.lastDivergentBar}` : ''
     return { verdict: 'DIVERGE', reason: `${r.steady.divergent} steady-state bars disagree; first at bar ${f.bar} (${readingOf(f)})${shape}` }
+  }
+  // ⛔ GUARD 1 (index provenance): a plot with provenance bars speaks only for its Yahoo-sourced bars, which must reach
+  // the floor on their own (checked before "no bar compared", so a wholly-provenance plot names why)
+  const provN = r.provenance ? Object.values(r.provenance).reduce((a, b) => a + b.compared, 0) : 0
+  if (provN > 0 && r.steady.compared < PROVENANCE_SOURCED_MIN) {
+    return { verdict: 'INCONCLUSIVE', reason: `too few vendor-sourced bars; ${provN} compared under provenance `
+      + `(${provenanceText(r.provenance)}), ${r.steady.compared} Yahoo-sourced (the floor is ${PROVENANCE_SOURCED_MIN})` }
   }
   if (r.steady.compared === 0) {
     return { verdict: 'INCONCLUSIVE', reason: r.compared === 0 ? 'no bar was compared' : 'every compared bar is inside the warm-up region — nothing in steady state to judge' }
@@ -903,6 +980,8 @@ export function compareCapture(capture, ours, opts = {}) {
   // SUPPLY BEHIND THE CAPTURE: ONLY the newest bar, ONLY when `supplyBehindOf` found its supply behind it
   const supplyBehind = opts.supplyBehind || null
   const behindBars = supplyBehind && times.length ? times.map((_, i) => i === times.length - 1) : null
+  // ⭐⭐ INDEX PROVENANCE: one mask for the capture (every plot of a script that reads the series depends on it)
+  const provenanceBars = provenanceBarsOf(times, ours.indexProvenance)
   const rowsByTime = new Map((capture.plotValues.rows || []).map((r) => [String(r[0]), r]))
   const roles = vendorPlotRoles(capture)
   for (const p of roles.notDrawn) base.notCompared.push({ id: p.id, title: p.title, type: p.type, why: 'alertcondition — draws nothing on TradingView either; not a visual claim' })
@@ -1010,7 +1089,7 @@ export function compareCapture(capture, ours, opts = {}) {
     const unreadAfter = [treeShift ? times.length - treeShift : null, o.withheldNewest === true ? times.length - 1 : null]
       .filter((x) => x !== null)
     const plotArgs = { times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : gradedVendorColors, ourColors: colourUngraded ? null : gradedOurColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
-      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null, behindBars }
+      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null, behindBars, provenanceBars }
     let r = comparePlot(plotArgs)
     const verdictOpts = {
       colorMeasured: vc.measured && !colourUngraded,
@@ -2168,13 +2247,32 @@ export function renderSummary(results) {
     for (const p of (r.plots || [])) {
       const s = p.stats
       const detail = s ? `cmp ${s.compared} ok ${s.matching} warm ${s.warmup.divergent}/${s.warmup.compared} steady ${s.steady.divergent}/${s.steady.compared} maxRel ${s.maxRel.toExponential(2)}` : ''
-      lines.push(`    ${pad(p.title ?? p.id, 40)} ${pad(p.verdict, 17)} ${detail}${p.verdict !== 'MATCH' && p.verdict !== MATCH_SUBSTITUTED ? ` — ${p.reason}` : ''}`)
+      // ⛔ GUARD 2 (index provenance): the provenance block beside the verdict, never inside `ok`
+      const prov = s && s.provenance ? ` · provenance ${provenanceText(s.provenance)}` : ''
+      lines.push(`    ${pad(p.title ?? p.id, 40)} ${pad(p.verdict, 17)} ${detail}${prov}${p.verdict !== 'MATCH' && p.verdict !== MATCH_SUBSTITUTED ? ` — ${p.reason}` : ''}`)
     }
     if (r.objects) lines.push(`    ${pad('objects', 40)} ${pad(r.objects.verdict, 13)} ${r.objects.reason}`)
     if (r.paints) lines.push(`    ${pad('paints', 40)} ${pad(r.paints.verdict || 'NOT GRADED', 13)} ${r.paints.reason}`)
   }
   const tally = Object.fromEntries(VERDICTS.map((v) => [v, results.filter((r) => r.verdict === v).length]))
   lines.push('')
+  // ⛔ GUARD 2 (index provenance): every row that counts toward a tally shows its provenance share beside it
+  const provShare = (r) => {
+    let prov = 0
+    let own = 0
+    for (const p of r.plots || []) {
+      const st = p && p.stats
+      if (!st) continue
+      own += st.compared || 0
+      for (const b of Object.values(st.provenance || {})) prov += b.compared || 0
+    }
+    return prov ? { prov, share: prov / (prov + own) } : null
+  }
+  const provRows = results.map((r) => [r, provShare(r)]).filter(([, x]) => x)
+  if (provRows.length) {
+    lines.push(`INDEX PROVENANCE (${provRows.length} captures; those bars compared into a provenance block, never into a MATCH): `
+      + provRows.map(([r, x]) => `${r.id} ${r.verdict} ${(100 * x.share).toFixed(1)}% provenance (${x.prov} bars)`).join('; '))
+  }
   lines.push(`TOTAL ${results.length} captures — MATCH ${tally.MATCH} · DIVERGE ${tally.DIVERGE} · INCONCLUSIVE ${tally.INCONCLUSIVE}`
     + (tally.MATCH_SUBSTITUTED ? ` · MATCH_SUBSTITUTED ${tally.MATCH_SUBSTITUTED} (verified with substituted inputs; never counted as MATCH)` : ''))
   // ⭐ C44 — the same total as it read before object colour joined the verdict,
