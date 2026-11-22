@@ -231,13 +231,29 @@ class TestStartupSemanticsAreNotForked:
             "the web config supplies a start command again — the image CMD is "
             "supposed to be authoritative")
 
+    #: deploy settings the web config carries and the shared one does not, each with its value and its reason.
+    #: A new web-only setting goes red here until it is named.
+    #: ⚰️ This rail was red on master from 2026-11-05 (1b2bd8dc24) to 2026-11-22: the one-replica pin landed in
+    #: railway.web.json and nothing ran this file on that pull request or in the deploy gate.
+    WEB_ONLY_DEPLOY = {
+        "numReplicas": (1, "the AI-spending safeguards assume ONE web replica (owner decision 2026-11-09, "
+                           "docs/agent/budget/SINGLE-REPLICA-SCOPE.md); the other services take Railway's default"),
+    }
+
     def test_every_other_deploy_setting_is_identical_to_the_shared_one(
             self, shared_railway, web_railway):
         shared = {k: v for k, v in shared_railway["deploy"].items()
                   if k != "startCommand"}
-        assert web_railway["deploy"] == shared, (
+        web = dict(web_railway["deploy"])
+        for key, (value, why) in self.WEB_ONLY_DEPLOY.items():
+            assert why.strip(), "%s carries no reason" % key
+            assert key not in shared, (
+                "%s is in the shared config now: it is no longer web-only, delete its entry" % key)
+            assert web.pop(key, None) == value, (
+                "the web config no longer carries %s=%r (%s)" % (key, value, why))
+        assert web == shared, (
             "the web service would deploy differently from every other service "
-            "reading railway.json, beyond the start command it is meant to own")
+            "reading railway.json, beyond the start command and the named web-only settings")
 
     def test_the_image_runs_the_shared_web_start_command(
             self, shared_railway, dockerfile):
