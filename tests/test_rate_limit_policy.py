@@ -689,7 +689,18 @@ PINNED_FAMILIES = [
     # ...and their admin reads stay admin-ops (the beacon prefixes are the exact doors, nothing wider).
     ("/api/admin/perf", "admin-ops"),
     ("/api/admin/desktop-events", "admin-ops"),
+    # EVST: a member's own historical study is heavier than a research read, so it has its own tighter bucket;
+    # the stock statistics read beside it stays research.
+    ("/api/research/event-study", "research-studies"),
+    ("/api/research/event-study/series", "research-studies"),
+    ("/api/research/stock-stats/NVDA", "research"),
 ]
+
+
+def test_a_study_is_TIGHTER_than_the_research_reads_it_sits_under():
+    from limits import parse
+    study, read = parse(rlp.FAMILIES["research-studies"].limit), parse(rlp.FAMILIES["research"].limit)
+    assert study.amount / study.get_expiry() < read.amount / read.get_expiry()
 
 
 def test_the_massive_card_logo_is_EXEMPT_and_only_that_one_file():

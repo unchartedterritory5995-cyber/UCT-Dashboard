@@ -100,6 +100,7 @@ import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../li
 import useTagColors from '../hooks/useTagColors'
 import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB, createNeighborHold } from '../utils/barsWarm'
 import { scanNeighbors } from '../utils/scanNeighbors'
+import { afterPaint } from '../utils/afterPaint'
 import { publishScanNeighbors } from '../components/chart/neighborFrames'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
@@ -1952,7 +1953,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // linked charts (D + 60m) each get their own.
   const _holdsRef = useRef(new Map())   // tf -> hold
   useEffect(() => () => { for (const h of _holdsRef.current.values()) h.clear(); _holdsRef.current.clear() }, [])
+  // ⭐ (2026-11-21, key-press CPU profile) THE WARM GOES OUT AFTER THE PAINT, NOT INSIDE THE KEY PRESS. This
+  // effect runs in the commit that shows the new selection, which on /charts is still the key handler's task:
+  // its holds, its promotes and the requests it starts for the next rows (fetch calls, one per resource per
+  // row) were 0.6 to 1.7 ms between the key and the chart's pixels, and none of it draws anything. What the
+  // warm is FOR is computed here as before (the row order, the direction, the rows around); only the sends
+  // wait for the frame (utils/afterPaint.js), a few ms on a request that takes tens.
+  // ⛔ NEVER TWO SELECTIONS IN A ROW WAITING. If the previous selection's warm is still waiting when the
+  // next one arrives (a held key leaves no frame between presses), it is dropped (this selection's rows
+  // replace it) and this one goes out at once, as every one did before: a scan keeps warming ahead of
+  // itself, at most one press late.
+  const _warmWaitingRef = useRef(false)   // the last selection's warm had not gone out when it was replaced
   useEffect(() => {
+    const hurried = _warmWaitingRef.current
+    _warmWaitingRef.current = false
     if (!selectedSym) return
     let flat = []
     const root = pageRef.current
@@ -1981,26 +1995,33 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     publishScanNeighbors(selectedSym, scanNeighbors(flat, idx, dir, { ahead: 2, behind: 0 }),
       scanNeighbors(flat, idx, -dir, { ahead: 2, behind: 0 }))
     const next = scanNeighbors(flat, idx, dir, { ahead: SCAN_URGENT_NEXT, behind: 0 })
-    const holds = _holdsRef.current
-    for (const [htf, h] of holds) if (!tfs.includes(htf)) { h.clear(); holds.delete(htf) }
-    for (const tf of tfs) {
-      if (!holds.has(tf)) holds.set(tf, createNeighborHold())
-      // `deep`: once the member rests here, the next rows' older history loads too, so the flip
-      // paints them as deep as the chart would reach after its own wait (createNeighborHold).
-      holds.get(tf).set(around, tf, { deep: next })
+    const ahead = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 2 })
+    const sendWarm = () => {
+      const holds = _holdsRef.current
+      for (const [htf, h] of holds) if (!tfs.includes(htf)) { h.clear(); holds.delete(htf) }
+      for (const tf of tfs) {
+        if (!holds.has(tf)) holds.set(tf, createNeighborHold())
+        // `deep`: once the member rests here, the next rows' older history loads too, so the flip
+        // paints them as deep as the chart would reach after its own wait (createNeighborHold).
+        holds.get(tf).set(around, tf, { deep: next })
+      }
+      warmMemFromIDB(around, tfs)
+      for (const tf of tfs) prefetchBarsToIDB(ahead, tf, { priority: true })
+      // ⭐ THE NEXT ROWS, URGENT (2026-11-17). The line above is a background warm, HELD while the
+      // daily pack ingests (`_holdBackgroundWarm`: a first visit is 90 s+, and a profile whose pack
+      // never stamped holds it for good). Measured in the flip proof with the pack unstamped: the
+      // neighbor warms never left, and every flip to an unwarmed row waited on its own request
+      // (first candles 96-221 ms). The screener already bypasses the hold for its next rows
+      // (useFocusSelection URGENT_NEXT); the watchlist now does the same for the rows the member
+      // is about to reach. Only the latest urgent call stays urgent: a held arrow key aborts the
+      // rows it has passed, so a fast scan costs at most SCAN_URGENT_NEXT requests in flight (per
+      // timeframe: an urgent call only aborts its own timeframe's passed rows).
+      for (const tf of tfs) prefetchBars(next, tf, { urgent: true })
     }
-    warmMemFromIDB(around, tfs)
-    for (const tf of tfs) prefetchBarsToIDB(scanNeighbors(flat, idx, dir, { ahead: 6, behind: 2 }), tf, { priority: true })
-    // ⭐ THE NEXT ROWS, URGENT (2026-11-17). The line above is a background warm, HELD while the
-    // daily pack ingests (`_holdBackgroundWarm`: a first visit is 90 s+, and a profile whose pack
-    // never stamped holds it for good). Measured in the flip proof with the pack unstamped: the
-    // neighbor warms never left, and every flip to an unwarmed row waited on its own request
-    // (first candles 96-221 ms). The screener already bypasses the hold for its next rows
-    // (useFocusSelection URGENT_NEXT); the watchlist now does the same for the rows the member
-    // is about to reach. Only the latest urgent call stays urgent: a held arrow key aborts the
-    // rows it has passed, so a fast scan costs at most SCAN_URGENT_NEXT requests in flight (per
-    // timeframe: an urgent call only aborts its own timeframe's passed rows).
-    for (const tf of tfs) prefetchBars(next, tf, { urgent: true })
+    if (hurried) { sendWarm(); return undefined }
+    const cancel = afterPaint(sendWarm)
+    // Replaced or unmounted before the frame: the warm is dropped, and a replacement is told so.
+    return () => { _warmWaitingRef.current = cancel() }
   }, [selectedSym, visibleSymsFlat, warmTfs])
 
   // Prefetch all timeframes for current ticker + adjacent flagged tickers

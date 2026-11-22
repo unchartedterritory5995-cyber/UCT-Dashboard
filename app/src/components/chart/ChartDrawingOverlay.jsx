@@ -32,6 +32,7 @@ import {
 } from './drawingFib'
 import { parseBoundId, POSITION_LEVELS, positionLevelDirection, positionSide } from './drawingAlertAnchors'
 import { toRawUnixView, stampTimeBase, pointChartTime } from './drawingTimeBase'
+import { lazyTimeIndex } from './lazyTimeIndex'
 import { sectionsFor, newDrawingProps, isRetired } from './drawingSettingsSchema'
 import { saveDefaultsPayloadFor } from './drawingSaveDefaults'
 import {
@@ -514,11 +515,9 @@ export default function ChartDrawingOverlay({
   const visibleDrawings = useMemo(() => visibleOnly(drawings), [drawings])
 
   // ── Time → bar index lookup ──
-  const timeToIndex = useMemo(() => {
-    const map = new Map()
-    bars?.forEach((b, i) => map.set(b.t, i))
-    return map
-  }, [bars])
+  // ⭐ (2026-11-21, key-press profile) BUILT ON THE FIRST LOOKUP, NOT IN THE RENDER (lazyTimeIndex.js). A new
+  // object per `bars`, as the Map was, so every callback and effect keyed on it re-runs exactly as before.
+  const timeToIndex = useMemo(() => lazyTimeIndex(bars), [bars])
 
   // Nearest bar index for a time that may not be an EXACT bar on the current
   // timeframe. A drawing placed on the daily chart anchors to a daily date

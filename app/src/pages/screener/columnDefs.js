@@ -25,7 +25,7 @@
 // ⛔ `columnDescCoverage.test.js` is the RATCHET: it names the columns that
 // must carry text and holds the count, so this number can only go up.
 
-import { formatCompact } from '../../lib/presentation/presentationPrimitives'
+import { formatCompact, formatNumber } from '../../lib/presentation/presentationPrimitives'
 
 // `descFor` and the trigger's width live in this component-free module so both
 // the affordance and the layout that reserves room for it read ONE value.
@@ -102,6 +102,15 @@ const pctSigned2 = v => v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}
 // A signed whole number: a rating delta.
 const signedInt = v => v == null ? '—' : `${v > 0 ? '+' : ''}${v}`
 const heatSign = v => v == null ? '' : v > 0 ? 'g' : v < 0 ? 'r' : ''
+// Fundamental trends: a count of quarters, and a change in percentage points (a margin moving
+// from 10% to 12% is +2.0 pts, never "+20%"). A change that rounds to zero carries no sign.
+const quarters = v => v == null ? '—' : `${v} qtr${v === 1 ? '' : 's'}`
+const points = v => {
+  if (v == null) return '—'
+  const body = formatNumber(Math.abs(v), { decimals: 1 })
+  const sign = Number(body) === 0 ? '' : v > 0 ? '+' : '-'
+  return `${sign}${body} pts`
+}
 
 export const COLUMN_DEFS = {
   ticker: { label: 'Ticker', fmt: v => v },
@@ -714,4 +723,25 @@ export const COLUMN_DEFS = {
     desc: 'Yes when the stock is on the UCT RS Leaders list today. A stock joins when it passes every rule of that screen, and ranks in the top 50 of the stocks that do by RS Rating score. It stays until it falls past 65th or stops passing a rule, so a stock at the edge does not come and go from one day to the next, and the list holds 50 to 65 stocks. Decided once a session. It is a list to study and is not a recommendation.' },
   rs_leaders_days: { label: 'Days on RS Leaders', fmt: num(0),
     desc: 'How many sessions in a row the stock has been on the UCT RS Leaders list, counting today, as far back as our record goes: 1 means it joined today. Blank for a stock that is not on the list. A long run says the stock kept its place among the strongest. It does not say the run will go on.' },
+  // ── Fundamental trends (2026-11-21), from SEC filings, point in time (`fund_trends`) ──
+  // Worked out each evening from the quarters filed by that session's close and read into the
+  // row by the next nightly build. The numbers in these sentences (the 4, the 8, the 25%) are
+  // `fund_trends.ACCEL_MAX`, `EPS_STREAK_MAX` and `EPS_STREAK_THRESHOLD` on the server
+  // (tests/test_screener_fund_trends.py holds each to these sentences).
+  rev_accel_q: { label: 'Rev Accel', fmt: quarters,
+    desc: 'How many quarters in a row year-over-year revenue growth has risen, from SEC filings: 1 when the newest quarter grew faster than the quarter before it, 2 when that quarter also grew faster than the one before it, and so on up to 4. 0 means the newest quarter did not grow faster. Only quarters filed by the evening before the build count, and a 10-Q or 10-K can follow the earnings release by days. Blank, never 0, with fewer than two quarters, a missing quarter, or a year-earlier revenue of zero or less.' },
+  eps_streak_25: { label: 'EPS 25%+ Qtrs', fmt: quarters,
+    desc: 'How many quarters in a row diluted EPS grew at least 25% against the same quarter a year earlier, from SEC filings, counted back from the newest quarter, up to 8. A quarter whose year-earlier EPS was zero or negative has no growth rate, so it ends the count, and when it is the newest quarter this is blank: a turnaround from a loss never counts. 25% is UCT\'s default; the EPS Min columns take any threshold. Not the EPS Gr column, which is the data provider\'s figure.' },
+  eps_growth_min_2q: { label: 'EPS Min 2Q', fmt: pct, heat: heatSign,
+    desc: 'The lowest year-over-year diluted EPS growth of the last 2 quarters, from SEC filings: "at least 30% in each of the last 2 quarters" is this column at 30 or more. Blank when either quarter has no growth rate (a year-earlier EPS of zero or less) or a quarter is missing. Updates when the 10-Q or 10-K is filed, which can be days after the earnings release.' },
+  eps_growth_min_3q: { label: 'EPS Min 3Q', fmt: pct, heat: heatSign,
+    desc: 'The lowest year-over-year diluted EPS growth of the last 3 quarters, from SEC filings: "at least 30% in each of the last 3 quarters" is this column at 30 or more. Blank when any of the 3 has no growth rate (a year-earlier EPS of zero or less) or a quarter is missing. Updates when the 10-Q or 10-K is filed, which can be days after the earnings release.' },
+  eps_growth_min_4q: { label: 'EPS Min 4Q', fmt: pct, heat: heatSign,
+    desc: 'The lowest year-over-year diluted EPS growth of the last 4 quarters, from SEC filings: "at least 30% in each of the last 4 quarters" is this column at 30 or more. Blank when any of the 4 has no growth rate (a year-earlier EPS of zero or less) or a quarter is missing. Updates when the 10-Q or 10-K is filed, which can be days after the earnings release.' },
+  net_margin_chg_1y: { label: 'Net Mgn Chg', fmt: points, heat: heatSign,
+    desc: 'Trailing-twelve-month net margin now minus the same margin a year earlier, in percentage points, from SEC filings: +2.0 pts means the margin went from, say, 10% to 12%. Uses the four quarters ending at the newest filed quarter and the four ending a year before it. Blank without both. Not the Net Mgn column, which is the data provider\'s current figure.' },
+  gross_margin_chg_1y: { label: 'Gross Mgn Chg', fmt: points, heat: heatSign,
+    desc: 'Trailing-twelve-month gross margin now minus the same margin a year earlier, in percentage points, from SEC filings. Only for companies that report gross profit, about a third of them, so it is blank for most banks and insurers. Blank without both quarters. Not the Gr Mgn column, which is the data provider\'s current figure.' },
+  shares_chg_1y: { label: 'Shares Chg 1Y', fmt: pct,
+    desc: 'Shares outstanding on the newest filing\'s cover page against the count about a year earlier, in percent, from SEC filings. Below 0 means fewer shares (net buybacks), above 0 means more (dilution). Split-adjusted, so a stock split is not dilution. Blank for companies with more than one share class and where the split history cannot be verified.' },
 }

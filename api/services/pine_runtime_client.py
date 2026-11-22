@@ -173,11 +173,19 @@ def _withheld(job_id: str, guard: str, sentence: str) -> JobResult:
     return JobResult(job=job_id, status="withheld", refusals=(Refusal("*", guard, sentence, None),))
 
 
+def transport_guard(guard: str) -> bool:
+    """Is ``guard`` a TRANSPORT outcome (non-deterministic, or a bug): every client-minted withhold and
+    every ``runtime:server-*`` (unavailable, auth, engine mismatch, integrity, busy after its retries,
+    failed, worker OOM), and ``runtime:time-budget``? Everything else a run refuses or withholds BY NAME
+    is the script's own answer on those bars (TRACK 6 item 2b: it is counted in a receipt, never blocks one)."""
+    return guard == TIME_BUDGET or guard.startswith("runtime:server-")
+
+
 def cacheable(result: JobResult) -> bool:
     """May a caller keep this result for the rest of its cycle? Only a deterministic answer:
     never a client-minted withhold, never ``runtime:server-*``, never ``runtime:time-budget``."""
     for r in result.refusals:
-        if r.guard == TIME_BUDGET or r.guard.startswith("runtime:server-"):
+        if transport_guard(r.guard):
             return False
     return True
 
@@ -189,7 +197,7 @@ class Job:
     job: str
     ticker: str
     tf: str
-    bars: Sequence[Mapping[str, Any]]
+    bars: Any    # the raw bars (Sequence[Mapping]), or an ``EncodedBars`` the caller encoded once (``encode_once``)
     exchange: str = ""
     want: Tuple[str, ...] = ()
     runtime_inputs: Mapping[str, Any] = field(default_factory=dict)
@@ -246,6 +254,31 @@ def encode_bars(bars: Sequence[Mapping[str, Any]]) -> Tuple[int, Dict[str, bytes
             raise _Refuse(INTEGRITY, f"the bars' times are not strictly increasing at bar {i}")
     enc = {k: codec.encode_column(cols[k], f"bars.{k}") for k in BAR_COLUMNS}
     return len(bars), enc, bars_sha256(len(bars), enc)
+
+
+@dataclass(frozen=True)
+class EncodedBars:
+    """One job's bars, ENCODED ONCE: ``encode_bars`` plus the wire's base64, ready to send.
+
+    ⭐ TRACK 6 THROUGHPUT (2026-11-22). The nightly sweep hands the SAME symbol's bars to every runtime
+    document of the night. Measured locally on the sweep's own path (200 symbols, ~3,000 daily bars each):
+    reading, converting and encoding a symbol's bars is ~92% of the web side's time per job, and none of
+    it depends on the document. So the sweep encodes each symbol once and puts this in ``Job.bars`` for
+    every document; ``run`` sends exactly the bytes it would have built from the raw bars (railed)."""
+    n: int
+    b64: Tuple[Tuple[str, str], ...]     # ((column, base64 text), ...) in BAR_COLUMNS order
+    sha256: str
+
+
+def encode_once(bars: Sequence[Mapping[str, Any]]) -> Optional[EncodedBars]:
+    """``EncodedBars`` for ``bars``, or ``None`` when ``encode_bars`` refuses them. ⛔ On ``None`` the caller
+    hands the RAW bars on, and ``run`` withholds that job by name exactly as it always has: the refusal has
+    one authority (``encode_bars`` inside ``run``), never a second copy in a caller."""
+    try:
+        n, cols, sha = encode_bars(bars)
+    except _Refuse:
+        return None
+    return EncodedBars(n=n, b64=tuple((k, codec.bytes_to_b64(cols[k])) for k in BAR_COLUMNS), sha256=sha)
 
 
 def canonical_doc_text(doc: Mapping[str, Any]) -> str:
@@ -494,10 +527,14 @@ class PineRuntimeClient:
                     raise _Refuse(INTEGRITY, "the symbol is not one the service accepts")
                 if not isinstance(j.tf, str) or not j.tf:
                     raise _Refuse(INTEGRITY, "the job has no timeframe")
-                n, cols, bsha = encode_bars(j.bars)
+                if isinstance(j.bars, EncodedBars):
+                    n, wire_bars, bsha = j.bars.n, dict(j.bars.b64), j.bars.sha256
+                else:
+                    n, cols, bsha = encode_bars(j.bars)
+                    wire_bars = {k: codec.bytes_to_b64(cols[k]) for k in BAR_COLUMNS}
                 ctx = _ctx_of(j)
                 wire = {"job": j.job, "symbol": {"ticker": j.ticker, "exchange": j.exchange}, "tf": j.tf,
-                        "bars": {"n": n, **{k: codec.bytes_to_b64(cols[k]) for k in BAR_COLUMNS}, "sha256": bsha},
+                        "bars": {"n": n, **wire_bars, "sha256": bsha},
                         "ctx": ctx, "want": list(j.want)}
                 key = result_key(self.identity, doc_sha, j, ctx, bsha, profile)
             except _Refuse as e:

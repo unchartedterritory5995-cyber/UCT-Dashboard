@@ -7,7 +7,10 @@
 //     painted  what the chart's first frame is built from: 'device' | 'server' | another store source | 'none'
 //     reason   the device rule's verdict (barStore/prefetch.deviceVerdict): 'paints', or the rule that refused
 //     why      when the device copy was not the paint, the WORKER's rule (engine.why, asynchronously):
-//              'ok' | 'seed-only:<overlay rule>' | no-file | missing | split | bad | no-engine | no-client
+//              'ok' | 'seed-only:<overlay rule>' | seed-short | no-file | missing | split | bad | no-engine | no-client
+//     pre      the device rule's verdict the LAST time the switch asked it while no server answer held the key
+//              (null: it never waited, or the answer was already there). `reason` is taken at the commit, after
+//              the answer of a switch that waited, where it can only read 'held:rest'; `pre` is why it waited.
 // Read in the page as window.__uctDeviceDiag.log() (the proofs: uct-desktop scripts/proofs). Nothing reads
 // it to decide anything. Bounded; lazy (the handoff is chart code, never on the first-open closure).
 

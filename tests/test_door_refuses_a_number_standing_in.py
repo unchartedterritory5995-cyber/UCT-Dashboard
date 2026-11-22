@@ -134,10 +134,17 @@ def test_CONTROL_a_question_with_no_change_is_never_judged_by_its_reply():
 def test_THE_FINDING_the_recorded_answer_is_refused_and_the_repair_is_the_answer(conv, clean_env, model):
     answered = {**env(0, copy.deepcopy(THE_ANSWER["answer"]["ops"])), "reply": THE_ANSWER["answer"]["reply"]}
     assert answered["reply"] == "Placeholder"
-    client = model([emits(answered), emits(GOOD)])
+    # (since 2026-11-22 the honest answer to THESE words is a question: they ask for the 14 DAY ATR on a 5 minute
+    # chart, and a 14 bar ATR of that chart is refused by the day-length guard just as the number standing in was)
+    asked = env(0, questions=[{"id": "which", "text": "I can't yet add today's own low to a daily measure like the 14 day ATR on a 5 minute chart. "
+                                                       "Which would you like?",
+                               "choices": ["The 14 day ATR as a line, on daily bars",
+                                           "The same lines with the ATR of 14 five-minute bars (about 1 hour 10 minutes)"]}],
+                reply="I can't build that yet.")
+    client = model([emits(answered), emits(asked)])
     r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=CHART)
-    assert r["ok"] is True and r["attempts"] == 2 and len(client.calls) == 2, (r.get("gate"), r.get("reason"))
-    assert [o["tree"] for o in r["envelope"]["ops"][0]["outputs"]] == [o["tree"] for o in GOOD["ops"][0]["outputs"]]
+    assert r["attempts"] == 2 and len(client.calls) == 2 and r["disposition"] == "clarify", (r.get("gate"), r.get("reason"))
+    assert not (r.get("envelope") or {}).get("ops")
     # what the model was told between the two: the door's own words about the number standing in
     said = json.dumps(client.calls[1]["messages"])
     assert "reads a plain number, not a value of a bar" in said

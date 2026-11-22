@@ -166,6 +166,17 @@ def get_sync(name: str, *, timeout: "float | None" = None):
     return fut.result(timeout=timeout)
 
 
+def shutdown() -> None:
+    """At process shutdown (the web lifespan's last steps): let this pool's IDLE workers exit now.
+
+    Measured 2026-11-22: after uvicorn finished, `api/serve_dual.py`'s bounded join spent its whole
+    5 s on this pool's four idle, non-daemon workers (`cold-preload_0..3`), which wait on the work
+    queue until interpreter shutdown wakes them, which `os._exit` never reaches. `wait=False`: a
+    preload still running finishes on its own (the join bounds it); `cancel_futures=True`: one not yet
+    started never starts. A submit after this raises, and nothing submits after the lifespan ends."""
+    _executor.shutdown(wait=False, cancel_futures=True)
+
+
 def _reset_for_tests() -> None:
     """Test-only. A module-level registry surviving between tests would let one test's
     registration leak into another's assertions about what IS registered."""

@@ -32,6 +32,11 @@ export { bytesToB64, columnDigest, decodeColumn, encodeColumn } from './columnDi
 // the reader the browser worker reads it by, and the ONE shape check every reader shares (T12, T13a,
 // and the service's seal, services/pine_runtime/protocol.mjs). Re-exported, never copied.
 export { runtimeStrategyOf, strategyRecordShapeErrors, STRATEGY_RECORD_SCHEMA } from './strategyRecord.js'
+// ⭐ TRACK 6, G-BROKER (coordinator ruling D5, 2026-11-22): the strategy broker's gate REGISTRY (never the
+// browser's build-flag reader, which reads `import.meta.env`). The service's job adapter
+// (services/pine_runtime/job.mjs) turns it on for ONE job that asks for `#strategy` (profile `backtest` only,
+// protocol.mjs) and off again after it; every other job runs exactly as before.
+export { registerStrategyBrokerGate, strategyBrokerGateOn } from '../strategyBrokerGateRegistry.js'
 // W5-T7: drawings are not served by the server lanes in v1; the adapter names them by this key.
 export { RUNTIME_OBJECTS_KEY } from './runtimeObjects.js'
 export { SCRIPT_ENGINE_VERSION } from '../scriptEngineVersion.js'

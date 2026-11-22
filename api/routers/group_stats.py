@@ -7,6 +7,11 @@
                                                                   middle half, a year and three years ago, its
                                                                   rank among its peers, and its breadth now, a
                                                                   week and a month ago, with a year's line
+    GET /api/research/group-stats?kind=...&part=positioning        (GRPS CROWDING, 2026-11-22) every group's
+                                                                  short interest, insider buying and fund
+                                                                  holdings, each part with its own as-of and
+                                                                  coverage; with &name=... that group's members
+                                                                  with their own figures
 
 Paid, like the other research reads: 401 signed out, 402 not on a paid plan. No new feature flag and no new
 environment variable; the fundamentals part answers `off` while FUNDAMENTALS_PIT_ENABLED is off, as the
@@ -41,8 +46,12 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 @router.get("/api/research/group-stats")
 def get_group_stats(kind: str = Query("sector", pattern="^(sector|industry)$"),
                     name: Optional[str] = Query(None, min_length=1, max_length=80),
+                    part: Optional[str] = Query(None, pattern="^positioning$"),
                     user: dict = Depends(require_paid)):
     """Every sector or industry (no `name`), or one in full: medians from SEC filings point in time, and
-    breadth from stored daily closes."""
+    breadth from stored daily closes. With `part=positioning` (GRPS CROWDING): each group's short interest,
+    insider buying and fund holdings instead, and with `name` that group's members with their own figures."""
     from api.services import group_stats
+    if part == "positioning":
+        return group_stats.get_group_positioning(kind, name)
     return group_stats.get_group_stats(kind, name)

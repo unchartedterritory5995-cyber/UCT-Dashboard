@@ -1,0 +1,35 @@
+/* EEHSC (2026-11-21): an opened sector's stocks. App tokens only; type size follows the board density through --panel-*.
+   The shared table, toolbar and fold rules are marketPanels.module.css's. */
+
+.plain {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.change {
+  white-space: nowrap;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-xs) 0;
+  min-width: 0;
+}
+
+/* Every counted stock, largest raise first: as many short columns as the panel holds, one on a phone. */
+.symList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: 2px var(--space-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.symItem {
+  min-width: 0;
+  overflow-wrap: break-word;
+}

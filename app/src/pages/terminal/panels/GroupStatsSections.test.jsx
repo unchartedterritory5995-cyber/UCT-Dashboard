@@ -6,7 +6,10 @@
 //   * the breadth: each share now with the 1-week and 1-month change and the rank, the day's highs and lows and
 //     advance / decline, the year's line in words; no closes says so;
 //   * loading, not built, the first build running, a group the build does not hold, a failed read (Retry, and the
-//     list below is not affected), a paywall, an answer it cannot read; axe.
+//     list below is not affected), a paywall, an answer it cannot read; axe;
+//   * the rank (2026-11-22): first and closed, saying the place now and the places moved; opened, each week by both
+//     measures with how many groups and stocks it rests on, the line in words and the method (no look-ahead,
+//     survivorship); too few stocks, a held answer from before it, no closes and too few weeks for a line; axe.
 // The fixtures are the route's real shape (api/services/group_stats.py) with invented figures.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react'
@@ -16,7 +19,7 @@ vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
 import GroupStatsSections from './GroupStatsSections'
 import { groupStatsUrl } from './groupStatsModel'
-import { COMPUTING, NOT_BUILT, SECTOR_BOARD, SEMIS_DETAIL, TECH_DETAIL } from './__fixtures__/groupStatsFixture'
+import { COMPUTING, NOT_BUILT, SECTOR_BOARD, SEMIS_DETAIL, TECH_DETAIL, TECH_RANK } from './__fixtures__/groupStatsFixture'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
 const TECH_URL = groupStatsUrl('sector', 'Technology')
@@ -173,6 +176,82 @@ describe('the states', () => {
     expect(paid.textContent).toContain('needs a paid plan')
     expect(within(paid).queryByRole('button', { name: 'Retry' })).toBeNull()
   })
+})
+
+describe('the rank section (2026-11-22)', () => {
+  it('⭐ it sits first and closed, saying the place now and the places moved; no table until opened', async () => {
+    serve({ [TECH_URL]: TECH_DETAIL })
+    renderSections({ kind: 'sector', name: 'Technology' })
+    const stats = await screen.findByTestId('terminal-grp-stats')
+    expect([...stats.querySelectorAll('details')].map((d) => d.getAttribute('data-testid'))).toEqual(['terminal-grp-rank', 'terminal-grp-fund', 'terminal-grp-breadth'])
+    expect(screen.getByTestId('terminal-grp-rank').hasAttribute('open')).toBe(false)
+    expect(screen.getByTestId('terminal-grp-rank-line').textContent).toBe('2nd of 11 by 6-month change (50 stocks); +1 place in 4 weeks, +3 places in 13 weeks')
+    expect(screen.queryByRole('table')).toBeNull()
+  })
+
+  it('opened: each week by both measures, how many groups and stocks each rests on, the line and the method', async () => {
+    serve({ [TECH_URL]: TECH_DETAIL })
+    renderSections({ kind: 'sector', name: 'Technology' })
+    await screen.findByTestId('terminal-grp-stats')
+    open('terminal-grp-rank')
+    const table = screen.getByTestId('terminal-grp-rank-table')
+    expect(within(table).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Week', 'By 6-month change', 'By 3-month change'])
+    expect(within(table).getAllByRole('row')).toHaveLength(7)
+    expect(rowText('terminal-grp-rank-row-now')).toEqual(['Now | Jun 4, 2031', '2nd of 11 | median +14.0%, 50 stocks', '1st of 11 | median +9.0%, 50 stocks'])
+    expect(rowText('terminal-grp-rank-row-w13')).toEqual(['13 weeks ago | Mar 7, 2031', '5th of 11 | 50 stocks, climbed 3 places since',
+      '6th of 11 | 50 stocks, climbed 5 places since'])
+    expect(rowText('terminal-grp-rank-row-worst')).toEqual(['Worst of the year', '9th of 11 | Oct 25, 2030, 50 stocks', '10th of 11 | Aug 30, 2030, 50 stocks'])
+    const svg = within(screen.getByTestId('terminal-grp-rank-chart')).getByRole('img')
+    expect(svg.getAttribute('aria-label')).toBe('Rank by the median 6-month change each week, Jun 7, 2030 to Jun 4, 2031, 1st at the top: best 1st on '
+      + 'Apr 18, 2031, worst 9th on Oct 25, 2030, latest 2nd of 11.')
+    expect(screen.getByTestId('terminal-grp-rank-chart').textContent).toContain('1st at the top and 11th at the bottom')
+    const method = screen.getByTestId('terminal-grp-rank-method').textContent
+    expect(method).toContain('126 stored sessions (about six months)')
+    expect(method).toContain('63 stored sessions (about three months)')
+    expect(method).toContain('(no look-ahead)')
+    expect(method).toContain('(survivorship)')
+    open('terminal-grp-rank')
+    expect(screen.queryByTestId('terminal-grp-rank-table')).toBeNull()
+  })
+
+  it('too few stocks, a held answer from before the rank, no closes and too few weeks for a line are said in words', async () => {
+    const few = { ...TECH_DETAIL, rank: { ...TECH_RANK, m6: { ...TECH_RANK.m6, now: { position: null, of: 11, n: 4, median: null, date: '2031-06-04' } } } }
+    serve({ [TECH_URL]: few })
+    renderSections({ kind: 'sector', name: 'Technology' })
+    await screen.findByTestId('terminal-grp-stats')
+    expect(screen.getByTestId('terminal-grp-rank-line').textContent).toBe('4 stocks with prices, fewer than 5: no rank')
+    open('terminal-grp-rank')
+    expect(rowText('terminal-grp-rank-row-now')[1]).toBe('4 with prices')
+    cleanup()
+    serve({ [TECH_URL]: { ...TECH_DETAIL, sources: { ...TECH_DETAIL.sources, rank: undefined }, rank: null } })
+    renderSections({ kind: 'sector', name: 'Technology' })
+    await screen.findByTestId('terminal-grp-stats')
+    expect(screen.getByTestId('terminal-grp-rank-line').textContent).toBe('appears after the next evening build')
+    open('terminal-grp-rank')
+    expect(screen.getByTestId('terminal-grp-rank-state').textContent).toContain('worked out before it was added')
+    cleanup()
+    serve({ [TECH_URL]: { ...TECH_DETAIL, sources: { ...TECH_DETAIL.sources, rank: { state: 'unavailable', dates: [] } }, rank: null } })
+    renderSections({ kind: 'sector', name: 'Technology' })
+    await screen.findByTestId('terminal-grp-stats')
+    expect(screen.getByTestId('terminal-grp-rank-line').textContent).toBe('not shown')
+    open('terminal-grp-rank')
+    expect(screen.getByTestId('terminal-grp-rank-state').textContent).toContain('no weekly rank')
+    cleanup()
+    const thin = { ...TECH_DETAIL, rank: { ...TECH_RANK, m6: { ...TECH_RANK.m6, rank: TECH_RANK.m6.rank.map((p, i) => (i === 52 ? p : null)) } } }
+    serve({ [TECH_URL]: thin })
+    renderSections({ kind: 'sector', name: 'Technology' })
+    await screen.findByTestId('terminal-grp-stats')
+    open('terminal-grp-rank')
+    expect(screen.getByTestId('terminal-grp-rank-no-chart').textContent).toContain('no line to draw')
+  })
+
+  it('the rank section open passes axe (WCAG A and AA)', async () => {
+    serve({ [TECH_URL]: TECH_DETAIL })
+    renderSections({ kind: 'sector', name: 'Technology' })
+    await screen.findByTestId('terminal-grp-stats')
+    open('terminal-grp-rank')
+    await expectNoAxeViolations(document.body.firstElementChild)
+  }, 60_000)
 })
 
 describe('accessibility', () => {

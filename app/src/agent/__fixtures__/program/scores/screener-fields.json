@@ -1901,6 +1901,70 @@
    "category": "pattern"
   },
   {
+   "key": "rev_accel_q",
+   "label": "Revenue Growth Acceleration (quarters)",
+   "type": "range",
+   "unit": null,
+   "category": "fundamental_trends",
+   "agent_omit": true
+  },
+  {
+   "key": "eps_streak_25",
+   "label": "EPS Growth 25%+ Streak (quarters)",
+   "type": "range",
+   "unit": null,
+   "category": "fundamental_trends",
+   "agent_omit": true
+  },
+  {
+   "key": "eps_growth_min_2q",
+   "label": "EPS Growth, Weakest of Last 2 Quarters",
+   "type": "range",
+   "unit": "%",
+   "category": "fundamental_trends",
+   "agent_omit": true
+  },
+  {
+   "key": "eps_growth_min_3q",
+   "label": "EPS Growth, Weakest of Last 3 Quarters",
+   "type": "range",
+   "unit": "%",
+   "category": "fundamental_trends",
+   "agent_omit": true
+  },
+  {
+   "key": "eps_growth_min_4q",
+   "label": "EPS Growth, Weakest of Last 4 Quarters",
+   "type": "range",
+   "unit": "%",
+   "category": "fundamental_trends",
+   "agent_omit": true
+  },
+  {
+   "key": "net_margin_chg_1y",
+   "label": "Net Margin Change vs Year Ago",
+   "type": "range",
+   "unit": "pts",
+   "category": "fundamental_trends",
+   "agent_omit": true
+  },
+  {
+   "key": "gross_margin_chg_1y",
+   "label": "Gross Margin Change vs Year Ago",
+   "type": "range",
+   "unit": "pts",
+   "category": "fundamental_trends",
+   "agent_omit": true
+  },
+  {
+   "key": "shares_chg_1y",
+   "label": "Share Count Change vs Year Ago",
+   "type": "range",
+   "unit": "%",
+   "category": "fundamental_trends",
+   "agent_omit": true
+  },
+  {
    "key": "security_type",
    "label": "Type",
    "type": "enum",
