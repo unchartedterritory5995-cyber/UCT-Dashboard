@@ -145,6 +145,24 @@
    "to": "    if (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
    "expectRed": "UCT breadth data"
+  },
+  {
+   "id": "BR17",
+   "mutant": "W-B1 never lands in the template: a witnessed spelling's row reads pending again",
+   "file": "app/src/components/chart/engine/pineBreadth.js",
+   "from": "  const landed = base === t && BREADTH_DAILY_WITNESS.spellings.includes(t) && alignment === BREADTH_DAILY_ALIGNMENT",
+   "to": "  const landed = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "exactly W-B1"
+  },
+  {
+   "id": "BR18",
+   "mutant": "the member's note no longer says how far our counts are from TradingView's",
+   "file": "app/src/components/chart/engine/pineBreadth.js",
+   "from": "  const gap = base && base === t ? BREADTH_DIVERGENCE[base] : null",
+   "to": "  const gap = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "the member's words"
   }
  ]
 }

@@ -94,6 +94,39 @@ scripts), graded before and after on both lanes (12 grades): **every verdict and
 `breadth-not-held` where they named `venue-foreign`. The committed `docs/pine/vendor-harness/*/verdicts.json` snapshots
 still carry the old reason text (snapshots, not compared in CI).
 
+## W-B1 (Q-T4-B1) landed, 2026-11-22: the alignment, the six witnessed spellings, and how far our counts are
+
+Two captures (`t4-wb1-2026-11-22`, rig-clean, no compile error): `vw-data-usi` (U01-U20) on AMEX:SPY 1D (8,512 bars from
+1993) and NYSE:RDDT 1D (671). Our side is production's B1 answer of 2026-11-22 (read as the synthetic admin; held
+locally, never committed). Derived counts only below; the capture stays local.
+
+- **The alignment is `same-date`** (`BREADTH_DAILY_ALIGNMENT` unchanged). Median |ours - TradingView's|, same-date
+  against previous-session: ADVN.NY 549 / 599, DECL.NY 438 / 577, UNCH.NY 49 / 50, ADVN.NQ 448 / 545, DECL.NQ 402 /
+  552, ADD 241 / 927. U01 (`"D"`) and U02 (`timeframe.period`) agree on every bar; the SPY and RDDT charts read the same
+  series (671 of 671 shared sessions equal).
+- **Witnessed and served behind the door** (`requestWitnesses.json` `witness` + `captured`, `BREADTH_DAILY_WITNESS`):
+  `USI:ADVN.NY`, `DECL.NY`, `UNCH.NY`, `ADVN.NQ`, `DECL.NQ`, `ADD`. Not in the probe, still pending: `UNCH.NQ`, `ADDQ`.
+- **The grade: a named divergence on every witnessed spelling, never MATCH_SUBSTITUTED.** Our counts (operating equity,
+  common stock and ADRs) against the exchange's (all issues), same-date, every session both hold
+  (`BREADTH_DIVERGENCE`, said in the member's note):
+
+| spelling | sessions (from) | median \|difference\| | as a share of TradingView's | ours lower |
+|---|---|---:|---:|---:|
+| ADVN.NY | 4,389 (2009-06-11) | 549 | 36% | 99.8% |
+| DECL.NY | 4,389 (2009-06-11) | 438 | 32% | 99.7% |
+| UNCH.NY | 4,389 (2009-06-11) | 49 | 55% | 99.8% |
+| ADVN.NQ | 4,752 (2008-01-02) | 448 | 31% | 99.6% |
+| DECL.NQ | 4,752 (2008-01-02) | 402 | 27% | 99.7% |
+| ADD | 4,389 (2009-06-11) | 241 | 29% | 61% |
+
+- **The four short spellings are NOT aliases.** TradingView's `USI:ADV` / `DECL` / `ADVQ` / `DECLQ` equal its long
+  spellings on 21 / 32 / 31 / 40 of about 8,000 sessions: they are other series. TradingView's `USI:ADD` is `ADV` -
+  `DECL` on 6,555 of 8,321 sessions and `ADVN.NY` - `DECL.NY` on 25. So the aliases stay refused by name
+  (`witness-pending`); what they are (likely a common-stock universe) is a unit of its own, for the coordinator. And
+  UCT's `USI:ADD` is UCT's advancing less declining, which matches neither of TradingView's exactly.
+- The bare `ADVN` / `DECN` (U17 / U18) are a third pair of series on TradingView (from 2007-09-28); they keep `bare`.
+- The spread (U19, TradingView's built-in Advance Decline Line string) stays refused by name (`breadth-spread`).
+
 ## Rails and mutants
 
 - `app/src/components/chart/engine/requestBreadth.test.js` (R1-R7): the rows are the template and pending; every refusal
@@ -109,8 +142,7 @@ still carry the old reason text (snapshots, not compared in CI).
 
 ## Open, by name
 
-- **Q-T4-B1 (W-B1)** lands: fill each row's `witness` + `captured`; flip `BREADTH_DAILY_ALIGNMENT` if it shows the previous
-  session. Size each spelling's divergence from the capture and put it in the member's sentence.
+- **Q-T4-B1 (W-B1)** LANDED 2026-11-22 (section above): six spellings witnessed and sized; the alignment stays same-date.
 - **Q-T4-B2** (queued here): the weekly and monthly blocks.
 - **The capability** `request-breadth` is admitted by the coordinator once two scripts (one community) grade
   MATCH_SUBSTITUTED with the runtime pane on against our production supply.

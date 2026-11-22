@@ -7,7 +7,8 @@
 // exactly as the landed capture's one data edit writes it (witness + captured), both alignments.
 //
 // What these rails hold, both lanes where a lane answers:
-//   R1  every breadth row is `breadthWitnessRow` (the constant, the store key, the blocks), and every one is PENDING;
+//   R1  every breadth row is `breadthWitnessRow` (the constant, the store key, the blocks); W-B1 witnessed six (2026-11-22),
+//       the rest (UNCH.NQ, ADDQ, the four short spellings) stay PENDING;
 //   R2  refused by name from the spelling alone: volume, TICK / TRIN, another exchange, any other USI series, a spread;
 //       a pending spelling by its capture row; bare ADVN / DECN keep the bare refusal;
 //   R3  ISOLATION: the rows come from the breadth door only, never `/api/bars`, never `/api/ticker-meta`;
@@ -25,6 +26,7 @@ import {
 } from './otherSymbols'
 import {
   BREADTH_SPELLINGS, BREADTH_ALIASES, BREADTH_DAILY_ALIGNMENT, BREADTH_DATA_WORDS, breadthWitnessRow, breadthKeyOf,
+  BREADTH_DAILY_WITNESS, BREADTH_DIVERGENCE,
   isBreadthKey,
 } from './pineBreadth'
 import { SERIES_UNKNOWN_BEFORE_FIRST, SERIES_EVENT_RECORD, BREADTH_BEFORE_RECORD_CODE } from './ast/interpret'
@@ -74,8 +76,8 @@ const asWant = (col) => Array.from(col).map((v) => (Number.isNaN(v) ? W : v))
 
 afterEach(() => { setRequestWitnessRows(null); clearBreadth(); resetRuntimeSessions(); resetRuntimeLedgers(); vi.restoreAllMocks() })
 
-describe('B2 R1 — the witness rows: one per served spelling and alias, each the template, each PENDING', () => {
-  it('every breadth row equals `breadthWitnessRow` at the alignment constant, and none serves yet', () => {
+describe('B2 R1 — the witness rows: one per served spelling and alias, each the template; W-B1 witnessed six', () => {
+  it("every breadth row equals `breadthWitnessRow` at the alignment constant; exactly W-B1's six carry the capture", () => {
     const rows = Object.entries(WITNESSES.rows).filter(([, v]) => v && v.kind === 'breadth')
     expect(rows.map(([k]) => k).sort()).toEqual([...Object.keys(BREADTH_SPELLINGS), ...Object.keys(BREADTH_ALIASES)]
       .map((t) => `USI:${t}`).sort())
@@ -83,9 +85,15 @@ describe('B2 R1 — the witness rows: one per served spelling and alias, each th
       const want = breadthWitnessRow(k.slice(4))
       for (const [field, value] of Object.entries(want)) expect(v[field], `${k}.${field}`).toEqual(value)
       expect(v.alignment).toBe(BREADTH_DAILY_ALIGNMENT)
-      expect(v.witness, k).toBe('')
-      expect(v.captured, k).toBe('')
+      const landed = BREADTH_DAILY_WITNESS.spellings.includes(k.slice(4))
+      expect(v.witness, k).toBe(landed ? BREADTH_DAILY_WITNESS.witness : '')
+      expect(v.captured, k).toBe(landed ? '2026-11-22' : '')
     }
+    expect([...BREADTH_DAILY_WITNESS.spellings].sort()).toEqual(['ADD', 'ADVN.NQ', 'ADVN.NY', 'DECL.NQ', 'DECL.NY', 'UNCH.NY'])
+    // ⛔ an alias is never witnessed by W-B1: TradingView answers it as another series
+    for (const a of Object.keys(BREADTH_ALIASES)) expect(WITNESSES.rows[`USI:${a}`].witness, a).toBe('')
+    // every witnessed spelling is sized, and only those
+    expect(Object.keys(BREADTH_DIVERGENCE).sort()).toEqual([...BREADTH_DAILY_WITNESS.spellings].sort())
   })
 
   it('an alias reads its long spelling\'s rows (one fetch, one key)', () => {
@@ -102,11 +110,13 @@ describe('B2 R2 — refused by name from the spelling alone', () => {
   })
 
   it('a served spelling whose capture has not landed is refused by its capture row (Q-T4-B1)', () => {
-    for (const t of ['ADVN.NY', 'DECL.NQ', 'ADD', 'ADDQ', 'ADV']) {
+    for (const t of ['UNCH.NQ', 'ADDQ', 'ADV', 'DECL', 'ADVQ', 'DECLQ']) {
       const why = staticallyUnservable(t, 'USI')
       expect(why, t).toMatchObject({ code: R.WITNESS_PENDING })
       expect(why.reason).toMatch(/Q-T4-B1/)
     }
+    // ⭐ W-B1 landed: the six it witnessed are not refused from the spelling
+    for (const t of BREADTH_DAILY_WITNESS.spellings) expect(staticallyUnservable(t, 'USI'), t).toBeFalsy()
   })
 
   it('volume, TICK / TRIN: not held; another exchange; any other USI series; a spread', () => {
@@ -131,8 +141,11 @@ describe('B2 R2 — refused by name from the spelling alone', () => {
   })
 
   it('a pending read is never fetched', () => {
-    const { def } = docOf(pine(['plot(request.security("USI:ADVN.NY", "D", close))']))
+    // (UNCH.NQ: not in W-B1's probe, still pending; ADVN.NY is witnessed since 2026-11-22)
+    const { def } = docOf(pine(['plot(request.security("USI:UNCH.NQ", "D", close))']))
     expect(fetchableOtherSymbols(def)).toEqual([])
+    // CONTROL: the witnessed spelling is fetched, under its breadth key
+    expect(fetchableOtherSymbols(docOf(pine(['plot(request.security("USI:ADVN.NY", "D", close))'])).def)).toEqual(['USI~ADVN.NY'])
   })
 })
 
@@ -283,6 +296,11 @@ describe('B2 R6 — the member\'s words', () => {
     for (const n of notes) expect(n.note).toContain(BREADTH_DATA_WORDS)
     expect(notes[1].note).toMatch(/holds each session's close only/)
     expect(BREADTH_DATA_WORDS).toBe("UCT breadth data (our own counts), not the exchange's official figures")
+    // ⭐ W-B1: each witnessed spelling says how far our counts are from TradingView's
+    expect(notes[0].note).toMatch(/Measured against TradingView's `USI:ADVN\.NY` over 4,389 sessions from 2009-06-11: ours is lower on almost every session, by a median of 549 issues \(36%\)\./)
+    expect(notes[1].note).toMatch(/over 4,389 sessions from 2009-06-11: ours differs by a median of 241 issues \(29%\)\./)
+    // CONTROL: a spelling W-B1 did not witness carries no size
+    expect(otherSymbolSourceNotesFor([{ ticker: 'ADDQ', spellings: ['USI'] }])[0].note).not.toMatch(/Measured against/)
   })
 })
 
