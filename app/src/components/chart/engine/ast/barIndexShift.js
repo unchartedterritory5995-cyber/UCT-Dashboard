@@ -84,6 +84,19 @@ export function readsFirstBar(tree) {
  *  total over it: they move with their source (`SHIFT_EQUIVARIANT_CALLS`). */
 const SERIES_INDEX_CALLS = Object.freeze(['valuewhenOccurrence'])
 
+/** ⭐⭐ e95 (unit 2, the built-in VWAP) — THE ANCHORED SUMS: the `series`-lookback entries whose sums START AGAIN
+ *  on every bar their anchor fires (`vwapAnchor`, `vwapAnchorDev`: Pine's anchored `ta.vwap`). ⛔ NOT A RUNNING
+ *  TOTAL. A running total is off by one constant on EVERY bar off the listing (`ORIGIN_ATOM`); an anchored sum is
+ *  exact on every bar from the first anchor inside the loaded history (the sums reset there, whatever came before)
+ *  and UNKNOWN before it, where TradingView carries a total from an earlier anchor. So it is not in
+ *  `RUNNING_TOTAL_CALLS` (which would withhold it on every bar off the listing) and never in the additive-constant
+ *  algebra (which would serve `vwapAnchor - vwapAnchor[n]` as if an unseen constant cancelled): this pass reads it
+ *  as any other call, fixed while its arguments do not move, and the bars before the first anchor are withheld BY
+ *  NAME, per bar (`interpret.js::builtinWitnessMask`, `vwap:before-first-anchor`). ⭐ Read off the manifest's own
+ *  roster (`closedTable.json::_requirement_tags.anchor_dependent.calls`), never retyped. The Python twin is
+ *  `ast_bar_index_shift.ANCHOR_RESET_CALLS`. */
+export const ANCHOR_RESET_CALLS = Object.freeze([...((((TABLE._requirement_tags || {}).anchor_dependent) || {}).calls || [])])
+
 /** ⭐⭐ 2026-11-09 (`fix/pine-cumulative-off-listing`) — THE RUNNING TOTALS: the
  *  table functions whose value on a bar sums EVERY bar before it. Read off the
  *  manifest (`lookback: "series"`), never retyped here — `closedTable.json` is the
@@ -104,7 +117,8 @@ const SERIES_INDEX_CALLS = Object.freeze(['valuewhenOccurrence'])
  *  itself, `cum(x) > 0` and `cum(a) / cum(b)` are withheld — the ruling's own
  *  invariance test, decided by the same proof `bar_index` already is. */
 export const RUNNING_TOTAL_CALLS = Object.freeze(Object.entries(TABLE.functions)
-  .filter(([name, spec]) => spec && spec.lookback === SERIES_LOOKBACK && !SERIES_INDEX_CALLS.includes(name))
+  .filter(([name, spec]) => spec && spec.lookback === SERIES_LOOKBACK && !SERIES_INDEX_CALLS.includes(name)
+    && !ANCHOR_RESET_CALLS.includes(name))
   .map(([name]) => name))
 
 function readsAny(tree, hit) {

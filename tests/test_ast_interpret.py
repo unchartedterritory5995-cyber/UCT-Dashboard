@@ -343,7 +343,8 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # `regularfirst`) and five bar readers beside `vwap` (`sessionOpen`, `sessionHigh`,
     # `sessionLow`, `openingRangeHigh`, `openingRangeLow`). The scalar half is untouched.
     # (2026-11-19, U-BUILTIN B3) 148 -> 149: `asin`, Pine's `math.asin`, pointwise, acos's twin.
-    assert len(ast_table.bar_names()) == 149, len(ast_table.bar_names())
+    # (2026-11-22, e95 unit 2) 149 -> 151: `vwapAnchor` and `vwapAnchorDev`, Pine's anchored `ta.vwap`.
+    assert len(ast_table.bar_names()) == 151, len(ast_table.bar_names())
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted

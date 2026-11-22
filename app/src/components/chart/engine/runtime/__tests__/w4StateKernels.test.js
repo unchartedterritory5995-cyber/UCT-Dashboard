@@ -406,7 +406,9 @@ describe('⭐⭐ W4 T10 — ta.vwap(source) over a value the run computes', () =
 describe('⭐ W4 T10 — the table and the kernels', () => {
   it('every served name has a kernel behind it, and only v1-v4 bare names are legacy', () => {
     const kinds = new Set(Object.values(RUNTIME_STATE_KERNELS).map((k) => k.kind))
-    expect([...kinds].sort()).toEqual(['pivot-high', 'pivot-low', 'running-total', 'session-vwap', 'stochastic'])
+    // ⭐⭐ e95 unit 2 (2026-11-22): `anchored-vwap-dev`, the band leg of Pine's anchored `ta.vwap` (`VWAP_DEV_CALL`)
+    expect([...kinds].sort()).toEqual(['anchored-vwap-dev', 'pivot-high', 'pivot-low', 'running-total', 'session-vwap',
+      'stochastic'])
     for (const [name, k] of Object.entries(RUNTIME_STATE_KERNELS)) {
       expect(k.legacy, name).toBe(!name.startsWith('ta.'))
     }

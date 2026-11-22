@@ -125,3 +125,61 @@ def test_js_and_python_lanes_agree(bars_of):
     assert verdict["differences"] == [], verdict["differences"][:5]
     for c in cases:
         assert sum(1 for v in py[c["id"]] if v is not None) > 100, c["id"]
+
+
+# ─── THE HAZARD RULING (coordinator, 2026-11-22): its own class, served per bar from the first in-window anchor ───
+
+def _synthetic(n=80):
+    """``vwapAnchored.test.js``'s bars: ``close < 95`` first fires on bar 9."""
+    t0 = 1704153600
+    return [{"t": t0 + i * 86400, "o": 100 + math.sin(i * 0.4) * 5,
+             "h": 106 + math.sin(i * 0.4) * 5 + (i % 3), "l": 95 + math.sin(i * 0.4) * 5 - (i % 2),
+             "c": 100 + math.cos(i * 0.3) * 6, "v": 1000 + ((i * 7919) % 613)} for i in range(n)]
+
+
+LOW_ANCHOR = O("<", S("close"), N(95))
+
+
+def test_the_anchored_sums_are_their_own_class_not_a_running_total():
+    from api.services import ast_bar_index_shift as bis
+    assert bis.ANCHOR_RESET_CALLS == ("vwapAnchor", "vwapAnchorDev")
+    assert bis.RUNNING_TOTAL_CALLS == ("cum",)
+    assert not bis.reads_running_total(C("vwapAnchor", HLC3, LOW_ANCHOR, S("volume")))
+
+
+@pytest.mark.parametrize("name,dev", [("vwapAnchor", False), ("vwapAnchorDev", True)])
+def test_off_the_listing_served_from_the_first_in_window_anchor_and_withheld_by_name_before_it(name, dev):
+    bars = _synthetic()
+    first = next(i for i, b in enumerate(bars) if b["c"] < 95)
+    assert first == 9
+    anchor = [1.0 if b["c"] < 95 else 0.0 for b in bars]
+    want = _by_hand(bars, anchor, dev=dev)
+    sink: dict = {}
+    got = ast_interpret.interpret(C(name, HLC3, LOW_ANCHOR, S("volume")), bars,
+                                  opts={"historyFromListing": False, "barIndexAbsolute": True, "chartClockSink": sink})
+    assert got[:first] == [None] * first
+    _same([math.nan if v is None else v for v in got[first:]], want[first:])
+    assert sorted(sink) == [ast_interpret.VWAP_BEFORE_FIRST_ANCHOR]
+    assert "running-total:window" not in sink
+
+
+def test_nz_of_the_vwap_and_its_own_history_are_withheld_until_the_read_reaches_the_anchor():
+    """``nz(v) - nz(v[5])``: never served by the additive-constant algebra, never drawn from the bars before it."""
+    bars = _synthetic()
+    v = C("vwapAnchor", HLC3, LOW_ANCHOR, S("volume"))
+    tree = O("-", C("nz", v, N(0)), C("nz", {"type": "offset", "value": 5, "args": [v]}, N(0)))
+    sink: dict = {}
+    got = ast_interpret.interpret(tree, bars, opts={"historyFromListing": False, "barIndexAbsolute": True,
+                                                    "chartClockSink": sink})
+    assert got[:14] == [None] * 14
+    assert all(g is not None for g in got[14:])
+    assert ast_interpret.VWAP_BEFORE_FIRST_ANCHOR in sink
+
+
+def test_from_the_listing_nothing_is_named():
+    bars = _synthetic()
+    sink: dict = {}
+    got = ast_interpret.interpret(C("vwapAnchor", HLC3, LOW_ANCHOR, S("volume")), bars,
+                                  opts={"historyFromListing": True, "barIndexAbsolute": True, "chartClockSink": sink})
+    assert sink == {}
+    assert got[:9] == [None] * 9 and got[9] is not None

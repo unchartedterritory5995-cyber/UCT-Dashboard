@@ -3992,6 +3992,24 @@
       "why_the_pane_may": "A pane is ONE symbol and ONE fetch, and where the occurrence lies before the first bar loaded the pane draws a HOLE: nothing there is compared with another symbol or with yesterday's run, and nothing reads the hole as false. ⚠️ NO `memberNote` IS DECLARED, ON PURPOSE. `window_dependent` owes a badge because a running total puts a NUMBER on screen that more history would change; this puts nothing on screen that more history would change — only bars that would fill in. `parse.js::requirementNotesOf` yields nothing for a tag without a sentence, so the pane is exactly what it was.",
       "_why_its_own_tag": "⭐⭐ C45 (2026-10-01). `valuewhenOccurrence` declared `lookback: \"series\"` from the day it landed (PR #166, 2026-09-20) and no tag named it, so `user_definitions.requirement_tags` returned nothing and nothing stopped it reaching the screener, the sweep, an alert, a share or a listing — the two rails in `tests/test_requirement_tags.py` were red on it from that day. ⛔ IT IS NOT ADDED TO `window_dependent`, AND THE REASON IS THE SENTENCE A MEMBER READS. That tag's `what` and `memberNote` describe a running total (\"every value moves by the same amount\"), which is false of this function: `_functions_valuewhen_occurrence` is right that widening the fetch does not SHIFT its answer for a bar it can answer. What it got wrong is the conclusion. The fetch-dependence is not ordinary warm-up — a 200-bar SMA needs 200 bars and `maxLookback` says so, while how far back the n-th occurrence lies is unbounded and declared nowhere — and on a comparability consumer the hole it leaves is laundered into a confident `false` by the first comparison above it (X23, `_functions_bounded_state`). A refusal must say the true thing, so the true thing has its own tag.",
       "_not_the_period_anchor": "⛔ ONE SHAPE IS NOT THIS: `valuewhenOccurrence(<a period's first bar>, time, 0)`, the tree `time(\"W\" | \"M\" | \"3M\" | \"12M\")` translates to (C30). Occurrence 0 of a condition that recurs every period is bounded by the period, and both interpreters withhold exactly the bars it cannot answer (`interpret.js::periodAnchorMask` / `ast_interpret.period_anchor_mask`, C36). The stamping walk recognises that shape with the interpreter's OWN recogniser (`ast_interpret.is_period_anchor`) and does not tag it. ⭐ What a SERVER lane does with an anchor is a different question with ONE answer of its own: a lane whose bars carry no clock withholds it on every bar, and `scan_definition.assert_scannable` and the alert arm refuse it under the gate `withheld` (C45), naming the clock — never under this tag, which would tell a member their `time(\"W\")` depends on how much history was loaded when it does not."
+    },
+    "anchor_dependent": {
+      "what": "The script reads an anchored VWAP (`ta.vwap(source, anchor)`, and the bands of `ta.vwap(source, anchor, stdev_mult)`): sums of price times volume and of volume that RESET on every bar the anchor fires. From the first anchor inside the loaded history on, every value is the same however much history was loaded, because the sums start again there. Before it TradingView carries a total from an anchor earlier than the first bar loaded, which this chart does not hold, so those bars have no value here (they are withheld by name, `vwap:before-first-anchor`); how far back the anchor before the first loaded bar lies is declared nowhere, and on a comparability consumer a missing bar is read as false by the first comparison above it. ⛔ NOT `window_dependent`: that tag's sentence says every value moves by the same amount with more history, which is false here (an anchored VWAP is not a running total from the first bar: `barIndexShift.js::ANCHOR_RESET_CALLS` keeps it out of `RUNNING_TOTAL_CALLS` and out of the additive-constant algebra). ⛔ NOT `occurrence_dependent` either: that tag's sentence describes an occurrence counted back, which this is not. A refusal must say the true thing, so the true thing has its own tag (e95, unit 2).",
+      "calls": [
+        "vwapAnchor",
+        "vwapAnchorDev"
+      ],
+      "refused_by": [
+        "screener",
+        "sweep",
+        "alert",
+        "share",
+        "listing"
+      ],
+      "accepted_by": [
+        "pane"
+      ],
+      "why_the_pane_may": "A pane is ONE symbol and ONE fetch. Before the first anchor inside the loaded history the pane draws a HOLE, named per bar (`vwap:before-first-anchor`), and from that anchor on every value is TradingView's whatever the history depth: nothing on screen would change with more history, only bars that would fill in. ⚠️ NO `memberNote` IS DECLARED, ON PURPOSE (`occurrence_dependent`'s reason): the per-bar withholding already says, on the chart, that the VWAP starts at the first anchor shown on the chart, so a badge on every anchored VWAP would repeat it."
     }
   },
   "_bind_time_constants": {

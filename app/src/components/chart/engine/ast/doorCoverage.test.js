@@ -174,8 +174,22 @@ plot(${src})
       const row = ROWS.find((r) => r.name === name)
       expect(row && row.native.status, `${name} must be reachable natively to be excused`).toBe('reachable')
     }
+    // ⭐⭐ e95 unit 2 (2026-11-22) — A BUILT-IN'S OWN LANDING SPOT IS NOT A GAP EITHER. `vwapAnchor` and
+    // `vwapAnchorDev` are where Pine's anchored `ta.vwap(source, anchor[, stdev_mult])` lands
+    // (`pine.js::Resolver.anchoredVwapTree`, the band leg through `PINE_TUPLE_BUILTINS.vwap`); no script writes
+    // `ta.vwapAnchor(...)`. Excused BY DERIVATION and paid for the same way: the Pine spelling must really translate
+    // onto each on the host lane, or it counts again.
+    const builtinForms = new Map([
+      ['vwapAnchor', 'plot(ta.vwap(hlc3, timeframe.change("D")))'],
+      ['vwapAnchorDev', '[m, u, l] = ta.vwap(hlc3, timeframe.change("D"), 1)\nplot(u)'],
+    ])
+    for (const [target, src] of builtinForms) {
+      const out = translatePine(`//@version=6\nindicator("t")\n${src}\n`, { strict: true })
+      expect(out.ok, `${src} must translate for ${target} to be excused`).toBe(true)
+      expect(out.outputs[out.selected].formula).toContain(`${target}(`)
+    }
     const gaps = adapterGaps(ROWS).filter((g) => !redirected.has(g.name) && !operatorForms.has(g.name)
-      && !nativeOnly.has(g.name))
+      && !nativeOnly.has(g.name) && !builtinForms.has(g.name))
     // Measured 2026-09-28: 21 rows, of which `atrPine` and `mfiPine` are the two
     // redirect targets — 19 real gaps, so the ceiling FALLS from 20 to 19.
     expect(gaps.length).toBeLessThanOrEqual(19)
