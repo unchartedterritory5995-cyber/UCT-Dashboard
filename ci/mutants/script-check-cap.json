@@ -1,0 +1,78 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "Engine 94 train, interim (coordinator ruling 2026-11-22): the authoring script check (scriptAnswer.js) still runs on the page's main thread, so it passes the door API a 10 s wall cap of its own (doorDeadline.js::withMainThreadCap); past it the check is refused by name, nothing kept, nothing sent back. No worker path opens a cap. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "SC1",
+   "mutant": "the authoring check runs with no main-thread cap at all",
+   "file": "app/src/components/chart/builder/authoring/scriptAnswer.js",
+   "from": "    const checked = withMainThreadCap(SCRIPT_CHECK_CAP_MS, () => {",
+   "to": "    const checked = ((_cap, fn) => ({ value: fn(), capped: false, elapsedMs: 0 }))(SCRIPT_CHECK_CAP_MS, () => {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckCap.test.js",
+   "expectRed": "a check past its cap is REFUSED BY NAME"
+  },
+  {
+   "id": "SC2",
+   "mutant": "a check past its cap is not refused: the check goes on with what it has",
+   "file": "app/src/components/chart/builder/authoring/scriptAnswer.js",
+   "from": "    if (checked.capped) return cappedVerdict()",
+   "to": "    if (false) return cappedVerdict()",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckCap.test.js",
+   "expectRed": "a check past its cap is REFUSED BY NAME"
+  },
+  {
+   "id": "SC3",
+   "mutant": "an expired cap hands back the part of the call it made",
+   "file": "app/src/components/chart/engine/ast/doorDeadline.js",
+   "from": "  return { value: capped ? null : value, capped, elapsedMs }",
+   "to": "  return { value, capped, elapsedMs }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckCap.test.js",
+   "expectRed": "a call past the cap is capped with NO value"
+  },
+  {
+   "id": "SC4",
+   "mutant": "the cap only counts what a limb noticed: a call that ran past it unnoticed is kept",
+   "file": "app/src/components/chart/engine/ast/doorDeadline.js",
+   "from": "  const capped = win.tripped || elapsedMs > capMs",
+   "to": "  const capped = win.tripped",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckCap.test.js",
+   "expectRed": "a call past the cap is capped with NO value"
+  },
+  {
+   "id": "SC5",
+   "mutant": "the cap outlives the check: its window is never closed, and every later call on the thread runs under it",
+   "file": "app/src/components/chart/engine/ast/doorDeadline.js",
+   "from": "    closeDoorWindow(win)\n  }\n  const elapsedMs = clock() - t0",
+   "to": "    void win\n  }\n  const elapsedMs = clock() - t0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckCap.test.js",
+   "expectRed": "the cap never outlives the check"
+  },
+  {
+   "id": "SC6",
+   "mutant": "a capped check is sent back to the assistant as if the script were at fault",
+   "file": "app/src/components/chart/builder/authoring/scriptAnswer.js",
+   "from": "    withheld: [], notes: [SCRIPT_CHECK_CAPPED_LINE], errors: [], capped: true }",
+   "to": "    withheld: [], notes: [SCRIPT_CHECK_CAPPED_LINE], errors: [SCRIPT_CHECK_CAPPED_LINE], capped: true }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckCap.test.js",
+   "expectRed": "a check past its cap is REFUSED BY NAME"
+  },
+  {
+   "id": "SC7",
+   "mutant": "the cap ships at a worker's minutes, not the old window's 10 s",
+   "file": "app/src/components/chart/builder/authoring/scriptAnswer.js",
+   "from": "export const SCRIPT_CHECK_CAP_MS = 10000",
+   "to": "export const SCRIPT_CHECK_CAP_MS = 600000",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckCap.test.js",
+   "expectRed": "the cap is the translator's old window"
+  },
+  {
+   "id": "SC8",
+   "mutant": "the door's worker builds under a 10 s wall cap (a worker path with a wall window)",
+   "file": "app/src/components/chart/builder/memberPane/memberDoorWorkerCore.js",
+   "from": "import { memberPaneDefinition, runtimeLaneWarmAsks } from './memberPaneDefinition.js'",
+   "to": "import { memberPaneDefinition as doorOf, runtimeLaneWarmAsks } from './memberPaneDefinition.js'\nimport { withMainThreadCap } from '../../engine/ast/doorDeadline.js'\nconst memberPaneDefinition = (a) => { const r = withMainThreadCap(10000, () => doorOf(a), () => Date.now()); return r.capped ? { ok: false, definition: null, reason: 'capped', guard: 'pine:timeout', rows: [], notes: [] } : r.value }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckCap.test.js",
+   "expectRed": "a worker path never runs under a wall window"
+  }
+ ]
+}

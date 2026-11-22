@@ -57,6 +57,7 @@ import { requirementNote } from '../../engine/ast/parse'
 import { MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
 import { useMemberDoor } from './useMemberDoor'
 import { doorFailedAnswer } from './memberDoorAsync'
+import { keptForAdd, addSendsFor, addReady } from './addAuthority'
 import { CHECKING_TEXT } from '../PineEditorStatus'
 import { usePineLibraries } from '../usePineLibraries'
 import { logRefusalCodes } from '../../supportLoop/supportApi'
@@ -67,14 +68,8 @@ import sheetStyles from '../BuilderSheet.module.css'
 
 const noop = () => {}
 
-/** ⭐⭐ ITEM 2 — the build Add keeps: the door's own build, or, for a preview the store cannot hold
- *  (`built.oversize`), the same build carrying the runtime-lane document Add saves instead; null when Add is
- *  refused up front (`oversize.refusal`), so nothing is sent. */
-function keptBuildOf(b) {
-  if (!b || !b.ok) return null
-  if (!b.oversize) return b
-  return b.oversize.saveAs ? { ...b, definition: b.oversize.saveAs.definition } : null
-}
+// ⭐⭐ WHAT ADD MAY SEND, AND WHETHER IT MAY SEND IT NOW: ONE authority (`addAuthority.js`), read by the render and by
+// both handlers below, never a copy (ITEM 2's keep-or-refuse and the paste worker's wait were each written twice).
 
 /** ⭐ The member's real chart already streams and warms this symbol; a second
  *  surface doing both would double the work for one pane. Same recipe
@@ -360,11 +355,9 @@ export default function MemberPane({
     })
   }, [])
   const doAttachWith = useCallback(async (fn) => {
-    if (!fn || !built || !built.ok || built.saveable === false) return
-    if (!keptBuildOf(built)) return          // ITEM 2: refused up front, nothing is sent
-    // ⛔ THE PASTE WORKER — an Add while a newer build of the box runs would attach the picture of the OLD text:
-    // the button waits for the build on screen (it is disabled meanwhile; this is the second guard)
-    if (building || doorSource !== source) return
+    // ITEM 2 (a build Add refuses up front sends nothing) and the paste worker (an Add while a newer build of the box
+    // runs would attach the picture of the OLD text): the one authority the button's own state reads (`addAuthority.js`)
+    if (!fn || !addReady({ built, building, doorSource, source })) return
     if (needsAck && !acked) return
     if (mintedPending) {
       setAttach({ state: 'busy', error: null, checking: true })
@@ -375,7 +368,7 @@ export default function MemberPane({
       setKillVersion((n) => n + 1)          // re-mint the preview on the answer
       return
     }
-    await attachBuilt(fn, keptBuildOf(built), needsAck && acked, doorSource)
+    await attachBuilt(fn, addSendsFor({ built, doorSource, source }), needsAck && acked, doorSource)
   }, [built, building, doorSource, source, door.seq, needsAck, acked, mintedPending, attachBuilt])
   useEffect(() => {
     if (!queuedAttach) return
@@ -383,10 +376,11 @@ export default function MemberPane({
     // ⭐ THE PASTE WORKER — the re-mint runs off the main thread: the queued Add waits for ITS answer
     if (q.source === source && door.seq <= q.afterSeq) return
     setQueuedAttach(null)
-    // the member edited the script while it waited, or the re-minted build is not one this door saves: nothing attaches
-    if (q.source !== source || doorSource !== source || !built || !built.ok || built.saveable === false) { setAttach({ state: 'idle', error: null }); return }
-    // ITEM 2: a re-minted build whose Add is refused up front sends nothing
-    const kept = keptBuildOf(built)
+    // the member edited the script while it waited: nothing attaches
+    if (q.source !== source) { setAttach({ state: 'idle', error: null }); return }
+    // the re-minted build is not one this door saves, Add refuses it up front (ITEM 2), or it is of another text: nothing
+    // attaches (`addAuthority.js`, the same answer the button reads)
+    const kept = addSendsFor({ built, doorSource, source })
     if (!kept) { setAttach({ state: 'idle', error: null }); return }
     // a re-minted build that asks for a repaint acknowledgement the member has not given waits for it, on screen
     const reNeedsAck = !!(kept.definition && kept.definition.meta && kept.definition.meta.repaint === 'preview-repaints')
@@ -454,7 +448,7 @@ export default function MemberPane({
       {onAttach && built && built.saveable !== false && oversize && !oversize.saveAs && (
         <p data-testid="pine-member-pane-keep-refusal" role="status">{withoutGuardIds(oversize.refusal)}</p>
       )}
-      {onAttach && built && built.saveable !== false && keptBuildOf(built) && (
+      {onAttach && keptForAdd(built) && (
         <div data-testid="pine-member-pane-attach">
           {/* ⭐⭐ ITEM 2 — …or kept drawn bar by bar, and what that means said BEFORE the member confirms. */}
           {oversize && oversize.saveAs && (
@@ -484,7 +478,7 @@ export default function MemberPane({
           <button
             type="button"
             className={styles.attach}
-            disabled={attach.state === 'busy' || building || doorSource !== source || (needsAck && !acked)}
+            disabled={attach.state === 'busy' || !addReady({ built, building, doorSource, source }) || (needsAck && !acked)}
             onClick={doAttach}
           >
             {attach.state === 'busy' ? (onAttachCopy ? 'Saving…' : 'Adding…') : attachLabel}
@@ -494,7 +488,7 @@ export default function MemberPane({
               type="button"
               className={styles.attach}
               data-testid="pine-member-pane-attach-copy"
-              disabled={attach.state === 'busy' || building || doorSource !== source || (needsAck && !acked)}
+              disabled={attach.state === 'busy' || !addReady({ built, building, doorSource, source }) || (needsAck && !acked)}
               onClick={doAttachCopy}
             >
               {copyLabel}
