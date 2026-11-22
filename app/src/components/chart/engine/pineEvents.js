@@ -316,7 +316,7 @@ export function eventBeforeRecordSentence({ family, symbol, knownFrom, from, win
   const what = family === 'earnings' ? 'earnings reports' : family
   const at = from || knownFrom || 'the first event UCT holds'
   if (window) {
-    return `Not drawn before ${at}: UCT draws ${symbol ? `${symbol}'s ` : ''}earnings from ${window} on, where TradingView's `
+    return `Not drawn before ${at}: UCT draws ${symbol ? `${symbol}'s ` : ''}earnings from ${window} on, after TradingView's `
       + 'earnings history begins, so whether an earlier report landed on those bars, or carries into them, is not known here.'
   }
   return `Not drawn before ${at}: UCT's record of ${symbol ? `${symbol}'s ` : ''}`
@@ -325,15 +325,22 @@ export function eventBeforeRecordSentence({ family, symbol, knownFrom, from, win
 
 // ─── the earnings window (coordinator ruling 2026-11-22, E2 rulings 1-2) ─────────────────────────────────────
 //
-// ⭐⭐ TRADINGVIEW'S EARNINGS HISTORY BEGINS AROUND 2001, AND UCT'S RECORD GOES BACK TO 1985: an event UCT holds before
-// TradingView's first is drawn where TradingView draws `na`, a wrong line (an anchored VWAP restarting on a report
-// TradingView does not show). Witnessed TradingView first events (the s4-closed-retake-2026-11-20 probe captures, against
-// production's E1 answer, 2026-11-22): NASDAQ:AAPL 2001-07-17, NYSE:JPM 2001-07-18, NASDAQ:NVDA 2001-08-14,
-// NASDAQ:MU 2000-01-14. UCT holds 61 / 61 / 7 / 62 reports before 2001 (quarterly back to 1985) and two each in the first
-// half of 2001 that TradingView does not show. So earnings are drawn from the cut below on: knownFrom = max(our first
-// held report, the cut); a bar before it is WITHHELD by name (never `na`, never a report TradingView does not draw), and
-// under `gaps_off` so is every bar from the cut to the first report after it (a cut is not a coverage start).
-// ⛔ RE-DERIVE when the W-E3 coverage captures land (KO, COST, TSM, META, RDDT, CASS): a TradingView first event AFTER
-// the cut is reported to the coordinator before this moves.
-export const EARNINGS_WINDOW_FROM = '2001-09-01'
+// ⭐⭐ TRADINGVIEW'S EARNINGS HISTORY BEGINS PER SYMBOL (its data vendor's coverage), AND UCT'S RECORD GOES BACK TO 1985:
+// an event UCT holds before TradingView's first is drawn where TradingView draws `na`, a wrong line (an anchored VWAP
+// restarting on a report TradingView does not show). Witnessed TradingView first reports, 1D (derived dates only; the
+// captures stay local), the s4-closed-retake-2026-11-20 probes and the W-E3 coverage captures t4-we3-2026-11-22:
+//   NASDAQ:COST 1999-12-09, NASDAQ:MU 2000-01-14, NASDAQ:AAPL 2001-07-17, NYSE:JPM 2001-07-18, NASDAQ:NVDA 2001-08-14,
+//   NYSE:KO 2001-10-18, NASDAQ:CASS 2002-02-01, NYSE:TSM 2002-04-25 (the latest);
+//   listed after the cut, TradingView's first report is on the LISTING bar (a report from before the listing, carried
+//   onto bar 0, as E2 places it): NASDAQ:META 2012-05-18, NYSE:RDDT 2024-03-21.
+// ⭐⭐ COORDINATOR RULING (c), 2026-11-22 — THE CUT SITS AFTER EVERY WITNESSED START, BECAUSE THE TWO ERRORS ARE NOT
+// ALIKE: withholding a report TradingView draws is HONEST (named, a lost MATCH chance); drawing a report TradingView does
+// not is WRONG (CASS's and TSM's late-2001 reports under the old 2001-09-01 cut). Earnings anchors matter overwhelmingly
+// in recent history, so the cost is small. Our own record cannot set a per-symbol start: it (FMP) starts earlier than
+// TradingView on every symbol witnessed. So earnings are drawn from the cut below on: knownFrom = max(our first held
+// report, the cut); a bar before it is WITHHELD by name (never `na`, never a report TradingView does not draw), and under
+// `gaps_off` so is every bar from the cut to the first report after it (a cut is not a coverage start).
+// ⛔ EVERY NEW EARNINGS CAPTURE RE-CHECKS IT: a TradingView first report AFTER the cut (on a symbol listed before it) goes
+// to the coordinator before this moves.
+export const EARNINGS_WINDOW_FROM = '2003-01-01'
 

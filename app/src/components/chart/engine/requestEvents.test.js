@@ -282,12 +282,12 @@ describe('E2 — the per-bar words: a bar before our record is withheld BY NAME,
 })
 
 describe('E2 rulings 1 and 3 — the earnings window, and a fund', () => {
-  // daily bars across the cut: 2001-08-29 .. 2001-09-10 (Labor Day 09-03 closed)
-  const D = ['2001-08-29', '2001-08-30', '2001-08-31', '2001-09-04', '2001-09-05', '2001-09-06', '2001-09-07', '2001-09-10']
+  // daily bars across the cut: 2002-12-27 .. 2003-01-08 (New Year's Day 01-01 closed)
+  const D = ['2002-12-27', '2002-12-30', '2002-12-31', '2003-01-02', '2003-01-03', '2003-01-06', '2003-01-07', '2003-01-08']
   const BARS = D.map((t, i) => ({ t, o: 1, h: 1, l: 1, c: 1 + i, v: 1 }))
   // our record reaches back to 1999 (before the cut): a report before TradingView's window, one inside it
   const OLD = { ...DOC, families: { ...DOC.families, earnings: { state: 'ok', knownFrom: '1999-01-20', rows: [
-    { date: '1999-01-20', actual: 0.5 }, { date: '2001-08-30', actual: 0.7 }, { date: '2001-09-05', actual: 0.9 }] } } }
+    { date: '1999-01-20', actual: 0.5 }, { date: '2002-12-30', actual: 0.7 }, { date: '2003-01-03', actual: 0.9 }] } } }
   const ctxOf = (doc, extra = {}) => ({ ...CTX, ...extra, secondary: new Map([[EVENTS_KEY, { ...ENTRY, events: doc }]]) })
   const host = (pairing, ctx) => {
     const src = pine([`plot(nz(request.earnings(syminfo.tickerid, earnings.actual, ${pairing}), -1), "e")`])
@@ -296,10 +296,16 @@ describe('E2 rulings 1 and 3 — the earnings window, and a fund', () => {
     return { d, cols, got: asWant(cols[Object.keys(cols)[0]]) }
   }
 
-  it('the cut is a named constant: 2001-09-01, after every TradingView first report witnessed', async () => {
+  it('the cut is a named constant: 2003-01-01, after every TradingView first report witnessed (ruling (c))', async () => {
     const { EARNINGS_WINDOW_FROM } = await import('./pineEvents')
-    expect(EARNINGS_WINDOW_FROM).toBe('2001-09-01')
-    for (const first of ['2001-07-17', '2001-07-18', '2001-08-14', '2000-01-14']) expect(first < EARNINGS_WINDOW_FROM).toBe(true)
+    expect(EARNINGS_WINDOW_FROM).toBe('2003-01-01')
+    // TradingView's first report per symbol, 1D (s4-closed-retake-2026-11-20 and W-E3 t4-we3-2026-11-22; derived dates only).
+    // ⛔ A NEW CAPTURE WHOSE FIRST REPORT IS AFTER THE CUT (a symbol listed before it) GOES TO THE COORDINATOR, NOT HERE.
+    const WITNESSED = { COST: '1999-12-09', MU: '2000-01-14', AAPL: '2001-07-17', JPM: '2001-07-18', NVDA: '2001-08-14',
+      KO: '2001-10-18', CASS: '2002-02-01', TSM: '2002-04-25' }
+    for (const [sym, first] of Object.entries(WITNESSED)) expect(first < EARNINGS_WINDOW_FROM, sym).toBe(true)
+    // listed after the cut: TradingView's first report is on the listing bar (a report from before the listing, on bar 0)
+    for (const [sym, listing] of Object.entries({ META: '2012-05-18', RDDT: '2024-03-21' })) expect(listing > EARNINGS_WINDOW_FROM, sym).toBe(true)
   })
 
   it('gaps_on: bars before the cut are withheld; from it, a report draws on its bar and every other bar is na', () => {
@@ -313,13 +319,13 @@ describe('E2 rulings 1 and 3 — the earnings window, and a fund', () => {
     expect(got).toEqual([W, W, W, W, 0.9, 0.9, 0.9, 0.9])
     expect(Array.from(withheldBarsReport(cols)[Object.keys(cols)[0]][R.EVENT_BEFORE_RECORD])).toEqual([1, 1, 1, 1, 0, 0, 0, 0])
     expect(externalReadNotices(d.definition, cols).filter((n) => n.code === R.EVENT_BEFORE_RECORD).map((n) => n.reason))
-      .toEqual(['Not drawn before 2001-09-05: UCT draws AAPL\'s earnings from 2001-09-01 on, where TradingView\'s earnings '
+      .toEqual(['Not drawn before 2003-01-03: UCT draws AAPL\'s earnings from 2003-01-01 on, after TradingView\'s earnings '
         + 'history begins, so whether an earlier report landed on those bars, or carries into them, is not known here.'])
   })
 
   it('⛔ CONTROL: a record that starts after the cut is a coverage start (ruling (1)): na from it, nothing carried', () => {
-    const LATE = { ...OLD, families: { ...OLD.families, earnings: { state: 'ok', knownFrom: '2001-09-04', rows: [
-      { date: '2001-09-05', actual: 0.9 }] } } }
+    const LATE = { ...OLD, families: { ...OLD.families, earnings: { state: 'ok', knownFrom: '2003-01-02', rows: [
+      { date: '2003-01-03', actual: 0.9 }] } } }
     expect(host('barmerge.gaps_off, barmerge.lookahead_on', ctxOf(LATE)).got).toEqual([W, W, W, NA, 0.9, 0.9, 0.9, 0.9])
   })
 
