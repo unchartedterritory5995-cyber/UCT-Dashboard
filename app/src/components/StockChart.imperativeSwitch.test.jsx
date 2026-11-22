@@ -575,6 +575,7 @@ describe('coverage: a default-settings chart is applied by the controller', () =
   })
   const got = {}
   const back = {}
+  const react = {}   // the React path (the switch off): the same chart, the same switch
   beforeAll(async () => {
     for (const c of CASES) {
       const clock = pinWallClock(c.clock)
@@ -608,6 +609,12 @@ describe('coverage: a default-settings chart is applied by the controller', () =
           catchUp: ctl ? { ...ctl.diag.catchUp } : null, lateBoxReads: ctl ? ctl.diag.lateBoxReads : null,
         }
         t.done()
+        const o = await mounted(false, c.tf, {}, paneProps())
+        S.log.length = 0
+        o.view.rerender(o.el('BBB'))
+        await wait(600)
+        react[c.name] = lastSetData(S.log.slice())
+        o.done()
       } finally { clock.restore(); S.prices = {}; S.rows = null }
     }
   }, 240_000)
@@ -625,6 +632,14 @@ describe('coverage: a default-settings chart is applied by the controller', () =
     const data = got[name].commitLog.filter((l) => / setData /.test(l))
     expect(got[name].catchUp, `data set again at the body's render: ${data.join(' | ')}`).toEqual({ noop: 1, repaint: 0 })
     expect(got[name].lateBoxReads).toBe(0)
+  })
+
+  // ⭐ THE PAINT IS THE REACT PATH'S PICTURE. The catch-up rail above cannot see a wrong array: the body's pass sets
+  // nothing again when the bars are the ones it painted, whatever the controller drew from them (a frame whose
+  // volume ignored the pane's marked bar stayed on screen, unnoticed, in the mutation run 44970976659).
+  it.each(CASES.map((c) => c.name))('%s: every series is handed, in the paint, the data the React path hands it', (name) => {
+    expect(Object.keys(react[name]).length).toBeGreaterThanOrEqual(4)   // candles, volume, its average, the averages
+    expect(lastSetData(got[name].paintLog)).toEqual(react[name])
   })
 
   it.each(CASES.filter((c) => c.tags).map((c) => c.name))('%s: the case is the one the browser met (AAA carries a session tag at its extended-hours price)', (name) => {
