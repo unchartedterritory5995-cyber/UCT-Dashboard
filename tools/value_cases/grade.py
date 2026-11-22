@@ -278,6 +278,21 @@ def grade_case(case, answer=None):
     return {**result, 'lane': got_lane}
 
 
+def specimens(case):
+    """Every WRONG answer this case holds, oldest first: each fixed defect kept in `found`, then its record while the
+    case is recorded WRONG. Each is {answer, defect, recorded, fixed_by} (`fixed_by` None while the defect stands)."""
+    out = [dict(s) for s in case.get('found') or []]
+    if case.get('recorded_verdict') == 'wrong':
+        out.append({'answer': case['answer'], 'defect': case.get('defect'), 'recorded': case.get('recorded'), 'fixed_by': None})
+    return out
+
+
+def specimen(case):
+    """The wrong answer a finding rests on: the newest of `specimens(case)`, or None when the case never was wrong."""
+    held = specimens(case)
+    return held[-1] if held else None
+
+
 def rule_digest(case_id):
     """A fingerprint of what a rule SAYS on the built market: it changes when the rule's numbers change, and only then."""
     want = _rules.rules(case_id)
@@ -293,3 +308,10 @@ def rule_digest(case_id):
             h.update(repr(reading).encode())
             h.update(','.join('n' if not _ok(v) else '%.6g' % v for v in column).encode())
     return h.hexdigest()[:16]
+
+
+def capabilities_of(source):
+    """The capabilities a script uses, by the product's ONE detector. Asked by an adoption only (to keep what the
+    record covers); grading never reads it."""
+    from api.services import pine_capabilities
+    return pine_capabilities.capabilities_of(source)

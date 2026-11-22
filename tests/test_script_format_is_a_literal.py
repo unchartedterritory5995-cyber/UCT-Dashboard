@@ -23,12 +23,15 @@ from pathlib import Path
 import pytest
 
 from api.services import pine_authoring as pa
+from tools.value_cases import grade as G
 from tools.value_cases import script_rules
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json").read_text(encoding="utf-8"))["cases"]
 CASE = next(c for c in CASES if c["id"] == "table-format-01")
-RECORDED = CASE["answer"]["script"]["pine"]
+#: the script the finding rests on: the case's record while it is recorded WRONG, its `found` specimen after
+FOUND = G.specimen(CASE)
+RECORDED = FOUND["answer"]["script"]["pine"]
 
 HEAD = '//@version=5\nindicator("t", overlay=true)\n'
 TABLE = "var table t = table.new(position.top_right, 2, 2)\n"
@@ -147,6 +150,6 @@ def test_THE_SENTENCE_STAYS_EXACTLY_AS_LONG_AS_THE_ENGINE_WITHHOLDS_A_FORMAT_HEL
 
 
 def test_the_recorded_answer_is_a_case_recorded_WRONG():
-    assert CASE["lane"] == "script" and CASE["recorded_verdict"] == "wrong" and "NO VALUES" in CASE["defect"]
+    assert CASE["lane"] == "script" and "NO VALUES" in FOUND["defect"]
     assert "str.tostring(pdh, fmt)" in RECORDED and "request.security" not in RECORDED
     assert script_rules.has_rule("table-format-01")

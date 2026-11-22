@@ -1849,7 +1849,8 @@ import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/s
 import { chromePlan, capturedPriceRange, viewLockFractions, joinedAutoscaleExtent, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
 import { healViewLocksOnce } from './chart/viewLockHeal'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
-import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources, heldSpanFor } from './chart/engine/useSecondarySources'
+import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources } from './chart/engine/useSecondarySources'
+import { heldRowsFor, heldSpanOn } from './chart/heldSpanPlan'
 import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
@@ -5857,6 +5858,8 @@ function StockChartBody({
   const [lastBarOff, setLastBarOff] = useState(false)
   const lastBarOffRef = useRef(false)
   const barCountRef = useRef(0)
+  // ⭐ (2026-11-22) the newest shown bar's time: its KIND says which timeframe the shown rows belong to (`heldRowsFor`)
+  const heldNewestTRef = useRef(null)
   // ⭐⭐ (e91) the sessions the displayed bars span (`sessionsSpanned`, set where `barCountRef` is), for the held daily rows
   const heldSessionsRef = useRef(0)
   // Identity guard so updateChart doesn't tear down + rebuild price lines on
@@ -9324,16 +9327,19 @@ function StockChartBody({
   // ⭐ (2026-11-20) …and NO ROWS IS NOT A DEPTH. Between a symbol switch and its bars the chart holds no rows, and
   // reading that 0 dropped the held span to the bottom rung and back up a render later: two re-renders of the whole
   // chart on every switch, for a span that ended where it started. A chart with no rows keeps the span it had.
-  const [_heldLoaded, _setHeldLoaded] = useState(0)
-  const _heldSpan = heldSpanFor(_heldLoaded, barCount)
+  // ⭐⭐ (2026-11-22) …and IT STARTS AT THE DEPTH THIS TIMEFRAME'S CHART IS ABOUT TO HOLD (`chart/heldSpanPlan.js`): one
+  // page, one run, instead of climbing the ladder behind the chart's own fills (20 requests and a 0.6-1.1 s blank Fred RS
+  // legend on every first intraday visit, measured on production). Only THIS timeframe's own rows can raise it.
+  const [_heldLoaded, _setHeldLoaded] = useState({ tf: null, n: 0 })
+  const _heldSpan = heldSpanOn(resolvedTf, _heldLoaded.n, _heldLoaded.tf, barCount)
   // ⭐⭐ (e91, the e88 in-session capture) — AND THE SESSIONS THOSE BARS SPAN (`heldSessionsRef`, counted on the exchange
   // calendar where the rows are bound), kept on a rung (`heldSessionsRung`), so the held daily rows reach the chart's first
   // session: a count of bars / 78 held RDDT's regular-hours 5m chart 7 sessions short and its run was refused
   const [_heldSessions, _setHeldSessions] = useState(0)
   useEffect(() => {
-    const loaded = barCountRef.current
+    const loaded = heldRowsFor(resolvedTf, barCountRef.current, heldNewestTRef.current)
     // (a chart with no rows keeps both: the sessions of no rows are no sessions, the same false dip)
-    if (loaded > 0 && heldSpanFor(loaded, 0) !== heldSpanFor(_heldLoaded, 0)) _setHeldLoaded(loaded)
+    if (loaded > 0 && heldSpanOn(resolvedTf, loaded, resolvedTf, barCount) !== _heldSpan) _setHeldLoaded({ tf: resolvedTf, n: loaded })
     const rung = heldSessionsRung(heldSessionsRef.current)
     if (loaded > 0 && rung !== _heldSessions) _setHeldSessions(rung)
   })
@@ -10694,6 +10700,7 @@ function StockChartBody({
   }, [sessionAppliedBars, cs.heikinAshi])  // eslint-disable-line react-hooks/exhaustive-deps
   __heavy.put('displayBars', displayBars)
   barCountRef.current = displayBars?.length || 0
+  heldNewestTRef.current = displayBars?.length ? displayBars[displayBars.length - 1].t : null
   // ⭐⭐ (e91) the trading sessions the displayed bars span (0 for a daily chart's ISO dates), read by the held-sessions
   // effect above; memoised on the first and newest bar times, so a render that moves neither recounts nothing
   const _spanFirstT = displayBars?.length ? displayBars[0].t : null

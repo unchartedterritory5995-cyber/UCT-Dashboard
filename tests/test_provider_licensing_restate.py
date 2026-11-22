@@ -6,7 +6,10 @@ external-publication gate.
 What these rails hold:
   * the fourteen restated pairs read LA, cite their register row, and carry two sentences in the same words: the
     citation and the scope (`CITATION`, `SCOPE` below; the literals live HERE, not imported from the module);
-  * the two held pairs (Massive `derived_analytics`, FMP `transcripts`) still read R and name the owner question;
+  * the held pair (FMP `transcripts`) still reads R and names the owner question;
+  * Massive `derived_analytics` (T-11), held until ESC-03 was ANSWERED BY THE OWNER 2026-11-22, reads LA in the same
+    member-display scope, cites the answer (not the 2026-09-19 note), and the register records the answer quoted and
+    dated with the AI-processing rows (T-14, N-16) NOT moved;
   * per endpoint, read from `fmp_client.py`'s own source: the restated `analyst_grades` covers grades, consensus and
     history only, and the two TheFly-origin grade NEWS feeds stamp the unregistered `analyst_actions_news` (U, T-45);
   * the census: exactly which modules import the table and which read a stamped class; outside the two declared
@@ -54,7 +57,11 @@ RESTATED = {
     ("fmp", "indices"): "T-40",
     ("fmp", "analyst_grades"): "T-34",
 }
-HELD = {("massive", "derived_analytics"): ("T-11", "ESC-03"), ("fmp", "transcripts"): ("T-43", "ESC-11")}
+HELD = {("fmp", "transcripts"): ("T-43", "ESC-11")}
+#: answered by the owner after the restatement: pair -> (register row, the question, the citation its note carries)
+ANSWERED = {("massive", "derived_analytics"): ("T-11", "ESC-03", "register 2026-11-22: ESC-03 answered by the owner")}
+OWNER_WORDS_ESC03 = '"the license we are good on and fully approved and verified. DO it all"'
+REGISTER = REPO / "docs" / "terminal-research" / "09-security-licensing-cost" / "licensing-register.md"
 
 
 # ── the restated rows ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -87,6 +94,42 @@ def test_a_held_row_stays_R_and_names_the_open_owner_question(pair):
     assert (e.licensing_class, e.register_row) == ("R", row)
     assert "HELD" in e.note and question in e.note
     assert CITATION not in e.note
+
+
+@pytest.mark.parametrize("pair", sorted(ANSWERED))
+def test_an_answered_row_reads_LA_in_the_member_display_scope_and_cites_the_answer(pair):
+    row, question, citation = ANSWERED[pair]
+    e = plc.entry_for(*pair)
+    assert (e.licensing_class, e.register_row) == ("LA", row)
+    assert SCOPE in e.note, "the same member-display scope sentence as every restated row"
+    assert citation in e.note and question in e.note
+    assert CITATION not in e.note, "it moved on the owner's answer, not on the 2026-09-19 note"
+    assert "HELD" not in e.note
+
+
+def _register_row(row_id: str) -> str:
+    rows = [ln for ln in REGISTER.read_text(encoding="utf-8").splitlines() if ln.startswith(f"| {row_id} |")]
+    assert len(rows) == 1, (row_id, len(rows))
+    return rows[0]
+
+
+def test_the_register_records_esc03_as_the_owners_answer_quoted_and_dated():
+    """The ESC-03 row carries the owner's words verbatim and the date, and says what was (not) seen."""
+    esc = _register_row("ESC-03")
+    assert "ANSWERED BY THE OWNER 2026-11-22" in esc
+    assert OWNER_WORDS_ESC03.strip('"') in esc
+    assert "no contract text" in esc
+    # the rows it moves, and the AI rows it releases without moving
+    assert "T-11, N-22, N-25 (**now LA**" in esc
+    assert "T-14, N-16 (**released from ESC-03, classes NOT moved by this answer**" in esc
+
+
+@pytest.mark.parametrize("row_id", ["T-14", "N-16"])
+def test_the_ai_processing_rows_esc03_held_are_not_moved_by_its_answer(row_id):
+    """AI use is its own gate (coordinator scope 2026-11-22): the answer releases T-14 / N-16 from ESC-03 and moves
+    neither, and no row of the licensing table names either as its own (nothing in code reads an AI-processing row)."""
+    assert "its class is NOT moved by that answer" in _register_row(row_id)
+    assert [pair for pair, e in plc.all_entries().items() if row_id in e.register_row.split("/")] == []
 
 
 # ── the analyst_grades split, per endpoint ───────────────────────────────────────────────────────────────────────

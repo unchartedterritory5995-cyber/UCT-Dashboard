@@ -6,7 +6,8 @@ Each must hold, with a test that goes red when it breaks:
   * aliases stay `witness: pending`, volume spellings are refused as not held, anything else is refused;
   * ADD is advancing minus declining of the same session;
   * a failed refresh keeps the copy we have; the snapshot is written atomically;
-  * the stage: admins only by default; members refused by the licence while uct_breadth is not servable.
+  * the stage: admins only by default; members are served at `all` now that uct_breadth is servable (ESC-03 answered
+    by the owner 2026-11-22), and refused by the catalog's licence sentence whenever it is not.
 """
 from __future__ import annotations
 
@@ -102,10 +103,18 @@ def test_the_snapshot_is_written_atomically(history, monkeypatch):
     assert [n for n in os.listdir(os.path.dirname(path)) if n.endswith(".tmp")] == []
 
 
-def test_the_live_catalog_refuses_uct_breadth_today():
-    """ESC-03 is open: (massive, derived_analytics) reads R, so members are refused by name."""
+def test_the_live_catalog_serves_uct_breadth_since_esc03_was_answered():
+    """⚰️ Was `test_the_live_catalog_refuses_uct_breadth_today` (ESC-03 open, the pair read R). ESC-03 ANSWERED BY THE
+    OWNER 2026-11-22: (massive, derived_analytics) reads LA for member display, so the catalog passes uct_breadth."""
+    assert pb.licence_refusal() is None
+
+
+def test_the_licence_refusal_is_still_the_catalogs_own_decision(monkeypatch):
+    """The pass above is the LIVE table's, not a constant: put the pair back to R and the member is refused by name."""
+    from api.services import provider_licensing_class as plc
+    monkeypatch.setitem(plc._TABLE, ("massive", "derived_analytics"), plc.LicensingClassEntry("R", "test", "T-11"))
     r = pb.licence_refusal()
-    assert r and r["guard"] == "pine-data:licence"
+    assert r and r["guard"] == "pine-data:licence" and "`UCT:`" in r["sentence"]
 
 
 # ── the route ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -127,13 +136,17 @@ def test_dark_by_default_member_404_admin_reads(history):
     assert r.status_code == 200 and r.json()["rows"][0]["c"] == 1800
 
 
-def test_at_all_a_member_is_refused_by_the_licence_not_served(history, monkeypatch):
+def test_at_all_a_member_is_served_and_refused_only_when_the_licence_refuses(history, monkeypatch):
+    """⚰️ Was `test_at_all_a_member_is_refused_by_the_licence_not_served` (ESC-03 open). Since 2026-11-22 the live
+    catalog passes uct_breadth, so a paid member at `all` reads the rows; a refusing licence still refuses by name."""
     pb.refresh("nyse", "advancing")
     monkeypatch.setenv("PINE_BREADTH_SUPPLY_ENABLED", "all")
     r = _client(MEMBER).get("/api/pine/breadth/USI:ADVN.NY")
+    assert r.status_code == 200 and r.json()["state"] == "ready" and r.json()["rows"][0]["c"] == 1800
+    assert r.json()["label"] == "UCT breadth"
+    monkeypatch.setattr(pb, "licence_refusal", lambda: {"guard": "pine-data:licence", "sentence": "s"})
+    r = _client(MEMBER).get("/api/pine/breadth/USI:ADVN.NY")
     assert r.status_code == 200 and r.json()["state"] == "refused" and "rows" not in r.json()
-    monkeypatch.setattr(pb, "licence_refusal", lambda: None)
-    assert _client(MEMBER).get("/api/pine/breadth/USI:ADVN.NY").json()["state"] == "ready"
 
 
 def test_off_and_a_typo_are_404_for_everyone(history, monkeypatch):
