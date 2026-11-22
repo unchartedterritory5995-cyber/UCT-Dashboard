@@ -55,7 +55,15 @@ the per-bar channel and never whole; `nz(vwap)` is withheld there, never drawn a
 running total, is withheld until its read reaches the anchor and is exact after; from the listing nothing is named;
 the sentence is true and is not the running-total one; an anchor this chart cannot read on its first bar (the built-in's
 `na(src[1])` restart) is no reset. Mutants VA9-VA14: put it back among the running totals (JS, Python); serve the bars
-before the first anchor (JS, Python); read the anchor raw (JS, Python).
+before the first anchor (JS, Python); read the anchor raw (JS, Python); VA15: the bar-index mask carries a threshold
+forever under an anchored sum again.
+
+⛔ **Found through the member door, and fixed in this unit:** the built-in's own `na(src[1])` restart is `isfirst` on the
+host lane, a `bar-index:first-bar` threshold, and `barIndexMask` carried it FOREVER under any `series`-lookback call, so
+the built-in drew NOTHING off the listing (600 of 600 reference bars blank). An anchored sum's memory ends at its next
+reset, so the mask no longer carries a threshold past it (both lanes); the bars before the first known anchor are the
+VWAP mask's. The built-in's shape on the reference daily bars now draws 598 of 600 bars, each its bar's hlc3 (rail:
+`vwapAnchored.test.js`, "the built-in shape off the listing").
 
 ## What the member sees
 

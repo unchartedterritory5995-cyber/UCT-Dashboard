@@ -127,6 +127,15 @@
    "to": "                first = _first_anchor_bar(col_of(args[1]), n)",
    "rail": "python -m pytest -q -p no:warnings tests/test_vwap_anchor_parity.py",
    "expectRed": "failed"
+  },
+  {
+   "id": "VA15",
+   "mutant": "the bar-index mask carries a threshold forever under an anchored sum again: the built-in's own na(src[1]) restart (isfirst) blanks every bar off the listing",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const open = unbounded || !!(spec && spec.lookback === SERIES_LOOKBACK && !ANCHOR_RESET_CALLS.includes(node.name))",
+   "to": "    const open = unbounded || !!(spec && spec.lookback === SERIES_LOOKBACK)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vwapAnchored.test.js",
+   "expectRed": "withheld on (nearly) every bar"
   }
  ]
 }
