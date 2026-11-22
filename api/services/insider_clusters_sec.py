@@ -840,6 +840,35 @@ def held_answer() -> tuple[Optional[dict], str]:
     return {k: v for k, v in held.items() if k != "v"}, "held"
 
 
+#: the fields of a held purchase `held_purchases` hands out (never the owners' names: a caller that wants them
+#: reads the clusters answer)
+PURCHASE_FIELDS = ("ticker", "issuer_cik", "filed", "date", "shares", "value", "unpriced", "roles")
+
+
+def held_purchases(today: Optional[date] = None) -> tuple[Optional[dict], str]:
+    """READ ONLY: every open-market purchase the store holds (the `KEEP_DAYS` of filing days), with the store's
+    coverage, as `(answer, how)`, how = 'held' | 'not_held'. It never reads the SEC and never starts a run. For the
+    group views (GRPS CROWDING, `api/services/group_positioning.py`), read once per evening build.
+
+    answer: {purchases [{ticker (None when the filer gave none), issuer_cik, filed, date (the last purchase date in
+    the filing), shares, value (None when no purchase stated a price), unpriced, roles (every reporting owner's,
+    merged)}], coverage (as `coverage`), source, rules}. Sales are not in the store: it keeps purchases only."""
+    _ensure_loaded()
+    with _lock:
+        store = _state["store"]
+    if store is None:
+        return None, "not_held"
+    # the held store is replaced whole after each run (never changed in place), so it is read outside the lock
+    out = []
+    for b in list(store["buys"].values()):
+        roles = sorted({r for o in (b.get("owners") or ()) for r in (o.get("roles") or ())})
+        out.append({"ticker": b.get("ticker"), "issuer_cik": b.get("issuer_cik"), "filed": b.get("filed"),
+                    "date": b.get("date"), "shares": b.get("shares"), "value": b.get("value"),
+                    "unpriced": b.get("unpriced"), "roles": roles})
+    return {"purchases": out, "coverage": coverage(store, today or now_et().date()), "source": SOURCE,
+            "rules": dict(RULES)}, "held"
+
+
 def get_clusters() -> dict:
     """THE REQUEST PATH (`GET /api/insider/clusters`): only what is held, never a read of the SEC.
 
