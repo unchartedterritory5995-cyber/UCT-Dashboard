@@ -56,7 +56,13 @@
 //                    seal (protocol.mjs) checks the shape and adds `strategy_sha256`. This file decides
 //                    no strategy value: sizing, costs and fills are the broker's (RT/broker.js), and
 //                    what it cannot serve it refuses by name inside the run.
-import { INTEGRITY_GUARD, STRATEGY_WANT } from './protocol.mjs'
+//   alerts           (TRACK 6, AL2) only when `want` names ALERTS_WANT ('#alerts', profile `alert`): the
+//                    run's own alert() record (`rt.runtimeAlertsOf`, AL1), written as JSON text, beside the
+//                    columns and never one of them. Every service run is cold (`incremental: false`), so the
+//                    record covers every bar; a run that made none lists `{key: '#alerts', guard:
+//                    'runtime:server-output-absent'}`. A value JSON cannot carry exactly withholds the whole
+//                    job as `runtime:server-integrity`. The seal checks the shape and adds `alerts_sha256`.
+import { ALERTS_WANT, INTEGRITY_GUARD, STRATEGY_WANT } from './protocol.mjs'
 
 export const OUTPUT_ABSENT_GUARD = 'runtime:server-output-absent'
 export const DRAWINGS_GUARD = 'runtime:server-drawings'
@@ -202,6 +208,17 @@ function strategyOfRun(rt, cols) {
   return fault ? { fault } : { text: JSON.stringify(rec) }
 }
 
+/** AL2: the run's alert record as wire text, `{ refusal }` when the run made none, or `{ fault }`. */
+function alertsOfRun(rt, cols) {
+  const rec = typeof rt.runtimeAlertsOf === 'function' ? rt.runtimeAlertsOf(cols) : null
+  if (rec === null || rec === undefined) {
+    return { refusal: { key: ALERTS_WANT, guard: OUTPUT_ABSENT_GUARD, bar: null,
+      sentence: 'this run made no alert record (it did not run the script over every bar from the first), so its alert() calls cannot be served.' } }
+  }
+  const fault = recordValueFault(rec, 'alerts')
+  return fault ? { fault } : { text: JSON.stringify(rec) }
+}
+
 /** Encode one run's columns for the wire (see the header), or withhold the whole job. */
 export function encodeResult(rt, job, cols) {
   const info = cols ? cols[rt.RUNTIME_INCREMENTAL_KEY] : null
@@ -212,7 +229,7 @@ export function encodeResult(rt, job, cols) {
   const columns = {}
   const refusals = []
   for (const key of keys) {
-    if (key === STRATEGY_WANT) continue // the record, below: never a column
+    if (key === STRATEGY_WANT || key === ALERTS_WANT) continue // the records, below: never a column
     if (!Object.prototype.propertyIsEnumerable.call(cols, key)) {
       refusals.push({ key, guard: OUTPUT_ABSENT_GUARD, sentence: `this run produced no output \`${key}\`.`, bar: null })
       continue
@@ -234,9 +251,16 @@ export function encodeResult(rt, job, cols) {
     if (s.refusal) refusals.push(s.refusal)
     else strategy = s.text
   }
+  let alerts
+  if (Array.isArray(job.want) && job.want.includes(ALERTS_WANT)) {
+    const a = alertsOfRun(rt, cols)
+    if (a.fault) return runWide(job.job, INTEGRITY_GUARD, `the alert record cannot be sent exactly: ${a.fault}, so no output of this job has a value.`)
+    if (a.refusal) refusals.push(a.refusal)
+    else alerts = a.text
+  }
   const warm = rt.runtimeWarmupOf(cols)
   return { job: job.job, status: 'ok', columns, refusals, warmup: { withheldBars: warm === null ? 0 : warm.withheldBars },
-    ...(strategy !== undefined ? { strategy } : {}) }
+    ...(strategy !== undefined ? { strategy } : {}), ...(alerts !== undefined ? { alerts } : {}) }
 }
 
 /** ⭐⭐ U15: the guards a document's library pins are refused under (`pineLibraries.js`). */

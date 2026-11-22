@@ -101,7 +101,7 @@ _JOB_ID = re.compile(r"^[\x20-\x7e]{1,128}$")
 _TICKER = re.compile(r"^[\x21-\x7e]{1,32}$")
 _EXCHANGE = re.compile(r"^[\x20-\x7e]{0,32}$")
 _RESULT_KEYS = frozenset({"job", "status", "columns", "refusals", "digest", "cache", "ms", "instructions",
-                          "warmup", "strategy", "strategy_sha256"})
+                          "warmup", "strategy", "strategy_sha256", "alerts", "alerts_sha256"})
 #: W5-T7b `WARMUP_FIELDS`: an ok result's run-wide warm-up, the bars [0, withheldBars) a run off the
 #: listing withheld. Required on ok, refused on withheld (T7b `RESULT_FIELDS`).
 _WARMUP_KEYS = frozenset({"withheldBars"})
@@ -150,6 +150,10 @@ class JobResult:
     #: (``want`` names ``codec.STRATEGY_WANT``); None otherwise. When asked for and absent, the
     #: result carries a refusal keyed ``#strategy`` instead (``refusal_for(codec.STRATEGY_WANT)``).
     strategy: Optional[Mapping[str, Any]] = None
+    #: TRACK 6, AL2: the run's alert() record (AL1: ``{fromBar, events: [{bar, message, freq}], dropped}``), decoded
+    #: and hash-checked (``pine_runtime_codec.decode_alerts_record``), on an ok result of an ``alert`` job that asked
+    #: for it (``want`` names ``codec.ALERTS_WANT``); None otherwise. Asked for and absent: a refusal keyed ``#alerts``.
+    alerts: Optional[Mapping[str, Any]] = None
 
     def run_refusal(self) -> Optional[Refusal]:
         return next((r for r in self.refusals if r.key == "*"), None)
@@ -161,7 +165,8 @@ class JobResult:
             return run
         if self.status != "ok":
             return Refusal("*", INTEGRITY, "the job is withheld with no run-wide reason")
-        if key in self.columns or (key == codec.STRATEGY_WANT and self.strategy is not None):
+        if key in self.columns or (key == codec.STRATEGY_WANT and self.strategy is not None) \
+                or (key == codec.ALERTS_WANT and self.alerts is not None):
             return None
         own = next((r for r in self.refusals if r.key == key), None)
         if own is not None:
@@ -648,6 +653,8 @@ class PineRuntimeClient:
         if r["status"] == "withheld":
             if "strategy" in r or "strategy_sha256" in r:
                 raise bad("withholds the job and carries a strategy record")
+            if "alerts" in r or "alerts_sha256" in r:
+                raise bad("withholds the job and carries an alert record")
             if "warmup" in r:
                 raise bad("withholds the job and reports a warm-up")
             if r.get("columns") or not run_wide:
@@ -700,8 +707,23 @@ class PineRuntimeClient:
                 raise bad(f"carries a strategy record that does not verify ({e})")
         if codec.STRATEGY_WANT in columns:
             raise bad("serves the strategy record as a column")
+        # AL2: the alert record, the same way: beside the columns, only when asked for
+        alerts = None
+        if "alerts" in r or "alerts_sha256" in r:
+            if codec.ALERTS_WANT not in job.want:
+                raise bad("serves an alert record that was not asked for")
+            if codec.ALERTS_WANT in refused_keys:
+                raise bad("both serves and refuses the alert record")
+            try:
+                alerts = codec.decode_alerts_record(r.get("alerts"), r.get("alerts_sha256"), n)
+            except codec.CodecError as e:
+                raise bad(f"carries an alert record that does not verify ({e})")
+        if codec.ALERTS_WANT in columns:
+            raise bad("serves the alert record as a column")
         for key in job.want:
             if key == codec.STRATEGY_WANT and strategy is not None:
+                continue
+            if key == codec.ALERTS_WANT and alerts is not None:
                 continue
             if key not in columns and key not in refused_keys:
                 raise bad(f"neither serves nor refuses output `{key}`")
@@ -709,7 +731,7 @@ class PineRuntimeClient:
                 or digest != self._digest(columns, wire_refusals):
             raise bad("does not match its digest")
         return JobResult(job=job.job, status="ok", columns=columns, refusals=tuple(refusals),
-                         digest=digest, cache=cache, warmup={"withheldBars": wb}, strategy=strategy)
+                         digest=digest, cache=cache, warmup={"withheldBars": wb}, strategy=strategy, alerts=alerts)
 
     def _digest(self, columns: Mapping[str, Sequence[float]], refusals: List[Dict[str, Any]]) -> str:
         """The T3 digest of what was RECEIVED. The row count is not re-checked here: the decode above
