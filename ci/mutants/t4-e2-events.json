@@ -130,9 +130,9 @@
   },
   {
    "id": "EV15",
-   "mutant": "a name bound to an event read, read inside a call (`not na(e)`), goes to the columnar lane again (na on every bar, no supply)",
+   "mutant": "a name bound to an event read, read inside a call (`not na(e)`), goes to the columnar lane again (na on every bar, no supply); since the named-request follow the event read rides the general follow",
    "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
-   "from": "      return !!(bound && bound.kind === 'expr' && bound.node && bound.node.type === 'call' && bound.node.event === true)",
+   "from": "      return readsOtherSeriesRequest(bound.node, depth + 1)",
    "to": "      return false",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
    "expectRed": "anchor idiom"

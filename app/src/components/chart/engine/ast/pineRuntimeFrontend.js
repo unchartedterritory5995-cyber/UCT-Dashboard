@@ -1556,6 +1556,11 @@ function strategyOrdersSkipped(built) {
   return !!(fam && fam['runtime:strategy-order'] > 0)
 }
 
+/** ⛔ TEST SEAM (NUMBER PENDING, the named-request follow) — the routing as it was before the general follow (a name inside
+ *  a call's arguments is followed only to an event read): the grade diff's "before" and its mutant's control. */
+let _namedRequestFollowOff = false
+export function __namedRequestFollowOffForTests(off) { _namedRequestFollowOff = !!off }
+
 export function buildRuntimeIr(source, opts = {}) {
   const holder = { link: null }
   let built = buildRuntimeIrLinked(source, opts, holder)
@@ -6887,19 +6892,57 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   const callArgReadsRequest = (node, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 64) return false
     if (node.type === 'call' && node.name === 'request.security') return true
-    // ⭐⭐ T4 E2 — A NAME BOUND TO THE CHART'S OWN CORPORATE EVENTS (`pine.js::eventAsSecurity`, an `event` request) is the
-    // request it names: `e = request.earnings(…)` then `not na(e)`, the corpus's own anchor idiom. ⚰️ Measured on this
-    // branch before this line: the call's argument `e` was not followed, the subtree went to the columnar lane, and the
-    // event read was evaluated there with no supply: `na` on every bar, drawn, nothing said. ⛔ SCOPED TO EVENT READS: the
-    // same shape over another symbol's `request.security` is a separate, pre-existing finding (reported, not changed here).
+    // ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22) — A NAME BOUND TO A REQUEST IS THE REQUEST IT NAMES, inside a
+    // call's arguments too: `e = request.security(…)` then `nz(e, -1)` / `na(e)` / `ta.sma(e, 5)`, and the chart's own
+    // corporate events (`pine.js::eventAsSecurity`: `e = request.earnings(…)` then `not na(e)`, the corpus anchor idiom).
+    // ⚰️ MEASURED (2026-11-22, a vitest probe through `computeRuntimeColumns`, SPY supplied): the call's argument `e` was
+    // not followed, the subtree went to the columnar lane, which translated the request into a `sym` column and evaluated
+    // it with NO other-symbol supply: `na` on every bar (`nz(e, -1)` drew -1, `not na(e) ? 1 : 0` drew 0), drawn, nothing
+    // said, where the same request written inline reached the run's supply. It now reaches it whatever the spelling: the
+    // value, or the supply's refusal / wait BY NAME, never a silent `na`. (T4 E2 followed event reads only; this is the
+    // general follow, which covers them: an event read IS a `request.security` call.)
     if (node.type === 'name') {
+      if (_namedRequestFollowOff) {
+        const b = env.get(node.name)
+        return !!(b && b.kind === 'expr' && b.node && b.node.type === 'call' && b.node.event === true)
+      }
       const bound = env.get(node.name)
-      return !!(bound && bound.kind === 'expr' && bound.node && bound.node.type === 'call' && bound.node.event === true)
+      if (!bound || bound.kind !== 'expr' || !bound.node) return false
+      // ⛔ ONLY A READ OF ANOTHER SERIES' BARS (another symbol, an event read): the one the columnar lane evaluates with
+      // no supply. A name bound to this chart's own request (the identity, a higher timeframe of its own bars) is computed
+      // there from the chart's own bars and keeps that lane: MEASURED on the runtime-served census (834 scripts), following
+      // it too moved a script whose identity read the columnar lane folds correctly onto the run's refusal of its
+      // `ta.correlation` (a move outside the silent-`na` class).
+      return readsOtherSeriesRequest(bound.node, depth + 1)
     }
     for (const v of Object.values(node)) {
       if (Array.isArray(v)) {
         if (v.some((x) => callArgReadsRequest(x && x.value !== undefined && x.type === undefined ? x.value : x, depth + 1))) return true
       } else if (v && typeof v === 'object' && v.type && callArgReadsRequest(v, depth + 1)) return true
+    }
+    return false
+  }
+
+  /** ⭐ (NUMBER PENDING, the named-request follow) — does this bound subtree hold a request that reads ANOTHER series' bars
+   *  (`requestTargetOf`: another symbol, or the chart's own corporate events, an `event` read), following further names?
+   *  A request the host's reader cannot settle counts (the run names its refusal; the columnar lane would read `na`).
+   *  A generic walk, depth-bounded like `callArgReadsRequest`. */
+  const readsOtherSeriesRequest = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 64) return false
+    if (node.type === 'call' && (node.name === 'request.security' || node.name === 'security')) {
+      if (node.event === true) return true
+      let t = null
+      try { t = makeResolver().requestTargetOf(node) } catch { t = null }
+      return !t || t.other !== null
+    }
+    if (node.type === 'name') {
+      const bound = env.get(node.name)
+      return !!(bound && bound.kind === 'expr' && readsOtherSeriesRequest(bound.node, depth + 1))
+    }
+    for (const v of Object.values(node)) {
+      if (Array.isArray(v)) {
+        if (v.some((x) => readsOtherSeriesRequest(x && x.value !== undefined && x.type === undefined ? x.value : x, depth + 1))) return true
+      } else if (v && typeof v === 'object' && v.type && v !== node.tok && readsOtherSeriesRequest(v, depth + 1)) return true
     }
     return false
   }
