@@ -562,6 +562,7 @@ const REF_SHAPE = new RegExp('^(?:'
   + String.raw`|chart\s+(?:#\s*)?[1-9]|mine|my\s+own(?:\s+${NOUN_W})?|it|this|that|them|those|these`
   + '|' + CLICK_ACT_NP
   + ')$', 'i')
+const LOOSE_DET = /^(?:the|my|this|that|these|those|both|any|either)\s+\S/i
 const BARE_ORD_PLACE = new RegExp(String.raw`^(?:the|my)\s+(?:${ORD_W}|${PLACE_W})$`, 'i')
 const CHART_NOUN = /\b(?:ones?|charts?|cells?|panes?|panels?|graphs?|rows?|columns?|corner)\b/i
 const BARE_PRONOUN = /^(?:it|this|that|them|those|these)$/i
@@ -599,8 +600,9 @@ export function negChartRefs(text, charts = []) {
       if (i < pieces.length - 1 && BARE_ORD_PLACE.test(core)) core = `${core} chart`
       const shaped = REF_SHAPE.test(core)
       // a piece that names a chart but is no plain reference ("the one next to the top-left one") is read only when it is the
-      // cue's whole object: right after the cue, ending at a tail or at the clause's end
-      const loose = !stay && !shaped && i === 0 && last && CHART_NOUN.test(core) && !/^(?:to|on|in|at|for|with|from|of)\b/i.test(core)
+      // cue's whole object: right after the cue, ending at a tail or at the clause's end, and a noun phrase under a determiner
+      // ("dont touch NVDA Top-left chart (SPY)" — a request run on into a choice's label — is no such phrase)
+      const loose = !stay && !shaped && i === 0 && last && CHART_NOUN.test(core) && LOOSE_DET.test(core)
       if (!shaped && !loose) break
       got.push({ phrase: core, tail, at, loose, end: stay ? m.index + m[0].length : bodyAt + pos })
       if (tail || at || loose) break
@@ -615,6 +617,9 @@ export function negChartRefs(text, charts = []) {
     for (const g of got) {
       if (BARE_PRONOUN.test(g.phrase) && !STRONG_TAIL.test(tail) && !stay) continue    // "skip that", "ignore it": no chart named
       if (negTickerRefs(`not ${g.phrase}`, charts).length) continue                  // a ticker: negTickerRefs reads it
+      // a loose phrase naming a board ticker ("hands off the NVDA chart Top-left chart (SPY)…", a request run on into a choice's
+      // label) is the ticker reader's and the net's, never placed here by its place words
+      if (g.loose && g.phrase.split(/[^A-Za-z0-9.]+/).some(w => w && charts.some(c => String(c?.symbol || '') === w))) continue
       out.push({ phrase: g.phrase, cue, strong, loose: g.loose, stay, index: m.index, end: got[got.length - 1].end })
     }
   }
@@ -686,7 +691,9 @@ export function excludedCharts(text, charts = [], sel = null) {
   //   (a) the phrase resolver placed no chart for it: no place word fits exactly one chart or a line / side (a 2×2 has no
   //       "middle one"), no ordinal is on the board ("the sixth chart" on four), no ticker names it, and it is the click by a
   //       click name ("this one", "it", "the one I clicked", "mine") with NOTHING clicked — or the phrase is a RELATION
-  //       (GEN_RELATION: "the one beside NVDA", "the chart next to the top-left one") and so is never read by that resolver;
+  //       (GEN_RELATION: "the one beside NVDA", "the chart next to the top-left one") or a LOOSE phrase (a chart noun under a
+  //       determiner that is no plain reference shape: "the big chart", "the timeframe on the top-left chart") and so is never
+  //       read by that resolver (a loose phrase naming a board ticker is left to the ticker reader and its net);
   //   (b) it is not a relation from the click that the relation readers place ("the charts around it", "the one below it"
   //       with a chart clicked: those charts are excluded instead);
   //   (c) its cue is not a bare "not" governing a loose phrase ("…, not the chart I meant" is a contrast: nothing, as before);
@@ -696,8 +703,10 @@ export function excludedCharts(text, charts = [], sel = null) {
   for (const r of negChartRefs(text, charts)) {
     const a0 = adds
     // ⛔ a RELATION ("the one beside NVDA", "the chart below the top-left one") names ANOTHER chart than its anchor: never read by
-    // the phrase resolver (it would place the anchor); only a relation from the click is placed (below), else UNPLACED
-    if (!GEN_RELATION.test(r.phrase)) readException({ 0: r.phrase, 1: r.phrase, index: r.end, input: String(text || '') })
+    // the phrase resolver (it would place the anchor); only a relation from the click is placed (below), else UNPLACED.
+    // A LOOSE phrase (no plain reference shape: "the timeframe on the top-left chart") is never placed by its words either —
+    // it is UNPLACED (asked) unless it is a relation from the click: an exclusion is guessed from no phrase it cannot read whole
+    if (!r.loose && !GEN_RELATION.test(r.phrase)) readException({ 0: r.phrase, 1: r.phrase, index: r.end, input: String(text || '') })
     placed.push(normPhrase(r.phrase))
     if (adds > a0) continue
     if (r.cue === 'not' && !r.strong && r.loose) continue
@@ -890,20 +899,20 @@ export function spatialConstraints(text, charts = [], sel = null) {
   }
   // the click as a relation's ANCHOR ("the one above this"): never a target unless the words also name it as one
   // (G4) "the SPY chart …, and the one to its right": the relation is read from THAT chart (a target itself), not the click
-  // (H-RDR-1) read on the words WITHOUT their negated chart / ticker clauses: "…, but keep the bottom right one as it is" says
-  // nothing about the click ("as it is" is no relation from it), so the click is never made an anchor (excluded) by it
-  const relText = blankNegatedClauses(text, charts)
-  const anchor = relationAnchor(relText, charts, sel)
+  const anchor = relationAnchor(text, charts, sel)
   if (anchor && anchor !== sel) {
-    const rel = relativeChart(relText, charts, anchor)
+    const rel = relativeChart(text, charts, anchor)
     if (rel?.hits?.length) { add(rel.hits.map(c => c.ref), 'relation-named'); add([anchor], 'named') }
   } else if (sel) {
-    const rel = relativeChart(relText, charts, sel)
+    const rel = relativeChart(text, charts, sel)
     if (rel && rel.alsoClick && rel.match?.clickLine && rel.hits?.length) add(rel.hits.map(c => c.ref), 'line-click')
     if (rel && !rel.alsoClick && !rel.negated) {
       const hits = (rel.hits || []).map(c => c.ref)
       // the click is the anchor — unless the relation lands ON it ("the first chart in this row" with the first one clicked)
-      if (!hits.includes(sel)) out.excluded.add(sel)
+      // (H-RDR-1) …and only when the words WITHOUT their negated chart / ticker clauses still relate a chart to it: "…, but keep
+      // the bottom right one as it is" says nothing about the click ("as it is" is no relation from it), so it is no anchor
+      const relB = relativeChart(blankNegatedClauses(text, charts), charts, sel)
+      if (!hits.includes(sel) && relB && !relB.alsoClick && !relB.negated) out.excluded.add(sel)
       // a PLAIN side relation from the click ("the chart above this one"; no count, walk or line in it), read on this module's
       // own geometry: the target is a neighbour on that side. Any other relation's reading is the resolver's (its hits).
       const s = charts.find(c => c.ref === sel && c.cell)

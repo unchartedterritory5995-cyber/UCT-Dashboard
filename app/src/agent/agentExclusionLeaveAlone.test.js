@@ -133,6 +133,14 @@ describe('(1) recognized → exact: the reader places exactly the excluded chart
   ])('lists and rows: "%s" → %j', (t, board, refs) => {
     expect(read(t, board, null)).toEqual([...refs].sort())
   })
+  // a request run on into a picked choice's label (the gate reads the request beside its answer): the place words of the
+  // label are never read as the exclusion's object — no chart the member did not exclude is ever excluded
+  it.each([
+    ['reset all cells to my chart; dont touch NVDA Top-left chart (SPY), Top-right chart (QQQ) and Bottom-right chart (AMD)'],
+    ['reset every cell to my chart, hands off the NVDA chart Top-left chart (SPY), Top-right chart (QQQ) and Bottom-right chart (AMD)'],
+  ])('run-on label: "%s" → never the labelled charts', (t) => {
+    for (const r of ['q0', 'q1', 'q3']) expect(read(t, Q, null)).not.toContain(r)
+  })
   it.each([
     // a pronoun / the click by the act, with a click (the click is the one meant)
     ['add RSI to every chart but leave it alone'], ['make all charts weekly, keep this one as it is'], ['set every chart to weekly, skip the one I selected'],
