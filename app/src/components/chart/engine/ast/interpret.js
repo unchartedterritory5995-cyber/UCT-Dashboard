@@ -3720,6 +3720,61 @@ function vwapPineStep(st, off, key, price, _n, volume) {
   return st[off + 1] > 0 ? st[off] / st[off + 1] : NaN
 }
 
+/** ⭐⭐ e95 (unit 2, the built-in VWAP) — PINE'S ANCHORED `ta.vwap(source, anchor[, stdev_mult])`, a bar at a
+ *  time: TradingView's published `computeVWAP` body (the built-in VWAP's own source before `ta.vwap` took the
+ *  anchor), summed FROM THE RESET exactly as it sums them, so a value never depends on how much history is loaded:
+ *
+ *      sumSrcVol    := isNewPeriod ? src * volume          : src * volume + sumSrcVol[1]
+ *      sumVol       := isNewPeriod ? volume                : volume + sumVol[1]
+ *      sumSrcSrcVol := isNewPeriod ? volume * pow(src, 2)  : volume * pow(src, 2) + sumSrcSrcVol[1]
+ *      vwap = sumSrcVol / sumVol;  variance = max(sumSrcSrcVol / sumVol - pow(vwap, 2), 0);  stdev = sqrt(variance)
+ *
+ *  with every sum `var float = na`: before the FIRST bar the anchor fires, every value is `na` (witnessed: the
+ *  built-in at an event anchor draws nothing before the symbol's first event, `s4-vwap-anchors-retake3`), and an
+ *  `na` price or volume poisons the sums until the next reset (Pine's `na + x`). A zero volume total answers `na`
+ *  (`vwapPine`'s rule). `pow(x, 2)` is `x * x`: both correctly rounded, so one number on every lane (the Python
+ *  twin is `ast_interpret._vwap_anchor_col`). Two members, ONE accumulator: `vwapAnchorPine` answers the average,
+ *  `vwapAnchorDevPine` the standard deviation the bands are drawn from. `n` is unread (the slot `valuewhen`
+ *  reads). */
+const VWAP_ANCHOR_CELLS = () => 3
+function vwapAnchorInit(st, off) {
+  st[off] = NaN         // sum of price * volume since the reset
+  st[off + 1] = NaN     // sum of volume
+  st[off + 2] = NaN     // sum of volume * price^2
+}
+function vwapAnchorAccumulate(st, off, anchor, price, volume) {
+  const pv = price * volume
+  const ppv = volume * (price * price)
+  if (Number.isFinite(anchor) && anchor !== 0) {
+    st[off] = pv
+    st[off + 1] = volume
+    st[off + 2] = ppv
+  } else {
+    st[off] = pv + st[off]
+    st[off + 1] = volume + st[off + 1]
+    st[off + 2] = ppv + st[off + 2]
+  }
+  return st[off + 1] > 0 ? st[off] / st[off + 1] : NaN
+}
+function vwapAnchorStep(st, off, anchor, price, _n, volume) {
+  return vwapAnchorAccumulate(st, off, anchor, price, volume)
+}
+function vwapAnchorDevStep(st, off, anchor, price, _n, volume) {
+  const vwap = vwapAnchorAccumulate(st, off, anchor, price, volume)
+  const variance = st[off + 2] / st[off + 1] - vwap * vwap
+  return Math.sqrt(variance < 0 ? 0 : variance)
+}
+/** The two anchored-VWAP members as COLUMNS (`FN.vwapAnchor` / `FN.vwapAnchorDev`): the same step, driven over
+ *  the series, so the columnar lane and the runtime VM run one piece of arithmetic. */
+function vwapAnchorCol(step, src, anchor, volume) {
+  const len = src.length
+  const st = new Float64Array(VWAP_ANCHOR_CELLS())
+  vwapAnchorInit(st, 0)
+  const out = nan(len)
+  for (let i = 0; i < len; i += 1) out[i] = step(st, 0, anchor[i], src[i], 0, volume[i])
+  return out
+}
+
 export const CARRIED2 = Object.freeze({
   valuewhen: {
     cells: VALUEWHEN_CELLS, init: valueWhenPineInit, step: valueWhenPineStep,
@@ -3735,6 +3790,9 @@ export const CARRIED2 = Object.freeze({
   // `(st, off, first, second, n, third)`, the order the front end pushes them.
   stochPine: { cells: STOCH_PINE_CELLS, init: stochPineInit, step: stochPineStep, inputs: 3 },
   vwapPine: { cells: VWAP_PINE_CELLS, init: vwapPineInit, step: vwapPineStep, inputs: 3 },
+  // ⭐⭐ e95 — the anchored `ta.vwap` (`vwapAnchorAccumulate`): (anchor, price, volume), volume pushed last
+  vwapAnchorPine: { cells: VWAP_ANCHOR_CELLS, init: vwapAnchorInit, step: vwapAnchorStep, inputs: 3 },
+  vwapAnchorDevPine: { cells: VWAP_ANCHOR_CELLS, init: vwapAnchorInit, step: vwapAnchorDevStep, inputs: 3 },
 })
 
 /** ⭐ RMA-SEED — how many cells a carried member holds at length `n`: a number for a fixed handful of scalars,
@@ -4016,6 +4074,11 @@ export const FN = Object.freeze({
   // TRANSLATOR (`pine.js::PINE_CALL_SHAPES.stoch`). The house `stoch` above is untouched (the
   // native Stochastic and its fixtures read it — the `atr`/`atrPine` ruling). See `stochPineCol`.
   stochPine: (h, l, c, n) => stochPineCol(h, l, c, n),
+  // ⭐⭐ e95 — PINE'S ANCHORED `ta.vwap(source, anchor[, stdev_mult])`, reached only through the Pine translator
+  // (`pine.js`, the `key === 'vwap'` branch and `PINE_TUPLE_BUILTINS.vwap`): the average, and the standard
+  // deviation its bands are drawn from, summed from each reset (`vwapAnchorAccumulate`).
+  vwapAnchor: (src, anchor, volume) => vwapAnchorCol(vwapAnchorStep, src, anchor, volume),
+  vwapAnchorDev: (src, anchor, volume) => vwapAnchorCol(vwapAnchorDevStep, src, anchor, volume),
   cci: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeCCI(bars, n)),
   williamsR: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeWilliamsR(bars, n)),
   mfi: (h, l, c, v, n) => bindShipped(HLCV, [h, l, c, v], c.length, (bars) => computeMFI(bars, n)),

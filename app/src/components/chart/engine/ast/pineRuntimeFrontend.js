@@ -43,6 +43,7 @@ import {
   isLegacyPineVersion,
   chartOffsetFunctions, callsInBlocks, callsInConditionalArms, legacyCarryStatements, FN_HISTORY_IN_BLOCK, CARRY_VERSIONS,
   carryShapeVersion, beginPaletteScope, endPaletteScope, v6BoolHistoryServed,
+  VWAP_DEV_CALL,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { clockColumnsOf } from '../clockMemo.js'
@@ -604,7 +605,10 @@ export const RUNTIME_STATE_KERNELS = Object.freeze(Object.fromEntries([
   ['pivotlow', 'pivot-low', [3], true],
   ['ta.stoch', 'stochastic', [4], false],
   ['stoch', 'stochastic', [4], true],
-  ['ta.vwap', 'session-vwap', [1], false],
+  // ⭐⭐ e95 (unit 2) — and `ta.vwap(source, anchor)`, the anchored average (`CARRIED2.vwapAnchorPine`), with its
+  // band leg `VWAP_DEV_CALL` (`vwapAnchorDevPine`), which `PINE_TUPLE_BUILTINS.vwap` writes for the 3-argument form
+  ['ta.vwap', 'session-vwap', [1, 2], false],
+  [VWAP_DEV_CALL, 'anchored-vwap-dev', [2], false],
 ].map(([name, kind, arity, legacy]) => [name, { kind, arity, legacy }])))
 
 /** The widest `ta.pivothigh`/`ta.pivotlow` window (`left + right + 1`) this lane
@@ -10822,6 +10826,15 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
             const idx = pushCarried2({ fn: 'stochPine', n, name: `${node.name}(…,${n})` })
             conditionalHistoryGuard('a stateful built-in', null)
             return carried2Call(idx, lowerExpr(given[0], scope), lowerExpr(given[1], scope), lowerExpr(given[2], scope))
+          }
+          // ⭐⭐ e95 (unit 2) — THE ANCHORED VWAP: `ta.vwap(source, anchor)` and its band leg, summed from each bar
+          // the anchor fires (`interpret.js::vwapAnchorAccumulate`, the columnar `FN.vwapAnchor` stepped), `na`
+          // before the first. The kernel takes (anchor, price, volume), volume pushed last.
+          if (kernel.kind === 'anchored-vwap-dev' || given.length === 2) {
+            const fn = kernel.kind === 'anchored-vwap-dev' ? 'vwapAnchorDevPine' : 'vwapAnchorPine'
+            const idx = pushCarried2({ fn, n: 1, name: `${node.name}(…)` })
+            conditionalHistoryGuard('a stateful built-in', null)
+            return carried2Call(idx, lowerExpr(given[1], scope), lowerExpr(given[0], scope), series('volume'))
           }
           // vwap: the session is the ET calendar day (`computeVWAP`'s own bucket),
           // read from the clock fields so the kernel never does date arithmetic.

@@ -1658,6 +1658,36 @@
       "yields": "num",
       "sentence": "the volume-weighted average of {0} so far this session"
     },
+    "vwapAnchor": {
+      "args": [
+        "series",
+        "series",
+        "series"
+      ],
+      "argRoles": [
+        "source",
+        "condition",
+        "volume"
+      ],
+      "lookback": "series",
+      "yields": "num",
+      "sentence": "the volume-weighted average of {0} (weighted by {2}) since the last bar where {1} was true"
+    },
+    "vwapAnchorDev": {
+      "args": [
+        "series",
+        "series",
+        "series"
+      ],
+      "argRoles": [
+        "source",
+        "condition",
+        "volume"
+      ],
+      "lookback": "series",
+      "yields": "num",
+      "sentence": "the volume-weighted standard deviation of {0} (weighted by {2}) since the last bar where {1} was true"
+    },
     "williamsR": {
       "args": [
         "series",
@@ -3661,7 +3691,9 @@
       "sessionLow",
       "openingRangeHigh",
       "openingRangeLow",
-      "asin"
+      "asin",
+      "vwapAnchor",
+      "vwapAnchorDev"
     ]
   },
   "_functions_excluded": {
