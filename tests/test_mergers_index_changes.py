@@ -290,7 +290,7 @@ def test_a_refused_plan_is_an_unavailable_answer_held_for_hours_and_a_failure_fo
         assert mna._latest._state["retry_at"] - time.time() <= mna.FAILED_HOLD_S
 
 
-def test_with_nothing_held_a_slow_read_answers_computing(provider):
+def test_mergers_with_nothing_held_a_slow_read_answers_computing(provider):
     provider.gate = threading.Event()
     assert mna.get_latest(wait_s=0.05) == {"status": "computing", "scope": "latest", "source": "Financial Modeling Prep"}
     provider.gate.set()
@@ -476,7 +476,7 @@ def test_the_held_lists_survive_a_restart_without_a_read(lists):
     assert ic.get_changes("all", wait_s=0)["status"] == "ok" and len(lists.asked) == 3
 
 
-def test_with_nothing_held_a_slow_read_answers_computing(lists):
+def test_index_changes_with_nothing_held_a_slow_read_answers_computing(lists):
     lists.gate = threading.Event()
     assert ic.get_changes("sp500", wait_s=0.05) == {"status": "computing", "index": "sp500", "sym": None, "source": "Financial Modeling Prep"}
     lists.gate.set()
