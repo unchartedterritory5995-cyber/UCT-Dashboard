@@ -1,0 +1,79 @@
+/* GRPS CROWDING (2026-11-22): the pieces the positioning view adds to the GRPS board (groupStats.module.css):
+   a name cell's "N stocks" door into the group's members, and a cell that names stocks (the most shorted, the
+   largest buys) one per line. App tokens only; no green or red (a high short interest is not good or bad on its
+   own). The one @media is the touch tier's tap floor, as groupStats' own. */
+
+/* The door into a group's members: reads as the name cell's second line, a button under it. */
+.membersBtn {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.membersBtn:hover {
+  color: var(--text-bright);
+}
+
+.membersBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* TOUCH TIER (phone + tablet): the door is a finger target, as marketPanels' chips are. */
+@media (max-width: 1024px) {
+  .membersBtn {
+    min-height: var(--tap-min);
+  }
+}
+
+/* A cell naming up to three stocks, one per line: the symbol, then its figure; right-aligned under the figures. */
+.list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  white-space: nowrap;
+}
+
+.fig {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* The members view: its head, lede, table and method stacked. */
+.members {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+/* The members view's head: the way back, the group's name and its count. */
+.membersHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+  min-width: 0;
+}
+
+.membersTitle {
+  min-width: 0;
+  color: var(--text-bright);
+  font-weight: 600;
+  overflow-wrap: break-word;
+}
