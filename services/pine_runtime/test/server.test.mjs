@@ -3,10 +3,12 @@
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { request as httpRequest } from 'node:http'
+import { readFileSync } from 'node:fs'
 import { signHeader, SIGNATURE_HEADER } from '../auth.mjs'
 import { MAX_BODY_BYTES } from '../protocol.mjs'
 import {
   ENV_ALLOWLIST, ENV_ALLOWLIST_PATTERNS, WIN32_ENV_ALLOWLIST, envAllowlistFor, envNameAdmitted, createPineRuntimeServer,
+  DEFAULT_SERVICE_WORKERS, MAX_SERVICE_WORKERS, workersOf,
   envRefusal, listenDualStack, portOf,
 } from '../server.mjs'
 import { DOOR, IDENTITY, SECRET, SECRET_2, mutate, rng, validRequest } from './helpers.mjs'
@@ -279,6 +281,23 @@ test('env allowlist, WINDOWS ONLY: SYSTEMROOT is admitted on win32 and nowhere e
     // (c) the sentence names names only, never a value
     assert.ok(!s.includes('leak-value-xyz') && !s.includes(SECRET) && !s.includes('C:\\Windows'), `names only: ${name}`)
   }
+})
+
+test('workers, track 6: the pool follows the stated count, never the host CPUs (48 on Railway inside a 2 vCPU limit)', () => {
+  assert.equal(DEFAULT_SERVICE_WORKERS, 2)
+  assert.equal(workersOf({}, 48), 2, 'unset on a 48-CPU host: 2, not 48')
+  assert.equal(workersOf({ PINE_RUNTIME_WORKERS: '' }, 48), 2)
+  assert.equal(workersOf({}, 1), 1, 'never more than the host has when unset')
+  assert.equal(workersOf({ PINE_RUNTIME_WORKERS: '4' }, 48), 4)
+  assert.equal(workersOf({ PINE_RUNTIME_WORKERS: String(MAX_SERVICE_WORKERS) }, 48), MAX_SERVICE_WORKERS)
+  for (const bad of ['0', '17', '99', '-1', '2.5', 'two', ' 2', '2 ', '007']) {
+    assert.throws(() => workersOf({ PINE_RUNTIME_WORKERS: bad }, 48), /PINE_RUNTIME_WORKERS is not a whole number/, bad)
+  }
+  assert.ok(ENV_ALLOWLIST.includes('PINE_RUNTIME_WORKERS'))
+  assert.equal(envRefusal({ PORT: '8080', PINE_RUNTIME_WORKERS: '2' }), null)
+  // the boot passes it to the pool, and a test's own count (poolOpts.workers) still wins
+  const text = readFileSync(new URL('../server.mjs', import.meta.url), 'utf8')
+  assert.match(text, /createPool\(\{ workers: workersOf\(env\), \.\.\.poolOpts, bundle \}\)/)
 })
 
 test('PORT: unset is the default; anything but a whole port number refuses boot', () => {

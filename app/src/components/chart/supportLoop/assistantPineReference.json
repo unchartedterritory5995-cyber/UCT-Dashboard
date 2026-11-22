@@ -1197,6 +1197,18 @@
    "call": "pow(close, 14)"
   },
   {
+   "name": "request.dividends",
+   "call": "request.dividends()"
+  },
+  {
+   "name": "request.earnings",
+   "call": "request.earnings()"
+  },
+  {
+   "name": "request.splits",
+   "call": "request.splits()"
+  },
+  {
    "name": "rising",
    "call": "rising(close, 14)"
   },

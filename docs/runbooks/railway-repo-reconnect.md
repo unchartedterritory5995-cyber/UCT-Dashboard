@@ -1,6 +1,6 @@
 # Railway: reconnecting a service to the repo after the org move
 
-**Read this before the next deploy of `flow-worker`, `breadth-v2-runner`, `econ-ingest`,
+**Read this before the next deploy of `flow-worker`, `breadth-v2-runner`,
 `fundamentals-v5-runner` or `trade-exchange-news-receiver`.**
 
 ## What happened (2026-11-21)
@@ -11,9 +11,24 @@ move: every service kept running its current deployment, but its link to the rep
 A dead link reads, in the dashboard under Settings → Source: the OLD repo name, **"Auto deploy
 unavailable"** and **"Could not load branches"**.
 
-| Reconnected on 2026-11-21 | Still on the dead link (reconnect at their next planned deploy) |
+| Reconnected | Still on the dead link (reconnect at their next planned deploy) |
 |---|---|
-| `bars-api`, `web-front`, `stream-edge`, `stream-ingest`, `web`, `terminal-next-monitor`, `chart-renderer`, `worker` | `flow-worker`, `breadth-v2-runner`, `econ-ingest`, `fundamentals-v5-runner`, `trade-exchange-news-receiver` |
+| 2026-11-21: `bars-api`, `web-front`, `stream-edge`, `stream-ingest`, `web`, `terminal-next-monitor`, `chart-renderer`, `worker`. 2026-11-22: `econ-ingest` | `flow-worker`, `breadth-v2-runner`, `fundamentals-v5-runner`, `trade-exchange-news-receiver` |
+
+What a reconnect would ship for the four that remain, measured 2026-11-22:
+
+- `flow-worker` (runs `742423b27c`, 2026-11-18): 251 files under `api/` have changed on `master` since. Its own
+  runbook and deploy window apply.
+- `breadth-v2-runner` (runs `e19be943cc`, 2026-11-14, pinned by a watch path that never matches): 442 files
+  under `api/` have changed since, the breadth services among them.
+- `fundamentals-v5-runner` (runs `49b3063e22`, its branch's head, since 2026-09-28): the same commit, but the
+  service exists to carry ONE pinned run, and a redeploy restarts whatever it is doing.
+- `trade-exchange-news-receiver` (runs `767ec52d21`, 2026-10-31; a later build failed on 2026-11-01): its
+  folder is unchanged since, so a reconnect rebuilds the same code. The cause of the failed build is not known.
+
+`econ-ingest` was the one clean case: it already ran its branch's head (`46973c9d02`), so the reconnect
+rebuilt the same commit (deployment `f3d7c617`). Railway staged Branch → master there as well (the trap in
+step 4); it was removed before deploying.
 
 `tx-recap` has no repo and is not affected. To read the current state without the dashboard:
 

@@ -46,6 +46,8 @@ WALL = [c for c in CASES if c["lane"] == "wall"]
 #: the formula cases the record holds RIGHT, and the known defects it holds WRONG (each named, never passed)
 RIGHT = [c for c in FORMULA if c.get("recorded_verdict") != "wrong"]
 KNOWN_WRONG = [c for c in FORMULA if c.get("recorded_verdict") == "wrong"]
+#: the walls the record holds RIGHT (a wall recorded WRONG is a known defect of the door's refusal, named in the case)
+RIGHT_WALL = [c for c in WALL if c.get("recorded_verdict") != "wrong"]
 #: graded here; the script lane runs the browser engine and has its own file (tests/test_value_cases_scripts.py)
 HERE = FORMULA + WALL
 #: the fewest cases each lane may hold: a fixture cut to a handful would still pass every other test
@@ -65,7 +67,7 @@ def test_the_fixture_is_whole():
         # a case may be recorded WRONG: a known defect of the door, named, never silently passed
         assert case.get("recorded_verdict", "wrong" if "defect" in case else None) in (None, "wrong"), case["id"]
         assert ("defect" in case) == (case.get("recorded_verdict") == "wrong") and len(case.get("defect") or "x" * 99) > 80, case["id"]
-    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "date-start-01", "j06", "count-on-bars-01", "table-format-01"]     # every one is named here, on purpose
+    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "date-start-01", "j06", "count-on-bars-01", "table-format-01", "wall-26"]     # every one is named here, on purpose
 
 
 @pytest.mark.parametrize("case", HERE, ids=[c["id"] for c in HERE])
@@ -302,7 +304,7 @@ def test_a_fresh_run_equal_to_the_record_scores_every_case(tmp_path):
     # a known defect is ANSWERED and not right: it is in `of` and `answered`, never in `right`, and it is no change
     assert KNOWN_WRONG and len(RIGHT) + len(KNOWN_WRONG) == len(FORMULA)
     assert report["scores"] == {"formula": {"right": len(RIGHT), "of": len(FORMULA), "answered": len(FORMULA)},
-                                "wall": {"right": len(WALL), "of": len(WALL), "answered": len(WALL)}}
+                                "wall": {"right": len(RIGHT_WALL), "of": len(WALL), "answered": len(WALL)}}
     assert report["full"] is True and report["full_lanes"] == ["formula", "wall"] and report["changed"] == []
 
 
@@ -325,10 +327,10 @@ def test_a_fresh_run_names_what_went_wrong_and_what_was_not_answered(tmp_path):
     late = copy.deepcopy(RIGHT[3]["answer"])
     for o in _outputs(late):
         o["tree"] = _late(o["tree"])
-    report = value_eval.grade_run(DATA, _answers_dir(tmp_path, changed={RIGHT[3]["id"]: late}, missing={WALL[1]["id"]}))
+    report = value_eval.grade_run(DATA, _answers_dir(tmp_path, changed={RIGHT[3]["id"]: late}, missing={RIGHT_WALL[1]["id"]}))
     assert report["scores"]["formula"]["right"] == len(RIGHT) - 1
     assert report["full"] is False and report["full_lanes"] == ["formula"]      # the wall lane has a request unanswered
-    assert [(row["id"], row["was"], row["now"]) for row in report["changed"]] == [(RIGHT[3]["id"], "right", "wrong"), (WALL[1]["id"], "right", "no answer")]
+    assert [(row["id"], row["was"], row["now"]) for row in report["changed"]] == [(RIGHT[3]["id"], "right", "wrong"), (RIGHT_WALL[1]["id"], "right", "no answer")]
 
 
 def test_THE_RATCHET_the_first_full_run_writes_the_threshold_and_a_later_run_below_it_is_red(tmp_path):
@@ -338,7 +340,7 @@ def test_THE_RATCHET_the_first_full_run_writes_the_threshold_and_a_later_run_bel
     full = value_eval.grade_run(data, _answers_dir(tmp_path / "a"))
     verdict = value_eval.apply_ratchet(data, full)
     # the line is what the run got RIGHT: a known defect is below it from the start, and fixing one raises nothing by itself
-    assert verdict["ok"] and data["thresholds"]["formula"] == len(RIGHT) and data["thresholds"]["wall"] == len(WALL)
+    assert verdict["ok"] and data["thresholds"]["formula"] == len(RIGHT) and data["thresholds"]["wall"] == len(RIGHT_WALL)
     # a later full run with one formula wrong is below the line: red, and the line does not move
     late = copy.deepcopy(RIGHT[0]["answer"])
     for o in _outputs(late):
@@ -353,7 +355,7 @@ def test_THE_RATCHET_the_first_full_run_writes_the_threshold_and_a_later_run_bel
     (tmp_path / "c").mkdir()
     partial = value_eval.grade_run(data2, _answers_dir(tmp_path / "c", missing={FORMULA[0]["id"]}))
     verdict = value_eval.apply_ratchet(data2, partial)
-    assert verdict["ok"] and data2["thresholds"]["formula"] is None and data2["thresholds"]["wall"] == len(WALL)
+    assert verdict["ok"] and data2["thresholds"]["formula"] is None and data2["thresholds"]["wall"] == len(RIGHT_WALL)
     # and a run that answers no lane fully touches nothing
     data3 = copy.deepcopy(DATA)
     (tmp_path / "d").mkdir()

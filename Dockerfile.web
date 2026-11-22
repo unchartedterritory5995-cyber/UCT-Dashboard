@@ -164,6 +164,13 @@ ENV VITE_BARSTORE=$VITE_BARSTORE \
 # `scripts/build-flow-facts.mjs`) whose outputs the BACKEND shells out to.
 COPY . .
 RUN cd app && npm install && NODE_OPTIONS='--max-old-space-size=4096' npm run build
+# Track 6 (2026-11-22): THE SERVER BUNDLE, built here exactly as services/pine_runtime/Dockerfile builds it
+# (same Node, same sources, same two VITE_* build args read from this service's variables). web's runtime
+# client hashes it into the engine identity it signs every run with (pine_runtime_client.caller_identity,
+# BUNDLE_PATH); without it the identity is unreadable and EVERY server-lane run is withheld
+# runtime:server-unavailable (measured on the first armed run). The service refuses a run whose identity is
+# not its own (409 runtime:server-engine-mismatch), so the two builds must stay one build.
+RUN cd app && node scripts/build-pine-runtime.mjs
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE 2 — python dependencies, compiled where a compiler is allowed to exist.
@@ -224,6 +231,8 @@ WORKDIR /app
 # and cannot silently omit an API module, a migration, a script or an asset.
 COPY . /app
 COPY --from=frontend /src/app/dist /app/app/dist
+# Track 6: the server bundle, for the engine identity the runtime client signs with (see the frontend stage)
+COPY --from=frontend /src/app/dist-server/pine-runtime.mjs /app/app/dist-server/pine-runtime.mjs
 
 # ⛔ THE CROSS-LANE ALERT PROOF RUNS SHIPPED SOURCE UNDER A BARE `node`, AND
 # THAT SOURCE IMPORTS ONE NPM PACKAGE. Arming a user-formula alert runs

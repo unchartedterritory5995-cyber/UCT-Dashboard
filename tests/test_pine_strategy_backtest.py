@@ -430,13 +430,16 @@ def test_r1_W1_a_record_starting_on_another_bar_is_a_500(world, shift):
 DARK_FIXTURE = ROOT / "tests" / "fixtures" / "pine_runtime" / "w9t14_dark_result.json"
 
 
-def test_r1_arming_the_shared_server_stage_does_not_make_a_strategy_run(monkeypatch):
-    """Coordinator r1 item 2 (review N3). Both stages at `all` (as arming them for indicators would
-    leave them), the script graded, the service configured: the route reaches the service, and the
-    service -- whose broker gate nobody registers -- answers `pine:strategy-call`. The reply is the
-    service's REAL sealed answer (`w9t14_dark_result.json`, written and byte-checked by
-    `w9T14ServerRecord.test.js` from the server bundle's own surface), decoded here by the REAL
-    client: the route serves the refusal by name and no record, and computes nothing itself."""
+def test_r1_the_route_serves_the_services_named_refusal_verbatim_and_computes_nothing(monkeypatch):
+    """Coordinator r1 item 2 (review N3). Both stages at `all`, the script admitted, the service
+    configured: the route reaches the service and serves whatever NAMED refusal the service seals,
+    with no record, computing nothing itself. The reply replayed is a REAL sealed service answer
+    (`w9t14_dark_result.json`, written and byte-checked by `w9T14ServerRecord.test.js` from the server
+    bundle's own surface: a strategy document run without the broker answers `pine:strategy-call`).
+    ⭐ TRACK 6, G-BROKER (2026-11-22): the service now runs the broker for a '#strategy' job, and for the
+    route's window off the listing it refuses by the broker's own name (`runtime:strategy-unsettled`,
+    w9T14ServerRecord.test.js), so the route's answer today is that refusal; this rail holds the route
+    to carrying a named refusal verbatim, whichever it is."""
     monkeypatch.setenv(rd.STAGE_ENV, rd.STAGE_ALL)
     monkeypatch.setenv(rd.SERVER_STAGE_ENV, rd.STAGE_ALL)
     monkeypatch.setattr(rd, "not_graded", lambda source, graded_only=False: None)

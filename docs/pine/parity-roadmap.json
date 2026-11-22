@@ -2706,6 +2706,7 @@
    "runtime:withheld-all": 2,
    "admission:collections:map": 1,
    "admission:collections:matrix": 1,
+   "admission:request-events": 1,
    "lower-tf:store-unmeasured": 1,
    "pine:state": 1,
    "runtime:block-value": 1,
@@ -3743,6 +3744,14 @@
   {
    "wall": "admission:library:Trendoscope/utils/6",
    "unit": "libraries",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 2,
+   "soleScripts": []
+  },
+  {
+   "wall": "admission:request-events",
+   "unit": "admit:request-events",
    "sole": 0,
    "soleFullyEnumerated": 0,
    "any": 2,
@@ -5368,17 +5377,6 @@
   },
   {
    "walls": [
-    "pine:builtin",
-    "pine:request"
-   ],
-   "scripts": [
-    "builtin:volume-weighted-average-price__VWAP",
-    "committed:delta-imbalance-map-joat__b80f337fb3"
-   ],
-   "count": 2
-  },
-  {
-   "walls": [
     "pine:function",
     "runtime:call-undeclared-builtin-state"
    ],
@@ -5687,6 +5685,16 @@
    ],
    "scripts": [
     "reference:bb-custom-indicator-tradingview-version__Vf3832aju8"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "pine:builtin",
+    "pine:request"
+   ],
+   "scripts": [
+    "committed:delta-imbalance-map-joat__b80f337fb3"
    ],
    "count": 1
   },
@@ -6848,28 +6856,22 @@
     "pine:library-version",
     "runtime:library"
    ],
-   "sole": 3,
-   "soleFullyEnumerated": 3,
-   "soleServable": 3,
+   "sole": 2,
+   "soleFullyEnumerated": 2,
+   "soleServable": 2,
    "any": 58,
    "soleScripts": [
     "builtin:performance__Performance",
-    "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
     "reference:volume-profile-heatmap__89dbe956a4"
    ],
    "evidence": {
     "counts": {
-     "committedOther": 1,
      "ledgerOnly": 2
     },
     "queue": [
      {
       "script": "builtin:performance__Performance",
       "status": "ledgerOnly"
-     },
-     {
-      "script": "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
-      "status": "committedOther"
      },
      {
       "script": "reference:volume-profile-heatmap__89dbe956a4",
@@ -8486,6 +8488,25 @@
    "runtimeDrawnWithMatch": []
   },
   {
+   "unit": "admit:request-events",
+   "title": "capability admission of `request-events` (registry evidence: runtime-on MATCH captures)",
+   "kind": "evidence",
+   "size": 1,
+   "walls": [
+    "admission:request-events"
+   ],
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "soleServable": 0,
+   "any": 2,
+   "soleScripts": [],
+   "evidence": {
+    "counts": {},
+    "queue": []
+   },
+   "runtimeDrawnWithMatch": []
+  },
+  {
    "unit": "admit:varip",
    "title": "capability admission of `varip` (registry evidence: runtime-on MATCH captures)",
    "kind": "evidence",
@@ -8556,13 +8577,12 @@
    ],
    "scripts": [
     "builtin:open-interest__OpenInterest",
-    "builtin:volume-weighted-average-price__VWAP",
     "committed:delta-imbalance-map-joat__b80f337fb3",
     "committed:mtf-watchlist-charts-anan__3453680ea1",
     "reference:halftrend-longshort-signal-engine-bigbeluga__07070e14d6",
     "reference:ot-mtf-trend-dashboard-10__d43fa61404"
    ],
-   "count": 6
+   "count": 5
   },
   {
    "walls": [
@@ -8758,6 +8778,16 @@
   },
   {
    "walls": [
+    "admit:request-events",
+    "libraries"
+   ],
+   "scripts": [
+    "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
     "admit:varip",
     "conditional-history"
    ],
@@ -8943,16 +8973,6 @@
    ],
    "scripts": [
     "reference:ct-displacement-fvg-toolkit__1ae5bb663e"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "lower-tf",
-    "strategy"
-   ],
-   "scripts": [
-    "committed:multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640"
    ],
    "count": 1
   }
@@ -9770,6 +9790,7 @@
    "runtime:nothing-drawn"
   ],
   "builtin:volume-weighted-average-price__VWAP": [
+   "admission:request-events",
    "pine:builtin",
    "pine:request"
   ],
@@ -9887,6 +9908,7 @@
   "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2": [
    "admission:import",
    "admission:library:loxx/loxxexpandedsourcetypes/4",
+   "admission:request-events",
    "pine:library-denied"
   ],
   "committed:blackflag-fts__GdkmXaTINI": [
@@ -13509,8 +13531,10 @@
    },
    "builtin:volume-weighted-average-price__VWAP": {
     "admission": {
-     "status": "capability",
-     "missing": [],
+     "status": "not-admitted",
+     "missing": [
+      "request-events"
+     ],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -14692,7 +14716,8 @@
      "status": "not-admitted",
      "missing": [
       "import",
-      "library:loxx/loxxexpandedsourcetypes/4"
+      "library:loxx/loxxexpandedsourcetypes/4",
+      "request-events"
      ],
      "historyOnly": true
     },
