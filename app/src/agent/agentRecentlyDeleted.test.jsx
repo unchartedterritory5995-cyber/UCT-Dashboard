@@ -12,7 +12,7 @@ import { commitPlan } from './runtime'
 import { fastParse } from './fastPath'
 import { buildWatchlistSource } from './host'
 import { wordsSelect, GROUPS, RECENTLY_DELETED_WORDS } from './routing'
-import { getCapability } from './capabilities'
+import { getCapability, buildContext } from './capabilities'
 import { _resetRecentlyDeleted, resolveDeleted, loadDeleted } from './capabilities/recentlyDeleted'
 import { stateEffects } from './stateRail'
 
@@ -271,5 +271,121 @@ describe('recentlyDeleted.list and the words', () => {
     expect(resolveDeleted(rows, 'my momentum leaders watchlist').row.id).toBe('5')
     expect(resolveDeleted(rows, 'momentum').why).toMatch(/Which one do you mean/)
     expect(resolveDeleted(rows, 'momentm leaders').why).toMatch(/isn't in/)
+  })
+})
+
+// ── H2458-1 (AUDIT): a bare id two kinds share never falls through to a NAME; the context names items kind:id ──
+// Generated across the kinds, never hand-picked: every pair of kinds (and all three) sharing one id, and a third item whose
+// NAME holds that id, in each kind that is not one of the pair (or the pair's own kinds under another id).
+const KINDS = ['watchlist', 'layout', 'screen']
+const NOUNS = { watchlist: 'watchlist', layout: 'layout', screen: 'saved screen' }
+const SHARED = '42'
+const sharingSets = [...KINDS.flatMap((a, i) => KINDS.slice(i + 1).map(b => [a, b])), KINDS]
+function seedShared(kinds, decoyKind) {
+  srv.gone = {}
+  for (const k of kinds) srv.gone[`${k}:${SHARED}`] = { label: `Shared ${k}`, head: 2, deleted_at: T0, payload: { items: [], filters: [] } }
+  // the decoy: another item whose NAME holds the shared id ("Top 42 …"), under an id of its own
+  srv.gone[`${decoyKind}:77`] = { label: `Top ${SHARED} ${decoyKind} picks`, head: 2, deleted_at: T0, payload: { items: [], filters: [] } }
+}
+
+describe('H2458-1: a bare id held by several kinds is asked, never read on as a name', () => {
+  for (const kinds of sharingSets) {
+    for (const decoyKind of KINDS) {             // every kind hosts the decoy once: outside the pair, or inside it under id 77
+      it(`id ${SHARED} held by ${kinds.join(' + ')} (kind null), decoy "Top ${SHARED} …" is a ${decoyKind}: asked with the real names and kinds; nothing restored`, async () => {
+        seedShared(kinds, decoyKind)
+        const host = makeHost()
+        await loadDeleted({ force: true })
+        const { _resetScreenerCache } = await import('./capabilities/screener')
+        _resetScreenerCache?.()
+        const r = resolveDeleted((await loadDeleted({ force: true })).rows, SHARED, null)
+        expect(r.row).toBeUndefined()
+        expect(r.why).toMatch(/^Which one do you mean: .*\? Nothing was changed\.$/)
+        for (const k of kinds) expect(r.why).toContain(`“Shared ${k}” (${NOUNS[k]}`)
+        expect(r.why).not.toContain(`Top ${SHARED}`)                     // the decoy is never offered, never picked
+        const p = await plan(host, [OP(SHARED, null)])
+        expect(p.ok).toBe(false)
+        expect(p.refusals[0].reason).toBe(r.why)
+        if (p.ok) await commitPlan(host, p)
+        expect(writes()).toEqual([])                                     // no restore op ran
+        for (const k of kinds) expect(srv.gone[`${k}:${SHARED}`]).toBeTruthy()
+        expect(srv.gone[`${decoyKind}:77`]).toBeTruthy()
+      })
+    }
+  }
+
+  // with the kind named, the shared id is exact: exactly that kind's item, and still never the decoy
+  for (const kinds of sharingSets) {
+    for (const k of kinds) {
+      it(`id ${SHARED} held by ${kinds.join(' + ')}, kind ${k}: exactly the ${k}`, async () => {
+        seedShared(kinds, k)
+        const rows = (await loadDeleted({ force: true })).rows
+        const r = resolveDeleted(rows, SHARED, k)
+        expect([r.row?.kind, r.row?.id, r.row?.label]).toEqual([k, SHARED, `Shared ${k}`])
+      })
+    }
+  }
+
+  // a unique bare id still works (the old model contexts named items by bare id)
+  for (const k of KINDS) {
+    it(`a unique bare id (only a ${k} holds it) resolves to that ${k}, kind null`, async () => {
+      srv.gone = { [`${k}:${SHARED}`]: { label: `Only ${k}`, head: 2, deleted_at: T0, payload: {} }, [`${KINDS.find(x => x !== k)}:77`]: { label: `Top ${SHARED} decoy`, head: 2, deleted_at: T0, payload: {} } }
+      const r = resolveDeleted((await loadDeleted({ force: true })).rows, SHARED, null)
+      expect([r.row?.kind, r.row?.id]).toEqual([k, SHARED])
+    })
+  }
+})
+
+describe('H2458-1: the model context names each item kind:id, and kind:id round-trips to exactly that item', () => {
+  for (const kinds of sharingSets) {
+    it(`id ${SHARED} held by ${kinds.join(' + ')}: every context item is kind:id, unique, and resolves to exactly itself`, async () => {
+      seedShared(kinds, kinds[0])
+      const host = makeHost()
+      const rows = (await loadDeleted({ force: true })).rows
+      const items = buildContext(host, { ...CTX, message: 'show my recently deleted items' }).context.recentlyDeleted[0].items
+      expect(items).toHaveLength(rows.length)
+      expect(new Set(items.map(x => x.item)).size).toBe(items.length)
+      for (const x of items) {
+        expect(x.item).toBe(`${x.kind}:${x.item.split(':')[1]}`)
+        expect(x.item).toMatch(/^(watchlist|layout|screen):\d+$/)
+        for (const kind of [x.kind, null]) {                              // with its own kind, or with none
+          const r = resolveDeleted(rows, x.item, kind)
+          expect([r.row?.kind, r.row?.id, r.row?.label], `${x.item} / ${kind}`).toEqual([x.kind, x.item.split(':')[1], x.name])
+        }
+        for (const other of KINDS.filter(o => o !== x.kind)) {           // a contradicting kind is said, never guessed
+          const r = resolveDeleted(rows, x.item, other)
+          expect(r.row).toBeUndefined()
+          expect(r.why).toMatch(/Nothing was changed\./)
+        }
+      }
+    })
+  }
+
+  for (const k of KINDS) {
+    it(`a kind:id that is not there (${k}:${SHARED} absent; a "Top ${SHARED}" ${k} present) is said — never read as a name`, async () => {
+      srv.gone = { [`${k}:77`]: { label: `Top ${SHARED} ${k} picks`, head: 2, deleted_at: T0, payload: {} } }
+      const r = resolveDeleted((await loadDeleted({ force: true })).rows, `${k}:${SHARED}`, null)
+      expect(r.row).toBeUndefined()
+      expect(r.why).toMatch(/isn't in your recently deleted .*Nothing was changed\.$/)
+    })
+  }
+
+  it('end to end: the shared id restores through kind:id — exactly that one item, still a confirm card first', async () => {
+    for (const kinds of sharingSets) {
+      for (const k of kinds) {
+        _resetRecentlyDeleted(); server()
+        seedShared(kinds, kinds[0])
+        const { _resetScreenerCache } = await import('./capabilities/screener')
+        _resetScreenerCache?.()
+        const host = makeHost()
+        await loadDeleted({ force: true })
+        const p = await plan(host, [OP(`${k}:${SHARED}`, k)])
+        expect(p.ok, `${kinds.join('+')} / ${k}`).toBe(true)
+        expect(decideMode('apply', p)).toBe('propose')                  // the risk: confirm card is unchanged
+        const res = await commitPlan(host, p)
+        expect(res.ok, `${kinds.join('+')} / ${k}`).toBe(true)
+        expect(writes()).toEqual([['POST', `/api/artifact-versions/${k}/${SHARED}/undelete`]])
+        for (const o of kinds.filter(x => x !== k)) expect(srv.gone[`${o}:${SHARED}`]).toBeTruthy()
+      }
+    }
   })
 })

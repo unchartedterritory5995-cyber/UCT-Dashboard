@@ -99,7 +99,8 @@ const itemWord = (r) => `${quote(r.label)} (${NOUN[r.kind]}${deletedStamp(r.dele
 const kindsWord = (kind) => (kind ? PLURAL[kind] : 'watchlists, layouts or saved screens')
 
 /**
- * The ONE deleted item the words name → { row } or { why }. An id ("12", "watchlist:12") is exact; otherwise a name: the
+ * The ONE deleted item the words name → { row } or { why }. "watchlist:12" (the context's item) is exactly that item; a bare
+ * id ("12") is exact when ONE kind holds it and asked when several do (H2458-1: never read on as a name); otherwise a name: the
  * exact name (a trailing "watchlist" / "layout" / "screen" word dropped), else every item whose name holds all the words.
  * Two or more → asked with the real names; none → said, with what IS there. Never picked by similarity.
  */
@@ -108,8 +109,21 @@ export function resolveDeleted(rows, item, kind = null) {
   const raw = String(item ?? '').trim()
   const where = `your recently deleted ${kindsWord(kind)}`
   if (!raw) return { why: `Which one should I bring back? ${pool.length ? `In ${where}: ${pool.slice(0, 6).map(itemWord).join(', ')}.` : `There is nothing in ${where}.`}` }
-  const byId = pool.filter(r => r.id === raw || `${r.kind}:${r.id}` === raw)
+  // "watchlist:12" (the context's item value): exactly that item, or said — never read as a name, never another kind's
+  const q = /^(watchlist|layout|screen):(.+)$/.exec(raw)
+  if (q) {
+    const [, qKind, qId] = q
+    if (kind && qKind !== kind) return { why: `${quote(raw)} is a deleted ${NOUN[qKind]}, not a ${NOUN[kind]} — which one should I bring back? Nothing was changed.` }
+    const row = (rows || []).find(r => r.kind === qKind && r.id === qId.trim())
+    if (row) return { row }
+    const left = (rows || []).filter(r => r.kind === qKind)
+    return { why: `That ${NOUN[qKind]} isn't in your recently deleted ${PLURAL[qKind]}.${left.length ? ` What's there: ${left.slice(0, 6).map(itemWord).join(', ')}.` : ''} Nothing was changed.` }
+  }
+  const byId = pool.filter(r => r.id === raw)
   if (byId.length === 1) return { row: byId[0] }
+  // H2458-1: one bare id held by two or more kinds (a watchlist 12 and a layout 12) — asked with the real names and kinds,
+  // NEVER read on as a name (a third item whose name holds "12" is not what an id means)
+  if (byId.length > 1) return { why: `Which one do you mean: ${byId.slice(0, 6).map(itemWord).join(' or ')}? Nothing was changed.` }
   const bare = norm(raw).replace(/^(?:my|the|our)\s+/, '').replace(/^(?:deleted|recently deleted)\s+/, '')
     .replace(/\s+(?:watch ?lists?|lists?|layouts?|saved screens?|screens?|scans?)$/, '').trim()
   const exact = pool.filter(r => norm(r.label) === bare || norm(r.label) === norm(raw))
@@ -297,7 +311,7 @@ export function registerRecentlyDeletedCapabilities() {
       if (s.off) return undefined
       return [{
         ref: refFor('recentlyDeleted', 'deleted'), label: 'Recently deleted (bring back a deleted watchlist, layout or saved screen)',
-        items: s.rows.slice(0, SHOW_IN_CONTEXT).map(r => ({ kind: r.kind, item: r.id, name: r.label, ...(deletedStamp(r.deletedAt) ? { deleted: deletedStamp(r.deletedAt) } : {}) })),
+        items: s.rows.slice(0, SHOW_IN_CONTEXT).map(r => ({ kind: r.kind, item: `${r.kind}:${r.id}`, name: r.label, ...(deletedStamp(r.deletedAt) ? { deleted: deletedStamp(r.deletedAt) } : {}) })),
         ...(s.rows.length > SHOW_IN_CONTEXT ? { more: s.rows.length - SHOW_IN_CONTEXT } : {}),
       }]
     },
@@ -345,7 +359,7 @@ export function registerRecentlyDeletedCapabilities() {
     createsResource: true,
     summary: 'Bring back ONE watchlist, saved layout or saved screen the member deleted, from Recently deleted — as it was when it was deleted '
       + '(the same as its Bring back button). It comes back private; nothing existing is replaced. Not for undoing an edit of something that still exists.',
-    hints: 'target = the ref of the recentlyDeleted entry; item = the item value of ONE entry in its items (never invent one); kind = that entry\'s kind. '
+    hints: 'target = the ref of the recentlyDeleted entry; item = the item value of ONE entry in its items, exactly as shown (kind:id, e.g. "watchlist:12"; never invent one); kind = that entry\'s kind. '
       + 'One op per item, at most 5. "All my deleted lists except X" = one op per listed watchlist but X. If two items could be meant, clarify with their names as choices — never pick one. '
       + 'Bringing something back is always shown first, so plan it (disposition propose). If the items are not shown, use recentlyDeleted.list first.',
     args: {

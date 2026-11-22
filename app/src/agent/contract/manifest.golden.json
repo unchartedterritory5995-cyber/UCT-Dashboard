@@ -8200,7 +8200,7 @@
    "domain": "recentlyDeleted",
    "target": "recentlyDeleted",
    "summary": "Bring back ONE watchlist, saved layout or saved screen the member deleted, from Recently deleted — as it was when it was deleted (the same as its Bring back button). It comes back private; nothing existing is replaced. Not for undoing an edit of something that still exists.",
-   "hints": "target = the ref of the recentlyDeleted entry; item = the item value of ONE entry in its items (never invent one); kind = that entry's kind. One op per item, at most 5. \"All my deleted lists except X\" = one op per listed watchlist but X. If two items could be meant, clarify with their names as choices — never pick one. Bringing something back is always shown first, so plan it (disposition propose). If the items are not shown, use recentlyDeleted.list first.",
+   "hints": "target = the ref of the recentlyDeleted entry; item = the item value of ONE entry in its items, exactly as shown (kind:id, e.g. \"watchlist:12\"; never invent one); kind = that entry's kind. One op per item, at most 5. \"All my deleted lists except X\" = one op per listed watchlist but X. If two items could be meant, clarify with their names as choices — never pick one. Bringing something back is always shown first, so plan it (disposition propose). If the items are not shown, use recentlyDeleted.list first.",
    "args": {
     "type": "object",
     "properties": {
