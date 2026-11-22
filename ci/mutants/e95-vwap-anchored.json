@@ -112,12 +112,12 @@
   },
   {
    "id": "VA13",
-   "mutant": "the anchor is read raw, not as this chart can know it (JS): the built-in's na(src[1]) restart on bar 0 off the listing is taken as a reset, and the bars after it are summed from a bar TradingView did not restart on",
+   "mutant": "the anchor is read raw, not as this chart can know it (JS): the built-in's na(src[1]) restart on bar 0 off the listing is taken as a reset, and the bars after it are summed from a bar TradingView did not restart on. (On a Pine document the bars before the first known anchor are then still withheld, but under history:before-chart's name and sentence, not the VWAP's: the rail holds the name.)",
    "file": "app/src/components/chart/engine/ast/interpret.js",
    "from": "firstAnchorBar(known(args[1]), n)",
    "to": "firstAnchorBar(colOf(args[1]), n)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vwapAnchored.test.js",
-   "expectRed": "bar 0"
+   "expectRed": "vwap:before-first-anchor"
   },
   {
    "id": "VA14",
