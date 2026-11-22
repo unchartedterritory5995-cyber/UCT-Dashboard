@@ -10911,6 +10911,30 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] insider clusters job registration failed (non-fatal): {e}")
 
+        # Funds (N-PORT) on OWN (2026-11-22): which mutual funds and ETFs hold a stock, from the SEC's
+        # quarterly Form N-PORT data sets (api/services/fund_holders_nport.py). Daily at 00:50 ET, early in
+        # scan_period's quiet span (to 07:00 on a weekday) and clear of the 00:20 / 00:40 / 01:20 jobs: a run
+        # asks for nothing while the index holds the newest posted data set, and otherwise downloads that one
+        # and the one before it (about 0.9 GB, one zip on disk at a time, deleted when read) on its own
+        # thread, holding one CUSIP partition of holdings at a time, bounded by a 90-minute budget and the end
+        # of the quiet span; a run cut short leaves the last good index. Nothing on a member's request starts it.
+        _boot_mark("S10239N")
+        try:
+            def _fund_holders_nport_job():
+                from api.services import fund_holders_nport as _fhn
+                print(f"[scheduler] fund holders (SEC Form N-PORT) check: {_fhn.run_scheduled()}")
+
+            from api.services import fund_holders_nport as _fhn_mod
+            _scheduler.add_job(
+                _fund_holders_nport_job,
+                trigger=CronTrigger(hour=_fhn_mod.RUN_AT_ET[0], minute=_fhn_mod.RUN_AT_ET[1], timezone=_ET),
+                id="fund_holders_nport_daily", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print("[startup] fund holders (SEC Form N-PORT) scheduled -- daily 00:50 ET")
+        except Exception as e:
+            print(f"[startup] fund holders (N-PORT) job registration failed (non-fatal): {e}")
+
         # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
         # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
         # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).
