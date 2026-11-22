@@ -986,3 +986,104 @@ def test_a_sweep_over_good_poison_good_answers_both_good_documents(world, live_r
     monkeypatch.setattr(ev, "sweep_deadline", lambda now=None: datetime.datetime(2026, 11, 4, 9, 0, tzinfo=ZoneInfo("America/New_York")))
     receipt = ev.run_sweep(out, universe=["UP", "DN"], as_of=SESSION)
     assert receipt["swept"] == 2 and receipt["refused"] == 0
+
+
+# ═══ 8e. 2026-11-22 FAIRNESS: a member's tree definition is never queued behind a runtime document ═══
+#
+# The 2026-11-22 boot catch-up handed 25 runtime documents (~9-10 min each) and 41 members' tree
+# definitions. On `_resume_order`'s one bit ("no receipt for the previous session leads") every runtime
+# document sorted AHEAD of every tree: about four hours of service work in front of them against the
+# 05:00-09:00 ET window, so the trees were never reached. The order is now tier first (trees, then runtime
+# documents), the resume bit second. The sweep below runs on a FAKE clock: each evaluation advances it by
+# its kind's cost (a tree 2 s, a runtime document 600 s) and nothing is computed.
+# Mutation proof: restore the one-bit order (`sorted(entries, key=_swept_last_time)`) -> RED here.
+
+_ET = ZoneInfo("America/New_York")
+_FAIR_PREV = 20261102
+_FAIR_START = datetime.datetime(2026, 11, 3, 5, 0, tzinfo=_ET)
+_FAIR_DEADLINE = datetime.datetime(2026, 11, 3, 9, 0, tzinfo=_ET)
+
+
+def _fair_trees(n):
+    from tests.test_scan_evaluator import _definition, _num, _op, _series
+    return [_definition(_op(">", _series("close"), _num(100 + i)), def_id="u_%012x" % (0xfee000 + i))
+            for i in range(n)]
+
+
+def _fair_sweep(monkeypatch, handed, *, receipts=(), tree_cost_s=2, doc_cost_s=600, prev=_FAIR_PREV):
+    """Run the REAL `run_sweep` (its real `_resume_order`) from 05:00 ET to a 09:00 ET deadline on a fake
+    clock. ``receipts``: the handles that carry a scan_coverage row for the previous session.
+    Returns ``(order swept, receipt)``."""
+    now = {"t": _FAIR_START}
+    order = []
+    have = set(receipts)
+    monkeypatch.setattr(ev, "_now_et", lambda: now["t"])
+    monkeypatch.setattr(ev, "previous_session", lambda as_of: prev)
+    monkeypatch.setattr(scan_store, "coverage",
+                        lambda h, tf, as_of: {"as_of": as_of} if (as_of == _FAIR_PREV and h in have) else None)
+
+    def _evaluate(definition, tf, **kw):
+        order.append(ev._scannable_handle(definition))
+        cost = doc_cost_s if runtime_definitions.is_runtime(definition) else tree_cost_s
+        now["t"] += datetime.timedelta(seconds=cost)
+        return {"hits": [], "recorded": 0, "stale_excluded": 0}
+
+    monkeypatch.setattr(ev, "evaluate_one", _evaluate)
+    receipt = ev.run_sweep(list(handed), "D", universe=["UP"], as_of=SESSION, deadline=_FAIR_DEADLINE)
+    return order, receipt
+
+
+def _handles(defs):
+    return [ev._scannable_handle(d) for d in defs]
+
+
+@pytest.mark.parametrize("handed_order", ["trees-first", "runtime-first", "interleaved"])
+def test_FAIRNESS_every_tree_definition_completes_under_a_deadline_beside_25_runtime_documents(
+        monkeypatch, handed_order):
+    """⛔⛔ THE PRODUCTION SHAPE: the trees carry the previous session's receipt (they were swept), the runtime
+    documents carry none (new, rotated by the cap, or withheld). 41 trees + 25 runtime documents, a deadline
+    the runtime documents alone overrun. EVERY tree is swept, before ANY runtime document, whatever order
+    the caller handed them in; the deadline still bites (the control: one runtime document is left)."""
+    trees = _fair_trees(41)
+    docs = [_doc_of(r) for r in _distinct_rows(25)]
+    handed = {"trees-first": trees + docs, "runtime-first": docs + trees,
+              "interleaved": [x for pair in zip(docs, trees) for x in pair] + trees[len(docs):]}[handed_order]
+    order, receipt = _fair_sweep(monkeypatch, handed, receipts=_handles(trees))
+    tree_h, doc_h = set(_handles(trees)), set(_handles(docs))
+    assert tree_h <= set(order), (
+        f"{len(tree_h - set(order))} of 41 members' tree definitions were never swept: the runtime documents "
+        "went first and the deadline stopped the sweep before it reached them")
+    assert order[:41] == [h for h in _handles(handed) if h in tree_h], "trees first, in the caller's order"
+    assert set(order[41:]) <= doc_h
+    assert receipt["stopped_early"] and receipt["unswept"] == 1, "the control: the deadline did bite"
+    assert set(receipt["unswept_definitions"]) <= doc_h, "only a runtime document is left unswept"
+
+
+@pytest.mark.parametrize("prev", [_FAIR_PREV, None])
+def test_FAIRNESS_with_no_receipts_anywhere_the_trees_still_go_first(monkeypatch, prev):
+    """The first night (nobody swept last time), or a calendar with no previous session (``None``): the
+    resume bit says nothing, so the old order was the caller's, and a caller that lists runtime documents
+    first starved the trees."""
+    trees, docs = _fair_trees(10), [_doc_of(r) for r in _distinct_rows(25)]
+    order, receipt = _fair_sweep(monkeypatch, docs + trees, prev=prev)
+    assert order[:10] == _handles(trees)
+    assert receipt["swept"] == 10 + 24 and receipt["unswept"] == 1
+
+
+def test_FAIRNESS_within_each_tier_the_last_runs_tail_still_leads(monkeypatch):
+    """The resume bit still orders INSIDE each tier (the tail the last run never reached leads it), and the
+    caller's order survives inside each bucket (`sorted` is stable). No deadline pressure here."""
+    trees, docs = _fair_trees(4), [_doc_of(r) for r in _distinct_rows(4)]
+    th, dh = _handles(trees), _handles(docs)
+    swept_last_time = {th[0], th[2], dh[1]}
+    order, receipt = _fair_sweep(monkeypatch, docs + trees, receipts=swept_last_time, doc_cost_s=60)
+    assert order == [th[1], th[3], th[0], th[2], dh[0], dh[2], dh[3], dh[1]]
+    assert receipt["stopped_early"] is False
+
+
+def test_FAIRNESS_the_live_cycles_order_puts_trees_first_too():
+    """The five-minute cycle hands its own predicate (`swept_last_time`); the tier is still the first key."""
+    trees, docs = _fair_trees(2), [_doc_of(r) for r in _distinct_rows(2)]
+    entries = [(ev._scannable_handle(d), d) for d in (docs + trees)]
+    out = ev._resume_order(entries, "D", SESSION, swept_last_time=lambda h: h == entries[2][0])
+    assert [h for h, _ in out] == [entries[3][0], entries[2][0], entries[0][0], entries[1][0]]
