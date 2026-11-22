@@ -4803,6 +4803,22 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "",
+      "path": "/api/research/setup-history",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/setup-history/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{ticker}",
       "path": "/api/research/short-data/{ticker}",
       "rate_limit_family": "research",
