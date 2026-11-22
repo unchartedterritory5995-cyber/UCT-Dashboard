@@ -1205,6 +1205,10 @@
    "call": "request.earnings()"
   },
   {
+   "name": "request.financial",
+   "call": "request.financial()"
+  },
+  {
    "name": "request.splits",
    "call": "request.splits()"
   },
