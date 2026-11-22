@@ -83,6 +83,11 @@ NODE_ENTRIES = {
     "app/src/components/chart/engine/ast/parse.js": "run from source by node (tools/ast_conformance.py)",
     "app/src/pages/cot/cotFactsEntry.js": "bundled into app/dist/cot-facts.cjs, which api/services/cot_prewarm.py runs",
     "app/src/pages/optionsFlow/flowFactsEntry.js": "bundled into app/dist/flow-facts.cjs; web runs it whenever FLOW_READS_PROXY_ENABLED is off",
+    # Track 6 (2026-11-22, coordinator ruling (a)): web builds the pine-runtime server bundle (Dockerfile.web) and its
+    # runtime client signs every run with the bundle's sha256 (pine_runtime_client.caller_identity). A change to any file
+    # of its closure rebuilds pine-runtime; unless web rebuilds too, every run is refused runtime:server-engine-mismatch
+    # until web's next deploy.
+    "app/src/components/chart/engine/runtime/serverEntry.js": "bundled into app/dist-server/pine-runtime.mjs, whose sha256 web's runtime client signs every run with",
 }
 
 #: What decides how those bundles are built and which packages node finds.
@@ -91,6 +96,7 @@ BUILD_FILES = {
     "app/package-lock.json": "the exact esbuild and jsep versions",
     "app/scripts/build-cot-facts.mjs": "builds app/dist/cot-facts.cjs",
     "app/scripts/build-flow-facts.mjs": "builds app/dist/flow-facts.cjs",
+    "app/scripts/build-pine-runtime.mjs": "builds app/dist-server/pine-runtime.mjs (track 6: web hashes it into its engine identity)",
 }
 
 #: Python files that mention a path under app/ and do NOT open it while `web` serves. Each needs a reason.
