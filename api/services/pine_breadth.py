@@ -19,17 +19,18 @@ declining of the same session. The short spellings (`USI:ADV`, `USI:DECL`, `USI:
 alike. Volume spellings (`UVOL`, `DVOL`, `TVOL`, and the Nasdaq ones) are NOT served: UCT holds no up / down volume
 series (unit B3).
 
-LICENCE. The family is `uct_breadth` in the Pine data catalog, whose pair (`massive`, `derived_analytics`) is held
-at R (ESC-03, an open owner question). Members are refused by the catalog's own sentence until it moves; an ADMIN
-may read the values while the stage is dark, to grade them against the capture (operator use, not member display).
+LICENCE. The family is `uct_breadth` in the Pine data catalog, whose pair (`massive`, `derived_analytics`, T-11)
+reads LA for member display since ESC-03 was ANSWERED BY THE OWNER 2026-11-22 (it was held at R until then). The
+catalog's decision is read live per request: a refusing licence still refuses a member by the catalog's own
+sentence. An ADMIN reads the values while the stage is dark, to grade them against the capture.
 
 THE LANE (the #2422 pattern). A cold read of one metric's whole history is a ~9 s database walk, so a request never
 makes it: rows come from the in-process copy, then the disk snapshot `<PINE_BREADTH_DIR>/<universe>-<metric>.json`
 (temp + os.replace), else the answer is `pending` and ONE background refresh is queued (2 workers, deduplicated).
 A copy older than `TTL_S` is served as it stands and kicks a refresh. A failed refresh keeps the copy we have.
 
-STAGE. `PINE_BREADTH_SUPPLY_ENABLED`: unset or `admins` -> admins only; `all` -> paid members (still refused by the
-licence until ESC-03 moves); `off` or an unknown value -> nobody (404).
+STAGE. `PINE_BREADTH_SUPPLY_ENABLED`: unset or `admins` -> admins only; `all` -> paid members (served while the
+catalog passes uct_breadth); `off` or an unknown value -> nobody (404).
 """
 from __future__ import annotations
 

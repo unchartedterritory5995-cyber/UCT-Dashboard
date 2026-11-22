@@ -12351,7 +12351,7 @@ from api.routers import pine_events as pine_events_router  # noqa: E402  (track 
 app.include_router(pine_events_router.router)  # /api/pine/events/{ticker}
 from api.routers import pine_financial as pine_financial_router  # noqa: E402  (track 4 F1a: a chart symbol's SEC-filing figures for Pine's request.financial, as UCT data, paid, DARK: admins unless PINE_FINANCIAL_SUPPLY_ENABLED=all)
 app.include_router(pine_financial_router.router)  # /api/pine/financial/{ticker}
-from api.routers import pine_breadth as pine_breadth_router  # noqa: E402  (track 4 B1: UCT breadth under USI: spellings for Pine, paid, DARK: admins unless PINE_BREADTH_SUPPLY_ENABLED=all; members refused by the licence until ESC-03)
+from api.routers import pine_breadth as pine_breadth_router  # noqa: E402  (track 4 B1: UCT breadth under USI: spellings for Pine, paid, DARK: admins unless PINE_BREADTH_SUPPLY_ENABLED=all; members served at `all` since ESC-03 was answered 2026-11-22)
 app.include_router(pine_breadth_router.router)  # /api/pine/breadth/{spelling}
 from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
 app.include_router(fed_watch_router.router)  # /api/research/fed-watch
