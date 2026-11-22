@@ -288,7 +288,19 @@ def test_the_command_names_each_answer_it_did_not_adopt_for_coverage():
 def test_the_real_detector_is_the_one_an_adoption_reads_and_formula_cases_are_not_asked():
     from api.services import pine_capabilities
     src = next(c for c in DATA["cases"] if c["lane"] == "script")["answer"]["script"]["pine"]
-    assert value_eval._capabilities_of(src) == pine_capabilities.capabilities_of(src)
+    assert G.capabilities_of(src) == pine_capabilities.capabilities_of(src)
     assert value_eval.held_by([{"id": "f", "lane": "formula", "answer": {"script": {"pine": "x"}}}, {"id": "w", "lane": "wall", "answer": {}}], _caps) == {}
     held = value_eval.held_by(DATA["cases"], pine_capabilities.capabilities_of)
     assert not set(DATA["capabilities_without_a_case"]) & set(held)                 # the list and the record agree today
+
+
+def test_an_adoption_handed_no_detector_asks_the_products_own():
+    scripts = copy.deepcopy([c for c in DATA["cases"] if c["lane"] == "script"])
+    only = value_eval.held_by(scripts, G.capabilities_of)
+    recorded_right = {c["id"] for c in scripts if c.get("recorded_verdict") != "wrong"}
+    cap, cid = next((cap, ids[0]) for cap, ids in sorted(only.items()) if len(ids) == 1 and ids[0] in recorded_right)
+    plain = '//@version=5' + chr(10) + 'indicator("x")' + chr(10) + 'plot(close)' + chr(10)
+    assert cap not in G.capabilities_of(plain)                                    # CONTROL: the plain script does not use it
+    notes = {}
+    adopted, kept = value_eval.adopt({"cases": scripts}, {"verdicts": {cid: "right"}, "answers": {cid: {"script": {"pine": plain}}}}, STAMPS, {}, notes)
+    assert adopted == [] and cid in kept and cap in notes["held_for_coverage"][cid]

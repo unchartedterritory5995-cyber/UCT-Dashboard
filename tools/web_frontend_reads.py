@@ -51,7 +51,7 @@ DECLARED_READS = {
     "app/src/components/chart/engine/ast/closedTable.json": "api/services/ast_lint.py, ast_table.py, conversation_preflight.py: the formula table",
     "app/src/components/chart/engine/ast/conceptVocabulary.json": "api/services/concept_vocabulary.py",
     "app/src/components/chart/engine/ast/symbolScope.json": "api/services/ast_bind.py",
-    "app/src/components/chart/engine/pineDataCatalog.json": "api/services/pine_data_catalog.py, read at runtime by api/services/pine_events.py (track 4 E1): which Pine data families may be fetched and served, and their disclosure sentences",
+    "app/src/components/chart/engine/pineDataCatalog.json": "api/services/pine_data_catalog.py, read at runtime by api/services/pine_events.py (track 4 E1) and api/services/pine_financial.py (track 4 F1a): which Pine data families may be fetched and served, their disclosure sentences, and the request.financial field map",
     "app/src/components/chart/builder/authoring/preflightRules.json": "api/services/conversation_preflight.py",
     "app/src/components/chart/builder/authoring/colourWords.json": "api/services/definition_conversation.py",
     "app/src/components/chart/builder/authoring/crossContext.json": "api/services/conversation_preflight.py, definition_conversation.py",

@@ -137,11 +137,6 @@ def record_of(case, answer):
     return kept
 
 
-def _capabilities_of(source):
-    from api.services import pine_capabilities                    # (only an adoption reads it: grading never does)
-    return pine_capabilities.capabilities_of(source)
-
-
 def held_by(cases, capabilities_of):
     """{capability id: the script cases whose recorded script uses it}."""
     out = {}
@@ -175,7 +170,7 @@ def adopt(data, report, stamps, fixed_by=None, notes=None, capabilities_of=None)
     Returns (adopted ids, kept ids). Mutates data."""
     adopted, kept = [], []
     fixed_by = fixed_by or {}
-    capabilities_of = capabilities_of or _capabilities_of
+    capabilities_of = capabilities_of or G.capabilities_of
     before = {case["id"]: copy.deepcopy(case) for case in data["cases"]}
     for case in data["cases"]:
         if report["verdicts"].get(case["id"]) == "right" and case["id"] in report["answers"]:

@@ -316,3 +316,10 @@ def rule_digest(case_id):
             h.update(repr(reading).encode())
             h.update(','.join('n' if not _ok(v) else '%.6g' % v for v in column).encode())
     return h.hexdigest()[:16]
+
+
+def capabilities_of(source):
+    """The capabilities a script uses, by the product's ONE detector. Asked by an adoption only (to keep what the
+    record covers); grading never reads it."""
+    from api.services import pine_capabilities
+    return pine_capabilities.capabilities_of(source)

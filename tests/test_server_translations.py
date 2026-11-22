@@ -118,3 +118,47 @@ def test_a_malformed_artifact_is_refused_at_the_door_and_an_unreadable_one_is_no
     with pytest.raises(ValueError):
         st.record(USER, DEF_ID, 3, 95, status="maybe", guard="g", reason="r")
     assert st.current_for({"user_id": USER}, engine=95) is None, "fail closed"
+
+
+# ── PR (3b): the enumerator picks exactly what engine_withheld_reason holds "until re-checked" ──
+
+def _held_row(kind="script", **kw):
+    meta = {"recurrenceOrigin": "pine", "engineVersion": 90}
+    definition = {"compute": {"kind": "ast", "ast": {"type": "num", "value": 1}}, "meta": meta}
+    if kind == "runtime":
+        definition = {"compute": {"kind": "runtime", "source": "//@version=6", "outputs": {"v": 0}}, "meta": meta}
+    row = {"user_id": USER, "def_id": DEF_ID, "version": 3, "definition": definition, "has_pine_source": True,
+           "engine_status": {"status": "refused", "engine": 90, "reason": "an older engine refused it"}}
+    row.update(kw)
+    return row
+
+
+_MATRIX = {
+    "held, awaiting today's engine": (_held_row(), True),
+    "refused by TODAY's engine": (_held_row(engine_status={"status": "refused", "engine": 95, "reason": "r"}), False),
+    "a runtime document": (_held_row(kind="runtime"), False),
+    "no script to re-translate (studio edit)": (_held_row(has_pine_source=False), False),
+    "accepted today but the write failed": (_held_row(engine_status={"status": "refused", "engine": 90, "reason": "r",
+                                                                     "write_failed_engine": 95}), False),
+    "not refused": (_held_row(engine_status={"status": "accepted", "engine": 90}), False),
+    "stamped at today's engine": (_held_row(definition={"compute": {"kind": "ast", "ast": {}},
+                                                        "meta": {"recurrenceOrigin": "pine", "engineVersion": 95}}), False),
+}
+
+
+@pytest.mark.parametrize("case", sorted(_MATRIX))
+def test_the_enumerator_picks_exactly_the_versions_held_until_re_checked(store, case):
+    row, picked = _MATRIX[case]
+    assert bool(st.held_for_retranslation([row], current=95)) is picked, case
+    why = ud.engine_withheld_reason(row, current=95) or ""
+    assert ("next time it is opened on a chart" in why) is picked, (case, why)   # the ONE authority agrees
+
+
+def test_the_enumerator_skips_a_version_that_already_has_an_artifact_and_is_bounded(store):
+    rows = [_held_row(version=v) for v in range(1, 6)]
+    st.record(USER, DEF_ID, 2, 95, status="refused", guard="g", reason="r")
+    picked = st.held_for_retranslation(rows, current=95)
+    assert [r["version"] for r in picked] == [1, 3, 4, 5], "an answered key is never re-sent"
+    assert [r["version"] for r in st.held_for_retranslation(rows, current=95, limit=2)] == [1, 3]
+    assert st.held_for_retranslation(rows, current=None) == [] or ud.SCRIPT_ENGINE_VERSION is not None
+    # mutants S5 (no engine check) and S6 (no artifact skip) -> RED here
