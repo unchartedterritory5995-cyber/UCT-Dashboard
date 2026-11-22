@@ -8923,6 +8923,9 @@ export class Resolver {
     this.readAt = undefined
     /** name → the mutator tokens found by the raw-token scan. */
     this.mutated = opts.mutated || new Map()
+    /** ⭐ (NUMBER PENDING, input-kind) whether that scan was handed in: only then is a `var` nothing reassigns known
+     *  to be one (`fixedVarBinding`); a Resolver built without it (the runtime frontend's) reads every `var` as before. */
+    this.mutatedKnown = !!opts.mutated
     /** name → the binding in scope where its own `[1]` was read: the SEED. */
     this.recurrenceSeeds = new Map()
     /** name → the location of the `[` that read it. ⛔ THE REFUSAL MUST LAND ON
@@ -10391,6 +10394,9 @@ export class Resolver {
     if (node.type === 'name') {
       if (own(this.table.series, node.name)) return null
       const bound = this.env && this.env.get(node.name)
+      // ⭐ (input-kind) a `var` nothing reassigns is its initializer: the member's knob reaches it as the plain binding's
+      const fixed = this.fixedVarBinding(bound, node.name)
+      if (fixed) return this.enumInputCallOf(fixed.node, depth + 1)
       if (!bound || bound.kind !== 'expr') return null
       return this.enumInputCallOf(bound.node, depth + 1)
     }
@@ -10451,6 +10457,26 @@ export class Resolver {
     return cOp(want ? '==' : '!=', [leaf, cNum(idx)])
   }
 
+  /** ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22, the input-kind unit) — A `var` NOTHING REASSIGNS, HOLDING AN
+   *  `input.string`, READ AS TEXT, IS ITS INITIALIZER. `var anchor = input.string(defval = "Session", options = [...])` holds its initializer on every bar
+   *  (Pine runs it once, on bar 0, and nothing writes it again), so as a `switch` subject or an `==` operand it is the
+   *  same text the plain binding `anchor = input.string(...)` is, which this door has always read. ⚰️ The `var` form
+   *  refused: `pine:input-kind` at `anchor == "Earnings"` and `pine:block` at `switch anchor` (TradingView's own VWAP
+   *  shape, written by two corpus scripts), while the runtime lane already read it (`dataTextInputVars`). An expr binding
+   *  over the seed, or null. ⛔ Only where the script-wide reassignment scan was handed in (`mutatedKnown`) and names no
+   *  write of it anywhere (`neverReassignedVarSeed`, the predicate the plot and paint lanes share). ⛔ Asked only by the
+   *  readers that return text fixed before bar 0 (`stringValueOf`) or an `input.string` call (`enumInputCallOf`): a `var`
+   *  holding per-bar text (`var t = close > open ? "up" : "down"`) holds bar 0's value and is never read per bar. */
+  fixedVarBinding(bound, name) {
+    if (!this.mutatedKnown || !bound || bound.kind !== 'state') return null
+    const seed = neverReassignedVarSeed(bound, name, this.mutated)
+    // ⛔ SCOPE: the `var`'s initializer IS an `input.string` (the input-kind unit). A `var` holding a string literal
+    // (`var string TF2 = "Fixed Timeframe"`) would read the same way, soundly, but it reaches far more scripts than this
+    // unit measured (563 corpus scripts declare a `var` with text, against 41 with an `input.string`): it is its own unit.
+    if (!seed || !isStringInputCall(seed.node)) return null
+    return { kind: 'expr', node: seed.node, env: seed.env || this.env }
+  }
+
   stringValueOf(node, depth = 0) {
     if (!node || typeof node !== 'object' || depth > 64) return null
     if (node.type === 'string') return node.value
@@ -10473,6 +10499,9 @@ export class Resolver {
     if (node.type === 'name') {
       if (own(this.table.series, node.name)) return null
       const bound = this.env.get(node.name)
+      // ⭐ (input-kind) a `var` nothing reassigns is its initializer's text
+      const fixed = this.fixedVarBinding(bound, node.name)
+      if (fixed) return this.stringValueOf(fixed.node, depth + 1)
       if (bound) {
         return this.throughBinding(bound, (b) => this.stringValueOf(b.node, depth + 1))
       }
@@ -17962,6 +17991,12 @@ export const STRING_VAR_NA_SEED_WHY = 'still holding the `na` it was declared wi
  *  for a number in a text slot) is not reopened. Measured on mtf-key-levels-support-and-resistance:
  *  `var DNoSpaces = " "`, read through `DailySpaces + "pdOpen"`, dropped 22 name labels TradingView draws
  *  (" pdOpen", " pdHigh" ...): the per-bar lane drew 3 labels of TradingView's 27, now 25. */
+/** ⭐ (NUMBER PENDING, input-kind) a `var` whose initializer IS an `input.string` names its knob the way the plain binding
+ *  does (`stampInputName`), so a member's choice reaches it (`Resolver.enumCompare`) where it is read as text
+ *  (`Resolver.fixedVarBinding`). ⛔ `input.string` only: every other `var` input is left exactly as it was. */
+const isStringInputCall = (node) => !!(node && node.type === 'call' && node.name === 'input.string')
+const stampVarStringInput = (seed, name) => (isStringInputCall(seed) ? stampInputName(seed, name) : seed)
+
 const markStringVarSeed = (toks, seed) => {
   const typed = toks && toks[1]
   const declaredString = typed && typed.kind === 'ident' && typed.value === 'string'
@@ -20540,7 +20575,7 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         throw new PineRefusal('pine:state',
           `${REFUSALS['pine:state']} — \`${first.value}\``, locate(first))
       }
-      const seedNode = markStringVarSeed(toks, parseWholeExpression(toks.slice(eqAt + 1)))
+      const seedNode = stampVarStringInput(markStringVarSeed(toks, parseWholeExpression(toks.slice(eqAt + 1))), varName.value)
       env.set(varName.value, stateBinding(
         seedNode, new Map(env), selfNode(varName), new Map(env), locate(varName)))
       // ⭐ C48 — a `var` declared in a block that does not run on every bar keeps
@@ -29142,7 +29177,7 @@ function translatePineResult(source, opts = {}) {
         }
         try {
           env.set(nameTok.value, stateBinding(
-            markStringVarSeed(toks, parseWholeExpression(toks.slice(eq + 1))),
+            stampVarStringInput(markStringVarSeed(toks, parseWholeExpression(toks.slice(eq + 1))), nameTok.value),
             new Map(env), selfNode(nameTok), new Map(env), locate(nameTok)))
           hangSwitch()
           continue
