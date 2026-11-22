@@ -470,8 +470,10 @@ export function mapPlots(vendorValuePlots, ourPlots) {
 // their own, or the plot is INCONCLUSIVE ("too few vendor-sourced bars"). GUARD 2: provenance equality never counts
 // toward a MATCH tally or capability admission (`evidence_engine.py` shows each row's provenance share beside it).
 export const PROVENANCE_CLASSES = Object.freeze(['index:fmp', 'index:fmp-rollup', 'index:etf-fill'])
-/** ⛔ GUARD 1's floor: the Yahoo-sourced steady bars a provenance-bearing plot must compare on their own. */
-export const PROVENANCE_SOURCED_MIN = 100
+/** ⛔ GUARD 1's floor: the Yahoo-sourced steady bars a provenance-bearing plot must compare on their own. 200: it
+ *  MIRRORS the floor the L10 value cases use (coordinator ruling 2026-11-22), so there is one number for "enough bars to
+ *  speak". A capture whose Yahoo window holds fewer is INCONCLUSIVE by Guard 1, which is correct. */
+export const PROVENANCE_SOURCED_MIN = 200
 
 const _ET_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit',
   day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
