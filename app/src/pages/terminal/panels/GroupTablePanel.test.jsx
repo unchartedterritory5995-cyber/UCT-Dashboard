@@ -6,7 +6,10 @@
 //   * loading, not built yet, the first build running, a failed read (Retry), a paywall, signed out, an answer
 //     it cannot read, nothing in it; the fundamentals switched off (only breadth is left, and a set of only
 //     fundamentals says so with a way out); closes that stopped short; a build running;
-//   * the as-of is the session the figures were worked out for; axe; no hard-coded colour.
+//   * the as-of is the session the figures were worked out for; axe; no hard-coded colour;
+//   * GRPS RANK (2026-11-22): every group's place now with the stocks it rests on (too few gives the count), the places
+//     moved, the year's best and worst, the 3-month rank and the small line, best first; sortable (the line is not); the
+//     movers strip (a name opens GRP); the pick writes the command; a rank not on hand says so with a way back; axe.
 // The fixtures are the route's real shape (api/services/group_stats.py) with invented figures.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react'
@@ -20,6 +23,7 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import GroupTablePanel from './GroupTablePanel'
 import { groupStatsUrl } from './groupStatsModel'
+import { groupDrillCommand } from './groupDrillModel'
 import { COMPUTING, INDUSTRY_BOARD, NOT_BUILT, SECTOR_BOARD } from './__fixtures__/groupStatsFixture'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
@@ -223,6 +227,105 @@ describe('GRPS states', () => {
     expect(screen.getByTestId('terminal-grps-lagging').textContent).toContain('stopped short')
     expect(screen.getByTestId('terminal-grps-refreshing').textContent).toContain('these are the last figures')
   })
+})
+
+describe('GRPS RANK: the weekly rank (2026-11-22)', () => {
+  it('⭐ every group\'s place now, the places moved, the year\'s best and worst, the 3-month rank and the small line, best first', async () => {
+    serve({ [SECTORS]: SECTOR_BOARD })
+    renderPanel({ view: 'rank' })
+    await screen.findByTestId('terminal-grps-table')
+    expect(heads()).toEqual(['Sector', 'Rank now', '4-wk change', '13-wk change', '52-wk change', 'Year best / worst', 'Rank by 3-month', 'Weekly rank, 1 yr'])
+    expect(names()).toEqual(['Technology', 'Energy', 'Utilities'])
+    expect(screen.getByTestId('terminal-grps-table').getAttribute('aria-label')).toBe('Every sector, weekly rank, by Rank now, best first')
+    expect(cellsOf('Technology').slice(1, 7)).toEqual(['1st of 2 | 50 stocks', '+1 | was 2nd', '+1 | was 2nd', '0 | was 1st', '1st / 2nd | 53 weeks ranked',
+      '2nd of 2 | 50 stocks'])
+    expect(cellsOf('Utilities').slice(1, 3)).toEqual(['3 with prices', ''])
+    const svg = within(screen.getByTestId('terminal-grps-row-Technology')).getByRole('img')
+    expect(svg.getAttribute('aria-label')).toMatch(/^Rank by the median 6-month change each week, Jun 7, 2030 to Jun 4, 2031, .+ latest 1st of 2\.$/)
+    expect(screen.getByTestId('terminal-grps-row-Utilities').textContent).toContain('no line')
+    expect(screen.getByTestId('terminal-grps-lede').textContent).toContain('by the median 6-month price change of its stocks, week by week for a year')
+    const method = screen.getByTestId('terminal-grps-method').textContent
+    expect(method).toContain('with at least 5 stocks priced that week')
+    expect(method).toContain('126 stored sessions (about six months)')
+    expect(method).toContain('each week uses only the closes up to that day')
+    expect(method).toContain('(survivorship)')
+  })
+
+  it('sorts by any rank column (a place best first, a change highest first), a blank last; the line is not a sort', async () => {
+    serve({ [SECTORS]: SECTOR_BOARD })
+    renderPanel({ view: 'rank' })
+    await screen.findByTestId('terminal-grps-table')
+    const th = (key) => screen.getByTestId(`terminal-grps-sort-${key}`).closest('th')
+    expect(th('r:now').getAttribute('aria-sort')).toBe('ascending')
+    fireEvent.click(screen.getByTestId('terminal-grps-sort-r:now'))
+    expect(names()).toEqual(['Energy', 'Technology', 'Utilities'])
+    fireEvent.click(screen.getByTestId('terminal-grps-sort-r:w4'))
+    expect(names()).toEqual(['Technology', 'Energy', 'Utilities'])
+    expect(th('r:w4').getAttribute('aria-sort')).toBe('descending')
+    fireEvent.click(screen.getByTestId('terminal-grps-sort-r:m3'))
+    expect(names()).toEqual(['Energy', 'Technology', 'Utilities'])
+    expect(screen.queryByTestId('terminal-grps-sort-r:line')).toBeNull()
+  })
+
+  it('the movers strip: the most places climbed and fallen over 4 and 13 weeks; a name opens GRP', async () => {
+    serve({ [INDUSTRIES]: INDUSTRY_BOARD })
+    const { open } = renderPanel({ kind: 'industry', view: 'rank' })
+    await screen.findByTestId('terminal-grps-table')
+    const w4 = screen.getByTestId('terminal-grps-movers-w4')
+    expect(screen.getByTestId('terminal-grps-movers-w4-up').textContent).toMatch(/^Over 4 weeks, climbed most: Semiconductors \+12 to 5th, climbed 12 places/)
+    expect(screen.getByTestId('terminal-grps-movers-w4-down').textContent).toMatch(/^Over 4 weeks, fell most: Oil & Gas E&P -10 to 120th, fell 10 places/)
+    expect(within(w4).getByTestId('terminal-grps-mover-Semiconductors').getAttribute('title'))
+      .toBe('climbed 12 places: from 17th of 138 on May 9, 2031 to 5th of 140')
+    expect(screen.getByTestId('terminal-grps-movers-w13').textContent).toContain('Oil & Gas E&P -45 to 120th')
+    fireEvent.click(within(w4).getByRole('button', { name: /Open the stocks of Semiconductors/ }))
+    expect(open).toHaveBeenLastCalledWith(groupDrillCommand({ kind: 'industry', name: 'Semiconductors' }))
+    expect(names()).toEqual(['Semiconductors', 'Oil & Gas E&P'])
+    cleanup()
+    serve({ [SECTORS]: { ...SECTOR_BOARD, groups: SECTOR_BOARD.groups.map((g) => ({ ...g, rank: g.rank && { ...g.rank, m6: { ...g.rank.m6, w4: null, w13: null } } })) } })
+    renderPanel({ view: 'rank' })
+    expect((await screen.findByTestId('terminal-grps-movers-none')).textContent).toContain('No sector moved places')
+  })
+
+  it('picking the rank writes the command and opens best first; leaving it goes back to the name', async () => {
+    serve({ [SECTORS]: SECTOR_BOARD })
+    const { rerun } = renderPanel()
+    await screen.findByTestId('terminal-grps-table')
+    expect(screen.queryByTestId('terminal-grps-movers')).toBeNull()
+    fireEvent.change(screen.getByTestId('terminal-grps-view'), { target: { value: 'rank' } })
+    expect(rerun).toHaveBeenLastCalledWith('GRPS RANK')
+    expect(screen.getByTestId('terminal-grps-table').getAttribute('data-sort')).toBe('r:now:asc')
+    expect(screen.getByTestId('terminal-grps-movers')).toBeTruthy()
+    fireEvent.change(screen.getByTestId('terminal-grps-view'), { target: { value: 'breadth' } })
+    expect(screen.getByTestId('terminal-grps-table').getAttribute('data-sort')).toBe('name:asc')
+    expect(screen.queryByTestId('terminal-grps-movers')).toBeNull()
+  })
+
+  it('a rank not on hand says so with a way back; the filings switched off do not hide it', async () => {
+    const pending = { ...SECTOR_BOARD, sources: { ...SECTOR_BOARD.sources, rank: { state: 'pending', dates: [] } },
+      groups: SECTOR_BOARD.groups.map((g) => ({ ...g, rank: null })) }
+    serve({ [SECTORS]: pending })
+    const { rerun } = renderPanel({ view: 'rank' })
+    const st = await screen.findByTestId('terminal-grps-rank-state')
+    expect(st.textContent).toContain('appears after the next evening build')
+    expect(screen.queryByTestId('terminal-grps-table')).toBeNull()
+    expect(screen.queryByTestId('terminal-grps-movers')).toBeNull()
+    fireEvent.click(within(st).getByRole('button', { name: 'Show the overview' }))
+    expect(rerun).toHaveBeenLastCalledWith('GRPS')
+    expect(heads()[1]).toBe('Revenue growth')
+    cleanup()
+    serve({ [SECTORS]: { ...SECTOR_BOARD, sources: { ...SECTOR_BOARD.sources, fundamentals: { state: 'off' } } } })
+    renderPanel({ view: 'rank' })
+    await screen.findByTestId('terminal-grps-table')
+    expect(heads()).toHaveLength(8)
+    expect(screen.queryByTestId('terminal-grps-fund-state')).toBeNull()
+  })
+
+  it('the rank view with its movers passes axe (WCAG A and AA)', async () => {
+    serve({ [INDUSTRIES]: INDUSTRY_BOARD })
+    renderPanel({ kind: 'industry', view: 'rank' })
+    await screen.findByTestId('terminal-grps-movers')
+    await expectNoAxeViolations(document.body.firstElementChild)
+  }, 60_000)
 })
 
 describe('GRPS follows the member\'s theme and passes axe', () => {
