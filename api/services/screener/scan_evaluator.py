@@ -2373,9 +2373,10 @@ def _resume_order(entries: Sequence[tuple], tf_code: str, as_of: int, *,
 
     ⛔ `sorted` IS STABLE AND THAT IS LOAD-BEARING. Within each bucket the
     caller's order survives untouched; on a first run, or one where every
-    definition was swept last time, this is the identity. It must never sort,
-    sample or shuffle beyond the one bit it is entitled to — `apply_symbol_cap`
-    refuses the same thing for the same reason ("the order is the caller's").
+    definition was swept last time, this is the identity within each tier. It must
+    never sort, sample or shuffle beyond the two bits it is entitled to (the tier,
+    then the resume bit) — `apply_symbol_cap` refuses the same thing for the same
+    reason ("the order is the caller's").
 
     ⭐ `swept_last_time` IS THE LIVE CYCLE'S ARTIFACT, AND IT REPLACES THE PROBE
     RATHER THAN JOINING IT. The nightly sweep's artifact is a `scan_coverage` row
@@ -2383,14 +2384,28 @@ def _resume_order(entries: Sequence[tuple], tf_code: str, as_of: int, *,
     read, so it hands in a predicate over the LAST CYCLE'S OWN `swept` list -- the
     thing it does write. When it does, the previous-session probe is not consulted
     at all: two answers to "was this reached last time" is exactly the second
-    authority this function's one bit of ordering cannot afford.
+    authority this function's resume bit cannot afford.
+
+    ⛔⛔ AND A MEMBER'S TREE DEFINITION IS NEVER QUEUED BEHIND A RUNTIME DOCUMENT
+    (2026-11-22, fairness). The first key is `_sweep_tier`, the resume bit only the
+    second. A runtime document has no receipt for the previous session far more often
+    than a tree does (it is new, the Q2 cap rotated it out, or a withheld symbol kept
+    its receipt from being filed), so on the resume bit alone the runtime documents led
+    the night. Measured on the 2026-11-22 catch-up: 25 runtime documents at ~9-10 min
+    each sorted ahead of 41 members' tree definitions, about four hours of service work
+    in front of them against a 05:00-09:00 ET window, so the trees would never have
+    been reached. A tree costs seconds; a runtime document costs minutes. Trees first
+    means a sweep with any number of runtime documents still completes every tree the
+    trees alone would have completed. Within each tier the order is exactly the old
+    one: the resume bit, then the caller's order (`sorted` is stable).
     """
     if swept_last_time is not None:
-        return sorted(entries, key=lambda item: 1 if swept_last_time(item[0]) else 0)
+        return sorted(entries, key=lambda item: (_sweep_tier(item),
+                                                 1 if swept_last_time(item[0]) else 0))
 
     prev = previous_session(as_of)
     if prev is None:
-        return list(entries)
+        return sorted(entries, key=_sweep_tier)
 
     def _swept_last_time(item) -> int:
         try:
@@ -2400,7 +2415,14 @@ def _resume_order(entries: Sequence[tuple], tf_code: str, as_of: int, *,
             # the front: being swept twice is free, being starved is the bug.
             return 0
 
-    return sorted(entries, key=_swept_last_time)
+    return sorted(entries, key=lambda item: (_sweep_tier(item), _swept_last_time(item)))
+
+
+def _sweep_tier(item: tuple) -> int:
+    """The FIRST key of the sweep's order: ``0`` for a member's tree definition, ``1``
+    for a runtime document (`runtime_definitions.is_runtime`, the one authority on the
+    kind). See `_resume_order`: runtime documents never go ahead of trees."""
+    return 1 if runtime_definitions.is_runtime(item[1]) else 0
 
 
 def _resolve_entries(definitions: Sequence[Any]) -> tuple:
