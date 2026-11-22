@@ -8,6 +8,10 @@ test of that finding rests on. Now it keeps them: the wrong answer is APPENDED t
 Held here:
   * THE INVARIANT, for every case that carries a `found`: each specimen is graded WRONG and the record is graded
     RIGHT, by the SAME rule. A specimen the rule would pass is no specimen; a record the rule fails is no fix;
+  * ⭐ (e95 unit 1, coordinator ruling 2026-11-22; a schema extension for the studio's review) A SPECIMEN THE ENGINE
+    FIXED: a wrong answer whose ONLY fault was what the engine drew carries `engine_fixed: {by, since_engine}`, and the
+    invariant is two-sided: such a specimen must grade RIGHT through the engine (the engine fix, held), every other
+    specimen WRONG. The specimen stays the regression test it was: an engine that blanks it again turns this red;
   * adopt keeps the specimen, appends (a second defect on the same case is a second entry, the first is untouched),
     and adopts a fixed defect ONLY with what fixed it (a PR and its merge commit): without that the old record stands;
   * `grade.specimen(case)` is the wrong answer a finding rests on, before and after adoption;
@@ -32,6 +36,8 @@ DATA = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json
 CASES = DATA["cases"]
 WITH_FOUND = [c for c in CASES if c.get("found")]
 KEYS = {"answer", "defect", "recorded", "fixed_by"}
+#: ⭐ e95 unit 1 — the one optional key: a specimen the ENGINE fixed (`{by, since_engine}`), graded RIGHT, never WRONG
+ENGINE_FIXED = "engine_fixed"
 FIX = {"pr": "#0000", "merge": "0123456789abcdef"}
 STAMPS = {"started": "2026-11-22T10:00Z", "front": "abcdef0123", "model": "m"}
 #: a wall case and an answer its rule passes, and one it fails (the yes that names nothing)
@@ -171,7 +177,11 @@ def test_every_specimen_in_the_fixture_is_whole_and_names_what_fixed_it():
     for case in WITH_FOUND:
         assert isinstance(case["found"], list) and case["found"], case["id"]
         for kept in case["found"]:
-            assert set(kept) == KEYS, (case["id"], sorted(kept))
+            assert set(kept) - {ENGINE_FIXED} == KEYS, (case["id"], sorted(kept))
+            if ENGINE_FIXED in kept:
+                ef = kept[ENGINE_FIXED]
+                assert set(ef) == {"by", "since_engine"} and str(ef["by"]).strip(), (case["id"], ef)
+                assert isinstance(ef["since_engine"], int) and ef["since_engine"] > 0, (case["id"], ef)
             assert len(kept["defect"] or "") > 80 and (kept["recorded"] or {}).get("front"), case["id"]
             assert str(kept["fixed_by"].get("pr", "")).startswith("#") and len(str(kept["fixed_by"].get("merge", ""))) >= 10, case["id"]
         assert case.get("recorded_verdict") != "wrong" or "defect" in case       # a case wrong AGAIN still names its standing defect
@@ -186,6 +196,8 @@ def test_THE_INVARIANT_each_specimen_is_WRONG_and_its_record_RIGHT_by_the_same_r
             continue                                               # through the engine, below
         for kept in case["found"]:
             got = G.grade_case(case, kept["answer"])
+            # ⛔ an engine fix is a statement about the ENGINE: only a script-lane specimen (graded through it) may carry one
+            assert ENGINE_FIXED not in kept, (case["id"], "an engine fix on a lane the engine does not draw")
             assert got["verdict"] == "wrong", (case["id"], "a specimen the rule passes is no specimen", got["lines"])
         if case.get("recorded_verdict") != "wrong":
             got = G.grade_case(case)
@@ -202,6 +214,12 @@ def test_THE_INVARIANT_for_the_script_cases_through_the_engine():
         try:
             for kept in case["found"]:
                 got = script_grade.grade_all([case], {case["id"]: kept["answer"]})[case["id"]]
+                if ENGINE_FIXED in kept:
+                    # ⭐ the engine fixed what made this answer wrong: through the engine it is RIGHT now, and an engine
+                    # that blanks it again (a reverted fix) turns it back to WRONG, here
+                    assert got["verdict"] == "right", (case["id"], "a specimen the engine fixed is wrong again",
+                                                       kept[ENGINE_FIXED], got["lines"])
+                    continue
                 assert got["verdict"] == "wrong", (case["id"], "a specimen the rule passes is no specimen", got["lines"])
             if case.get("recorded_verdict") != "wrong":
                 got = script_grade.grade_all([case])[case["id"]]

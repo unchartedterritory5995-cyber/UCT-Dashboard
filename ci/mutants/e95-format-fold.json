@@ -82,6 +82,15 @@
    "to": "const why = formatNumberWhy(n, fmt) || 'format:withheld'\n    textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
    "expectRed": "never silent"
+  },
+  {
+   "id": "FF10",
+   "mutant": "the host lane never uses the fold again: table-format-01's engine-fixed specimen (its computed format) must grade WRONG once more, and the value-case invariant go red (coordinator ruling 2026-11-22)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "if (folded && (typeof folded.text === 'string' || typeof folded.named === 'string')) {",
+   "to": "if (false && folded && (typeof folded.text === 'string' || typeof folded.named === 'string')) {",
+   "rail": "python -m pytest -q -p no:warnings tests/test_value_cases_found.py -k script_cases_through_the_engine",
+   "expectRed": "a specimen the engine fixed is wrong again"
   }
  ]
 }
