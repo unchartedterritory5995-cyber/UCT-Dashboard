@@ -99,17 +99,27 @@ describe('W9-T14 host parity of the record', () => {
     expect(sealRunResults(CODEC, IDENTITY, [job], [served]).ok).toBe(true)
   })
 
-  it('DARK: with the gate off, the service refuses pine:strategy-call and serves no record', () => {
+  // TRACK 6, G-BROKER (coordinator ruling D5, 2026-11-22): the service's job adapter arms the broker ITSELF for a
+  // job that asks for '#strategy' (profile backtest) and for no other; nothing here turns the gate on.
+  it('G-BROKER: a #strategy job runs the broker with the gate never set by the caller, and it is off after', () => {
     gate(false)
     const served = runJob(serverRt, DOC, jobOf())
+    expect(served.status).toBe('ok')
+    expect(JSON.parse(served.strategy).trades.length).toBe(2)
+    expect(serverRt.strategyBrokerGateOn()).toBe(false)
+  })
+
+  it('DARK for any other job: the same strategy document asked for a plot refuses pine:strategy-call, no record', () => {
+    gate(false)
+    const served = runJob(serverRt, DOC, { ...jobOf(), want: ['p'] })
     expect(served.status).toBe('withheld')
     expect(served.refusals[0].guard).toBe('pine:strategy-call')
     expect(Object.hasOwn(served, 'strategy')).toBe(false)
   })
 
-  it('r1 DARK: the sealed gate-off reply over the route ctx (no listing, the window) is the committed fixture', () => {
+  it('r1 DARK: the sealed reply of a PLOT job over the route ctx (no listing, the window) is the committed fixture', () => {
     gate(false)
-    const job = jobOf({ listing: false, window: 5000 })
+    const job = { ...jobOf({ listing: false, window: 5000 }), want: ['p'] }
     const { ms, ...served } = runJob(serverRt, DOC, job)
     const sealed = sealRunResults(CODEC, IDENTITY, [job], [served])
     expect(sealed.ok).toBe(true)
