@@ -19,6 +19,7 @@ threshold). Exit 1: something did. Exit 2: the run could not be graded.
 """
 from __future__ import annotations
 
+import copy
 import json
 import subprocess
 import sys
@@ -134,19 +135,78 @@ def record_of(case, answer):
     return kept
 
 
-def adopt(data, report, stamps):
+def held_by(cases, capabilities_of):
+    """{capability id: the script cases whose recorded script uses it}."""
+    out = {}
+    for case in cases:
+        script = (case.get("answer") or {}).get("script") if case.get("lane") == "script" else None
+        if isinstance(script, dict) and isinstance(script.get("pine"), str):
+            for cap in capabilities_of(script["pine"]):
+                out.setdefault(cap, []).append(case["id"])
+    return out
+
+
+def coverage_lines(held):
+    """What the command says of each right answer it did not adopt because the record would have lost a capability."""
+    return [f"NOT ADOPTED {cid}: right again, but its recorded script is the only case of {caps}; the old record stands"
+            for cid, caps in sorted((held or {}).items())]
+
+
+def adopt(data, report, stamps, fixed_by=None, notes=None, capabilities_of=None):
     """Make a run's RIGHT answers the record. A wrong or missing one is never adopted: the old record stands.
+
+    A FIXED DEFECT IS KEPT. A case recorded WRONG that the run gets right keeps its wrong answer as a specimen: it is
+    APPENDED to the case's `found` list as {answer, defect, recorded, fixed_by} (never overwritten: a later defect on
+    the same case is a second entry). Such a case is adopted only when `fixed_by` names what fixed it
+    ({case id: {"pr": "#2435", "merge": "<commit>"}}); without that its old record stands and it is returned in
+    `kept`.
+
+    A RE-RECORDING NEVER COSTS A CAPABILITY ITS ONLY CASE. Where adopting a right answer over a record that was
+    also right would leave a capability no recorded script uses, that case keeps its old record (it is returned in
+    `kept`, and `notes["held_for_coverage"]` says {case id: [capabilities]}). A fixed defect is always adopted. The
+    list `capabilities_without_a_case` is taken DOWN to what the record now holds, never up.
     Returns (adopted ids, kept ids). Mutates data."""
     adopted, kept = [], []
+    fixed_by = fixed_by or {}
+    capabilities_of = capabilities_of or G.capabilities_of
+    before = {case["id"]: copy.deepcopy(case) for case in data["cases"]}
     for case in data["cases"]:
         if report["verdicts"].get(case["id"]) == "right" and case["id"] in report["answers"]:
+            if case.get("recorded_verdict") == "wrong":
+                fix = fixed_by.get(case["id"])
+                if not (isinstance(fix, dict) and fix.get("pr") and fix.get("merge")):
+                    kept.append(case["id"])                        # a fixed defect is adopted only with what fixed it
+                    continue
+                case.setdefault("found", []).append({"answer": case["answer"], "defect": case.get("defect"),
+                                                     "recorded": case.get("recorded"), "fixed_by": {"pr": fix["pr"], "merge": fix["merge"]}})
             case["answer"] = record_of(case, report["answers"][case["id"]])
             case.pop("recorded_verdict", None)                     # a known defect the door now gets right is one no longer
             case.pop("defect", None)
-            case["recorded"] = {"on": str(stamps.get("started") or "")[:10], "front": stamps.get("front"), "model": stamps.get("model")}
+            # the build THIS answer was given on (a run is recorded in passes, hours apart, on different builds)
+            own = (stamps.get("fronts") or {}).get(case["id"]) or {}
+            case["recorded"] = {"on": str(own.get("at") or stamps.get("started") or "")[:10], "front": own.get("front") or stamps.get("front"),
+                                "model": stamps.get("model")}
             adopted.append(case["id"])
         else:
             kept.append(case["id"])
+    was, held = held_by(before.values(), capabilities_of), {}
+    while True:
+        lost = sorted(set(was) - set(held_by(data["cases"], capabilities_of)))
+        # only a RE-recording gives way (the old record was right too); a fixed defect is adopted whatever it uses
+        back = {cid: [cap for cap in lost if cid in was[cap]] for cap in lost for cid in was[cap]
+                if cid in adopted and cid not in held and before[cid].get("recorded_verdict") != "wrong"}
+        if not back:
+            break
+        held.update(back)
+        data["cases"][:] = [before[case["id"]] if case["id"] in back else case for case in data["cases"]]
+    adopted = [cid for cid in adopted if cid not in held]
+    kept += sorted(held)
+    if isinstance(notes, dict):
+        notes["held_for_coverage"] = held
+    listed = data.get("capabilities_without_a_case")
+    if isinstance(listed, list):
+        now = held_by(data["cases"], capabilities_of)
+        data["capabilities_without_a_case"] = [cap for cap in listed if cap not in now]
     return adopted, kept
 
 
@@ -247,9 +307,21 @@ def main(argv):
         if not stamps.get("front"):
             print("NOT ADOPTED: the run folder has no run.json naming the build it was recorded on")
             return 2
-        adopted, kept = adopt(data, report, stamps)
+        fronts_path = run_dir / "fronts.json"
+        if fronts_path.exists():
+            stamps["fronts"] = json.loads(fronts_path.read_text(encoding="utf-8"))
+        fixed_by = {}
+        if "--fixed-by" in argv:
+            fixed_by = json.loads(Path(argv[argv.index("--fixed-by") + 1]).read_text(encoding="utf-8"))
+        unnamed = [c["id"] for c in data["cases"] if c.get("recorded_verdict") == "wrong" and report["verdicts"].get(c["id"]) == "right" and c["id"] not in fixed_by]
+        notes = {}
+        adopted, kept = adopt(data, report, stamps, fixed_by, notes)
         FIXTURE.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
         print(f"adopted {len(adopted)} right answers as the record (build {stamps['front']}); kept the old record for {len(kept)}")
+        if unnamed:
+            print(f"NOT ADOPTED, recorded WRONG and right in this run, with nothing in --fixed-by naming what fixed them: {unnamed}")
+        for line in coverage_lines(notes.get("held_for_coverage")):
+            print(line)
     if "--full" in argv:
         if not report["full_lanes"]:
             print("NO LANE WAS FULLY ANSWERED in this folder: the thresholds are neither written nor tested")
