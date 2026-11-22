@@ -48,7 +48,8 @@ def test_the_vocabulary_is_core_plus_census_features_plus_objects_plus_runtime_o
     assert set(pc.COLLECTION_IDS) == {"collections:array", "collections:matrix", "collections:map"}
     assert set(pc.OBJ_IDS) == {"obj:line", "obj:label", "obj:box", "obj:table", "obj:linefill",
                                "obj:polyline", "obj:delete", "obj:getter", "obj:collection"}
-    assert set(pc.RUNTIME_ONLY_IDS) == {"varip", "calc-bars", "realtime-state", "request-other", "request-events"}
+    assert set(pc.RUNTIME_ONLY_IDS) == {"varip", "calc-bars", "realtime-state", "request-other", "request-events",
+                                        "request-financial"}
     assert pc.UNREADABLE not in pc.CAPABILITY_IDS
 
 
@@ -108,6 +109,9 @@ def test_the_server_import_never_reads_the_front_end_order_set():
     ("x = request.earnings(syminfo.tickerid, earnings.actual)\n", {"request-events", "request-other"}),
     ("x = request . dividends(syminfo.tickerid)\n", {"request-events", "request-other"}),
     ("x = request.splits(syminfo.tickerid, splits.denominator)\n", {"request-events", "request-other"}),
+    # T4 F1b: the chart's own figures from company filings (UCT data), beside `request-other`
+    ("x = request.financial(syminfo.tickerid, 'TOTAL_REVENUE', 'FQ')\n", {"request-financial", "request-other"}),
+    ("x = request . financial(syminfo.tickerid, 'TOTAL_EQUITY', 'FQ')\n", {"request-financial", "request-other"}),
     ("plot(barstate.isconfirmed ? close : na)\n", {"realtime-state"}),
     ("plot(timenow)\n", {"realtime-state"}),
     # C1: the collection namespaces, and generics through `<ns>.new<T>`
@@ -191,6 +195,7 @@ def test_the_repaint_classifiers_reads_reach_the_runtime_only_ids():
     reads (derived from its rule table): a read it names past the run's bar is never silent."""
     got = pc.capabilities_of(V5 + "x = request.financial('NASDAQ:AAPL', 'EPS', 'FQ')\nplot(x)\n")
     assert "request-other" in got
+    assert "request-financial" in got
 
 
 def test_the_method_call_namespaces_are_never_wider_than_the_census():

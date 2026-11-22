@@ -35,6 +35,8 @@ import {
 } from './requestSupply.js'
 import { withOvernightTail, REQUEST_OVERNIGHT_GUARD } from './overnightTail.js'
 import { EVENTS_KEY } from '../pineEvents.js'
+// ⭐⭐ T4 F1b — the chart's financial entry (`request.financial`, read through the same other-symbol supply)
+import { FINANCIAL_KEY } from '../pineFinancial.js'
 import { symbolConstants, minContractOf } from '../ast/bind.js'
 // ⭐ RS RATING L3 — the symbol fields the fold reads, from the one list that names them.
 import { bindSymbolOf, bindConstsFor } from '../ast/bind.js'
@@ -426,7 +428,7 @@ function runKey(def, ctx, withSupply = true) {
 function requestSupplyKey(compute, ctx) {
   // ⭐⭐ T4 E2 — and the chart's own corporate events (`request.earnings` / `dividends` / `splits`, read through the same
   // other-symbol supply under `pineEvents.EVENTS_KEY`)
-  if (!/\brequest\.(security|seed|earnings|dividends|splits)\b/.test(String((compute && compute.source) || ''))) return ''
+  if (!/\brequest\.(security|seed|earnings|dividends|splits|financial)\b/.test(String((compute && compute.source) || ''))) return ''
   const sec = ctx && ctx.secondary && typeof ctx.secondary.entries === 'function' ? ctx.secondary : null
   if (!sec) return '|req-'
   const parts = []
@@ -438,7 +440,7 @@ function requestSupplyKey(compute, ctx) {
     parts.push(`${k}:${(e && e.status) || ''}:${bars.length}:${last ? `${last.t}/${last.c}` : ''}`
       + `${e && e.newestBarIsForming === true ? ':forming' : ''}`
       // ⭐⭐ T4 E2 — the events entry (no bars): its answer's refresh and its symbol
-      + `${k === EVENTS_KEY && e ? `:r${e.rev || ''}:s${e.symbol || ''}` : ''}`)
+      + `${(k === EVENTS_KEY || k === FINANCIAL_KEY) && e ? `:r${e.rev || ''}:s${e.symbol || ''}` : ''}`)
   }
   return `|req${parts.sort().join(',')}`
 }
@@ -809,7 +811,7 @@ export function knownFromBeforeBuild(def, rows, ctx, opts = {}, seen = null) {
   if (_knownFromProbeOff || !Array.isArray(rows) || rows.length < 2) return 0
   const compute = (def && def.compute) || {}
   const source = String(compute.source || '')
-  if (!/\brequest\.(security|seed|earnings|dividends|splits)\b/.test(source) || !depthGapPossible(rows, ctx)) return 0
+  if (!/\brequest\.(security|seed|earnings|dividends|splits|financial)\b/.test(source) || !depthGapPossible(rows, ctx)) return 0
   if (opts.slidingWindow === true || !!(ctx && ctx.framed === true)) return 0
   try {
     const slides = false

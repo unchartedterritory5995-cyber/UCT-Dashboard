@@ -31,6 +31,9 @@
 
 import { isoDay, isoWeekDayOf, isoDayPlus, SERIES_UNKNOWN_BEFORE_FIRST, SERIES_EVENT_RECORD, EVENT_BEFORE_RECORD_CODE } from './ast/interpret'
 import { isTradingDay } from '../../../lib/marketClock/sessionCalendar.js'
+// ⭐⭐ T4 F1b — `request.financial` rides these rails (its own module owns what a financial read is)
+import { financialCallParts, financialReadOf, financialLabel, financialStaticRefusal, financialSpellingReason,
+  financialUnknownSentence, FINANCIAL_TICKER } from './pineFinancial.js'
 
 /** The venue the rewrite's marked node records (`pine.js::OTHER_SYMBOL_SINK`). A member's string can never spell a
  *  venue that begins with `@` (`pineSymbolSpelling` reads letters only), so only the rewrite reaches it. */
@@ -39,7 +42,10 @@ export const EVENT_VENUE = '@event'
 export const EVENTS_KEY = '@events'
 /** The event ticker: `EV-<field code>-<gaps><lookahead>` (served pairings) or `EV-<field code>-X<why>` (refused by
  *  name: `S` another symbol, `C` another currency, `A` an argument the door cannot read). TICKER_SHAPE-safe (≤ 10). */
-export const EVENT_TICKER = /^EV-([EDS][A-Z])-([01][01]|X[SCA])$/
+const EVENT_ONLY_TICKER = /^EV-([EDS][A-Z])-([01][01]|X[SCA])$/
+/** ⭐ T4 F1b — and a financial read's (`pineFinancial.js::FINANCIAL_TICKER`, `EV-F<id>-<period><gaps>`): every name the
+ *  engine gives a data read, so a script that spells one is refused by name and none is ever fetched as a symbol. */
+export const EVENT_TICKER = /^EV-(?:[EDS][A-Z]-(?:[01][01]|X[SCA])|F[A-Z]{2}-(?:[QTYHD][01]|X[SCAP]))$/
 /** The non-enumerable record on a placed event series (`interpret.js` owns the key: its per-bar mask reads it). */
 export { SERIES_EVENT_RECORD, EVENT_BEFORE_RECORD_CODE }
 
@@ -104,6 +110,8 @@ function currencyIsIdentity(v) {
  * constant reads `EV-<F>X-XA`, refused by name.
  */
 export function eventCallParts(node) {
+  // ⭐⭐ T4 F1b — `request.financial` (`pineFinancial.js::financialCallParts`)
+  if (node && node.type === 'call' && node.name === 'request.financial') return financialCallParts(node)
   if (!node || node.type !== 'call' || !Object.prototype.hasOwnProperty.call(CALLS, node.name)) return null
   const family = CALLS[node.name]
   const args = node.args || []
@@ -132,7 +140,9 @@ export function eventCallParts(node) {
 
 /** The ticker a read of ANOTHER symbol's events records (the translator decides that, `pine.js::otherSymbolOf`). */
 export function eventOtherSymbolTicker(ticker) {
-  const m = EVENT_TICKER.exec(String(ticker || ''))
+  const f = FINANCIAL_TICKER.exec(String(ticker || ''))
+  if (f) return !f[2].startsWith('X') ? `EV-F${f[1]}-XS` : ticker
+  const m = EVENT_ONLY_TICKER.exec(String(ticker || ''))
   return m && !m[2].startsWith('X') ? `EV-${m[1]}-XS` : ticker
 }
 
@@ -140,7 +150,10 @@ export function eventOtherSymbolTicker(ticker) {
 
 /** `{code, family, field, gaps, lookahead, refused}` for an event ticker, or null. */
 export function eventReadOf(ticker) {
-  const m = EVENT_TICKER.exec(String(ticker == null ? '' : ticker).trim().toUpperCase())
+  // ⭐⭐ T4 F1b — a financial read (`family: 'financial'`, its `field` the id, its `period`, `lookahead: null`)
+  const fin = financialReadOf(ticker)
+  if (fin) return fin
+  const m = EVENT_ONLY_TICKER.exec(String(ticker == null ? '' : ticker).trim().toUpperCase())
   if (!m || !EVENT_FIELDS[m[1]]) return null
   const f = EVENT_FIELDS[m[1]]
   const pair = m[2].startsWith('X') ? null : m[2]
@@ -152,6 +165,7 @@ export const isEventTicker = (ticker) => eventReadOf(ticker) !== null
 
 /** How a member reads an event read in a sentence: `request.earnings` (`earnings.actual`, gaps on, lookahead off). */
 export function eventLabel(ticker) {
+  if (financialReadOf(ticker)) return financialLabel(ticker)
   const r = eventReadOf(ticker)
   if (!r) return `\`${ticker}\``
   const parts = []
@@ -164,6 +178,8 @@ export function eventLabel(ticker) {
 /** ⭐ THE STATIC REFUSAL of an event read (decided by its ticker alone, before any chart): `{code, reason}`, or null
  *  for a read the bind decides. `codes` is `otherSymbols.js::OTHER_SYMBOL_REFUSAL` (passed in: no import cycle). */
 export function eventStaticRefusal(ticker, codes) {
+  // ⭐⭐ T4 F1b — a financial read is refused by its own codes and words
+  if (FINANCIAL_TICKER.test(String(ticker || '').trim().toUpperCase())) return financialStaticRefusal(ticker, codes)
   const r = eventReadOf(ticker)
   if (!r) return { code: codes.EVENT_SPELLING, reason: eventSpellingReason(ticker) }
   if (r.refused) return { code: r.field ? codes.EVENT_FIELD : codes.EVENT_ARGUMENT, reason: `${r.refused}, so what this indicator draws from it is not computed.` }
@@ -186,6 +202,7 @@ export function eventStaticRefusal(ticker, codes) {
 
 /** The sentence for an event ticker a script WROTE as a symbol string (never the rewrite's marked read). */
 export function eventSpellingReason(ticker) {
+  if (FINANCIAL_TICKER.test(String(ticker || '').trim().toUpperCase())) return financialSpellingReason(ticker)
   return `\`${String(ticker).trim().toUpperCase()}\` is the name UCT gives a corporate-events read inside its engine, `
     + 'not a symbol; a script reads earnings, dividends and splits with `request.earnings`, `request.dividends` and '
     + '`request.splits`, so what this indicator draws from it is not computed.'
@@ -312,7 +329,10 @@ export function markEventSeries(series, record) {
 
 /** ⭐ The per-bar words for a bar before our record (`OTHER_SYMBOL_REFUSAL.EVENT_BEFORE_RECORD`): `from` is the first
  *  bar drawn (its day), `window` the earnings window's cut where it decided that (`EARNINGS_WINDOW_FROM`). */
-export function eventBeforeRecordSentence({ family, symbol, knownFrom, from, window }) {
+export function eventBeforeRecordSentence(record) {
+  // ⭐⭐ T4 F1b — a financial read's withheld bars, in its own words
+  if (record && record.family === 'financial') return financialUnknownSentence(record)
+  const { family, symbol, knownFrom, from, window } = record || {}
   const what = family === 'earnings' ? 'earnings reports' : family
   const at = from || knownFrom || 'the first event UCT holds'
   if (window) {

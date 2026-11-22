@@ -178,13 +178,10 @@
    "kind": "data",
    "cannot": "A fundamental number on the chart (sales, margins)",
    "source": "//@version=5\nindicator(\"probe\")\ns = request.financial(syminfo.tickerid, \"TOTAL_REVENUE\", \"FQ\")\nplot(s, \"Revenue\")\n",
-   "runs": false,
+   "runs": true,
    "lane": "host",
-   "state": "not-yet",
-   "headline": "Not yet: Data from another symbol or timeframe",
-   "guard": "pine:request",
-   "family": "request",
-   "why": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.financial`"
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart, with 1 note"
   },
   {
    "id": "dividends-data",

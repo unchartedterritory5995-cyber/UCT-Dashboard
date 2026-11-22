@@ -44,6 +44,8 @@ import { setRuntimeDoorClock, RUNTIME_REQUEST_WITHHELD_KEY } from '../../runtime
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY, isEventRequest } from '../../otherSymbols'
 import { EVENTS_KEY } from '../../pineEvents'
+// ⭐⭐ T4 F1b — the chart's own financial figures (UCT data, never graded as TradingView's)
+import { FINANCIAL_KEY, financialReadOf } from '../../pineFinancial'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import { storeExchangeOfCapture } from './storeExchange.js'
 import { createFakeChart } from '../fakeChart'
@@ -372,6 +374,16 @@ export function recordedSupplyOf(capture, dir = _supplyDir) {
     }
     if (!at.held) bad('events is licensed vendor data and is read from the held supply directory only, never a committed record')
   }
+  // ⭐⭐ T4 F1b — the chart symbol's financial figures as OUR server's financial door answered them beside the capture:
+  // held, never committed (member-specific supply)
+  if (rec.financial !== undefined) {
+    const fin = rec.financial
+    if (!fin || typeof fin !== 'object' || !fin.doc || typeof fin.doc !== 'object') bad('financial.doc is not the financial door\'s answer')
+    if (!(typeof fin.source === 'string' && fin.source && typeof fin.servedBy === 'string' && fin.servedBy)) {
+      bad('financial records an answer without naming `source` and `servedBy`')
+    }
+    if (!at.held) bad('financial is read from the held supply directory only, never a committed record')
+  }
   for (const [field, e] of Object.entries(rec.symbol || {})) {
     if (!CLASSIFICATION_PROBE_KEY[field]) bad(`symbol.${field} is not a classification field`)
     if (!e || typeof e.value !== 'string' || !e.value) bad(`symbol.${field} carries no value`)
@@ -438,6 +450,12 @@ function recordedStoreOf(capture) {
   return e ? { securityType: e.value } : {}
 }
 
+/** ⭐⭐ T4 F1b — `[{name, source}]` for each UCT-data read a document makes (today `request.financial`), else []. */
+export function uctDataReadsOf(def) {
+  const reads = otherSymbolRequestsOf(def).filter(({ ticker, spellings }) => isEventRequest(ticker, spellings) && financialReadOf(ticker))
+  return reads.length ? [{ name: 'request.financial', source: 'UCT data (company filings), GET /api/pine/financial/<symbol>' }] : []
+}
+
 /** The classification fields the recorded supply feeds, and the committed capture each cites. */
 function recordedClassificationOf(capture) {
   const rec = recordedSupplyOf(capture)
@@ -466,7 +484,7 @@ export function otherSymbolSupply(def, capture) {
   const unrecorded = []
   // ⭐⭐ T4 E2 — the chart's own corporate events: ONE entry, the events door's answer for the capture's symbol, under
   // the key the chart files it (`pineEvents.EVENTS_KEY`), never a bars entry
-  if (requests.some(({ ticker, spellings }) => isEventRequest(ticker, spellings))) {
+  if (requests.some(({ ticker, spellings }) => isEventRequest(ticker, spellings) && !financialReadOf(ticker))) {
     const ev = recorded && recorded.events
     if (ev && ev.doc) {
       const sym = String(ev.symbol || ev.doc.symbol || '').toUpperCase()
@@ -478,6 +496,21 @@ export function otherSymbolSupply(def, capture) {
       secondary.set(EVENTS_KEY, { status: 'error', symbol: '' })
       notes.push('corporate events: not supplied: our server\'s events answer was not recorded beside this capture')
       unrecorded.push('corporate events: our server\'s events answer was not recorded beside this capture')
+    }
+  }
+  // ⭐⭐ T4 F1b — the chart's own financial figures: ONE entry, the financial door's answer for the capture's symbol
+  if (requests.some(({ ticker, spellings }) => isEventRequest(ticker, spellings) && financialReadOf(ticker))) {
+    const fin = recorded && recorded.financial
+    if (fin && fin.doc) {
+      const sym = String(fin.symbol || fin.doc.symbol || '').toUpperCase()
+      secondary.set(FINANCIAL_KEY, { status: 'available', financial: fin.doc, symbol: sym,
+        rev: fin.doc.refreshedAt == null ? '' : String(fin.doc.refreshedAt) })
+      notes.push(`financial figures: what our server's financial door answered for ${sym} (UCT data from company `
+        + `filings), recorded beside the capture (${fin.servedBy}; ${fin.source}; held, never committed)`)
+    } else {
+      secondary.set(FINANCIAL_KEY, { status: 'error', symbol: '' })
+      notes.push('financial figures: not supplied: our server\'s financial answer was not recorded beside this capture')
+      unrecorded.push('financial figures: our server\'s financial answer was not recorded beside this capture')
     }
   }
   for (const { ticker, spellings } of requests) {
@@ -2121,6 +2154,9 @@ function runOurSideOnTheParityClock(capture) {
       // (`substitutedInputsOf`); `[]` until a lane feeds one.
       // ⭐ RS RATING L3 — `syminfo.industry` / `sector`, fed the capture's value (`symbolOf`).
       substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol, capture)),
+      // ⭐⭐ T4 F1b — the reads this run answered from UCT data and NEVER from the vendor's figures: the grade names
+      // them and never counts MATCH (`compare.mjs::uctDataOf`)
+      uctData: uctDataReadsOf(def),
       // ⭐⭐ (2026-11-17) — a broker document's run: its record, or why it published none (`strategyRunOf`);
       // null for every other document. Graded by `strategyLane.js`.
       strategy,

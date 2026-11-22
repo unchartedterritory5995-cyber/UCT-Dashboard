@@ -106,6 +106,8 @@ import { bindConstsFor } from './ast/bind'
 // ⭐⭐ T4 E2 — `otherSymbolLabel`: an event read's own label; the words for a bar before UCT's record of an event family
 import { isPineOriginDoc, otherSymbolPending, staticOtherSymbolMessage, otherSymbolLabel } from './otherSymbols'
 import { eventBeforeRecordSentence, EVENT_BEFORE_RECORD_CODE } from './pineEvents'
+// ⭐⭐ T4 F1b — a financial read's withheld bars, under their own code
+import { FINANCIAL_UNKNOWN_CODE, beforeRecordCodeOf } from './ast/interpret'
 // ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
 // are the SHARED EVALUABILITY GATE's (`evaluability.js`); this module applies them.
 import { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE } from './evaluability'
@@ -2374,13 +2376,17 @@ export function externalReadNotices(def, columns) {
     // ⭐⭐ T4 E2 — the bars before UCT's record of an event family are named per bar (`EVENT_BEFORE_RECORD_CODE`); where a
     // plot carries them, the member reads why, once per family
     const held = withheldBarsReport(columns) || {}
-    if (Object.values(held).some((codes) => codes && codes[EVENT_BEFORE_RECORD_CODE])) {
+    // ⭐⭐ T4 F1b — and a financial read's (`FINANCIAL_UNKNOWN_CODE`), each record under its own code
+    const carried = new Set([EVENT_BEFORE_RECORD_CODE, FINANCIAL_UNKNOWN_CODE]
+      .filter((code) => Object.values(held).some((codes) => codes && codes[code])))
+    if (carried.size) {
       const said = new Set()
       for (const e of (other && other.events) || []) {
-        const reason = e ? eventBeforeRecordSentence(e) : null
+        const code = e ? beforeRecordCodeOf(e) : null
+        const reason = e && carried.has(code) ? eventBeforeRecordSentence(e) : null
         if (!reason || said.has(reason)) continue
         said.add(reason)
-        out.push({ code: EVENT_BEFORE_RECORD_CODE, reason })
+        out.push({ code, reason })
       }
     }
     // ⭐ review F1 — and every paint whose colour that refusal leaves undrawn, by its own name
