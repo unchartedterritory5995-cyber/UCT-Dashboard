@@ -1163,6 +1163,38 @@ def _cum_col(series: Sequence[float]) -> List[float]:
     return out
 
 
+def _vwap_anchor_col(src: Sequence[float], anchor: Sequence[float], volume: Sequence[float],
+                     dev: bool = False) -> List[float]:
+    """e95 (unit 2) -- Pine's anchored ``ta.vwap(source, anchor[, stdev_mult])``: the average (``vwapAnchor``) or
+    the standard deviation its bands are drawn from (``vwapAnchorDev``), summed FROM EACH RESET as TradingView's
+    published ``computeVWAP`` sums them. ``na`` before the first bar the anchor fires; an ``na`` price or volume
+    poisons the sums until the next reset; a zero volume total is ``na``; ``pow(x, 2)`` is ``x * x``.
+
+    ⛔ MIRROR OF ``interpret.js::vwapAnchorAccumulate`` (``FN.vwapAnchor`` / ``FN.vwapAnchorDev`` and the runtime's
+    ``CARRIED2.vwapAnchorPine`` / ``vwapAnchorDevPine``), operation for operation: held to it by
+    ``tests/test_vwap_anchor_parity.py``.
+    """
+    out = [NAN] * len(src)
+    s_pv = s_v = s_ppv = NAN
+    for i in range(len(src)):
+        a = anchor[i] if i < len(anchor) else NAN
+        p = float(src[i]) if isinstance(src[i], (int, float)) else NAN
+        v = float(volume[i]) if i < len(volume) and isinstance(volume[i], (int, float)) else NAN
+        pv = p * v
+        ppv = v * (p * p)
+        if isinstance(a, (int, float)) and math.isfinite(a) and a != 0:
+            s_pv, s_v, s_ppv = pv, v, ppv
+        else:
+            s_pv, s_v, s_ppv = pv + s_pv, v + s_v, ppv + s_ppv
+        vwap = s_pv / s_v if s_v > 0 else NAN
+        if not dev:
+            out[i] = vwap
+            continue
+        variance = s_ppv / s_v - vwap * vwap if s_v > 0 else NAN
+        out[i] = math.sqrt(0.0 if variance < 0 else variance) if not math.isnan(variance) else NAN
+    return out
+
+
 def _window_fn(name: str, reduce: Callable[[Sequence[float], int, int], float],
                span: Optional[Callable[[int], int]] = None):
     """⛔⛔ EVERY finite-window member goes through here, so a member CANNOT be
@@ -3150,6 +3182,9 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "stoch": _fn_stoch,
     # ENGINE 57 -- Pine's ``ta.stoch``, reached only through ``pine.js::PINE_CALL_SHAPES.stoch``.
     "stochPine": _stoch_pine_col,
+    # e95 -- Pine's anchored ``ta.vwap``, reached only through ``pine.js`` (``PINE_TUPLE_BUILTINS.vwap``).
+    "vwapAnchor": lambda src, anchor, volume: _vwap_anchor_col(src, anchor, volume),
+    "vwapAnchorDev": lambda src, anchor, volume: _vwap_anchor_col(src, anchor, volume, dev=True),
     "cci": _fn_cci,
     "williamsR": _fn_williams_r,
     "mfi": _fn_mfi,
