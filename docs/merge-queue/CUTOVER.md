@@ -8,8 +8,8 @@ Every step here is reversible with one switch (the last section).
 - [ ] AUDIT has answered the questions in `DESIGN.md` section 8 and reviewed the Agent pull request.
 - [ ] The Agent part is merged: Agent jobs run on `merge_group` for a queued pull request that touches an Agent
       path, and `agent-ci-required` is posted on the merge group's commit.
-- [ ] The Agent part was exercised by a real `merge_group` event in the rehearsal repo, including one entry that
-      fails and one that touches a self-protected path.
+- [x] The Agent part was exercised by real `merge_group` events in the rehearsal repo (2026-11-22, round 4, with a
+      stand-in for the 18 Agent jobs): pass, skip, fail and self-protected. Repeat it if #2501 changes the workflow.
 - [ ] The owner has said go for the switch-on.
 - [ ] No required check is flaky. Check the last 7 days of `master gate static checks` and `agent-ci-required`
       for a red that went green on a rerun with no change.
@@ -34,7 +34,7 @@ A weekend, or a weekday between 20:00 and 05:00 CT. Not while a worker or flow-w
    - `required_status_checks`: `agent-ci-required`, source GitHub Actions (integration 15368), not strict;
    - `merge_queue`: merge method MERGE, `max_entries_to_build` 5, `min_entries_to_merge` 1,
      `max_entries_to_merge` 5, `min_entries_to_merge_wait_minutes` 1, grouping ALLGREEN,
-     `check_response_timeout_minutes` 30.
+     `check_response_timeout_minutes` 60 (the Agent browser shards carry a 40-minute timeout).
 
    Rulesets 27828221 (no deletion, no force push) and 27829824 (`master gate static checks` required) stay as
    they are. Keeping the queue in its own ruleset is what makes rollback one switch.

@@ -48,6 +48,7 @@ with the `merge_queue` rule (merge method MERGE, 5 builds at once, groups of 1 t
 | Queued while its checks were running | Auto-merge was armed and the pull request joined the queue by itself 54 s later, when they passed. |
 | A required COMMIT STATUS posted through the API | Honoured on the merge group's commit: a `success` status let two entries land; a `failure` status removed its entry about 70 s after it was queued, without waiting for the other checks, and the entry behind was rebuilt and landed. This is how `agent-ci-required` is posted today. |
 | Required checks split over two rulesets | Both enforced: with the queue rule in one ruleset and a required check in another, an entry failing that check was removed and the next one landed. |
+| The Agent draft itself (#2501), round 4 | `agent-ci-queue.yml` and the deciding tools ran byte for byte on real merge groups, with a generated 18-job stand-in for `agent-ci.yml`: an Agent-path entry landed ("all 18 Agent jobs passed on the merge group's commit"), two plain entries landed ("no Agent paths changed"), a failing-Agent entry and a self-protected entry were removed. The real Agent suite has not run inside a merge group. |
 
 ## 3. Design
 
@@ -57,7 +58,8 @@ Today: no deletion, no force push (ruleset 27828221); `master gate static checks
 Added at cutover, in ONE NEW ruleset, so one switch turns the queue off and the two rulesets above stay as they are:
 
 - pull request required (0 approvals), which ends direct pushes to `master`;
-- merge queue: method merge, 5 builds at once, groups of 1 to 5, check timeout 30 minutes;
+- merge queue: method merge, 5 builds at once, groups of 1 to 5, check timeout 60 minutes (the Agent browser
+  shards carry a 40-minute timeout of their own);
 - required check `agent-ci-required`, pinned to GitHub Actions as its source (it exists as a commit status today;
   see 3.3). `master gate static checks` stays required through ruleset 27829824.
 
@@ -71,7 +73,10 @@ The repo setting "Allow auto-merge" is turned on.
 
 ### 3.3 Agent evidence inside the queue
 
-`agent-ci.yml` gets a `merge_group` trigger and one small `scope` job that runs first:
+A new workflow, `agent-ci-queue.yml`, runs on `merge_group`. Its `scope` job runs first, and its `agent` job calls
+`agent-ci.yml` (which gains only a `workflow_call` trigger: a `merge_group` trigger on `agent-ci.yml` itself would run
+every Agent job for every queued pull request, and `agent-ci-required.yml` would post over the verdict). Draft: #2501.
+
 
 1. `scope` reads the queued pull request's own diff (`merge_group.base_sha..head_sha`) and answers two
    questions with the code that already answers them today, taken from the default branch as
@@ -85,7 +90,7 @@ The repo setting "Allow auto-merge" is turned on.
 4. `agent-ci-required` is reported on the merge group's commit:
    - success when the queued pull request touches no Agent path;
    - success when every Agent job succeeded on that commit;
-   - failure otherwise, and always failure when `scope` found a self-protected path (3.4).
+   - failure otherwise, including a queued pull request that touches an Agent path AND a self-protected path (3.4).
 
 On a pull request `agent-ci-required` keeps today's meaning, so a pull request can enter the queue exactly
 when it can be merged today.
@@ -94,18 +99,30 @@ when it can be merged today.
 
 In a merge group the workflow file comes from the merge group's commit, so it includes the queued pull
 request's edits. That is weaker than today's re-arm, where a `repository_dispatch` always runs `master`'s
-copy. The design keeps today's rule rather than weakening it:
+copy. The design keeps today's rule, no weaker and no stricter:
 
-- `scope` fails the verdict for any queued pull request that touches a self-protected path, with the same
-  message as today: its own run could vouch for itself, so AUDIT's local evidence decides.
-- Such a pull request lands outside the queue, by an owner or admin, after AUDIT signs off. The ruleset's
-  bypass list holds that one role, for pull requests only.
-- For every other pull request, "touches no self-protected path" means its workflow files and evidence
-  tools are byte-identical to `master`'s, which is the property `dispatch-ref` protects today.
+- Today `self-protected-diff` exists only inside `verify`, so it only ever matters for a pull request that
+  needs Agent evidence. A pull request that edits some other workflow and touches no Agent path merges today
+  with `agent-ci-required` = success.
+- So in the queue: a queued pull request that touches an Agent path AND a self-protected path fails the
+  verdict, with today's message (its own run could vouch for itself, AUDIT's local evidence decides). It lands
+  outside the queue, by an owner or admin, after AUDIT signs off; the ruleset's bypass list holds that one role,
+  for pull requests only.
+- A queued pull request that touches a self-protected path and NO Agent path needs no Agent evidence and is
+  not held. The status description says how many self-protected paths it touched.
+- Measured on 2026-11-17 to 11-21 (718 merges): 47 touch a self-protected path, 35 of them touch no Agent
+  path, 12 touch both (about 2 to 3 a day, every one an edit to the Agent program's own CI machinery:
+  `agent-ci.yml`, `tools/agent_ci_*.py`, the shard timings, `app/scripts/chartLibraryPatch.mjs`).
+  The first draft of this section failed all 47; that would have sent about 9 ordinary pull requests a day to
+  an admin bypass.
+- `.github/workflows/agent-ci.yml` and `tools/agent_*` are in the Agent path list already, so editing them
+  always needs AUDIT. `agent-ci-queue.yml` and `agent-ci-required.yml` are NOT in that list today: question 8.1.
+- For every pull request that needs Agent evidence and passes, "touches no self-protected path" means its
+  workflow files and evidence tools are byte-identical to `master`'s, which is what `dispatch-ref` protects today.
 
 A stronger option exists if the organization's plan offers it: an organization ruleset with "Require
 workflows to pass", which runs a named workflow from a pinned ref whatever the pull request contains.
-Not verified; it needs an organization admin to look (question 8.1).
+Not verified; it needs an organization admin to look.
 
 ### 3.5 What retires, after AUDIT accepts
 
@@ -119,7 +136,7 @@ are no longer needed to merge. They stay in the tree until AUDIT says the queue'
 | `stale-base`, `stale-head`, `wrong-parents`, `tree-mismatch` | Held by construction: GitHub lands the commit it tested. Rehearsed, 4 of 4. |
 | `evidence-ref` | Not needed: there is no tool-built commit. The tested commit is GitHub's merge group commit. |
 | `dispatch-ref` | Replaced by 3.4: either the workflow is byte-identical to `master`'s, or the verdict fails. |
-| `self-protected-diff` | Kept, same lists, same outcome (AUDIT's local evidence decides). |
+| `self-protected-diff` | Kept, same lists, same reach (a pull request that needs Agent evidence), same outcome (AUDIT's local evidence decides). |
 | `missing-job`, `job-not-success`, `run-in-progress` | The verdict needs every Agent job and fails on any result but success. |
 | `missing-artifact`, `record-mismatch` | Records are still uploaded per job. Whether `verify` keeps reading them is question 8.3. |
 | `pr-not-open`, `pr-not-master`, `pr-not-agent-head`, `non-pr-event`, `no-run` | Not applicable: the queue only ever builds an open pull request into `master`, and runs the Agent jobs for any head that touches an Agent path. |
@@ -161,9 +178,12 @@ nothing else was changed. **Abort rule:** queue wait p90 over 45 minutes, or the
 
 ## 8. Questions for AUDIT
 
-1. **Self-protected pull requests (3.4).** Is "the verdict fails, AUDIT's local evidence decides, an admin
-   lands it outside the queue" acceptable? Or do you want the organization-level required workflow
-   investigated first?
+1. **Self-protected pull requests (3.4).** Two parts.
+   (a) Is "fails the verdict only when the pull request also touches an Agent path; then AUDIT's local evidence
+   decides and an admin lands it outside the queue" acceptable? It is today's rule carried over.
+   (b) `agent-ci-queue.yml` and `agent-ci-required.yml` are the queue's own judges and are not in the Agent path
+   list, so a pull request that edits only them is not held. Do you want them added to that list (your list,
+   not changed by this work), so that editing the judge always needs AUDIT?
 2. **Scope.** Inside the queue the Agent jobs run when the queued pull request touches an Agent path, which
    is today's rule for pull requests (`agent-ci-required`). A change outside those paths can still affect
    Agent behaviour; today that is caught by the deploy gate's full Agent run after the merge, and it would
