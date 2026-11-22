@@ -129,10 +129,25 @@ import { rescaleOf, rescalePriceFormat } from './rescale'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
 import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY, runHalfRefusedSentence, RUN_HALF_WHY_KEY } from './ast/objectLoss'
+import { runtimeFormingIdsOf } from './runtimeKill'
+
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 import { isRthBar } from '../barTime'
 import { windowedPoints, firstIndexAtOrAfter, PLOT_WINDOW_STEP } from './plotWindow'
 import { FIRST_PAINT_MAX } from '../../../utils/barsBackfill'
+
+/** The script a document's run half runs (`compute.runtimeObjects.source`, as `nativeRegistry.js::withRunHalf`
+ *  reads it), or null. */
+const runHalfSourceOf = (def) => {
+  const ro = def && def.compute && def.compute.runtimeObjects
+  return ro && typeof ro.source === 'string' && ro.source ? ro.source : null
+}
+/** The drawing note's sentence for a REFUSED run half (`runHalfOf`), or null. ⭐ G6 — a forming-bar refusal
+ *  says the reason the server named for THIS document's run-half script (`formingReason.js`). */
+export function runHalfWhyFor(def, runHalf) {
+  if (!runHalf || runHalf.state !== 'refused') return null
+  return runHalfRefusedSentence(runHalf.code, { formingIds: runtimeFormingIdsOf({ source: runHalfSourceOf(def) }) })
+}
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
  *  regular-session window (09:30 to the day's close, half-days included: barTime.isRthBar)
@@ -849,6 +864,41 @@ function sameOptions(a, b) {
     const kx = Object.keys(x)
     if (kx.length !== Object.keys(y).length) return false
     for (const j of kx) if (x[j] !== y[j]) return false
+  }
+  return true
+}
+
+/**
+ * True when handing `want` to `series.applyOptions` would change no option the series holds now, by the library's
+ * own `merge` (lightweight-charts 5.2.0): a key set to `undefined` is skipped, a `null` over a value already set is
+ * skipped, a plain object merges key by key into the object already there, and everything else (a number, a
+ * string, a function, an array) is ASSIGNED, so it is held when it is the same value (an array: the same items).
+ * Read off `series.options()` (the library's copy of what the series holds), never off what this file last sent:
+ * other code writes some of these options too. A series that cannot say what it holds holds nothing.
+ */
+export function optionsHeld(series, want) {
+  let now = null
+  try { now = series && typeof series.options === 'function' ? series.options() : null } catch { now = null }
+  return !!now && typeof now === 'object' && heldIn(now, want)
+}
+function heldIn(now, want) {
+  if (!want || typeof want !== 'object') return false
+  for (const k of Object.keys(want)) {
+    const w = want[k]
+    if (w === undefined) continue
+    const n = now[k]
+    if (w !== null && typeof w === 'object' && !Array.isArray(w) && n !== undefined) {
+      // merged key by key into what is there (which must itself be an object to take keys)
+      if (n === null || typeof n !== 'object' || Array.isArray(n) || !heldIn(n, w)) return false
+      continue
+    }
+    if (w === null && n !== undefined) continue
+    if (Array.isArray(w)) {
+      if (!Array.isArray(n) || n.length !== w.length) return false
+      for (let i = 0; i < w.length; i++) if (!Object.is(n[i], w[i])) return false
+      continue
+    }
+    if (!Object.is(n, w)) return false
   }
   return true
 }
@@ -1595,7 +1645,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const runHalf = carriesRunHalf(def) ? runHalfOf((runCols ? runCols.get(inst.instanceId) : null)
         || (computeMemo.get(inst.instanceId) || {}).cols) : null
       const runHalfDraws = !!(runHalf && (runHalf.state === 'served' || runHalf.state === 'pending'))
-      const runHalfWhy = runHalf && runHalf.state === 'refused' ? runHalfRefusedSentence(runHalf.code) : null
+      const runHalfWhy = runHalfWhyFor(def, runHalf)
       // the run's branch: a document whose run draws its objects, or a strategy with no host program
       // ⭐⭐ PARITY UNIT LF — a run-owned document that carries its clean host program beside the run
       // draws that program instead whenever the run holds back a family it draws (`drawsRunObjectsOn`)
@@ -2928,6 +2978,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
      *  scale id AND payload, so a second definition wanting a DIFFERENT scale
      *  state on the same axis still gets its write. */
     const scalesWritten = new Set()
+    /** A series write carrying `priceFormat` (the library's full update) went out THIS sync — see pass one. */
+    let fullUpdateCarried = false
 
     // ── TRAP #5: EVERY SERIES ON A SCALE MUST EXIST BEFORE ANY OF THEM HAS
     //             DATA. Measured at B5 Task 8; it cost 11,913 changed pixels.
@@ -3098,7 +3150,20 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // series object ends up in the new pane with `toBe` and an empty
         // `removeSeries` list.
         if (b.from && b.from.paneIndex !== paneIndex) attempt(() => series.moveToPane(paneIndex))
-        attempt(() => series.applyOptions(options))
+        // ⭐ (paint, 2026-11-21) A SET THE SERIES ALREADY HOLDS IS NOT HANDED BACK TO IT. Every `applyOptions`
+        // marks the series' pane view "options changed", and its next paint restyles EVERY item of the series
+        // (a search for its row plus two object spreads per item): measured on eight real-Chrome list flips of
+        // the production build, 8.3 ms of each flip's paint, for sets that had not changed. `optionsHeld` asks
+        // the series itself (`series.options()`), so a value another writer set since (the Group-only
+        // `visible`, the off-screen `lastValueVisible`) is not held and is put back exactly as before.
+        // ⚠️ ONE WRITE STILL GOES OUT PER SYNC (`fullUpdateCarried`): every set carries `priceFormat`, and a
+        // series `priceFormat` makes the library run a FULL update (a relayout: the price axes re-fit their
+        // labels and can shrink). The chart got that from every sync before, so it still does.
+        // Railed: binder.optionsHeld.test.js.
+        if (!optionsHeld(series, options) || (!fullUpdateCarried && options.priceFormat !== undefined)) {
+          attempt(() => series.applyOptions(options))
+          if (options.priceFormat !== undefined) fullUpdateCarried = true
+        }
       }
 
       prepared.push({ b, bi, paneIndex, scaleId, scaleOptions, series, guideHandles, options })

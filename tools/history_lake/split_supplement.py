@@ -28,6 +28,12 @@ This module reads the supplement and merges it into the vendor's rows, in the ve
   dividend plus the market), so raw continuity cannot speak; instead the second vendor's step (`second_vendor_step`)
   must be within DROP_TV_TOL of 1 as well as TradingView's. HARD CAP: the dropped factor lies within DROP_SMALL_CAP of 1,
   so this form can never drop a real split.
+- A RE-DATE (2026-11-21, heal569; ruled by patrick-2b): a `replaces` naming the vendor's row on ANOTHER date. HCSG
+  2010: the vendor files the 3:2 on 2010-11-12, but the raw day files (and TradingView) step on 11-15, so the table left
+  the 11-12 bar on the old basis: a one-bar x1.5 spike that never traded (BRBS 2021, BMI 2016 the same). An add on 11-15
+  would be skipped as the same event, so the row re-dates the vendor's. Refused unless the vendor's date lies within
+  REPLACE_NEAR_DAYS of the row's AND `evidence.vendor_date_raw_move` shows the raw day files continuous across the
+  vendor's date (the DROP continuity test, against the vendor's factor).
 Rails: tests/test_history_lake_split_supplement.py."""
 from __future__ import annotations
 
@@ -55,6 +61,8 @@ DROP_SMALL_CAP = 0.05
 #: A drop matches its vendor row within this many days, and no other row may name an event this close to it (the
 #: same-event window of daily_join.heal_splits).
 DROP_NEAR_DAYS = 3
+#: A RE-DATE (a row whose `replaces` names the vendor's row on ANOTHER date) stays inside the same-event window.
+REPLACE_NEAR_DAYS = DROP_NEAR_DAYS
 
 
 def _days(a: str, b: str) -> int:
@@ -101,6 +109,21 @@ def _load_drop(r: Mapping, where: str) -> dict:
             "drop": {k: d[k] for k in ("execution_date", "split_from", "split_to")}, "evidence": ev}
 
 
+def _check_redate(day: str, rep: Mapping, ev: Mapping, where: str) -> None:
+    """A RE-DATE moves the vendor's row onto the session the prices step: one event, so inside REPLACE_NEAR_DAYS, and
+    the raw day files continuous across the VENDOR's date (`vendor_date_raw_move`: the raw close's move from the
+    session before it), within DROP_RAW_CONTINUOUS and under half the vendor's factor (log terms): no event there."""
+    if _days(rep["execution_date"], day) > REPLACE_NEAR_DAYS:
+        raise SupplementError(f"{where}: replaces names the vendor's {rep['execution_date']} row, outside the "
+                              f"same-event window ({REPLACE_NEAR_DAYS} days): another event, never a re-date")
+    ratio = _F.split_ratio(rep["split_from"], rep["split_to"])
+    mv = ev.get("vendor_date_raw_move")
+    if not _num(mv) or abs(math.log(mv)) > DROP_RAW_CONTINUOUS or abs(math.log(mv)) >= abs(math.log(ratio)) / 2:
+        raise SupplementError(f"{where}: a re-date needs evidence.vendor_date_raw_move, the raw day files continuous "
+                              f"across the vendor's {rep['execution_date']} (|ln| within {DROP_RAW_CONTINUOUS} and "
+                              f"under half its factor), got {mv!r}")
+
+
 def _iso(d) -> bool:
     try:
         return isinstance(d, str) and len(d) == 10 and _dt.date.fromisoformat(d).isoformat() == d
@@ -131,6 +154,8 @@ def load(path: Path = SUPPLEMENT) -> List[dict]:
                     or _F.split_ratio(rep.get("split_from"), rep.get("split_to")) is None):
                 raise SupplementError(f"{where}: replaces must name a vendor row (ISO execution_date, split_from/split_to)")
             row["replaces"] = {k: rep[k] for k in ("execution_date", "split_from", "split_to")}
+            if rep["execution_date"] != r["execution_date"]:
+                _check_redate(r["execution_date"], row["replaces"], ev, where)
         out.append(row)
     for i, a in enumerate(out):                    # one event, one answer: a drop shares its event with nothing
         if "drop" not in a:

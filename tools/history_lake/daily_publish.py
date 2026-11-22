@@ -13,6 +13,11 @@ the rollout widens by publishing the manifest again, with no deploy.
 
   python tools/history_lake/daily_publish.py --version 1 --stage test --test ASB,BCPC,MNST,BALL
   python tools/history_lake/daily_publish.py --version 1 --stage all
+Republish corrected series for symbols already listed (their served history_rev rises, nobody else's moves):
+  python tools/history_lake/daily_publish.py --version <live+1> --stage all --expect-moved ONB,TMP --dry
+  python tools/history_lake/daily_publish.py --version <live+1> --stage all --expect-moved ONB,TMP
+A same-version re-upload cannot do it: the epoch (rev x 1e7) would not rise, and a pod never re-fetches a v<rev> file
+it already holds.
 Credentials: DATA_SYNC_* in the environment (the same as the history lake publish).
 """
 from __future__ import annotations
@@ -113,6 +118,52 @@ def moved(prev: dict | None, p: dict, version: int) -> dict:
             "retired_now": [s for s in new if s not in listed]}
 
 
+def bar_diff(old_bars: list | None, new_bars: list) -> dict:
+    """What a republish changes in one series: bars by date, published vs local."""
+    old = {b[0]: b for b in (old_bars or ())}
+    new = {b[0]: b for b in new_bars}
+    changed = sorted(d for d in new if d in old and old[d] != new[d])
+    worst = 0.0
+    for d in changed:
+        if old[d][4] and new[d][4]:
+            worst = max(worst, abs(new[d][4] / old[d][4] - 1))       # relative to what members were served
+    return {"published": len(old), "local": len(new), "changed": len(changed),
+            "added": len(set(new) - set(old)), "removed": len(set(old) - set(new)),
+            "first": changed[0] if changed else None, "last": changed[-1] if changed else None,
+            "max_close_change": round(worst, 6)}
+
+
+def mover_detail(prev: dict | None, p: dict, version: int, report: dict, recs: dict, client, bucket) -> dict:
+    """Per listed symbol this publish gives a new rev: its old and new rev (history_rev epoch = rev x 1e7) and what
+    changes in its bars against the PUBLISHED payload (read from the bucket, the bytes the pods hold)."""
+    prev = prev or {}
+    pv = int(prev.get("version") or 0)
+    p_revs = {str(k).upper(): int(v) for k, v in (prev.get("revs") or {}).items()}
+    p_syms = {str(s).upper() for s in (prev.get("symbols") or ())}
+    out = {}
+    for s in sorted(set(report["changed"]) | set(report["added"]) | set(report["relisted"])):
+        old_rev = int(p_revs.get(s) or pv) if s in p_syms else None
+        old_bars = None
+        if old_rev is not None:
+            try:
+                body = client.get_object(Bucket=bucket, Key=f"{PREFIX}v{old_rev}/{s}.json.gz")["Body"].read()
+                try:
+                    body = gzip.decompress(body)
+                except OSError:
+                    pass                                      # a client that already decoded ContentEncoding: gzip
+                old_bars = json.loads(body)["bars"]
+            except Exception:  # noqa: BLE001 - named, never guessed (a real publish refuses: hash_unreadable)
+                out[s] = {"old_rev": old_rev, "new_rev": p["revs"][s], "bars": None, "published_unreadable": True}
+                print(f"  {s} rev {old_rev} -> {p['revs'][s]} | published payload UNREADABLE", flush=True)
+                continue
+        out[s] = {"old_rev": old_rev, "new_rev": p["revs"][s], "bars": bar_diff(old_bars, recs[s]["bars"])}
+        b = out[s]["bars"]
+        print(f"  {s} rev {old_rev if old_rev is not None else '-'} -> {p['revs'][s]} | bars published {b['published']} "
+              f"local {b['local']}: changed {b['changed']} ({b['first']}..{b['last']}), added {b['added']}, "
+              f"removed {b['removed']}, max |close change| {b['max_close_change']:.4%}", flush=True)
+    return out
+
+
 def main(argv=None, client=None, bucket=None):
     import os
     ap = argparse.ArgumentParser()
@@ -123,6 +174,9 @@ def main(argv=None, client=None, bucket=None):
     ap.add_argument("--skip-upload", action="store_true", help="manifest only (the series are already up)")
     ap.add_argument("--dry", action="store_true", help="print exactly which symbols get a new rev; write nothing")
     ap.add_argument("--allow-retire", default="", help="EXACTLY the symbols this publish may retire (comma list)")
+    ap.add_argument("--expect-moved", default=None,
+                    help="EXACTLY the listed symbols this publish may give a new rev (changed, added or re-listed; "
+                         "comma list): refused unless the plan moves exactly these")
     a = ap.parse_args(argv)
     root = Path(a.root) / "daily-v1"
     serve = json.loads((root / "serve_list.json").read_text(encoding="utf-8"))
@@ -153,11 +207,24 @@ def main(argv=None, client=None, bucket=None):
     report["retire_refused"] = None if retiring == allowed else (
         f"refused: this plan retires {sorted(retiring)} but --allow-retire names {sorted(allowed)} "
         "(they must match exactly)")
+    # ⛔ FAIL CLOSED ON WHAT MOVES (2026-11-21): republishing a corrected series for a symbol the manifest already
+    # serves (TMP, ONB pre-floor fixes) must raise THAT symbol's history_rev and no other. Any other joined/ file that
+    # drifted from its published bytes would be re-epoched and published with it; the dry run shows it, this refuses it.
+    report["moved_refused"] = None
+    if a.expect_moved is not None:
+        want = {x.strip().upper() for x in a.expect_moved.split(",") if x.strip()}
+        moving = set(report["changed"]) | set(report["added"]) | set(report["relisted"])
+        if moving != want:
+            report["moved_refused"] = (f"refused: this plan moves {sorted(moving)} but --expect-moved names "
+                                       f"{sorted(want)} (they must match exactly)")
     print("plan", json.dumps(report), flush=True)
+    report["detail"] = mover_detail(prev, p, a.version, report, recs, s3, bucket)
     if a.dry:
         return report
     if report["retire_refused"]:
         raise SystemExit(report["retire_refused"])
+    if report["moved_refused"]:
+        raise SystemExit(report["moved_refused"])
     if failed:
         raise SystemExit(f"refused: the published payload of {len(failed)} listed symbols could not be read "
                          f"({failed[:8]}); they would re-epoch. Re-run, or retire them deliberately.")

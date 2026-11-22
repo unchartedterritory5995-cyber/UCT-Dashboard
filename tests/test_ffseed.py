@@ -38,6 +38,12 @@ def _offline_split_sources(monkeypatch):
     monkeypatch.setattr(data_sync, "get_bytes", lambda key: None)
 
 
+def _ALL(sym, tf):
+    """The completeness proof, waived: these tests pin the selection, the encoding and the bookkeeping.
+    tests/test_ffseed_intraday.py pins the proof and the refusal."""
+    return True
+
+
 def _ts(d: date, hh: int, mm: int) -> int:
     return int(datetime(d.year, d.month, d.day, hh, mm, tzinfo=ET).timestamp())
 
@@ -261,7 +267,7 @@ def test_a_sixty_minute_series_still_on_the_old_clock_grid_is_left_out(stored):
     old_grid = [(_ts(d, h, 0), 10.0, 10.5, 9.5, 10.25, 100) for d in days for h in range(4, 20)]
     stored[("ZZNEW", "60")] = new_grid
     stored[("ZZOLD", "60")] = old_grid
-    data, st = ffseed.build_tf("60", ["ZZNEW", "ZZOLD"], asof, "B", depth=1000)
+    data, st = ffseed.build_tf("60", ["ZZNEW", "ZZOLD"], asof, "B", depth=1000, complete=_ALL)
     assert st["old_grid"] == 1 and st["symbols"] == 1
     assert set(fmt.read_trailer(data)["symbols"]) == {"ZZNEW"}
 
@@ -288,7 +294,7 @@ def test_build_tf_counts_and_skips():
         ("BAD", "5"): [dict(b, o=0.123456789012) for b in good],
     }
     data, st = ffseed.build_tf("5", ["AAA", "BAD", "NONE", "SHORT", "STALE"], asof, "B1",
-                               depth=300, read=_fake_read(table))
+                               depth=300, read=_fake_read(table), complete=_ALL)
     assert (st["symbols"], st["no_bars"], st["stale"], st["inexact"], st["short"]) == (2, 1, 1, 1, 1)
     tr = fmt.read_trailer(data)
     assert set(tr["symbols"]) == {"AAA", "SHORT"}
@@ -306,7 +312,7 @@ def test_build_manifest_and_floor():
         table[(s, "60")] = [b for d in days[-160:] for b in _sixty_session_grid_day(d)]
     now = datetime(2026, 11, 19, 1, 31, tzinfo=ZoneInfo("UTC"))
     built = ffseed.build(tfs=["60", "D"], symbols=["AAA", "BBB"], asof=asof, read=_fake_read(table),
-                         now=now, min_symbols=2)
+                         now=now, min_symbols=2, complete=_ALL)
     m = built["manifest"]
     assert m["build"] == "20261119T0131Z" and m["asof"] == "2026-11-18" and m["kind"] == "ffseed"
     for tf in ("60", "D"):
@@ -331,11 +337,13 @@ def test_floor_is_per_timeframe(monkeypatch):
     monkeypatch.setattr(ffseed, "MIN_SYMBOLS", 2)
     for tf in ("1", "60", "D"):
         monkeypatch.delenv(f"FFSEED_MIN_SYMBOLS_{tf}", raising=False)
-    built = ffseed.build(tfs=["60", "D"], symbols=["AAA", "BBB"], asof=asof, read=_fake_read(table), now=now)
+    built = ffseed.build(tfs=["60", "D"], symbols=["AAA", "BBB"], asof=asof, read=_fake_read(table), now=now,
+                         complete=_ALL)
     assert set(built["manifest"]["tfs"]) == {"60", "D"}
     monkeypatch.setenv("FFSEED_MIN_SYMBOLS_D", "3")                 # D's own floor, above what it holds
     with pytest.raises(ffseed.SeedBuildError, match="tf D: 2 symbols, floor 3"):
-        ffseed.build(tfs=["60", "D"], symbols=["AAA", "BBB"], asof=asof, read=_fake_read(table), now=now)
+        ffseed.build(tfs=["60", "D"], symbols=["AAA", "BBB"], asof=asof, read=_fake_read(table), now=now,
+                     complete=_ALL)
     assert ffseed.floor_for("60") == 2                               # untouched: the global floor
     assert ffseed.floor_for("1") == ffseed.MIN_SYMBOLS_BY_TF["1"]    # 1m: its own default
     monkeypatch.setenv("FFSEED_MIN_SYMBOLS_1", "5")

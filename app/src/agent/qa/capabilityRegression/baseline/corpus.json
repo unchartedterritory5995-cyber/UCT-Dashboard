@@ -14464,6 +14464,145 @@
         "when is NVDA's next dividend",
         "any upcoming splits for NVDA"
       ]
+    },
+    {
+      "id": "stock.auctionCalendar",
+      "source": "Terminal data wave 9 (11-21): the Agent half of the AUCT panel, the real-yield block of RATES and the FED panel (Treasury auctions, real yields and breakevens, the Fed watch), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.auctionCalendar"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.auctionCalendar"
+      ],
+      "ownWords": [
+        "marketRates"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.auctionCalendar",
+            "target": "$stockData",
+            "args": {
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*rates\\.auctions.*\"params\":\\{\"rows\":12\\}"
+        ],
+        "says": [
+          "US Treasury auctions as UCT holds them, from the Treasury's Fiscal Data service:",
+          "• Nov 5, 2026: 13-Week Bill, \\$81\\.00B offered",
+          "high yield 9\\.117%, bid-to-cover 2\\.58, indirect 70\\.0%",
+          "the records' own dates, never the time of this answer\\.",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "treasury auctions",
+        "how did the 10-year auction go",
+        "upcoming bond auctions",
+        "treasury auction results"
+      ]
+    },
+    {
+      "id": "stock.realCurve",
+      "source": "Terminal data wave 9 (11-21): the Agent half of the AUCT panel, the real-yield block of RATES and the FED panel (Treasury auctions, real yields and breakevens, the Fed watch), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.realCurve"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.realCurve"
+      ],
+      "ownWords": [
+        "marketRates"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.realCurve",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*rates\\.realYields.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "US Treasury real yields \\(inflation-protected securities\\) by maturity, end-of-day figures for Fri, Oct 30, 2026:",
+          "• 10-year: 1\\.64%, \\+4 bp from the day before, breakeven 2\\.48%",
+          "• 30-year: no real figure for that day",
+          "the nominal yield minus the real yield at the same maturity",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "real yields",
+        "TIPS yields",
+        "inflation breakevens",
+        "the 10-year breakeven"
+      ]
+    },
+    {
+      "id": "stock.fomcWatch",
+      "source": "Terminal data wave 9 (11-21): the Agent half of the AUCT panel, the real-yield block of RATES and the FED panel (Treasury auctions, real yields and breakevens, the Fed watch), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.fomcWatch"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.fomcWatch"
+      ],
+      "ownWords": [
+        "marketRates"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.fomcWatch",
+            "target": "$stockData",
+            "args": {
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*fed\\.watch.*\"params\":\\{\"rows\":10\\}"
+        ],
+        "says": [
+          "The Fed watch as UCT holds it, block by block:",
+          "1 word added and 1 word removed",
+          "Next FOMC decision: Wed, Dec 9, 2026",
+          "Federal funds rates: effective 9\\.12%",
+          "Source: Board of Governors of the Federal Reserve System\\."
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "fed watch",
+        "what changed in the FOMC statement",
+        "when is the next FOMC meeting",
+        "show me the fed dot plot"
+      ]
     }
   ],
   "refusals": [

@@ -88,7 +88,8 @@ const CASES = [
   ['a for bound the loop reassigns', '    int n = 3\n    float t = 0.0\n    for i = 0 to n\n        n := n - 1\n        t := t + 1\n    t', /`for` loop whose end bound reads `n`/, F.FOR_BOUND],
   ['box.new without bgcolor', '    b = box.new(bar_index, x, bar_index + 1, x - 1)\n    x', /`box\.new` without `bgcolor`.*opaque/, F.OBJECT_DEFAULTS],
   ['box.new with bgcolor, without text_color', '    b = box.new(bar_index, x, bar_index + 1, x - 1, bgcolor = color.new(color.blue, 50))\n    x', /`box\.new` without `text_color`/, F.OBJECT_DEFAULTS],
-  ['table.cell without text_color', '    t = table.new(position.top_right, 1, 1)\n    table.cell(t, 0, 0, "a")\n    x', /`table\.cell` without `text_color`/, F.OBJECT_DEFAULTS],
+  // ⚰️ 'table.cell without text_color' stood here until e93: a cell's unset text is `color.black` in v5 AND v6
+  // (witnessed), so it is no longer a construct the versions draw differently (railed below: NOT held)
   ['a const int division', '    int k = 5\n    x + k / 2', /division of two values that may be `const int`/, null],
   ['a request', '    request.security(syminfo.tickerid, "D", x)', /`request\.security`/, null],
   ['na() of a value not shown to be a number', '    b = x > 0\n    na(b) ? 1.0 : x', /`na\(\)` of a value not shown to be a number/, F.BOOL_NA],
@@ -499,6 +500,13 @@ describe('⛔ each construct the v6 migration guide changed is refused BY NAME o
       expect(ask(body)).toBe(null)
     })
   }
+  // ⭐ e93 (2026-11-21): a cell's unset text colour is `color.black` in v5 AND v6 (witnessed), so a v5 library's
+  // `table.cell` without `text_color` is no longer held; CONTROL: `box.new` without `text_color` still is
+  it('a `table.cell` without `text_color` is not held (the same `color.black` in both versions); `box.new` still is', () => {
+    expect(ask('    t = table.new(position.top_right, 1, 1)\n    table.cell(t, 0, 0, "a")\n    x')).toBe(null)
+    expect(ask('    b = box.new(bar_index, x, bar_index + 1, x - 1, bgcolor = color.new(color.blue, 50))\n    x'))
+      .toMatch(new RegExp(`^${F.OBJECT_DEFAULTS}: \`box\\.new\` without \`text_color\``))
+  })
   for (const [name, body, family] of [
     ['a typed bool given `na` in a `?:`', '    bool b = x > 1 ? true : na\n    x', F.BOOL_NA],
     ['an untyped `?:` whose arm nothing types', '    b = x > 1 ? this.flag : na\n    x', F.BOOL_NA],
@@ -792,9 +800,11 @@ describe('⭐⭐ island PR 3: a v5 library\'s label, box and table cell draw v5\
       cells: rs.tables.flatMap((t) => (t.cells || []).map((c) => [c.text, c.text_color])),
     }
   }
-  for (const [name, use, expectV5] of [
-    ['a label and a box with their colours unset', 'plot(io.marks(close))\n', { labels: [['a', '#363A45', '#2962FF']], boxes: [['#2962FF', '#363A45', '#2962FF']], cells: [] }],
-    ['a table cell with its text colour unset', 'plot(io.cells(close))\n', { labels: [], boxes: [], cells: [['c', '#363A45']] }],
+  // ⭐ e93: a cell's unset text is `color.black` in v6 too (witnessed), so the pasted v6 cell draws the SAME colour:
+  // the island has nothing left to carry for a cell (`v6Differs` false), and the label / box case stays the control
+  for (const [name, use, expectV5, v6Differs] of [
+    ['a label and a box with their colours unset', 'plot(io.marks(close))\n', { labels: [['a', '#363A45', '#2962FF']], boxes: [['#2962FF', '#363A45', '#2962FF']], cells: [] }, true],
+    ['a table cell with its text colour unset', 'plot(io.cells(close))\n', { labels: [], boxes: [], cells: [['c', '#363A45']] }, false],
   ]) {
     it(`${name}: the island draws the v5 script's colours; pasted into the v6 script, v6's`, () => {
       const v5 = rendered(`${V5}${imp}${use}`)
@@ -804,10 +814,13 @@ describe('⭐⭐ island PR 3: a v5 library\'s label, box and table cell draw v5\
       // non-vacuous: v6 rules over the same calls draw v6's defaults
       const pasted = rendered(`${V6}${pastedObjects}${use.replace('io.', '')}`)
       expect(pasted.why).toBe(undefined)
-      expect(pasted).not.toEqual(v5)
-      // the host lane does not judge per token: it refuses the import by name
+      if (v6Differs) expect(pasted).not.toEqual(v5)
+      else expect(pasted).toEqual(v5)
+      // the host lane does not judge per token: it refuses the import by name where the versions differ; a cell's
+      // unset text no longer does (e93), so a library whose only object is that cell links on the host lane too
       const t = translatePine(`${V6}${imp}${use}`, { libraries: LIBS, libraryCrossVersion: ADMIT, mode: 'host' })
-      expect(t.refusal && t.refusal.guard).toBe(LIBRARY_VERSION)
+      if (v6Differs) expect(t.refusal && t.refusal.guard).toBe(LIBRARY_VERSION)
+      else expect(t.refusal && t.refusal.guard, t.refusal && t.refusal.message).not.toBe(LIBRARY_VERSION)
     })
   }
   it('a colour the library names is its own, never replaced; the script\'s own label keeps v6\'s default', () => {

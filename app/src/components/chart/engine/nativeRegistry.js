@@ -160,7 +160,8 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 // ⭐ U2b — the live forming-bar tail of a server definition (`plots[].liveTail`):
 // `computeSignature` carries the benchmark tail's version into the binder's memo.
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
-import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD } from './runtimeKill'
+import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD, runtimeFormingIdsOf } from './runtimeKill'
+import { formingReasonOf } from './formingReason.js'
 import { HOST_KNOWN_DIVERGENCE_STAMP } from './hostKnownDivergence'
 import { HELD_DIVERGENCE_STAMP } from './heldWithholds'
 // ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
@@ -2683,8 +2684,8 @@ const RUNTIME_COLOUR_WHY = Object.freeze({
   'pane:not-permitted': 'running scripts bar by bar is switched off for your account right now, so the candles keep their own colours',
   'pane:killed': 'this script is switched off for running bar by bar, so the candles keep their own colours',
   'pane:not-graded': "this script hasn't been checked against TradingView for running bar by bar yet, so the candles keep their own colours",
-  // ⭐ G6 — `runtimeKill.js::RUNTIME_FORMING_GUARD`
-  'pane:forming-ungraded': "this script reads the state of the bar as it forms, which has only been checked against TradingView on finished bars, so while this chart's newest bar is not known to be finished the candles keep their own colours",
+  // ⭐ G6 — `runtimeKill.js::RUNTIME_FORMING_GUARD` is NOT here: its reason is the server's, per script
+  // (`runtimeColourFormingWhy`, from `formingReason.js`), never a fixed sentence
   'runtime:runtime.error': "the script stops itself with its own error message on this chart, so it draws no colours, as on TradingView",
   'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is still loading, so the colours appear once it has',
   'runtime:unknown-bar': "on some bars the colour can't be worked out exactly, so none are drawn and the candles keep their own colours",
@@ -2695,9 +2696,17 @@ const RUNTIME_COLOUR_WHY = Object.freeze({
 })
 const RUNTIME_COLOUR_WHY_LIMIT = 'running the script bar by bar needed more work than a chart is allowed, so the candles keep their own colours'
 const RUNTIME_COLOUR_WHY_OTHER = "part of the script can't be run bar by bar here, so the candles keep their own colours"
-/** The member's sentence for one refusal code (a gate, or the run's own reason). */
-export function runtimeColourWhy(code) {
+/** Why a run colour is held back on a forming bar, with the reason the server named for THIS script
+ *  (`formingIds`: `runtimeKill.js::runtimeFormingIdsOf`). No ids says "uses a part of Pine" (fail closed). */
+export function runtimeColourFormingWhy(formingIds) {
+  return `this script ${formingReasonOf(formingIds)}, which has only been checked against TradingView on finished bars, `
+    + "so while this chart's newest bar is not known to be finished the candles keep their own colours"
+}
+/** The member's sentence for one refusal code (a gate, or the run's own reason; `formingIds` the server's ids
+ *  when the code is the forming guard). */
+export function runtimeColourWhy(code, { formingIds } = {}) {
   const c = String(code || '')
+  if (c === RUNTIME_FORMING_GUARD) return runtimeColourFormingWhy(formingIds)
   if (Object.hasOwn(RUNTIME_COLOUR_WHY, c)) return RUNTIME_COLOUR_WHY[c]
   if (RUNTIME_LIMIT_CODES.has(c)) return RUNTIME_COLOUR_WHY_LIMIT
   return RUNTIME_COLOUR_WHY_OTHER
@@ -2775,7 +2784,9 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
   // a fresh map: the host one may already carry its own (non-configurable) error record
   const res = withRuntimeErrorStop({ ...out }, runtimeErrorStopOf(out))
   const refuse = (code) => {
-    for (const k of keys) errors[k] = { guard: RUNTIME_COLOUR_GUARD, message: runtimeColourWhy(code), code }
+    // ⭐ G6 — a forming-bar refusal says the reason the server named for THIS script (`formingReason.js`)
+    const said = runtimeColourWhy(code, { formingIds: runtimeFormingIdsOf({ source: rc && rc.source }) })
+    for (const k of keys) errors[k] = { guard: RUNTIME_COLOUR_GUARD, message: said, code }
   }
   const stop = runtimeErrorStopOf(out)
   // ⭐ the pane lane answers to the runtime pane's per-member permission and the kill

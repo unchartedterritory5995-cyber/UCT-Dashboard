@@ -210,6 +210,9 @@ const MEASURED = [
   ['AlertsPanel.jsx', 'ALRT', [568], [590]],                 // 538.1 + 29
   ['BreakoutPanel.jsx', 'BRKO', [554], [570]],               // 524.3 + 29, the setup wrapped
   ['SentimentPanel.jsx', 'SENT (its two tables)', [505, 492], [510, 510]],   // 475.9 + 29, 462.9 + 29
+  // MKTH, measured 2026-11-21 in the 462px panel of an 1180px two-panel board: the declines table is 507px with
+  // every column (507 + 29). Below the step "Down" and "3 months on" fold; both are repeated in the open row.
+  ['MarketHistoryPanel.jsx', 'MKTH (the declines table)', [536], [550]],
 ]
 /** RSS draws five screens in one table, each with its own columns: every screen names its own step (rsScreensModel.js). */
 const RSS_MEASURED = { starter_rs_leaders: [552, 570], starter_rs_nh_before_price: [513, 530], starter_rs_new_high: [511, 530],
@@ -237,6 +240,10 @@ const FITS_THE_BOTTOM = [
   // THMS, measured 2026-11-21 (part 5) in the 592px panel: its two tables sat side by side in 278px each and the
   // 1D column was cut (7 and 11px). They now stack until each has about 311px (splitRoomy, as HILO): 314 and 318.
   ['ThemeBoardPanel.jsx', 'THMS (leaders, laggards)', 318],
+  // INS CLUSTER, measured 2026-11-21 at 1536, 1180 and 340px (sample data): one-line rows in the 640px panel; in a
+  // 462px one the stock and insider cells give back their floor and the money and close words wrap (snugTight,
+  // snugWrap), 338px with every column showing + 29. On a phone the close column folds (phoneHide).
+  ['InsiderClustersPanel.jsx', 'INS CLUSTER', 367],
 ]
 /** Tables with no sample rows: never measured, so they must not fold on a desktop panel above the bottom of the ladder.
  *  (InsiderPanel.jsx left this list on 2026-11-21: see INS in MEASURED.) */
@@ -245,7 +252,22 @@ const NOT_MEASURED = ['CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', '
   // Market wave C (2026-11-21): no fold step measured; the phone columns fold through `phoneHide`
   'TreasuryAuctionsPanel.jsx',
   // FED (2026-11-21): three small tables (the survey's path and its probabilities), two or three short columns each
-  'FedWatchPanel.jsx']
+  'FedWatchPanel.jsx',
+  // ECON (2026-11-21): one four-column table of merged two- and three-line cells that wrap between words; nothing folds
+  'EconomyPanel.jsx',
+  // LIQ (2026-11-21): one three-column table (the parts) of two-line cells that wrap between words; nothing folds
+  'LiquidityPanel.jsx',
+  // OIL (2026-11-21): one four-column table of merged two- and three-line cells that wrap between words; nothing folds
+  'OilPanel.jsx',
+  // FUND (2026-11-21): the period table scrolls sideways in its own box (SidewaysScroll) with the label column
+  // pinned, as FA and EE; nothing folds
+  'FundMetricsPanel.jsx',
+  // GRPS (2026-11-21): every sector or industry, one row each; the table scrolls sideways in its own box
+  // (SidewaysScroll) with the name column pinned, as FUND; nothing folds
+  'GroupTablePanel.jsx',
+  // DVD MARKET, SEG, MNA, IDXC (2026-11-21): two- and three-column tables of two-line cells that wrap between
+  // words; SEG's period table folds its two oldest periods and DVD MARKET its declared day through `phoneHide`
+  'MarketDividendsPanel.jsx', 'RevenueSegmentsPanel.jsx', 'MergersPanel.jsx', 'IndexChangesPanel.jsx']
 const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
 const stepsIn = (src) => [...src.matchAll(/data-fold=(?:"([^"]*)"|\{paired \? undefined : '([^']*)'\})/g)].map((m) => m[1] ?? m[2])
 
@@ -301,7 +323,7 @@ describe('the fold ladder: a table folds only from its own step down', () => {
       expect([code, need, step, step - need >= 5]).toEqual([code, need, step, true])
       expect([code, need, step, step - need <= 30]).toEqual([code, need, step, true])
     }
-    expect(pairs.length).toBe(25)   // 25 since INS was measured (2026-11-21)
+    expect(pairs.length).toBe(26)   // 26 since MKTH was measured (2026-11-21; 25 since INS)
   })
 
   it('RSS: each of its five screens names its own step, and a screen nobody measured names none', () => {
@@ -484,6 +506,7 @@ describe('each fitted panel still opts in', () => {
     ['CallThemesPanel.jsx', { phoneTight: 4, phoneWrap: 2 }],
     ['UpgradesPanel.jsx', { phoneTight: 1, phoneWrap: 0 }],        // UPDG: the rating (340 and 360px, 2026-11-20)
     ['ExpectedMovePanel.jsx', { phoneTight: 2, phoneWrap: 0 }],    // EXMV: the actual move, header and cell (340px)
+    ['InsiderClustersPanel.jsx', { phoneTight: 2, phoneWrap: 3 }], // INS CLUSTER: stock, insiders; the money and close words
   ])('fold: %s', (file, want) => {
     const src = read(file)
     for (const [cls, n] of Object.entries(want)) expect([file, cls, uses(src, cls)]).toEqual([file, cls, n])
@@ -501,6 +524,7 @@ describe('each fitted panel still opts in', () => {
     ['CallThemesPanel.jsx', { snugTight: 4, snugWrap: 0, mediumTight: 0, mediumWrap: 0 }],        // CEOS: Phrase, Companies (it then fits a 461px panel and never folds on a laptop)
     ['CotPanel.jsx', { snugTight: 0, snugWrap: 6, mediumTight: 0, mediumWrap: 0 }],               // COT: the board's four value headers and two net cells
     ['IpoCalendarPanel.jsx', { snugTight: 1, snugWrap: 1, mediumTight: 0, mediumWrap: 0 }],       // IPO: Company, Price (it then fits a 461px panel too)
+    ['InsiderClustersPanel.jsx', { snugTight: 2, snugWrap: 3, mediumTight: 0, mediumWrap: 0 }],   // INS CLUSTER: stock, insiders; money, close
   ])('snug and medium: %s', (file, want) => {
     const src = read(file)
     for (const [cls, n] of Object.entries(want)) expect([file, cls, uses(src, cls)]).toEqual([file, cls, n])
@@ -522,7 +546,7 @@ describe('each fitted panel still opts in', () => {
 
   it('every phoneTight, snugTight or mediumTight cell is a wrap cell (the helper only loosens a cell that already wraps)', () => {
     const files = ['PerformancePanel.jsx', 'ConfluencePanel.jsx', 'RepeatContractsPanel.jsx', 'CallThemesPanel.jsx', 'FlowListsPanel.jsx', 'RsScreensPanel.jsx',
-      'IpoCalendarPanel.jsx']
+      'IpoCalendarPanel.jsx', 'InsiderClustersPanel.jsx']
     let cells = 0
     for (const file of files) {
       for (const line of read(file).split('\n').filter((l) => /styles\.(phone|snug|medium)Tight\b/.test(l))) {

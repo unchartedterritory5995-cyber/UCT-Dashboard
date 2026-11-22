@@ -669,8 +669,9 @@ describe('the admission verdict carried in a script answer', () => {
     expect(latchAnswerAdmission(kill, TABLE, { sha256: own, admitted: true, missing: [] })).toBe(true)
     expect(latchAnswerAdmission(kill, TABLE, { sha256: own.toUpperCase(), admitted: true, missing: [], historyOnly: ['realtime-state'] })).toBe(true)
     expect(latchAnswerAdmission(kill, TABLE, { sha256: own, admitted: false, missing: ['udt'] })).toBe(true)
-    expect(kill.latched).toEqual([[own, { admitted: true, historyOnly: false }], [own, { admitted: true, historyOnly: true }],
-      [own, { admitted: false, historyOnly: false }]])
+    expect(kill.latched).toEqual([[own, { admitted: true, historyOnly: false, historyOnlyIds: [] }],
+      [own, { admitted: true, historyOnly: true, historyOnlyIds: ['realtime-state'] }],
+      [own, { admitted: false, historyOnly: false, historyOnlyIds: [] }]])
     // `historyOnly` fails closed: present and not an empty list reads as finished-bars-only
     const closed = fakeKill()
     latchAnswerAdmission(closed, TABLE, { sha256: own, admitted: true, missing: [], historyOnly: [] })
@@ -726,6 +727,22 @@ describe('the admission verdict carried in a script answer', () => {
       expect(v.historyOnly).toBe(false)
       expect(runtimeKill.runtimeNotGradedOf({ source: TABLE })).toBe(null)          // the lane takes it: nothing "being checked"
       expect(runtimeKill.runtimeConsultPendingOf({ source: TABLE })).toBe(false)
+    } finally {
+      runtimeKill.__resetRuntimeAdmission()
+      __allowEveryRuntimeScriptForTests()
+    }
+  })
+
+  it('FR7 with the real engine: a finished-bars-only verdict that came with the script refuses a forming bar with the SERVER\'s reason', () => {
+    runtimeKill.__resetRuntimeAllowList()
+    runtimeKill.__resetRuntimeAdmission()
+    runtimeKill.latchRuntimeLists({ kill: [], allow: [], capability_admission: true })
+    try {
+      expect(latchAnswerAdmission(runtimeKill, TABLE, { sha256: own, admitted: true, missing: [], historyOnly: ['request-other'] })).toBe(true)
+      expect(runtimeKill.runtimeAdmissionOf({ source: TABLE }).historyOnlyIds).toEqual(['request-other'])
+      const said = runtimeKill.runtimeFormingRefusalOf({ source: TABLE, newestBarIsForming: true })
+      expect(said).toContain('this script reads another symbol or timeframe, and that has only been checked')
+      expect(said).not.toContain('barstate')
     } finally {
       runtimeKill.__resetRuntimeAdmission()
       __allowEveryRuntimeScriptForTests()

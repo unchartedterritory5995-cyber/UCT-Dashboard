@@ -152,6 +152,24 @@ export const PANEL_IMPORTERS = {
   TreasuryAuctions: () => import('./panels/TreasuryAuctionsPanel'),
   // FED (2026-11-21): the FOMC statement and its redline, Fed headlines, speeches, the next meeting, the rate, projections, the survey
   FedWatch: () => import('./panels/FedWatchPanel'),
+  // ECON (2026-11-21): the economy board, theme by theme, with the releases due in the next 7 days
+  Economy: () => import('./panels/EconomyPanel'),
+  // LIQ (2026-11-21): net liquidity (a UCT calculation from the Fed and Treasury figures), its changes, two years of it, the parts
+  Liquidity: () => import('./panels/LiquidityPanel'),
+  // OIL (2026-11-21): the EIA's weekly oil report, the next report's date and two years of crude stocks
+  Oil: () => import('./panels/OilPanel'),
+  // FUND (2026-11-21): one company's metrics over time from its SEC filings, up to three more beside it
+  FundMetrics: () => import('./panels/FundMetricsPanel'),
+  // MKTH (2026-11-21): every correction and bear market of the S&P 500 or the Nasdaq-100, the rally after each low, its leaders
+  MarketHistory: () => import('./panels/MarketHistoryPanel'),
+  // GRPS (2026-11-21): every sector or industry, one row each: median growth, margins, valuation and breadth
+  GroupTable: () => import('./panels/GroupTablePanel'),
+  // SEG (2026-11-21): one stock's revenue by product and by region, the newest period ranked and four side by side
+  RevenueSegments: () => import('./panels/RevenueSegmentsPanel'),
+  // MNA (2026-11-21): the latest M&A deals, or one company's, each with its SEC filing
+  Mergers: () => import('./panels/MergersPanel'),
+  // IDXC (2026-11-21): S&P 500, Nasdaq 100 and Dow additions and removals, or one stock's own
+  IndexChanges: () => import('./panels/IndexChangesPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),

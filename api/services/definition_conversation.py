@@ -853,6 +853,12 @@ CONVERSE_SYSTEM_PROMPT = (
     "An opening range needs bars that divide it (30 minutes on a 1, 5, 15 or 30-minute chart); on "
     "longer bars it is withheld and says so, so mention that an opening range is for intraday "
     "charts.\n"
+    "  \"LAST WEEK'S\" OR \"LAST MONTH'S\" VALUE on a chart of shorter bars (\"last month's high and low\", \"the "
+    "prior week's close\") is the `tf` read as it stands: tf(high, M) already IS the last closed month's high "
+    "on every bar of this month. Do NOT put an offset around it: an offset outside a `tf` read counts bars of "
+    "the CHART, so offset 1 of tf(high, M) is one daily bar late and still shows the month before last on the "
+    "first bar of each month. Only when the member asks for a period further back (\"the month before last\") "
+    "put the offset INSIDE the read, where it counts periods: tf(offset 1 of high, M).\n"
     "  A VALUE THAT RESTARTS WITH THE CALENDAR on every year, quarter, month or week (\"year to date "
     "percent change\", \"month to date\", \"this year's high\", \"the high so far this month\", \"since the "
     "start of each month\") is built from the bar's OWN calendar and NEVER from a date, so it is right on "
@@ -891,6 +897,16 @@ CONVERSE_SYSTEM_PROMPT = (
     "qualify). Only when the member asks for the last N bars that qualify (\"the average volume of the last "
     "10 up days\") is no value right, written 0 / 0, and then say in `assumptions` that the window reaches "
     "back past other bars.\n"
+    "  A COUNT, A SUM OR AN AVERAGE OVER A WINDOW OF A CONDITION THAT READS SOMETHING WITH ITS OWN WARM-UP "
+    "(\"the percent of the last 50 days the close was above its 20 day average\", \"how many of the last 20 "
+    "days closed above the 200 day average\"): a comparison with a value that does not exist yet is FALSE "
+    "here, so on the bars where that average has no value the count would add a 0 and show a NUMBER for "
+    "something that is not known. On a symbol with less history than the average needs, that number is 0 "
+    "on every bar. The count must have NO VALUE until the thing the condition reads (X: the average, the "
+    "highest, the RSI) has a value on the window's OLDEST bar: na(offset N - 1 of X) ? 0 / 0 : <the "
+    "count>. For the last 50 bars above a 20-bar average: na(offset 49 of sma(close, 20)) ? 0 / 0 : "
+    "sum(close > sma(close, 20) ? 1 : 0, 50) * 100 / 50. A condition that reads only this bar and the one "
+    "before it (close > offset 1 of close) needs no such guard.\n"
     "  A COUNT OF BARS SINCE something, when the count itself is what the member wants to see: give "
     "`barssince` a window far longer than the thing being measured (500 unless the member names one), "
     "never the event's own length (\"bars since the last 50-bar high\" is barssince(cond, 500), not 50: "
@@ -918,6 +934,17 @@ CONVERSE_SYSTEM_PROMPT = (
     "cum(close > offset 1 of close ? volume : close < offset 1 of close ? 0 - volume : 0). It is NEVER an "
     "accum: an accum over W bars is that total's CHANGE across the last W bars, a different line. Only "
     "when the member names a window (\"over the last 300 bars\") is it sum(x, N).\n"
+    "  A RUNNING VALUE THAT STARTS ON A DATE the member names (\"a trailing stop from my entry on 2 June "
+    "2026\", \"the highest high since 3 March\", \"count the up days since 1 May\") has NO value before "
+    "that date and STARTS FRESH on the first bar on or after it: on that bar it is its starting value "
+    "itself, and only the bars after it read `self`. With D the date as the number `time` holds, write "
+    "time < D ? 0 / 0 : accum(start, offset 1 of time < D ? start : update, 900). The stop two ATRs under "
+    "the close that only rises from the date: time < D ? 0 / 0 : accum(close - 2 * atr(high, low, close, "
+    "14), offset 1 of time < D ? close - 2 * atr(high, low, close, 14) : max(self, close - 2 * atr(high, "
+    "low, close, 14)), 900). NEVER let the first bar read `self`: max(self, x) on the start bar carries "
+    "the level of the bar BEFORE the date into the value, so a stop starts too high and a count starts "
+    "above its first number. Do not draw the unstarted level before the date; when the member wants that "
+    "line as well it is a second output. Say in `assumptions` the date it starts on.\n"
     "  SEVERAL RUNNING VALUES THAT FEED EACH OTHER are accum2, accum3 or accum4: accumK(which, "
     "warmup, start1..startK, update1..updateK). All K values are replaced together on each bar. "
     "Inside the updates `state1`..`stateK` are their PREVIOUS values, and `which` (a plain whole "
@@ -2642,6 +2669,69 @@ def _refuse_a_reading_compared_with_itself(trees: List[Tuple[str, Any]]) -> None
         visit(tree, where)
 
 
+#: a wrapper that reads ITS CHILD somewhere else: on another timeframe, or on another symbol
+_SCOPE_WRAPPERS = ("tf", "tf_live", "sym")
+
+
+def _reads_a_bar(node: Any) -> bool:
+    """Does this formula read anything of a bar: a series, or a call (which computes from bars)?"""
+    if isinstance(node, list):
+        return any(_reads_a_bar(child) for child in node)
+    if not isinstance(node, Mapping):
+        return False
+    return node.get("type") in ("series", "call") or _reads_a_bar(node.get("args"))
+
+
+def _refuse_a_scope_read_of_nothing(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-22 -- A NUMBER STANDING WHERE A VALUE SHOULD BE. Found by a value check of a live round.
+
+    Asked for "today's low so far plus the 14 day ATR, and today's high so far minus the 14 day ATR", the model
+    answered `sessionLow() + tf(0, W)` and `sessionHigh() - tf(0, W)`: a weekly read of the CONSTANT 0 where the
+    ATR it could not write should have been. The door accepted it on the first attempt. Labelled "Session low +
+    ATR", it drew the session low. A wrong picture under an honest-looking label.
+
+    Refused: a `tf`, `tf_live` or `sym` wrapper whose child reads nothing of a bar (no series, no call). Such a
+    read is that number on every bar and never an answer; the model gets its one repair, told to write the value
+    or to say it cannot. Measured before it was written over the 298 answers recorded in the live rounds (281
+    formulas): it refuses that one answer and no other.
+    """
+    def visit(node: Any, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        if node.get("type") in _SCOPE_WRAPPERS and not _reads_a_bar(node.get("args")):
+            raise _Refused(
+                "envelope:reference",
+                f"{where}: `{node['type']}` here reads a plain number, not a value of a bar, so it is that number on "
+                "every bar: a number is standing where the value the member asked for should be. Write the formula "
+                "the read is OF inside it (the weekly close is tf(close, W)). If what the member asked for cannot be "
+                "written with what the table offers, do not stand a number in for it: answer `unsupported` and say "
+                "what is missing.")
+        visit(node.get("args"), where)
+
+    for where, tree in trees:
+        visit(tree, where)
+
+
+#: a reply that is a word left where the sentence should be
+_PLACEHOLDER_REPLY = re.compile(r"^\W*(?:placeholder|todo|tbd|n/?a|reply|text|string|lorem ipsum\b.*)\W*$", re.IGNORECASE)
+
+
+def _refuse_a_placeholder_reply(envelope: Mapping[str, Any]) -> None:
+    """2026-11-22 -- THE SAME ANSWER SAID "Placeholder" TO THE MEMBER. A change whose `reply` is a placeholder
+    word is refused, so the model gets its one repair and writes the sentence. A reply is never checked for what
+    it claims here (the engine writes what was built); only that it IS one. An empty reply is left as it was."""
+    reply = envelope.get("reply")
+    if envelope.get("ops") and isinstance(reply, str) and _PLACEHOLDER_REPLY.match(reply):
+        raise _Refused(
+            "envelope:reference",
+            f"`reply` is {reply.strip()!r}: a placeholder, not what the member is told. Write one or two plain "
+            "sentences saying what was built; and check the formulas for a number left standing in for a value.")
+
+
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
     """BY NAME, before the schema (whose ``series`` enum no longer offers them):
     defence in depth for a model that emits a nightly scalar anyway."""
@@ -3936,6 +4026,8 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     _refuse_a_value_at_an_event_that_cannot_look_back(_trees_of(envelope))
     _refuse_a_stand_in_drawn_as_a_value(_trees_of(envelope))
     _refuse_a_reading_compared_with_itself(_trees_of(envelope))
+    _refuse_a_scope_read_of_nothing(_trees_of(envelope))
+    _refuse_a_placeholder_reply(envelope)
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:

@@ -34,6 +34,12 @@ PUSH time, without waiting for the master deploy gate, so any session could rest
    - the canary logs `[flow-canary] ok max_id=...` with max_id rising.
 4. If anything looks wrong, read the recovery section below before doing anything else.
 
+⛔ **Since the 2026-11-21 org move, flow-worker's link to the repo is dead** (Settings → Source shows
+the old repo name and "Auto deploy unavailable"). The service runs normally, but its next deploy of
+new code is a RECONNECT to `northstar-quarry/UCT-Dashboard`, which deploys master HEAD at once and
+turned auto deploy ON when it was done on `worker`. Follow `railway-repo-reconnect.md`, inside the
+deploy window above, and disable auto deploy again right after the click.
+
 Do NOT re-enable auto deploy. If you believe it must change, that is the owner's call.
 
 ⛔ **"No deployment trigger" IS THE INTENDED STATE, NOT A BUG.** Railway's API shows flow-worker

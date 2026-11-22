@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 250,
+  "all": 253,
   "withProductionKinds": 205,
-  "darkGated": 45
+  "darkGated": 48
  },
  "totals": {
-  "capabilities": 250,
-  "withAnyRegressionCase": 198,
+  "capabilities": 253,
+  "withAnyRegressionCase": 201,
   "perProtection": {
    "nl": {
-    "covered": 195,
-    "applicable": 250
+    "covered": 198,
+    "applicable": 253
    },
    "routing": {
-    "covered": 192,
-    "applicable": 250
+    "covered": 195,
+    "applicable": 253
    },
    "args": {
-    "covered": 198,
-    "applicable": 250
+    "covered": 201,
+    "applicable": 253
    },
    "execution": {
-    "covered": 195,
-    "applicable": 250
+    "covered": 198,
+    "applicable": 253
    },
    "receipt": {
-    "covered": 167,
-    "applicable": 250
+    "covered": 170,
+    "applicable": 253
    },
    "refusal": {
     "covered": 35,
-    "applicable": 250
+    "applicable": 253
    },
    "permission": {
-    "covered": 243,
-    "applicable": 250
+    "covered": 246,
+    "applicable": 253
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 250
+    "applicable": 253
    },
    "phrasings": {
-    "covered": 191,
-    "applicable": 250
+    "covered": 194,
+    "applicable": 253
    }
   }
  },
@@ -9355,6 +9355,60 @@
     "phrasings": []
    }
   },
+  "stock.auctionCalendar": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.auctionCalendar: \"treasury auctions\"",
+     "stock.auctionCalendar: \"how did the 10-year auction go\"",
+     "stock.auctionCalendar: \"upcoming bond auctions\"",
+     "stock.auctionCalendar: \"treasury auction results\""
+    ],
+    "routing": [
+     "stock.auctionCalendar: \"treasury auctions\"",
+     "stock.auctionCalendar: \"how did the 10-year auction go\"",
+     "stock.auctionCalendar: \"upcoming bond auctions\"",
+     "stock.auctionCalendar: \"treasury auction results\""
+    ],
+    "args": [
+     "corpus stock.auctionCalendar"
+    ],
+    "execution": [
+     "stock.auctionCalendar (c)"
+    ],
+    "receipt": [
+     "stock.auctionCalendar (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.callSearch": {
    "domain": "stock",
    "group": "data",
@@ -10136,6 +10190,60 @@
     "phrasings": []
    }
   },
+  "stock.fomcWatch": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.fomcWatch: \"fed watch\"",
+     "stock.fomcWatch: \"what changed in the FOMC statement\"",
+     "stock.fomcWatch: \"when is the next FOMC meeting\"",
+     "stock.fomcWatch: \"show me the fed dot plot\""
+    ],
+    "routing": [
+     "stock.fomcWatch: \"fed watch\"",
+     "stock.fomcWatch: \"what changed in the FOMC statement\"",
+     "stock.fomcWatch: \"when is the next FOMC meeting\"",
+     "stock.fomcWatch: \"show me the fed dot plot\""
+    ],
+    "args": [
+     "corpus stock.fomcWatch"
+    ],
+    "execution": [
+     "stock.fomcWatch (c)"
+    ],
+    "receipt": [
+     "stock.fomcWatch (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.gammaLevels": {
    "domain": "stock",
    "group": "marketBoards",
@@ -10621,6 +10729,60 @@
     "receipt": [
      "stock.quote (c)",
      "asset.commodity-decline (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.realCurve": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.realCurve: \"real yields\"",
+     "stock.realCurve: \"TIPS yields\"",
+     "stock.realCurve: \"inflation breakevens\"",
+     "stock.realCurve: \"the 10-year breakeven\""
+    ],
+    "routing": [
+     "stock.realCurve: \"real yields\"",
+     "stock.realCurve: \"TIPS yields\"",
+     "stock.realCurve: \"inflation breakevens\"",
+     "stock.realCurve: \"the 10-year breakeven\""
+    ],
+    "args": [
+     "corpus stock.realCurve"
+    ],
+    "execution": [
+     "stock.realCurve (c)"
+    ],
+    "receipt": [
+     "stock.realCurve (c)"
     ],
     "refusal": [],
     "permission": [],
