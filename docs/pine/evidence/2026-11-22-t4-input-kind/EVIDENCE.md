@@ -23,7 +23,7 @@ later statement writes it. Read as text, it is the plain binding.
 
 | part | where |
 |---|---|
-| A `var` nothing reassigns, read as text, is its initializer | `app/src/components/chart/engine/ast/pine.js::Resolver.fixedVarBinding`, asked by `stringValueOf` and `enumInputCallOf` |
+| A `var` nothing reassigns, whose initializer is an `input.string`, read as text, is that input | `app/src/components/chart/engine/ast/pine.js::Resolver.fixedVarBinding`, asked by `stringValueOf` and `enumInputCallOf` |
 | The `var`'s `input.string` is named as its knob, as the plain binding's is | `pine.js::stampVarStringInput` (both declaration sites) |
 
 Limits, each held by a rail:
@@ -36,6 +36,10 @@ Limits, each held by a rail:
 - Only in the readers that return text fixed before bar 0 (`stringValueOf`) or an `input.string` call
   (`enumInputCallOf`). A `var` holding per-bar text (`var t = close > open ? "up" : "down"`) holds bar 0's value, so
   it is never read per bar; it stays refused.
+- Only for an `input.string` initializer. A `var` holding a string literal (`var string MODE = "Fixed"`) would read the
+  same way, soundly, but 563 corpus scripts declare a `var` with text against the 41 this unit measured, so it is its
+  own unit. A first version reached those too, and CI's paint harness caught one committed capture moving refused ->
+  refused (`pine:text-value` -> `pine:request`); the scope was narrowed and is now railed.
 
 ## What the member sees
 
@@ -49,13 +53,13 @@ is newly withheld by this unit, and no new refusal is added.
 
 ## Rails and mutants
 
-Rails: `app/src/components/chart/engine/ast/varTextInput.test.js` (13 tests): the `var` form and the plain form give
+Rails: `app/src/components/chart/engine/ast/varTextInput.test.js` (14 tests): the `var` form and the plain form give
 one translation (default and live knob alike) and the same drawn values on the host lane, for a `switch` subject, an
 `==` operand and the VWAP anchor shape; the run draws the plain form's values and the host draws the run's; controls
-for a reassigned `var` (above and below the read, both lanes), a per-bar-text `var`, and a Resolver built without the
-reassignment scan.
+for a reassigned `var` (above and below the read, both lanes), a per-bar-text `var`, a string-literal `var` (the
+scope), and a Resolver built without the reassignment scan.
 
-Mutants: `ci/mutants/t4-input-kind-var-text.json`, IK1-IK5, each KILLED locally with a byte-identical restore.
+Mutants: `ci/mutants/t4-input-kind-var-text.json`, IK1-IK6, each KILLED locally with a byte-identical restore.
 
 | id | the break | killed by |
 |---|---|---|
@@ -64,41 +68,42 @@ Mutants: `ci/mutants/t4-input-kind-var-text.json`, IK1-IK5, each KILLED locally 
 | IK3 | the `var`'s input is not named as its knob | the live-knob translation |
 | IK4 | the knob is not followed through the `var` | the live-knob translation |
 | IK5 | a Resolver built without the reassignment scan treats every `var` as never reassigned | the Resolver-level rail |
+| IK6 | the read reaches a `var` holding a string literal | the scope control |
 
 ## Census (41 corpus scripts declaring a `var` `input.string`)
 
-The member door census (`coverageMapDoorCensus.measure.test.js`), master (`ff022c3bcd`) against this branch, the
-same promoted library store.
+The member door census (`coverageMapDoorCensus.measure.test.js`), master (`b071e3d2cd`) against this branch merged
+with it, the same promoted library store.
 
-| lane | served in full | attached | served -> refused |
+| lane | served in full | attached (served in full included) | served -> refused |
 |---|---|---|---|
-| host (runtime off) | 0 -> 3 | 5 -> 12 (the 3 included) | 0 |
-| runtime on | 0 -> 3 (2 from refused, 1 from attached) | 10 -> 15 | 0 |
+| host (runtime off) | 0 -> 2 | 5 -> 8 | 0 |
+| runtime on | 0 -> 2 | 10 -> 12 | 0 |
 
-The rows that move all lose `pine:input-kind`, `pine:text-value` or `pine:block` at the `var` read; one more loses
-`pine:plot-offset`, because its offset is chosen by a `var` text setting compared with `==`.
+The rows that move lose `pine:input-kind`, `pine:text-value` or `pine:block` at the `var` read; one loses
+`pine:plot-offset`, because its offset is chosen by a `var` text setting compared with `==`. Two more refused rows
+refuse one wall deeper (`pine:block` -> `pine:state`, `pine:block` -> `pine:request`).
 
 **One row is slower to refuse.** It reads the setting in a long ternary chain and refused at `pine:input-kind` within
-8 seconds of census time. It now reaches the node budget (`budget:nodes`): 37 seconds on the host lane, and past the
+6 seconds of census time. It now reaches the node budget (`budget:nodes`): 35 seconds on the host lane, and past the
 census's 118-second cap with the runtime lane on. Its plain-binding form (the same script without `var`) costs the
 same on master: `budget:nodes` at 24 to 38 seconds on the host lane (a loaded box), past 118 seconds with the runtime
 lane on. The `var` form now costs what the plain form already costs; the bound on that time is the translate step
 budget and wall stop (train e94), which this unit does not touch.
 
-**On the train (with E2 and the named-request follow).** The same census over E2's stack
-(`fix/runtime-named-request-follow`) with and without this unit gives the same moves and counts as against master:
-host lane 0 -> 3 served in full and 5 -> 12 attached, runtime-on lane 0 -> 3 and 10 -> 15, 0 served -> refused.
+**On the train (with E2 and the named-request follow).** A census of the first, wider version over E2's stack gave the
+same served and refused moves as against master, 0 served -> refused.
 
-## Grade diff (11 local captures whose source declares a `var` `input.string`)
+## Grade diff (15 captures whose source declares a `var` `input.string`: 11 local, 4 committed)
 
-| lane | before | after | MATCH lost |
-|---|---|---|---|
-| production | 1 DIVERGE, 10 INCONCLUSIVE | 1 DIVERGE, 10 INCONCLUSIVE | 0 |
-| runtime on | 1 DIVERGE, 10 INCONCLUSIVE | 1 DIVERGE, 10 INCONCLUSIVE | 0 |
+| lane | before | after | plot MATCH | MATCH lost |
+|---|---|---|---|---|
+| production | 5 DIVERGE, 10 INCONCLUSIVE | 5 DIVERGE, 10 INCONCLUSIVE | 12 -> 12 | 0 |
+| runtime on | 5 DIVERGE, 10 INCONCLUSIVE | 5 DIVERGE, 10 INCONCLUSIVE | 12 -> 12 | 0 |
 
-Unchanged row for row: the 10 INCONCLUSIVE refuse at walls outside this unit (`pine:reassign`, `pine:module`) before
-the `var` read, and the DIVERGE is the same one. No captured script turns MATCH, because none of the scripts this unit
-newly serves has a TradingView capture yet.
+Identical row by row: the INCONCLUSIVE rows refuse at walls outside this unit (`pine:reassign`, `pine:module`) before
+the `var` read, and the DIVERGE rows are the same ones. No captured script turns MATCH, because none of the scripts
+this unit newly serves has a TradingView capture yet.
 
 ## Findings outside this unit
 
@@ -106,3 +111,4 @@ newly serves has a TradingView capture yet.
   for a `var`. The rails compare the two lanes from bar 1.
 - A `var int len = input(14, ...)` is reported by the runtime lane as a name "never given a value" (one corpus row);
   the host lane reads it.
+- The string-literal `var` (above): sound to read the same way, 563 corpus scripts to measure; a candidate unit.

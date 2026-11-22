@@ -1,12 +1,12 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "NUMBER PENDING (train e95), the input-kind unit: on the host lane a `var` nothing reassigns, read as text (a `switch` subject, an `==` operand), is its `input.string` initializer, as the plain binding always was, with the member's knob reaching it; a reassigned `var` and a `var` holding per-bar text keep their refusal. Every rule, broken once, must turn its rail red. A `var` holding per-bar text is never followed because the change reads a `var` only where the reader returns text fixed before bar 0 (`stringValueOf`) or an `input.string` call (`enumInputCallOf`); its rail is a control, with no code of its own to mutate.",
+ "about": "NUMBER PENDING (train e95), the input-kind unit: on the host lane a `var` nothing reassigns, read as text (a `switch` subject, an `==` operand), whose initializer is an `input.string` is that input, as the plain binding always was, with the member's knob reaching it; a reassigned `var` and a `var` holding per-bar text keep their refusal. Every rule, broken once, must turn its rail red. A `var` holding per-bar text is never followed because the change reads a `var` only where the reader returns text fixed before bar 0 (`stringValueOf`) or an `input.string` call (`enumInputCallOf`); its rail is a control, with no code of its own to mutate.",
  "mutants": [
   {
    "id": "IK1",
    "mutant": "a `var` nothing reassigns is never its initializer (the defect: pine:input-kind / pine:block)",
    "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "    return seed ? { kind: 'expr', node: seed.node, env: seed.env || this.env } : null",
+   "from": "    return { kind: 'expr', node: seed.node, env: seed.env || this.env }",
    "to": "    return null",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/varTextInput.test.js",
    "expectRed": "the member door serves it"
@@ -24,8 +24,8 @@
    "id": "IK3",
    "mutant": "the `var` input is not named as its knob (a member's choice never reaches it)",
    "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "  ? stampInputName(seed, name) : seed)",
-   "to": "  ? seed : seed)",
+   "from": "const stampVarStringInput = (seed, name) => (isStringInputCall(seed) ? stampInputName(seed, name) : seed)",
+   "to": "const stampVarStringInput = (seed, name) => (isStringInputCall(seed) ? seed : seed)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/varTextInput.test.js",
    "expectRed": "live knob"
   },
@@ -46,6 +46,15 @@
    "to": "    this.mutatedKnown = true",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/varTextInput.test.js",
    "expectRed": "WITHOUT it"
+  },
+  {
+   "id": "IK6",
+   "mutant": "the read reaches a `var` holding a string literal (beyond the unit's measured scope)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (!seed || !isStringInputCall(seed.node)) return null",
+   "to": "    if (!seed) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/varTextInput.test.js",
+   "expectRed": "LITERAL"
   }
  ]
 }
