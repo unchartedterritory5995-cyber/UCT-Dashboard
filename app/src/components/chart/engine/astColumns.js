@@ -550,7 +550,10 @@ function beforeHeldOf(symbols) {
       const t = b && typeof b === 'object' ? b.t : undefined
       if (typeof t === 'number' && Number.isFinite(t) && (from === null || t < from)) from = t
     }
-    if (from !== null) out.push(Object.freeze({ ticker, from }))
+    // ⛔ NOT frozen: the record is re-attached frozen at its top only (`AST_SIDE_RECORDS`), and a worker's answer is a
+    // structured clone, so a frozen entry here would make the main thread's bytes differ from the worker's
+    // (`hostLaneLearnedRoute.rail.test.js` E compares frozen depth too)
+    if (from !== null) out.push({ ticker, from })
   }
   return out
 }
