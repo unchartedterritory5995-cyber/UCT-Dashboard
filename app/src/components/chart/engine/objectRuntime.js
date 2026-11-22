@@ -80,6 +80,8 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
  *  under in the drawing note's `why` (`withheldWhy`, carried by the binder to `objectLoss.withRenderDrops`). */
 export const FORMAT_WITHHELD_KEY = '~format-withheld'
 const NAMED_FORMAT_RE = /^tostring:(format\.[a-z]+)$/
+/** a number a written-out (or folded) format does not print yet: the formatter withheld it (`number:<why>`) */
+const NUMBER_KIND = '~number'
 /** The member's words for `[family, fmtUnread reason]` pairs: one sentence per family and kind (a format the
  *  script computes, or a Pine format UCT does not print yet), in a fixed order; null for none. */
 export function formatWithheldSentence(pairs) {
@@ -88,7 +90,8 @@ export function formatWithheldSentence(pairs) {
   const rank = (f) => (f === 'table' ? 0 : f === 'label' ? 1 : 2)
   const list = [...(pairs || [])].map(([fam, why]) => {
     const named = typeof why === 'string' ? (why.match(NAMED_FORMAT_RE) || [])[1] : null
-    return { fam, named: named || null }
+    const number = typeof why === 'string' && why.startsWith('number:')
+    return { fam, named: named || (number ? NUMBER_KIND : null) }
   }).sort((a, b) => rank(a.fam) - rank(b.fam) || String(a.named || '').localeCompare(String(b.named || '')))
   for (const { fam, named } of list) {
     const key = `${rank(fam)}|${named || ''}`
@@ -96,7 +99,8 @@ export function formatWithheldSentence(pairs) {
     seen.add(key)
     const head = fam === 'table' ? 'A value in this table is not shown'
       : fam === 'label' ? 'A label is not drawn' : "A text in this script's drawings is not shown"
-    if (named) out.push(`${head}: it is written with ${named}, which UCT does not print yet.`)
+    if (named === NUMBER_KIND) out.push(`${head}: UCT does not print this number in its format yet.`)
+    else if (named) out.push(`${head}: it is written with ${named}, which UCT does not print yet.`)
     else {
       out.push(`${head}: its number format is computed by the script. UCT ${fam === 'label' ? 'draws' : 'shows'} it `
         + 'when the format is written out.')
@@ -576,6 +580,7 @@ export function beginObjects(program, ctx) {
     textsWithheld += 1
     const why = formatNumberWhy(n, fmt) || 'format:withheld'
     textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1
+    fmtWhyNow = `number:${why}`
   }
   /** ⭐ N01 — a withheld `str.format` number, BY NAME (`messageNumberWhy`: an exact or a
    *  decimal tie, the grouping bound, `na`, a "-0"). */
@@ -583,6 +588,7 @@ export function beginObjects(program, ctx) {
     textsWithheld += 1
     const why = messageNumberWhy(n, fmt) || 'format:withheld'
     textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1
+    fmtWhyNow = `number:${why}`
   }
   /** ⭐⭐ e95 (computed number formats) — A TEXT WITHHELD FOR ITS FORMAT (`fmtUnread`) IS SAID TO THE MEMBER.
    *  `fmtWhyNow` is the reason of the last text `textOf` withheld for its format; `resolveProps` reads it for
@@ -979,13 +985,13 @@ export function beginObjects(program, ctx) {
           // ⭐⭐ H5 — `format.volume`: the witnessed M / B rendering or nothing.
           if (t.volume === true) {
             const s = volumeNumberText(n)
-            if (s === null) textsWithheld += 1
+            if (s === null) { textsWithheld += 1; fmtWhyNow = 'number:format.volume' }
             return s
           }
           // ⭐⭐ F3 — `format.mintick`: the binding's tick or nothing.
           if (typeof t.tick === 'string') {
             const s = tickNumberText(n, t.tickText)
-            if (s === null) textsWithheld += 1
+            if (s === null) { textsWithheld += 1; fmtWhyNow = 'number:format.mintick' }
             return s
           }
           const s = formatNumber(n, t.fmt)

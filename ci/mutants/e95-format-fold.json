@@ -63,7 +63,7 @@
    "from": "    else fmtMarks.delete(key)",
    "to": "    else { /* the mark is kept */ }",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
-   "expectRed": "clears the mark"
+   "expectRed": "ANOTHER reason"
   },
   {
    "id": "FF8",
@@ -73,6 +73,15 @@
    "to": "if (false) return null",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
    "expectRed": "live knob is not folded"
+  },
+  {
+   "id": "FF9",
+   "mutant": "a number the formatter withholds under a written-out pattern is withheld silently (no mark, no sentence)",
+   "file": "app/src/components/chart/engine/objectRuntime.js",
+   "from": "const why = formatNumberWhy(n, fmt) || 'format:withheld'\n    textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1\n    fmtWhyNow = `number:${why}`",
+   "to": "const why = formatNumberWhy(n, fmt) || 'format:withheld'\n    textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "never silent"
   }
  ]
 }

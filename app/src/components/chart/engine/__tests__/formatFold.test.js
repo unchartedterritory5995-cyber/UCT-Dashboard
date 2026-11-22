@@ -179,6 +179,26 @@ describe('(a) NAMED: a format not fixed before bar 0 stays withheld, and the mem
     expect(hostCell(h.run)).toBe(TWO)
     expect((h.run.withheldWhy || {})[FORMAT_WITHHELD_KEY]).toBeUndefined()
   })
+  it('⛔ a later write withheld for ANOTHER reason (a symbol text not settled here) is not called a format', () => {
+    const src = `${HEAD}fmt = close > open ? "#.##" : "#.#"\n${TABLE}`
+      + 'table.cell(t, 1, 0, str.tostring(high[1], fmt))\nif barstate.islast\n    table.cell(t, 1, 0, str.tostring(syminfo.ticker))\n'
+    const h = host(src)
+    expect(hostCell(h.run)).toBeNull()
+    expect((h.run.withheldWhy || {})[FORMAT_WITHHELD_KEY]).toBeUndefined()
+  })
+  it('a written-out pattern the formatter does not print yet ("#.##%") is named too, never silent', () => {
+    const h = host(tableOf('"#.##%"'))
+    expect(hostCell(h.run)).toBeNull()
+    expect(h.run.withheldWhy[FORMAT_WITHHELD_KEY]).toBe('A value in this table is not shown: UCT does not print this '
+      + 'number in its format yet.')
+  })
+  it('two families, two kinds: one sentence each, table first', () => {
+    const src = `${HEAD}fmt = close > open ? "#.##" : "#.#"\n${TABLE}`
+      + 'table.cell(t, 1, 0, str.tostring(high[1], format.percent))\nif barstate.islast\n    label.new(bar_index, high, str.tostring(high, fmt))\n'
+    expect(host(src).run.withheldWhy[FORMAT_WITHHELD_KEY]).toBe('A value in this table is not shown: it is written with '
+      + 'format.percent, which UCT does not print yet. A label is not drawn: its number format is computed by the script. '
+      + 'UCT draws it when the format is written out.')
+  })
   it('the runtime lane keeps its refusal for a per-bar format, by name', () => {
     const r = runtime(tableOf('fmt', 'fmt = close > open ? "#.##" : "#.#"\n'))
     expect(r.refusal && r.refusal.guard).toBe('runtime:call-text-state')
