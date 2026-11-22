@@ -247,11 +247,13 @@ export function createPersist({
    *  (devgates 2026-11-21, 0 of 28 with the watcher against 3 of 28 with the 25 ms poll it replaced). A copy the
    *  reducer refuses, or one that does not leave the key the device's, puts both stamps back as they were. */
   function _deviceHit(key, p, gen, got, ownDev = null) {
-    if (!got?.rows?.length) return false
+    // (`n`: the copy's row count without building its rows, deviceStore/source.js; a copy with no `n` has rows)
+    if (!got || !(got.n ?? got.rows?.length)) return false
     const before = registry.peek(key)
-    if (_joinRefused(before, p, got, ownDev)) return false
     const held = devThrough.get(key)
+    // ⛔ FIRST, AND WITHOUT TOUCHING `got.rows`: this is what nearly every warm of a device-held key ends in
     if (before?.source === 'device' && held != null && !(got.through > held)) return false   // not newer
+    if (_joinRefused(before, p, got, ownDev)) return false
     const was = { dev: devThrough.has(key), through: held, saved: savedAt.has(key), savedAt: savedAt.get(key) }
     _noteDev(key, got.through ?? null)
     _noteSaved(key, got.savedAt ?? null)
