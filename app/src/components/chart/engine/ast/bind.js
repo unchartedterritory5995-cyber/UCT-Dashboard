@@ -608,7 +608,7 @@ function assertUsableWindow(fnName, index, value, source) {
 export const REFUSED_ARM_CALL = 'refusedArm'
 
 const CLOCK_NAMES = new Set(BIND_TIME_CLOCK)
-const KNOB_TEST_OPS = new Set(['==', '!=', '>', '<', '>=', '<=', '&&', '||', '!', 'u-'])
+const KNOB_LOGIC_OPS = new Set(['&&', '||', '!'])
 
 /** Is `name` a knob of this binding (an input `consts` fixes as a finite number)? */
 export function isKnobName(name, consts) {
@@ -617,21 +617,21 @@ export function isKnobName(name, consts) {
     && typeof consts[name] === 'number' && Number.isFinite(consts[name])
 }
 
-/** The value of a ternary TEST made only of knobs, numbers and comparisons / logic over them (at least one knob), for
- *  this binding; null for any other test (it is left to the evaluator, bar by bar). */
+/** The value of a ternary TEST that COMPARES KNOBS TO CONSTANTS (the ruling's words): `knob == c` / `knob != c` (either
+ *  side), and `and` / `or` / `not` over such comparisons, for this binding; null for any other test (a bar, a clock
+ *  flag, a bare knob, an ordering, arithmetic), which is left to the evaluator, bar by bar. That is the shape
+ *  `enumCompare` / `enumSwitch` write (`kind == 1`), and a numeric knob compared for equality. */
 export function knobTestValue(test, consts) {
-  let knob = false
+  const isKnob = (n) => !!n && n.type === 'series' && isKnobName(n.name, consts)
+  const isNum = (n) => !!n && n.type === 'num'
   const ok = (n) => {
-    if (!n || typeof n !== 'object') return false
-    if (n.type === 'num') return true
-    if (n.type === 'series') {
-      if (!isKnobName(n.name, consts)) return false
-      knob = true
-      return true
+    if (!n || n.type !== 'op' || !Array.isArray(n.args)) return false
+    if (n.name === '==' || n.name === '!=') {
+      return n.args.length === 2 && ((isKnob(n.args[0]) && isNum(n.args[1])) || (isNum(n.args[0]) && isKnob(n.args[1])))
     }
-    return n.type === 'op' && KNOB_TEST_OPS.has(n.name) && Array.isArray(n.args) && n.args.length > 0 && n.args.every(ok)
+    return KNOB_LOGIC_OPS.has(n.name) && n.args.length === (n.name === '!' ? 1 : 2) && n.args.every(ok)
   }
-  if (!ok(test) || !knob) return null
+  if (!ok(test)) return null
   try {
     const v = foldScalar(test, consts)
     return Number.isFinite(v) ? v : null

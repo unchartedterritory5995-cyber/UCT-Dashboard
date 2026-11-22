@@ -587,7 +587,7 @@ def int_slots(name: Any) -> list:
 # knobs and constants takes the same arm on every bar of one binding, so the bound tree keeps that arm only. A KNOB is
 # an input: a name ``consts`` holds as a finite number that is not a clock flag and not a symbol field.
 
-_KNOB_TEST_OPS = frozenset(("==", "!=", ">", "<", ">=", "<=", "&&", "||", "!", "u-"))
+_KNOB_LOGIC_OPS = frozenset(("&&", "||", "!"))
 
 
 def is_knob_name(name: Any, consts: Mapping[str, Any]) -> bool:
@@ -601,26 +601,25 @@ def is_knob_name(name: Any, consts: Mapping[str, Any]) -> bool:
 
 
 def knob_test_value(test: Any, consts: Mapping[str, Any]):
-    """The value of a ternary TEST made only of knobs, numbers and comparisons / logic over them (at least one knob),
-    for this binding; ``None`` for any other test."""
-    seen = {"knob": False}
+    """The value of a ternary TEST that COMPARES KNOBS TO CONSTANTS: ``knob == c`` / ``knob != c`` (either side), and
+    ``and`` / ``or`` / ``not`` over such comparisons, for this binding; ``None`` for any other test (a bar, a clock flag,
+    a bare knob, an ordering, arithmetic). The mirror of ``bind.js::knobTestValue``."""
+    def is_knob(n: Any) -> bool:
+        return isinstance(n, Mapping) and n.get("type") == "series" and is_knob_name(n.get("name"), consts)
+
+    def is_num(n: Any) -> bool:
+        return isinstance(n, Mapping) and n.get("type") == "num"
 
     def ok(n: Any) -> bool:
-        if not isinstance(n, Mapping):
+        if not isinstance(n, Mapping) or n.get("type") != "op" or not isinstance(n.get("args"), (list, tuple)):
             return False
-        kind = n.get("type")
-        if kind == "num":
-            return True
-        if kind == "series":
-            if not is_knob_name(n.get("name"), consts):
-                return False
-            seen["knob"] = True
-            return True
-        args = n.get("args")
-        return (kind == "op" and n.get("name") in _KNOB_TEST_OPS and isinstance(args, (list, tuple))
-                and len(args) > 0 and all(ok(a) for a in args))
+        args = n["args"]
+        name = n.get("name")
+        if name in ("==", "!="):
+            return len(args) == 2 and ((is_knob(args[0]) and is_num(args[1])) or (is_num(args[0]) and is_knob(args[1])))
+        return name in _KNOB_LOGIC_OPS and len(args) == (1 if name == "!" else 2) and all(ok(a) for a in args)
 
-    if not ok(test) or not seen["knob"]:
+    if not ok(test):
         return None
     try:
         v = fold_scalar(test, consts)

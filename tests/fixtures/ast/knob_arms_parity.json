@@ -1,5 +1,5 @@
 {
- "_": "e95 unit 2b -- the bind-time prune of a knob's unpicked arms (bind.js::pruneKnobArms / ast_bind.prune_knob_arms), pinned: both lanes are asserted against these rows, neither against the other. `inputs` are a binding's inputs (bindingConstants), `prunedTo` the bound tree.",
+ "_": "e95 unit 2b -- the bind-time prune of a knob's unpicked arms (bind.js::pruneKnobArms / ast_bind.prune_knob_arms), pinned: both lanes are asserted against these rows, neither against the other. A test prunes only when it COMPARES knobs to constants (`knob == c`, `knob != c`, and/or/not over such). `inputs` are a binding's inputs (bindingConstants), `prunedTo` the bound tree.",
  "cases": [
   {
    "id": "enum-chain-picks-week",
@@ -771,7 +771,45 @@
    }
   },
   {
-   "id": "numeric-knob-compare",
+   "id": "numeric-knob-equality",
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "==",
+      "args": [
+       {
+        "type": "num",
+        "value": 14
+       },
+       {
+        "type": "series",
+        "name": "len"
+       }
+      ]
+     },
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     }
+    ]
+   },
+   "inputs": {
+    "len": 14
+   },
+   "prunedTo": {
+    "type": "series",
+    "name": "high"
+   }
+  },
+  {
+   "id": "numeric-knob-ordering-left-alone",
    "tree": {
     "type": "op",
     "name": "?:",
@@ -804,12 +842,36 @@
     "len": 14
    },
    "prunedTo": {
-    "type": "series",
-    "name": "high"
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "len"
+       },
+       {
+        "type": "num",
+        "value": 10
+       }
+      ]
+     },
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     }
+    ]
    }
   },
   {
-   "id": "bare-bool-knob",
+   "id": "bare-knob-left-alone",
    "tree": {
     "type": "op",
     "name": "?:",
@@ -832,8 +894,22 @@
     "show": 0
    },
    "prunedTo": {
-    "type": "series",
-    "name": "low"
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "series",
+      "name": "show"
+     },
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     }
+    ]
    }
   },
   {
