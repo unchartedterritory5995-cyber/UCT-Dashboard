@@ -714,6 +714,14 @@ export const FUNCTIONS = [
   { code: 'SETH', label: 'How setups acted (breakouts, pullbacks, gaps in every correction and rally)', group: 'Market',
     ticker: { panel: 'SetupHistory', args: [{ kind: 'marketView', prop: 'view' }] },
     market: { panel: 'SetupHistory', args: [{ kind: 'marketView', prop: 'view' }] } },
+  // VFP (2026-11-22): one stock's volume footprint, worked out by the server from the daily bars it already stores
+  // (GET /api/research/volume-footprint/{ticker}, held for the session): accumulation and distribution days over 25
+  // and 50 sessions and the up/down volume ratio, the 10 heaviest sessions of the last year, every pocket pivot of
+  // the last year, and every gap of 3% or more in the history held with when it filled; earnings marks from the
+  // report dates the site's earnings page already holds. No arguments. VFP is not in the site's universe, and a web
+  // search on 2026-11-22 found no stock or fund listed under it.
+  { code: 'VFP', label: 'Volume footprint and gaps (accumulation and distribution days, pocket pivots, every gap of 3% or more)', group: 'Security',
+    ticker: { panel: 'VolumeFootprint' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -1094,6 +1102,11 @@ const FUNCTION_WORDS = {
   SETH: { example: 'SETH', keywords: ['setup history', 'how setups acted', 'breakout history', 'setup backtest',
     'setups by market phase'],
     note: 'Each setup is a screen the Screener answers on every past bar; the market phase is assigned with hindsight. One stock: NVDA SETH. A record, not a forecast.' },
+  // VFP: "volume" stays LEAD's, UNVOL's and MOST's (MOST also takes VOLUME as a lens word), "accumulation" ACCUM's,
+  // "gap" MOST's (its gappers) and "pivot" BRKO's: each still finds its own function first.
+  VFP: { example: 'NVDA VFP', keywords: ['volume footprint', 'accumulation days', 'distribution days', 'pocket pivots',
+    'pocket pivot', 'gap history', 'gaps', 'unfilled gaps', 'up down volume'],
+    note: "From UCT's stored daily bars (settled sessions; prices and volumes split-adjusted). A record, not a forecast." },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
