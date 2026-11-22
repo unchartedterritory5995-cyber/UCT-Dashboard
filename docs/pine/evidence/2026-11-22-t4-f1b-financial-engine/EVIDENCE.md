@@ -145,12 +145,24 @@ capture of such a script grades INCONCLUSIVE, named "a UCT-data substitution" (`
   - each static refusal, and the internal name (never fetched);
   - placement on both lanes (gaps off and on), weekly and monthly;
   - the three withheld cases with their per-bar code and words on both lanes, plus a control;
-  - the bind refusals, the memo, and the disclosure.
+  - the bind refusals, the memo (the chart's memoised run recomputes on a refreshed answer), and the disclosure.
 - `app/src/components/chart/engine/financialSupply.test.js` covers the financial door: one ask per symbol, dark, pending, separate from the events door, and never `/api/bars`.
 - `vendorHarness.test.js` checks that a run reading UCT data grades INCONCLUSIVE ("a UCT-data substitution"), never MATCH. Its control is the same run without the read, which grades MATCH; a DIVERGE stays DIVERGE.
 - `tests/test_pine_authoring.py` checks that the assistant is handed `request.financial` only at `PINE_FINANCIAL_SUPPLY_ENABLED=all`.
 - `tests/test_pine_capabilities.py` covers `request-financial` beside `request-other`.
-- `ci/mutants/t4-f1b-financial.json` holds mutants FN1-FN15.
+- `ci/mutants/t4-f1b-financial.json` holds 14 mutants (FN1-FN15, without FN11).
 
-Mutants: 15 (FN1-FN15). The manifest is run by `tools/ci_mutant_runner.py` (byte-identical restores) on GitHub's
-runners (pine-heavy, `mutants_manifest`). The result is recorded on the PR.
+**Mutants: 14 of 14 KILLED, every file restored byte-equal.** They ran on GitHub's runners (pine-heavy,
+`mutants_manifest`, run 45054900576) at `94a094d978`, through `tools/ci_mutant_runner.py`.
+
+The first run (45052829528, 15 mutants) left two survivors and one hollow kill. Each was handled:
+
+- **FN11 survived, and was dropped.** It mutated the data-read skip in `fetchableOtherSymbols`. That skip is one of
+  three guards keeping a data read out of `/api/bars`: E2's skip, the internal-name spelling refusal, and the venue
+  check. A one-line mutant of one guard cannot break the isolation. FN1 breaks the one path that does reach the
+  bars door (the financial key handed to `ensureAll`), and it is KILLED.
+- **FN13 survived, and was re-aimed.** It had mutated the depth-probe regex, which is only an optimisation: the run
+  finds the depth through its own refusal. FN13 now targets the runtime memo key (`requestSupplyKey`), and a new
+  rail drives it through `runtimeColumnsFor`. It is KILLED.
+- **FN15's first kill was hollow.** Its rail waited on the generated reference, so it was red before the mutant
+  ran. The rail now states its own premise, so it is green on the code and red under the mutant. It is KILLED.
