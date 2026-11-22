@@ -652,7 +652,11 @@ export const FUNCTIONS = [
   // FUNDS by their price over a window. GRPS is not in the site's universe.
   // GRPS RANK (2026-11-22): each group's weekly rank for a year by the median 6-month price change of its stocks (and
   // the 3-month), the places it moved over 4, 13 and 52 weeks, its best and worst week, and the movers; GRP's "Rank".
-  { code: 'GRPS', label: 'Every sector or industry: weekly rank, median growth, margins, valuation and breadth', group: 'Market',
+  // GRPS CROWDING (2026-11-22): positioning by group: each one's short interest (median % of float, days to cover, the
+  // change since the last report, the most shorted), open-market insider buying (buyers, dollars, the largest buys) and
+  // fund holdings (N-PORT: the share where more funds added than cut, the median net change), each with its own date;
+  // a group's stock count opens its stocks with their own figures. 13F is left out: no whole-market store of it is held.
+  { code: 'GRPS', label: 'Every sector or industry: weekly rank, median growth, margins, valuation, breadth and crowding', group: 'Market',
     market: { panel: 'GroupTable', args: [{ kind: 'groupsKind', prop: 'kind' }, { kind: 'groupsView', prop: 'view' }] } },
   // SEG (2026-11-21): one stock's revenue by product (or business line) and by region, the newest period ranked with
   // each segment's share and the last four side by side (GET /api/research/revenue-segments/{ticker}, read from
@@ -1083,10 +1087,13 @@ const FUNCTION_WORDS = {
     note: 'Every decline of 10% or more on closing prices, the rally after each low and its leaders. A record, not a forecast.' },
   // 'breadth' stays with BRD, 'sectors' with RRG and 'sector performance' with SCTR: each still finds its own first.
   // 'sector rank' stays with SCTR and 'rank' with RSL: no word here starts with "rank" (2026-11-22, GRPS RANK).
+  // GRPS CROWDING (2026-11-22): no keyword holds "insider", "buying" or "positioning": the command line orders equal
+  // word matches by code, so GRPS would come before INS and POS for those words (functionWords.test.js caught it).
   GRPS: { example: 'GRPS INDUSTRIES', keywords: ['sector fundamentals', 'industry fundamentals', 'sector breadth', 'industry breadth',
     'sector valuation', 'sector margins', 'group fundamentals', 'sector table', 'industry table', 'industry rank', 'group rank',
-    'industry group rank', 'industry ranking', 'group rank history', 'leading industries'],
-    note: "Medians of each group's stocks from their SEC filings as known that day, its breadth from stored closes, and its weekly rank by the median 6-month change; worked out each evening." },
+    'industry group rank', 'industry ranking', 'group rank history', 'leading industries', 'sector short interest',
+    'industry short interest', 'sector crowding', 'industry crowding'],
+    note: "Medians of each group's stocks from their SEC filings as known that day, its breadth from stored closes, its weekly rank by the median 6-month change, and its short interest, insider buying and fund holdings; worked out each evening." },
   // 'revenue' stays with FA and 'geographic'/'regions' had no owner.
   SEG: { example: 'NVDA SEG', keywords: ['revenue by segment', 'segments', 'segment revenue', 'product revenue', 'revenue by product',
     'revenue by region', 'geographic revenue', 'business segments', 'revenue mix'],

@@ -66,6 +66,11 @@ export function createDeviceSource({ load = _load, current = () => _client } = {
         .then((c) => (c ? c.getBars(sym, String(tf)) : null))
         .then(_hit, () => null)
     },
+    /** Diagnostics: the client's worker requests in flight (client.inFlight), 0 before it loaded. */
+    inFlight() {
+      const c = current()
+      try { return c?.inFlight ? c.inFlight() : 0 } catch { return 0 }
+    },
     /** Diagnostics: the worker's rule for (sym, tf) (client.why); 'no-client' when the store never loaded. */
     why(sym, tf) {
       return Promise.resolve(current() || load())

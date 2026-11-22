@@ -196,6 +196,8 @@ export function createDeviceClient({
       return n
     },
     info() { return _call({ op: 'info' }) },
+    /** Diagnostics: this page's requests to the worker still unanswered (a held arrow's backlog). */
+    inFlight() { return pending.size },
     /** Diagnostics: the worker's rule behind what getBars answers (engine.why), or null with no engine yet. */
     why(sym, tf) { return sym ? _call({ op: 'why', sym: String(sym).toUpperCase(), tf: String(tf) }) : Promise.resolve(null) },
     status: () => ({ ...(status || {}), storage: { ...persist } }),
