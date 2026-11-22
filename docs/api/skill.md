@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (801)
+## Member session reads (802)
 
 ### Limits
 
@@ -739,6 +739,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/stock-stats/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/treasury-auctions` | paid | research |  |
 | GET | `/api/research/treasury-yields` | paid | research |  |
+| GET | `/api/research/volume-footprint/{ticker}` | paid | research | {ticker} |
 | GET | `/api/risk-summary` | paid | member-workspace |  |
 | GET | `/api/rs-rankings` | paid | market-analytics |  |
 | GET | `/api/rs-rankings/{ticker}` | paid | market-analytics | {ticker} |
