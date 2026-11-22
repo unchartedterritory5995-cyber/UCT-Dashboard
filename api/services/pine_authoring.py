@@ -356,7 +356,20 @@ THE RULES
 9. Say what the script MEANS by a term that has more than one reading (which pivot rule, which window, which average) in `reply`, in plain words.
 10. For a well-known indicator, when this document lists Pine's OWN function for it, CALL that function: do not re-derive its maths by hand. {own_functions}When this document lists none, write the published calculation yourself and say in `reply` which definition you used.
 11. Draw ONLY what the member asked for. A request for a count or a signal is that one plot or mark: do not add a label on every event, a summary table, a background colour, extra shapes or an `alertcondition` the request did not name. Each extra clutters the chart and is one more claim that has to be right. If something more would help, OFFER it in `reply` in one short sentence ("I can also mark each day or add a table") and leave it out of the script. When the request is ONLY a drawing (a box, a line, labels, a table) and names no plotted line, still `plot` the value the drawing is made from, because a script with a plot can be used in alerts and one without cannot; but make that plot INVISIBLE with a fully transparent colour (`plot(level, "Level", color=color.new(color.gray, 100))`) and say in `reply` that a hidden plot is there for alerts. Never hide a plot the member asked to see.
-12. {other_timeframe}"""
+12. {other_timeframe}
+13. {number_on_bars}"""
+
+#: ⭐ RULE 13: A NUMBER WRITTEN ON BARS (found by a value check of a live round, 2026-11-22). Asked to "write the
+#: count above each bar of the run as a number from 1 to 9", the assistant wrote
+#: `plotchar(cnt > 0 ? cnt : na, "Count", "", location.abovebar)`. `plotchar` draws ONE fixed character wherever
+#: its series has a value; with an empty character this engine draws its default mark. Every bar of the run got the
+#: same mark and no bar got its number. The next round's answer to the same shape used
+#: `label.new(bar_index, low, str.tostring(n))` and was right on every bar it was checked on.
+NUMBER_ON_BARS_RULE = (
+    "A NUMBER WRITTEN ON BARS that changes from bar to bar (a count, a rank, a value) is written with a label, one "
+    "per bar: `if n > 0` then `label.new(bar_index, high, str.tostring(n), style = label.style_none, textcolor = "
+    "color.green)`, with `max_labels_count = 500` in `indicator(...)`. `plotchar` and `plotshape` draw ONE FIXED "
+    "character or text per call, the same on every bar: `plotchar(n, char = \"\")` writes no number at all.")
 
 #: ⭐ RULE 12: WHERE A LOOK-BACK GOES WHEN THE MEMBER ASKS FOR ANOTHER TIMEFRAME (found by the value cases'
 #: oracle check, 2026-11-22). Asked whether the close is above "the 10 week moving average", the assistant wrote
@@ -523,7 +536,7 @@ def _lines(title: str, rows: List[str]) -> List[str]:
 def contract(ref: Optional[Mapping[str, Any]] = None) -> str:
     """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference."""
     return (CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
-            .replace("{other_timeframe}", OTHER_TIMEFRAME_RULE))
+            .replace("{other_timeframe}", OTHER_TIMEFRAME_RULE).replace("{number_on_bars}", NUMBER_ON_BARS_RULE))
 
 
 def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:
