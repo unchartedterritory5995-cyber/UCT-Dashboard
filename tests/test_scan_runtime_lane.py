@@ -918,3 +918,40 @@ def test_a_finite_value_inside_the_warmup_withholds_the_symbol_never_a_non_hit(w
     assert out["withheld_reason"] == prc.INTEGRITY
     assert "warm-up" in out["runtime_withheld_symbols"][0]["sentence"]
     assert out["persisted"] is False and world.hits_written == []
+
+
+# ═══ 8d. 2026-11-22: an UNSCANNABLE runtime document is handed on, never counted ══════════════
+#
+# The 05:00 ET sweep of 2026-11-22 swept NOTHING for anyone: `definitions_to_sweep` RAISED on one admin's
+# three-plot runtime document ("a scan reads ONE plot and this script maps 3"), because the cap counted
+# `_result_handle` of every runtime document, and a multi-plot one has none. Such a document is kept so
+# `run_sweep` refuses it BY NAME; it must take no cap or quota slot and must never take the night down.
+# Mutation proof: count it again (the old `[_result_handle(d) for d in out if is_runtime(d)]`) -> RED here.
+
+def _multi_plot_row(i=0, owner="admin-1"):
+    return _row(def_id="u_%012x" % (0xbad000 + i), user_id=owner,
+                definition=_doc(outputs={"value": 0, "out2": 1, "out3": 2}, source=SOURCE + f"\n// three plots {i}"))
+
+
+@pytest.mark.parametrize("stage", [None, "admins", "all"])
+@pytest.mark.parametrize("scannable", [3, 30])
+def test_a_multi_plot_runtime_document_never_takes_the_night_down(world, live_rows, monkeypatch, stage, scannable):
+    _stage(monkeypatch, stage)
+    _on_day(monkeypatch, 740_000)
+    live_rows += _distinct_rows(scannable) + [_multi_plot_row(0), _multi_plot_row(1, owner="member-0")]
+    out = ev.definitions_to_sweep()                     # raised ScanRefused before the fix
+    runtime = [d for d in out if runtime_definitions.is_runtime(d)]
+    multi = [d for d in runtime if len(d["compute"]["outputs"]) > 1]
+    assert len(multi) == 2, "handed on, so run_sweep refuses each BY NAME"
+    assert len(runtime) - len(multi) == min(scannable, ev.RUNTIME_SWEEP_CAP), "and it took no slot"
+
+
+def test_the_sweep_job_runs_and_refuses_the_multi_plot_document_by_name(world, live_rows, monkeypatch, caplog):
+    _on_day(monkeypatch, 740_000)
+    live_rows += [_multi_plot_row(0)]
+    seen = {}
+    monkeypatch.setattr(ev, "run_sweep", lambda defs, *a, **k: seen.setdefault("defs", list(defs)) and None)
+    with caplog.at_level("INFO"):
+        ev.sweep_job()
+    assert "could not read the definitions to sweep" not in caplog.text
+    assert len(seen.get("defs") or []) == 1

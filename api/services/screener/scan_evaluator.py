@@ -3096,21 +3096,36 @@ def definitions_to_sweep() -> list:
     # ⭐ TRACK 6, PR-B -- the Q2 cap, applied AFTER admission and the dedupe, so a document the
     # lane refuses or a second member's copy of the same script never takes a slot.
     day = _now_et().date().toordinal()
+    # ⛔⛔ AN UNSCANNABLE RUNTIME DOCUMENT IS HANDED ON, NEVER COUNTED (2026-11-22). A runtime document
+    # that maps more than one plot is kept above so `run_sweep` refuses it BY NAME; it has no result
+    # handle (`_result_handle` raises ScanRefused). Counting it below raised out of this function, and
+    # `sweep_job` then logged "could not read the definitions to sweep" and swept NOTHING for anyone:
+    # the 2026-11-22 05:00 ET sweep died that way on one admin's three-plot document. `_capped` is the
+    # only way the quota and the cap read a handle; a document with none takes no slot and stays handed on.
+    def _capped(d) -> Optional[str]:
+        try:
+            return _result_handle(d)
+        except Exception:                                    # noqa: BLE001
+            return None
+
+    def _uncounted(d) -> bool:
+        return not runtime_definitions.is_runtime(d) or _capped(d) is None
+
     # ⭐ TRACK 6, PR-C -- the per-member quota FIRST (at the effective stage `all` only), then the cap over
     # what is left, so the cap rotates over documents every owner is entitled to tonight.
     if runtime_definitions.effective_server_stage() == runtime_definitions.STAGE_ALL:
-        kept, over = _runtime_sweep_quota([d for d in out if runtime_definitions.is_runtime(d)],
+        kept, over = _runtime_sweep_quota([d for d in out if not _uncounted(d)],
                                           RUNTIME_SWEEP_PER_MEMBER, day)
         if over:
-            out = [d for d in out if not runtime_definitions.is_runtime(d) or _result_handle(d) in kept]
+            out = [d for d in out if _uncounted(d) or _capped(d) in kept]
             not_admitted[RUNTIME_SWEEP_QUOTA_GUARD] = over
             log.warning("[scan] runtime sweep member quota: %d runtime document(s) over their owner's quota of "
                         "%d are not swept tonight (ruling Q2) and lead on the following nights",
                         over, RUNTIME_SWEEP_PER_MEMBER)
-    runtime_handles = [_result_handle(d) for d in out if runtime_definitions.is_runtime(d)]
+    runtime_handles = [_capped(d) for d in out if not _uncounted(d)]
     if len(runtime_handles) > RUNTIME_SWEEP_CAP:
         turn = _runtime_sweep_turn(runtime_handles, RUNTIME_SWEEP_CAP, day)
-        out = [d for d in out if not runtime_definitions.is_runtime(d) or _result_handle(d) in turn]
+        out = [d for d in out if _uncounted(d) or _capped(d) in turn]
         capped = len(runtime_handles) - len(turn)
         not_admitted[RUNTIME_SWEEP_CAP_GUARD] = capped
         log.warning("[scan] runtime sweep cap: %d of %d admitted runtime documents are swept tonight "
