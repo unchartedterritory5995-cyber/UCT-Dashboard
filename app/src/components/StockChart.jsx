@@ -10106,7 +10106,13 @@ function StockChartBody({
   }
   const _applyFutureWsRef = useRef(null)
   _applyFutureWsRef.current = _applyFutureWs
-  useEffect(() => { _applyFutureWs(earningsEvents) }, [earningsEvents, resolvedTf, filteredBars, adjustTime])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // ⛔ (imperative switch; review round 2, M1) while another symbol is painted this body is the OLD symbol's: its
+    // bars or its earnings rows moving must not write its axis under the painted one. The body's render of the
+    // painted symbol, or the replay of this one (`reactRepaint`), writes the axis.
+    if (switchCtl && switchCtl.pendingSym()) return
+    _applyFutureWs(earningsEvents)
+  }, [earningsEvents, resolvedTf, filteredBars, adjustTime])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Splits + dividends: snap each event date to its containing bar (same bucketing
   // as earnings) so they render as bottom-row "S"/"D" badges, one per bar.
@@ -11109,8 +11115,11 @@ function StockChartBody({
   // only highlighted when it falls within the visible year.
   const volExtremes = useMemo(() => {
     if (!markVolumeExtremes || !__heavy.filteredBars?.length) return null
-    // (neighbour frames on) the shared rule, filed under the bars: the switch frame builds the next symbol's with it
-    if (_nfRecipes) return deriveVolExtremes(__heavy.filteredBars, entryDate, exitDate)
+    // (imperative switch ON, neighbour frames on) the shared rule, filed under the bars: the switch frame builds the
+    // next symbol's with it, so the body's render is handed the SAME object and its pass sets nothing again.
+    // ⛔ ONLY WITH THE SWITCH ON (review round 2, H1): off, this memo is master's loop below, statement for statement
+    // (StockChart.imperativeSwitch.test.jsx "H1" counts every derive call with the switch off).
+    if (_nfRecipes && IMPERATIVE_SWITCH) return deriveVolExtremes(__heavy.filteredBars, entryDate, exitDate)
     const inYear = b => (!entryDate || b.t >= entryDate) && (!exitDate || b.t <= exitDate)
     let hve = null
     for (const b of __heavy.filteredBars) if (b.v != null && (!hve || b.v > hve.v)) hve = b
@@ -12183,6 +12192,8 @@ function StockChartBody({
         // the chart's own pass of the symbol React shows, in full (`switchController.replay`), its tags included
         reactRepaint: () => {
           updateChart()
+          // the axis this body's bars and earnings rows ask for (an update skipped while the switch was pending)
+          _applyFutureWs(earningsEvents)
           _liveExtAppliedRef.current = sessionExtPrice
           _applySessionTags(activeSessionTags)
           _seatExtTag(activeSessionTags, devOnScreen.dev()?.close)
@@ -12299,8 +12310,13 @@ function StockChartBody({
     const p = (Number.isFinite(px) && px > 0) ? px : tags[i]?.price
     if (line && Number.isFinite(p) && p > 0) { try { line.applyOptions({ price: p }) } catch { /* series gone */ } }
   }
-  useEffect(() => { _applySessionTags(activeSessionTags) },
-    [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels, lastBarOff, extTagInline])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // ⛔ (imperative switch; review round 2, M1) while another symbol is painted, the tags on the axis are THAT
+    // symbol's (the paint applied them); a render of this body (its quote or bars moved) must not put its own back.
+    // The body's render of the painted symbol, or the replay of this one, applies the tags.
+    if (switchCtl && switchCtl.pendingSym()) return
+    _applySessionTags(activeSessionTags)
+  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels, lastBarOff, extTagInline])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ⭐ A PUBLISH BETWEEN RENDERS (2026-11-20, `useQuietRealtimePrices`): what it changes that this chart shows without a render.
   // The newest render's function, so it reads that render's settings; the quote is read fresh.
@@ -15987,13 +16003,17 @@ function StockChartBody({
   // controller the whole list (the chart's markers + these) — without re-running updateChart. No controller yet: the
   // next updateChart creates it with these already in (it reads myTradeMarkersRef).
   useEffect(() => {
+    // ⛔ (imperative switch; review round 2, M1) this hands the marker layer the WHOLE list, this body's symbol's.
+    // While another symbol is painted the layer is that symbol's; the body's render of it, or the replay of this
+    // one (its pass re-hands the list), sets it.
+    if (switchCtl && switchCtl.pendingSym()) return
     const ctl = markersControllerRef.current
     if (!ctl || typeof ctl.setMarkers !== 'function' || !candleSeriesRef.current) return
     if (lastMyTradesSrcRef.current === myTrades.markers) return
     lastMyTradesSrcRef.current = myTrades.markers
     lastMarkersSrcRef.current = mergedMarkers
     try { ctl.setMarkers(withMyTradeMarkers(mergedMarkers, myTrades.markers)) } catch { /* series gone */ }
-  }, [myTrades, mergedMarkers, chartReady])
+  }, [myTrades, mergedMarkers, chartReady])  // eslint-disable-line react-hooks/exhaustive-deps -- `switchCtl` is this chart's for its life
 
   // Chart Settings → My trades: hovering one of its markers shows "Bought 100 @ 12.34 · <date time>" (or "3 fills · net
   // +200") as the chart's tooltip — lightweight-charts reports the hovered marker's `id`. Subscribed only while ON.

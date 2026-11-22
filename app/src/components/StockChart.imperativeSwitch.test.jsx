@@ -769,9 +769,16 @@ describe('coverage: a default-settings chart is applied by the controller', () =
         await act(async () => { await swrMutate('/api/chart/markers/AAA?days=36500', { earnings: [{ date: '2026-12-10', estimate: true }] }, false) })
         t.view.rerender(t.el('AAA', { markers: [...MARKERS_A] }))
         await wait(200)
+        const between = S.log.slice()
+        const views = ctl ? ctl.diag.views - views0 : -1
+        const pending = ctl ? ctl.pendingSym() : null
+        // then the body renders BBB: the layers are written again, BBB's (the guards hold only while pending)
+        S.log.length = 0
+        t.view.rerender(t.el('BBB'))
+        await wait(500)
         r = {
           result, refusedAs: ctl ? JSON.stringify(ctl.diag.last) : null, mountLog: t.mountLog, paintLog,
-          between: S.log.slice(), views: ctl ? ctl.diag.views - views0 : -1, pending: ctl ? ctl.pendingSym() : null,
+          between, views, pending, after: S.log.slice(), pendingAfter: ctl ? ctl.pendingSym() : null,
         }
         t.done()
       } finally { clock.restore(); S.prices = {}; S.rows = null; S.markers = null }
@@ -781,10 +788,15 @@ describe('coverage: a default-settings chart is applied by the controller', () =
       expect(r.result, `refused as ${r.refusedAs}`).toBe('applied')
       expect(r.pending).toBe('BBB')
       expect(r.views).toBeGreaterThan(0)
-      // non-vacuity: the mount drew each of AAA's three layers
+      // non-vacuity: the mount drew AAA's tag and its marker (the future axis is written by its effect when the
+      // bars or the earnings rows change, not at a mount whose inputs land before the chart exists)
       expect(r.mountLog.some((l) => / (createPriceLine|priceLine\.price) 10\.83$/.test(l)), 'AAA\'s Pre/Post tag').toBe(true)
       expect(r.mountLog.some((l) => /^markers set [1-9]/.test(l)), 'AAA\'s marker').toBe(true)
-      expect(r.mountLog.some((l) => / setWhitespace /.test(l)), 'AAA\'s future axis').toBe(true)
+    })
+    it('…and once the body renders BBB the guarded effects write again (they are held only while the switch is pending)', () => {
+      expect(r.pendingAfter).toBe(null)
+      expect(r.after.some((l) => / setWhitespace /.test(l)), 'the future axis, BBB\'s').toBe(true)
+      expect(r.after.some((l) => / (createPriceLine|priceLine\.price) 10\.95$/.test(l)), 'no tag at AAA\'s price after either').toBe(false)
     })
     it('the session tags: no tag at AAA\'s new extended-hours price is written onto BBB', () => {
       expect(r.between.filter((l) => / (createPriceLine|priceLine\.price) 10\.95$/.test(l))).toEqual([])

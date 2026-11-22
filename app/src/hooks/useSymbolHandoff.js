@@ -200,10 +200,11 @@ const NO_DECISION = () => null
  * @param scope        the board whose setGroupSym DECIDES (its groupSymsStore), or null: a chart with a scope is a
  *                     member of the key handler's decision; without one it takes the round alone (today's path)
  * @param painter      a ref the host also hands its chart (`switchPort`), or null. While the imperative switch is
- *                     on, the chart puts its switch controller there; this hook then SHOWS a symbol by asking it
- *                     to paint (`apply`). Empty (the switch off, or the controller refusing that symbol) is today's
- *                     path. ⛔ This hook imports nothing of the controller: the ref is the whole bridge
- *                     (docs/charts/imperative-switch-design.md §3.4).
+ *                     on, the chart puts its switch controller there; the key handler's decision then SHOWS a
+ *                     symbol by asking it to paint (`apply`). The round never paints (see `show` below). Empty (the
+ *                     switch off, or the controller refusing that symbol) is today's path. ⛔ This hook imports
+ *                     nothing of the controller: the ref is the whole bridge (docs/charts/imperative-switch-design.md
+ *                     §3.4).
  *                     ⭐ The hook writes one field back on that ref object each render, `painter.bodySym`: the
  *                     symbol to render the chart BODY with. It is the returned symbol except for the frame or
  *                     two after the controller painted: the host's own chrome takes the new symbol at once, in
@@ -241,10 +242,16 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   const shownRef = useRef(displayedSym)
   shownRef.current = displayedSym
   const paintSeqRef = useRef(0)
-  // ⛔ THE CONTROLLER IS TOLD WHAT THE HOST SHOWS, whenever a symbol is shown through React and at each release.
-  // If the host is back on the symbol the body is still rendered with while another one is painted, the body will
-  // not render (its prop does not change): the controller then ends its switch and puts that symbol's own frame
-  // back (`reconcile`). Without this the canvas kept the painted symbol under the old one's label.
+  // the hold as of the last render (a release reports only a hold it freed: review round 2, L3)
+  const holdRef = useRef(bodyHold)
+  holdRef.current = bodyHold
+  // ⛔ THE CONTROLLER IS TOLD WHAT THE HOST SHOWS: in the key handler's decision (the same task as the label's
+  // render), in the layout phase of the commit that carries a label (the round's shows: see the round-join layout
+  // effect below), and at each release. If the host is back on the symbol the body is still rendered with while
+  // another one is painted, the body will not render (its prop does not change): the controller then ends its
+  // switch and puts that symbol's own frame back (`reconcile`). Without this the canvas kept the painted symbol
+  // under the old one's label. ⛔ Never earlier than the commit of that label (review round 2, H2): the replay
+  // writes the canvas, and a label rendered in a later task can be a presented frame behind it.
   const tellRef = useRef(null)
   if (!tellRef.current) {
     tellRef.current = (sym) => {
@@ -269,9 +276,10 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       const seq = ++paintSeqRef.current
       const release = () => setTimeout(() => {
         if (paintSeqRef.current !== seq) return
+        const freed = holdRef.current != null   // a React show may have cleared it already: nothing to count then
         setBodyHold(null)
         const now = painter && painter.current
-        if (now && typeof now.noteReleased === 'function') { try { now.noteReleased() } catch { /* a counter */ } }
+        if (freed && now && typeof now.noteReleased === 'function') { try { now.noteReleased() } catch { /* a counter */ } }
         tellRef.current(shownRef.current)
       }, 0)
       if (typeof requestAnimationFrame === 'function') requestAnimationFrame(release)
@@ -330,6 +338,10 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   // ⭐⭐ ONE FRAME FOR THE GROUP, WHEN THE DECISION SAID NO: join the round for the requested symbol in the LAYOUT
   // phase (see GROUP_SYNC_MS), so every sibling of this commit is a member before any of them can be ready.
   useLayoutEffect(() => {
+    // (imperative switch; review round 2, H2) the controller hears what the host shows HERE, in the commit that
+    // carries the label: a way back by the round replays the canvas in the label's own commit, one frame. With no
+    // controller in the port this is nothing. (Not a hook of its own: the switch-off path keeps master's hooks.)
+    tellRef.current(displayedSym)
     if (!group || !enabled || !requestedSym || !tf || requestedSym === displayedSym) return undefined
     const id = memberIdRef.current
     groupJoin(group, requestedSym, id)
@@ -379,11 +391,17 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     function run() {
       const gen = ++genRef.current
       // the chart is ready: it is SHOWN with its group (groupReady), or alone when it has none
-      // ⭐ (imperative switch) a chart with a controller is PAINTED here, in the round's one task, and its body is
-      // held until after the paint. No controller, or it refuses this symbol: the body follows now, as before.
+      // ⛔⛔ (imperative switch; review round 2, H2) THE ROUND NEVER PAINTS. It runs from a timer, a promise or a
+      // passive effect, and from there React renders `setDisplayedSym` (the host's label) and every React-path
+      // sibling in a LATER task than this one: a paint here would write the canvas a task, and possibly a presented
+      // frame, before the label and the siblings. So every member takes the symbol through React, in one commit,
+      // as on master; only the key handler's decision paints (its React work is synchronous in the same task). The
+      // controller counts the switch (`round`), so the share on the new path stays honest.
       const show = () => {
         if (genRef.current !== gen) return
-        if (!paintRef.current(requestedSym)) { tellRef.current(requestedSym); setBodyHold(null) }
+        const p = painter && painter.current
+        if (p && typeof p.noteRound === 'function') { try { p.noteRound(requestedSym) } catch { /* a counter */ } }
+        setBodyHold(null)
         setDisplayedSym(requestedSym)
       }
       const commitNow = () => { if (genRef.current === gen) groupReady(group, requestedSym, memberIdRef.current, show, String(tf)) }

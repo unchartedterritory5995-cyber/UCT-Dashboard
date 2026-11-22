@@ -152,7 +152,8 @@ export const FRAME_RULES = Object.freeze({
 const blankDiag = () => ({
   asked: 0,            // questions answered: ALWAYS `applied` + the sum of `refused`
   applied: 0,          // switches painted here (a replay of React's own frame included: `replayed`)
-  refused: {},         // reason -> count. `group-veto`: a frame this chart built that a sibling's no kept unpainted
+  refused: {},         // reason -> count. `group-veto`: a frame this chart built that a sibling's no kept unpainted;
+                       // `round`: a switch the handoff's round showed (the round never paints: its label lands a task later)
   replayed: 0,         // switches back to the symbol React still showed: the chart's own pass, no built frame
   released: 0,         // the body's holds released by the handoff (one per paint that was not overtaken)
   lateBoxReads: 0,     // reads of a built frame's box AFTER its pass: a closure the pass installed kept it (must be 0)
@@ -202,6 +203,9 @@ export function createSwitchController({ applyFrame, buildFrame }) {
     pending = null
     ctx.lastCfgSigRef.current = null       // the next pass is a full one…
     ctx.prevPaintBarsRef.current = null    // …whatever was painted in between
+    // (review round 2, L1) the server-compute lane heard the painted symbol in `apply`; the body's `sym` never
+    // changes back, so its own effect will not tell the lane again. Told here first, as on any switch.
+    view.laneShows(frame.sym)
     view.reactRepaint()
     diag.replayed += 1
     publish(frame && typeof frame._exKey === 'string' ? frame._exKey : null)
@@ -313,8 +317,18 @@ export function createSwitchController({ applyFrame, buildFrame }) {
     reconcile(hostSym) {
       if (pending && hostSym === pending.fromSym && pending.sym !== hostSym) { try { replay() } catch { /* the next pass paints */ } }
     },
-    /** The handoff released the body's hold. */
+    /** The handoff released the body's hold (only a release that freed one is reported). */
     noteReleased() { diag.released += 1 },
+    /**
+     * (review round 2, H2) The handoff showed `sym` by the round, which never paints (its React render lands a task
+     * after a paint would). One question answered no: `group-veto` when the key handler's decision built a frame
+     * for this same press and a sibling said no, else `round`.
+     */
+    noteRound(sym) {
+      if (open && open.sym === sym) { open = null; refuse(sym, 'group-veto'); return }
+      settleOpen(sym)
+      refuse(sym, 'round')
+    },
     /**
      * Paint `sym`. `token`: what `canApply` returned in this task (built once, never twice).
      * @returns {'applied'|false}
