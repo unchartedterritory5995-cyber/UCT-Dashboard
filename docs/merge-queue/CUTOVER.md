@@ -9,9 +9,12 @@ Every step here is reversible with one switch (the last section).
       said APPROVED on both.
 - [ ] The verdict's GitHub App exists, is installed on this repo with commit statuses read and write, and its
       credentials are in the environment `agent-ci-verdict`, whose deployment-branch policy allows `master` only.
-- [ ] The follower was rehearsed with that App in the rehearsal repo: it posts the verdict, a job on a
-      `gh-readonly-queue/...` ref is refused the environment, and a status posted by GitHub Actions under the
-      same name does NOT satisfy the required check.
+- [x] The follower was rehearsed with that App in the rehearsal repo (2026-11-22, #2501 at `6b9fffe029`): it posts
+      the verdict, a job on a `gh-readonly-queue/...` ref is refused the environment, and a status posted by
+      GitHub Actions under the same name does not satisfy the required check. Repeat if #2501 changes.
+- [ ] `agent/int` has taken `master`'s copy of `agent-ci-required.yml`.
+- [ ] The list of open pull requests is recorded: each needs a push, a reopen or an agent ci run before the
+      App's status exists on its head. The cutover message says so.
 - [ ] The Agent part is merged: Agent jobs run on `merge_group` for a queued pull request that touches an Agent
       path, and `agent-ci-required` is posted on the merge group's commit.
 - [x] The Agent part was exercised by real `merge_group` events in the rehearsal repo (2026-11-22, round 4, with a
@@ -66,6 +69,7 @@ A weekend, or a weekday between 20:00 and 05:00 CT. Not while a worker or flow-w
 > 4. No quiet-`master` wait any more. Agent pull requests are still queued only by the Agent Lead, after AUDIT's
 >    GO, outside the freeze windows, one at a time after the previous one is prod-verified.
 > 5. No direct push to `master`. Never `--admin`.
+>    A pull request that was already open before the cutover needs one push (or close and reopen) first.
 > 6. A pull request queued behind an Agent one lands with it, up to about 20 minutes later.
 > If the queue looks stuck for 30 minutes, tell the owner: it can be switched off in one step.
 

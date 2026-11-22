@@ -156,6 +156,29 @@ posted by any workflow in the merge group, which runs from the queued pull reque
 The alternative, an organization ruleset "Require workflows to pass" on a pinned ref, was not confirmed for the
 Team plan and is not relied on.
 
+Rehearsed with the real App (`northstar-agent-ci-verdict`, App ID 5877416, commit statuses only) on 2026-11-22:
+
+| Observed | Consequence |
+|---|---|
+| A merge-group job asking for the environment is refused: "Branch gh-readonly-queue/master/pr-N-... is not allowed to deploy to agent-ci-verdict due to environment protection rules." | The key never reaches merge-group code. |
+| A `success` under the context posted by GitHub Actions does not satisfy the App-pinned requirement, on a pull request or a merge group. | A queued pull request cannot approve itself. |
+| A FAILURE under the context from the wrong source still removes the entry. | Merge-group code can hurt its own entry, never help it. |
+| Statuses under one context are last-writer-wins: a later GitHub Actions status under the name put a pull request back to BLOCKED. | Nothing but the App may post `agent-ci-required`, anywhere. A rail holds that. |
+| A pull request cannot enter the queue until the App has posted on the pull request's head. | `agent-ci-required.yml` also posts with the App, from `pull_request_target` (the base branch's file on the base ref; nothing of the pull request is checked out or run). |
+| The App's success landed an entry 32 seconds later; its failure removed one; an Agent entry stacked behind an entry that edited the machinery failed, was rebuilt after the removal, and landed. | The follower and the machinery guard behave as designed (#2501 at `6b9fffe029`, byte for byte, with an 18-job stand-in for the Agent suite). |
+
+Three consequences for the cutover:
+
+- #2501 is not inert: `agent-ci-required.yml` changes behaviour when it merges, before any queue exists.
+- A `pull_request_target` job for a pull request into `agent/int` runs on `agent/int`, which the master-only environment
+  refuses, as it must. Those pull requests get the status from the `workflow_run` leg only, and `agent/int` must take
+  `master`'s copy of the workflow before cutover.
+- Every pull request open at cutover needs a push, a reopen or an agent ci run before the App's status exists on its head.
+
+What this does not close: anything that lands on `master` can name the environment. A rail in the required static check
+refuses any workflow but the two posters from naming the environment, the variable, the secret or the context; whether the
+rail files or all of `.github/workflows/**` should be Agent paths is a question for AUDIT (on #2501).
+
 ### 3.7 Safeguards the queue does not replace (AUDIT D2, 8.3, 8.4)
 
 - **Freeze windows.** The verdict fails an Agent entry on a weekday inside 09:20-09:45 or 15:30-16:15 ET, with a
