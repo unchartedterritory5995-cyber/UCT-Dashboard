@@ -145,9 +145,12 @@ class FakeStore:
         rows = [b for _, b in sorted(self.rows.get((sym, tf), {}).items())][-count:]
         return rows, len(rows)
 
+    def seal_checked(self, sym, tf):
+        return None                                  # nothing seals this store (the real store's: a test there)
+
     def kw(self, fetch, **more):
         return dict(fetch=fetch, derive=self.derive, store=self.put, rev=self.rev, last_ts=self.last_ts,
-                    day_tail=self.day_tail, n_workers=1, now=AFTER, **more)
+                    day_tail=self.day_tail, seal_checked=self.seal_checked, n_workers=1, now=AFTER, **more)
 
 
 def forming(d: date, at_h: int, at_m: int) -> dict:

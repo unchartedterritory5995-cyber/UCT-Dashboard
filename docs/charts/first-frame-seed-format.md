@@ -376,8 +376,10 @@ build (`ffseed.nightly`) therefore runs, in order:
    timeframe and symbol `[the store's revision of the series right after the pass's write, the first
    day written, the check instant of the rows written]` (the instant since 2026-11-22), so any later
    write voids the entry. A 30m / 60m re-derived from a 15m an earlier pass proved is written with that
-   15m's recorded check instant (an older entry without one: the session's settle instant), never the
-   wall clock, so a newer provider check's seal still wins over it. An answer proves the session only
+   15m's recorded check instant (an older entry without one: the session's settle instant), or with the
+   15m's own seal when a later provider check sealed it (`sealed_checked_at`: a seal is not a write, so
+   the 15m proof stands, and the serve path seals the derived series at that same instant), whichever is
+   newer; never the wall clock, so a newer check's seal still wins over it. An answer proves the session only
    when it is **whole**: it holds bars of the as-of day (an empty answer never proves anything) and no
    other record of that day shows a trade in a later bucket: the stored 1m (the 1m pass's own read),
    the stored 5m, 15m, 30m and 60m (read before the pass writes; a 30m / 60m bar's start is mapped onto
@@ -457,14 +459,26 @@ manifest, not against the session's own earlier build, because devices hold the 
 overnight and a delta for another base is refused on the device (`other-base`, `engine.js`
 `_deltaRefusal`): every device would download every full pack (79.5 MB, section 7, against 16.2 MB for the
 first real nightly delta). A timeframe the recorded build does not hold (it refused it) diffs against the
-published one instead. While such rebuilds run, the prune keeps the recorded build on R2 as well as the
-newest `FFSEED_KEEP`, so a second rebuild still finds it; the next session's first build prunes as usual.
-No record (another as-of day, an unreadable file): the rebuild diffs against the published build, as
-before, and logs it.
+published one instead, and so does one whose recorded pack is gone from R2 or gives no proven delta (never
+no delta for that reason alone). While such rebuilds run, the prune keeps the recorded build on R2 as well
+as the newest `FFSEED_KEEP`, so a second rebuild still finds it; the next session's first build prunes as
+usual. No record (another as-of day, an unreadable or malformed file, e.g. a `tfs` that is not an object):
+the rebuild diffs against the published build, as before, and logs it. A published manifest that is
+malformed the same way is no base at all (no delta), never an error that stops the build.
 
 **The manifest format does not change.** `delta.base` and `base_asof` simply name that older build, which
 is exactly what a device holding it checks. The cost lands on the few devices that took the session's
 first build between its publish and the rebuild: they hold neither base and download the full pack.
+
+**Known behaviour, kept on purpose (review of #2450).** (1) A device that took a session's first build
+downloads every full pack it holds on a same-session republish (a gated retry or a force), since every delta
+names the previous session's build. (2) A force outside its session's quiet gap no longer republishes D and
+1m during the day: it waits for the gap or is refused (section 9), and the next session's own build
+supersedes it. (3) The after-the-gap check bounds a retry's pass, not its build: a pass that ends just
+before the gap closes still builds, and that build may run past 04:00 ET (a symbol voided by the next
+session's writes is left out as incomplete, never published stale); a forced or late nightly is not
+checked after its pass at all. (4) A same-session rebuild whose split read failed carries the published
+list as of that list's own read (section 2).
 
 ### Layout
 

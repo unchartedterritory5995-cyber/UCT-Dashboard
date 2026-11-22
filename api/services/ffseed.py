@@ -590,13 +590,19 @@ def _cache_path(build_id: str, tf: str) -> str:
     return os.path.join(os.environ.get("DATA_DIR", "/data"), _CACHE_DIR, build_id, f"{tf}.ffs")
 
 
+def _manifest_or_none(m) -> Optional[dict]:
+    """`m` when it reads as a seed manifest (kind, build, a `tfs` object), else None: a malformed one is
+    never a delta base and never stops a build."""
+    ok = isinstance(m, dict) and m.get("kind") == fmt.KIND and m.get("build") and isinstance(m.get("tfs"), dict)
+    return m if ok else None
+
+
 def _read_published_manifest() -> Optional[dict]:
     """The manifest devices hold now (the base of tonight's delta), or None."""
     from api.services import data_sync
     try:
         raw = data_sync.get_bytes(f"{PREFIX}/latest.json")
-        m = json.loads(raw) if raw else None
-        return m if isinstance(m, dict) and m.get("kind") == fmt.KIND else None
+        return _manifest_or_none(json.loads(raw) if raw else None)
     except Exception:  # noqa: BLE001
         return None
 
@@ -649,7 +655,8 @@ def _prune_cache(keep_build: str) -> None:
 # of ~16 MB); and FFSEED_KEEP=2 would prune B0 at B2's publish, so a second rebuild B3 could not diff against it
 # either. So the session's first build records the manifest it diffed against (<DATA_DIR>/.ffseed_delta_base.json,
 # keyed on the as-of day); a rebuild of that session diffs each timeframe against that manifest (against the
-# published one only for a timeframe the recorded one does not hold) and keeps that build on R2. The manifest
+# published one for a timeframe the recorded one does not hold, or whose pack is gone or gives no proven
+# delta; a malformed record reads as none) and keeps that build on R2. The manifest
 # format does not change: `delta.base` names that build, as a device holding it expects. A device that took B1
 # in the meantime is the one that downloads the full pack.
 
@@ -665,9 +672,8 @@ def _read_delta_base(asof: date) -> Optional[dict]:
     try:
         with open(_delta_base_path(), encoding="ascii") as f:
             st = json.load(f)
-        m = st.get("manifest")
-        if st.get("asof") == asof.isoformat() and isinstance(m, dict) and m.get("kind") == fmt.KIND and m.get("build"):
-            return m
+        if st.get("asof") == asof.isoformat():
+            return _manifest_or_none(st.get("manifest"))
     except Exception:  # noqa: BLE001 - no record: the rebuild diffs against the published build
         pass
     return None
@@ -735,11 +741,14 @@ def build_and_publish(**kw) -> dict:
         log.warning("[ffseed] rebuilding as-of %s: no record of the build its first build diffed against; deltas "
                     "are from %s (the same session's build)", asof, published.get("build"))
 
-    def base_for(tf: str) -> Optional[dict]:
+    def bases_for(tf: str) -> List[dict]:
+        """The manifests to diff `tf` against, in order: the recorded base, then the published build (when
+        the recorded one lacks `tf`, or its pack cannot be read or proven: never no delta for that alone)."""
+        out: List[dict] = []
         for m in (first_base, published):
-            if m and tf in (m.get("tfs") or {}):
-                return m
-        return None
+            if m and tf in m["tfs"] and all(m["build"] != o["build"] for o in out):
+                out.append(m)
+        return out
 
     # A rebuild re-reads the next session's splits; when that read fails, the published list of the SAME
     # session stands (it answered completely for that session) rather than a manifest without the field.
@@ -757,8 +766,13 @@ def build_and_publish(**kw) -> dict:
 
     def on_pack(tf, data, entry):
         _upload_pack(entry, data)
-        attach_delta(tf, data, entry, base_for(tf), asof.isoformat(),
-                     lambda key, blob: data_sync.put_bytes(key, blob, CONTENT_TYPE))
+        cands = bases_for(tf)
+        for i, base_m in enumerate(cands):
+            if attach_delta(tf, data, entry, base_m, asof.isoformat(),
+                            lambda key, blob: data_sync.put_bytes(key, blob, CONTENT_TYPE)) is not None:
+                break
+            if i + 1 < len(cands):
+                log.warning("[ffseed] tf=%s: no delta from %s; trying %s", tf, base_m["build"], cands[i + 1]["build"])
         _cache_pack(entry["key"].split("/")[1], tf, data)
 
     built = build(on_pack=on_pack, asof=asof, splits=splits, **kw)

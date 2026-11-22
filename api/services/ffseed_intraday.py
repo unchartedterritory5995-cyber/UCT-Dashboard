@@ -53,8 +53,8 @@ always check each other. The ledger (<DATA_DIR>/ffseed_intraday_complete.json) r
 symbol, `[the store's revision of the series right after the pass's write, the first day written, the
 check instant of the rows written]`; a later write (or a store replaced wholesale) changes the revision
 and the entry no longer proves anything, so the next pass asks again. A re-derived 30m / 60m write carries
-its 15m's check instant (this run's, or the one the 15m's entry recorded), never the wall clock, so a
-newer check's seal still wins over it. A symbol with no print in the session's last bucket is complete all
+its 15m's check instant (this run's, or the one the 15m's entry recorded; the 15m's own seal when a later
+provider check sealed it), never the wall clock, so a newer check's seal still wins over it. A symbol with no print in the session's last bucket is complete all
 the same: every record agrees its trading ended earlier.
 `ffseed.build_tf` packs an intraday symbol only on this proof; everything else is left out of that
 timeframe and counted (`incomplete`).
@@ -289,6 +289,14 @@ def _store(sym: str, tf: str, rows: list, checked_at: float) -> int:
         return bars_sqlite.put_bars(sym, tf, rows)
 
 
+def _seal_checked(sym: str, tf: str) -> Optional[float]:
+    """The check instant of the provider answer that sealed the stored series (`sealed_checked_at`, as the
+    store states it: void past a floor), or None. A seal is not a write: it does not change the revision."""
+    from api.services import bars_sqlite
+    ck = bars_sqlite.series_meta(sym, tf).get("sealed_checked_at")
+    return float(ck) if ck is not None else None
+
+
 def reach_days() -> int:
     """How far back (calendar days) a stored tail may be for the pass to join it. The serve path's tail
     repair fetches from the stored tail's day however old; this bounds one symbol's request."""
@@ -323,6 +331,7 @@ def complete_session(asof: date, symbols: Optional[Iterable[str]] = None, *,
                      rev: Callable[[str, str], int] = None,
                      last_ts: Callable[[str, str], Optional[int]] = None,
                      day_tail: Callable[[str, str, date], Optional[int]] = None,
+                     seal_checked: Callable[[str, str], Optional[float]] = None,
                      n_workers: Optional[int] = None, deadline: Optional[float] = None,
                      clock: Callable[[], float] = time.monotonic,
                      now: Optional[float] = None) -> dict:
@@ -331,6 +340,7 @@ def complete_session(asof: date, symbols: Optional[Iterable[str]] = None, *,
     `skipped` (with nothing fetched and nothing proved) says why the pass could not run now."""
     fetch, derive, store = fetch or _fetch, derive or _derive, store or _store
     rev, last_ts, day_tail = rev or _store_rev, last_ts or _stored_last_ts, day_tail or _stored_day_tail
+    seal_checked = seal_checked or _seal_checked
     syms = sorted({str(s).upper() for s in (symbols if symbols is not None else ffseed.universe()) if s})
     base_tfs, derived_tfs, derived_base = tf_roles()
     counters = ("current", "done", "rows", "empty", "failed", "short_answer", "behind", "no_base", "not_reached")
@@ -474,6 +484,14 @@ def complete_session(asof: date, symbols: Optional[Iterable[str]] = None, *,
                 # newer check's seal wins over this write.
                 base_checked = (checked_base if checked_base is not None
                                 else float(base_e[2]) if len(base_e) > 2 else float(settled_at(asof)))
+                # ... unless a later provider check SEALED the 15m (a seal is not a write, so the 15m proof
+                # stands): the rows inside that seal are final as of its check, the instant the serve path's
+                # own derivation seals the derived series at (bars_fetch._local_tail_repair). Read before
+                # the rows are built, as that path does. Without it a 30m / 60m that path rebuilt and sealed
+                # at that check could not be rewritten (every row dropped, put_bars 0) and stays unproven.
+                base_seal = seal_checked(sym, derived_base)
+                if base_seal is not None and base_seal > base_checked:
+                    base_checked = base_seal
                 own_from = first_day(asof, last_ts(sym, tf), reach)
                 if own_from is None or own_from < base_from:
                     bump(tf, "behind")            # its tail is on a day whose 15m was not refetched
