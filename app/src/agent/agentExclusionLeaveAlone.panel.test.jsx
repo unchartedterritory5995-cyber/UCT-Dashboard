@@ -101,3 +101,29 @@ describe('fail safe: an exclusion the board cannot place is asked, nothing appli
     expect(f.changed(m.board), transcript()).toEqual([])
   }, 60000)
 })
+
+// (AUDIT follow-up) a NEGATED IMPERATIVE with a destination, the model planning exactly the forbidden op on the named chart (it
+// was applied on master cdfa65c1b1 in each of these): the named chart never changes, with or without a click on it
+const REMOVE = {
+  plan: (disp, ids) => () => p.env(disp, ids.map(id => ({ action: 'widget.remove', target: 'board', args: { widget: id } }))),
+  changed: (b) => IDS.filter(id => !b.state.widgets.some(x => x.id === id)),
+}
+const NEGATED = [
+  ['indicator.add (RSI)', 'do not add RSI to the second chart', ['TR']], ['indicator.add (RSI)', "don't put RSI on the top-left chart", ['TL']],
+  ['indicator.add (RSI)', 'never add an RSI to chart 4', ['BR']], ['indicator.add (RSI)', "don't add RSI to the NVDA chart", ['BL']],
+  ['chart.setTimeframe (weekly)', "don't change the top-left one to weekly", ['TL']], ['chart.setTimeframe (weekly)', 'never set chart 3 to weekly', ['BL']],
+  ['chart.setTimeframe (weekly)', "don't make the SPY chart weekly", ['TL']], ['chart.setTimeframe (weekly)', 'leave the bottom row as is but switch it to weekly', ['BL', 'BR']],
+  ['widget.remove', 'do not close the second chart', ['TR']], ['widget.remove', "don't delete the top-left one", ['TL']],
+  ['widget.remove', 'never remove the left chart', ['TL', 'BL']],
+]
+describe('a negated imperative is never executed on the chart it names (real panel)', () => {
+  it.each(NEGATED.flatMap(([fam, t, named]) => [[fam, t, named, null], [fam, t, named, named[0]]]))('%s · "%s" (names %j, clicked %s)', async (fam, t, named, sel) => {
+    const f = fam === 'widget.remove' ? REMOVE : FAMILIES[fam]
+    const m = mount(sel)
+    const before = named.map(id => stored(m.board, id))
+    p.st.envelopes.push(f.plan('apply', named))
+    await m.say(t)
+    expect(named.map(id => stored(m.board, id)), transcript()).toEqual(before)
+    expect(f.changed(m.board).filter(id => named.includes(id)), transcript()).toEqual([])
+  }, 60000)
+})
