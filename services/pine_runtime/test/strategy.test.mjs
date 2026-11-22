@@ -2,8 +2,10 @@
 // may ask for the run's `strategy` record (design 3.2) with `want: ['#strategy']`; the job adapter
 // (job.mjs) writes the run's own record as JSON text, the seal (protocol.mjs) checks it with the
 // bundle's ONE shape check and adds `strategy_sha256`, and the result cache keeps it.
-// The broker stays DARK on the service: nothing here registers the broker gate, and a stamped
-// strategy document on the real bundle refuses `pine:strategy-call` by name.
+// TRACK 6, G-BROKER (coordinator ruling D5, 2026-11-22): the broker runs on the service for a job that asks
+// for '#strategy' (profile `backtest` only) and for no other job. job.mjs is the ONE service file that turns the
+// gate on, only for such a job, and turns it off again after the run. Admission (which strategies may reach the
+// lane at all) is the web pod's, with no bypass here.
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
@@ -177,36 +179,74 @@ test('the result cache keeps the record: a hit is the same text, sealed again to
   assert.notEqual(resultKey(request, job), resultKey(request, { ...job, want: [] }))
 })
 
-test('DARK: no service file registers the broker gate, and the bundle exports no way to', () => {
+test('G-BROKER: job.mjs is the ONE service file that arms the broker; nothing reads the browser build flag', () => {
   const dir = new URL('../', import.meta.url)
   for (const f of readdirSync(dir).filter((n) => n.endsWith('.mjs'))) {
     const text = readFileSync(new URL(f, dir), 'utf8')
-    assert.equal(/registerStrategyBrokerGate|strategyBrokerEnabled|VITE_PINE_STRATEGY_BROKER_ENABLED/.test(text), false, f)
+    assert.equal(/strategyBrokerEnabled|VITE_PINE_STRATEGY_BROKER_ENABLED/.test(text), false, f)
+    assert.equal(/registerStrategyBrokerGate/.test(text), f === 'job.mjs', f)
   }
   const entry = readFileSync(new URL('../../../app/src/components/chart/engine/runtime/serverEntry.js', import.meta.url), 'utf8')
-  assert.equal(/registerStrategyBrokerGate|strategyBrokerGate\.js/.test(entry), false)
+  assert.equal(/strategyBrokerGate\.js/.test(entry), false, 'the entry exports the registry, never the build-flag reader')
+  assert.match(entry, /registerStrategyBrokerGate, strategyBrokerGateOn \} from '\.\.\/strategyBrokerGateRegistry\.js'/)
+})
+
+test('G-BROKER: runJob arms the gate for a #strategy job only, and puts it back off even when the run throws', () => {
+  const seen = []
+  let reader = () => false
+  const fake = (wantOn, compute) => ({
+    registerStrategyBrokerGate: (fn) => { reader = fn },
+    computeRuntimeColumns: () => { seen.push(reader() === true); return compute() },
+    resetRuntimeSessions: () => {}, resetRuntimeLedgers: () => {}, runtimeWarmupOf: () => null,
+    RUNTIME_PANE_TIME_BUDGET_MS: 1000, RUNTIME_OBJECTS_KEY: '#objects', RUNTIME_STRATEGY_KEY,
+    runtimeStrategyOf: () => null,
+  })
+  const doc = docOf('//@version=5\nindicator("t")\nplot(close)\n', { p: 0 })
+  const plain = parsedJob('A', { n: 5 })
+  const asks = { ...parsedJob('B', { n: 5 }), want: [STRATEGY_WANT] }
+  runJob(fake(false, () => ({ p: [1, 2, 3, 4, 5] })), doc, plain)
+  assert.deepEqual(seen, [false], 'a job that does not ask for #strategy never sees the gate on')
+  runJob(fake(true, () => ({ p: [1, 2, 3, 4, 5] })), doc, asks)
+  assert.deepEqual(seen, [false, true], 'a #strategy job runs with the gate on')
+  assert.equal(reader(), false, 'and it is off again after the run')
+  runJob(fake(true, () => { throw new Error('boom') }), doc, asks)
+  assert.equal(reader(), false, 'off again even when the run throws')
+  // a bundle without the registry runs a #strategy job dark (no throw)
+  const dark = fake(false, () => ({ p: [1, 2, 3, 4, 5] }))
+  delete dark.registerStrategyBrokerGate
+  assert.ok(runJob(dark, doc, asks))
 })
 
 let real
 after(() => real && real.cleanup())
 
-test('the REAL bundle: the door loads the one record check, and a strategy document refuses by name (the broker is dark)', async () => {
+test('the REAL bundle: a #strategy job runs the broker; the same document asked for a plot refuses pine:strategy-call; the gate is off after each', async () => {
   real = await buildRealBundle()
   const door = await loadBundle(real.outfile)
   assert.equal(door.codec.strategyRecordShapeErrors, door.mod.strategyRecordShapeErrors)
   assert.deepEqual(door.codec.strategyRecordShapeErrors(record()), [])
   const rt = await import(pathToFileURL(real.outfile).href)
   assert.equal(typeof rt.runtimeStrategyOf, 'function')
-  assert.equal(rt.registerStrategyBrokerGate, undefined)
+  assert.equal(typeof rt.registerStrategyBrokerGate, 'function')
+  assert.equal(rt.strategyBrokerGateOn(), false, 'dark until a job asks')
   const src = ['//@version=5', 'strategy("t")', 'if bar_index == 3', '    strategy.entry("L", strategy.long)',
     'plot(strategy.position_size)', ''].join('\n')
   const doc = { ...docOf(src, { p: 0 }), meta: { runtimeHistory: STRATEGY_WINDOW_HISTORY } }
   const job = { ...parsedJob('A', { n: 40 }), want: [STRATEGY_WANT] }
   job.ctx.historyWindowBars = 40
   const r = runJob(rt, doc, job)
-  assert.equal(r.status, 'withheld', JSON.stringify(r))
-  assert.equal(r.refusals[0].guard, 'pine:strategy-call')
-  assert.equal(Object.hasOwn(r, 'strategy'), false)
+  // the broker was consulted: never the dark refusal. Whether it serves a record or refuses one BY NAME (a window
+  // that does not reach the listing is [B-START], vm.js) is the broker's, not this adapter's.
+  assert.notEqual(r.refusals.length && r.refusals[0].guard, 'pine:strategy-call', JSON.stringify(r))
+  assert.ok(Object.hasOwn(r, 'strategy') || r.refusals.some((x) => x.key === STRATEGY_WANT || x.key === '*'), JSON.stringify(r))
+  assert.equal(rt.strategyBrokerGateOn(), false, 'off again after the #strategy job')
   const sealed = sealRunResults(door.codec, door.identity, [job], [r])
   assert.equal(sealed.ok, true, JSON.stringify(sealed))
+  // the SAME document asked for a plot (no '#strategy'): the broker stays dark, as before G-BROKER
+  const plotJob = { ...parsedJob('B', { n: 40 }), want: [] }
+  plotJob.ctx.historyWindowBars = 40
+  const dark = runJob(rt, doc, plotJob)
+  assert.equal(dark.status, 'withheld', JSON.stringify(dark))
+  assert.equal(dark.refusals[0].guard, 'pine:strategy-call')
+  assert.equal(rt.strategyBrokerGateOn(), false)
 }, { timeout: 120000 })
