@@ -12301,6 +12301,8 @@ from api.routers import index_changes as index_changes_router  # noqa: E402  (ID
 app.include_router(index_changes_router.router)  # /api/research/index-changes
 from api.routers import stock_stats as stock_stats_router  # noqa: E402  (STAT: one stock's volatility, beta, returns, drawdowns, corrections, paid)
 app.include_router(stock_stats_router.router)  # /api/research/stock-stats/{ticker}
+from api.routers import event_study as event_study_router  # noqa: E402  (EVST: a member's own historical event study over stored series, paid)
+app.include_router(event_study_router.router)  # /api/research/event-study, /api/research/event-study/series
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)

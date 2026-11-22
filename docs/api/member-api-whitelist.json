@@ -4401,6 +4401,22 @@
       "tier": "paid"
     },
     {
+      "limit": "30/minute",
+      "method": "GET",
+      "params": "kind, universe, metric, series, indicator, period, market, group, op, threshold, symbol, horizons, episodes=first, entry=event_close",
+      "path": "/api/research/event-study",
+      "rate_limit_family": "research-studies",
+      "tier": "paid"
+    },
+    {
+      "limit": "30/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/research/event-study/series",
+      "rate_limit_family": "research-studies",
+      "tier": "paid"
+    },
+    {
       "limit": "600/minute",
       "method": "GET",
       "params": "{sym}",

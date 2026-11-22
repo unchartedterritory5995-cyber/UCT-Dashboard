@@ -271,7 +271,10 @@ const NOT_MEASURED = ['CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', '
   'GroupTablePanel.jsx',
   // DVD MARKET, SEG, MNA, IDXC (2026-11-21): two- and three-column tables of two-line cells that wrap between
   // words; SEG's period table folds its two oldest periods and DVD MARKET its declared day through `phoneHide`
-  'MarketDividendsPanel.jsx', 'RevenueSegmentsPanel.jsx', 'MergersPanel.jsx', 'IndexChangesPanel.jsx']
+  'MarketDividendsPanel.jsx', 'RevenueSegmentsPanel.jsx', 'MergersPanel.jsx', 'IndexChangesPanel.jsx',
+  // EVST (2026-11-22): a four-column window table of two-line cells and an episode list of the date and up to four
+  // short return columns, all wrapping between words; nothing folds
+  'EventStudyPanel.jsx']
 const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
 const stepsIn = (src) => [...src.matchAll(/data-fold=(?:"([^"]*)"|\{paired \? undefined : '([^']*)'\})/g)].map((m) => m[1] ?? m[2])
 
