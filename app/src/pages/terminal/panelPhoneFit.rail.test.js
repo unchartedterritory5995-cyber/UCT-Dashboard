@@ -248,6 +248,10 @@ const FITS_THE_BOTTOM = [
   // drawdowns, corrections) are three or four columns of two-line cells that wrap between words (phoneWrap, snugWrap);
   // every column shows and none scrolls in a 340px screen, so each needs at most 316 + 29. Nothing folds.
   ['StockStatsPanel.jsx', 'STAT (its four tables)', 345],
+  // EEHSC, measured 2026-11-21 at 1536, 1180 and 340px (sample data, a sector open and closed): the table's least width
+  // with every column showing is 399px in a 462px panel (+ 29); in 640 and 462px panels the panel's scroll width is its
+  // width. On a phone the largest raise and cut fold (phoneHide) and stay in the opened sector.
+  ['RevisionBreadthPanel.jsx', 'EEHSC', 428],
 ]
 /** Tables with no sample rows: never measured, so they must not fold on a desktop panel above the bottom of the ladder.
  *  (InsiderPanel.jsx left this list on 2026-11-21: see INS in MEASURED.) */
