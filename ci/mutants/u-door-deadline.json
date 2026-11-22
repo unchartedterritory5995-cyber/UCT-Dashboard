@@ -4,10 +4,10 @@
  "mutants": [
   {
    "id": "D1",
-   "mutant": "no door window: only the per-translation bounds remain (the slow synthetic is served after its whole run)",
+   "mutant": "no door window: only the per-translation bounds remain (the slow synthetic is served after its whole run) (anchor: the deterministic budgets hold the door's runtime clocks still inside the call, withMemberDoorClock)",
    "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
-   "from": "  return doorAnswer(withDoorDeadline(budgetMs, () => memberPaneDefinitionWithin(args), doorClockForTests), budgetMs)",
-   "to": "  return memberPaneDefinitionWithin(args)",
+   "from": "  return doorAnswer(withDoorDeadline(budgetMs, () => withMemberDoorClock(() => memberPaneDefinitionWithin(args)), doorClockForTests), budgetMs)",
+   "to": "  return withMemberDoorClock(() => memberPaneDefinitionWithin(args))",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorDeadline.test.js",
    "expectRed": "refuses a slow script BY NAME"
   },
