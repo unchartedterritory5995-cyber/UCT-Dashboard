@@ -174,6 +174,7 @@ export const PANEL_IMPORTERS = {
   StockStats: () => import('./panels/StockStatsPanel'),
   // EEHSC (2026-11-21): estimate revisions by sector among the stocks UCT tracks: raised, cut, held, net breadth
   RevisionBreadth: () => import('./panels/RevisionBreadthPanel'),
+  PublicRecords: () => import('./panels/PublicRecordsPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
