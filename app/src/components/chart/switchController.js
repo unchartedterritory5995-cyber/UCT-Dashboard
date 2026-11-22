@@ -161,13 +161,33 @@ const blankDiag = () => ({
   catchUp: { noop: 0, repaint: 0 },   // the React pass after a switch: handed the renderer nothing / painted again
   stale: 0,            // React passes of the old symbol skipped while a switch was pending
   views: 0,            // commits of the chart's body (each writes its view): a switch that adds none rendered nothing
+  heldViews: 0,        // …of them, while a switch was pending with the body still on the OLD symbol (the held body
+                       // rendered: in the key's task that is the cost the switch exists to move; should stay 0)
+  // the key's task as this chart sees it, for switches the key handler's decision asked: from this chart's question
+  // (`canApply`, the decision's first loop) to the end of its paint (`paint`), and to the end of the task after its
+  // microtasks, where React's synchronous render of the label runs (`task`). The last KEY_TASK_RING of each, in ms,
+  // and their medians.
+  keyTask: { n: 0, paint: [], task: [], paintMedian: null, taskMedian: null },
   last: null,          // { sym, ok, why }
 })
 
+const KEY_TASK_RING = 32
+const median = (xs) => {
+  if (!xs.length) return null
+  const s = [...xs].sort((a, b) => a - b)
+  const m = s.length >> 1
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2
+}
+const pushRing = (xs, v) => { xs.push(v); if (xs.length > KEY_TASK_RING) xs.shift() }
+const defaultNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
+/** Microtask hops after a paint before the task's end is read: React's sync render is a microtask queued later. */
+const TASK_END_HOPS = 3
+
 /**
- * @param {{applyFrame: Function, buildFrame: Function}} deps  StockChart's pass and switchFrame.buildFrame
+ * @param {{applyFrame: Function, buildFrame: Function, now?: Function}} deps  StockChart's pass and
+ *   switchFrame.buildFrame; `now` (ms) for the key-task timing, `performance.now` by default
  */
-export function createSwitchController({ applyFrame, buildFrame }) {
+export function createSwitchController({ applyFrame, buildFrame, now = defaultNow }) {
   let ctx = null
   let frame = null       // the last frame a React pass handed over (the symbol React shows)
   let view = null
@@ -209,6 +229,22 @@ export function createSwitchController({ applyFrame, buildFrame }) {
     view.reactRepaint()
     diag.replayed += 1
     publish(frame && typeof frame._exKey === 'string' ? frame._exKey : null)
+  }
+
+  /** A decided switch's key task: `paint` now, `task` once the task's microtasks (React's sync render) have run. */
+  const timeKeyTask = (t0) => {
+    const paintMs = now() - t0
+    let hops = TASK_END_HOPS
+    const step = () => {
+      if (--hops > 0) { Promise.resolve().then(step); return }
+      const k = diag.keyTask
+      k.n += 1
+      pushRing(k.paint, paintMs)
+      pushRing(k.task, now() - t0)
+      k.paintMedian = median(k.paint)
+      k.taskMedian = median(k.task)
+    }
+    Promise.resolve().then(step)
   }
 
   /** Everything the new symbol's pass will be handed, or the refusal. Touches no chart. */
@@ -295,7 +331,12 @@ export function createSwitchController({ applyFrame, buildFrame }) {
       }
     },
     /** What the chart committed (written each commit). */
-    noteView(v) { view = v; diag.views += 1 },
+    noteView(v) {
+      view = v
+      diag.views += 1
+      // the body committed while a switch is pending and it is still the OLD symbol's: a held render
+      if (pending && v && v.sym !== pending.sym) diag.heldViews += 1
+    },
     /** A React pass of the symbol a switch replaced, while React has not caught up: it must not paint. */
     staleFor(sym) {
       const stale = !!pending && sym === pending.fromSym && sym !== pending.sym
@@ -304,9 +345,10 @@ export function createSwitchController({ applyFrame, buildFrame }) {
     },
     /** Can this chart paint `sym` whole, now? A token for `apply`, or null. Pure: paints nothing. */
     canApply(sym) {
+      const t0 = now()
       settleOpen(sym)
       const r = build(sym)
-      if (r.ok) open = { sym }
+      if (r.ok) { open = { sym }; r.t0 = t0 }   // the decision's question: where its key-task timing starts
       return r.ok ? r : null
     },
     /**
@@ -367,6 +409,7 @@ export function createSwitchController({ applyFrame, buildFrame }) {
       diag.tail[t.tail] = (diag.tail[t.tail] || 0) + 1
       diag.last = { sym, ok: true, why: null }
       publish(t.frame._exKey)
+      if (typeof t.t0 === 'number') timeKeyTask(t.t0)
       return 'applied'
     },
     /** The symbol on screen that React has not committed yet, or null. */

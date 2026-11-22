@@ -12134,6 +12134,9 @@ function StockChartBody({
           : deskCallLevels ? 'desk-call'
           : archiveRefLines ? 'archive-lines'
           : (positionTool.entry || positionTool.stop || positionTool.target) ? 'position-tool'
+          // the period-sort mode: the host's `onPeriodSelected` is new on every host render and closes over the HOST's
+          // symbol, so a held body would render in the key's task and report the new symbol for the old one's candles
+          : periodSelect ? 'period-select'
           // a definition the engine does not compute natively (a member's, a Pine one) may read the symbol's facts
           // (exchange, sector, first trade date), which only the metadata feed of a render holds
           : (csView.indicatorInstances || []).some((i) => { const d = i && engineRegistry.getDefinition(i.defId); return !!d && d.compute?.kind !== 'native' }) ? 'non-native-instance'

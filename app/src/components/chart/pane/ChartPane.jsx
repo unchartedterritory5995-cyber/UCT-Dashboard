@@ -79,6 +79,8 @@ import { resolveShowExtended } from '../../../utils/viewSession'
 const TICKER_KEY_RE = /^[A-Za-z.]$/
 
 const DWM = ['D', 'W', 'M']
+/** A chart that is not delisted gets no delisted props (spread as nothing). */
+const NO_DELISTED_PROPS = Object.freeze({})
 
 /** What can change a header row's width WITHOUT asking for a layout: its text, how many elements it holds and their
  *  classes (an abbreviated label, a shed button, a bolded active timeframe). The fit checks below read layout
@@ -321,6 +323,23 @@ function ChartPane({
     return !breadth.get(t) && !marketIndicators.get(t)
   }
   const switchHostPlain = useCallback((s) => hostPlainRef.current(s), [])
+  // The delisted props the CHART is handed (frozen live paths, the curated watermark name and sector). ⛔ (imperative
+  // switch) They are the chart BODY's symbol's: while its switch controller holds the body on the old symbol
+  // (`chartSym` is not `sym`), the ones it was rendered with are kept, so the held body neither renders in the key's
+  // task (a changed prop re-renders the memoised chart) nor takes the new symbol's name. With the switch off
+  // `chartSym` is `sym` (or not passed), and these are exactly the props this pane always handed it.
+  const delistedProps = (!themeIdx.isIndex && isDelisted) ? {
+    // DELISTED (never a theme index): freeze live updates + curated watermark
+    // name/sector so a reused symbol's live meta can't mislabel the dead company.
+    liveUpdates: false,
+    watermarkName: delistedInfo.name || undefined,
+    watermarkSector: delistedInfo.sector || undefined,
+    watermarkIndustry: delistedInfo.industry || undefined,
+  } : NO_DELISTED_PROPS
+  const bodyHeld = !!chartSym && chartSym !== sym
+  const bodyDelistedRef = useRef(delistedProps)
+  if (!bodyHeld) bodyDelistedRef.current = delistedProps
+  const chartDelistedProps = bodyHeld ? bodyDelistedRef.current : delistedProps
   const companyName = (isPair && pair.name) || (isDelisted && delistedInfo.name) || meta?.name || sym
   const indexLabel = themeIdx.isIndex
     ? (themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
@@ -1436,14 +1455,7 @@ function ChartPane({
             watermark: econSym,
             watermarkName: econName && econName !== econSym ? econName : undefined,
           } : {})}
-          {...(!themeIdx.isIndex && isDelisted ? {
-            // DELISTED (never a theme index): freeze live updates + curated watermark
-            // name/sector so a reused symbol's live meta can't mislabel the dead company.
-            liveUpdates: false,
-            watermarkName: delistedInfo.name || undefined,
-            watermarkSector: delistedInfo.sector || undefined,
-            watermarkIndustry: delistedInfo.industry || undefined,
-          } : {})}
+          {...chartDelistedProps}
           /* Per-surface settings isolation: this surface's own full settings
              blob (null = inherit the global default). onSettingsPersist routes
              ALL of StockChart's internal settings writes to the same sink the
