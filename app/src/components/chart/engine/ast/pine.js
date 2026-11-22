@@ -3027,6 +3027,18 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
     + 'differently for the same stock on the same day. A pane may draw '
     + '`ta.valuewhen(condition, source, occurrence)`; the bar-window '
     + '`valuewhen(condition, source, bars)` translates for a screen.',
+  // ⭐⭐ e95 (unit 2) — the table's anchored VWAP, tagged `anchor_dependent` in the manifest (`_requirement_tags`):
+  // accepted by the pane, refused by the five comparability consumers. This is the sentence a screen gets when a
+  // script spells the TABLE name itself; Pine's own `ta.vwap(source, anchor)` translates and is contained one door
+  // later by the tag (the `ta.valuewhen` precedent, § C45 decision 12).
+  vwapAnchor: 'an anchored VWAP: sums that start again at every bar the anchor fires. Before the first anchor '
+    + 'inside the loaded history there is no value (TradingView carries a total from an earlier anchor), and on a '
+    + 'screen the first comparison above it would read the missing value as "no match" — so it could answer '
+    + 'differently for the same stock on the same day. A pane may draw `ta.vwap(source, anchor)`.',
+  vwapAnchorDev: 'the standard deviation an anchored VWAP\'s bands are drawn from, summed from the last bar the '
+    + 'anchor fired. Before the first anchor inside the loaded history there is no value, and on a screen the first '
+    + 'comparison above it would read the missing value as "no match". A pane may draw '
+    + '`ta.vwap(source, anchor, stdev_mult)`.',
   isfirst: 'the OLDEST bar the fetch delivered, which moves whenever the request '
     + 'reaches further back — so on a screen it would answer differently for the '
     + 'same stock on the same day. `barstate.islast` is the other end and IS '

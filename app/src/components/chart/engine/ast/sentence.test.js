@@ -1333,6 +1333,9 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:valuewhenOccurrence',
       'function:vwap',
       'function:vwapOf',
+      // ⭐⭐ e95 unit 2 (2026-11-22): Pine's anchored `ta.vwap`, the average and its band leg
+      'function:vwapAnchor',
+      'function:vwapAnchorDev',
       'function:williamsR',
       'function:wma',
     ])
@@ -1361,7 +1364,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`.
     // ⭐ 141 -> 148 (2026-11-17): the regular session's two clock leaves and five readers.
     // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`, Pine's `math.asin`.
-    expect(entries.length).toBe(149)
+    // e95 unit 2 (2026-11-22) 149 -> 151: `vwapAnchor`, `vwapAnchorDev`.
+    expect(entries.length).toBe(151)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1390,7 +1394,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 141 -> 148 (2026-11-17): the regular session, two clock leaves (`regularhours`, `regularfirst`) and five
     // readers (`sessionOpen`, `sessionHigh`, `sessionLow`, `openingRangeHigh`, `openingRangeLow`).
     // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`.
-    expect(subjects.length).toBe(149)
+    // e95 unit 2 (2026-11-22) 149 -> 151: `vwapAnchor`, `vwapAnchorDev`.
+    expect(subjects.length).toBe(151)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2860,7 +2865,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ + 140 -> + 141 (2026-11-14, engine 56 S1): `tieNewest`.
     // ⭐ + 141 -> + 148 (2026-11-17): the regular session's two clock leaves and five readers.
     // U-BUILTIN B3 (2026-11-19) + 148 -> + 149: `asin`.
-    expect(sentences.length).toBe(CORPUS.cases.length + 149)
+    // e95 unit 2 (2026-11-22) + 149 -> + 151: `vwapAnchor`, `vwapAnchorDev`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 151)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {

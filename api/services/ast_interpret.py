@@ -1541,6 +1541,9 @@ def _window_percentile_nearest(series: Sequence[float], lo: int, hi: int,
 STOCH_FLAT_WINDOW = "stoch:flat-window"
 STOCH_LEFT_EDGE = "stoch:left-edge"
 RCI_LEFT_EDGE = "rci:left-edge"
+#: e95 (unit 2) -- ``interpret.js::VWAP_BEFORE_FIRST_ANCHOR``: off the listing, an anchored VWAP's bars before the
+#: first anchor inside the loaded history (``builtin_witness_mask``); the JS lane owns the sentence.
+VWAP_BEFORE_FIRST_ANCHOR = "vwap:before-first-anchor"
 
 
 def _finite(v: Any) -> bool:
@@ -6727,12 +6730,27 @@ def _reads_recurrence_binding(tree: Any) -> bool:
 from api.services.ast_bar_index_shift import (  # noqa: E402,F401
     BAR_INDEX_LEAVES, FIRST_BAR_LEAVES, reads_bar_index, reads_first_bar, bar_index_class,
     bar_index_verdict, threshold_unknown, RUNNING_TOTAL_CALLS, reads_running_total,
+    ANCHOR_RESET_CALLS as _ANCHOR_RESET_CALLS,
 )
 
 
 
-#: ``interpret.js::BUILTIN_WITNESS_CODES`` (engine 57).
-_BUILTIN_WITNESS_CODES = {"rci": (RCI_LEFT_EDGE,), "stochPine": (STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE)}
+#: ``interpret.js::BUILTIN_WITNESS_CODES`` (engine 57), and the anchored VWAP (e95, unit 2:
+#: ``ast_bar_index_shift.ANCHOR_RESET_CALLS``).
+_BUILTIN_WITNESS_CODES = {"rci": (RCI_LEFT_EDGE,), "stochPine": (STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE),
+                          **{name: (VWAP_BEFORE_FIRST_ANCHOR,) for name in _ANCHOR_RESET_CALLS}}
+
+
+def _first_anchor_bar(anchor: Sequence[float], n: int) -> int:
+    """e95 (unit 2) -- ``interpret.js::firstAnchorBar``: the first bar whose anchor is finite and not 0 (the
+    kernel's own reset test, ``_vwap_anchor_col``), or ``n`` when it never fires."""
+    for i in range(n):
+        a = anchor[i] if i < len(anchor) else NAN
+        if _finite(a) and a != 0:
+            return i
+    return n
+
+
 #: ``interpret.js::WITNESS_CARRIED_CALLS``.
 _WITNESS_CARRIED_CALLS = frozenset(("ema", "rma", "rsi", "atr", "atrPine", "adx", "plusDI", "minusDI", "macd"))
 
@@ -6785,24 +6803,34 @@ def builtin_witness_mask(tree: Any, bars: List[dict],
         args = node.get("args") or []
         name = node.get("name")
         is_rci = name == "rci"
-        if nested:
+        # e95 (unit 2) -- an anchored VWAP, off the listing: unknown before the first bar its anchor fires on this
+        # chart, exact from it on; fails closed (every bar) under another series' request or over a recurrence's
+        # own value (``interpret.js::builtinWitnessMask``)
+        is_vwap = _BUILTIN_WITNESS_CODES.get(name, (None,))[0] == VWAP_BEFORE_FIRST_ANCHOR
+        if is_vwap and not off_listing:
             continue
-        if _reads_recurrence_binding(node):
+        if nested and not is_vwap:
+            continue
+        if is_vwap:
+            first = n if (nested or _reads_recurrence_binding(node)) else _first_anchor_bar(col_of(args[1]), n)
+            code_at = [VWAP_BEFORE_FIRST_ANCHOR if i < first else None for i in range(n)]
+        elif _reads_recurrence_binding(node):
             continue      # never reached: a window over ``self`` is refused by the interpreter first
-        if is_rci and not off_listing:
+        elif is_rci and not off_listing:
             continue
-        length = col_of(args[1] if is_rci else args[3])
-        w = length[-1] if length else NAN
-        if not (_finite(w) and w >= 1 and w == int(w)):
-            continue
-        w = int(w)
-        if is_rci:
-            e = rci_left_edge(col_of(args[0]), w)
-            code_at = [RCI_LEFT_EDGE if e[i] == 1 else None for i in range(n)]
         else:
-            _, flags, edge = _stoch_pine_scan(col_of(args[0]), col_of(args[1]), col_of(args[2]), w, off_listing)
-            code_at = [STOCH_FLAT_WINDOW if flags[i] == 1 else STOCH_LEFT_EDGE if edge[i] == 1 else None
-                       for i in range(n)]
+            length = col_of(args[1] if is_rci else args[3])
+            w = length[-1] if length else NAN
+            if not (_finite(w) and w >= 1 and w == int(w)):
+                continue
+            w = int(w)
+            if is_rci:
+                e = rci_left_edge(col_of(args[0]), w)
+                code_at = [RCI_LEFT_EDGE if e[i] == 1 else None for i in range(n)]
+            else:
+                _, flags, edge = _stoch_pine_scan(col_of(args[0]), col_of(args[1]), col_of(args[2]), w, off_listing)
+                code_at = [STOCH_FLAT_WINDOW if flags[i] == 1 else STOCH_LEFT_EDGE if edge[i] == 1 else None
+                           for i in range(n)]
         reach = max(0, root_reach - max_lookback(node))
         # only a flat-window flag is carried forever under a smoother; a left-edge flag reaches the
         # tree's own lookback and no further (review N1, ``builtinWitnessMask``)

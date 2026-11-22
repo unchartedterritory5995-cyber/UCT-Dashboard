@@ -629,7 +629,8 @@ describe('the manifest', () => {
     // `vwap` (`reads: "bars"`, `lookback: "session"`, `cadence: "live"`), on the clock's
     // `regularfirst` / `regularhours` and nothing else.
     // U-BUILTIN B3 (2026-11-19) 94 -> 95: `asin`, Pine's `math.asin` (pointwise, acos's twin).
-    expect(Object.keys(TABLE.functions)).toHaveLength(95)
+    // e95 unit 2 (2026-11-22) 95 -> 97: `vwapAnchor` and `vwapAnchorDev`, Pine's anchored `ta.vwap`.
+    expect(Object.keys(TABLE.functions)).toHaveLength(97)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that

@@ -62,7 +62,8 @@ import NAMED_CONSTANT_TYPES from './namedConstantTypes.json'
 import { splitCommaStatements } from './objectFnInline.js'
 import { literalTostringText, LITERAL_TOSTRING_SENTENCE, LITERAL_TOSTRING_UNCAPTURED, tostringPatternOf } from '../pineTextFormat.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, pineNaConditionIsFalse, listingSeedIsUnpinned,
-  STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE, BOOL_NA_UNWITNESSED, TIE_UNWITNESSED, TF_RESAMPLABLE } from './interpret.js'
+  STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE, BOOL_NA_UNWITNESSED, TIE_UNWITNESSED, TF_RESAMPLABLE,
+  VWAP_BEFORE_FIRST_ANCHOR } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
 import {
@@ -420,6 +421,8 @@ export const RUNTIME_REFUSALS = Object.freeze({
   [STOCH_FLAT_WINDOW]: 'a `ta.stoch` window that is flat after a value other than 0 or 100 (or with its source off the flat level), a case no TradingView capture has reached',
   [STOCH_LEFT_EDGE]: 'off the listing, a `ta.stoch` whose every bar reads a window that reaches before the loaded bars',
   [RCI_LEFT_EDGE]: 'off the listing, a `ta.rci` whose every bar reads a window that reaches before the loaded bars',
+  // ⭐⭐ e95 (unit 2) — `interpret.js::builtinWitnessMask`'s anchored-VWAP code, for a column it blanks on every bar
+  [VWAP_BEFORE_FIRST_ANCHOR]: 'off the listing, an anchored `ta.vwap` whose anchor fires on no bar this lane can answer for, so every bar would carry a total from an anchor before the loaded bars',
   // ⭐⭐ ENGINE 56 — the two per-bar witness codes of the columnar lane (`interpret.js`). This
   // lane has no per-bar withholding, so where the columnar lane withholds bars by one of them
   // (a column it reads), or where this lane would compute one of the shapes itself, it
@@ -430,7 +433,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'pine:fn-history-in-block': 'a script function reading a chart series at a bar offset, called inside a block, at a Pine version no capture has shown (v2/v3 repeat the last value of the copy; v4+ reads the chart)',
 })
 /** The engine-57 witness codes a column withheld on EVERY bar declines by (review N1). */
-const BUILTIN_WITNESS_REFUSALS = new Set([STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE])
+const BUILTIN_WITNESS_REFUSALS = new Set([STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE, VWAP_BEFORE_FIRST_ANCHOR])
 
 /** ⭐ ENGINE 56 — the bar's own prices (the arg-extreme tie rule) and the operators that
  *  answer a `bool` (the v1-v5 `bool`-`na` rule), as this lane spells them. */

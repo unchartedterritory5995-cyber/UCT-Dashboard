@@ -14,7 +14,9 @@ import { lowerIrProgram } from '../runtime/lowerIr.js'
 import { execute } from '../runtime/vm.js'
 import { translatePine } from '../ast/pine.js'
 import { parseFormula } from '../ast/parse.js'
-import { interpret, FN } from '../ast/interpret.js'
+import { interpret, FN, VWAP_BEFORE_FIRST_ANCHOR, PER_BAR_CLOCK_CODES, CHART_CLOCK_WITHHELD, CHART_CLOCK_WHOLE } from '../ast/interpret.js'
+import { RUNNING_TOTAL_CALLS, ANCHOR_RESET_CALLS, barIndexVerdict, readsRunningTotal } from '../ast/barIndexShift.js'
+import { TABLE } from '../ast/parse.js'
 
 const N = 80
 const T0 = Date.UTC(2024, 0, 2) / 1000
@@ -109,5 +111,102 @@ describe('the anchored VWAP: ta.vwap(source, anchor)', () => {
   it('the one-argument session VWAP is untouched (a control)', () => {
     const t = translatePine(`${HEAD}plot(ta.vwap(close))\n`, { strict: true })
     expect(t.outputs[0].formula).toMatch(/vwapOf\(/)
+  })
+})
+
+// ─── ⭐⭐ THE HAZARD RULING (coordinator, 2026-11-22): AN ANCHORED VWAP IS ITS OWN CLASS, NEVER A RUNNING TOTAL ─────
+//
+// `lookback: "series"` made `vwapAnchor` a running total (`barIndexShift.js::RUNNING_TOTAL_CALLS`): withheld WHOLE on
+// every chart not starting at the listing (named `running-total:window`, "counts from the first bar loaded": false of
+// a VWAP), and fed to the additive-constant algebra (`ORIGIN_ATOM`), which would serve `vwapAnchor - vwapAnchor[n]`
+// as if an unseen constant cancelled. The truth: after the first anchor INSIDE the chart's window the sums reset, so
+// every later bar is exact and window-independent; only the bars before it are unknown. Served PER BAR, those bars
+// withheld BY NAME (`vwap:before-first-anchor`, `interpret.js::builtinWitnessMask`).
+describe('⭐⭐ the anchored VWAP off the listing: served from the first anchor shown on the chart, per bar', () => {
+  // `close < 95` first fires on bar 9, and again from bar 30: an anchor no bar index and no clock decides
+  const FIRST = 9
+  const ANCH = (i) => BARS[i].c < 95
+  const OFF = { historyFromListing: false, barIndexAbsolute: true }
+  const FROM = { historyFromListing: true, barIndexAbsolute: true }
+  /** every plot of a translated script, through the columnar lane under `opts`, with the codes it named */
+  function run(body, opts) {
+    const t = translatePine(`${HEAD}${body}`, { strict: true })
+    expect(t.ok, JSON.stringify(t.refusal || {})).toBe(true)
+    return t.outputs.map((o) => {
+      expect(o.refusal, o.refusal && o.refusal.message).toBeFalsy()
+      const parsed = parseFormula(o.formula)
+      const sink = new Map()
+      const perBar = new Map()
+      const col = interpret(parsed.ast, BARS, {}, undefined, undefined, { ...opts, chartClockSink: sink, withheldBarsSink: perBar })
+      return { col: Array.from({ length: N }, (_, i) => col[i]), codes: [...sink.keys()].sort(), perBar, ast: parsed.ast }
+    })
+  }
+  const want = byHand(ANCH).map((r) => r.vwap)
+
+  it('the manifest: the anchored sums are their own class, NOT a running total, and tagged with a true sentence', () => {
+    expect(BARS.findIndex((b) => b.c < 95)).toBe(FIRST)
+    expect(ANCHOR_RESET_CALLS).toEqual(['vwapAnchor', 'vwapAnchorDev'])
+    expect(RUNNING_TOTAL_CALLS).toEqual(['cum'])
+    const tag = TABLE._requirement_tags.anchor_dependent
+    expect(tag.calls).toEqual(['vwapAnchor', 'vwapAnchorDev'])
+    expect(TABLE._requirement_tags.window_dependent.calls).not.toContain('vwapAnchor')
+    expect(tag.memberNote).toBeUndefined()
+  })
+
+  it('a chart starting mid-history is SERVED from its first in-window anchor, bit for bit, and nothing is withheld whole', () => {
+    const [{ col, codes, perBar }] = run('plot(ta.vwap(hlc3, close < 95))\n', OFF)
+    for (let i = FIRST; i < N; i += 1) expect(col[i], `bar ${i}`).toBe(want[i])
+    expect(codes).toEqual([VWAP_BEFORE_FIRST_ANCHOR])
+    expect(codes).not.toContain('running-total:window')
+    // the bars before it are withheld BY NAME, per bar — never a whole-series withhold
+    const bars0 = perBar.get(VWAP_BEFORE_FIRST_ANCHOR)
+    expect(Array.from(bars0).map((v, i) => (v ? i : -1)).filter((i) => i >= 0)).toEqual(Array.from({ length: FIRST }, (_, i) => i))
+    for (let i = 0; i < FIRST; i += 1) expect(Number.isNaN(col[i]), `bar ${i}`).toBe(true)
+  })
+
+  it('the bands too: each leg served from the first in-window anchor, withheld before it by the same name', () => {
+    const outs = run('[m, u, l] = ta.vwap(hlc3, close < 95, 1)\nplot(m)\nplot(u)\nplot(l)\n', OFF)
+    const w = byHand(ANCH, 1)
+    outs.forEach(({ col, codes }, k) => {
+      const key = ['vwap', 'upper', 'lower'][k]
+      for (let i = FIRST; i < N; i += 1) expect(col[i], `${key} bar ${i}`).toBe(w[i][key])
+      for (let i = 0; i < FIRST; i += 1) expect(Number.isNaN(col[i])).toBe(true)
+      expect(codes).toEqual([VWAP_BEFORE_FIRST_ANCHOR])
+    })
+  })
+
+  it('⛔ a value read from the bars before the anchor is never drawn: `nz(vwap)` is withheld there, not drawn as 0', () => {
+    const [{ col, codes }] = run('plot(nz(ta.vwap(hlc3, close < 95)))\n', OFF)
+    for (let i = 0; i < FIRST; i += 1) expect(Number.isNaN(col[i]), `bar ${i}: ${col[i]}`).toBe(true)
+    for (let i = FIRST; i < N; i += 1) expect(col[i]).toBe(want[i])
+    expect(codes).toEqual([VWAP_BEFORE_FIRST_ANCHOR])
+  })
+
+  it('⛔⛔ `vwap - vwap[n]` is NEVER served by the additive-constant algebra: withheld until the read reaches the anchor', () => {
+    const body = 'v = ta.vwap(hlc3, close < 95)\nplot(nz(v) - nz(v[5]))\n'
+    const [{ col, codes, ast }] = run(body, OFF)
+    // the pass reads no running total in it: no unseen constant to cancel (`ORIGIN_ATOM` never sees it)
+    expect(readsRunningTotal(ast)).toBe(false)
+    expect(barIndexVerdict(ast).cls).toBe('inv')
+    for (let i = 0; i < FIRST + 5; i += 1) expect(Number.isNaN(col[i]), `bar ${i}: ${col[i]}`).toBe(true)
+    for (let i = FIRST + 5; i < N; i += 1) expect(col[i], `bar ${i}`).toBe(want[i] - want[i - 5])
+    expect(codes).toEqual([VWAP_BEFORE_FIRST_ANCHOR])
+  })
+
+  it('from the listing nothing is withheld or named: TradingView is `na` before the first anchor too', () => {
+    const [{ col, codes }] = run('plot(ta.vwap(hlc3, close < 95))\n', FROM)
+    expect(codes).toEqual([])
+    for (let i = 0; i < N; i += 1) {
+      if (Number.isNaN(want[i])) expect(Number.isNaN(col[i])).toBe(true)
+      else expect(col[i]).toBe(want[i])
+    }
+  })
+
+  it('the code is a per-bar one with a true sentence, never the running-total one', () => {
+    expect(PER_BAR_CLOCK_CODES).toContain(VWAP_BEFORE_FIRST_ANCHOR)
+    expect(CHART_CLOCK_WHOLE).not.toContain(VWAP_BEFORE_FIRST_ANCHOR)
+    const sentence = CHART_CLOCK_WITHHELD[VWAP_BEFORE_FIRST_ANCHOR]('D')
+    expect(sentence).toContain('starts at the first anchor shown on the chart')
+    expect(sentence).not.toMatch(/first bar that was loaded|counts from the first bar/)
   })
 })

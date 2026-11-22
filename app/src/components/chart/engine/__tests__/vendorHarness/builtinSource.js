@@ -32,6 +32,8 @@ export function builtinSourceDir() {
 }
 
 let pinsMemo = null
+/** ⛔ TEST SEAM — rails pin a test id to a test text's sha256 (TradingView's code is never committed); null restores. */
+export function __setBuiltinPinsForTests(map) { pinsMemo = map ? new Map(Object.entries(map)) : null }
 /** `scriptIdPart` → sha256 for every built-in row of the full census population (the one authority on its bytes). */
 export function builtinPins() {
   if (pinsMemo) return pinsMemo
