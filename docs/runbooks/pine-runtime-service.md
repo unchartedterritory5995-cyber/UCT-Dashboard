@@ -99,7 +99,9 @@ reversible; section 6 is the rollback.
 3. **Source.** Settings, Source: branch `production` (never `master`; `web` deploys from `production` too).
    Root directory empty (the build context is the repo root). Config-as-code file path:
    `services/pine_runtime/railway.json` (builder DOCKERFILE, healthcheck `/health`, restart ALWAYS).
-4. **Watch paths** (set in the dashboard; they are per-service there): `services/pine_runtime/**`,
+4. **Watch paths** (a new service reads no config file: store them, with the Dockerfile path and the
+   health check, by `python tools/railway_stored_settings.py --apply --service pine-runtime`, then check
+   with `--service pine-runtime`): `services/pine_runtime/**`,
    `app/src/components/chart/engine/**`, `app/src/lib/marketClock/**`,
    `app/src/components/chart/indicators.js`, `app/src/components/chart/timeframes.js`, `app/src/components/chart/builder/authoring/crossContext.json`,
    `app/package*.json`, `app/vite.config.js`, `app/scripts/build-pine-runtime.mjs`.
@@ -118,6 +120,11 @@ reversible; section 6 is the rollback.
    variable the allowlist does not know. Report the names; do not add variables and do not widen the list
    by hand. `/health` is liveness (the Railway healthcheck); `/ready` also needs the canary green. Never
    point the Railway healthcheck at `/ready`.
+   Track 6 (2026-11-22): Railway injects `RAILWAY_SERVICE_<NAME>_URL` (each sibling's public hostname) and
+   `RAILWAY_BETA_ENABLE_RUNTIME_V2` into EVERY service, a domainless one included (measured from
+   chart-renderer's running process). Both are admitted (`ENV_ALLOWLIST_PATTERNS`, one anchored pattern
+   that still refuses any name carrying TOKEN, SECRET, KEY, PASSWORD or CREDENTIAL). Before that change the
+   first boot would have refused seven names.
 8. **Secret on `web`.** Set the SAME `PINE_RUNTIME_SERVICE_SECRET` on `web`. A Railway `--set` redeploys the
    service; a `delete` does not (CLAUDE.md).
 9. **URL on `web`, last.** `PINE_RUNTIME_SERVICE_URL=http://pine-runtime.railway.internal:8080` on `web`.
