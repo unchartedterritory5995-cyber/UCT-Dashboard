@@ -83,6 +83,9 @@ on:
       - 'docs/notebook/proof/f5-r2-routes/routes-before-a0c32d2e2.json'
       - 'docs/notebook/proof/f5-r2-routes/routes-composite-a0c32d2e2+terminal-c941080f0.json'
       - 'docs/pine/EDITOR-STATUS-PANEL-SPEC.md'
+      # e95 unit 2: the vendor harness pins a hand-added built-in's held source to the census population's sha256
+      # (`__tests__/vendorHarness/builtinSource.js`), so every harness reader reads it
+      - 'docs/pine/census-full/population.json'
       - 'docs/pine/evidence/2026-11-15-w3n-d1/evidence.json'
       - 'docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine'
       - 'docs/pine/target-scripts.json'

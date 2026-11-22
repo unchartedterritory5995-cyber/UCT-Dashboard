@@ -69,13 +69,10 @@
    "kind": "calculation",
    "cannot": "VWAP with its own standard deviation bands",
    "source": "//@version=5\nindicator(\"probe\", overlay=true)\n[v, up, dn] = ta.vwap(hlc3, timeframe.change(\"D\"), 1)\nplot(v, \"VWAP\")\nplot(up, \"Upper\")\nplot(dn, \"Lower\")\n",
-   "runs": false,
+   "runs": true,
    "lane": "host",
-   "state": "not-yet",
-   "headline": "Not yet: Arrays, maps and custom types",
-   "guard": "pine:tuple",
-   "family": "collection",
-   "why": "this Pine call answers with several values at once and a column carries one — `v` — this engine has no tuple form for `ta.vwap` — the ones it can take apart are `ta.bb`, `ta.dmi`, `ta.kc`, `ta.macd`, `ta.supertrend`. Writing it WITHOUT the brackets says more about why"
+   "state": "runs",
+   "headline": "Runs on the chart; not in alerts, screens or scans"
   },
   {
    "id": "regression-channel-deviation",

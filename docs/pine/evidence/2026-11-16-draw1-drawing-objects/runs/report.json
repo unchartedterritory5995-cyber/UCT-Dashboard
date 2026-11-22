@@ -4,8 +4,8 @@
    "scripts": 1012,
    "admitted": 813,
    "runtimeLane": 226,
-   "hostLane": 308,
-   "refused": 279,
+   "hostLane": 310,
+   "refused": 277,
    "coreOnly": 47
   },
   "committed": {
@@ -8132,7 +8132,7 @@
   },
   {
    "capture": "volume-suite-by-leviathan-rddt-1d-2026-11-15",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -8152,7 +8152,7 @@
   },
   {
    "capture": "volume-suite-by-leviathan-spy-1d-2026-11-15",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [

@@ -60,6 +60,7 @@ import { startsAtBar0Holds, startsAtBar0Refuted, BAR_INDEX_CONTROL } from '../..
 import { fullBarsFor } from '../../../../../utils/barsBackfill'
 // ⭐ SETTINGS PARITY (2c): a capture is graded at the settings TradingView recorded in it
 import { captureInstanceInputs } from './captureInputs.js'
+import { heldBuiltinSourceOf } from './builtinSource.js'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -1749,7 +1750,15 @@ export function runOurSide(capture) {
 
 function runOurSideOnTheParityClock(capture) {
   const notes = []
-  const source = capture && capture.source && capture.source.text
+  // ⭐⭐ e95 (unit 2, coordinator ruling F1) — a built-in added by hand holds no Pine in its capture: our side runs
+  // the built-in's published source, held locally at the census population's pin (`builtinSource.js`), or the row
+  // is not graded and says why ("source-held").
+  const held = heldBuiltinSourceOf(capture)
+  if (held && typeof held.text !== 'string') {
+    return { ok: false, refusal: `source-held: ${held.id} is a built-in captured with no Pine, and ${held.why}`, plots: [], notes }
+  }
+  if (held) notes.push(`source: the built-in ${held.id}'s published source, held locally (sha256 ${held.sha256})`)
+  const source = held ? held.text : (capture && capture.source && capture.source.text)
   const door = enterMemberDoor(source)
   const built = door.built
   if (!built.ok) {
@@ -1763,7 +1772,7 @@ function runOurSideOnTheParityClock(capture) {
     // ⭐⭐ SETTINGS PARITY (2c) — THE SETTINGS THE CAPTURE WAS TAKEN AT. At every default this is
     // `undefined` and our side computes exactly as it always has; a capture with a setting moved is
     // computed with the same setting moved, or refused by name (`captureInputs.js`).
-    const taken = captureInstanceInputs(capture, def)
+    const taken = captureInstanceInputs(capture, def, source)
     if (!taken.ok) {
       return { ok: false, refusal: `the capture was taken at settings our side cannot set: ${taken.why}`, plots: [], notes }
     }

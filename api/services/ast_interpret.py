@@ -1163,6 +1163,38 @@ def _cum_col(series: Sequence[float]) -> List[float]:
     return out
 
 
+def _vwap_anchor_col(src: Sequence[float], anchor: Sequence[float], volume: Sequence[float],
+                     dev: bool = False) -> List[float]:
+    """e95 (unit 2) -- Pine's anchored ``ta.vwap(source, anchor[, stdev_mult])``: the average (``vwapAnchor``) or
+    the standard deviation its bands are drawn from (``vwapAnchorDev``), summed FROM EACH RESET as TradingView's
+    published ``computeVWAP`` sums them. ``na`` before the first bar the anchor fires; an ``na`` price or volume
+    poisons the sums until the next reset; a zero volume total is ``na``; ``pow(x, 2)`` is ``x * x``.
+
+    ⛔ MIRROR OF ``interpret.js::vwapAnchorAccumulate`` (``FN.vwapAnchor`` / ``FN.vwapAnchorDev`` and the runtime's
+    ``CARRIED2.vwapAnchorPine`` / ``vwapAnchorDevPine``), operation for operation: held to it by
+    ``tests/test_vwap_anchor_parity.py``.
+    """
+    out = [NAN] * len(src)
+    s_pv = s_v = s_ppv = NAN
+    for i in range(len(src)):
+        a = anchor[i] if i < len(anchor) else NAN
+        p = float(src[i]) if isinstance(src[i], (int, float)) else NAN
+        v = float(volume[i]) if i < len(volume) and isinstance(volume[i], (int, float)) else NAN
+        pv = p * v
+        ppv = v * (p * p)
+        if isinstance(a, (int, float)) and math.isfinite(a) and a != 0:
+            s_pv, s_v, s_ppv = pv, v, ppv
+        else:
+            s_pv, s_v, s_ppv = pv + s_pv, v + s_v, ppv + s_ppv
+        vwap = s_pv / s_v if s_v > 0 else NAN
+        if not dev:
+            out[i] = vwap
+            continue
+        variance = s_ppv / s_v - vwap * vwap if s_v > 0 else NAN
+        out[i] = math.sqrt(0.0 if variance < 0 else variance) if not math.isnan(variance) else NAN
+    return out
+
+
 def _window_fn(name: str, reduce: Callable[[Sequence[float], int, int], float],
                span: Optional[Callable[[int], int]] = None):
     """⛔⛔ EVERY finite-window member goes through here, so a member CANNOT be
@@ -1509,6 +1541,9 @@ def _window_percentile_nearest(series: Sequence[float], lo: int, hi: int,
 STOCH_FLAT_WINDOW = "stoch:flat-window"
 STOCH_LEFT_EDGE = "stoch:left-edge"
 RCI_LEFT_EDGE = "rci:left-edge"
+#: e95 (unit 2) -- ``interpret.js::VWAP_BEFORE_FIRST_ANCHOR``: off the listing, an anchored VWAP's bars before the
+#: first anchor inside the loaded history (``builtin_witness_mask``); the JS lane owns the sentence.
+VWAP_BEFORE_FIRST_ANCHOR = "vwap:before-first-anchor"
 
 
 def _finite(v: Any) -> bool:
@@ -3150,6 +3185,9 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "stoch": _fn_stoch,
     # ENGINE 57 -- Pine's ``ta.stoch``, reached only through ``pine.js::PINE_CALL_SHAPES.stoch``.
     "stochPine": _stoch_pine_col,
+    # e95 -- Pine's anchored ``ta.vwap``, reached only through ``pine.js`` (``PINE_TUPLE_BUILTINS.vwap``).
+    "vwapAnchor": lambda src, anchor, volume: _vwap_anchor_col(src, anchor, volume),
+    "vwapAnchorDev": lambda src, anchor, volume: _vwap_anchor_col(src, anchor, volume, dev=True),
     "cci": _fn_cci,
     "williamsR": _fn_williams_r,
     "mfi": _fn_mfi,
@@ -6692,12 +6730,27 @@ def _reads_recurrence_binding(tree: Any) -> bool:
 from api.services.ast_bar_index_shift import (  # noqa: E402,F401
     BAR_INDEX_LEAVES, FIRST_BAR_LEAVES, reads_bar_index, reads_first_bar, bar_index_class,
     bar_index_verdict, threshold_unknown, RUNNING_TOTAL_CALLS, reads_running_total,
+    ANCHOR_RESET_CALLS as _ANCHOR_RESET_CALLS,
 )
 
 
 
-#: ``interpret.js::BUILTIN_WITNESS_CODES`` (engine 57).
-_BUILTIN_WITNESS_CODES = {"rci": (RCI_LEFT_EDGE,), "stochPine": (STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE)}
+#: ``interpret.js::BUILTIN_WITNESS_CODES`` (engine 57), and the anchored VWAP (e95, unit 2:
+#: ``ast_bar_index_shift.ANCHOR_RESET_CALLS``).
+_BUILTIN_WITNESS_CODES = {"rci": (RCI_LEFT_EDGE,), "stochPine": (STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE),
+                          **{name: (VWAP_BEFORE_FIRST_ANCHOR,) for name in _ANCHOR_RESET_CALLS}}
+
+
+def _first_anchor_bar(anchor: Sequence[float], n: int) -> int:
+    """e95 (unit 2) -- ``interpret.js::firstAnchorBar``: the first bar whose anchor is finite and not 0 (the
+    kernel's own reset test, ``_vwap_anchor_col``), or ``n`` when it never fires."""
+    for i in range(n):
+        a = anchor[i] if i < len(anchor) else NAN
+        if _finite(a) and a != 0:
+            return i
+    return n
+
+
 #: ``interpret.js::WITNESS_CARRIED_CALLS``.
 _WITNESS_CARRIED_CALLS = frozenset(("ema", "rma", "rsi", "atr", "atrPine", "adx", "plusDI", "minusDI", "macd"))
 
@@ -6750,24 +6803,40 @@ def builtin_witness_mask(tree: Any, bars: List[dict],
         args = node.get("args") or []
         name = node.get("name")
         is_rci = name == "rci"
-        if nested:
+        # e95 (unit 2) -- an anchored VWAP, off the listing: unknown before the first bar its anchor fires on this
+        # chart, exact from it on; fails closed (every bar) under another series' request or over a recurrence's
+        # own value (``interpret.js::builtinWitnessMask``)
+        is_vwap = _BUILTIN_WITNESS_CODES.get(name, (None,))[0] == VWAP_BEFORE_FIRST_ANCHOR
+        if is_vwap and not off_listing:
             continue
-        if _reads_recurrence_binding(node):
+        if nested and not is_vwap:
+            continue
+        if is_vwap:
+            # the anchor as this chart can know it: every mask applied (``interpret``), so a bar whose anchor reads
+            # before the chart's first bar, or any other withheld read, is no known reset (``builtinWitnessMask``)
+            if nested or _reads_recurrence_binding(node):
+                first = n
+            else:
+                known = interpret(args[1], bars, inputs, budget, scalars, dict(inner, withheldBarsSink=None))
+                first = _first_anchor_bar([NAN if v is None else v for v in known], n)
+            code_at = [VWAP_BEFORE_FIRST_ANCHOR if i < first else None for i in range(n)]
+        elif _reads_recurrence_binding(node):
             continue      # never reached: a window over ``self`` is refused by the interpreter first
-        if is_rci and not off_listing:
+        elif is_rci and not off_listing:
             continue
-        length = col_of(args[1] if is_rci else args[3])
-        w = length[-1] if length else NAN
-        if not (_finite(w) and w >= 1 and w == int(w)):
-            continue
-        w = int(w)
-        if is_rci:
-            e = rci_left_edge(col_of(args[0]), w)
-            code_at = [RCI_LEFT_EDGE if e[i] == 1 else None for i in range(n)]
         else:
-            _, flags, edge = _stoch_pine_scan(col_of(args[0]), col_of(args[1]), col_of(args[2]), w, off_listing)
-            code_at = [STOCH_FLAT_WINDOW if flags[i] == 1 else STOCH_LEFT_EDGE if edge[i] == 1 else None
-                       for i in range(n)]
+            length = col_of(args[1] if is_rci else args[3])
+            w = length[-1] if length else NAN
+            if not (_finite(w) and w >= 1 and w == int(w)):
+                continue
+            w = int(w)
+            if is_rci:
+                e = rci_left_edge(col_of(args[0]), w)
+                code_at = [RCI_LEFT_EDGE if e[i] == 1 else None for i in range(n)]
+            else:
+                _, flags, edge = _stoch_pine_scan(col_of(args[0]), col_of(args[1]), col_of(args[2]), w, off_listing)
+                code_at = [STOCH_FLAT_WINDOW if flags[i] == 1 else STOCH_LEFT_EDGE if edge[i] == 1 else None
+                           for i in range(n)]
         reach = max(0, root_reach - max_lookback(node))
         # only a flat-window flag is carried forever under a smoother; a left-edge flag reaches the
         # tree's own lookback and no further (review N1, ``builtinWitnessMask``)
@@ -6836,7 +6905,11 @@ def bar_index_mask(tree: Any, bars: List[dict],
         into = nested or node.get("type") in ("tf", "tf_live", "tf_merge", "sym")
         name = node.get("name")
         spec = functions.get(name) if node.get("type") == "call" and isinstance(name, str) else None
-        opened = unbounded or bool(spec is not None and spec.get("lookback") == SERIES_LOOKBACK)
+        # e95 (unit 2) -- not under an anchored sum (``_ANCHOR_RESET_CALLS``): its memory ends at its next reset, and
+        # ``builtin_witness_mask`` withholds every bar before the first anchor this chart knows fired
+        # (``interpret.js::barIndexMask``)
+        opened = unbounded or bool(spec is not None and spec.get("lookback") == SERIES_LOOKBACK
+                                   and name not in _ANCHOR_RESET_CALLS)
         args = node.get("args")
         if isinstance(args, list):
             for a in args:

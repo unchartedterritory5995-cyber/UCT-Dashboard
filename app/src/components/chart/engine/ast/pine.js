@@ -3027,6 +3027,18 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
     + 'differently for the same stock on the same day. A pane may draw '
     + '`ta.valuewhen(condition, source, occurrence)`; the bar-window '
     + '`valuewhen(condition, source, bars)` translates for a screen.',
+  // ⭐⭐ e95 (unit 2) — the table's anchored VWAP, tagged `anchor_dependent` in the manifest (`_requirement_tags`):
+  // accepted by the pane, refused by the five comparability consumers. This is the sentence a screen gets when a
+  // script spells the TABLE name itself; Pine's own `ta.vwap(source, anchor)` translates and is contained one door
+  // later by the tag (the `ta.valuewhen` precedent, § C45 decision 12).
+  vwapAnchor: 'an anchored VWAP: sums that start again at every bar the anchor fires. Before the first anchor '
+    + 'inside the loaded history there is no value (TradingView carries a total from an earlier anchor), and on a '
+    + 'screen the first comparison above it would read the missing value as "no match" — so it could answer '
+    + 'differently for the same stock on the same day. A pane may draw `ta.vwap(source, anchor)`.',
+  vwapAnchorDev: 'the standard deviation an anchored VWAP\'s bands are drawn from, summed from the last bar the '
+    + 'anchor fired. Before the first anchor inside the loaded history there is no value, and on a screen the first '
+    + 'comparison above it would read the missing value as "no match". A pane may draw '
+    + '`ta.vwap(source, anchor, stdev_mult)`.',
   isfirst: 'the OLDEST bar the fetch delivered, which moves whenever the request '
     + 'reaches further back — so on a screen it would answer differently for the '
     + 'same stock on the same day. `barstate.islast` is the other end and IS '
@@ -4191,7 +4203,28 @@ const ARITY_HINTS = Object.freeze({
     + 'and this engine translates the `ta.mom` spelling',
 })
 
+/** ⭐⭐ e95 (unit 2) — the internal call the anchored VWAP's band leg is written as (`PINE_TUPLE_BUILTINS.vwap`):
+ *  the standard deviation since the anchor, `vwapAnchorDev`. It holds a space, so no script can spell it, and
+ *  both lanes answer it beside `ta.vwap(source, anchor)` (`Resolver.anchoredVwapTree`,
+ *  `pineRuntimeFrontend.js`'s anchored-VWAP kernel). */
+export const VWAP_DEV_CALL = 'ta.vwap stdev'
+
 const PINE_TUPLE_BUILTINS = Object.freeze({
+  // ⭐⭐ e95 (unit 2) — `[vwap, upper, lower] = ta.vwap(source, anchor, stdev_mult)`: TradingView's built-in VWAP
+  // reads it so (`[_vwap, _stdevUpper, _] = ta.vwap(src, isNewPeriod, 1)`). The average is `ta.vwap(source, anchor)`
+  // and each band is it plus or minus the standard deviation since the anchor times the multiplier, TradingView's
+  // published `computeVWAP` (`interpret.js::vwapAnchorAccumulate`): `_vwap + stDev * stDevMultiplier`.
+  vwap: {
+    arity: 3,
+    parts: 3,
+    build: (a, tok) => {
+      const pc = (n, args) => ({ type: 'call', name: n, args: args.map((v) => ({ value: v })), tok })
+      const bin = (op, left, right) => ({ type: 'binary', op, left, right, tok })
+      const mid = pc('ta.vwap', [a[0], a[1]])
+      const band = bin('*', pc(VWAP_DEV_CALL, [a[0], a[1]]), a[2])
+      return [mid, bin('+', mid, band), bin('-', mid, band)]
+    },
+  },
   bb: {
     arity: 3,
     parts: 3,
@@ -15944,7 +15977,34 @@ export class Resolver {
    *  value namespace stripped; the MANIFEST decides whether the name exists, how
    *  many arguments it takes and what kind each one is. The only thing this
    *  module supplies is a ROLE ORDER, and only where one has been measured. */
+  /** ⭐⭐ e95 (unit 2) — PINE'S ANCHORED `ta.vwap(source, anchor)` (and, with `dev`, the standard deviation its
+   *  `stdev_mult` bands are drawn from): `vwapAnchor(source, anchor, volume)` / `vwapAnchorDev(…)`, summed from
+   *  each bar the anchor fires as TradingView sums them (`interpret.js::vwapAnchorAccumulate`), `na` before the
+   *  first. ⛔ The source is a price the bar itself holds (`isBarPriceSource`, the one-argument form's own rule):
+   *  a computed source can be `na`, and what TradingView's sums do with an `na` term is not measured, so it is
+   *  refused by name. */
+  anchoredVwapTree(args, dev, tok) {
+    const val = (a) => (a && a.value !== undefined ? a.value : a)
+    const src = this.resolve(val(args[0]))
+    if (!isBarPriceSource(src, this.table) || !own(this.table.functions, 'vwapAnchor')
+        || !own((this.table && this.table.series) || {}, 'volume')) {
+      throw new PineRefusal('pine:arity',
+        REFUSALS['pine:arity'] + ' — `ta.vwap(source, anchor)` was given a source this engine cannot weigh: the '
+        + 'anchored VWAP is carried for a price the bar itself holds (`close`, `open`, `high`, `low`, `hl2`, '
+        + '`hlc3`, `ohlc4`, `hlcc4`). A computed source can be `na` on a bar, and what TradingView\'s sums do with '
+        + 'an `na` term has not been measured. TO UNBLOCK: weigh a bar price, e.g. `ta.vwap(hlc3, anchor)`',
+        locate(tok))
+    }
+    const anchor = this.condition(this.resolve(val(args[1])), 'ta.vwap', tok)
+    return cCall(dev ? 'vwapAnchorDev' : 'vwapAnchor', [src, anchor, cSeries('volume')])
+  }
+
   resolveTableCall(pineName, base, args, tok) {
+    // ⭐⭐ e95 (unit 2) — `ta.vwap(source, anchor)` and its band leg (`VWAP_DEV_CALL`): the anchored VWAP.
+    if ((pineName === 'ta.vwap' || pineName === VWAP_DEV_CALL) && Array.isArray(args) && args.length === 2
+      && !args.some((a) => a && a.name)) {
+      return this.anchoredVwapTree(args, pineName === VWAP_DEV_CALL, tok)
+    }
     // ⭐⭐ H5 (step 84) — `math.round_to_mintick(x)` IS `math.round(x * (1 /
     // syminfo.mintick)) * syminfo.mintick`: Pine's reference, "the value rounded to
     // the symbol's mintick … with ties rounding up", which is `math.round` on the

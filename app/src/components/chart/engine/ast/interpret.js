@@ -64,7 +64,7 @@ import { TRADINGVIEW_CLOSURES_FROM, TRADINGVIEW_UNAPPLIED_CLOSURES } from '../..
 // ⭐⭐ Q-CLOSURE — the NYSE's full closures and the dataset's horizon (`sessionKeying`'s S2), read off the one calendar
 import { HOLIDAY_ROWS, horizon as calendarHorizon } from '../../../../lib/marketClock/sessionCalendar.js'
 import { EXACT_CMP, PINE_CMP, compareRange, compareNarrow, pineGt, pineLt, pineLe } from '../pineCompare.js'
-import { barIndexVerdict, thresholdUnknown, readsBarIndex, readsRunningTotal, FIRST_BAR_TEST } from './barIndexShift.js'
+import { barIndexVerdict, thresholdUnknown, readsBarIndex, readsRunningTotal, FIRST_BAR_TEST, ANCHOR_RESET_CALLS } from './barIndexShift.js'
 
 // ⭐⭐ THE LANE'S ONE ANSWER TO "DOES THIS TREE YIELD A YES/NO", IMPORTED RATHER
 // THAN RE-DERIVED. `assertArgRoles` below needs it for the manifest's
@@ -3720,6 +3720,61 @@ function vwapPineStep(st, off, key, price, _n, volume) {
   return st[off + 1] > 0 ? st[off] / st[off + 1] : NaN
 }
 
+/** ⭐⭐ e95 (unit 2, the built-in VWAP) — PINE'S ANCHORED `ta.vwap(source, anchor[, stdev_mult])`, a bar at a
+ *  time: TradingView's published `computeVWAP` body (the built-in VWAP's own source before `ta.vwap` took the
+ *  anchor), summed FROM THE RESET exactly as it sums them, so a value never depends on how much history is loaded:
+ *
+ *      sumSrcVol    := isNewPeriod ? src * volume          : src * volume + sumSrcVol[1]
+ *      sumVol       := isNewPeriod ? volume                : volume + sumVol[1]
+ *      sumSrcSrcVol := isNewPeriod ? volume * pow(src, 2)  : volume * pow(src, 2) + sumSrcSrcVol[1]
+ *      vwap = sumSrcVol / sumVol;  variance = max(sumSrcSrcVol / sumVol - pow(vwap, 2), 0);  stdev = sqrt(variance)
+ *
+ *  with every sum `var float = na`: before the FIRST bar the anchor fires, every value is `na` (witnessed: the
+ *  built-in at an event anchor draws nothing before the symbol's first event, `s4-vwap-anchors-retake3`), and an
+ *  `na` price or volume poisons the sums until the next reset (Pine's `na + x`). A zero volume total answers `na`
+ *  (`vwapPine`'s rule). `pow(x, 2)` is `x * x`: both correctly rounded, so one number on every lane (the Python
+ *  twin is `ast_interpret._vwap_anchor_col`). Two members, ONE accumulator: `vwapAnchorPine` answers the average,
+ *  `vwapAnchorDevPine` the standard deviation the bands are drawn from. `n` is unread (the slot `valuewhen`
+ *  reads). */
+const VWAP_ANCHOR_CELLS = () => 3
+function vwapAnchorInit(st, off) {
+  st[off] = NaN         // sum of price * volume since the reset
+  st[off + 1] = NaN     // sum of volume
+  st[off + 2] = NaN     // sum of volume * price^2
+}
+function vwapAnchorAccumulate(st, off, anchor, price, volume) {
+  const pv = price * volume
+  const ppv = volume * (price * price)
+  if (Number.isFinite(anchor) && anchor !== 0) {
+    st[off] = pv
+    st[off + 1] = volume
+    st[off + 2] = ppv
+  } else {
+    st[off] = pv + st[off]
+    st[off + 1] = volume + st[off + 1]
+    st[off + 2] = ppv + st[off + 2]
+  }
+  return st[off + 1] > 0 ? st[off] / st[off + 1] : NaN
+}
+function vwapAnchorStep(st, off, anchor, price, _n, volume) {
+  return vwapAnchorAccumulate(st, off, anchor, price, volume)
+}
+function vwapAnchorDevStep(st, off, anchor, price, _n, volume) {
+  const vwap = vwapAnchorAccumulate(st, off, anchor, price, volume)
+  const variance = st[off + 2] / st[off + 1] - vwap * vwap
+  return Math.sqrt(variance < 0 ? 0 : variance)
+}
+/** The two anchored-VWAP members as COLUMNS (`FN.vwapAnchor` / `FN.vwapAnchorDev`): the same step, driven over
+ *  the series, so the columnar lane and the runtime VM run one piece of arithmetic. */
+function vwapAnchorCol(step, src, anchor, volume) {
+  const len = src.length
+  const st = new Float64Array(VWAP_ANCHOR_CELLS())
+  vwapAnchorInit(st, 0)
+  const out = nan(len)
+  for (let i = 0; i < len; i += 1) out[i] = step(st, 0, anchor[i], src[i], 0, volume[i])
+  return out
+}
+
 export const CARRIED2 = Object.freeze({
   valuewhen: {
     cells: VALUEWHEN_CELLS, init: valueWhenPineInit, step: valueWhenPineStep,
@@ -3735,6 +3790,9 @@ export const CARRIED2 = Object.freeze({
   // `(st, off, first, second, n, third)`, the order the front end pushes them.
   stochPine: { cells: STOCH_PINE_CELLS, init: stochPineInit, step: stochPineStep, inputs: 3 },
   vwapPine: { cells: VWAP_PINE_CELLS, init: vwapPineInit, step: vwapPineStep, inputs: 3 },
+  // ⭐⭐ e95 — the anchored `ta.vwap` (`vwapAnchorAccumulate`): (anchor, price, volume), volume pushed last
+  vwapAnchorPine: { cells: VWAP_ANCHOR_CELLS, init: vwapAnchorInit, step: vwapAnchorStep, inputs: 3 },
+  vwapAnchorDevPine: { cells: VWAP_ANCHOR_CELLS, init: vwapAnchorInit, step: vwapAnchorDevStep, inputs: 3 },
 })
 
 /** ⭐ RMA-SEED — how many cells a carried member holds at length `n`: a number for a fixed handful of scalars,
@@ -4016,6 +4074,11 @@ export const FN = Object.freeze({
   // TRANSLATOR (`pine.js::PINE_CALL_SHAPES.stoch`). The house `stoch` above is untouched (the
   // native Stochastic and its fixtures read it — the `atr`/`atrPine` ruling). See `stochPineCol`.
   stochPine: (h, l, c, n) => stochPineCol(h, l, c, n),
+  // ⭐⭐ e95 — PINE'S ANCHORED `ta.vwap(source, anchor[, stdev_mult])`, reached only through the Pine translator
+  // (`pine.js`, the `key === 'vwap'` branch and `PINE_TUPLE_BUILTINS.vwap`): the average, and the standard
+  // deviation its bands are drawn from, summed from each reset (`vwapAnchorAccumulate`).
+  vwapAnchor: (src, anchor, volume) => vwapAnchorCol(vwapAnchorStep, src, anchor, volume),
+  vwapAnchorDev: (src, anchor, volume) => vwapAnchorCol(vwapAnchorDevStep, src, anchor, volume),
   cci: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeCCI(bars, n)),
   williamsR: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeWilliamsR(bars, n)),
   mfi: (h, l, c, v, n) => bindShipped(HLCV, [h, l, c, v], c.length, (bars) => computeMFI(bars, n)),
@@ -6378,6 +6441,11 @@ const tfSpelled = (tf) => (typeof tf === 'string' && tf ? `\`${tf}\`` : 'not sta
 export const STOCH_FLAT_WINDOW = 'stoch:flat-window'
 export const STOCH_LEFT_EDGE = 'stoch:left-edge'
 export const RCI_LEFT_EDGE = 'rci:left-edge'
+/** ⭐⭐ e95 (unit 2, the built-in VWAP) — off the listing, the bars of an anchored VWAP (`ta.vwap(source, anchor)`,
+ *  `vwapAnchor` / `vwapAnchorDev`) before the first anchor inside the loaded history (`builtinWitnessMask`), ONE
+ *  spelling: the chart-clock channel names it, the per-bar channel carries its bars (`PER_BAR_CLOCK_CODES`), the
+ *  runtime lane declines a column it blanks whole by it. Python twin `ast_interpret.VWAP_BEFORE_FIRST_ANCHOR`. */
+export const VWAP_BEFORE_FIRST_ANCHOR = 'vwap:before-first-anchor'
 /** ⭐⭐ ENGINE 56 — the two per-bar withholding codes this engine adds, ONE spelling each:
  *  the chart-clock channel names them (`CHART_CLOCK_WITHHELD`), the runtime lane refuses by
  *  the same string, and the member door shows it. */
@@ -6651,6 +6719,17 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'such as `ta.ema`, starts on this chart there, as it does over any source). On a chart whose bars start '
     + 'at the symbol\'s listing it draws. What would settle it: nothing to capture — bars '
     + 'reaching the listing.',
+  // ⭐⭐ e95 (unit 2) — off the listing, an anchored VWAP before the first anchor inside the loaded history
+  // (`builtinWitnessMask`). ⛔ Never the running-total sentence: an anchored VWAP does not count from the first bar.
+  [VWAP_BEFORE_FIRST_ANCHOR]: () => 'An anchored VWAP (`ta.vwap(source, anchor)`, and the bands of '
+    + '`ta.vwap(source, anchor, stdev_mult)`) adds up price times volume, and volume, from the last bar its anchor '
+    + 'fired, and starts again at every new anchor. On this chart the VWAP starts at the first anchor shown on the '
+    + 'chart: from there on every value is TradingView\'s, however much history is loaded. Before it, TradingView '
+    + 'carries a total from an anchor earlier than this chart\'s first bar, which this chart does not hold, so what '
+    + 'this indicator draws from it on those bars is withheld rather than guessed, and so is each bar that reads '
+    + 'them within the indicator\'s own lookback, or every later bar where a value read from them is kept for good '
+    + '(such as `ta.valuewhen` or `ta.cum`). On a chart whose bars start at the symbol\'s listing it draws. What '
+    + 'would settle it: nothing to capture — bars reaching the listing.',
   // ⭐⭐ ENGINE 56 (A3) — a Pine v1-v5 `bool` that is `na` meeting an operator no capture
   // has witnessed for it (`boolNaWithheld`, `boolNaMask`).
   [BOOL_NA_UNWITNESSED]: () => 'In Pine v1 to v5 a comparison with `na` is itself `na` — a `bool` that is '
@@ -7297,7 +7376,13 @@ export function barIndexMask(tree, bars, inputs, budget, scalars, opts) {
     if (wanted.has(node)) found.push({ t: wanted.get(node), nested, unbounded })
     const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE
     const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
-    const open = unbounded || !!(spec && spec.lookback === SERIES_LOOKBACK)
+    // ⭐⭐ e95 (unit 2) — NOT UNDER AN ANCHORED SUM (`ANCHOR_RESET_CALLS`): its memory ends at its next reset. A
+    // threshold here can only sit in its anchor (its source is a bar price, its weight `volume`), and is unknown on a
+    // PREFIX of the bars (a threshold is monotone in the bar index); `builtinWitnessMask` withholds every bar before the
+    // first anchor this chart KNOWS fired (`vwap:before-first-anchor`, the anchor read with this very mask applied), and
+    // from there the sums are exact. Carried forever, the built-in VWAP's own `na(src[1])` restart (`isfirst`) blanked
+    // every bar off the listing.
+    const open = unbounded || !!(spec && spec.lookback === SERIES_LOOKBACK && !ANCHOR_RESET_CALLS.includes(node.name))
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
   }
   // a threshold the walk did not meet is not one this mask can vouch for
@@ -7818,7 +7903,16 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts, colu
 const BUILTIN_WITNESS_CODES = Object.freeze({
   rci: [RCI_LEFT_EDGE],
   stochPine: [STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE],
+  // ⭐⭐ e95 (unit 2) — the anchored VWAP (`barIndexShift.js::ANCHOR_RESET_CALLS`)
+  ...Object.fromEntries(ANCHOR_RESET_CALLS.map((name) => [name, [VWAP_BEFORE_FIRST_ANCHOR]])),
 })
+
+/** ⭐⭐ e95 (unit 2) — THE FIRST BAR AN ANCHORED SUM RESETS ON: the first bar whose anchor is finite and not 0, the
+ *  kernel's own reset test (`vwapAnchorAccumulate`), or `n` when it never fires. */
+function firstAnchorBar(anchor, n) {
+  for (let i = 0; i < n; i++) if (Number.isFinite(anchor[i]) && anchor[i] !== 0) return i
+  return n
+}
 /** Table functions that carry state with no end (a value read once moves every later answer):
  *  a withheld bar under one withholds every later bar, whatever the declared lookback. */
 const WITNESS_CARRIED_CALLS = new Set(['ema', 'rma', 'rsi', 'atr', 'atrPine', 'adx', 'plusDI', 'minusDI', 'macd'])
@@ -7873,24 +7967,43 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
   const rootReach = maxLookback(tree)
   const inner = { ...opts, crossMemo: undefined, probeBase: undefined, chartClockSink: undefined }
   const colOf = (node) => toColumn(interpretOnce(node, bars, inputs, budget, scalars, inner), n)
+  // ⭐⭐ e95 (unit 2) — the anchored VWAP's bars, for the per-bar channel (`sinkPerBar`)
+  let vwapBars = null
   for (const { node, nested, unbounded, forever } of found) {
     const args = node.args || []
-    if (nested) continue
+    // ⭐⭐ e95 (unit 2) — AN ANCHORED VWAP, OFF THE LISTING: unknown before the first bar its anchor fires on this
+    // chart (TradingView carries a total from an earlier anchor there), exact from it on (`ANCHOR_RESET_CALLS`).
+    // ⛔ Fails closed where this pass cannot read the anchor on the chart's own bars — under another series' request
+    // (`nested`) or over a recurrence's own value: every bar is withheld by the same name, as the running-total class
+    // withheld it before this unit. From the listing TradingView is `na` before the first anchor too: nothing named.
+    const isVwap = own(BUILTIN_WITNESS_CODES, node.name) && BUILTIN_WITNESS_CODES[node.name][0] === VWAP_BEFORE_FIRST_ANCHOR
+    if (isVwap && !offListing) continue
+    if (nested && !isVwap) continue
     const isRci = node.name === 'rci'
-    // ⛔ never reached: a window over a recurrence's own value is refused by the interpreter
-    // before any mask runs (`interpret:recurrence`, railed in `engine57Builtins.test.js`)
-    if (readsRecurrenceBinding(node)) continue
-    if (isRci && !offListing) continue
-    const lenCol = colOf(args[isRci ? 1 : 3])
-    const w = lenCol.length ? lenCol[lenCol.length - 1] : NaN
-    if (!(w >= 1) || !Number.isInteger(w)) continue
     let codeAt
-    if (isRci) {
-      const e = rciLeftEdge(colOf(args[0]), w)
-      codeAt = (i) => (e[i] === 1 ? RCI_LEFT_EDGE : null)
+    if (isVwap) {
+      // ⛔⛔ THE ANCHOR AS THIS CHART CAN KNOW IT: every mask applied (`interpret`), so a bar whose anchor reads before
+      // the chart's first bar (the built-in's `na(src[1])` restart, true on this chart's bar 0 and false on
+      // TradingView's) or any other withheld read is NO KNOWN RESET, and the bars until the first known one are withheld
+      const known = (tree) => toColumn(interpret(tree, bars, inputs, budget, scalars, { ...inner, withheldBarsSink: undefined }), n)
+      const first = nested || readsRecurrenceBinding(node) ? n : firstAnchorBar(known(args[1]), n)
+      codeAt = (i) => (i < first ? VWAP_BEFORE_FIRST_ANCHOR : null)
+      if (!vwapBars) vwapBars = new Float64Array(n)
     } else {
-      const { flags, edge } = stochPineScan(colOf(args[0]), colOf(args[1]), colOf(args[2]), w, offListing)
-      codeAt = (i) => (flags[i] === 1 ? STOCH_FLAT_WINDOW : edge[i] === 1 ? STOCH_LEFT_EDGE : null)
+      // ⛔ never reached: a window over a recurrence's own value is refused by the interpreter
+      // before any mask runs (`interpret:recurrence`, railed in `engine57Builtins.test.js`)
+      if (readsRecurrenceBinding(node)) continue
+      if (isRci && !offListing) continue
+      const lenCol = colOf(args[isRci ? 1 : 3])
+      const w = lenCol.length ? lenCol[lenCol.length - 1] : NaN
+      if (!(w >= 1) || !Number.isInteger(w)) continue
+      if (isRci) {
+        const e = rciLeftEdge(colOf(args[0]), w)
+        codeAt = (i) => (e[i] === 1 ? RCI_LEFT_EDGE : null)
+      } else {
+        const { flags, edge } = stochPineScan(colOf(args[0]), colOf(args[1]), colOf(args[2]), w, offListing)
+        codeAt = (i) => (flags[i] === 1 ? STOCH_FLAT_WINDOW : edge[i] === 1 ? STOCH_LEFT_EDGE : null)
+      }
     }
     const reach = Math.max(0, rootReach - maxLookback(node))
     // ⛔ ONLY A FLAT-WINDOW FLAG IS CARRIED FOREVER BY A SMOOTHER THAT CARRIES STATE (review F4).
@@ -7913,11 +8026,17 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
       else if (code) lastEdge = i
       const flatHeld = lastFlat !== -Infinity && (unbounded || i - lastFlat <= reach)
       const edgeHeld = lastEdge !== -Infinity && (forever || i - lastEdge <= reach)
-      if (flatHeld || edgeHeld) { mask[i] = 1; any = true }
+      if (flatHeld || edgeHeld) {
+        mask[i] = 1; any = true
+        if (isVwap) vwapBars[i] = 1
+      }
     }
   }
   if (!any) return null
   nameChartClock(opts, [...codes].sort(), opts && opts.tf)
+  // ⭐⭐ e95 (unit 2) — the anchored VWAP's bars in the per-bar channel (`PER_BAR_CLOCK_CODES`): the headless lane
+  // computes the script and the vendor harness grades them "not compared"
+  if (vwapBars && vwapBars.some((v) => v === 1)) sinkPerBar(opts, VWAP_BEFORE_FIRST_ANCHOR, vwapBars)
   return mask
 }
 
@@ -9066,7 +9185,9 @@ export const HISTORY_BEFORE_CHART_CODE = 'history:before-chart'
  *  `ta.highest(close > open ? high : na, 5)`, `request.security(…, "W", close)` on a chart ending mid-week. ⛔ Every
  *  other code stays a whole refusal there. */
 export const PER_BAR_CLOCK_CODES = Object.freeze([HISTORY_BEFORE_CHART_CODE, 'bar-index:early-bars', 'bar-index:first-bar',
-  'running-total:early-bars', WINDOW_EXTREME_LEFT_EDGE, TF_MERGE_NEWEST_CODE])
+  'running-total:early-bars', WINDOW_EXTREME_LEFT_EDGE, TF_MERGE_NEWEST_CODE,
+  // ⭐⭐ e95 (unit 2) — an anchored VWAP's bars before the first anchor inside the loaded history (`builtinWitnessMask`)
+  VWAP_BEFORE_FIRST_ANCHOR])
 /** OR a code's bars into the plot's per-bar channel, when the caller hands one. */
 function sinkPerBar(opts, code, bars0) {
   const sink = opts && opts.withheldBarsSink
