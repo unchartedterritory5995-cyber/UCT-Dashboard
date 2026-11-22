@@ -1,6 +1,7 @@
 # Merge queue on `master`: design for review
 
-**Status: PROPOSAL. Nothing in this document is switched on.** Written 2026-11-22.
+**Status: PROPOSAL, revised after AUDIT's review of 2026-11-22 ("CHANGES NEEDED", on pull requests #2495 and
+#2501). Nothing in this document is switched on.** Section 9 lists AUDIT's findings and where each is answered.
 Reviewers: the Agent program's AUDIT, and the owner. Section 8 lists the questions that need an answer
 before the Agent part is built.
 
@@ -60,8 +61,10 @@ Added at cutover, in ONE NEW ruleset, so one switch turns the queue off and the 
 - pull request required (0 approvals), which ends direct pushes to `master`;
 - merge queue: method merge, 5 builds at once, groups of 1 to 5, check timeout 60 minutes (the Agent browser
   shards carry a 40-minute timeout of their own);
-- required check `agent-ci-required`, pinned to GitHub Actions as its source (it exists as a commit status today;
-  see 3.3). `master gate static checks` stays required through ruleset 27829824.
+- required check `agent-ci-required`, pinned to the dedicated GitHub App of 3.6 as its source, NOT to GitHub
+  Actions: every workflow token posts as GitHub Actions, the merge group's own included.
+  `master gate static checks` stays required through ruleset 27829824, whose bypass list stays empty, so it
+  still applies to a merge that bypasses the queue.
 
 The repo setting "Allow auto-merge" is turned on.
 
@@ -125,10 +128,45 @@ A stronger option exists if the organization's plan offers it: an organization r
 workflows to pass", which runs a named workflow from a pinned ref whatever the pull request contains.
 Not verified; it needs an organization admin to look.
 
-### 3.5 What retires, after AUDIT accepts
+### 3.5 What retires, and when
 
-`tools/agent_ci_rearm.py`, the `refs/agent-ci-evidence/**` namespace and the `repository_dispatch` trigger
-are no longer needed to merge. They stay in the tree until AUDIT says the queue's records replace them.
+Nothing retires at cutover. `tools/agent_ci_rearm.py`, the `refs/agent-ci-evidence/**` namespace and the
+`repository_dispatch` trigger stay until AUDIT accepts, and AUDIT's acceptance is conditional on 3.6 being built
+and rehearsed and on the merge-group mode of `verify` (3.7).
+
+### 3.6 The verdict comes from an identity the merge group cannot reach (AUDIT D1 / F1)
+
+In a queue the status is the gate, and there is no human step after it. A status pinned to "GitHub Actions" can be
+posted by any workflow in the merge group, which runs from the queued pull request's tree. So:
+
+- `agent-ci-queue-verdict.yml` runs on `workflow_run` of "agent ci queue" (completed). A `workflow_run` run uses the
+  default branch's copy of the file, on the default ref.
+- It trusts nothing the merge group's run says about itself. It recomputes the scope from `head_sha` with `master`'s
+  code, re-reads that run's jobs through the API, and decides with `master`'s `decide_queue`.
+- For an entry that needs Agent evidence, every self-protected path must be byte-identical between `head_sha` and
+  the `master` commit the group was built on (`merge-base(head_sha, master)`). That covers an entry AHEAD in the
+  group that edited the Agent CI machinery, which the scope of this entry's own diff cannot see.
+- It posts `agent-ci-required` with a dedicated GitHub App. The App's key is a secret of an environment whose
+  deployment-branch policy allows `master` only; a merge-group job runs on `gh-readonly-queue/...` and cannot use
+  it. The ruleset pins the required check to that App.
+- The in-group job no longer posts the required context and holds no `statuses: write`.
+- `agent-ci-queue.yml`, `agent-ci-required.yml` and `agent-ci-queue-verdict.yml` are in the Agent path list
+  (AUDIT F2), so editing any of them is Agent + self-protected and lands only through AUDIT.
+
+The alternative, an organization ruleset "Require workflows to pass" on a pinned ref, was not confirmed for the
+Team plan and is not relied on.
+
+### 3.7 Safeguards the queue does not replace (AUDIT D2, 8.3, 8.4)
+
+- **Freeze windows.** The verdict fails an Agent entry on a weekday inside 09:20-09:45 or 15:30-16:15 ET, with a
+  status that names the window. Other entries are not affected.
+- **One Agent landing at a time.** The Agent Lead queues the next Agent pull request only after AUDIT's verified
+  line for the previous one ("the previous Agent landing is prod-verified"). A stated rule, not a ruleset rule.
+- **GO.** Agent pull requests are queued only by the Agent Lead, and only on AUDIT's GO line for that head. A stated
+  rule in this round: the ruleset asks for 0 approvals, and `CODEOWNERS` still names the old account.
+- **Records.** `agent_ci_evidence.py verify` gets a merge-group mode: the landed `master` commit equals the run's
+  `merge_group.head_sha` and is on `master`'s first-parent chain; the queue ref names the pull request; all 18
+  records agree on commit, tree and parents; the pull request's head is the second parent.
 
 ## 4. Today's evidence guards, one by one
 
@@ -136,10 +174,10 @@ are no longer needed to merge. They stay in the tree until AUDIT says the queue'
 |---|---|
 | `stale-base`, `stale-head`, `wrong-parents`, `tree-mismatch` | Held by construction: GitHub lands the commit it tested. Rehearsed, 4 of 4. |
 | `evidence-ref` | Not needed: there is no tool-built commit. The tested commit is GitHub's merge group commit. |
-| `dispatch-ref` | Replaced by 3.4: either the workflow is byte-identical to `master`'s, or the verdict fails. |
+| `dispatch-ref` | Replaced by 3.6: the verdict is computed by `master`'s copy on the default ref and posted by an identity the merge group cannot use, and the self-protected paths must be byte-identical to the `master` commit the group was built on. |
 | `self-protected-diff` | Kept, same lists, same reach (a pull request that needs Agent evidence), same outcome (AUDIT's local evidence decides). |
 | `missing-job`, `job-not-success`, `run-in-progress` | The verdict needs every Agent job and fails on any result but success. |
-| `missing-artifact`, `record-mismatch` | Records are still uploaded per job. Whether `verify` keeps reading them is question 8.3. |
+| `missing-artifact`, `record-mismatch` | Records are still uploaded per job, and `verify`'s merge-group mode reads them (3.7). |
 | `pr-not-open`, `pr-not-master`, `pr-not-agent-head`, `non-pr-event`, `no-run` | Not applicable: the queue only ever builds an open pull request into `master`, and runs the Agent jobs for any head that touches an Agent path. |
 
 ## 5. What changes for people and sessions
@@ -150,8 +188,9 @@ are no longer needed to merge. They stay in the tree until AUDIT says the queue'
 - **A pull request can be removed from the queue.** Read the failed check, fix, queue again.
 - **No direct push to `master`.** Web-page uploads already go through a pull request since 2026-11-22.
 - **Never `--admin`**, except the one case in 3.4.
-- **No more "hold while Agent releases".** The release checklist's "other release sessions have been told and
-  are holding" (docs/agent/program/INTEGRATION.md) is what the queue replaces; see question 8.4.
+- **No quiet-master wait.** The queue replaces "other release sessions are holding" and the quiet window. It
+  does not replace the rules of 3.7: Agent pull requests are still queued only by the Agent Lead, after AUDIT's
+  GO, outside the freeze windows, one at a time after the previous one is prod-verified.
 
 ## 6. Costs
 
@@ -195,3 +234,20 @@ nothing else was changed. **Abort rule:** queue wait p90 over 45 minutes, or the
 4. **The hold.** Does a queue landing replace "production equals master, no promotion in flight, other
    sessions holding" in the release checklist, or does part of that stay?
 5. **Anything missing.** A safeguard of yours that this table does not name.
+
+## 9. AUDIT's review of 2026-11-22 and where each finding is answered
+
+| Finding | Answer |
+|---|---|
+| D1 / F1 (blocking): the required status's source is not a trusted identity | 3.6. Built in #2501; must be rehearsed with the App before cutover. |
+| D2.1 freeze windows | 3.7: the verdict fails an Agent entry inside a window. |
+| D2.2 one Agent landing at a time, prod-verified | 3.7, a stated rule. |
+| D2.3 GO not enforced by the ruleset | 3.7, a stated rule; a code-owner rule needs `CODEOWNERS` fixed first (owner). |
+| D3 the cutover message overstates | Reworded in `CUTOVER.md` and in section 5. |
+| D4 retirement | 3.5: nothing retires until AUDIT accepts. |
+| 8.1(a) | Accepted by AUDIT as written (3.4). The bypass is on the queue ruleset only, for pull requests only. |
+| 8.1(b) / F2 | 3.6: the three workflow files are Agent paths. |
+| 8.2 scope | Accepted by AUDIT: today's path list; widen by a path if a deploy-gate Agent red is ever traced outside it. |
+| 8.3 records | 3.7: `verify` merge-group mode. |
+| 8.4 the hold | 3.7 and section 5. |
+| 8.5 | The real Agent suite first runs in a merge group at cutover step 6 (acceptable only because a failure removes the entry and rollback is one switch); queue-timeout removals of Agent entries are on the week-one watch list. |
