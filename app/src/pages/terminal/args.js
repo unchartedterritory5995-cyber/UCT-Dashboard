@@ -168,6 +168,9 @@ export const SEG_PERIOD_WORDS = Object.freeze({ ANNUAL: 'annual', YEARLY: 'annua
 // IDXC: a copy of the panel model's words (functions.indexChanges.test.js pins it to its owner). SP500, SPX, NDX, DOW
 // and DJIA are COT's own market words, so they are not IDXC's.
 export const IDXC_INDEX_WORDS = Object.freeze({ 'S&P500': 'sp500', NASDAQ100: 'nasdaq100', DOW30: 'dow' })
+// EEHSC (2026-11-21): copies of the panel model's words (functions.revisionBreadth.test.js pins each to its owner)
+export const EEHSC_WINDOW_WORDS = Object.freeze({ '7D': 7, '1W': 7, '30D': 30, '1M': 30 })
+export const EEHSC_METRIC_WORDS = Object.freeze({ EPS: 'eps', REVENUE: 'revenue', REV: 'revenue', SALES: 'revenue' })
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -791,6 +794,25 @@ export const ARG_KINDS = {
       return Object.prototype.hasOwnProperty.call(GROUPS_VIEW_WORDS, key) ? GROUPS_VIEW_WORDS[key] : null
     },
     describe: (v) => GROUPS_VIEW_DESCRIBE[v] || v,
+  },
+  // ── EEHSC (2026-11-21): the panel model's words (panels/revisionBreadthModel.js; pinned by functions.revisionBreadth.test.js) ──
+  /** EEHSC's window: the change over 7 or 30 days (bare `EEHSC` is 30). */
+  eehscWindow: {
+    takes: 'a window (7D or 30D)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(EEHSC_WINDOW_WORDS, key) ? EEHSC_WINDOW_WORDS[key] : null
+    },
+    describe: (v) => `the change over ${v} days`,
+  },
+  /** EEHSC's estimate: EPS (bare `EEHSC`) or revenue. */
+  eehscMetric: {
+    takes: 'an estimate (EPS or REVENUE)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(EEHSC_METRIC_WORDS, key) ? EEHSC_METRIC_WORDS[key] : null
+    },
+    describe: (v) => (v === 'revenue' ? 'revenue estimates' : 'EPS estimates'),
   },
 }
 
