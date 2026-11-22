@@ -16,6 +16,8 @@ export const FORMING_REASON_BY_ID = Object.freeze({
   'realtime-state': 'reads the state of the bar as it forms (barstate or the clock)',
   varip: 'keeps a `varip` value that changes within a forming bar',
   'request-other': 'reads another symbol or timeframe',
+  // ⭐⭐ T4 E2 — the chart's own corporate events, placed as captured on closed bars only (W-E5 owes the forming bar)
+  'request-events': 'reads earnings, dividends or splits',
 })
 /** ⛔ FAIL CLOSED: an id this tab does not know, or no id at all, is still a refusal, said plainly. */
 export const FORMING_REASON_UNKNOWN = 'uses a part of Pine'

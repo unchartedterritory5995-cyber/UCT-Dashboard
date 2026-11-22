@@ -27,9 +27,13 @@
 import { requestAlignment, TF_RESAMPLABLE, TF_LADDER } from '../ast/interpret.js'
 import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeriesOf, withChartNewestDay,
   OWN_DAILY_KEY, SERIES_NEWEST_FORMING, etSessionDayOf, sessionCloseOf, sessionKeyedRowsOf, WITNESS_PERIOD_READS,
-  SERIES_PAGE_FILLED, BARS_ASK_MAX } from '../otherSymbols.js'
+  SERIES_PAGE_FILLED, BARS_ASK_MAX, otherSymbolLabel } from '../otherSymbols.js'
 import { isTradingDay, covers } from '../../../../lib/marketClock/sessionCalendar.js'
 import { overnightTailFrom, overnightSentence, REQUEST_OVERNIGHT_GUARD } from './overnightTail.js'
+// ⭐⭐ T4 E2 — a corporate-events read's depth is UCT's record of the family (its own words, its own per-bar code)
+import { SERIES_EVENT_RECORD, EVENT_BEFORE_RECORD_CODE, eventBeforeRecordSentence, eventLabel, eventReadOf } from '../pineEvents.js'
+/** `request.<family>` for an event read's ticker (the words a wait names), else the ticker itself. */
+const eventFamilyCall = (ticker) => { const r = eventReadOf(ticker); return r ? `request.${r.family}` : String(ticker) }
 
 /** ⭐⭐ (2026-11-19, no carried value) The exchange session strictly before `day` ('YYYY-MM-DD') by the published
  *  calendar, or null where the calendar does not cover it: no guess. */
@@ -601,9 +605,11 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       if (hit) {
         if (otherSymbolPending(hit)) {
           out.pending = true
+          // ⭐⭐ T4 E2 — an event read waits for the events door, and says so in its own words (never "another symbol")
+          if (hit.event === true) out.waiting = { series: [eventFamilyCall(hit.ticker)], sentence: hit.reason }
           return out
         }
-        return refuse(`This indicator reads \`${hit.ticker}\`: ${hit.code} — ${hit.reason}`)
+        return refuse(`This indicator reads ${otherSymbolLabel(hit.ticker)}: ${hit.code} — ${hit.reason}`)
       }
       srcBars = decision.symbols[ticker]
       other = ticker
@@ -731,6 +737,16 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       // two-start proof. ⚰️ The sentence said "after its history began" for Fred RS's 5m bar 0 (2026-04-27), four
       // months before our first SPX 5m row (2026-08-26), and the cause was first misread as an extended-hours gap.
       const earlyT = rows[early] && rows[early].t
+      // ⭐⭐ T4 E2 — a corporate-events read: the depth is UCT's record of the family, said in the member's words, and the
+      // run starts there with its bars before it named per bar (`runtimeColumns.js::fromKnownDepth`)
+      const record = Array.isArray(srcBars) ? srcBars[SERIES_EVENT_RECORD] : null
+      if (record) {
+        out.refusal = { guard: REQUEST_GUARD, knownFrom: lastDepth + 1,
+          why: { code: EVENT_BEFORE_RECORD_CODE, reason: eventBeforeRecordSentence(record) },
+          message: `${eventLabel(record.ticker)}${at(site)} cannot be read on every bar of this chart (its history reaches `
+            + `${String(earlyT)}): ${eventBeforeRecordSentence(record)}${CARRIES}` }
+        return out
+      }
       return refuse(`a \`request.security\`${at(site)} cannot be read on every bar — this chart's history reaches `
         + `${String(earlyT)}, and the \`${other}\` bars we hold begin at ${String(firstHeld)}, so what the request `
         + `reads before them is not known (a shorter chart history draws it).${CARRIES}`, lastDepth + 1)

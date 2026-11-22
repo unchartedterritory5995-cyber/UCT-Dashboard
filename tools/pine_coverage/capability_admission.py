@@ -99,6 +99,9 @@ def census_capabilities(src, inv):
             caps.add("collections:" + head)
         if head == "request":
             caps.add("request-other")
+            # T4 E2: the chart's own corporate events (`pine_capabilities.EVENT_CALLS`)
+            if i in pc.EVENT_CALLS:
+                caps.add("request-events")
         if (head == "barstate" and last != "isfirst") or i == "timenow":
             caps.add("realtime-state")
     return caps

@@ -51,8 +51,12 @@ describe('A — the v1–v4 spelling of a request is the request wall', () => {
     })
   }
 
-  it('the v5 spelling keeps the request wall it always had', () => {
-    expect(refusalOf(`${V5}${STATE}plot(request.dividends(x))\n`).guard).toBe('runtime:request-with-state')
+  // ⭐⭐ T4 E2 (NUMBER PENDING) — `request.dividends(x)` is an event read (`pine.js::eventAsSecurity`) whose SYMBOL is `x`:
+  // not the chart's own, so it is refused by that name. ⚰️ Before E2 it met the request-with-state wall.
+  it('the v5 spelling of an event read over a symbol that is not the chart own is refused by name (T4 E2)', () => {
+    const r = refusalOf(`${V5}${STATE}plot(request.dividends(x))\n`)
+    expect(r.guard).toBe('pine:request')
+    expect(r.message).toContain('other-symbol:event-symbol')
   })
 
   it('⛔ in a v5 script the bare spelling is no Pine function, so `undeclared` stays', () => {

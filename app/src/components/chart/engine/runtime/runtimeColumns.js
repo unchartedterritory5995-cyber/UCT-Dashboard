@@ -34,6 +34,7 @@ import {
   runtimeRequestSupply, requestWaitingSentence, REQUEST_GUARD, REQUEST_LAG_GUARD, tailCutSentence, tailCutIsOff,
 } from './requestSupply.js'
 import { withOvernightTail, REQUEST_OVERNIGHT_GUARD } from './overnightTail.js'
+import { EVENTS_KEY } from '../pineEvents.js'
 import { symbolConstants, minContractOf } from '../ast/bind.js'
 // ⭐ RS RATING L3 — the symbol fields the fold reads, from the one list that names them.
 import { bindSymbolOf, bindConstsFor } from '../ast/bind.js'
@@ -423,7 +424,9 @@ function runKey(def, ctx, withSupply = true) {
  *  new run, never the memo of the run that was still waiting for it. '' for a script with no
  *  request (its key is unchanged byte for byte). */
 function requestSupplyKey(compute, ctx) {
-  if (!/\brequest\.(security|seed)\b/.test(String((compute && compute.source) || ''))) return ''
+  // ⭐⭐ T4 E2 — and the chart's own corporate events (`request.earnings` / `dividends` / `splits`, read through the same
+  // other-symbol supply under `pineEvents.EVENTS_KEY`)
+  if (!/\brequest\.(security|seed|earnings|dividends|splits)\b/.test(String((compute && compute.source) || ''))) return ''
   const sec = ctx && ctx.secondary && typeof ctx.secondary.entries === 'function' ? ctx.secondary : null
   if (!sec) return '|req-'
   const parts = []
@@ -433,7 +436,9 @@ function requestSupplyKey(compute, ctx) {
     // ⭐ RS RATING L11 PR 2 — whether its session is in progress decides what the chart's newest bar reads
     // (`otherSymbols.newestOwnPeriodOf`): the close flips it with the bars unchanged, and that is a new run
     parts.push(`${k}:${(e && e.status) || ''}:${bars.length}:${last ? `${last.t}/${last.c}` : ''}`
-      + `${e && e.newestBarIsForming === true ? ':forming' : ''}`)
+      + `${e && e.newestBarIsForming === true ? ':forming' : ''}`
+      // ⭐⭐ T4 E2 — the events entry (no bars): its answer's refresh and its symbol
+      + `${k === EVENTS_KEY && e ? `:r${e.rev || ''}:s${e.symbol || ''}` : ''}`)
   }
   return `|req${parts.sort().join(',')}`
 }
@@ -699,6 +704,8 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
 function computeRuntimeColumnsKnown(def, rows, ctx, opts = {}) {
   const strategy = !!(def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
   let cut = 0
+  // ⭐⭐ T4 E2 — the words for the bars the depth cut withholds, when the depth has its own (an event family's record)
+  let why = null
   for (let pass = 0; ; pass += 1) {
     // ⭐⭐ (Fred RS filled chart, item 1) — WHERE THE CHART BECOMES KNOWN, ASKED BEFORE THE RUN BUILDS OVER IT
     // (`knownFromBeforeBuild`): the move this pass would make on a depth refusal is made without the build over
@@ -713,12 +720,12 @@ function computeRuntimeColumnsKnown(def, rows, ctx, opts = {}) {
       const k = knownFromBeforeBuild(def, passRows, passCtx, opts, seen)
       // ⭐⭐ (2026-11-20) an overnight tail the probe found is cut before the run builds over it (`computeRuntimeColumns`)
       if (Number.isInteger(seen.cutAt) && seen.cutAt > 0) throw overnightCutError(cut + seen.cutAt, seen.overnightSeries, seen.tail)
-      if (k > 0 && cut + k < rows.length - 1) { cut += k; continue }
+      if (k > 0 && cut + k < rows.length - 1) { cut += k; if (seen.knownFromWhy) why = seen.knownFromWhy; continue }
       if (seen.supply) passOpts = { ...opts, probedSupply: seen.supply }
     }
     try {
       const cols = computeRuntimeColumnsAll(def, passRows, passCtx, passOpts)
-      return cut ? fromKnownDepth(cols, cut, rows[cut]) : cols
+      return cut ? fromKnownDepth(cols, cut, rows[cut], why) : cols
     } catch (err) {
       const k = err && Number.isInteger(err.knownFrom) ? err.knownFrom : 0
       if (strategy || pass + 1 >= KNOWN_FROM_PASSES || k <= 0 || cut + k >= rows.length - 1) {
@@ -727,6 +734,7 @@ function computeRuntimeColumnsKnown(def, rows, ctx, opts = {}) {
         throw err
       }
       cut += k
+      if (err.knownFromWhy) why = err.knownFromWhy
     }
   }
 }
@@ -801,7 +809,7 @@ export function knownFromBeforeBuild(def, rows, ctx, opts = {}, seen = null) {
   if (_knownFromProbeOff || !Array.isArray(rows) || rows.length < 2) return 0
   const compute = (def && def.compute) || {}
   const source = String(compute.source || '')
-  if (!/\brequest\.(security|seed)\b/.test(source) || !depthGapPossible(rows, ctx)) return 0
+  if (!/\brequest\.(security|seed|earnings|dividends|splits)\b/.test(source) || !depthGapPossible(rows, ctx)) return 0
   if (opts.slidingWindow === true || !!(ctx && ctx.framed === true)) return 0
   try {
     const slides = false
@@ -822,6 +830,8 @@ export function knownFromBeforeBuild(def, rows, ctx, opts = {}, seen = null) {
       seen.tail = tailOf(sup.refusal)
     }
     const k = sup && sup.refusal && Number.isInteger(sup.refusal.knownFrom) ? sup.refusal.knownFrom : 0
+    // ⭐⭐ T4 E2 — the depth's own words, when it has them (an event family's record)
+    if (seen && k > 0 && sup.refusal.why) seen.knownFromWhy = sup.refusal.why
     return k > 0 ? k : 0
   } catch {
     return 0
@@ -851,12 +861,15 @@ function supplyProbed(probed, sites, rows, ctx, curtained) {
 
 /** The run over `rows.slice(cut)`, as the chart reads it: widened (`NaN` before `cut`), drawings shifted, the
  *  warm-up record moved by `cut`, and the depth recorded. */
-function fromKnownDepth(cols, cut, firstRow) {
+function fromKnownDepth(cols, cut, firstRow, why = null) {
   const out = widenToChart(cols, cut, RUNTIME_OBJECTS_KEY)
   const warm = cols && cols[RUNTIME_WARMUP_KEY]
+  // ⭐⭐ T4 E2 — the depth's own code and words for its `cut` bars (an event family's record), riding the warm-up record
+  // (which crosses the runtime worker's message): the headless lane names those bars by it (`drawnOutputs`)
+  const named = why && typeof why.code === 'string' ? { knownFromCode: why.code, knownFromReason: String(why.reason || '') } : {}
   const moved = warm && Number.isInteger(warm.withheldBars)
-    ? { ...warm, withheldBars: warm.withheldBars + cut, knownFrom: cut }
-    : { withheldBars: cut, knownFrom: cut }
+    ? { ...warm, withheldBars: warm.withheldBars + cut, knownFrom: cut, ...named }
+    : { withheldBars: cut, knownFrom: cut, ...named }
   Object.defineProperty(out, RUNTIME_WARMUP_KEY, { value: moved, enumerable: false, configurable: true })
   Object.defineProperty(out, RUNTIME_KNOWN_FROM_KEY, {
     value: Object.freeze({ knownFrom: cut, firstKnownT: firstRow ? firstRow.t : null }), enumerable: false, configurable: true })
@@ -1970,6 +1983,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     const err = refusal(reqSupply.refusal.guard, reqSupply.refusal.message)
     // ⭐⭐ a DEPTH gap only (`requestSupply.js`): the caller may start the run where every read is known
     if (Number.isInteger(reqSupply.refusal.knownFrom)) err.knownFrom = reqSupply.refusal.knownFrom
+    // ⭐⭐ T4 E2 — and what the bars before it are withheld for, when the depth has its own words (an event family's record)
+    if (reqSupply.refusal.why && Number.isInteger(reqSupply.refusal.knownFrom)) err.knownFromWhy = reqSupply.refusal.why
     // ⭐⭐ (2026-11-20) an OVERNIGHT tail: the caller cuts the run there (`computeRuntimeColumns`)
     if (Number.isInteger(reqSupply.refusal.cutAt)) {
       err.cutAt = reqSupply.refusal.cutAt
