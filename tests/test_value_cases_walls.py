@@ -49,6 +49,8 @@ def test_it_says_first_that_the_number_is_theirs_and_cannot_be_given(answer):
      "it names UCT's own BEFORE saying IBD's number cannot be given"),
     ({"disposition": "answer", "reply": "IBD's RS Rating is not available here. UCT RS Rating is in the Indicators list."},
      "it offers UCT's own without saying it is not IBD's"),
+    ({"disposition": "answer", "reply": "IBD's RS Rating is IBD's own. UCT RS Rating is UCT's own, not IBD's: the stock's rating, 1 to 99."},
+     "it never says IBD's own number cannot be given here"),                                     # everything but the refusal
     ({"disposition": "answer", "reply": "That rating is not available here."}, "the reply names none of"),
     ({**BUILT, "reply": "IBD's is not available here."}, "something was BUILT"),
     ({"disposition": "clarify", "reply": "IBD's is not available here.", "questions": [{"text": "Which?", "choices": ["a", "b"]}]}, "the door did not refuse"),
@@ -86,6 +88,9 @@ def test_a_refusal_by_name_with_every_offer_is_RIGHT():
 @pytest.mark.parametrize("answer,why", [
     ({**ASKED, "questions": [{**QUESTION, "choices": [QUESTION["choices"][0], "Never mind"]}]}, "NOT OFFERED: the same idea on this chart's own bars"),
     ({**ASKED, "questions": [{**QUESTION, "choices": ["Never mind", QUESTION["choices"][1]]}]}, "NOT OFFERED: the daily measure on its own"),
+    # an offer is ONE choice the member can tap: its words spread over two choices is not that offer
+    ({**ASKED, "questions": [{**QUESTION, "choices": ["The 50 day average as a line", "A line on daily bars", QUESTION["choices"][1]]}]},
+     "NOT OFFERED: the daily measure on its own"),
     ({**ASKED, "questions": [{**QUESTION, "text": "Which would you like?"}]}, "the reply names none of"),
     ({"disposition": "unsupported", "reply": "I can't compare each bar with a daily measure like the 50 day average yet."}, "NOT OFFERED"),
     ({"disposition": "clarify", "reply": "a daily measure, the 50 day average"}, "the door did not refuse"),      # a question with no question
