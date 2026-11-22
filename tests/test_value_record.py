@@ -98,6 +98,56 @@ def test_a_recorded_request_is_not_sent_again_and_the_filters_narrow():
     assert walls and all(c["lane"] == "wall" for c in walls)
 
 
+ALLOWANCE = {"status": 200, "body": {"ok": False, "gate": "cost:user", "reason": "you have used up today's allowance of the UCT Agent"}}
+BUILT = {"status": 200, "body": {"ok": True, "disposition": "change", "envelope": {"ops": []}}}
+
+
+@pytest.mark.parametrize("answers,why", [
+    ([ALLOWANCE], "the member's daily allowance (cost:user)"),
+    ([{"status": 200, "body": {"ok": False, "gate": "cost:global", "reason": "x"}}], "the product's daily spending limit (cost:global)"),
+    ([BUILT, ALLOWANCE], "the member's daily allowance (cost:user)"),           # a repair turn met it: the request is not answered
+    ([ALLOWANCE, BUILT], "the member's daily allowance (cost:user)"),           # ANY turn of the request, wherever it sits
+    ([BUILT], None),
+    ([{"status": 200, "body": {"ok": False, "gate": "concept:ungrounded", "reason": "not a name UCT knows"}}], None),   # about the REQUEST
+    ([{"status": 200, "body": {"ok": True, "gate": "cost:user"}}], None),      # not a refusal
+    ([{"status": 429, "body": {"_text": "limit"}}], None), ([{"status": 200, "body": None}], None), ([], None),
+])
+def test_a_refusal_about_the_ACCOUNT_is_named_and_one_about_the_request_is_not(answers, why):
+    assert value_record.account_refusal(answers) == why
+
+
+def test_A_REFUSAL_ABOUT_THE_ACCOUNT_IS_NOT_AN_ANSWER():
+    """Found live 2026-11-22: the member's daily allowance ran out mid-lane; seven refusals were recorded as answers."""
+    assert value_record.is_answer([BUILT]) is True
+    refused_request = {"status": 200, "body": {"ok": False, "gate": "concept:ungrounded", "reason": "no"}}
+    assert value_record.is_answer([refused_request]) is True                   # a wall IS an answer to the request
+    assert value_record.is_answer([ALLOWANCE]) is False and value_record.is_answer([BUILT, ALLOWANCE]) is False
+    assert value_record.is_answer([{"status": 429, "body": {}}]) is False and value_record.is_answer([]) is False
+    assert value_record.is_answer([BUILT, {"status": 500, "body": {}}]) is False
+
+
+def test_the_run_keeps_nothing_of_such_a_turn_and_stops_there():
+    """The sending loop needs a browser, so what it does with such a turn is held in its own code (the code, never
+    its comments): the body is written as the case's answer only when no turn was a refusal about the account; the
+    row's `done` is `is_answer`; and the refusal becomes the reason the run stops."""
+    tree = ast.parse((ROOT / "tools" / "value_record.py").read_text(encoding="utf-8"))
+    main = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "main")
+    dumped = {ast.dump(n) for n in ast.walk(main)}
+    names = lambda node: {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}  # noqa: E731
+    # (1) the write of `<id>-0.body.json` sits under a test that reads `refused`
+    writes = [n for n in ast.walk(main) if isinstance(n, ast.If) and "body.json" in ast.dump(n)]
+    assert writes and all("refused" in names(n.test) for n in writes if "body" in names(n.test)), "the answer file is written whatever the turn was"
+    assert any("refused" in names(n.test) and "body" in names(n.test) for n in writes)
+    # (2) `done=` is the helper's verdict, not a status check written again
+    done = [k.value for n in ast.walk(main) if isinstance(n, ast.Call) for k in n.keywords if k.arg == "done"]
+    assert done and all(isinstance(v, ast.Call) and getattr(v.func, "id", None) == "is_answer" for v in done)
+    # (3) the refusal stops the run and is named in the row
+    stops = [n for n in ast.walk(main) if isinstance(n, ast.If) and names(n.test) == {"refused"}]
+    assert stops and any(isinstance(b, ast.Assign) and getattr(b.targets[0], "id", None) == "stopped" for n in stops for b in n.body)
+    assert any("not_an_answer" in ast.dump(b) for n in stops for b in n.body)
+    assert dumped                                                           # (the walk saw something)
+
+
 def test_the_answer_kept_is_the_last_one_the_door_gave():
     first, repair = {"turn": "script", "script": {"pine": "a"}}, {"turn": "script", "script": {"pine": "b"}}
     assert value_record.last_answer([{"status": 200, "body": first}, {"status": 200, "body": repair}]) == repair
