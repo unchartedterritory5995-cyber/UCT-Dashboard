@@ -38,8 +38,6 @@ GATE_ONLY = {
         "its range is production..master; a PR's own change is the 'files this push changed' scan, which is mirrored",
     "Every VITE_* reaches the build and has a ledger row":
         "vite-build-args.yml runs the same two files on every PR that changes what they read",
-    "Visibility flags are declared (offline)":
-        "not cheap: it imports the desk session module (httpx, numpy, Pillow) and took 68 s on the gate runner",
     "Discord render replies match the golden":
         "a render test (matplotlib, FastAPI and two more packages), not a static check",
     "The production dependency set imports and boots the server":
@@ -121,6 +119,8 @@ def test_the_mirror_is_not_vacuous_and_holds_the_checks_that_went_red():
     assert len(gate) >= 12 and len(mirrored) >= 7, (len(gate), sorted(mirrored))
     for name, needle in (("Line endings match the stored blobs", "tools/check_repo_hygiene.py"),
                          ("No module shadows its own definitions", "tests/test_no_shadowed_definitions.py"),
+                         # 2026-11-22: was GATE_ONLY for its 68 s; #1658 merged with an undeclared flag and the gate went red
+                         ("Visibility flags are declared (offline)", "tests/test_visibility_flag_ledger.py"),
                          ("Install the gate's dependencies", "pip install"),
                          ("Tools that import api.* pin the shared-data-root census", "tests/test_tools_pin_the_root.py"),
                          ("The capture queue's reviewed dispositions", "tests/test_queue_dispositions.py"),

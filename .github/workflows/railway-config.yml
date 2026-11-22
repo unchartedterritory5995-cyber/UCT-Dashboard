@@ -23,6 +23,7 @@ on:
     paths:
       - 'railway.json'
       - 'railway.web.json'
+      - 'services/pine_runtime/railway.json'
       - 'tools/railway_stored_settings.py'
       - 'tests/test_railway_stored_settings.py'
       - '.github/workflows/railway-config.yml'
@@ -30,6 +31,7 @@ on:
     paths:
       - 'railway.json'
       - 'railway.web.json'
+      - 'services/pine_runtime/railway.json'
       - 'tools/railway_stored_settings.py'
       - 'tests/test_railway_stored_settings.py'
       - '.github/workflows/railway-config.yml'

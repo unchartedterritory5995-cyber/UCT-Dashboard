@@ -84,8 +84,10 @@ A symbol with no print in the last bucket is complete and still lowers `share`. 
 A 5m / 15m / 30m / 60m pack under its symbol floor or its completeness floor is **refused alone**: it is
 not uploaded, `tfs` does not name it, and `refused[tf]` says why. The other timeframes are published.
 A device skips a timeframe the manifest does not name (`engine.ingestAll`), so it keeps the generation
-it holds; the split guard, which reads the NEW manifest's `splits`, then refuses that older generation
-past its own as-of day, and the chart loads that timeframe from the network. `refused` is a new key:
+it holds. When that generation's as-of day is OLDER than the new manifest's, the split guard (which reads
+the new manifest's `splits`) refuses it past its own as-of day and the chart loads that timeframe from
+the network. When it is the SAME as-of day (a rebuild of a session that refused the timeframe) the held
+generation keeps being read: a refusal never removes what a device already holds. `refused` is a new key:
 older readers ignore it.
 
 ### `splits`: the next session's basis changes (the device's split guard)
@@ -351,22 +353,33 @@ build (`ffseed.nightly`) therefore runs, in order:
    fetches a symbol's 15m / 30m / 60m once per session (its job skips an intraday series whose newest
    bar already bears the session's date) and the universe crawler does the same for the long tail's 5m,
    so those series stop mid-session with a bucket caught while forming as their last row (build
-   20261121T0137Z: 6 of 3,541 symbols' 30m reached the last bucket). After the as-of session's
-   extended hours have ended,
-   for every universe symbol: the session's **5m and 15m** from the provider at that timespan
+   20261121T0137Z: 6 of 3,541 symbols' 30m reached the last bucket). It runs only in the session's
+   **quiet gap** (`cannot_run`): after the as-of session's extended hours have ended and before the
+   next trading day's 04:00 ET, and a pass still running when the gap closes stops there. Outside the
+   gap it is skipped, the build publishes D and 1m, and the gated timeframes wait for the retry below.
+   For every universe symbol: the session's **5m and 15m** from the provider at that timespan
    (`bars_fetch._fetch_intraday_range`, from the stored tail's day when the store stops before the
    session; written with `provider_check` + `put_bars`), then **30m and 60m** re-derived from the
-   stored 15m with the serve path's one derivation (`bars_fetch._derive_from_stored_base`). Never
+   stored 15m with the serve path's one derivation (`bars_fetch._derive_from_stored_base`) over
+   exactly the days the 15m request covered (it starts at the oldest of the 15m / 30m / 60m tails). Never
    rolled up from 1m: the provider's volumes are fractional and the store keeps each bar's integer
    part, so summed minutes fall 1 to 5 shares short of the provider's own 5m / 15m bar (measured).
    Two requests a symbol (~7,300 a night), 2 threads (`FFSEED_INTRADAY_WORKERS`), at most 90 min
    (`FFSEED_INTRADAY_DEADLINE_S`); `FFSEED_INTRADAY_BACKFILL=0` turns it off (the build then refuses
    those timeframes). What it proved is the ledger `<DATA_DIR>/ffseed_intraday_complete.json`: per
    timeframe and symbol the store's revision of the series right after the pass's write, so any later
-   write voids the entry. An answer that does not reach a bucket the store already holds is not taken
-   as whole (`short_answer`);
+   write voids the entry. An answer proves the session only when it is **whole**: it holds bars of
+   the as-of day (an empty answer never proves anything) and no other record of that day shows a
+   trade in a later bucket: the stored 1m (the 1m pass's own read), the stored 5m and 15m, and the
+   other timeframe's answer of the same pass. Otherwise nothing is written and it is counted
+   (`short_answer`, logged with the record that contradicts it; `empty`);
 3. the build and publish, then the marker. 5m / 15m / 30m / 60m pack only proven symbols and are
-   refused one at a time under their floors (section 2, `complete` and `refused`); D and 1m as before;
+   refused one at a time under their floors (section 2, `complete` and `refused`); D and 1m as before.
+   **A refused gated timeframe is not final for the night** (`<DATA_DIR>/.ffseed_gated_retry`): on
+   later ticks, while that session is still the newest closed one and its quiet gap is open, the pass
+   runs again, at most `FFSEED_GATED_RETRIES` (2) times, and the session is rebuilt and published
+   again only when the pass proved something new. This also covers a forced rebuild that refused
+   (the force itself stays one-shot) and a `FFSEED_BUILD_AFTER_MIN` set before the extended close;
 4. **the 1m retention**: a symbol keeps its newest 5 sessions of 1m (`FFSEED_1M_KEEP_SESSIONS`, 0 = off;
    `bars_sqlite.prune_before`, a prefix trim that bumps the series' history revision) ONLY when the pass
    itself filled it (the long-tail ledger `<DATA_DIR>/ffseed_1m_longtail.json`: per symbol the first
