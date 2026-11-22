@@ -16,6 +16,12 @@ event (a small evaluator for the GitHub expression subset agent-ci.yml uses; any
     set is pinned exactly); client_payload is attacker-controlled: every job validates it FIRST, in bash, through env:,
     and the job reads only that step's outputs; GITHUB_SHA (master's tip there) is never the commit under test; and a
     FAILING dispatch run on master's tip changes no promotion / gate decision.
+  * MERGE QUEUE (2026-11-22; inert until a merge queue exists on master): agent-ci-queue.yml (on: merge_group) scopes the
+    queued PR's own diff with master's code, CALLS agent-ci.yml for an Agent change, and posts agent-ci-required on the
+    merge group's commit. The trigger set gains `workflow_call` (one caller, pinned; `merge_group` itself is not a
+    trigger here); the validate step skips on merge_group (no payload: GITHUB_SHA is the commit under test, and every
+    checkout takes its default ref); all 18 jobs run, record and upload there; and the queue workflow's own shape is
+    held by queue_violations(), with a mutant for each rule (test_MQ_* at the end of this file).
 """
 from __future__ import annotations
 
@@ -24,6 +30,7 @@ import fnmatch
 import os
 import pathlib
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -337,8 +344,10 @@ def test_every_required_job_records_and_uploads_its_evidence():
     for job_name, key in keys.items():
         jid, leg = want[job_name]
         job = DOC["jobs"][jid]
-        for event in ("pull_request", "repository_dispatch"):
-            c = dict(ctx(event, pr=1700), matrix=leg)
+        # 2026-11-22: + the merge-queue call (agent-ci-queue.yml), whose PR number is the caller's validated input
+        for event, c0 in (("pull_request", ctx("pull_request", pr=1700)), ("repository_dispatch", ctx("repository_dispatch", pr=1700)),
+                          ("merge_group", _queue_ctx(pr=1700))):
+            c = dict(c0, matrix=leg)
             steps = [s for s in job["steps"] if _runs(s.get("if"), c)]
             rec = [s for s in steps if "tools/agent_ci_evidence.py record" in (s.get("run") or "")]
             up = [s for s in steps if str(s.get("uses", "")).startswith("actions/upload-artifact@")
@@ -419,12 +428,14 @@ VALIDATE_RUN = (
     '[[ "$EVIDENCE_PR" =~ ^[1-9][0-9]{0,6}$ ]] || { echo "::error::the re-arm pr is not a PR number"; exit 1; }\n'
     '[[ "$EVIDENCE_MERGE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the re-arm merge_sha is not a 40-hex commit"; exit 1; }\n'
     '{ echo "pr=$EVIDENCE_PR"; echo "merge_sha=$EVIDENCE_MERGE_SHA"; } >> "$GITHUB_OUTPUT"\n')
-VALIDATE_IF = "github.event_name != 'push' && github.event_name != 'pull_request'"
+# 2026-11-22: + merge_group. A merge-queue call (agent-ci-queue.yml) carries no payload to validate: its GITHUB_SHA is
+# the commit under test and the default checkout takes it. Every OTHER event, known or not, must still carry a valid one.
+VALIDATE_IF = "github.event_name != 'push' && github.event_name != 'pull_request' && github.event_name != 'merge_group'"
 
 
 def test_every_job_validates_the_payload_first():
     """AUDIT #1: the FIRST step of every job is the one validate step: bash, payload only through env:, fail closed on
-    any event but push / pull_request, and its outputs are the only payload values the job reads."""
+    any event but push / pull_request / merge_group, and its outputs are the only payload values the job reads."""
     assert len(DOC["jobs"]) == 5
     for jid, job in DOC["jobs"].items():
         first = (job.get("steps") or [{}])[0]
@@ -437,9 +448,9 @@ def test_every_job_validates_the_payload_first():
         assert sum(1 for s in job["steps"] if s.get("id") == "payload") == 1, jid
         reads = [i for i, s in enumerate(job["steps"]) if "steps.payload.outputs" in repr(s)]
         assert reads and min(reads) > 0, jid
-    # it is skipped on push / pull_request (they carry no payload) and runs on every other event, known or not
-    for event, runs in (("push", False), ("pull_request", False), ("repository_dispatch", True), ("workflow_dispatch", True),
-                        ("schedule", True), ("some_future_event", True)):
+    # it is skipped on push / pull_request / merge_group (they carry no payload) and runs on every other event, known or not
+    for event, runs in (("push", False), ("pull_request", False), ("merge_group", False), ("repository_dispatch", True),
+                        ("workflow_dispatch", True), ("workflow_call", True), ("schedule", True), ("some_future_event", True)):
         assert _runs(VALIDATE_IF, ctx(event)) is runs, event
 
 
@@ -497,7 +508,9 @@ def test_an_invalid_payload_is_never_checked_out_or_named():
 def test_P2c_the_trigger_set_is_exactly_push_pr_and_one_dispatch_type():
     """AUDIT #6: ONE re-arm path. workflow_dispatch is gone (trigger and verify), and repository_dispatch takes exactly
     one event_type, the one tools/agent_ci_rearm.py sends and tools/agent_ci_evidence.py records."""
-    assert set(ON) == {"push", "pull_request", "repository_dispatch"}, sorted(ON)
+    # 2026-11-22: + workflow_call, for ONE caller (agent-ci-queue.yml on merge_group; test_MQ_* below). It is not a
+    # re-arm path and adds no event: a called run carries its caller's event, and `merge_group` is NOT a trigger here.
+    assert set(ON) == {"push", "pull_request", "repository_dispatch", "workflow_call"}, sorted(ON)
     assert ON["repository_dispatch"] == {"types": ["agent-ci-evidence"]}
     assert rearm.EVENT_TYPE == ev.DISPATCH_TYPE == ON["repository_dispatch"]["types"][0] == "agent-ci-evidence"
     assert ev.DISPATCH_EVENT == "repository_dispatch" and ev.PR_EVENT == "pull_request"
@@ -642,7 +655,7 @@ def mode_print_violations(doc) -> list[str]:
     for jid, job in doc["jobs"].items():
         steps = job.get("steps") or []
         for leg in _legs(job):
-            for event in ("push", "pull_request", "repository_dispatch"):
+            for event in ("push", "pull_request", "repository_dispatch", "merge_group"):
                 c = ctx(event, matrix=leg)
                 if not _job_runs(job, c):
                     continue
@@ -732,3 +745,438 @@ def test_P2d_the_mode_print_runs_and_names_the_real_mode():
         m = MODE_LINE.match(lines[0])
         assert m.group(1) == cb.merge_base_mode({"GITHUB_EVENT_NAME": event, "GITHUB_REF": ref}), lines[0]
         assert m.group(2) == event and m.group(3) == (cb._git("rev-parse", "HEAD") or "").strip()
+
+
+# ---------------------------------------------------------------------------------------------- merge queue (2026-11-22)
+# INERT until a merge queue exists on master. agent-ci-queue.yml (on: merge_group) scopes the queued PR's own diff with
+# master's code, CALLS agent-ci.yml for an Agent change, and posts agent-ci-required on the merge group's commit.
+QWF = ROOT / ".github" / "workflows" / "agent-ci-queue.yml"
+QDOC = yaml.safe_load(QWF.read_text(encoding="utf-8"))
+QUEUE_BASE = "b" * 40
+
+
+def _queue_ref(pr=1700) -> str:
+    return f"refs/heads/gh-readonly-queue/master/pr-{pr}-" + "9" * 40
+
+
+def _queue_ctx(pr=1700, matrix=None, needs=None):
+    """agent-ci.yml as agent-ci-queue.yml calls it. `github` is the CALLER's context: the event is merge_group and the
+    sha is the merge group's commit (the commit under test). `inputs.pr` is the scope job's validated number, and no
+    payload step ran, so `steps.payload.outputs.*` is empty."""
+    c = ctx("merge_group", ref=_queue_ref(pr), matrix=matrix)
+    c["github"].update(sha=MERGE, run_id="55")
+    c["github"]["event"]["merge_group"] = {"head_sha": MERGE, "base_sha": QUEUE_BASE, "head_ref": _queue_ref(pr)}
+    c["inputs"] = {"pr": str(pr)}
+    c["needs"] = needs or {}
+    return c
+
+
+def test_MQ_agent_ci_is_callable_by_one_workflow_and_never_listens_for_merge_group_itself():
+    """A merge_group trigger takes no `paths:` filter, so agent-ci.yml listening itself would run all 18 jobs for every
+    queued PR, and agent-ci-required.yml (it watches every completed "agent ci" run) would then post `pending` on the
+    merge group's commit, over the queue's verdict. It is CALLED instead, by exactly one workflow, after its scope job."""
+    assert "merge_group" not in ON
+    assert ON["workflow_call"]["inputs"].keys() == {"pr"}
+    pr = ON["workflow_call"]["inputs"]["pr"]
+    assert (pr["type"], pr["required"], pr["default"]) == ("string", False, "") and pr["description"].strip()
+    callers = []
+    for f in sorted((ROOT / ".github" / "workflows").glob("*.y*ml")):
+        doc = yaml.safe_load(f.read_text(encoding="utf-8"))
+        for jid, job in (doc.get("jobs") or {}).items():
+            if "uses" in job:
+                callers.append((f.name, jid, job["uses"]))
+    assert callers == [("agent-ci-queue.yml", acr.QUEUE_CALL_JOB, "./.github/workflows/agent-ci.yml")], callers
+    assert acr.QUEUE_WORKFLOW.as_posix() == ".github/workflows/agent-ci-queue.yml" and (ROOT / acr.QUEUE_WORKFLOW).is_file()
+
+
+def test_MQ_a_merge_group_call_runs_all_18_jobs_on_the_default_checkout_with_no_payload_step():
+    names = _running_jobs(_queue_ctx())
+    assert len(names) == 18 and set(names) == set(acr.required_jobs(DOC))
+    # ... and each job NAMES the event, as it names repository_dispatch: it is not left to how GitHub compares the
+    # pull_request a merge group does not have (`head.repo.full_name != github.repository`) to a string
+    for jid, job in DOC["jobs"].items():
+        assert "|| github.event_name == 'merge_group'" in str(job["if"]), jid
+    checkouts = payload_steps = junit = 0
+    for jid, job in DOC["jobs"].items():
+        for leg in _legs(job):
+            c = _queue_ctx(matrix=leg)
+            for step in job["steps"]:
+                if step.get("id") == "payload":
+                    payload_steps += 1
+                    assert not _runs(step.get("if"), c), f"{jid}: the re-arm payload step would run (and fail) in a merge group"
+                if str(step.get("uses", "")).startswith("actions/checkout@") and _runs(step.get("if"), c):
+                    checkouts += 1
+                    assert template(step["with"]["ref"], c) == "", f"{jid}: a merge-group checkout that is not the default ref"
+                for k, v in (step.get("env") or {}).items():
+                    if k == "PYTEST_ADDOPTS":
+                        junit += 1
+                        assert template(v, c) == "--junitxml=evidence-pytest.xml", (jid, template(v, c))
+    # 18 legs each skip the payload step; 12 + 3 + 1 + 1 + 1 checkouts; the server job and 3 capreg legs carry the junit flag
+    assert (payload_steps, checkouts, junit) == (18, 18, 4), (payload_steps, checkouts, junit)
+    # control: the same walk on a re-arm dispatch DOES run the payload step and pins the dispatched commit
+    d = ctx("repository_dispatch")
+    assert _runs(DOC["jobs"]["server"]["steps"][0].get("if"), d)
+    assert template(DOC["jobs"]["server"]["steps"][1]["with"]["ref"], d) == MERGE
+
+
+def test_MQ_the_input_names_only_the_evidence_artifacts_and_is_empty_on_every_other_event():
+    hits = []
+    for jid, i, step in _all_steps():
+        for k, v in list((step.get("with") or {}).items()) + list((step.get("env") or {}).items()):
+            if "inputs." in str(v):
+                hits.append((jid, k))
+                assert k == "name" and str(step.get("uses", "")).startswith("actions/upload-artifact@"), (jid, i, k)
+                assert v.startswith(ev.ARTIFACT_PREFIX + "${{ github.event.pull_request.number || steps.payload.outputs.pr || inputs.pr }}-"), v
+                # a pull_request and a re-arm name the artifact as before, whatever `inputs` held
+                for event in ("pull_request", "repository_dispatch"):
+                    c = dict(ctx(event, pr=1700), inputs={"pr": "4242"})
+                    assert template(v, c).startswith(ev.ARTIFACT_PREFIX + "1700-"), (jid, event, template(v, c))
+        assert "inputs." not in repr({k: v for k, v in step.items() if k not in ("with", "env")}), (jid, i)
+    assert sorted(hits) == sorted((jid, "name") for jid in DOC["jobs"]), hits
+    for jid, job in DOC["jobs"].items():
+        assert "inputs." not in repr({k: v for k, v in job.items() if k != "steps"}), jid
+    assert "inputs." not in DOC["concurrency"]["group"] and "inputs." not in repr(DOC.get("env"))
+
+
+def test_MQ_a_merge_group_call_has_its_own_concurrency_group_and_the_caller_has_none():
+    g = DOC["concurrency"]["group"]
+    mine = template(g, _queue_ctx(pr=7))
+    assert mine == "agent-ci-" + _queue_ref(7)
+    assert mine != template(g, _queue_ctx(pr=8))
+    assert mine not in {template(g, ctx("pull_request", pr=7)), template(g, ctx("repository_dispatch", pr=7)),
+                        template(g, ctx("push", ref="refs/heads/master")), template(g, ctx("push"))}
+    # a group shared by the caller and the called workflow deadlocks the call: the caller declares none at all
+    assert "concurrency" not in QDOC and not [j for j, job in QDOC["jobs"].items() if "concurrency" in job]
+
+
+# ---- the queue workflow's own shape ------------------------------------------------------------------------------
+QUEUE_VERDICT_ENV = {
+    "HEAD_SHA": "${{ github.event.merge_group.head_sha }}",
+    "RUN_ID": "${{ github.run_id }}",
+    "SCOPE_RESULT": "${{ needs.scope.result }}",
+    "SCOPE_CODE": "${{ needs.scope.outputs.code }}",
+    "SCOPE_DETAIL": "${{ needs.scope.outputs.detail }}",
+    "AGENT_RESULT": "${{ needs.agent.result }}",
+}
+QUEUE_SCOPE_ENV = {
+    "HEAD_SHA": "${{ github.event.merge_group.head_sha }}",
+    "BASE_SHA": "${{ github.event.merge_group.base_sha }}",
+    "HEAD_REF": "${{ github.event.merge_group.head_ref }}",
+}
+DEFAULT_BRANCH = "${{ github.event.repository.default_branch }}"
+
+
+def _tool_step(job: dict):
+    steps = [s for s in job.get("steps") or [] if "tools/agent_ci_required.py" in (s.get("run") or "")]
+    return steps[0] if len(steps) == 1 else None
+
+
+def queue_violations(doc) -> list[str]:
+    """Every rule agent-ci-queue.yml must keep, as a list of what is broken (empty = it holds)."""
+    bad = []
+    on = doc.get("on", doc.get(True))
+    if not isinstance(on, dict) or set(on) != {"merge_group"} or on["merge_group"]:
+        bad.append("the only trigger is a bare merge_group")
+    if doc.get("permissions") != {"contents": "read"}:
+        bad.append("the workflow's default token is contents: read")
+    jobs = doc.get("jobs") or {}
+    if list(jobs) != ["scope", "agent", "verdict"]:
+        return bad + [f"the jobs are scope, agent, verdict (got {list(jobs)})"]
+    scope, agent, verdict = jobs["scope"], jobs["agent"], jobs["verdict"]
+    if "concurrency" in doc or any("concurrency" in j for j in jobs.values()):
+        bad.append("no concurrency group (one shared with the called workflow deadlocks the call)")
+    # ---- scope: first, unconditional, read-only, no token
+    if {"needs", "if", "permissions"} & set(scope):
+        bad.append("scope runs first, unconditionally, with the read-only default token")
+    if scope.get("outputs") != {k: "${{ steps.scope.outputs.%s }}" % k for k in ("code", "pr", "detail")}:
+        bad.append("scope's outputs are code / pr / detail from its tool step")
+    if "secrets." in repr(scope) or "GITHUB_TOKEN" in repr(scope):
+        bad.append("scope reads git objects only: it is handed no token")
+    st = _tool_step(scope)
+    if st is None or st.get("id") != "scope" or st.get("env") != QUEUE_SCOPE_ENV:
+        bad.append("scope's tool step is `id: scope` and reads the event only through its three env values")
+    # ---- agent: the one call, only for an Agent change
+    if agent.get("uses") != "./.github/workflows/agent-ci.yml":
+        bad.append("agent calls ./.github/workflows/agent-ci.yml")
+    if set(agent) != {"needs", "if", "uses", "with"}:
+        bad.append("agent has only needs / if / uses / with (no name: QUEUE_CALL_JOB is its id; no secrets, no permissions)")
+    if agent.get("needs") not in ("scope", ["scope"]) or agent.get("with") != {"pr": "${{ needs.scope.outputs.pr }}"}:
+        bad.append("agent needs scope and passes scope's validated PR number")
+    for code in (*acr.SCOPE_CODES, "", "bogus"):
+        c = _queue_ctx(needs={"scope": {"result": "success", "outputs": {"code": code}}})
+        try:
+            runs = "if" in agent and _runs(agent.get("if"), c)
+        except AssertionError:
+            runs = None
+        if runs is not (code == acr.SCOPE_AGENT):
+            bad.append(f"agent runs only for scope code {acr.SCOPE_AGENT!r} (code {code!r}: {runs})")
+    # ---- verdict: always, after both, the one writer
+    if verdict.get("needs") != ["scope", "agent"]:
+        bad.append("verdict needs scope and agent")
+    if str(verdict.get("if", "")).strip() != "always()":
+        bad.append("verdict runs always() (a skipped Agent call, a failed scope job and a cancelled run still get a status)")
+    if verdict.get("permissions") != {"statuses": "write", "actions": "read", "contents": "read"}:
+        bad.append("verdict's token is statuses: write, actions: read, contents: read")
+    vt = _tool_step(verdict)
+    if vt is None or {k: v for k, v in (vt.get("env") or {}).items() if k not in ("GITHUB_TOKEN", "TARGET_URL")} != QUEUE_VERDICT_ENV:
+        bad.append("verdict's tool step reads the two jobs' results and scope's outputs through its env")
+    writers = [jid for jid, j in jobs.items() if any(v != "read" for v in (j.get("permissions") or {}).values())]
+    if writers != ["verdict"] or any(v != "read" for v in (doc.get("permissions") or {}).values()):
+        bad.append(f"verdict is the only job that may write anything (writers: {writers})")
+    # ---- both runner jobs: master's code, bounded, nothing optional, no expression in a shell
+    for jid in ("scope", "verdict"):
+        job, steps = jobs[jid], jobs[jid].get("steps") or []
+        t = job.get("timeout-minutes")
+        if not (isinstance(t, int) and 0 < t <= 10):
+            bad.append(f"{jid}: timeout-minutes is {t!r}")
+        co = [s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@")]
+        if len(co) != 1 or steps[0] is not co[0] or (co[0].get("with") or {}).get("ref") != DEFAULT_BRANCH:
+            bad.append(f"{jid}: its one checkout comes first and takes the default branch (never the merge group's tree)")
+        for s in steps:
+            if "${{" in (s.get("run") or ""):
+                bad.append(f"{jid}: an expression inside a shell")
+            if "if" in s or s.get("continue-on-error"):
+                bad.append(f"{jid}: a conditional or optional step")
+        tool = _tool_step(job)
+        if tool is None or f"--event merge_group --stage {jid} " not in tool["run"] or "set -euo pipefail" not in tool["run"]:
+            bad.append(f"{jid}: runs tools/agent_ci_required.py --event merge_group --stage {jid} under set -euo pipefail")
+    return bad
+
+
+def test_MQ_the_queue_workflow_keeps_every_rule():
+    from tools import promotion_gate as pg
+    assert queue_violations(QDOC) == []
+    assert pg.classify(QWF.read_text(encoding="utf-8")) == "no" and QDOC["name"] == "agent ci queue"   # never a deploy gate
+
+
+def _queue_mutants():
+    def tool(doc, jid):
+        return _tool_step(doc["jobs"][jid])
+
+    def also_on_pull_request(doc):
+        doc[True if True in doc else "on"]["pull_request"] = {"branches": ["master"]}
+
+    def write_token_for_everyone(doc):
+        doc["permissions"] = {"contents": "read", "statuses": "write"}
+
+    def scope_may_write(doc):
+        doc["jobs"]["scope"]["permissions"] = {"statuses": "write"}
+
+    def scope_checks_out_the_merge_group(doc):
+        del doc["jobs"]["scope"]["steps"][0]["with"]["ref"]
+
+    def verdict_checks_out_the_merge_group(doc):
+        doc["jobs"]["verdict"]["steps"][0]["with"]["ref"] = "${{ github.sha }}"
+
+    def scope_gets_a_token(doc):
+        tool(doc, "scope")["env"]["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"
+
+    def the_event_is_interpolated_into_bash(doc):
+        s = tool(doc, "scope")
+        s["run"] = s["run"].replace('"$HEAD_REF"', '"${{ github.event.merge_group.head_ref }}"')
+
+    def agent_always_runs(doc):
+        del doc["jobs"]["agent"]["if"]
+
+    def agent_runs_unless_clear(doc):
+        doc["jobs"]["agent"]["if"] = "needs.scope.outputs.code != 'no-agent-paths'"
+
+    def agent_calls_another_workflow(doc):
+        doc["jobs"]["agent"]["uses"] = "./.github/workflows/agent-ci-benchmark.yml"
+
+    def agent_is_renamed(doc):
+        doc["jobs"]["agent"]["name"] = "Agent jobs"
+
+    def agent_takes_the_raw_branch(doc):
+        doc["jobs"]["agent"]["with"]["pr"] = "${{ github.event.merge_group.head_ref }}"
+
+    def verdict_only_on_success(doc):
+        del doc["jobs"]["verdict"]["if"]
+
+    def verdict_does_not_wait_for_the_agent_jobs(doc):
+        doc["jobs"]["verdict"]["needs"] = ["scope"]
+
+    def verdict_is_told_the_scope_passed(doc):
+        tool(doc, "verdict")["env"]["SCOPE_RESULT"] = "success"
+
+    def verdict_reads_the_agent_result_as_the_scope_code(doc):
+        tool(doc, "verdict")["env"]["SCOPE_CODE"] = "${{ needs.agent.result }}"
+
+    def verdict_step_may_fail_quietly(doc):
+        tool(doc, "verdict")["continue-on-error"] = True
+
+    def verdict_has_no_timeout(doc):
+        del doc["jobs"]["verdict"]["timeout-minutes"]
+
+    def verdict_runs_the_scope_stage(doc):
+        s = tool(doc, "verdict")
+        s["run"] = s["run"].replace("--stage verdict ", "--stage scope ")
+
+    def a_shared_concurrency_group(doc):
+        doc["concurrency"] = {"group": "agent-ci-${{ github.ref }}", "cancel-in-progress": True}
+
+    def a_fourth_job(doc):
+        doc["jobs"]["extra"] = {"runs-on": "ubuntu-latest", "steps": [{"run": "true"}]}
+
+    return [also_on_pull_request, write_token_for_everyone, scope_may_write,
+            scope_checks_out_the_merge_group, verdict_checks_out_the_merge_group, scope_gets_a_token,
+            the_event_is_interpolated_into_bash, agent_always_runs, agent_runs_unless_clear,
+            agent_calls_another_workflow, agent_is_renamed, agent_takes_the_raw_branch,
+            verdict_only_on_success, verdict_does_not_wait_for_the_agent_jobs, verdict_is_told_the_scope_passed,
+            verdict_reads_the_agent_result_as_the_scope_code, verdict_step_may_fail_quietly, verdict_has_no_timeout,
+            verdict_runs_the_scope_stage, a_shared_concurrency_group, a_fourth_job]
+
+
+def test_MQ_the_mutant_list_is_whole():
+    assert len(_queue_mutants()) == 21 and len({f.__name__ for f in _queue_mutants()}) == 21
+
+
+@pytest.mark.parametrize("mutate", _queue_mutants(), ids=lambda f: f.__name__)
+def test_MQ_the_queue_rail_catches_each_mutant(mutate):
+    doc = copy.deepcopy(QDOC)
+    mutate(doc)
+    assert doc != QDOC, f"{mutate.__name__} changed nothing"
+    assert queue_violations(doc), f"{mutate.__name__} went unnoticed"
+
+
+def _sparse(job: dict) -> list[str]:
+    return (job["steps"][0]["with"]["sparse-checkout"]).split()
+
+
+def _held(path: str, sparse: list[str]) -> bool:
+    """Is a repo path on disk under this non-cone sparse list? Only the two shapes the queue workflow uses are read:
+    a root-anchored file (`/a/b.py`) and a root-anchored folder (`/a/`); anything else is refused by name."""
+    for p in sparse:
+        assert p.startswith("/") and "*" not in p and "!" not in p, f"a sparse pattern this rail cannot evaluate: {p!r}"
+        if path == p[1:] or (p.endswith("/") and path.startswith(p[1:])):
+            return True
+    return False
+
+
+def test_MQ_each_queue_checkout_holds_every_file_its_stage_reads():
+    """A file that is not on disk makes the protected list unreadable (code `unknown`, every queued PR fails), or the
+    tool unimportable. The scope stage reads: both tools, agent-ci.yml, every vite / vitest config and every file those
+    configs import (derived by the same code the stage runs, never listed here)."""
+    tools = {"tools/agent_ci_required.py", "tools/agent_ci_evidence.py", ".github/workflows/agent-ci.yml"}
+    configs = {p.relative_to(ROOT).as_posix() for pat in ("vite*.config.*", "vitest*.config.*") for p in (ROOT / "app").glob(pat)}
+    imported = set(ev.config_imports(ROOT))
+    assert len(configs) >= 2 and len(imported) >= 3, (configs, imported)
+    scope, verdict = _sparse(QDOC["jobs"]["scope"]), _sparse(QDOC["jobs"]["verdict"])
+    for job in ("scope", "verdict"):
+        assert QDOC["jobs"][job]["steps"][0]["with"]["sparse-checkout-cone-mode"] is False, job
+    assert sorted(f for f in tools | configs | imported if not _held(f, scope)) == []
+    assert sorted(f for f in tools if not _held(f, verdict)) == []
+    # control: the judge can say no, and refuses a pattern it cannot read
+    assert not _held("api/main.py", scope) and not _held("tools/agent_ci_rearm.py", scope) and not _held("app/vite.config.js", verdict)
+    assert not _held("tools/agent_ci_required.pyc", ["/tools/agent_ci_required.py"]) and _held("app/x/y.js", ["/app/"])
+    with pytest.raises(AssertionError):
+        _held("app/x.js", ["app/"])
+
+
+# ---- the workflow's command lines reach the tool's real argument parser ------------------------------------------
+def _tool_argv(step: dict, c: dict) -> list[str]:
+    """The step's `python tools/agent_ci_required.py ...` line as argv, every "$VAR" filled from the step's own env as
+    it evaluates for `c`. A variable the step does not define is a KeyError: the line names something bash would not have."""
+    lines = [ln.strip() for ln in step["run"].splitlines() if "tools/agent_ci_required.py" in ln]
+    assert len(lines) == 1, lines
+    env = {k: str(template(v, c)) for k, v in step["env"].items()}
+    argv = shlex.split(re.sub(r"\$(\w+)", lambda m: env[m.group(1)], lines[0]))
+    assert argv[:2] == ["python", "tools/agent_ci_required.py"], argv
+    return argv[2:]
+
+
+def test_MQ_the_scope_command_line_hands_the_tool_the_merge_groups_three_values(monkeypatch, tmp_path):
+    seen = {}
+
+    def fake_scope(root, doc, head_sha, base_sha, head_ref, tested_sha):
+        seen.update(head_sha=head_sha, base_sha=base_sha, head_ref=head_ref, tested_sha=tested_sha, paths=acr.agent_paths(doc))
+        return {"code": acr.SCOPE_AGENT, "pr": 1700, "detail": "Agent paths changed"}
+
+    out = tmp_path / "out.txt"
+    monkeypatch.setattr(acr, "queue_scope", fake_scope)
+    monkeypatch.chdir(ROOT)
+    monkeypatch.setenv("GITHUB_SHA", MERGE)
+    monkeypatch.setenv("GITHUB_OUTPUT", str(out))
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)        # the scope stage needs no token
+    assert acr.main(_tool_argv(_tool_step(QDOC["jobs"]["scope"]), _queue_ctx())) == 0
+    assert seen == {"head_sha": MERGE, "base_sha": QUEUE_BASE, "head_ref": _queue_ref(), "tested_sha": MERGE, "paths": acr.agent_paths(DOC)}
+    # ... and what it writes is exactly what the workflow's `agent` job and its `with:` read
+    assert out.read_text(encoding="utf-8") == "code=agent-paths\npr=1700\ndetail=Agent paths changed\n"
+
+
+class _QueueApi:
+    """The verdict stage's two calls: this run's jobs (GET), then the status (POST). Nothing else is answered."""
+    posted: list = []
+    jobs: list = []
+
+    def __init__(self, token, repo, base="https://api.github.com"):
+        assert token == "t" and repo == REPO
+
+    def get(self, path):
+        assert path.startswith("actions/runs/55/jobs?filter=latest"), path
+        return {"jobs": type(self).jobs}
+
+    def call(self, method, path, body=None):
+        assert method == "POST", (method, path)
+        type(self).posted.append((path, body))
+
+
+@pytest.mark.parametrize("scope,agent,green,want", [
+    ({"result": "success", "outputs": {"code": "agent-paths", "pr": "1700", "detail": "Agent paths changed"}}, "success", True, "success"),
+    ({"result": "success", "outputs": {"code": "agent-paths", "pr": "1700", "detail": "Agent paths changed"}}, "success", False, "failure"),
+    ({"result": "success", "outputs": {"code": "agent-paths", "pr": "1700", "detail": "Agent paths changed"}}, "failure", True, "failure"),
+    ({"result": "success", "outputs": {"code": "no-agent-paths", "pr": "1700", "detail": "no Agent paths changed"}}, "skipped", True, "success"),
+    ({"result": "success", "outputs": {"code": "self-protected", "pr": "1700", "detail": "1 self-protected path(s), e.g. pytest.ini"}}, "skipped", True, "failure"),
+    ({"result": "failure", "outputs": {}}, "skipped", True, "failure"),          # the scope job died: its outputs are empty
+])
+def test_MQ_the_verdict_command_line_posts_the_status_on_the_merge_groups_commit(monkeypatch, scope, agent, green, want):
+    names = acr.required_jobs(DOC)
+    _QueueApi.posted = []
+    _QueueApi.jobs = [{"name": f"{acr.QUEUE_CALL_JOB} / {n}", "conclusion": "success" if green or i else "cancelled"} for i, n in enumerate(names)]
+    monkeypatch.setattr(acr, "Api", _QueueApi)
+    monkeypatch.chdir(ROOT)
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    monkeypatch.setenv("GITHUB_REPOSITORY", REPO)
+    monkeypatch.setenv("TARGET_URL", "https://example.invalid/run/55")
+    c = _queue_ctx(needs={"scope": scope, "agent": {"result": agent}})
+    rc = acr.main(_tool_argv(_tool_step(QDOC["jobs"]["verdict"]), c))
+    assert len(_QueueApi.posted) == 1, _QueueApi.posted
+    path, body = _QueueApi.posted[0]
+    assert path == f"statuses/{MERGE}" and body["context"] == "agent-ci-required" and body["state"] == want, (path, body)
+    assert body["target_url"] == "https://example.invalid/run/55" and 0 < len(body["description"]) <= 140
+    assert rc == (0 if want == "success" else 1)
+    if scope["outputs"].get("code") == "self-protected":
+        assert "AUDIT's local evidence decides" in body["description"] and "pytest.ini" in body["description"]
+
+
+# ---- the merge group's commit IS the commit that lands: its runs stay on master's tip sha ------------------------------
+def _queue_run(conclusion="failure", status="completed"):
+    return {"id": 992, "name": "agent ci queue", "path": ".github/workflows/agent-ci-queue.yml", "head_sha": TIP,
+            "head_branch": _queue_ref()[len("refs/heads/"):], "event": "merge_group", "status": status, "conclusion": conclusion,
+            "created_at": "2026-11-22T10:00:00Z"}
+
+
+@pytest.mark.parametrize("run", [_queue_run(), _queue_run("success"), _queue_run("cancelled"), _queue_run(None, "in_progress")])
+def test_MQ_a_merge_group_run_on_the_landed_commit_changes_no_promotion_or_gate_decision(run):
+    """GitHub lands the commit it tested, so every merge_group run (this workflow's, red or green) sits on a sha that
+    becomes master's tip. Every reader of that sha's runs must answer exactly as without it."""
+    from tools import promote_decision as pd
+    from tools import promotion_gate as pg
+    gating_map, unclassified = pg.read_workflow_dir(str(ROOT))
+    assert not unclassified and gating_map.get("agent ci queue") == "no"
+    gating = sorted(n for n, v in gating_map.items() if v == "yes")
+    works = [{"name": n, "state": "active"} for n in gating_map]
+    gate_ok = {"id": 1, "name": pg.ALWAYS_RUNS, "head_sha": TIP, "head_branch": "master", "event": "push",
+               "status": "completed", "conclusion": "success", "created_at": "2026-11-22T09:00:00Z"}
+    for base in ([gate_ok], [dict(gate_ok, conclusion="failure")], [dict(gate_ok, status="in_progress", conclusion=None)]):
+        assert pg.decide(gating=gating, runs=base + [run], workflows=works) == pg.decide(gating=gating, runs=base, workflows=works)
+    # even if this workflow WERE gating, a merge_group run on the queue's branch is not a counted master event
+    assert "merge_group" not in pg.COUNTED_EVENTS
+    both = sorted({*gating, "agent ci queue"})
+    assert pg.decide(gating=both, runs=[gate_ok, run], workflows=works)[0] == pg.decide(gating=both, runs=[gate_ok], workflows=works)[0]
+    jobs = [{"run_id": 1, "conclusion": "success"}]
+    assert pd.gate_ok([gate_ok, run], jobs + [{"run_id": 992, "conclusion": "failure"}], 1, TIP) == pd.gate_ok([gate_ok], jobs, 1, TIP)
+    # and the pull-request side of agent-ci-required never reads a merge_group run as evidence for a head
+    assert "merge_group" not in acr.RUN_EVENTS
+    with pytest.raises(ValueError):
+        acr.run_for(_ReqApi([]), TIP, "merge_group")

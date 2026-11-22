@@ -45,6 +45,12 @@ It FAILS CLOSED on every one of these (each is a named guard; tests/test_agent_c
                       unreadable, or overwritten by a later re-arm): only the tool's latest merge for this PR counts
 Any API / download error is a FAIL (`api-error`).
 
+MERGE QUEUE (2026-11-22; inert until a queue exists on master): agent-ci-queue.yml calls agent-ci.yml on a `merge_group`
+event. There GITHUB_SHA IS the commit under test (GitHub's merge group commit: first parent = the queue's base, second =
+the PR head), so `record` compares HEAD to it and to the event's merge_group.head_sha, and reads the PR number from the
+queue's branch name (queue_pr). `verify` does not read those records: it accepts pull_request (/ rearm) runs only, so a
+merge_group record can never pass it. The queue's own verdict is tools/agent_ci_required.py decide_queue.
+
 The required jobs are read from agent-ci.yml under --root, which should be a MASTER checkout: a PR cannot drop a job
 from its own verdict (the same reason agent-ci-required runs the default branch's copy).
 """
@@ -68,10 +74,21 @@ PR_EVENT, DISPATCH_EVENT = "pull_request", "repository_dispatch"
 DISPATCH_TYPE = "agent-ci-evidence"
 PR_RE = re.compile(r"[1-9][0-9]{0,6}\Z")
 SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
+#: a merge-queue run: agent-ci-queue.yml calls agent-ci.yml, and a called workflow sees its caller's event
+MERGE_GROUP_EVENT = "merge_group"
+#: the temporary branch GitHub builds ONE queued PR into master on (rehearsed 2026-11-22). It is the only place a
+#: merge_group event names its PR; any other shape names none (fail closed)
+QUEUE_REF_RE = re.compile(r"(?:refs/heads/)?gh-readonly-queue/master/pr-([1-9][0-9]{0,6})-[0-9a-f]{40}\Z")
 
 
 class ApiError(RuntimeError):
     pass
+
+
+def queue_pr(head_ref) -> int | None:
+    """The PR number in a merge group's head_ref (`refs/heads/gh-readonly-queue/master/pr-<N>-<sha>`), else None."""
+    m = QUEUE_REF_RE.match(head_ref) if isinstance(head_ref, str) else None
+    return int(m.group(1)) if m else None
 
 
 # ============================================================================================ record (runs in CI)
@@ -131,6 +148,11 @@ def build_record(job_key: str, env: dict, event: dict, head: str, tree: str, par
         payload = event.get("client_payload") if isinstance(event.get("client_payload"), dict) else {}
         pr, want_sha = payload.get("pr"), payload.get("merge_sha")
         want_sha = want_sha if isinstance(want_sha, str) else ""
+    elif ev == MERGE_GROUP_EVENT:
+        # merge queue: GITHUB_SHA is the merge group's commit, i.e. the commit under test (unlike a dispatch, where it
+        # is master's tip). The PR is named only by the queue's branch; nothing in the event is a payload to trust.
+        group = event.get("merge_group") if isinstance(event.get("merge_group"), dict) else {}
+        pr, want_sha = queue_pr(group.get("head_ref")), env.get("GITHUB_SHA", "")
     else:
         pr, want_sha = None, env.get("GITHUB_SHA", "")
     suites, missing = {}, []
@@ -152,6 +174,11 @@ def build_record(job_key: str, env: dict, event: dict, head: str, tree: str, par
             pr = None
         if event.get("action") != DISPATCH_TYPE:
             errors.append(f"repository_dispatch event_type {event.get('action')!r} is not {DISPATCH_TYPE!r}"[:200])
+    if ev == MERGE_GROUP_EVENT:
+        if pr is None:
+            errors.append(f"the merge group's head_ref names no queued PR: {group.get('head_ref')!r}"[:200])
+        if group.get("head_sha") != head:
+            errors.append(f"checked-out HEAD {head} is not the merge group's head_sha {group.get('head_sha')!r}"[:200])
     return {
         "schema": SCHEMA, "job_key": job_key, "event": ev, "pr": int(pr) if re.fullmatch(r"[0-9]+", str(pr or "")) else None,
         "ref": env.get("GITHUB_REF", ""), "sha": head, "tree": tree, "parents": parents,

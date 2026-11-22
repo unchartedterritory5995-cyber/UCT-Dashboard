@@ -16,6 +16,19 @@ job, or a changed-file list too long to read whole.
     python tools/agent_ci_required.py --event pull_request   --sha <head> --pr <n>
     python tools/agent_ci_required.py --event workflow_run   --sha <head>
     (env: GITHUB_TOKEN, GITHUB_REPOSITORY; optional GITHUB_API_URL, TARGET_URL; --dry-run prints, posts nothing)
+
+MERGE QUEUE (2026-11-22; inert until a queue exists on master). .github/workflows/agent-ci-queue.yml runs on
+`merge_group` and posts this same status on the merge group's commit, in two stages, both from MASTER's copy of this file:
+  scope    the queued PR's OWN diff (git: the merge group's base_sha..head_sha; nothing of the PR is checked out or
+           run) -> no-agent-paths | agent-paths | self-protected | unknown
+  verdict  success ONLY for no-agent-paths, or for agent-paths when every required Agent job (agent-ci.yml, called by
+           that workflow on the merge group's commit) is success in that run. A self-protected path is ALWAYS failure
+           (AUDIT's local evidence decides), and so is an unreadable diff, a scope job that did not succeed, a missing /
+           skipped / cancelled / failed job or an API error. Never pending: it is the last word on that commit.
+
+    python tools/agent_ci_required.py --event merge_group --stage scope   --sha <head> --base <base> --head-ref <ref>
+    python tools/agent_ci_required.py --event merge_group --stage verdict --sha <head> --run-id <id> \
+        --scope-result <needs.scope.result> --scope-code <code> --scope-detail <text> --agent-result <needs.agent.result>
 """
 from __future__ import annotations
 
@@ -24,6 +37,7 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import sys
 import urllib.error
 import urllib.parse
@@ -219,15 +233,19 @@ def run_for(api: Api, sha: str, event: str):
     if not runs:
         return None
     run = max(runs, key=lambda r: (r.get("created_at") or "", r.get("id") or 0))
+    return {"id": run["id"], "status": run.get("status"), "conclusion": run.get("conclusion"),
+            "html_url": run.get("html_url"), "jobs": run_jobs(api, run["id"])}
+
+
+def run_jobs(api: Api, run_id) -> list[dict]:
+    """One run's latest-attempt jobs, every page, as [{"name", "conclusion"}]."""
     jobs, page = [], 1
     while True:
-        got = api.get(f"actions/runs/{run['id']}/jobs?filter=latest&per_page=100&page={page}").get("jobs", [])
+        got = api.get(f"actions/runs/{run_id}/jobs?filter=latest&per_page=100&page={page}").get("jobs", [])
         jobs += [{"name": j.get("name"), "conclusion": j.get("conclusion")} for j in got]
         if len(got) < 100:
-            break
+            return jobs
         page += 1
-    return {"id": run["id"], "status": run.get("status"), "conclusion": run.get("conclusion"),
-            "html_url": run.get("html_url"), "jobs": jobs}
 
 
 def open_prs_for(api: Api, sha: str) -> list[int]:
@@ -262,14 +280,193 @@ def evaluate(api: Api, sha: str, prs: list[int], doc: dict) -> tuple[str, str, s
     return state, reason, link
 
 
+# ---------------------------------------------------------------------------------------------- merge queue
+#: (2026-11-22; inert until a queue exists) .github/workflows/agent-ci-queue.yml: scope -> agent -> verdict.
+QUEUE_WORKFLOW = pathlib.Path(".github") / "workflows" / "agent-ci-queue.yml"
+#: that workflow's job that CALLS agent-ci.yml. The Actions API reports a called workflow's jobs as
+#: "<calling job's name> / <job name>" (and the calling job alone, by its bare name, when it was skipped), so the
+#: required jobs are matched under exactly this prefix; the calling job carries no `name:` (a rail holds that).
+QUEUE_CALL_JOB = "agent"
+#: what the scope stage answers for one queued PR; anything else in its place is read as no answer (fail closed)
+SCOPE_CLEAR, SCOPE_AGENT, SCOPE_PROTECTED, SCOPE_UNKNOWN = "no-agent-paths", "agent-paths", "self-protected", "unknown"
+SCOPE_CODES = (SCOPE_CLEAR, SCOPE_AGENT, SCOPE_PROTECTED, SCOPE_UNKNOWN)
+_SHA = re.compile(r"[0-9a-f]{40}\Z")
+_UNSAFE = re.compile(r"[^A-Za-z0-9 _./,()@+:'-]")
+AUDIT_DECIDES = "; its own run could vouch for itself: AUDIT's local evidence decides"
+
+
+def _evidence():
+    """tools/agent_ci_evidence.py: SELF_PROTECTED with its derived lists, and the queue-branch parser. ONE authority
+    for both; imported late because that module imports this one."""
+    root = str(pathlib.Path(__file__).resolve().parents[1])
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from tools import agent_ci_evidence
+    return agent_ci_evidence
+
+
+def merge_group_changed_paths(root, base_sha, head_sha, fetch: bool = True, run=subprocess.run):
+    """The queued PR's OWN diff: every path that differs between a merge group's base_sha and its head_sha, read from
+    git objects in the checkout at `root` (master's). Nothing of the PR is checked out or executed, and a rename lists
+    both names. None = unknown (the caller fails closed): a value that is not a 40-hex commit (git never sees it), a
+    failed fetch, a head that is not a two-parent merge whose FIRST parent is base_sha (so the diff could hold the
+    entries ahead, or less than the PR), or a failed diff. An empty list is a real answer: the range was proved."""
+    if not (isinstance(base_sha, str) and isinstance(head_sha, str) and _SHA.match(base_sha) and _SHA.match(head_sha)):
+        return None
+
+    def git(*args):
+        try:
+            p = run(["git", "-C", str(root), *args], capture_output=True, timeout=300)
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return p.stdout if p.returncode == 0 else None
+
+    # depth 2 = the merge group's commit and its parents (base_sha is the first), with their trees
+    if fetch and git("fetch", "--no-tags", "--quiet", "--depth=2", "origin", head_sha) is None:
+        return None
+    commit = git("cat-file", "commit", head_sha)
+    if commit is None:
+        return None
+    header = commit.decode("utf-8", "replace").split("\n\n", 1)[0]
+    parents = [ln.split()[1] for ln in header.splitlines() if ln.startswith("parent ") and len(ln.split()) == 2]
+    if len(parents) != 2 or parents[0] != base_sha:
+        return None
+    out = git("diff", "--no-renames", "--name-only", "-z", base_sha, head_sha)
+    if out is None:
+        return None
+    return [p for p in out.decode("utf-8", "surrogateescape").split("\0") if p]
+
+
+def decide_scope(changed_paths, patterns, protected) -> tuple[str, str]:
+    """(code, detail) for one queued PR. changed_paths: its own diff, or None (unknown). patterns: agent_paths().
+    protected: agent_ci_evidence.protected_patterns(master root), or None (unreadable). The ORDER is the rule:
+    unknown first, then self-protected (whatever else the diff holds, Agent path or not), then the Agent paths."""
+    if changed_paths is None:
+        return SCOPE_UNKNOWN, "the queued PR's own diff could not be read"
+    hits = _evidence().self_protected_hits(changed_paths, protected) if protected is not None else None
+    if hits is None:
+        return SCOPE_UNKNOWN, "the self-protected path list could not be read"
+    if hits:
+        return SCOPE_PROTECTED, f"{len(hits)} self-protected path(s), e.g. {hits[0]}"
+    if touches_agent(changed_paths, patterns):
+        return SCOPE_AGENT, "Agent paths changed"
+    return SCOPE_CLEAR, "no Agent paths changed"
+
+
+def queue_scope(root, doc, head_sha, base_sha, head_ref, tested_sha, fetch: bool = True) -> dict:
+    """{"code", "pr", "detail"} for a merge group. `root` is a MASTER checkout (its agent-ci.yml is `doc`; its configs
+    give the protected list). tested_sha is GITHUB_SHA: the commit the called Agent jobs check out, and the commit the
+    verdict's status lands on, must be the event's head_sha."""
+    ev = _evidence()
+    pr = ev.queue_pr(head_ref)
+    if pr is None:
+        return {"code": SCOPE_UNKNOWN, "pr": None, "detail": "the merge group's head_ref names no queued pull request"}
+    if not (isinstance(head_sha, str) and _SHA.match(head_sha)) or head_sha != tested_sha:
+        return {"code": SCOPE_UNKNOWN, "pr": pr, "detail": "the merge group's head_sha is not the commit this run tests"}
+    changed = merge_group_changed_paths(root, base_sha, head_sha, fetch=fetch)
+    try:
+        protected = ev.protected_patterns(root)
+    except (OSError, ValueError):
+        protected = None
+    code, detail = decide_scope(changed, agent_paths(doc), protected)
+    return {"code": code, "pr": pr, "detail": detail}
+
+
+def decide_queue(scope_result, scope_code, scope_detail, agent_result, jobs, jobs_required) -> tuple[str, str]:
+    """`agent-ci-required` for a merge group's commit: SUCCESS or FAILURE, never pending (it is the last word on that
+    commit). scope_result / agent_result: the two jobs' `needs.<job>.result`. jobs: THIS run's jobs as the API lists
+    them, [{"name", "conclusion"}], or anything else when they could not be read.
+    SUCCESS only when the scope job succeeded AND (it answered no-agent-paths and the Agent call was skipped, OR it
+    answered agent-paths, the call concluded success, and every required job is listed under the call with conclusion
+    success). The call's own result is not enough: a job skipped inside it would not turn it red."""
+    if scope_result != SUCCESS or scope_code not in SCOPE_CODES:
+        return FAILURE, f"the scope job gave no answer (result {scope_result!r}, code {scope_code!r}): fail closed"[:140]
+    detail = str(scope_detail or scope_code)
+    if scope_code == SCOPE_PROTECTED:
+        return FAILURE, detail[:140 - len(AUDIT_DECIDES)] + AUDIT_DECIDES
+    if scope_code == SCOPE_UNKNOWN:
+        return FAILURE, f"fail closed: {detail}"[:140]
+    if scope_code == SCOPE_CLEAR:
+        if agent_result != "skipped":
+            return FAILURE, f"no Agent paths changed, yet the Agent jobs were not skipped ({agent_result!r}): fail closed"[:140]
+        return SUCCESS, "no Agent paths changed"
+    if agent_result != SUCCESS:
+        return FAILURE, f"the Agent jobs concluded {agent_result!r} on the merge group's commit"[:140]
+    if not isinstance(jobs, list):
+        return FAILURE, f"could not read this run's jobs: {(jobs or {}).get('error', jobs) if isinstance(jobs, dict) else jobs}"[:140]
+    prefix = QUEUE_CALL_JOB + " / "
+    called = [{"name": str(j.get("name"))[len(prefix):], "conclusion": j.get("conclusion")}
+              for j in jobs if isinstance(j, dict) and str(j.get("name") or "").startswith(prefix)]
+    # the same per-job rule as a PR head's run (decide_with_reason): every required name present, none but success
+    state, reason = decide_with_reason(None, [], {"status": "completed", "conclusion": SUCCESS, "jobs": called}, jobs_required)
+    if state != SUCCESS:
+        return FAILURE, reason
+    return SUCCESS, f"all {len(jobs_required)} Agent jobs passed on the merge group's commit"
+
+
+def _safe(value, limit: int = 100) -> str:
+    """One line of plain characters. A job output travels through $GITHUB_OUTPUT as a `key=value` line, and the detail
+    names a path from the queued PR: a newline in a file name must never become a second output."""
+    return _UNSAFE.sub("?", str(value))[:limit]
+
+
+def write_outputs(values: dict, path=None) -> None:
+    path = path or os.environ.get("GITHUB_OUTPUT")
+    if not path:
+        return
+    with open(path, "a", encoding="utf-8", newline="\n") as fh:
+        for key, value in values.items():
+            fh.write(f"{key}={_safe(value)}\n")
+
+
+def _main_merge_group(a) -> int:
+    """scope: prints the answer and writes the job outputs; exit 0 whatever the code (the verdict stage judges it).
+    verdict: posts the status, then exits 0 for success and 1 for failure, so the run is red when the status is. A
+    failed POST raises: no status at all, and the queue's own check timeout removes the entry."""
+    if a.stage == "scope":
+        out = queue_scope(a.root, load_agent_ci(a.root), a.sha, a.base, a.head_ref, os.environ.get("GITHUB_SHA", ""))
+        print(json.dumps({"stage": "scope", "sha": a.sha, **out}))
+        write_outputs({"code": out["code"], "pr": out["pr"] or "", "detail": out["detail"]})
+        return 0
+    if a.stage != "verdict" or not _SHA.match(a.sha or "") or not a.run_id:
+        print("merge_group needs --stage scope, or --stage verdict with a 40-hex --sha and a --run-id", file=sys.stderr)
+        return 2
+    api = Api(os.environ["GITHUB_TOKEN"], os.environ["GITHUB_REPOSITORY"], os.environ.get("GITHUB_API_URL", "https://api.github.com"))
+    jobs = None
+    if a.scope_code == SCOPE_AGENT:
+        try:
+            jobs = run_jobs(api, a.run_id)
+        except ApiError as e:
+            jobs = {"error": str(e)}
+    state, reason = decide_queue(a.scope_result, a.scope_code, a.scope_detail, a.agent_result, jobs,
+                                 required_jobs(load_agent_ci(a.root)))
+    body = {"state": state, "context": CONTEXT, "description": reason[:140], "target_url": os.environ.get("TARGET_URL") or None}
+    body = {k: v for k, v in body.items() if v is not None}
+    print(json.dumps({"stage": "verdict", "sha": a.sha, **body}))
+    if not a.dry_run:
+        api.call("POST", f"statuses/{a.sha}", body)
+    return 0 if state == SUCCESS else 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--event", required=True, choices=["pull_request", "workflow_run"])
+    ap.add_argument("--event", required=True, choices=["pull_request", "workflow_run", "merge_group"])
     ap.add_argument("--sha", required=True)
     ap.add_argument("--pr", type=int, action="append", default=[])
     ap.add_argument("--root", default=".")
     ap.add_argument("--dry-run", action="store_true")
+    # merge_group only (agent-ci-queue.yml)
+    ap.add_argument("--stage", choices=["scope", "verdict"])
+    ap.add_argument("--base")
+    ap.add_argument("--head-ref")
+    ap.add_argument("--run-id", type=int)
+    ap.add_argument("--scope-result", default="")
+    ap.add_argument("--scope-code", default="")
+    ap.add_argument("--scope-detail", default="")
+    ap.add_argument("--agent-result", default="")
     a = ap.parse_args(argv)
+    if a.event == "merge_group":
+        return _main_merge_group(a)
     api = Api(os.environ["GITHUB_TOKEN"], os.environ["GITHUB_REPOSITORY"], os.environ.get("GITHUB_API_URL", "https://api.github.com"))
     doc = load_agent_ci(a.root)
     prs = a.pr

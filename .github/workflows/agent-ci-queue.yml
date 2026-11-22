@@ -1,0 +1,152 @@
+# promotion-gate: no — a merge-queue check on a merge group's temporary commit, never a deploy gate
+#   (tools/promotion_gate.py ignores it). The master deploy gate still runs the whole Agent suite on every master push.
+#
+# agent ci queue — the Agent program's CI INSIDE a GitHub merge queue, and the `agent-ci-required` status on the
+# merge group's commit. Design: docs/merge-queue/DESIGN.md sections 3.3, 3.4 and 4 (branch docs/merge-queue-design).
+#
+# ⛔ INERT (2026-11-22). The only trigger is `merge_group`. GitHub sends that event only for a branch that has a
+#   merge queue, and no branch of this repo has one, so nothing starts this workflow. Turning a queue on is a
+#   separate decision (the design's cutover, after AUDIT's review); this file changes no existing run.
+#
+# WHAT A MERGE GROUP IS (rehearsed 2026-11-22, northstar-quarry/mq-rehearsal). For each queued pull request GitHub
+# builds a merge commit on a temporary branch gh-readonly-queue/master/pr-<N>-<sha>: first parent = master plus the
+# entries ahead, second parent = the pull request's head. GITHUB_SHA is that commit, it is the commit that lands, and
+# merge_group.base_sha..head_sha is exactly the queued pull request's own diff. A `merge_group` trigger takes no
+# `paths:` filter, so the `scope` job does the scoping.
+#
+# THREE JOBS.
+#   scope    reads the queued pull request's own diff from git objects (a fetch and `git diff --name-only`; nothing
+#            of the pull request is checked out or executed) and answers with ONE code:
+#              no-agent-paths   the diff touches no Agent path (the `paths:` list of agent-ci.yml's push trigger,
+#                               read at run time, never restated)
+#              agent-paths      it touches one
+#              self-protected   it touches a path its own run executes (agent_ci_evidence.SELF_PROTECTED and the
+#                               lists derived from the vite / vitest configs)
+#              unknown          the diff, the queue's branch name or the protected list could not be read
+#   agent    ONLY for `agent-paths`: calls agent-ci.yml, so every Agent job (server, the 12 browser shards, the 3
+#            capability regression clock legs, their join, the union rail) runs on the merge group's commit and
+#            uploads its evidence record. In a called workflow `github` is THIS workflow's context: the event is
+#            merge_group and GITHUB_SHA is the commit under test, so the checkout needs no payload and no tool ref.
+#   verdict  ALWAYS runs, and is the ONLY job that may write a status. It posts `agent-ci-required` on the merge
+#            group's commit:
+#              success   no-agent-paths (straight away: the Agent jobs are skipped), or agent-paths with every
+#                        Agent job (names read from agent-ci.yml, matrix legs expanded) = success in THIS run
+#              failure   everything else (fail closed): self-protected (ALWAYS, saying AUDIT's local evidence
+#                        decides: such a pull request lands outside the queue after AUDIT signs off), unknown, a
+#                        scope job that did not succeed, a missing / skipped / cancelled / failed Agent job, a job
+#                        list that could not be read
+#            Never pending: it is the last word on that commit. A FAILED status POST makes the job exit non-zero
+#            and leaves NO status; the queue then removes the entry at its own check timeout.
+#
+# THE DECIDING CODE IS MASTER'S. `scope` and `verdict` check out the DEFAULT BRANCH (as agent-ci-required.yml does),
+# so tools/agent_ci_required.py, tools/agent_ci_evidence.py, agent-ci.yml's path list and job names, and the configs
+# the protected list is derived from are master's copies, never the queued pull request's.
+# ⚠️ LIMIT (design 3.4, stated on purpose): THIS FILE and agent-ci.yml themselves are read from the merge group's
+#   commit, so they include the queued pull request's edits. The self-protected rule answers that (any edit under
+#   .github/workflows/ fails the verdict), but this file is what enforces it: it holds against an accident, not
+#   against a deliberate rewrite of this file. agent-ci-required.yml has the same limit on a pull request today.
+#
+# CI COST. scope + verdict run for EVERY queued pull request: two sparse default-branch checkouts, PyYAML, one
+# depth-2 fetch, one API read and one POST; no node, no tests. The Agent jobs run only for a queued pull request
+# that touches an Agent path (13% of merges, 2026-11-17..21), in place of today's re-arm runs.
+# NO concurrency block: a merge group gets ONE merge_group event, on a ref that never moves, so there is nothing to
+# supersede; and a group shared with the called workflow's own (`agent-ci-<ref>`) would deadlock the call.
+# NO `timeout-minutes` on `agent`: GitHub rejects that key on a job that calls a workflow. agent-ci.yml's jobs
+# carry their own (5 to 40 minutes).
+#
+# Logic + tests: tools/agent_ci_required.py (decide_scope, decide_queue) and tests/test_agent_ci_required.py; the
+# rails on this file and on the call into agent-ci.yml are in tests/test_ci_agent_merge_ref.py.
+name: agent ci queue
+
+on:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  scope:
+    name: agent-ci-queue scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.scope.outputs.code }}
+      pr: ${{ steps.scope.outputs.pr }}
+      detail: ${{ steps.scope.outputs.detail }}
+    steps:
+      # MASTER's copies, never the merge group's tree. app/ is here because the protected list is DERIVED from the
+      # vite / vitest configs and every file they import (tools/agent_ci_evidence.py protected_patterns); a file
+      # that is not on disk makes that list unreadable and the code `unknown`. tests/test_ci_agent_merge_ref.py
+      # holds this list to every file the decision reads.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: |
+            /tools/__init__.py
+            /tools/agent_ci_required.py
+            /tools/agent_ci_evidence.py
+            /.github/workflows/agent-ci.yml
+            /app/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # The event's values reach bash only as environment variables; the tool validates each one (40-hex commits,
+      # the queue's branch shape) before git sees it, and writes its outputs as plain single-line values.
+      - name: Scope the queued pull request's own diff
+        id: scope
+        env:
+          HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          HEAD_REF: ${{ github.event.merge_group.head_ref }}
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml==6.0.2   # pinned, as agent-ci-required.yml pins it
+          python tools/agent_ci_required.py --event merge_group --stage scope --sha="$HEAD_SHA" --base="$BASE_SHA" --head-ref="$HEAD_REF"
+
+  # No `name:` on purpose: the Actions API reports a called job as "<this job's name> / <job name>", and
+  # tools/agent_ci_required.py (QUEUE_CALL_JOB) matches the required jobs under exactly "agent / ".
+  agent:
+    needs: scope
+    if: needs.scope.outputs.code == 'agent-paths'
+    uses: ./.github/workflows/agent-ci.yml
+    with:
+      pr: ${{ needs.scope.outputs.pr }}
+
+  verdict:
+    name: agent-ci-required verdict
+    needs: [scope, agent]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      statuses: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: |
+            /tools/__init__.py
+            /tools/agent_ci_required.py
+            /tools/agent_ci_evidence.py
+            /.github/workflows/agent-ci.yml
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Decide and post agent-ci-required on the merge group's commit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+          RUN_ID: ${{ github.run_id }}
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          SCOPE_CODE: ${{ needs.scope.outputs.code }}
+          SCOPE_DETAIL: ${{ needs.scope.outputs.detail }}
+          AGENT_RESULT: ${{ needs.agent.result }}
+          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml==6.0.2   # pinned: this job holds statuses:write
+          python tools/agent_ci_required.py --event merge_group --stage verdict --sha="$HEAD_SHA" --run-id="$RUN_ID" --scope-result="$SCOPE_RESULT" --scope-code="$SCOPE_CODE" --scope-detail="$SCOPE_DETAIL" --agent-result="$AGENT_RESULT"

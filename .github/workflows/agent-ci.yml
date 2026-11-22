@@ -32,6 +32,9 @@
 # test: the evidence record carries `git rev-parse HEAD` after checkout, and verify compares that to the tool's ref.
 # Push runs are unchanged: every added step is `github.event_name != 'push'`, the checkout `ref:` is empty on push,
 # and the push concurrency group is the same string as before (rails: tests/test_ci_agent_merge_ref.py).
+# MERGE QUEUE (2026-11-22; INERT until a merge queue exists on master): agent-ci-queue.yml CALLS this file from its
+# `merge_group` run, and only for a queued PR whose own diff touches an Agent path. See `workflow_call` below. push,
+# pull_request and repository_dispatch runs are unchanged: the one added value (`inputs.pr`) is '' on all three.
 name: agent ci
 
 on:
@@ -122,12 +125,31 @@ on:
   # file as it is on the DEFAULT branch (master), so there is no ref to choose (AUDIT F2 holds by construction).
   repository_dispatch:
     types: [agent-ci-evidence]
+  # MERGE QUEUE (2026-11-22; INERT until a merge queue exists on master). .github/workflows/agent-ci-queue.yml calls
+  # this file from a `merge_group` run, and ONLY when the queued PR's own diff touches an Agent path (a merge_group
+  # trigger takes no `paths:` filter, so that workflow's `scope` job decides, with master's copy of the deciding code).
+  # This file never listens for merge_group itself: every job would run for every queued PR, and agent-ci-required.yml
+  # (it watches every completed "agent ci" run) would post its own status over the queue's verdict.
+  # In a called workflow `github` is the CALLER's context: github.event_name is 'merge_group' and GITHUB_SHA is the
+  # merge group's commit, i.e. the commit under test and the commit that lands. So: the re-arm payload step is skipped
+  # (a merge group carries no payload), every checkout takes its default ref, every job's `if:` names the event, and
+  # each job records and uploads its evidence as on a pull_request run. `pr` ONLY names the evidence artifacts: the
+  # caller reads it from the queue's branch (gh-readonly-queue/master/pr-<N>-<sha>) and validates it.
+  # Rails: tests/test_ci_agent_merge_ref.py (test_MQ_*).
+  workflow_call:
+    inputs:
+      pr:
+        description: the queued pull request's number (digits, validated by the caller); it only names the evidence artifacts
+        type: string
+        required: false
+        default: ''
 
 # P2: an evidence run (pull_request, or a re-arm dispatch) is grouped PER PR (`agent-ci-pr-<N>`), so a push anywhere else
 # (another PR, this PR's own branch push run, master) never cancels it. A new push to the SAME PR fires `synchronize`, whose
 # run joins the same group and cancels the superseded one (its tree is no longer the PR's); a re-arm of the same PR does
 # the same. A base (master) move fires no event, so it cancels nothing: re-arm. Push runs keep `agent-ci-<ref>`, the exact
-# group string they had before.
+# group string they had before. A merge-queue call takes that last branch too: `agent-ci-<the queue's temporary ref>`,
+# one group per merge group, shared with nothing (the calling workflow declares no group of its own).
 # The repository_dispatch branch uses the RAW client_payload.pr (concurrency cannot read step outputs), so a Contents:write
 # holder could cancel another PR's evidence run by sending its number: denial of service only (a cancelled run is never
 # evidence, and that holder can already push). AUDIT accepted this (P2d).
@@ -156,15 +178,16 @@ env:
 jobs:
   server:
     name: UCT Agent server tests (production dependency set)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master'
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
-      # step's outputs (never interpolated into a shell); any event but push / pull_request must carry a valid one.
+      # step's outputs (never interpolated into a shell); any event but push / pull_request / merge_group must carry a
+      # valid one (a merge group carries none: its GITHUB_SHA is the commit under test, and the default checkout takes it).
       - name: Validate the re-arm payload
         id: payload
-        if: github.event_name != 'push' && github.event_name != 'pull_request'
+        if: github.event_name != 'push' && github.event_name != 'pull_request' && github.event_name != 'merge_group'
         shell: bash
         env:
           EVIDENCE_PR: ${{ github.event.client_payload.pr }}
@@ -217,13 +240,13 @@ jobs:
         if: always() && github.event_name != 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr }}-server
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr || inputs.pr }}-server
           path: evidence/evidence.json
           if-no-files-found: error
 
   browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/12)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master'
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     # 25 -> 40 (2026-11-11): shard 4/4 hit the 25-min limit and was CANCELLED on #1101 (25m18s) and #1107 (25m12s)
     # while shards 1-3 ran 10-17 min; shard 4 ran 17-22 min on earlier runs the same day. Headroom only, not a redesign:
@@ -237,10 +260,11 @@ jobs:
         shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     steps:
       # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
-      # step's outputs (never interpolated into a shell); any event but push / pull_request must carry a valid one.
+      # step's outputs (never interpolated into a shell); any event but push / pull_request / merge_group must carry a
+      # valid one (a merge group carries none: its GITHUB_SHA is the commit under test, and the default checkout takes it).
       - name: Validate the re-arm payload
         id: payload
-        if: github.event_name != 'push' && github.event_name != 'pull_request'
+        if: github.event_name != 'push' && github.event_name != 'pull_request' && github.event_name != 'merge_group'
         shell: bash
         env:
           EVIDENCE_PR: ${{ github.event.client_payload.pr }}
@@ -313,7 +337,7 @@ jobs:
         if: always() && github.event_name != 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr }}-browser-${{ matrix.shard }}
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr || inputs.pr }}-browser-${{ matrix.shard }}
           path: evidence/evidence.json
           if-no-files-found: error
 
@@ -333,7 +357,7 @@ jobs:
   # every leg pins CAPREG_CLOCK=rth. The join job below fails unless the legs' union is the whole list, once each.
   capability-regression-clock:
     name: UCT Agent capability regression (deterministic, no model) @ ${{ matrix.clock }}
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master'
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -344,10 +368,11 @@ jobs:
       CAPREG_CLOCK: ${{ startsWith(matrix.clock, 'rth') && 'rth' || matrix.clock }}
     steps:
       # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
-      # step's outputs (never interpolated into a shell); any event but push / pull_request must carry a valid one.
+      # step's outputs (never interpolated into a shell); any event but push / pull_request / merge_group must carry a
+      # valid one (a merge group carries none: its GITHUB_SHA is the commit under test, and the default checkout takes it).
       - name: Validate the re-arm payload
         id: payload
-        if: github.event_name != 'push' && github.event_name != 'pull_request'
+        if: github.event_name != 'push' && github.event_name != 'pull_request' && github.event_name != 'merge_group'
         shell: bash
         env:
           EVIDENCE_PR: ${{ github.event.client_payload.pr }}
@@ -446,7 +471,7 @@ jobs:
         if: always() && github.event_name != 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr }}-capability-regression-clock-${{ matrix.clock }}
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr || inputs.pr }}-capability-regression-clock-${{ matrix.clock }}
           path: evidence/evidence.json
           if-no-files-found: error
 
@@ -455,15 +480,16 @@ jobs:
   capability-regression:
     name: UCT Agent capability regression (deterministic, no model)
     needs: capability-regression-clock
-    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master')
+    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master' || github.event_name == 'merge_group')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
-      # step's outputs (never interpolated into a shell); any event but push / pull_request must carry a valid one.
+      # step's outputs (never interpolated into a shell); any event but push / pull_request / merge_group must carry a
+      # valid one (a merge group carries none: its GITHUB_SHA is the commit under test, and the default checkout takes it).
       - name: Validate the re-arm payload
         id: payload
-        if: github.event_name != 'push' && github.event_name != 'pull_request'
+        if: github.event_name != 'push' && github.event_name != 'pull_request' && github.event_name != 'merge_group'
         shell: bash
         env:
           EVIDENCE_PR: ${{ github.event.client_payload.pr }}
@@ -533,22 +559,23 @@ jobs:
         if: always() && github.event_name != 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr }}-capability-regression
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr || inputs.pr }}-capability-regression
           path: evidence/evidence.json
           if-no-files-found: error
 
   union:
     name: Shards cover every Agent test file (equivalence rail)
     needs: browser
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master'
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
-      # step's outputs (never interpolated into a shell); any event but push / pull_request must carry a valid one.
+      # step's outputs (never interpolated into a shell); any event but push / pull_request / merge_group must carry a
+      # valid one (a merge group carries none: its GITHUB_SHA is the commit under test, and the default checkout takes it).
       - name: Validate the re-arm payload
         id: payload
-        if: github.event_name != 'push' && github.event_name != 'pull_request'
+        if: github.event_name != 'push' && github.event_name != 'pull_request' && github.event_name != 'merge_group'
         shell: bash
         env:
           EVIDENCE_PR: ${{ github.event.client_payload.pr }}
@@ -612,6 +639,6 @@ jobs:
         if: always() && github.event_name != 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr }}-union
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr || inputs.pr }}-union
           path: evidence/evidence.json
           if-no-files-found: error

@@ -1183,3 +1183,110 @@ def test_remote_ref_is_none_when_the_exact_ref_is_listed_twice(monkeypatch):
     ref = "refs/agent-ci-evidence/pr-7"
     _ls_remote_returning(monkeypatch, f"{'a' * 40}\t{ref}\n{'c' * 40}\t{ref}\n")
     assert ev.GhApi("o/r").remote_ref(ref) is None
+
+
+# ---- MERGE QUEUE (2026-11-22; inert until a queue exists): a merge_group record ------------------------------------------
+# agent-ci-queue.yml calls agent-ci.yml on `merge_group`. GITHUB_SHA is then the commit under test (GitHub's merge group
+# commit), and the PR is named only by the queue's branch. `verify` does not accept these records (design question 8.3).
+QUEUE_REF = "refs/heads/gh-readonly-queue/master/pr-1700-" + "9" * 40
+MG_ENV = dict(PR_ENV, GITHUB_EVENT_NAME="merge_group", GITHUB_SHA=M, GITHUB_REF=QUEUE_REF)
+MG_PAYLOAD = {"merge_group": {"head_sha": M, "base_sha": B, "head_ref": QUEUE_REF, "base_ref": "refs/heads/master"}}
+_Q = "refs/heads/gh-readonly-queue/master/pr-"
+
+
+@pytest.mark.parametrize("ref,pr", [
+    (QUEUE_REF, 1700), ("gh-readonly-queue/master/pr-1-" + "0" * 40, 1), (_Q + "9999999-" + "a" * 40, 9999999),
+    # every other shape names NO pull request
+    ("refs/heads/gh-readonly-queue/agent/int/pr-1700-" + "9" * 40, None),          # a queue on another base branch
+    ("refs/heads/gh-readonly-queue/main/pr-1700-" + "9" * 40, None),
+    (_Q + "01700-" + "9" * 40, None), (_Q + "0-" + "9" * 40, None), (_Q + "12345678-" + "9" * 40, None), (_Q + "-" + "9" * 40, None),
+    (_Q + "1700-" + "9" * 39, None), (_Q + "1700-" + "9" * 41, None), (_Q + "1700-" + "G" * 40, None), (_Q + "1700", None),
+    (QUEUE_REF + "\n", None), ("x" + QUEUE_REF, None), ("refs/tags/gh-readonly-queue/master/pr-1700-" + "9" * 40, None),
+    ("refs/heads/agent/gh-readonly-queue/master/pr-1700-" + "9" * 40, None), ("refs/pull/1700/merge", None),
+    ("refs/heads/master", None), ("", None), (None, None), (1700, None), ([QUEUE_REF], None), (QUEUE_REF.encode(), None),
+])
+def test_MQ_queue_pr_reads_only_a_master_queue_branch(ref, pr):
+    assert ev.queue_pr(ref) == pr
+
+
+def test_MQ_build_record_for_a_merge_group_run():
+    rec = ev.build_record("server", MG_ENV, MG_PAYLOAD, M, "e" * 40, [B, H])
+    assert rec["errors"] == [] and rec["pr"] == 1700 and rec["event"] == "merge_group" and rec["sha"] == M
+    assert (rec["base_sha"], rec["head_sha"], rec["tree"], rec["ref"]) == (B, H, "e" * 40, QUEUE_REF)
+    assert ev.MERGE_GROUP_EVENT == "merge_group" and ev.MERGE_GROUP_EVENT not in (ev.PR_EVENT, ev.DISPATCH_EVENT)
+
+
+def _group(**over):
+    return {"merge_group": dict(MG_PAYLOAD["merge_group"], **over)}
+
+
+@pytest.mark.parametrize("env,payload,head,why", [
+    (MG_ENV, MG_PAYLOAD, "f" * 40, "not the event's merge commit"),                              # checked out something else
+    (dict(MG_ENV, GITHUB_SHA="f" * 40), MG_PAYLOAD, M, "not the event's merge commit"),          # GITHUB_SHA is not HEAD
+    (dict(MG_ENV, GITHUB_SHA=""), MG_PAYLOAD, M, "not the event's merge commit"),
+    (MG_ENV, _group(head_sha="f" * 40), M, "merge group's head_sha"),                            # the event names another commit
+    (MG_ENV, _group(head_sha=None), M, "merge group's head_sha"),
+    (MG_ENV, _group(head_ref="refs/heads/master"), M, "names no queued PR"),
+    (MG_ENV, _group(head_ref=None), M, "names no queued PR"),
+    (MG_ENV, {"merge_group": "x"}, M, "names no queued PR"),
+    (MG_ENV, {}, M, "names no queued PR"),
+    (MG_ENV, PR_PAYLOAD, M, "names no queued PR"),                                               # a pull_request-shaped event
+    (MG_ENV, DISPATCH_PAYLOAD, M, "names no queued PR"),                                         # a re-arm payload
+])
+def test_MQ_build_record_fails_closed(env, payload, head, why):
+    rec = ev.build_record("server", env, payload, head, "e" * 40, [B, H])
+    assert any(why in e for e in rec["errors"]), (why, rec["errors"])
+    assert rec["sha"] == head                                    # the record always says what was really checked out
+
+
+def test_MQ_the_record_pr_is_the_queue_branch_and_nothing_else():
+    """No other field of a merge_group event can supply or override the PR number."""
+    event = {"number": 4242, "pull_request": {"number": 4242}, "client_payload": {"pr": 4242, "merge_sha": M},
+             "merge_group": dict(MG_PAYLOAD["merge_group"], number=4242, pull_request={"number": 4242})}
+    assert ev.build_record("server", MG_ENV, event, M, "e" * 40, [B, H])["pr"] == 1700
+    event["merge_group"]["head_ref"] = "refs/heads/master"
+    assert ev.build_record("server", MG_ENV, event, M, "e" * 40, [B, H])["pr"] is None
+
+
+def test_MQ_a_merge_group_record_never_passes_verify():
+    """Design question 8.3 is open: until AUDIT answers it, `verify` reads pull_request (/ rearm) evidence only. A
+    merge_group record under a PR run, or a merge_group run, is refused whatever the caller accepts."""
+    fx = _fx()
+    assert _code(_decide(fx)) == "PASS"                          # control: the fixture passes until it is touched
+    for rec in _recs(fx).values():
+        rec["event"] = ev.MERGE_GROUP_EVENT
+    assert _code(_decide(fx)) == "non-pr-event" and _code(_decide(fx, accept=BOTH)) == "non-pr-event"
+    fx = _fx()
+    _run(fx)["event"] = ev.MERGE_GROUP_EVENT
+    assert _code(_decide(fx)) == "no-run" and _code(_decide(fx, accept=BOTH)) == "no-run"
+    assert _code(_decide(fx, accept=(*BOTH, ev.MERGE_GROUP_EVENT))) == "non-pr-event"
+
+
+def test_MQ_record_cli_on_a_real_merge_group_commit(tmp_path, monkeypatch):
+    """`record` end to end, as a called agent-ci.yml job runs it in a merge group: HEAD is GitHub's two-parent merge."""
+    def git(*a):
+        return subprocess.run(["git", "-C", str(tmp_path), *a], check=True, capture_output=True, text=True).stdout.strip()
+    git("init", "-q", "-b", "m")
+    git("-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "--allow-empty", "-m", "start")
+    git("checkout", "-q", "-b", "h")
+    git("-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "--allow-empty", "-m", "the queued PR")
+    head = git("rev-parse", "HEAD")
+    git("checkout", "-q", "m")
+    git("-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "--allow-empty", "-m", "an entry ahead")
+    base = git("rev-parse", "HEAD")
+    git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-m", "merge group", "h")
+    merge = git("rev-parse", "HEAD")
+    ref = f"refs/heads/gh-readonly-queue/master/pr-3-{base}"
+    payload = tmp_path / "event.json"
+    payload.write_text(json.dumps({"merge_group": {"head_sha": merge, "base_sha": base, "head_ref": ref}}), encoding="utf-8")
+    for k, v in dict(MG_ENV, GITHUB_SHA=merge, GITHUB_REF=ref, GITHUB_EVENT_PATH=str(payload)).items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.chdir(tmp_path)
+    out = tmp_path / "ev" / "evidence.json"
+    assert ev.main(["record", "--job-key", "union", "--out", str(out)]) == 0
+    rec = json.loads(out.read_text(encoding="utf-8"))
+    assert (rec["event"], rec["pr"], rec["sha"], rec["parents"], rec["errors"]) == ("merge_group", 3, merge, [base, head], [])
+    # control: the same checkout under an event that names another commit exits 1 and says why
+    payload.write_text(json.dumps({"merge_group": {"head_sha": base, "base_sha": base, "head_ref": ref}}), encoding="utf-8")
+    assert ev.main(["record", "--job-key", "union", "--out", str(out)]) == 1
+    assert "merge group's head_sha" in json.loads(out.read_text(encoding="utf-8"))["errors"][0]
