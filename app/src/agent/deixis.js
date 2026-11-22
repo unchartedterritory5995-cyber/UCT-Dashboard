@@ -950,7 +950,10 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
   // (G5, AUDIT probe 18) a clause that says a chart is fine names no target: "this one …, the QQQ chart next to SPY is fine"
   const ex = leftOut(text, live, selectedChart(host))
   // (#988 follow-up) a chart described only to be LEFT OUT ("hide volume except the NVDA chart") is no description of the target
-  const said0 = describedCharts(activeText(text) || text, live)
+  // (H-RDR-1) when every clause is inert because the sentence opens with a negation ("don't touch the SPY chart and switch the AMD
+  // chart to weekly"), the description is read on the words WITHOUT their exclusions, never on the excluded chart's own words
+  const kept0 = withoutExclusions(text)
+  const said0 = describedCharts(activeText(text) || (kept0 !== text && kept0.trim() ? kept0 : text), live)
   const said = said0?.length && ex.size ? (said0.some(c => !ex.has(c.ref)) ? said0.filter(c => !ex.has(c.ref)) : null) : said0
   const sel = selectedChart(host)
   if (said) {

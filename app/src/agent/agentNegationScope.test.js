@@ -85,12 +85,16 @@ const SECONDS = [(r) => `and ${r} too`, (r) => `and ${r} as well`, (r) => `and a
 const CHANGES = ['add RSI to every chart', 'set every chart to weekly', 'hide volume on all of them', 'switch all charts to log scale']
 const PAIRS = [['the top-left one', 'c0', 'the bottom-right one', 'c3'], ['the SPY chart', 'c0', 'the NVDA chart', 'c2'], ['chart 2', 'c1', 'chart 3', 'c2'],
   ['the first chart', 'c0', 'the last chart', 'c3'], ['the top right one', 'c1', 'AMD', 'c3']]
+// (round 3, class A) the tail after a comma, a semicolon, a dash — or with NO punctuation at all ("…alone and the bottom one too")
+const JOINS = [', ', '; ', ' — ', ' ']
 const B9 = []
 let j = 0
-for (const [r1, id1, r2, id2] of PAIRS) for (const f of FIRSTS) {
+for (const [r1, id1, r2, id2] of PAIRS) for (const f of FIRSTS) for (const join of JOINS) {
   const sec = SECONDS[j % SECONDS.length], ch = CHANGES[j % CHANGES.length]
-  if (!(/either/.test(sec(r2)) && !/don't|never/.test(f(r1)))) B9.push([`${ch} ${f(r1)}, ${sec(r2)}`, [id1, id2].sort()])
   j++
+  if (/either/.test(sec(r2)) && !/don't|never/.test(f(r1))) continue
+  if (join === ' ' && !/^(?:and|plus|or)\b/.test(sec(r2))) continue      // a bare "<ref> too" needs its clause break
+  B9.push([`${ch} ${f(r1)}${join}${sec(r2)}`, [id1, id2].sort()])
 }
 describe('(b9) an additive second exclusion is excluded too — reader, every-except set, F5', () => {
   it.each(B9)('"%s" → %j', (t, refs) => {
@@ -118,8 +122,41 @@ describe('(b9) an additive second exclusion is excluded too — reader, every-ex
   })
 })
 
+// (round 3, class B) an aside too long to be blanked: the negation's scope ends at its comma before it governs anything — FAIL SAFE:
+// every chart the rest of the sentence names is UNPLACED (asked), never run, and never offered by the question
+const LONG_ASIDES = ['and I really mean this because the last time it went badly wrong', 'whatever the market does today and whatever anyone else tells you',
+  'even if it looks like the obvious thing to do right now', 'not now and not later this week either unless I say so explicitly']
+const LONG = []
+let q = 0
+for (const [ref, id] of REFS) for (const v of VERBS) {
+  const cue = CUES[q % CUES.length], aside = LONG_ASIDES[q % LONG_ASIDES.length]
+  LONG.push([`${cue}, ${aside.replace(/^and /, 'honestly ')}, ${v(ref)}`, id])
+  const [verb, ...rest] = v(ref).split(' ')
+  if (q % 2 === 0) LONG.push([`${cue} ${verb}, ${aside.replace(/^and /, 'honestly ')}, ${rest.join(' ')}`, id])
+  q++
+}
+// (round 3, class C) a courtesy / intensifier run before the cue
+const COURTESY = ['kindly', 'really', 'absolutely', 'seriously', 'definitely', 'just', 'please just', 'really really']
+const COURT = []
+let w = 0
+for (const [ref, id] of REFS) for (const v of VERBS) {
+  const c = COURTESY[w % COURTESY.length], cue = [...FORMAL, ...CUES][w % (FORMAL.length + CUES.length)]
+  COURT.push([/refrain/.test(cue) ? `${c} ${cue} ${gerund(v(ref))}` : `${c} ${cue} ${v(ref)}`, id])
+  w++
+}
+COURT.push(["I really don't want you to change the top-left one to weekly", 'c0'], ['absolutely under no circumstances should you close chart 2', 'c1'])
+describe('(round 3) long asides fail safe; courtesy runs keep the cue', () => {
+  it.each(LONG)('B · "%s" → UNPLACED, and the chart it names is never offered (%s)', (t, id) => {
+    expect(read(t)).toContain('UNPLACED')
+    expect([...excludedCharts(t, B, null).unoffered]).toContain(id)
+  })
+  it.each(COURT)('C · "%s" → %s', (t, id) => {
+    expect(read(t)).toEqual([id])
+  })
+})
+
 describe('never executed on a protected chart, in every chart-backed family (registry-enumerated)', () => {
-  const CASES = [...A3, ...A4, ...FO].map(([t, id]) => [t, [id]]).concat(B9)
+  const CASES = [...A3, ...A4, ...FO, ...LONG, ...COURT].map(([t, id]) => [t, [id]]).concat(B9)
   it('the registry yields the chart-backed families', () => { expect(FAMILIES.length).toBeGreaterThanOrEqual(40) })
   it.each(FAMILIES.map(f => [f.name, f]))('%s: no aside / serial / formal / additive form executes the op on the protected chart', (_n, f) => {
     const bad = []
@@ -140,6 +177,14 @@ describe('controls: the scope ends where the negation ends', () => {
     ["never mind the top-left one, and set the bottom-right one to weekly", [], 'c3'],
     ["don't worry about the SPY chart, make the AMD chart weekly", [], 'c3'],
     ["don't forget to make the AMD chart weekly", [], 'c3'],
+    // (round 3) a positive command after a bare "and" runs; a long harmless aside with no negation changes nothing
+    ['leave the top-left one alone and set the bottom-right one to weekly', ['c0'], 'c3'],
+    ["don't touch the SPY chart and switch the AMD chart to weekly", ['c0'], 'c3'],
+    ['skip chart 1 and also set chart 4 to weekly', ['c0'], 'c3'],
+    ['make, if it is not too much trouble and you have a spare moment right now, the AMD chart weekly', [], 'c3'],
+    ['honestly, after everything that happened in the market this week and all the noise, set chart 4 to weekly', [], 'c3'],
+    ["kindly don't worry about the SPY chart, make the AMD chart weekly", [], 'c3'],
+    ['just make the AMD chart weekly, really', [], 'c3'],
   ])('"%s" → excludes %j; a plan on %s runs', (t, refs, runs) => {
     expect(read(t)).toEqual(refs)
     const f = FAMILIES.find(x => x.name === 'chart.setTimeframe')
@@ -148,6 +193,8 @@ describe('controls: the scope ends where the negation ends', () => {
   it.each([
     ['make the top-left one weekly, and the bottom-right one too'], ['add RSI to the first chart, and the RSI too'], ["don't, if you can help it, change anything"],
     ["don't touch anything else"], ['make every chart weekly, and keep it that way too'], ['set every chart to weekly, and MSFT too'],
+    ['add RSI to every chart except volume and the 50 SMA'], ['make the top-left one weekly and the bottom-right one too'],
+    ['set every chart to weekly, not daily and not monthly either'],
   ])('"%s" → nothing excluded', (t) => {
     expect(read(t)).toEqual([])
   })

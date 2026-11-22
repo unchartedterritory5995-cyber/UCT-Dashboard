@@ -643,9 +643,12 @@ export function negChartRefs(text, charts = []) {
 // account, by no means (each optionally "should / must … you"). (a4) A SERIAL verb stays under the negation: "don't go and change
 // X", "don't go ahead and …", "don't try and / to …", "don't come and …", "don't bother to …", "don't dare …", "never ever …" — the
 // governed verb is the one after it (a new positive command is "<clause>, and <verb> …" with the negation behind it).
-const NEG_ACT_CUE = String.raw`(?:(?:i\s+)?(?:don['’]?t|dont|do\s+not)|never|no\s+need\s+to|refrain\s+from|(?:under\s+no\s+circumstances|on\s+no\s+account|by\s+no\s+means)(?:\s+(?:should|must|may|can|will|are)\s+(?:you|we|it))?)`
+// (C, AUDIT T2 r2) an optional run of courtesy / intensifier words before the cue: "kindly do not …", "absolutely under no
+// circumstances …", "I really don't want you to …" (the run is words only: it never crosses a comma)
+const NEG_COURTESY = String.raw`(?:(?:please|kindly|really|absolutely|seriously|definitely|just|simply|truly|honestly|totally|certainly|positively|strictly|actually)\s+){0,3}`
+const NEG_ACT_CUE = String.raw`${NEG_COURTESY}(?:(?:i\s+${NEG_COURTESY})?(?:don['’]?t|dont|do\s+not)|never|no\s+need\s+to|refrain\s+from|(?:under\s+no\s+circumstances|on\s+no\s+account|by\s+no\s+means)(?:\s+(?:should|must|may|can|will|are)\s+(?:you|we|it))?)`
 const NEG_SERIAL = String.raw`(?:(?:go|come)\s+(?:ahead\s+)?(?:and\s+)?|try\s+(?:and|to)\s+|bother\s+(?:to\s+)?|dare\s+(?:to\s+)?|even\s+(?:think\s+about\s+|try\s+to\s+)?|ever\s+)?`
-const NEG_ACT_RE = new RegExp(String.raw`${NEG_START}((?:please\s+)?${NEG_ACT_CUE})\s+${NEG_SERIAL}(?!(?:forget|hesitate|worry|mind|wait|be|let|need|have|know|see|think|understand|get\s+me\s+wrong)\b)([A-Za-z]+)\b([^,;:.!?—–()]{0,100})`, 'gi')
+const NEG_ACT_RE = new RegExp(String.raw`${NEG_START}(${NEG_ACT_CUE})\s+${NEG_SERIAL}(?!(?:forget|hesitate|worry|mind|wait|be|let|need|have|know|see|think|understand|get\s+me\s+wrong)\b)([A-Za-z]+)\b([^,;:.!?—–()]{0,100})`, 'gi')
 // (a3) an ASIDE set off by commas between the cue (or its verb) and what it governs — "don't, if you can help it, change the top
 // one", "never change, under any circumstances, the SPY chart" — is no clause break: blanked (position for position) before the
 // negated clause is read. An aside is short (≤ 7 words), never starts with a conjunction (", and switch …" is a new command) and
@@ -709,7 +712,28 @@ export function negActionRefs(text, charts = []) {
       }
     }
   }
+  // (B, AUDIT T2 r2) FAIL SAFE: a negation whose scope ENDS AT A COMMA before it has governed anything — the cue (or the cue and
+  // its verb) followed directly by a comma that is no short aside ("don't, <a long aside>, change the top one", "never change,
+  // <…>, the SPY chart") — cannot say what it forbids. Every chart the rest of its sentence names may be the one: UNPLACED (asked),
+  // never left to run. Not a cue whose verb is no action ("don't worry, …", "never mind, …").
+  for (const m of s.matchAll(NEG_DANGLE_RE)) {
+    const restAt = m.index + m[0].length
+    const stop = /[.!?;]/.exec(s.slice(restAt))
+    const rest = s.slice(restAt, stop ? restAt + stop.index : s.length)
+    if (!namesAChartRef(rest, syms)) continue
+    out.push({ phrase: rest.trim(), dangling: true, index: m.index, end: restAt + rest.length })
+  }
   return out
+}
+const NEG_DANGLE_RE = new RegExp(String.raw`${NEG_START}(${NEG_ACT_CUE})(?:\s+${NEG_SERIAL}(?!(?:forget|hesitate|worry|mind|wait|be|let|need|have|know|see|think|understand|get)\b)[A-Za-z]+)?\s*,`, 'gi')
+/** Does the phrase name a chart: a chart noun phrase, "chart N", a click name, a place / order word, or a board ticker? */
+function namesAChartRef(text, symsUpper = []) {
+  const s = String(text || '')
+  ACT_NP.lastIndex = 0
+  const np = ACT_NP.test(s)
+  ACT_NP.lastIndex = 0
+  return np || /\b(?:the|my)\s+(?:top|bottom|upper|lower|left|right|middle|cent(?:er|re)|first|second|third|fourth|last)\b/i.test(s)
+    || symsUpper.some(t => new RegExp(String.raw`(?:^|[^A-Za-z0-9.])\$?${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, t.length >= 3 ? 'i' : '').test(s))
 }
 // (b9, AUDIT T2) an ADDITIVE exclusion after an exclusion's own clause — "…, but leave the top-left one alone, and the bottom one
 // too", "…; skip chart 2, and chart 4 as well", "don't change the top one to weekly, or the bottom one either", "…, and also the NVDA
@@ -718,7 +742,10 @@ export function negActionRefs(text, charts = []) {
 // "make the top one weekly, and the bottom one too" (no exclusion before it) and ", and switch the bottom one to weekly" (a new
 // command) are never read. Each reference is placed like any other exclusion's object, or UNPLACED.
 const ADD_OBJ = String.raw`(?:(?:the|my|this|that)\s+[^,;:.!?—–()]{1,40}?|chart\s+(?:#\s*)?[A-Za-z0-9]{1,6}|\$?[A-Z][A-Z0-9]{0,4}(?:['’]s)?(?:\s+(?:chart|one))?|mine)`
-const ADD_RE = new RegExp(String.raw`[,;]\s*(?:(?:and|&|plus|or|nor)\s+)?(also\s+)?(${ADD_OBJ})(?:\s+(too|as\s+well|also|either))?\s*(?=[,;.!?—–]|$)`, 'g')
+// (A, AUDIT T2 r2) the tail follows a clause break ([,;—–], optionally with a conjunction) OR, with no punctuation, a bare
+// conjunction: "…leave X alone and the bottom one too", "don't touch X and also Y". A positive command after "and" ("and set Y to
+// weekly") never fits ADD_OBJ: it starts with its verb.
+const ADD_RE = new RegExp(String.raw`(?:[,;—–]\s*(?:(?:and|&|plus|or|nor)\s+)?|\s+(?:and|&|plus|or|nor)\s+)(also\s+)?(${ADD_OBJ})(?:\s+(too|as\s+well|also|either))?\s*(?=[,;.!?—–]|\s+(?:and|but|then|so)\b|$)`, 'g')
 const EXCLUSION_CLAUSE = /\b(?:leave|leaving|keep|keeping|skip|skipping|ignore|exclude|excluding|spare|hands\s+off|except|apart\s+from|other\s+than|besides|aside\s+from|but\s+not|not|never|don['’]?t|dont|do\s+not|without|refrain|no\s+circumstances|no\s+account|no\s+means|stays?|alone|untouched)\b/i
 /** The references an additive tail adds to the exclusion before it → [{ phrase, tok, shaped, index, end }]. */
 export function additiveRefs(text, charts = []) {
@@ -728,7 +755,10 @@ export function additiveRefs(text, charts = []) {
   for (const m of s.matchAll(ADD_RE)) {
     if (!m[1] && !m[3]) continue                                  // no additive marker: a list item or a new command, not this
     const prev = s.slice(0, m.index).split(/[,;.!?—–]/).filter(x => x.trim()).pop() || ''
-    if (!EXCLUSION_CLAUSE.test(prev)) continue
+    // the clause before must exclude A CHART: a cue (never "don't forget / worry / hesitate / mind / wait …") and a chart reference
+    // ("…, not daily, and the bottom one too" excludes nothing)
+    const prevCue = prev.replace(/\b(?:don['’]?t|dont|do\s+not|never)\s+(?:forget|worry|hesitate|mind|wait)\b[\s\S]*$/i, ' ')
+    if (!EXCLUSION_CLAUSE.test(prevCue) || !namesAChartRef(prevCue, syms)) continue
     const phrase = ordinalDigits(m[2].trim())
     const tokM = /^\$?([A-Z][A-Z0-9]{0,4})(?:['’]s)?(?:\s+(?:chart|one))?$/.exec(phrase) || /^(?:the|my)\s+\$?([A-Z][A-Z0-9]{0,4})\s+(?:chart|one)$/.exec(phrase)
     const tok = tokM && syms.includes(tokM[1]) ? tokM[1] : null
@@ -839,6 +869,12 @@ export function excludedCharts(text, charts = [], sel = null) {
   const forbidden = new Set()
   // (b9) …and an ADDITIVE tail after an exclusion ("…alone, and the bottom one too"): the same placement, the same fail-safe
   for (const r of [...negActionRefs(text, charts), ...additiveRefs(text, charts)]) {
+    if (r.dangling) {
+      // (B) a negation that ended at a comma before governing anything: every chart its sentence names may be the forbidden one
+      out.add(UNPLACED)
+      try { for (const c of chartsNamedBy(r.phrase, charts, sel)) unoffered.add(c) } catch { /* no names */ }
+      continue
+    }
     if (placed.includes(normPhrase(r.phrase))) continue
     const a0 = adds
     const before = new Set(out)
@@ -869,6 +905,22 @@ export function excludedCharts(text, charts = [], sel = null) {
   // "don't touch the axis", "skip to the next bar" carry none and read nothing (as before)
   const negNet = [...String(text || '').matchAll(NEG_NET_RE)].map(k => ({ 1: k[2] }))
     .filter(k => /\b(?!I\b)[A-Z][A-Z0-9]{0,4}\b|\b[A-Z][a-z]+['’]s\b/.test(k[1]) && CHARTISH_WORDS.test(k[1]))
+  // (H-RDR-1 r3) an exception keyword governing a LIST of plain references — "except the top-left one and the bottom-right one
+  // (as well)", "apart from the SPY chart and the NVDA chart", "other than chart 1 or chart 4" — places EACH item like a single
+  // exception (the single-phrase readers stop at 30 characters, and the net below defers a plain ticker list to them); an item the
+  // board cannot place is UNPLACED. Only when every item is a reference: "except volume and RSI" is no list of charts.
+  for (const k of String(text || '').matchAll(EXC_KW)) {
+    const body = k[1].replace(/\s+(?:too|as\s+well|also|either)\s*$/i, '').trim()
+    const items = body.split(/\s*(?:&|\band\b|\bor\b|\bnor\b|\bplus\b)\s*/i).map(x => ordinalDigits(x.trim().replace(/^also\s+/i, ''))).filter(Boolean)
+    if (items.length < 2) continue
+    if (!items.every(x => REF_SHAPE.test(x) || /^(?:(?:the|my)\s+)?\$?[A-Z][A-Z0-9]{0,4}(?:['’]s)?(?:\s+(?:chart|one))?$/.test(x))) continue
+    for (const x of items) {
+      const a0 = adds
+      readException({ 0: x, 1: x, index: k.index + k[0].length, input: String(text || '') })
+      if (adds === a0) out.add(UNPLACED)
+    }
+    placed.push(normPhrase(k[1]))
+  }
   for (const k of [...String(text || '').matchAll(EXC_KW), ...negNet]) {
     // (H-RDR-1) compared WITHOUT the cue a phrase starts with ("every chart but leave SPY's chart alone": EXC_KW's phrase is
     // "leave SPY's chart alone", the reader placed "SPY's chart") — a recognized exclusion is never ALSO unplaced (asked)
