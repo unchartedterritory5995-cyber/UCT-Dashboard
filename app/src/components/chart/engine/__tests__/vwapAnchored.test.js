@@ -17,6 +17,9 @@ import { parseFormula } from '../ast/parse.js'
 import { interpret, FN, VWAP_BEFORE_FIRST_ANCHOR, PER_BAR_CLOCK_CODES, CHART_CLOCK_WITHHELD, CHART_CLOCK_WHOLE } from '../ast/interpret.js'
 import { RUNNING_TOTAL_CALLS, ANCHOR_RESET_CALLS, barIndexVerdict, readsRunningTotal } from '../ast/barIndexShift.js'
 import { TABLE } from '../ast/parse.js'
+import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
+import { computeFor } from '../nativeRegistry'
+import { referenceBars, REFERENCE_SYMBOL } from '../referenceSeries.js'
 
 const N = 80
 const T0 = Date.UTC(2024, 0, 2) / 1000
@@ -225,5 +228,25 @@ describe('⭐⭐ the anchored VWAP off the listing: served from the first anchor
     const sentence = CHART_CLOCK_WITHHELD[VWAP_BEFORE_FIRST_ANCHOR]('D')
     expect(sentence).toContain('starts at the first anchor shown on the chart')
     expect(sentence).not.toMatch(/first bar that was loaded|counts from the first bar/)
+  })
+})
+
+// ─── ⭐⭐ THE BUILT-IN'S OWN SHAPE, THROUGH THE MEMBER DOOR, OFF THE LISTING ────────────────────────────────────────
+// TradingView's built-in VWAP restarts where `na(src[1])` (the listing's first bar) beside its period anchor, through
+// an `if` that reassigns the anchor. Off the listing that restart is unknown on this chart's first bar (`isfirst`,
+// `bar-index:first-bar`); carried forever under the anchored sum it blanked EVERY bar. The memory of an anchored sum
+// ends at its next reset, so only the bars before the first anchor this chart knows fired are withheld.
+describe('⭐⭐ the built-in shape off the listing: a Session VWAP on daily bars is drawn from the first known anchor', () => {
+  const SHAPE = ['//@version=6', 'indicator("v", overlay = true)', 'src = hlc3', 'isNewPeriod = timeframe.change("D")',
+    'if na(src[1])', '    isNewPeriod := true', 'plot(ta.vwap(src, isNewPeriod))'].join('\n')
+  it('every daily bar is its own session, so each value is that bar\'s hlc3, drawn on all but the first bars', () => {
+    const d = memberPaneDefinition({ source: SHAPE, id: 'u_0000vwapshape1', name: 'vwap shape' })
+    expect(d.ok, d.reason).toBe(true)
+    const bars = referenceBars().slice(-600)
+    const cols = computeFor(d.definition, bars, {}, { tf: 'D', newestBarIsForming: false, symbol: { ticker: REFERENCE_SYMBOL.ticker } })
+    const col = Array.from(cols.value)
+    const drawn = col.map((v, i) => [v, i]).filter(([v]) => Number.isFinite(v))
+    expect(drawn.length, 'the anchored VWAP was withheld on (nearly) every bar').toBeGreaterThan(bars.length * 0.95)
+    for (const [v, i] of drawn) expect(v, `bar ${i}`).toBeCloseTo((bars[i].h + bars[i].l + bars[i].c) / 3, 9)
   })
 })
