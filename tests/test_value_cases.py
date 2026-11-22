@@ -67,7 +67,7 @@ def test_the_fixture_is_whole():
         # a case may be recorded WRONG: a known defect of the door, named, never silently passed
         assert case.get("recorded_verdict", "wrong" if "defect" in case else None) in (None, "wrong"), case["id"]
         assert ("defect" in case) == (case.get("recorded_verdict") == "wrong") and len(case.get("defect") or "x" * 99) > 80, case["id"]
-    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "date-start-01", "j06", "count-on-bars-01", "table-format-01", "wall-26"]     # every one is named here, on purpose
+    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "intraday-02", "date-start-01", "j06", "count-on-bars-01", "table-format-01", "wall-26"]     # every one is named here, on purpose
 
 
 @pytest.mark.parametrize("case", HERE, ids=[c["id"] for c in HERE])
@@ -90,7 +90,9 @@ def test_every_formula_case_has_a_rule_that_covers_the_whole_market():
         assert want, case["id"]
         for what, readings in want.items():
             if what != "__outputs__":
-                assert readings and all(len(col) == market.BAR_COUNT for _name, col in readings), (case["id"], what)
+                bars = G.CHARTS[case.get("chart", "daily")]["bars"]        # the chart the case names (daily unless it says)
+                assert readings and all(len(col) == len(bars) for _name, col in readings), (case["id"], what)
+    assert len(G.CHARTS["daily"]["bars"]) == market.BAR_COUNT and {c.get("chart", "daily") for c in FORMULA} == {"daily", "intraday"}
 
 
 # ── the rule never learns from the door ──
@@ -253,7 +255,7 @@ def test_a_refusal_where_a_formula_belongs_is_not_right():
 
 # ── the calculations stand apart from the product ──
 
-@pytest.mark.parametrize("module", ["rules.py", "event_rules.py", "stat_rules.py", "market.py"])
+@pytest.mark.parametrize("module", ["rules.py", "event_rules.py", "stat_rules.py", "market.py", "intraday_rules.py"])
 def test_the_calculations_import_nothing_of_the_product(module):
     tree = ast.parse((ROOT / "tools" / "value_cases" / module).read_text(encoding="utf-8"))
     names = []
@@ -262,7 +264,8 @@ def test_the_calculations_import_nothing_of_the_product(module):
             names += [a.name for a in node.names]
         elif isinstance(node, ast.ImportFrom):
             names.append(("." * node.level) + (node.module or ""))
-    allowed = {"math", "datetime", ".market", ".event_rules", ".stat_rules"}
+    # `zoneinfo` is the standard library: the 5 minute chart's sessions open at 09:30 New York time, summer and winter
+    allowed = {"math", "datetime", "zoneinfo", ".market", ".event_rules", ".stat_rules", ".intraday_rules"}
     assert set(names) <= allowed, sorted(set(names) - allowed)
 
 

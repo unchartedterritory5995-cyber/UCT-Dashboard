@@ -19,7 +19,7 @@ import math
 from api.services import ast_interpret, call_expansions
 
 from . import rules as _rules
-from .market import OTHER, STOCK
+from .market import INTRADAY, INTRADAY_OTHER, OTHER, STOCK
 
 NAN = float('nan')
 
@@ -52,13 +52,50 @@ def trees_of(answer):
     return out, inputs
 
 
-def evaluate(tree, inputs):
-    """The formula's column on the built market, or (None, why it could not be computed)."""
+#: the charts a case may name: its bars, its timeframe, the other symbols on the same bars, and (below a day) the
+#: DAILY bars of each, which a calculation timeframe of a day is computed on
+CHARTS = {
+    'daily': {'bars': STOCK, 'tf': 'D', 'symbols': OTHER, 'frames': {}},
+    'intraday': {'bars': INTRADAY['bars'], 'tf': INTRADAY['tf'], 'symbols': {s: c['bars'] for s, c in INTRADAY_OTHER.items()},
+                 'frames': {'D': {'bars': INTRADAY['daily'], 'symbols': {s: c['daily'] for s, c in INTRADAY_OTHER.items()}}}},
+}
+
+
+def calc_timeframe_of(answer):
+    """The calculation timeframe the answer sets for the whole indicator (its last word on it), or None."""
+    calc = None
+    for op in (answer or {}).get('ops') or []:
+        if isinstance(op, dict) and op.get('op') == 'set_calculation_timeframe':
+            calc = op.get('timeframe') or None
+    return calc
+
+
+def _interpret(tree, bars, inputs, tf, symbols):
+    # the door stores the EXPANSION of a band or regression call, never the name: evaluate what is stored
+    return [_num(x) for x in ast_interpret.interpret(call_expansions.expand_calls(tree), bars, inputs, None, None, {'tf': tf, 'symbols': symbols})]
+
+
+def evaluate(tree, inputs, chart='daily', calc=None):
+    """The formula's column on a built chart, or (None, why it could not be computed).
+
+    `calc`: the calculation timeframe the answer set. On the chart's own timeframe (or none) the formula is computed
+    on the chart's bars. On a HIGHER one it is computed on that timeframe's bars and placed on the chart's bars by
+    the product's own projection (`frame_projection`): what a member's chart shows, not a rule restated here."""
+    c = CHARTS[chart]
     try:
-        # the door stores the EXPANSION of a band or regression call, never the name: evaluate what is stored
-        got = ast_interpret.interpret(call_expansions.expand_calls(tree), STOCK, inputs, None, None, {'tf': 'D', 'symbols': OTHER})
-        return [_num(x) for x in got], None
+        if calc in (None, '', c['tf']):
+            return _interpret(tree, c['bars'], inputs, c['tf'], c['symbols']), None
+        frame = c['frames'].get(calc)
+        if frame is None:
+            return None, f'a calculation timeframe of {calc!r} on the {chart} chart is not graded here'
+        from . import frame_projection
+        col = _interpret(tree, frame['bars'], inputs, calc, frame['symbols'])
+        placed = frame_projection.project([{'id': 'x', 'frameBars': frame['bars'], 'columns': {'x': [v if _ok(v) else None for v in col]},
+                                            'frame': calc, 'chartBars': c['bars'], 'chartTf': c['tf'], 'newestFinal': True}])['x']
+        return [_num(v) for v in placed['columns']['x']], None
     except Exception as exc:  # noqa: BLE001 -- a formula the interpreter refuses is a finding, not a crash
+        if type(exc).__name__ == 'LaneUnavailable':
+            raise                                               # no node here: NOT graded, never a verdict
         return None, f'{type(exc).__name__}: {str(exc)[:160]}'
 
 
@@ -77,7 +114,7 @@ def compare(got, want):
     return both, bad, (built_only, rule_only)
 
 
-def grade(case_id, answer):
+def grade(case_id, answer, chart='daily'):
     """{'verdict': 'right' | 'wrong' | 'no rule' | 'not built', 'lines': [...]}: one line per named thing."""
     built, inputs = trees_of(answer)
     if not built:
@@ -85,7 +122,8 @@ def grade(case_id, answer):
     want = _rules.rules(case_id)
     if want is None:
         return {'verdict': 'no rule', 'lines': []}
-    cols = [(name, *evaluate(tree, inputs)) for name, tree in built]
+    calc = calc_timeframe_of(answer)
+    cols = [(name, *evaluate(tree, inputs, chart, calc)) for name, tree in built]
     lines, right = [], True
     expect_n = want.pop('__outputs__', None)
     outputs = [n for n, _ in built if n.startswith('output ')]
@@ -186,7 +224,7 @@ def grade_case(case, answer=None):
     if case['lane'] == 'wall':
         result = grade_wall(case, answer)
     elif case['lane'] == 'formula':
-        result = grade(case['id'], answer)
+        result = grade(case['id'], answer, case.get('chart', 'daily'))
         if got_lane != 'formula':
             result = {'verdict': 'wrong' if got_lane == 'script' else result['verdict'], 'lines': result['lines'] + [f'answered on the {got_lane} lane, the formula lane expected']}
     else:
