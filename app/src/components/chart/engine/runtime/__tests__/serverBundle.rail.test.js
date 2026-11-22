@@ -37,6 +37,8 @@ const EXPORTS = [
   'DEFAULT_LIMITS', 'NATIVE_TFS',
   'REFERENCE_BARS_SHA256', 'REFERENCE_BAR_COUNT', 'REFERENCE_BENCHMARK_SEED', 'REFERENCE_BENCHMARK_SHA256',
   'REFERENCE_SEED', 'REFERENCE_START', 'REFERENCE_SYMBOL', 'REFERENCE_TIMEFRAME',
+  // TRACK 6, AL1 (NUMBER PENDING): the run's alert() record, read by the job adapter for '#alerts'
+  'RUNTIME_ALERTS_KEY',
   'RUNTIME_FAILED_GUARD', 'RUNTIME_FRONTEND_LANGUAGE', 'RUNTIME_FRONTEND_VERSION',
   'RUNTIME_INCREMENTAL_KEY', 'RUNTIME_IR_VERSION', 'RUNTIME_OBJECTS_KEY', 'RUNTIME_PANE_TIME_BUDGET_MS',
   'RUNTIME_TIME_BUDGET_GUARD', 'SCRIPT_ENGINE_VERSION', 'STRATEGY_RECORD_SCHEMA',
@@ -53,7 +55,7 @@ const EXPORTS = [
   // '#strategy' job and put back off after it (never the browser's build-flag reader).
   'registerStrategyBrokerGate',
   'resetRuntimeLedgers', 'resetRuntimeSessions',
-  'runtimeStrategyOf', 'runtimeVersionRefusal', 'runtimeWarmupOf', 'strategyBrokerGateOn', 'strategyRecordShapeErrors',
+  'runtimeAlertsOf', 'runtimeStrategyOf', 'runtimeVersionRefusal', 'runtimeWarmupOf', 'strategyBrokerGateOn', 'strategyRecordShapeErrors',
   // Studio R5 (backlog 44): a script's top-level names with lines, for "Inspect a bar" (runtime/topLevelNames.js).
   'topLevelNames',
 ]
