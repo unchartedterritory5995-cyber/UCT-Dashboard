@@ -218,51 +218,54 @@
       "fetch": "/api/pine/events/<the chart's own symbol> (api/routers/pine_events.py, E1)",
       "timeframes": [
         "D",
-        "W"
+        "W",
+        "M"
       ],
       "placement": "session-close-stamp",
       "queue_row": "Q-S4-E / Q-S4-D / Q-S4-S (docs/pine/capture-queue-2026-11-19-s4-data.md)",
-      "evidence": "docs/pine/evidence/2026-11-22-t4-e0-event-placement/EVIDENCE.md (E0, #2439: rules R1 and R2)",
+      "evidence": "docs/pine/evidence/2026-11-22-t4-e0-event-placement/EVIDENCE.md (E0, #2439: rules R1 and R2); W-E2 (monthly): docs/pine/evidence/2026-11-22-t4-e2-event-engine/EVIDENCE.md",
       "captured": "2026-11-20",
       "family": "earnings",
       "probe": "tools/visual_conformance/probes/vw-data-earnings.pine",
-      "witness": "vw-data-earnings-{aapl,jpm,mu,nvda,spy}-1d-2026-11-20-preopen, vw-data-earnings-{aapl,jpm}-1w-2026-11-20-preopen (s4-closed-retake-2026-11-20 batch, local; UCT probes)",
+      "witness": "vw-data-earnings-{aapl,jpm,mu,nvda,spy}-1d-2026-11-20-preopen, vw-data-earnings-{aapl,jpm}-1w-2026-11-20-preopen (s4-closed-retake-2026-11-20 batch, local; UCT probes); W-E2 1M: vw-data-earnings-{aapl,jpm}-1m-2026-11-22-preopen (t4-we2-2026-11-22 batch, local; UCT probes)",
       "fields": "earnings.actual and earnings.estimate as UCT holds each reported quarter (E1); earnings.standardized and dividends.net are refused by name",
-      "how": "TradingView's request.earnings on NASDAQ:AAPL, NYSE:JPM, NASDAQ:MU, NASDAQ:NVDA 1D and AAPL, JPM 1W (AMEX:SPY 1D: na on every bar, the ETF control): each event stamped at its date's session close; lookahead_on reads it on the first bar closing at or after that instant (the event's own bar), lookahead_off on the first bar opening after it (the next session on 1D, the next week on 1W); an event dated on a non-session day lands both reads on the next session (R1, 1,603 of 1,606 events across the three families, the 3 others that named exception). gaps_on: the value on that bar, na on every other; gaps_off: carried from it, na before the first event (R2, 0 mismatching bars). Monthly is not captured (W-E2); intraday needs a report's time of day, which UCT does not hold."
+      "how": "TradingView's request.earnings on NASDAQ:AAPL, NYSE:JPM, NASDAQ:MU, NASDAQ:NVDA 1D and AAPL, JPM 1W (AMEX:SPY 1D: na on every bar, the ETF control): each event stamped at its date's session close; lookahead_on reads it on the first bar closing at or after that instant (the event's own bar), lookahead_off on the first bar opening after it (the next session on 1D, the next week on 1W); an event dated on a non-session day lands both reads on the next session (R1, 1,603 of 1,606 events across the three families, the 3 others that named exception). gaps_on: the value on that bar, na on every other; gaps_off: carried from it, na before the first event (R2, 0 mismatching bars). Monthly (W-E2, 2026-11-22, NASDAQ:AAPL and NYSE:JPM 1M): the same R1 and R2 over each month's first and last session (lookahead_on on the event's own month, lookahead_off on the next). Intraday needs a report's time of day, which UCT does not hold."
     },
     "EVENTS:DIVIDENDS": {
       "kind": "event",
       "fetch": "/api/pine/events/<the chart's own symbol> (api/routers/pine_events.py, E1)",
       "timeframes": [
         "D",
-        "W"
+        "W",
+        "M"
       ],
       "placement": "session-close-stamp",
       "queue_row": "Q-S4-E / Q-S4-D / Q-S4-S (docs/pine/capture-queue-2026-11-19-s4-data.md)",
-      "evidence": "docs/pine/evidence/2026-11-22-t4-e0-event-placement/EVIDENCE.md (E0, #2439: rules R1 and R2)",
+      "evidence": "docs/pine/evidence/2026-11-22-t4-e0-event-placement/EVIDENCE.md (E0, #2439: rules R1 and R2); W-E2 (monthly): docs/pine/evidence/2026-11-22-t4-e2-event-engine/EVIDENCE.md",
       "captured": "2026-11-20",
       "family": "dividends",
       "probe": "tools/visual_conformance/probes/vw-data-dividends.pine",
-      "witness": "vw-data-dividends-{aapl,jpm,nvda,o,spy}-1d-2026-11-20-preopen, vw-data-dividends-aapl-1w-2026-11-20-preopen (s4-closed-retake-2026-11-20 batch, local; UCT probes)",
+      "witness": "vw-data-dividends-{aapl,jpm,nvda,o,spy}-1d-2026-11-20-preopen, vw-data-dividends-aapl-1w-2026-11-20-preopen (s4-closed-retake-2026-11-20 batch, local; UCT probes); W-E2 1M: vw-data-dividends-{aapl,jpm}-1m-2026-11-22-preopen (t4-we2-2026-11-22 batch, local; UCT probes)",
       "fields": "dividends.gross as declared (never split-adjusted), read at float32 as TradingView stores it",
-      "how": "TradingView's request.dividends on NASDAQ:AAPL, NYSE:JPM, NASDAQ:NVDA, NYSE:O, AMEX:SPY 1D and AAPL 1W: each event stamped at its date's session close; lookahead_on reads it on the first bar closing at or after that instant (the event's own bar), lookahead_off on the first bar opening after it (the next session on 1D, the next week on 1W); an event dated on a non-session day lands both reads on the next session (R1, 1,603 of 1,606 events across the three families, the 3 others that named exception). gaps_on: the value on that bar, na on every other; gaps_off: carried from it, na before the first event (R2, 0 mismatching bars). Monthly is not captured (W-E2); intraday needs a report's time of day, which UCT does not hold."
+      "how": "TradingView's request.dividends on NASDAQ:AAPL, NYSE:JPM, NASDAQ:NVDA, NYSE:O, AMEX:SPY 1D and AAPL 1W: each event stamped at its date's session close; lookahead_on reads it on the first bar closing at or after that instant (the event's own bar), lookahead_off on the first bar opening after it (the next session on 1D, the next week on 1W); an event dated on a non-session day lands both reads on the next session (R1, 1,603 of 1,606 events across the three families, the 3 others that named exception). gaps_on: the value on that bar, na on every other; gaps_off: carried from it, na before the first event (R2, 0 mismatching bars). Monthly (W-E2, 2026-11-22, NASDAQ:AAPL and NYSE:JPM 1M): the same R1 and R2 over each month's first and last session (lookahead_on on the event's own month, lookahead_off on the next). Intraday needs a report's time of day, which UCT does not hold."
     },
     "EVENTS:SPLITS": {
       "kind": "event",
       "fetch": "/api/pine/events/<the chart's own symbol> (api/routers/pine_events.py, E1)",
       "timeframes": [
         "D",
-        "W"
+        "W",
+        "M"
       ],
       "placement": "session-close-stamp",
       "queue_row": "Q-S4-E / Q-S4-D / Q-S4-S (docs/pine/capture-queue-2026-11-19-s4-data.md)",
-      "evidence": "docs/pine/evidence/2026-11-22-t4-e0-event-placement/EVIDENCE.md (E0, #2439: rules R1 and R2)",
+      "evidence": "docs/pine/evidence/2026-11-22-t4-e0-event-placement/EVIDENCE.md (E0, #2439: rules R1 and R2); W-E2 (monthly): docs/pine/evidence/2026-11-22-t4-e2-event-engine/EVIDENCE.md",
       "captured": "2026-11-20",
       "family": "splits",
       "probe": "tools/visual_conformance/probes/vw-data-splits.pine",
-      "witness": "vw-data-splits-{aapl,ge,nvda,tsla}-1d-2026-11-20-preopen, vw-data-splits-nvda-1w-2026-11-20-preopen (s4-closed-retake-2026-11-20 batch, local; UCT probes)",
+      "witness": "vw-data-splits-{aapl,ge,nvda,tsla}-1d-2026-11-20-preopen, vw-data-splits-nvda-1w-2026-11-20-preopen (s4-closed-retake-2026-11-20 batch, local; UCT probes); W-E2 1M: vw-data-splits-{aapl,jpm}-1m-2026-11-22-preopen (t4-we2-2026-11-22 batch, local; UCT probes)",
       "fields": "splits.numerator (the new shares) and splits.denominator (the old)",
-      "how": "TradingView's request.splits on NASDAQ:AAPL, NYSE:GE, NASDAQ:NVDA, NASDAQ:TSLA 1D and NVDA 1W: each event stamped at its date's session close; lookahead_on reads it on the first bar closing at or after that instant (the event's own bar), lookahead_off on the first bar opening after it (the next session on 1D, the next week on 1W); an event dated on a non-session day lands both reads on the next session (R1, 1,603 of 1,606 events across the three families, the 3 others that named exception). gaps_on: the value on that bar, na on every other; gaps_off: carried from it, na before the first event (R2, 0 mismatching bars). Monthly is not captured (W-E2); intraday needs a report's time of day, which UCT does not hold."
+      "how": "TradingView's request.splits on NASDAQ:AAPL, NYSE:GE, NASDAQ:NVDA, NASDAQ:TSLA 1D and NVDA 1W: each event stamped at its date's session close; lookahead_on reads it on the first bar closing at or after that instant (the event's own bar), lookahead_off on the first bar opening after it (the next session on 1D, the next week on 1W); an event dated on a non-session day lands both reads on the next session (R1, 1,603 of 1,606 events across the three families, the 3 others that named exception). gaps_on: the value on that bar, na on every other; gaps_off: carried from it, na before the first event (R2, 0 mismatching bars). Monthly (W-E2, 2026-11-22, NASDAQ:AAPL and NYSE:JPM 1M): the same R1 and R2 over each month's first and last session (lookahead_on on the event's own month, lookahead_off on the next). Intraday needs a report's time of day, which UCT does not hold."
     },
     "USI:ADVN.NY": {
       "kind": "breadth",

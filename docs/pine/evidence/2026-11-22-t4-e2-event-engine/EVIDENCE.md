@@ -30,7 +30,7 @@ carries it.
 |---|---|---|
 | a bar before UCT's record of the family | `knownFrom` (E1) | "Not drawn before <date>: UCT's record of <SYM>'s <family> starts there, so whether an earlier one landed on those bars is not known here." |
 | a bar an OLDER event could reach | E1's `knownFrom` is our first held event, not a coverage start: a bar is known only where every event that can land on it is dated on or after it (or where our own event lands, the newest there); under `gaps_off`, from our first event's bar on | the same sentence |
-| earnings before 2001-09-01 | `EARNINGS_WINDOW_FROM` (ruling 1 below) | "Not drawn before <date>: UCT draws <SYM>'s earnings from 2001-09-01 on, where TradingView's earnings history begins, so whether an earlier report landed on those bars, or carries into them, is not known here." |
+| earnings before 2003-01-01 | `EARNINGS_WINDOW_FROM` (ruling 1 below, moved by ruling (c) on W-E3) | "Not drawn before <date>: UCT draws <SYM>'s earnings from 2003-01-01 on, after TradingView's earnings history begins, so whether an earlier report landed on those bars, or carries into them, is not known here." |
 
 Both lanes carry the code `other-symbol:event-before-record` per bar: the host lane in each plot's per-bar channel
 (and the strip's sentence), the runtime lane on its known-from depth record (the headless lane reports those bars
@@ -45,8 +45,8 @@ ruling (1)) reads `na` from `knownFrom` to the first event, as TradingView print
 
 `earnings.standardized`, `dividends.net` (`other-symbol:event-field`); another symbol's events
 (`other-symbol:event-symbol`); a non-USD currency (`other-symbol:event-currency`); a `gaps`, `lookahead`, field or
-symbol argument not written as a constant (`other-symbol:event-argument`); a monthly chart (W-E2) or an intraday
-chart (no report time of day held) (`other-symbol:event-timeframe`); the door dark for the member: "earnings data is
+symbol argument not written as a constant (`other-symbol:event-argument`); an intraday chart (no report time of day
+held) (`other-symbol:event-timeframe`; a monthly chart is served since W-E2, below); the door dark for the member: "earnings data is
 not available on this chart yet" (`other-symbol:event-not-available`); a family UCT holds nothing of
 (`other-symbol:event-none`); the engine's internal event name written by a script (`other-symbol:event-spelling`).
 
@@ -54,8 +54,8 @@ not available on this chart yet" (`other-symbol:event-not-available`); a family 
 
 1. **The earnings window.** TradingView's first report on each witnessed symbol: AAPL 2001-07-17, JPM 2001-07-18,
    NVDA 2001-08-14, MU 2000-01-14. UCT holds 61, 61, 7 and 62 reports before 2001 (quarterly back to 1985) and two
-   each in the first half of 2001 that TradingView does not show. Earnings are drawn from 2001-09-01 on. To be
-   re-derived when the W-E3 coverage captures land (a TradingView first event after the cut is reported first).
+   each in the first half of 2001 that TradingView does not show. Earnings were drawn from 2001-09-01 on, to be
+   re-derived when the W-E3 coverage captures landed. **Moved to 2003-01-01 by ruling (c) on W-E3** (next section).
 2. **Misplaced earnings, two named vendor-record classes** (from TradingView's first report on, D charts):
    - A. 1-2 day date offsets (report day against the next or previous day; no time of day held): 6 reports
      (AAPL 2, JPM 3, MU 1).
@@ -70,6 +70,77 @@ Further named divergences (later units):
   does not list.
 - **SPY dividends:** the vendor rounds distributions to three decimals, and lacks two (2004-11-15, 2006-12-15).
 - **O dividends:** the vendor's amounts before the 2004 split are split-adjusted, where TradingView's are as declared.
+
+## W-E2: the monthly chart is served (2026-11-22)
+
+Six captures (`t4-we2-2026-11-22`, rig-clean): the three S4 probes (`vw-data-earnings`, `vw-data-dividends`,
+`vw-data-splits`) on NASDAQ:AAPL and NYSE:JPM, 1M. TradingView keys a monthly bar by its first session and places each
+event by E0's R1 and R2 unchanged, over the month's sessions: `lookahead_on` on the month whose last session closes at
+or after the event (its own month), `lookahead_off` on the first month opening after it (the next); the forming month
+carries an event already dated in it. So M is served with the same placement: `pineEvents.js::monthSessionsOf` (each
+month's first and last session by the exchange calendar), `eventTimeframeCode` 'M', and the three event witness rows'
+`timeframes` gain "M" (the gate the bind asks). Graded on production's E1 answer, both lanes (identical rows):
+
+| capture | verdict | plots |
+|---|---|---|
+| splits AAPL 1M | **MATCH** | all 8 items (473-474 bars each) |
+| dividends AAPL 1M, JPM 1M | INCONCLUSIVE | the four gross plots agree on every compared bar (172 / 275); TradingView's events before our record withheld by name; `dividends.net` refused by name |
+| earnings AAPL 1M, JPM 1M | DIVERGE | the named vendor-record classes (values), never MATCH as ruled; `earnings.standardized` refused by name |
+| splits JPM 1M | INCONCLUSIVE | UCT holds no JPM split: refused by name (`other-symbol:event-none`) |
+
+Rails: `requestEvents.test.js` monthly placement (own month / next month, with a daily-reading control) and the bind
+(M served once the row names it; the row taken back, refused by name). Mutants EV17 and EV18.
+
+## W-E3: the coverage captures, and the earnings cut moved (ruling (c), 2026-11-22)
+
+Twelve captures (`t4-we3-2026-11-22`, rig-clean): `vw-data-earnings` and `vw-data-dividends` on NYSE:KO, NASDAQ:COST,
+NYSE:TSM (an ADR), NASDAQ:META, NYSE:RDDT, NASDAQ:CASS, 1D. Our side is production's E1 answer of 2026-11-22, a held
+record (`record_event_supply.py`). The captures and the record stay local; this names derived dates and counts only.
+
+**TradingView's first report is per symbol** (its data vendor's coverage), not one date:
+
+| symbol | TradingView's first report (E01) | against the old cut 2001-09-01 |
+|---|---|---|
+| COST | 1999-12-09 | before |
+| MU, AAPL, JPM, NVDA (E0) | 2000-01-14, 2001-07-17, 2001-07-18, 2001-08-14 | before |
+| KO | 2001-10-18 | the first report after it |
+| CASS | 2002-02-01 | **after** (our late-2001 report drew where TradingView draws `na`) |
+| TSM | 2002-04-25 | **after** (two late-2001 reports the same way) |
+| META, RDDT (listed after the cut) | the listing bar (2012-05-18, 2024-03-21) | a report from before the listing, carried onto bar 0 |
+
+**Ruling (c): the cut is 2003-01-01**, after every witnessed start (the latest is TSM's, 2002-04-25). The two errors are
+not alike: withholding a report TradingView draws is honest (named, a lost MATCH chance); drawing a report TradingView
+does not is wrong. Our own record cannot set a per-symbol start: it starts earlier than TradingView on every symbol
+witnessed (KO, COST 1985; CASS 1995; TSM 1998; META 2011; RDDT 2020). Every new earnings capture re-checks the cut: a
+TradingView first report after it, on a symbol listed before it, goes to the coordinator first.
+
+**Re-graded at 2003-01-01** (both lanes give the same verdict on every row): every earnings capture stays DIVERGE by the
+named vendor-record classes (values and dates, never MATCH, as ruled). Below 2003-01-01 nothing is compared now, and
+no bar after the cut draws a report TradingView lacks because of the cut. CASS's first divergence moved from a late-2001
+report TradingView does not show (bar 854) to a 2003 value difference (bar 1076); TSM's from late 2001 (bar 1018) to a
+2003 report placed on another day (bar 1330).
+
+**A report from before the listing, on the listing bar (META, RDDT).** E2 carries the latest prior report onto bar 0
+under `gaps_on`, as TradingView does (R3): RDDT's `gaps_on` / `lookahead_on` and `gaps_off` / `lookahead_on` plots
+MATCH on all 671 bars, bar 0 included. Under `lookahead_off`, RDDT's listing-day report (dated 2024-03-21, the listing
+day) lands on bar 0 on TradingView and on bar 1 on ours: 2 bars on `gaps_on`, 1 on `gaps_off`. That is class A (no time
+of day held: TradingView stamps that report before the open), not a listing rule. META's bar 0 differs by value only
+(TradingView 0.10 / 0.12 against our 0.1182): its record holds another pre-listing report.
+
+**knownFrom per family, ours against TradingView's first event:**
+
+| symbol | dividends: ours (knownFrom) / TradingView first | |
+|---|---|---|
+| COST | 2004-05-06 / 2004-05-06 | MATCH on all four gross plots, **special dividends included** (the 2023-12-27 $15 special is a `dividends.gross` row on both sides) |
+| META | 2024-02-21 / 2024-02-21 | MATCH on all four gross plots |
+| CASS | 2004-03-03 / 1996-07-02 | every compared bar agrees; TradingView's 31 earlier events are withheld by name |
+| KO | 2003-06-11 / 1975-03-11 | earlier events withheld by name; one ex-date one day apart (TradingView 2003-09-11, ours 09-12): DIVERGE on 2 bars |
+| TSM (ADR) | 2004-06-14 / 2004-06-14 | **ADR currency: both sides USD per ADR, and TradingView's amounts are 0.79-0.80 of ours on 42 of 45 events, consistent with the 21% Taiwan withholding: TradingView's `dividends.gross` for this ADR reads after that tax** (one event 0.75; the first, 2004, 0.33). A named vendor-record divergence on every event: DIVERGE |
+| RDDT | none / none | refused by name (`other-symbol:event-none`) |
+
+Earnings `knownFrom` (ours): KO 1985-09-30, COST 1985-08-31, CASS 1995-03-31, TSM 1998-03-11, META 2011-03-31,
+RDDT 2020-12-31; every one before TradingView's first, so `knownFrom` = max(ours, the cut) = the cut for the four listed
+before it, and the bars before the listing are none for META and RDDT.
 
 ## Grade diff: the local event captures, both lanes
 
