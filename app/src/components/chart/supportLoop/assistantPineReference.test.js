@@ -454,7 +454,10 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
 
   it('⛔ the real-run context is the one the CHART builds: the same five facts, and a symbol with the same fields', () => {
     // read from StockChart.jsx (comments removed): what it hands its binder, and what `symbolMeta` holds
-    const chart = fs.readFileSync(path.join(REPO, 'app/src/components/StockChart.jsx'), 'utf8').split(CR).join('')
+    // StockChart reads its bar arrays through its render box (`__heavy.x` while rendering, `__heavy.committed.x` after a
+    // commit: chart/latestCallback.js); `unbox` reads the source as the values it names, so these facts compare values, not spellings.
+    const unbox = (t) => t.split('__heavy.committed.').join('').split('__heavy.').join('').replace(/[ \t]*\/\* eslint-disable-line react-hooks\/exhaustive-deps -- the box \(__heavy\)[^*]*\*\//g, '')
+    const chart = unbox(fs.readFileSync(path.join(REPO, 'app/src/components/StockChart.jsx'), 'utf8').split(CR).join(''))
     const code = (text) => text.split(LF).map((l) => l.split('//')[0].trim()).filter(Boolean)
     const binder = code(chart.slice(chart.indexOf('registry: engineRegistry,'), chart.indexOf('historyWindowBars:')))
     const FACTS = { sym: 'sym,', symbol: 'symbol: symbolMeta,', tf: 'tf: resolvedTf,', newestBarIsForming: 'newestBarIsForming: data?.newest_bar_is_forming ?? null,', historyFromListing: 'historyFromListing,' }

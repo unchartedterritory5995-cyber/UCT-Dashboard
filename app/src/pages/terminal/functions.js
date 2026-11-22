@@ -576,8 +576,13 @@ export const FUNCTIONS = [
   // never asks a vendor) and its name or ticker changes. None of the three is in the stock universe.
   { code: 'IPO', label: 'IPO calendar (upcoming and priced deals)', group: 'Calendar',
     market: { panel: 'IpoCalendar' } },
+  // DVD MARKET (2026-11-21): every ex-dividend date and split this week and next for every stock the site
+  // follows (GET /api/research/market-dividends, Massive's reference feed read by date range on the server).
+  // ALL is a stock (Allstate), so the view word is MARKET; bare `DVD` and `NVDA DVD` are unchanged. Both variants
+  // take the word: a panel that follows a group's stock resolves to the per-stock variant (args.js `marketView`).
   { code: 'DVD', label: 'Dividend calendar (next ex-dates and splits ahead)', group: 'Calendar',
-    ticker: { panel: 'DividendCalendar' }, market: { panel: 'DividendCalendar' } },
+    ticker: { panel: 'DividendCalendar', args: [{ kind: 'marketView', prop: 'view' }] },
+    market: { panel: 'DividendCalendar', args: [{ kind: 'marketView', prop: 'view' }] } },
   { code: 'CACT', label: 'Corporate actions (splits, dividends, name changes)', group: 'Security',
     ticker: { panel: 'CorporateActions' } },
   // AUCT (2026-11-21): the Treasury auctions coming up and the results of the recent ones
@@ -634,6 +639,35 @@ export const FUNCTIONS = [
   // `MKTH NDX` for the Nasdaq-100. MKTH is not in the site's stock universe.
   { code: 'MKTH', label: 'Market history (every correction and bear market, the rallies and their leaders)', group: 'Market',
     market: { panel: 'MarketHistory', args: [{ kind: 'mkthIndex', prop: 'index' }] } },
+  // GRPS (2026-11-21): every sector (or industry) one row, sortable by any column: the median revenue and EPS growth,
+  // margins, ROE and valuation of its stocks from their SEC filings as known that day (point in time), and its breadth
+  // from UCT's stored closes (above the 20, 50 and 200-day averages, near the 52-week high, highs minus lows), worked
+  // out once each evening (GET /api/research/group-stats, paid). GRP shows one sector's or industry's in full above
+  // its ranked stocks. `GRPS INDUSTRIES`, `GRPS VALUATION`. A new code, not a view of SCTR: SCTR ranks the 11 sector
+  // FUNDS by their price over a window. GRPS is not in the site's universe.
+  { code: 'GRPS', label: 'Every sector or industry: median growth, margins, valuation and breadth', group: 'Market',
+    market: { panel: 'GroupTable', args: [{ kind: 'groupsKind', prop: 'kind' }, { kind: 'groupsView', prop: 'view' }] } },
+  // SEG (2026-11-21): one stock's revenue by product (or business line) and by region, the newest period ranked with
+  // each segment's share and the last four side by side (GET /api/research/revenue-segments/{ticker}, read from
+  // Financial Modeling Prep on the server). `NVDA SEG REGION QUARTERLY`. SEG is not in the site's universe.
+  { code: 'SEG', label: 'Revenue by segment (product and region)', group: 'Security',
+    ticker: { panel: 'RevenueSegments', args: [{ kind: 'segView', prop: 'view' }, { kind: 'segPeriod', prop: 'period' }] } },
+  // MNA (2026-11-21): the latest announced mergers and acquisitions across the market, or (`NVDA MNA`) the deals
+  // naming one company, each with its SEC filing (GET /api/research/mergers, read from Financial Modeling Prep on
+  // the server). A dual code like DVD, and like DVD both variants take MARKET: a panel that follows a group's stock
+  // shows that stock's deals, and `MNA MARKET` (or the panel's chip) is the whole market there. MNA is not in the
+  // site's universe.
+  { code: 'MNA', label: 'Mergers and acquisitions (latest deals)', group: 'Market',
+    ticker: { panel: 'Mergers', args: [{ kind: 'marketView', prop: 'view' }] },
+    market: { panel: 'Mergers', args: [{ kind: 'marketView', prop: 'view' }] } },
+  // IDXC (2026-11-21): additions to and removals from the S&P 500, the Nasdaq 100 and the Dow 30, newest first, or
+  // (`NVDA IDXC`) one stock's own index history (GET /api/research/index-changes, read from Financial Modeling Prep on
+  // the server). `IDXC NASDAQ100`; SP500, SPX, NDX, DOW and DJIA are COT's market words, so IDXC's are S&P500,
+  // NASDAQ100 and DOW30. Both variants take MARKET (as DVD and MNA) and the index word. IDXC is not in the site's
+  // universe.
+  { code: 'IDXC', label: 'Index changes (additions and removals)', group: 'Market',
+    ticker: { panel: 'IndexChanges', args: [{ kind: 'marketView', prop: 'view' }, { kind: 'idxcIndex', prop: 'index' }] },
+    market: { panel: 'IndexChanges', args: [{ kind: 'marketView', prop: 'view' }, { kind: 'idxcIndex', prop: 'index' }] } },
   // STAT (2026-11-21): one stock's statistics, worked out by the server from the daily prices it
   // already stores (GET /api/research/stock-stats/{ticker}, held for the session): ATR, realized
   // volatility, average daily range, the 52-week range, volume; beta and correlation against SPY and
@@ -952,8 +986,8 @@ const FUNCTION_WORDS = {
   IPO: { example: 'IPO', keywords: ['ipo', 'ipos', 'ipo calendar', 'new issues', 'upcoming ipos', 'priced ipos'],
     note: 'Deals from last week to next week, day by day. Stocks listed in the last year are on LEAD IPO.' },
   DVD: { example: 'DVD', keywords: ['dividend', 'dividends', 'dividend calendar', 'ex dividend', 'ex-date', 'upcoming dividends',
-    'upcoming splits'],
-    note: 'Declared dividends and splits ahead for your stocks, or for one stock (NVDA DVD). Nothing past.' },
+    'upcoming splits', 'market dividends', 'ex dividend this week', 'splits this week'],
+    note: 'Declared dividends and splits ahead for your stocks, for one stock (NVDA DVD), or the whole market this week and next (DVD MARKET). Nothing past.' },
   CACT: { example: 'NVDA CACT', keywords: ['corporate actions', 'splits', 'stock split', 'dividend history', 'name change',
     'ticker change', 'past dividends'],
     note: 'Only what the server already holds for the stock: splits, dividends by ex-date and ticker changes.' },
@@ -985,6 +1019,20 @@ const FUNCTION_WORDS = {
   MKTH: { example: 'MKTH', keywords: ['market history', 'corrections', 'bear market', 'drawdowns', 'rallies', 'past corrections',
     'rally leaders'],
     note: 'Every decline of 10% or more on closing prices, the rally after each low and its leaders. A record, not a forecast.' },
+  // 'breadth' stays with BRD, 'sectors' with RRG and 'sector performance' with SCTR: each still finds its own first.
+  GRPS: { example: 'GRPS INDUSTRIES', keywords: ['sector fundamentals', 'industry fundamentals', 'sector breadth', 'industry breadth',
+    'sector valuation', 'sector margins', 'group fundamentals', 'sector table', 'industry table'],
+    note: "Medians of each group's stocks from their SEC filings as known that day, and its breadth from stored closes; worked out each evening." },
+  // 'revenue' stays with FA and 'geographic'/'regions' had no owner.
+  SEG: { example: 'NVDA SEG', keywords: ['revenue by segment', 'segments', 'segment revenue', 'product revenue', 'revenue by product',
+    'revenue by region', 'geographic revenue', 'business segments', 'revenue mix'],
+    note: 'As the company reports its segments, period by period. A share is of the segments listed, which may not add up to total revenue.' },
+  MNA: { example: 'MNA', keywords: ['mergers', 'acquisitions', 'mergers and acquisitions', 'm&a', 'merger', 'takeover', 'takeovers',
+    'buyout', 'acquired', 'deal filings'],
+    note: 'From SEC filings: the acquirer, the target as the filing names it, and the filing. One company: NVDA MNA. On a panel that follows a stock, MNA MARKET is the whole market.' },
+  IDXC: { example: 'IDXC', keywords: ['index changes', 'index additions', 'index removals', 'added to the s&p', 'removed from the index',
+    'index rebalance', 'sp500 changes', 'index deletions', 'index history'],
+    note: 'The provider\'s list of additions and removals with the stock replaced and the reason. One stock: NVDA IDXC. On a panel that follows a stock, IDXC MARKET is all three indexes.' },
   // STAT: "volatility" stays IVH's and VOL's, "correlation" CORR's, "drawdowns" MKTH's (each answers it first today)
   STAT: { example: 'NVDA STAT', keywords: ['stock statistics', 'statistics', 'stock stats', 'atr', 'beta', 'max drawdown',
     'up capture', 'down capture'],

@@ -388,6 +388,14 @@ def _fetch_full_series(sym: str, tf: str, info: Optional[dict] = None) -> List[D
     # never "repaired" from the index, and nothing is filled from it.
     if out and interval in INTRADAY_INTERVALS and not is_proxy:
         out, repair = repair_rth_holes(sym, tf, out)
+        # ⭐ DEEP SETTLED HISTORY (2026-11-21): FMP's settled sessions before Yahoo's first day, behind the seam
+        # check; only on a series the repair could judge (on the exchange grid).
+        if repair is not None:
+            out, deep = _merge_deep(sym, tf, out)
+            if deep is not None:
+                repair = dict(repair, deep=deep)
+                if deep.get("joined") and deep.get("sessions") and deep.get("rev"):
+                    repair["history_rev"] = max(int(repair.get("history_rev") or 0), int(deep["rev"]))
         if info is not None and repair is not None:
             info["repair"] = repair
     return out
@@ -747,7 +755,492 @@ def _repair_fields(rep: dict, out: list) -> dict:
               "history_rev": rep.get("history_rev")}
     if len(holes_all) > REPAIR_HOLES_MAX:
         fields["holes_total"] = len(holes_all)
+    deep = rep.get("deep")
+    if isinstance(deep, dict):
+        fields["deep"] = {k: deep.get(k) for k in ("src", "joined", "sessions", "from", "reason")}
+        seam = deep.get("seam")
+        if isinstance(seam, dict):
+            fields["deep"]["seam"] = {k: seam.get(k) for k in ("d", "compared", "equal", "worst_rel")}
     return fields
+
+
+# ── ⭐ DEEP SETTLED HISTORY FROM FMP (2026-11-21, coordinator ruling on Fred RS's intraday grade) ──────────────
+# ⚰️ WHY. Fred RS's RS line on SPY 5m / 30m was BLANK before about 60 days back where TradingView draws it
+# (grade fred-intra-2026-11-21: 9,203 of 20,706 5m bars, 21,275 of 23,195 30m bars): this module served Yahoo's
+# intraday index bars only, and Yahoo keeps 60 days of 5/15/30m (730 of 60m). FMP (the daily primary's vendor and
+# licensing row, owner ruling 2026-11-14: FMP primary for index data, no Massive) serves ^GSPC 5min COMPLETE regular
+# sessions at least 3 years back (measured on the web pod 2026-11-21: 78 bars a session at 45/120/400/1,100 days
+# back), and on 12 shared days agreed with Yahoo on 544 of 546 5m closes to the cent (4 scattered prints, $0.05 to
+# $2.06) and on every 30m / 60m bar but the NEWEST session's last (FMP had not settled it).
+#
+# THE SPLIT (coordinator, 2026-11-21): FMP is the source of SETTLED HISTORY; the LIVE TAIL stays Yahoo, whose tail
+# rules (D7 withhold, D8/D9 refresh in the request, the index tail never behind) are the measured ones.
+#   - ONE store per vendor symbol: FMP's 5-minute bars per settled session (`_deep_path`); 5/15/30/60 roll up from
+#     it with `_roll_into_buckets` (a bucket only when every 5-minute bar of it is present).
+#   - A session is COMPLETE when it holds every 5-minute bar the exchange calendar expects
+#     (`intraday_gap_audit.expected_rth_buckets`: 78 on a full day, 42 on a 13:00 half-day); a holiday is no session,
+#     never a missing one. A session enters only once SETTLED (`REPAIR_SETTLE_S` after its close).
+#   - BACKFILLED ONCE, newest session first, on ITS OWN background thread (`start_deep_backfill`), never on a
+#     request or warm thread, never inside the boot settle window (`bg_lane`'s rules: one item at a time after
+#     600 s; where the lane is not active, the same 600 s from this module's load), at most `DEEP_MAX_FETCHES` FMP
+#     calls a pass. Then INCREMENTAL: a pass asks only sessions that settled since (one call a day per symbol).
+#   - SERVED: Yahoo's series as before, with a CONTIGUOUS run of complete FMP sessions PREPENDED before Yahoo's first
+#     day (it stops at the first session the store lacks: never a hole). Yahoo is authoritative wherever it holds a
+#     session.
+#   - ⛔ THE SEAM: the first Yahoo session is compared bar by bar with FMP's copy of it; beyond the measured noise
+#     (`SEAM_MAX_REL`, `SEAM_MAX_DIFF_FRAC`), or when FMP lacks it, nothing is joined (Yahoo only, `deep.joined` false
+#     with the reason): a seam cliff on an RS line would be a new wrong picture.
+#   - ⛔ A REQUEST NEVER PARSES THE STORE: the prefix is built on a background refresh and cached per (symbol, tf,
+#     store version, Yahoo's first day); a request refresh that finds none serves Yahoo only.
+#   - SIZE: about 3 years of 5m is ~59,000 bars, about 4 MB of JSON per vendor symbol on disk.
+# Kill switch: INDEX_INTRADAY_DEEP_ENABLED=0 (unset = on) serves exactly what this module served before.
+DEEP_SOURCE = "fmp"
+#: Calendar days of settled history the store holds (about 3 years).
+DEEP_DAYS = 1095
+#: The UI timeframes served with deep history, and the grid each rolls to.
+DEEP_TFS = {"5": "5", "15": "15", "30": "30", "60": "60", "1h": "60"}
+#: The indices served with deep history (SPX/NDX: what relative-strength scripts read). XSP/XND/RUT/DJX/VIX: as before.
+DEEP_SERVED_SYMS = frozenset({"SPX", "NDX"})
+DEEP_SRC_INTERVAL, DEEP_SRC_STEP = "5min", 300
+#: Calendar days one FMP call covers (at most 5 sessions, 390 rows: under the ~546 rows one answer held, measured).
+DEEP_PAGE_DAYS = 6
+#: FMP calls one backfill pass may make, over all vendor symbols.
+DEEP_MAX_FETCHES = 8
+#: Seconds between two backfill passes once settled.
+DEEP_PASS_S = 120
+#: Where `bg_lane` is not active (the bars-api tier), the backfill still waits this long after the module loaded.
+DEEP_BOOT_SETTLE_S = 600.0
+#: A session FMP answered empty (older than its history) is asked again after this long.
+DEEP_NEGATIVE_TTL_S = 7 * 86400
+#: A partial session (an answer cut by the page) is asked again at the next pass, this many times, then weekly.
+DEEP_PARTIAL_RETRIES = 3
+#: A failed call is retried after this long.
+DEEP_ERROR_RETRY_S = 3600
+DEEP_FMP_TIMEOUT_S = 20
+#: THE SEAM. Measured noise (2026-11-21): 4 of 546 5m closes off by $0.05-$2.06 (worst 2.7e-4 of the level).
+SEAM_MAX_REL = 1e-3
+SEAM_MAX_DIFF_FRAC = 0.05
+#: The junction is the first Yahoo session holding at least this share of its expected bars.
+SEAM_MIN_BARS_FRAC = 0.5
+DEEP_ENABLED_ENV = "INDEX_INTRADAY_DEEP_ENABLED"
+_DEEP_T0 = time.monotonic()
+_deep_prefix: Dict[tuple, tuple] = {}
+_deep_prefix_lock = threading.Lock()
+_deep_seam_logged: Dict[tuple, Any] = {}
+_deep_locks: Dict[str, threading.Lock] = {}
+_deep_thread_started = False
+_deep_thread_guard = threading.Lock()
+
+
+def deep_enabled(environ=None) -> bool:
+    """On unless INDEX_INTRADAY_DEEP_ENABLED is 0/false/no/off (read per call)."""
+    # ⛔ The literal name: the flag ledger's rail finds a gate by reading the code (feature_flag_index.py).
+    raw = (os.environ.get("INDEX_INTRADAY_DEEP_ENABLED", "") if environ is None
+           else environ.get("INDEX_INTRADAY_DEEP_ENABLED", ""))
+    return str(raw).strip().lower() not in ("0", "false", "no", "off")
+
+
+def deep_vendor_symbols() -> List[str]:
+    return sorted({INDEX_MAP[s][0] for s in DEEP_SERVED_SYMS})
+
+
+def _deep_path(yahoo_sym: str) -> str:
+    return os.path.join(_DISK_DIR, f"{yahoo_sym.lstrip('^')}_5min.deep.json")
+
+
+def _deep_lock(path: str) -> threading.Lock:
+    with _deep_prefix_lock:
+        return _deep_locks.setdefault(path, threading.Lock())
+
+
+def _deep_sig(path: str):
+    """The store's version as the file system sees it, or None (no store)."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return (st.st_mtime_ns, st.st_size)
+
+
+def _load_deep(path: str) -> dict:
+    """The store `{"days": {iso: {"state", "asked_at", "tries", "bars"}}, "changed_at"}`; an empty one when there is
+    none or it cannot be read (a cache of vendor answers: a bad file is asked again, never served)."""
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except FileNotFoundError:
+        data = None
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[index_bars] deep store unreadable {os.path.basename(path)}: {type(e).__name__}: {e}")
+        data = None
+    if not isinstance(data, dict) or not isinstance(data.get("days"), dict):
+        return {"days": {}, "changed_at": None}
+    return data
+
+
+def _save_deep(path: str, data: dict) -> bool:
+    """⛔ ATOMIC: a temp file in the same directory, flushed to disk, then `os.replace`. A process killed mid-write
+    leaves the previous store (or none), never a truncated one."""
+    tmp = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, separators=(",", ":"))
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+        return True
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[index_bars] deep store save failed {os.path.basename(path)}: {type(e).__name__}: {e}")
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        return False
+
+
+def _is_session_day(d) -> bool:
+    from api.services import intraday_gap_audit as _gap
+    return _gap._is_session(d)
+
+
+def _deep_due(held: Optional[dict], now: float) -> bool:
+    if not held:
+        return True
+    state = held.get("state")
+    if state == "complete":
+        return False
+    try:
+        asked = float(held.get("asked_at") or 0)
+    except (TypeError, ValueError):
+        return True
+    if state == "error":
+        return now - asked >= DEEP_ERROR_RETRY_S
+    if state == "partial" and int(held.get("tries") or 0) < DEEP_PARTIAL_RETRIES:
+        return True
+    return now - asked >= DEEP_NEGATIVE_TTL_S
+
+
+def deep_step(yahoo_sym: str, now: Optional[float] = None, max_fetches: int = DEEP_MAX_FETCHES,
+              turn=None) -> dict:
+    """ONE backfill pass for a vendor symbol: ask FMP for the settled sessions the store lacks, newest first, in
+    pages of `DEEP_PAGE_DAYS` calendar days, at most `max_fetches` calls; each call inside `turn()` when given (the
+    background lane). Returns the pass's counts. NEVER call this on a request thread."""
+    import contextlib
+    import datetime as _dt
+    from api.services import fmp_client
+    now = float(now if now is not None else time.time())
+    today = _et_date(now)
+    start = today - _dt.timedelta(days=DEEP_DAYS)
+    path = _deep_path(yahoo_sym)
+    stats = {"sym": yahoo_sym, "asked": 0, "due": 0, "complete": 0, "changed": False, "stopped": None}
+    with _deep_lock(path):
+        held = _load_deep(path)
+        days = dict(held["days"])                 # entries are replaced, never edited: readers never see a half one
+        wanted, d = [], start
+        while d <= today:
+            if _is_session_day(d) and _close_ts(d) + REPAIR_SETTLE_S <= now:
+                wanted.append(d)
+            d += _dt.timedelta(days=1)
+        due = [d for d in reversed(wanted) if _deep_due(days.get(d.isoformat()), now)]
+        stats["due"] = len(due)
+        bars_changed = False
+        i = 0
+        while i < len(due) and stats["asked"] < max_fetches:
+            hi = due[i]
+            lo = hi - _dt.timedelta(days=DEEP_PAGE_DAYS - 1)
+            page = [x for x in due[i:] if x >= lo]
+            try:
+                with (turn() if turn is not None else contextlib.nullcontext()):
+                    res = fmp_client.get_index_intraday(yahoo_sym, DEEP_SRC_INTERVAL, lo.isoformat(),
+                                                        hi.isoformat(), timeout=DEEP_FMP_TIMEOUT_S)
+                if getattr(res, "degraded", None):
+                    raise RuntimeError(f"degraded answer: {res.degraded}")
+                raw = getattr(res, "value", None)
+            except fmp_client.FMPNotConfigured:
+                stats["stopped"] = "not-configured"          # no key on this process: nothing asked, nothing recorded
+                break
+            except fmp_client.FMPNotFound:
+                raw = []
+            except Exception as e:  # noqa: BLE001 - fail-soft: the history stays as it is and is asked again
+                stats["asked"] += 1
+                logger.warning(f"[index_bars] deep ask FAILED {yahoo_sym} {lo}..{hi}: {type(e).__name__}: {e}")
+                for x in page:
+                    prior = days.get(x.isoformat()) or {}
+                    days[x.isoformat()] = {"state": "error", "asked_at": now, "tries": int(prior.get("tries") or 0),
+                                           "bars": list(prior.get("bars") or [])}
+                i += len(page)
+                continue
+            stats["asked"] += 1
+            # ⛔ A PAGE FMP CUT: its rows come newest first, so a session lying wholly before the oldest row it
+            # returned was NOT REACHED by this answer. It is not recorded (it stays due, and the next pass's page
+            # starts at it); the session the cut falls inside is held as partial and asked again next pass.
+            got_ts = [t for x in page for t in _parse_fmp_intraday(raw, x)]
+            oldest = min(got_ts) if got_ts else None
+            for x in page:
+                iso = x.isoformat()
+                if oldest is not None and _close_ts(x) <= oldest:
+                    continue
+                prior = days.get(iso) or {}
+                held_bars = {int(b["t"]): b for b in prior.get("bars") or []
+                             if isinstance(b, dict) and isinstance(b.get("t"), (int, float))}
+                exp = _expected("5", x)
+                expset = set(exp)
+                merged = {t: b for t, b in {**held_bars, **_parse_fmp_intraday(raw, x)}.items() if t in expset}
+                state = ("complete" if exp and all(t in merged for t in exp)
+                         else "partial" if merged else "empty")
+                if merged != held_bars:
+                    bars_changed = True
+                days[iso] = {"state": state, "asked_at": now, "tries": int(prior.get("tries") or 0) + 1,
+                             "bars": [merged[t] for t in sorted(merged)]}
+            i += len(page)
+        if stats["asked"]:
+            out = {"days": days, "changed_at": held.get("changed_at")}
+            if bars_changed:
+                # When the held history last changed (ms), never moving backwards: the answer's `history_rev`.
+                out["changed_at"] = max(int(held.get("changed_at") or 0) + 1, int(now * 1000))
+                stats["changed"] = True
+            _save_deep(path, out)
+        stats["complete"] = sum(1 for v in days.values() if (v or {}).get("state") == "complete")
+    return stats
+
+
+def _seam_parity(rtf: str, d, deep_day: Optional[dict], yf_bars: list, divisor: float) -> dict:
+    """FMP's copy of the junction session `d` against Yahoo's, bar by bar at the served grid: `{"d", "compared",
+    "equal" (to the cent), "worst_rel", "ok", "reason"}`."""
+    seam = {"d": d.isoformat(), "compared": 0, "equal": 0, "worst_rel": None, "ok": False, "reason": None}
+    if not deep_day or deep_day.get("state") != "complete":
+        seam["reason"] = "the store does not hold the junction session"
+        return seam
+    src = {int(b["t"]): b for b in deep_day.get("bars") or [] if isinstance(b, dict)}
+    rolled = _roll_into_buckets(rtf, d, src, DEEP_SRC_STEP)
+    worst, cmp_n, eq = 0.0, 0, 0
+    for b in yf_bars:
+        f = rolled.get(int(b["t"]))
+        if f is None:
+            continue
+        yc = float(b["c"]) * divisor               # back to the index level: Yahoo's rows here are divided
+        diff = abs(float(f["c"]) - yc)
+        cmp_n += 1
+        if diff <= 0.005:
+            eq += 1
+        if yc:
+            worst = max(worst, diff / abs(yc))
+    seam.update(compared=cmp_n, equal=eq, worst_rel=round(worst, 8) if cmp_n else None)
+    if not cmp_n:
+        seam["reason"] = "no bar of the junction session in both"
+    elif worst > SEAM_MAX_REL:
+        seam["reason"] = f"a bar differs by {worst:.2e} of the level (noise <= {SEAM_MAX_REL:g})"
+    elif (cmp_n - eq) / cmp_n > SEAM_MAX_DIFF_FRAC:
+        seam["reason"] = f"{cmp_n - eq} of {cmp_n} bars differ (noise <= {SEAM_MAX_DIFF_FRAC:.0%})"
+    else:
+        seam["ok"] = True
+    return seam
+
+
+def _overlap_parity(rtf: str, days: dict, by_day: Dict[Any, list], divisor: float) -> dict:
+    """FMP against Yahoo on EVERY session both hold that has settled, the newest Yahoo session excluded (its last
+    bar may not have settled at FMP: measured 2026-11-21), to the cent at the served grid. Logged, and carried in
+    the answer's record; the JOIN is decided by the junction alone (`_seam_parity`)."""
+    out = {"sessions": 0, "compared": 0, "equal": 0, "worst_rel": None}
+    if not by_day:
+        return out
+    newest = max(by_day)
+    now = _now()
+    worst = 0.0
+    for d in sorted(by_day):
+        if d == newest or _close_ts(d) + REPAIR_SETTLE_S > now:
+            continue
+        e = days.get(d.isoformat())
+        if not e or e.get("state") != "complete":
+            continue
+        rolled = _roll_into_buckets(rtf, d, {int(b["t"]): b for b in e.get("bars") or [] if isinstance(b, dict)},
+                                    DEEP_SRC_STEP)
+        n0 = out["compared"]
+        for b in by_day[d]:
+            f = rolled.get(int(b["t"]))
+            if f is None:
+                continue
+            yc = float(b["c"]) * divisor
+            diff = abs(float(f["c"]) - yc)
+            out["compared"] += 1
+            out["equal"] += 1 if diff <= 0.005 else 0
+            if yc:
+                worst = max(worst, diff / abs(yc))
+        if out["compared"] > n0:
+            out["sessions"] += 1
+    out["worst_rel"] = round(worst, 8) if out["compared"] else None
+    return out
+
+
+def _build_deep_prefix(sym: str, rtf: str, data: dict, first_day, divisor: float) -> tuple:
+    """The contiguous run of complete settled sessions before `first_day`, rolled to `rtf` and divided: (bars, the
+    number of sessions, the oldest session's ISO date or None)."""
+    import datetime as _dt
+    start = _et_date(_now()) - _dt.timedelta(days=DEEP_DAYS)
+    days = data.get("days") or {}
+    run: List[list] = []
+    oldest = None
+    d = first_day - _dt.timedelta(days=1)
+    while d >= start:
+        if not _is_session_day(d):                 # a holiday or weekend is no session, never a missing one
+            d -= _dt.timedelta(days=1)
+            continue
+        e = days.get(d.isoformat())
+        if not e or e.get("state") != "complete":
+            break                                  # never a hole: the run stops at the first session not held
+        src = {int(b["t"]): b for b in e.get("bars") or [] if isinstance(b, dict)}
+        rolled = _roll_into_buckets(rtf, d, src, DEEP_SRC_STEP)
+        exp = _expected(rtf, d)
+        if not exp or any(t not in rolled for t in exp):
+            break
+        run.append([{"t": t, "o": rolled[t]["o"] / divisor, "h": rolled[t]["h"] / divisor,
+                     "l": rolled[t]["l"] / divisor, "c": rolled[t]["c"] / divisor, "v": int(rolled[t]["v"])}
+                    for t in exp])
+        oldest = d.isoformat()
+        d -= _dt.timedelta(days=1)
+    return [b for day in reversed(run) for b in day], len(run), oldest
+
+
+def _merge_deep(sym: str, tf: str, out: list) -> tuple:
+    """(series, record): Yahoo's intraday `out` with the store's contiguous settled history before its first day,
+    behind the seam check; the record is None when deep history does not apply (another tf or index, switched off,
+    nothing stored). ⛔ On a request thread the store is never parsed: a prefix not already built is skipped."""
+    rtf = DEEP_TFS.get(tf)
+    if rtf is None or sym not in DEEP_SERVED_SYMS or not out or not deep_enabled():
+        return out, None
+    yahoo_sym, divisor = INDEX_MAP[sym]
+    path = _deep_path(yahoo_sym)
+    sig = _deep_sig(path)
+    if sig is None:
+        return out, None
+    rows = sorted(out, key=lambda b: b["t"])
+    by_day: Dict[Any, list] = {}
+    for b in rows:
+        by_day.setdefault(_et_date(b["t"]), []).append(b)
+    first_day = min(by_day)
+    junction = None
+    for d in sorted(by_day):
+        exp = _expected(rtf, d)
+        if exp and len(by_day[d]) >= SEAM_MIN_BARS_FRAC * len(exp):
+            junction = d
+            break
+    key = (sym, tf)
+    with _deep_prefix_lock:
+        hit = _deep_prefix.get(key)
+    if hit and hit[0] == (sig, first_day, junction):
+        prefix, rec = hit[1], hit[2]
+    elif not _vendor_repair_allowed():
+        return out, {"src": DEEP_SOURCE, "joined": False, "sessions": 0, "from": None,
+                     "reason": "the prefix is built off the request", "pending": True}
+    else:
+        data = _load_deep(path)
+        if junction is None:
+            seam = {"d": None, "compared": 0, "equal": 0, "worst_rel": None, "ok": False,
+                    "reason": "no Yahoo session to join at"}
+        else:
+            seam = _seam_parity(rtf, junction, (data.get("days") or {}).get(junction.isoformat()),
+                                by_day[junction], divisor)
+        overlap = _overlap_parity(rtf, data.get("days") or {}, by_day, divisor)
+        log_key = (sym, tf, seam.get("d"), data.get("changed_at"))
+        if _deep_seam_logged.get(key) != log_key:
+            _deep_seam_logged[key] = log_key
+            (logger.info if seam["ok"] else logger.warning)(
+                f"[index_bars] deep seam {sym} {tf} at {seam.get('d')}: {seam['equal']} of {seam['compared']} bars "
+                f"equal to the cent, worst {seam['worst_rel']}; {'JOINED' if seam['ok'] else 'NOT JOINED: ' + str(seam['reason'])}"
+                f"; overlap {overlap['sessions']} settled session(s): {overlap['equal']} of {overlap['compared']} equal, "
+                f"worst {overlap['worst_rel']}")
+        if seam["ok"]:
+            prefix, n, oldest = _build_deep_prefix(sym, rtf, data, first_day, divisor)
+            rec = {"src": DEEP_SOURCE, "joined": True, "sessions": n, "from": oldest, "reason": None,
+                   "seam": seam, "overlap": overlap, "rev": data.get("changed_at")}
+        else:
+            prefix = []
+            rec = {"src": DEEP_SOURCE, "joined": False, "sessions": 0, "from": None, "reason": seam["reason"],
+                   "seam": seam, "overlap": overlap, "rev": None}
+        with _deep_prefix_lock:
+            _deep_prefix[key] = ((sig, first_day, junction), prefix, rec)
+    if not prefix:
+        return out, dict(rec)
+    return prefix + rows, dict(rec)
+
+
+def _deep_settle_wait() -> None:
+    """Block the backfill thread until the boot has settled: `bg_lane`'s window where the lane is active (web),
+    else `DEEP_BOOT_SETTLE_S` after this module loaded (the bars-api tier)."""
+    try:
+        from api.services import bg_lane
+        if bg_lane.enabled():
+            bg_lane.wait_settled("index-deep-backfill")
+            return
+    except Exception:  # noqa: BLE001 - the local window below still holds
+        pass
+    while True:
+        rem = DEEP_BOOT_SETTLE_S - (time.monotonic() - _DEEP_T0)
+        if rem <= 0:
+            return
+        time.sleep(min(rem, 30))
+
+
+def _deep_turn():
+    """One item of lane work (one FMP call): `bg_lane.turn` where the lane is active, else a plain context."""
+    import contextlib
+    try:
+        from api.services import bg_lane
+        if bg_lane.enabled():
+            return bg_lane.turn("index-deep-backfill")
+    except Exception:  # noqa: BLE001
+        pass
+    return contextlib.nullcontext()
+
+
+def deep_backfill_pass(now: Optional[float] = None) -> List[dict]:
+    """One pass over every vendor symbol, sharing `DEEP_MAX_FETCHES` calls; then the series that changed are
+    refreshed (their prefix is rebuilt off the request)."""
+    budget = DEEP_MAX_FETCHES
+    passes = []
+    for ysym in deep_vendor_symbols():
+        if budget <= 0:
+            break
+        st = deep_step(ysym, now=now, max_fetches=budget, turn=_deep_turn)
+        budget -= st["asked"]
+        passes.append(st)
+    # A served series whose prefix was not built for the store as it stands (the store changed, or this process
+    # never built it: after a restart a tf refreshed only by member reads would otherwise wait for the next change)
+    # is refreshed in the background, where the prefix is built. Once per store version per series.
+    for sym in sorted(DEEP_SERVED_SYMS):
+        sig = _deep_sig(_deep_path(INDEX_MAP[sym][0]))
+        if sig is None:
+            continue
+        for tf in ("5", "15", "30", "60"):
+            with _deep_prefix_lock:
+                hit = _deep_prefix.get((sym, tf))
+            if not hit or hit[0][0] != sig:
+                _kick_bg_refresh(sym, tf)
+    if any(p["asked"] for p in passes):
+        logger.info(f"[index_bars] deep pass: {passes}")
+    return passes
+
+
+def start_deep_backfill() -> None:
+    """Start the backfill thread once per process (both pod types that serve this module call it through
+    `start_index_warm`). It waits for the boot to settle, then runs a pass every `DEEP_PASS_S`."""
+    global _deep_thread_started
+    with _deep_thread_guard:
+        if _deep_thread_started:
+            return
+        _deep_thread_started = True
+
+    def _loop():
+        _deep_settle_wait()
+        while True:
+            try:
+                if deep_enabled():
+                    deep_backfill_pass()
+            except Exception:  # noqa: BLE001
+                logger.exception("[index_bars] deep backfill pass error")
+            time.sleep(DEEP_PASS_S)
+    threading.Thread(target=_loop, name="index-deep-backfill", daemon=True).start()
 
 
 # ── Disk snapshot (cross-restart warmth) ─────────────────────────────────────
@@ -1410,4 +1903,6 @@ def start_index_warm(interval_seconds: int = 300, tfs=None) -> None:
             except Exception:
                 logger.exception("[index_bars] warm loop error")
             time.sleep(interval_seconds)
+    # The deep settled history's backfill (FMP), on its OWN thread, after the boot settles (never this loop).
+    start_deep_backfill()
     threading.Thread(target=_loop, name="index-bars-warm", daemon=True).start()

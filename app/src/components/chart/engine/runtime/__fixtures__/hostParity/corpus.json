@@ -3,7 +3,7 @@
  "reportOnly": {
   "reason": "V8 Math.sin/Math.cos differ by 1 ulp between V8 13.6 (Node 24) and V8 14.5 (Chrome 145); measured 2026-11-04, see docs/pine/evidence/2026-11-04-w5-t4/EVIDENCE.md",
   "cases": [
-   "transcendental@calcbars",
+   "transcendental@calcwindow",
    "transcendental@forming",
    "transcendental@listing"
   ]
@@ -77,7 +77,7 @@
     }
    }
   },
-  "calcbars": {
+  "calcwindow": {
    "tf": "D",
    "n": 3000,
    "start": "2012-03-01",
@@ -219,7 +219,7 @@
    "barSets": [
     "listing",
     "forming",
-    "calcbars"
+    "calcwindow"
    ],
    "note": "ta.supertrend under the warm-up curtain costs > 1 s (the pane budget) on 5,000+ bars"
   },
@@ -337,9 +337,10 @@
    "file": "corpus/h_varip_window.pine",
    "hostile": true,
    "barSets": [
-    "listing"
+    "calcwindow"
    ],
-   "expectGuard": "runtime:varip"
+   "expectGuard": "runtime:varip",
+   "note": "design 4: `varip` on a sliding window. On the calcwindow set (its calc_bars_count written and stamped by the harness, as the member door stamps it): refused with SLIDING_VARIP_WHY on both hosts. It sat on `listing` with its own calc_bars_count=200 in the source, unstamped, so from engine 59 it ran unwindowed and the hosts disagreed (no ledger on Node, a session ledger in the browser)"
   },
   {
    "name": "h_deep_chain",

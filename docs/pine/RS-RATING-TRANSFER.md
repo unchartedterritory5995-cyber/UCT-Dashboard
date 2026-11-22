@@ -816,19 +816,52 @@ production engine 90 (2026-11-20 18:42Z, smoke@, RDDT, the e90 live sweep):
 - the "RS Rating" text was drawn on each step, including 5m;
 - a 5m runtime reply served 8,110 values with both drawings (`live=2`).
 
-## Status, 2026-11-20 (what is left)
+## Status, 2026-11-21 (what is left)
 
-- **e91** (train running, both PRs green, mutants posted):
-  - #2198: an intraday chart whose own daily rows begin after its first session was refused whole as a "hole". It is
-    now DEPTH, and the rows are asked to the chart's span. Measured on production e88/e90: RDDT 5m replies refusing
-    "`this symbol's daily bars` has no bar on …".
-  - #2200: SPX's newest bars not yet arrived CUT the run instead of waiting it whole. Values are drawn up to SPX's newest
-    bar; the drawings wait by name.
-  - After e91 is served: the RDDT 5m sweep, under `tools/live_verdict.py`, and an in-session check of the cut.
+- **e91 is served and its live sweep PASSES** (#2267: #2198 own daily rows' depth and span, #2200 the request tail cut).
+  - The sweep: Fred RS on RDDT across 1M / 1W / 1D / 1h / 30m / 5m, smoke@, after the close on 2026-11-20 (02:38Z
+    2026-11-21).
+  - `tools/live_verdict.py` read PASS: 13 of 13 steps had the Fred RS legend (5m 42.45, 1h 42.45, 1D 39.95, label 18).
+    There were 19 runtime worker replies, and none refused with "`this symbol's daily bars` has no bar on …" or the SPX
+    hole sentence.
+  - The 1h runtime run took 1,137 ms in the worker for 10,374 bars. The PENDING replies seen were the intended "another
+    symbol's bars are still loading" wait, each followed by a drawn reply.
+  - Left: the in-session check of #2200's cut (SPX's newest 5m bars not yet arrived), in regular hours.
+- **Speed: the 5m switch freeze is gone.**
+  - Before: 21.9 s of main-thread long tasks with Fred RS against 1.6 s without (CDP trace, 2026-11-19). 16.1 s of it was
+    the NA.SKIP backward gather.
+  - The fixes: #2095 (one-pass rolling window), #2133 (a script's values computed off the main thread on a switch) and
+    #2172 (the switch keeps values and indicator drawing out of the long tasks).
+  - Measured on #2172's own production build, source-mapped (the #2133 rig: a sandboxed local backend, the member door,
+    a real click on 5m):
+
+    | 1D -> 5m switch | long tasks | total | worst |
+    |---|---|---|---|
+    | with Fred RS | 4 | 403 ms | 167 ms |
+    | without Fred RS | 3 | 284 ms | 138 ms |
+
+    Fred RS's own values cost 15.7 ms on the main thread; the rest of its extra is drawing one more pane.
+  - Confirmed on PRODUCTION (served `c7f99ed2c3`, 2026-11-21 21:42Z, smoke@, the same RDDT 1D -> 5m switch, CDP trace):
+
+    | production 1D -> 5m | long tasks | total | worst |
+    |---|---|---|---|
+    | with Fred RS | 5 | 398 ms | 137 ms |
+    | without Fred RS | 2 | 155 ms | 103 ms |
+
+    Fred RS adds about 0.24 s to the switch, against 21.9 s before. Its legend was drawn after the switch (42.45);
+    the 2026-11-20 trace that read it blank was taken before #2172 was served.
+  - With the smooth path OFF (`--depth full`, the 28k-row path) the switch is still 695 ms with Fred RS against 287 ms
+    without. No member takes that path: `INTRADAY_SMOOTH_SWITCH_PCT = 100` (`StockChart.jsx`) puts every browser on
+    the smooth path. Only a manual `uct.intradaySmooth.enabled = '0'` in localStorage turns it off.
+- **Grades still to run** (queued on the heavy lock 2026-11-21; their captures were taken that day):
+  - Q-FRED-INTRA: 14 intraday captures, runtime-on lane.
+  - Q-RS-W3: weekly NVDA and RDDT re-taken, with the SPX supply held after the close.
+  - ADT, AZTA and BGIN grade once #2129's industry probes are on master. Until then their supply records have no
+    committed industry to cite.
 - **The index tail** (#2195, live 2026-11-20): SPX 5m is never behind and never goes back (signed-in probe
   13:35-13:41 ET). SPX 1m missed two boundaries (13:36, 13:37 ET); the bars investigator is fixing that case.
 - **SPY's bad lows** (2005-10-05, 2006-10-05): the owner confirmed D1-D6 on 2026-11-20 (coordinator's record). One private correction ledger,
-  applied at serve time and reversible. Its read-only dry run is in review before anything is written.
+  applied at serve time and reversible. Its applier for served D/W/M bars merged dark (#2256).
 
 ## Owner rulings
 

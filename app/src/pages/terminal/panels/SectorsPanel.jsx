@@ -189,7 +189,9 @@ export default function SectorsPanel({ period: periodProp = null }) {
             {SECTOR_PERIODS['3M'].sessions} trading days. The server recomputes the ranking
             about every 15 minutes. Each bar is sized against the biggest move on the board, and a sign (+/−) marks every
             return, so color is never the only signal. Click a sector to open its stocks, ranked. Click a fund to load it
-            into the linked panels; type a row number to do the same.
+            into the linked panels; type a row number to do the same. Each sector&apos;s own stocks measured (median growth,
+            margins, valuation, breadth) are in{' '}
+            <PanelCommand cmd="GRPS" label="Open every sector's fundamentals and breadth">GRPS</PanelCommand>.
             {read.receivedAt ? ` Read at ${formatTimeEt(read.receivedAt, { zoneSuffix: 'ET', absent: '' })}.` : ''}
           </p>
         </>

@@ -5,13 +5,27 @@ For: Patrick, Manrav (Ravi), Bracco. Public since 2026-11-08. Not open source: s
 ## What changed, and what did not
 
 - **Anyone on the internet can READ this repo**: code, full history, PRs, commit messages, Actions logs.
-- **Only our account can WRITE.** Nobody outside can push, merge, deploy or touch the site through the
+- **Only the three of us can WRITE.** Nobody outside can push, merge, deploy or touch the site through the
   repo. Deploys still go master -> `master deploy gate` -> `production` -> Railway.
 - **Why:** private repos bill every Actions minute and get smaller runners. Public = free CI on bigger
   runners while we build with 0 users.
 - **Only this repo is public.** tsdr-ledger, uct-brain, uct-agent-training-data, uct-intelligence(-bot),
   morning-wire, uct-clips, uct-growth, uct-sunday-scan, tx-recap, uct-extras, uct-large-files,
   UCT-Dashboard-evidence and uct-claude-memory stay PRIVATE.
+
+## Where the repo lives, and one login each (since 2026-11-21)
+
+- The repo is `github.com/northstar-quarry/UCT-Dashboard`, inside a GitHub organization. The old address
+  still forwards, but point every copy at the new one:
+  `git remote set-url origin https://github.com/northstar-quarry/UCT-Dashboard.git`
+- **Each of us signs in with our OWN GitHub account, with two-factor login turned on.** The shared login is
+  no longer for work on this repo. Commits, PRs and merges now show who made them.
+- Patrick owns the organization. Bracco is Admin on this repo. Ravi has Write.
+- Only the organization owner can delete the repo, move it, or change who can see it.
+- The PRIVATE repos listed above did not move. They stay on the original account; access is by invite to
+  your own account.
+- Railway deploys from the new address. A service that has not been reconnected yet keeps running but gets
+  no new code. Before deploying one, read `docs/runbooks/railway-repo-reconnect.md`.
 
 ## Never commit (it is public within minutes, and deleting it later does not help)
 
