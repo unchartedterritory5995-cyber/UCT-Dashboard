@@ -410,6 +410,162 @@ def rule_cap09():
     return [('the average volume of the last 10 up days', col)]
 
 
+# ── a company's own figures, from its filings (2026-11-22: rules first; pending until the engine serves them) ──
+# A script reads a figure with `request.financial(syminfo.tickerid, "<ID>", "<FQ|TTM>")`. UCT answers from company
+# filings, each figure dated by the day its filing became public. The built company below is the same on every run.
+
+#: the session of the first report, and the sessions from each report to the next, year after year: three quarterly
+#: reports and a later annual one, as companies file (so a quarter is NEVER a fixed number of bars)
+FIRST_FILING = 40
+FILING_GAPS = (58, 61, 60, 73)
+#: `na` on a bar where a figure is known but did not step (a read with gaps on); never equal to a value
+NA = float('nan')
+
+
+def _iso_plus(day, days):
+    return (_dt.date.fromisoformat(day) + _dt.timedelta(days=days)).isoformat()
+
+
+def filings_doc(days):
+    """The built company's figures on these session days (ISO strings), in the shape the financial door serves:
+    {fields: {'<ID>:<PERIOD>': {state, knownFrom, points: [{knownFrom, v, staleFrom}]}}}. Four reports a year,
+    unevenly spaced. On purpose: one quarter's revenue EQUALS the same quarter a year before (growth exactly 0) and one
+    equals the quarter before; one quarter loses money; the share count is first reported two reports late; the
+    cash-flow figure is UNKNOWN for one report (a gap); one report is dated on a Saturday (it lands on Monday)."""
+    state = {'s': 20261122}
+
+    def rnd():
+        state['s'] = (state['s'] * 1664525 + 1013904223) % 4294967296
+        return state['s'] / 4294967296
+    at = [FIRST_FILING]
+    while at[-1] + FILING_GAPS[(len(at) - 1) % 4] + 6 < len(days):
+        at.append(at[-1] + FILING_GAPS[(len(at) - 1) % 4] + int(rnd() * 13) - 6)     # up to six sessions early or late
+    known = [days[i] for i in at]
+    monday = next(k for k in range(8, len(at)) if _dt.date.fromisoformat(known[k]).weekday() == 0)
+    known[monday] = _iso_plus(known[monday], -2)                    # public on the Saturday: read from Monday's bar
+    rev, eps, equity, shares, fcf = [], [], [], [], []
+    base, book, count = 8.0e8, 2.4e9, 2.5e8
+    for k in range(len(at)):
+        base *= 1.02 + (rnd() - 0.35) * 0.05
+        r = round(base * (1.00, 0.92, 0.97, 1.18)[k % 4], -5)
+        margin = -0.04 if k == 7 else 0.08 + rnd() * 0.07
+        count = round(count * (1 - 0.004 * rnd()), -4)
+        book = round(book + r * margin * 0.6, -5)
+        rev.append(r)
+        eps.append(round(r * margin / count, 2))
+        equity.append(book)
+        shares.append(count)
+        fcf.append(round(r * (margin + 0.02 + (rnd() - 0.5) * 0.03), -5))
+    rev[9] = rev[5]                                                 # the same quarter a year before, to the dollar
+    rev[12] = rev[11]                                               # the quarter before, to the dollar
+
+    def field(values, first=0):
+        pts = [{'knownFrom': known[k], 'v': values[k], 'staleFrom': None if values[k] is None else _iso_plus(known[k], 500)}
+               for k in range(first, len(at))]
+        return {'state': 'ok', 'knownFrom': pts[0]['knownFrom'], 'points': pts}
+
+    def trailing(q):
+        return [None if k < 3 else round(sum(q[k - 3:k + 1]), 2) for k in range(len(q))]
+    fcf_ttm = trailing(fcf)
+    fcf_ttm[6] = None                                               # the newest filing did not yield it: UNKNOWN
+    return {'schema': 'uct.pine-financial/v1', 'family': 'financial', 'familyState': 'ok', 'state': 'ready', 'refreshedAt': 1,
+            'fields': {'TOTAL_REVENUE:FQ': field(rev), 'TOTAL_REVENUE:TTM': field(trailing(rev), 3),
+                       'EARNINGS_PER_SHARE_DILUTED:FQ': field(eps), 'EARNINGS_PER_SHARE_DILUTED:TTM': field(trailing(eps), 3),
+                       'TOTAL_EQUITY:FQ': field(equity), 'TOTAL_SHARES_OUTSTANDING:FQ': field(shares, 2),
+                       'FREE_CASH_FLOW:TTM': field(fcf_ttm, 3)}}
+
+
+def placed(field, days, gaps=False):
+    """One figure on daily bars, bar by bar: the value, `None` where UCT holds no current figure (WITHHELD), or `NA`
+    (a read with gaps on, on a bar where the figure did not step).
+      * a figure is read from the first bar on or after the day its filing became public (never its period end);
+      * carried until the next one (gaps off); with gaps on it is read on its own bar only;
+      * a bar is withheld when no figure is public yet, when the newest filing left the figure unknown, or when the
+        figure in force has gone stale; and every bar BEFORE the last such bar is withheld too (an older value is
+        never carried across a hole)."""
+    pts, n = field['points'], len(days)
+    landed = [-1] * n
+    for k, p in enumerate(pts):
+        i = next((j for j in range(n) if days[j] >= p['knownFrom']), n)
+        if i < n:
+            landed[i] = k
+    vals, cur, last = [None] * n, -1, -1
+    for i in range(n):
+        stepped = landed[i] >= 0 and (i > 0 or pts[landed[i]]['knownFrom'] >= days[0])
+        if landed[i] >= 0:
+            cur = landed[i]
+        p = pts[cur] if cur >= 0 else None
+        has = p is not None and p['v'] is not None
+        if p is None or ((stepped and not has) if gaps else not has) or (not gaps and p.get('staleFrom') and days[i] >= p['staleFrom']):
+            last = i
+            continue
+        vals[i] = NA if (gaps and not stepped) else p['v']
+    for i in range(last + 1):
+        vals[i] = None
+    return vals
+
+
+def _reports(field):
+    """The figure report by report: [(the bar it is read from, its value)], the unknown ones left out."""
+    out = []
+    for p in field['points']:
+        i = next((j for j in range(N) if T[j] >= p['knownFrom']), None)
+        if i is not None and p['v'] is not None:
+            out.append((i, p['v']))
+    return out
+
+
+def _fig(key):
+    return filings_doc(T)['fields'][key]
+
+
+def _growth(back, percent):
+    """Revenue of the newest quarter against the quarter `back` REPORTS before it, on every bar from that report on;
+    nothing before there are that many reports. Reports are counted, never bars."""
+    reports, col, k = _reports(_fig('TOTAL_REVENUE:FQ')), [None] * N, -1
+    for i in range(N):
+        while k + 1 < len(reports) and reports[k + 1][0] <= i:
+            k += 1
+        if k >= back and reports[k - back][1]:
+            col[i] = (reports[k][1] / reports[k - back][1] - 1) * (100.0 if percent else 1.0)
+    return col
+
+
+def rule_fund01():
+    """ "Quarterly revenue growth" reads two honest ways, and either is right: the newest quarter against the SAME
+    QUARTER A YEAR BEFORE (four reports back), or against the QUARTER BEFORE (one report back). In percent or as a
+    fraction. What it may not be: a number of BARS back (63 or 252 bars is not a report), or a value on a bar before
+    there are enough reports."""
+    return [('quarterly revenue against the same quarter a year before (4 reports back), in percent', _growth(4, True), None, 'exact'),
+            ('quarterly revenue against the same quarter a year before (4 reports back), as a fraction', _growth(4, False), None, 'exact'),
+            ('quarterly revenue against the quarter before (1 report back), in percent', _growth(1, True), None, 'exact'),
+            ('quarterly revenue against the quarter before (1 report back), as a fraction', _growth(1, False), None, 'exact')]
+
+
+def rule_fund02():
+    """Diluted earnings per share over the trailing twelve months, as filed: a step on each filing's bar, carried
+    until the next, and nothing before the first trailing figure is public."""
+    return [('diluted EPS, trailing twelve months, from the bar each filing became public', placed(_fig('EARNINGS_PER_SHARE_DILUTED:TTM'), T), None, 'exact')]
+
+
+def _per_share(key):
+    top, count = placed(_fig(key), T), placed(_fig('TOTAL_SHARES_OUTSTANDING:FQ'), T)
+    return [top[i] / count[i] if (top[i] is not None and count[i]) else None for i in range(N)]
+
+
+def rule_fund03():
+    """Free cash flow of the trailing twelve months over the shares outstanding. Nothing wherever EITHER figure is
+    withheld: before the share count is first reported, and through the report that left the cash flow unknown (an
+    older cash flow is never carried across it)."""
+    return [('trailing free cash flow over shares outstanding, nothing where either is withheld', _per_share('FREE_CASH_FLOW:TTM'), None, 'exact')]
+
+
+def rule_fund04():
+    """Book value per share, computed from what the filings hold: total equity over shares outstanding, both of the
+    newest quarter. Nothing before the share count is first reported."""
+    return [('total equity over shares outstanding, nothing before both are reported', _per_share('TOTAL_EQUITY:FQ'), None, 'exact')]
+
+
 def _gap_boxes(keep):
     """A gap bar g: its low is above the prior bar's high. The box runs from the prior high (bottom) to that low (top),
     from g to the first later bar whose low drops below the top (the newest bar while none has). The `keep` newest."""
@@ -698,7 +854,8 @@ RULES = {'h03': rule_h03, 'h05': rule_h05, 'i01': rule_i01, 'i02': rule_i02, 'i0
          'j01': rule_j01, 'j02': rule_j02, 'j03': rule_j03, 'j06': rule_j06,
          'k02': rule_k02, 'k03': rule_k03, 'k04': rule_k04, 'k05': rule_k05, 'k06': rule_k06,
          'weekly-plot-01': rule_j02,
-         'cap-01': rule_cap01, 'cap-02': rule_cap02, 'cap-03': rule_cap03, 'cap-07': rule_cap07, 'cap-09': rule_cap09}                     # a script that PLOTS the 10 week average of the weekly close: the same readings
+         'cap-01': rule_cap01, 'cap-02': rule_cap02, 'cap-03': rule_cap03, 'cap-07': rule_cap07, 'cap-09': rule_cap09,
+         'fund-01': rule_fund01, 'fund-02': rule_fund02, 'fund-03': rule_fund03, 'fund-04': rule_fund04}                     # a script that PLOTS the 10 week average of the weekly close: the same readings
 #: what each request ASKED to see; anything else the script draws is listed as not asked for
 ASKED = {'h03': {'plot'}, 'h05': {'plotshape'}, 'i01': {'plot', 'table'}, 'i02': {'plot', 'table'}, 'i03': {'plot', 'table'},
          'i04': {'plot', 'label'}, 'i05': {'plot', 'table'}, 'i06': {'plot', 'label'}, 'weekly-plot-01': {'plot', 'label'},
@@ -710,6 +867,7 @@ ASKED = {'h03': {'plot'}, 'h05': {'plotshape'}, 'i01': {'plot', 'table'}, 'i02':
 #: ids whose column rules are DIFFERENT columns that must all be there, not readings of one
 ASKED.update({'cap-01': {'plot'}, 'cap-02': {'plot'}, 'cap-03': {'plot'}, 'cap-04': {'line'}, 'cap-05': {'line', 'label'},
               'cap-06': {'label'}, 'cap-07': {'plot'}, 'cap-08': {'box'}, 'cap-09': {'plot'}})
+ASKED.update({'fund-01': {'plot'}, 'fund-02': {'plot'}, 'fund-03': {'plot'}, 'fund-04': {'plot'}})
 NEED_ALL = {'i05'}
 
 

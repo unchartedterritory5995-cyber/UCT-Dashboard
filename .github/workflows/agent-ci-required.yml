@@ -1,6 +1,7 @@
 # promotion-gate: no — a PR merge check, never a deploy gate (tools/promotion_gate.py ignores it).
 #
-# agent-ci-required — ONE commit status the owner can mark as the required check for PRs into agent/int and master.
+# agent-ci-required — ONE commit status the owner can mark as the required check for PRs into master: this file
+# posts it on a PULL REQUEST's head. (On a merge group's commit, agent-ci-queue-verdict.yml posts the same context.)
 #
 # WHY (2026-11-12, release safety): agent ci runs its jobs on `pull_request` only for fork PRs; a same-repo agent/**
 # branch is covered only by its path-filtered `push` run. A merge-only push touching no Agent path gets NO Agent run,
@@ -9,38 +10,77 @@
 # The status (context `agent-ci-required`) is success ONLY when the PR's diff vs its base touches no Agent path (the
 # list is read from agent-ci.yml's push trigger at run time), OR the agent ci PUSH run for the exact head SHA completed
 # with every Agent job (names read from agent-ci.yml) = success. Anything else is pending or failure (fail closed).
-#   pull_request (opened/synchronize/reopened): evaluates the new head SHA -> success / pending (a new push resets it)
-#   workflow_run (agent ci completed):           re-evaluates that run's head SHA -> success / failure
-# Logic + tests: tools/agent_ci_required.py, tests/test_agent_ci_required.py.
+# And it is FAILURE, whatever the diff, when the head's workflow tree could reach the App (a file other than the two
+# posters with an `environment` key, a reusable workflow from another repository, the App's names, an unparsable
+# workflow file): such a pull request cannot enter the merge queue.
+#   pull_request_target (opened/synchronize/reopened): evaluates the new head SHA -> success / pending
+#   workflow_run (agent ci completed):                 re-evaluates that run's head SHA -> success / failure
+# Logic + tests: tools/agent_ci_required.py, tests/test_agent_ci_required.py; rails on this file:
+# tests/test_ci_agent_merge_ref.py.
 #
-# CI COST: unfiltered PR trigger on purpose (pinned in tests/test_ci_cost_rails.py) — a path filter would mean no
-# status at all on a PR that touches no Agent path, and a required status that never arrives blocks the merge. The job
-# is a few API calls: sparse checkout of two files, PyYAML, no node, no tests; well under a minute.
+# WHO POSTS IT (2026-11-22, AUDIT F1 on #2501; rehearsed in northstar-quarry/mq-rehearsal). At the merge-queue cutover
+# the ruleset pins the required check `agent-ci-required` to ONE GitHub App (northstar-agent-ci-verdict), not to
+# GitHub Actions, because every workflow token posts as GitHub Actions and a pull request's own workflows could post
+# `success`. Two consequences, both observed:
+#   * a pull request cannot even ENTER the queue until that App has posted the context on the pull request's head, so
+#     this file must post with the App too;
+#   * statuses under one context are last-writer-wins: a `agent-ci-required` posted by a workflow token AFTER the
+#     App's puts the pull request back to BLOCKED. So NOTHING but the App posts this context, anywhere.
+# The App's private key is a secret of the environment `agent-ci-verdict`, whose deployment-branch policy allows
+# `master` only. So this job must run ON master:
+#   * `workflow_run` always runs the default branch's copy of this file, on the default branch;
+#   * `pull_request_target` runs the BASE branch's copy, on the base branch. With `branches: [master]` that is master.
+#     (A plain `pull_request` job runs on refs/pull/N/merge, which the environment refuses.)
+#
+# ⚠️ `pull_request_target` IS THE TRIGGER THAT HANDS A PULL REQUEST'S EVENT TO A JOB WITH SECRETS. It is safe here for
+# these reasons, and a rail holds each one (tests/test_ci_agent_merge_ref.py, pr_stage_violations):
+#   1. NOTHING of the pull request is checked out or executed. The one checkout is the default branch, sparse, two
+#      files; there is no `ref:` taken from the event, no second checkout, no `git checkout` in a step.
+#      (2026-11-22, AUDIT review 2: master's tool also FETCHES the head commit as git objects and reads its
+#      .github/workflows files as data, with a safe YAML parser, to refuse a head that could reach the App. A fetch
+#      puts objects in .git; it writes no file of the pull request to the work tree and runs none.)
+#   2. The event reaches the shell only as environment variables (the head SHA and the PR number); no expression is
+#      written into a `run:` line. The tool treats them as data: an argparse integer and a commit id in an API path.
+#   3. What the tool reads about the pull request comes through the API as data (its changed file names, its head
+#      ref, the agent ci run and jobs for its head SHA). No file name reaches the status text.
+#   4. This job's own token can only READ (contents, actions, pull-requests). The App's token is asked for
+#      `statuses: write` and nothing else, is scoped to this repository, and is the only token that POSTs.
+#   5. The actions used are GitHub-owned and pinned to a major version; PyYAML is pinned.
+#
+# PRs INTO agent/int (changed 2026-11-22, stated on purpose). The context is not required there. A
+# `pull_request_target` job for a pull request into agent/int would run ON agent/int, which the environment refuses
+# (and must: whoever can push to agent/int could otherwise mint the App's token). So the pull-request event is
+# handled for master only. A pull request into agent/int still gets this status from the `workflow_run` leg, i.e.
+# whenever an agent ci run completes for its head SHA. What it no longer gets is the immediate status at open /
+# synchronize: no "pending" before the run, and no status at all when the head touches no Agent path (no run starts).
+#
+# CI COST: unfiltered PR trigger on purpose — a path filter would mean no status at all on a PR that touches no Agent
+# path, and a required status that never arrives blocks the merge. The job is a few API calls: sparse checkout of two
+# files, PyYAML, no node, no tests; well under a minute. GitHub records each run as a deployment to the environment.
 #
 # The code that runs is the DEFAULT BRANCH's copy (sparse checkout below), so a PR cannot edit its own verdict.
 #
 # LIMITS (stated on purpose, AUDIT T1 review of #1153):
-#  - FORK PRs ARE NOT SUPPORTED: a fork PR's pull_request token is read-only (the status POST fails) and only agent ci PUSH
-#    runs count, so a fork PR can never pass this check; it needs an explicit owner override. This repo takes no fork PRs.
+#  - FORK PRs: this repo takes none. `pull_request_target` would run for one, with the same safety argument as above;
+#    only agent ci PUSH runs count for an agent/** head, so a fork PR still needs an explicit owner override.
 #  - A FAILED status POST makes the job exit non-zero (the exception propagates) and the run shows red; the SHA keeps its
 #    PREVIOUS status until a later run posts again. This case relies on that visible job failure, never on the status alone.
+#  - Without the App or the environment (neither exists in a fork or a copy of this repo) the job stops at "Mint the
+#    App's token" and posts nothing: fail closed.
 #  - workflow_run fires for agent ci runs on ANY branch, so the status is also posted on non-PR SHAs (harmless; a status
 #    on a commit no PR points at blocks nothing).
 name: agent ci required
 
 on:
-  pull_request:
-    branches: [agent/int, master]
+  pull_request_target:
+    branches: [master]
     types: [opened, synchronize, reopened]
   workflow_run:
     workflows: ["agent ci"]
     types: [completed]
 
 permissions:
-  statuses: write
-  actions: read
   contents: read
-  pull-requests: read
 
 concurrency:
   group: agent-ci-required-${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}
@@ -51,6 +91,11 @@ jobs:
     name: agent-ci-required status
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    environment: agent-ci-verdict
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,9 +107,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Mint the App's token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.AGENT_CI_VERDICT_APP_ID }}
+          private-key: ${{ secrets.AGENT_CI_VERDICT_APP_PRIVATE_KEY }}
+          permission-statuses: write
       - name: Evaluate and post the status
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGENT_CI_VERDICT_TOKEN: ${{ steps.app-token.outputs.token }}
           EVENT: ${{ github.event_name }}
           PR_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -72,8 +125,8 @@ jobs:
           TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          python -m pip install --quiet pyyaml==6.0.2   # pinned: this job holds statuses:write on every PR
-          if [ "$EVENT" = "pull_request" ]; then
+          python -m pip install --quiet pyyaml==6.0.2   # pinned: this job holds the App's token
+          if [ "$EVENT" = "pull_request_target" ]; then
             python tools/agent_ci_required.py --event pull_request --sha "$PR_SHA" --pr "$PR_NUMBER"
           else
             python tools/agent_ci_required.py --event workflow_run --sha "$RUN_SHA"

@@ -198,7 +198,10 @@ export const FUNCTIONS = [
   { code: 'OSCR', label: 'Options screener', group: 'Options',
     // `?tab=options` is Screener.jsx's own deep-link param (read once at mount as the
     // initial tab) — without it "Full page" always landed on the Stocks tab.
-    market: { panel: 'OptionsScreener', full: '/screener?tab=options', flag: 'optionsScreenerEnabled' } },
+    // OSCR RICH / OSCR CHEAP (2026-11-22): the highest and lowest IV rank across the options log (IvRankPanel,
+    // GET /api/options-screener/iv-rank, built each evening). The bare OSCR is the option screener, unchanged.
+    market: { panel: 'OptionsScreener', full: '/screener?tab=options', flag: 'optionsScreenerEnabled',
+      args: [{ kind: 'oscrView', prop: 'view' }] } },
   { code: 'FLOW', label: 'Options flow', group: 'Options',
     // No shell flag (audit 2026-10-08, FLOW P1): the `Flow` panel is FlowGate -- the flow tab while
     // researchFlowTabEnabled is on; with it off it says so and offers the page doors.
@@ -574,8 +577,10 @@ export const FUNCTIONS = [
   // whole market: bare `DVD` = the member's own stocks, `NVDA DVD` = one stock. It holds nothing past.
   // CACT: one stock's held splits and dividends (GET /api/research/corporate-actions/{ticker}, which
   // never asks a vendor) and its name or ticker changes. None of the three is in the stock universe.
+  // IPO LOCKUP (2026-11-22): the lockups ending in the next 30 days and the past 7, each an ESTIMATE (180 days after
+  // listing, the next session), from the last-year listings the server holds (GET /api/scans/ipo-lockups).
   { code: 'IPO', label: 'IPO calendar (upcoming and priced deals)', group: 'Calendar',
-    market: { panel: 'IpoCalendar' } },
+    market: { panel: 'IpoCalendar', args: [{ kind: 'ipoView', prop: 'view' }] } },
   // DVD MARKET (2026-11-21): every ex-dividend date and split this week and next for every stock the site
   // follows (GET /api/research/market-dividends, Massive's reference feed read by date range on the server).
   // ALL is a stock (Allstate), so the view word is MARKET; bare `DVD` and `NVDA DVD` are unchanged. Both variants
@@ -728,6 +733,14 @@ export const FUNCTIONS = [
   // search on 2026-11-22 found no stock or fund listed under it.
   { code: 'VFP', label: 'Volume footprint and gaps (accumulation and distribution days, pocket pivots, every gap of 3% or more)', group: 'Security',
     ticker: { panel: 'VolumeFootprint' } },
+  // FCTX (2026-11-22): how one stock trades, worked out by the server from the daily closes it already stores (GET
+  // /api/research/factor-exposure/{ticker}, held for the session): an ordinary least-squares regression of its daily
+  // return on six fund spreads (SPY; IWM, MTUM, QUAL and USMV less SPY; IWF less IWD) over the newest 252 common
+  // sessions and the 252 before them, each loading with its t-statistic, R-squared and the idiosyncratic share, and a
+  // plain line built only from loadings whose t is above 2. No arguments. FCTX is not in the site's universe, and a
+  // web search on 2026-11-22 found no stock or fund listed under it (FEX, the brief's first pick, is a First Trust fund).
+  { code: 'FCTX', label: 'Factor exposure (market, size, growth vs value, momentum, quality, low volatility)', group: 'Security',
+    ticker: { panel: 'FactorExposure' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -1035,8 +1048,9 @@ const FUNCTION_WORDS = {
     note: 'Past sessions with similar breadth and what the S&P 500 did after each. A record, not a forecast.' },
   MKTS: { example: 'MKTS', keywords: ['markets', 'cross asset', 'indexes', 'vix', 'bitcoin', 'markets board'],
     note: 'Index funds, VIX, Treasury yields and Bitcoin, each with its own source and time. No futures or commodity prices.' },
-  IPO: { example: 'IPO', keywords: ['ipo', 'ipos', 'ipo calendar', 'new issues', 'upcoming ipos', 'priced ipos'],
-    note: 'Deals from last week to next week, day by day. Stocks listed in the last year are on LEAD IPO.' },
+  IPO: { example: 'IPO', keywords: ['ipo', 'ipos', 'ipo calendar', 'new issues', 'upcoming ipos', 'priced ipos', 'lockup', 'lockups',
+    'ipo lockup', 'ipo lockups'],
+    note: 'Deals from last week to next week, day by day. IPO LOCKUP: lockups ending in the next 30 days, each an estimate (180 days after listing). Stocks listed in the last year are on LEAD IPO.' },
   DVD: { example: 'DVD', keywords: ['dividend', 'dividends', 'dividend calendar', 'ex dividend', 'ex-date', 'upcoming dividends',
     'upcoming splits', 'market dividends', 'ex dividend this week', 'splits this week'],
     note: 'Declared dividends and splits ahead for your stocks, for one stock (NVDA DVD), or the whole market this week and next (DVD MARKET). Nothing past.' },
@@ -1118,6 +1132,16 @@ const FUNCTION_WORDS = {
   VFP: { example: 'NVDA VFP', keywords: ['volume footprint', 'accumulation days', 'distribution days', 'pocket pivots',
     'pocket pivot', 'gap history', 'gaps', 'unfilled gaps', 'up down volume'],
     note: "From UCT's stored daily bars (settled sessions; prices and volumes split-adjusted). A record, not a forecast." },
+  // FCTX: "exposure" stays REGM's (the market exposure call), "growth" GRPS's and "value" PEER's; no keyword starts with
+  // either word ("growth or value" would have taken "growth" from GRPS). "momentum" and "quality" find FCTX through
+  // its label: no other function answers them.
+  FCTX: { example: 'NVDA FCTX', keywords: ['factor exposure', 'factor exposures', 'factor loadings', 'factors', 'style',
+    'style factors', 'momentum exposure'],
+    note: "From UCT's stored daily closes of the stock and the factor funds (settled sessions, price returns). Descriptive, not a forecast." },
+  // OSCR RICH / OSCR CHEAP: no keyword. "iv" and "implied volatility" stay IVH's, and any keyword holding "rank" would
+  // put OSCR ahead of RSL for a one-word search on "rank" (OSCR sits earlier in the registry).
+  OSCR: { example: 'OSCR RICH',
+    note: 'The option screen, unusual option volume and IV percentile. OSCR RICH and OSCR CHEAP: the highest and lowest IV rank across the options log, built each evening.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
