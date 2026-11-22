@@ -651,6 +651,8 @@ export function knobTestValue(test, consts) {
  *  changed. ⭐ Mutates nothing, and a subtree with nothing to prune is returned AS IS (the same object), so a document
  *  with no knob ternary binds to itself. */
 export function pruneKnobArms(ast, consts = {}) {
+  // ⛔ a binding with no knob prunes nothing and walks nothing: the tree itself
+  if (!consts || !Object.keys(consts).some((k) => isKnobName(k, consts))) return ast
   const walk = (node) => {
     if (!node || typeof node !== 'object' || !Array.isArray(node.args)) return node
     if (node.type === 'op' && node.name === '?:' && node.args.length === 3) {

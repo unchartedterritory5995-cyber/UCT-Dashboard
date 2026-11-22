@@ -1318,6 +1318,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:pvtN',
       // ⭐ PHASE 1 (2026-10-30) -- Pine's `ta.rci`.
       'function:rci',
+      // ⭐⭐ e95 unit 2b (2026-11-22): the leaf a knob arm the translator refused stands as
+      'function:refusedArm',
       'function:rising',
       'function:rma',
       'function:round',
@@ -1344,8 +1346,6 @@ describe('totality over the closed table — derived from the manifest, never ha
       // ⭐⭐ e95 unit 2 (2026-11-22): Pine's anchored `ta.vwap`, the average and its band leg
       'function:vwapAnchor',
       'function:vwapAnchorDev',
-      // ⭐⭐ e95 unit 2b (2026-11-22): the leaf a knob arm the translator refused stands as
-      'function:refusedArm',
       'function:vwapOf',
       'function:williamsR',
       'function:wma',
@@ -3122,7 +3122,9 @@ describe('the refusals', () => {
     // ⚠️ 13 -> 14 with `interpret:bind-time-text` (R-K, 2026-09-12). See the
     // correction under the `all.length` assertion below: the interpreter DOES
     // have to have an opinion about a text node, because one can reach it.
-    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(14)
+    // ⚠️ 14 -> 15 with `interpret:refused-arm` (e95 unit 2b, 2026-11-22): a knob arm the translator refused, reached
+    // only when a member's setting picks it (the bind prunes it away otherwise).
+    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(15)
     expect(Object.keys(SENTENCE_REFUSALS).length).toBe(10)
     // ⚠️ 33 -> 35 with W2b's two timeframe guards — one per door:
     // `canonicalise:timeframe` (the SHAPE of `tf(expr, 'W')`) and
@@ -3156,7 +3158,8 @@ describe('the refusals', () => {
     // the binding did not settle, which is the part a member can act on.
     // ⚠️ 41 -> 42 with `canonicalise:if` (2026-10-29), on the PARSE door; the loop
     // below is what proves its sentence contains no other door's and vice versa.
-    expect(all.length).toBe(42)
+    // ⚠️ 42 -> 43 with `interpret:refused-arm` (e95 unit 2b), on the INTERPRET door.
+    expect(all.length).toBe(43)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)

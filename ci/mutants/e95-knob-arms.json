@@ -33,7 +33,7 @@
    "id": "KA4",
    "mutant": "the JS evaluator computes a refusing leaf as na instead of refusing",
    "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "  refusedArm: (k) => refuse('interpret:refused-arm', `(refusal ${k} of the document)`),\n",
+   "from": "  refusedArm: (k) => refuse('interpret:refused-arm', `(refusal ${k && k.length ? k[0] : k} of the document)`),\n",
    "to": "  refusedArm: (k) => new Float64Array(0),\n",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/knobArmsParity.test.js",
    "expectRed": "failed"
@@ -42,8 +42,8 @@
    "id": "KA5",
    "mutant": "the Python evaluator computes a refusing leaf as na instead of refusing",
    "file": "api/services/ast_interpret.py",
-   "from": "    \"refusedArm\": lambda k: _refuse(\"interpret:refused-arm\", f\"(refusal {k} of the document)\"),\n",
-   "to": "    \"refusedArm\": lambda k: [],\n",
+   "from": "    \"refusedArm\": lambda k: _refuse(\"interpret:refused-arm\", f\"(refusal {_show_k(k)} of the document)\"),\n    \"cci\":",
+   "to": "    \"refusedArm\": lambda k: [],\n    \"cci\":",
    "rail": "python -m pytest -q -p no:warnings tests/test_knob_arms_parity.py",
    "expectRed": "failed"
   },

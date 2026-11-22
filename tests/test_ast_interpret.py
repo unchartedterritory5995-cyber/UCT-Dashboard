@@ -939,6 +939,10 @@ def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED
             {"type": "textop", "name": "contains",
              "args": [{"type": "symtext", "name": "tickerid"},
                       {"type": "str", "value": "/"}]}),
+        # ⭐⭐ e95 unit 2b (2026-11-22) -- a knob arm the translator refused, kept because the member's setting picked
+        # it (``ast_bind.prune_knob_arms`` prunes it away otherwise): never a number.
+        "interpret:refused-arm": lambda: run(
+            {"type": "call", "name": "refusedArm", "args": [{"type": "num", "value": 1}]}),
     }
     assert sorted(triggers) == sorted(ast_interpret.REFUSALS)
     for guard, fire in triggers.items():

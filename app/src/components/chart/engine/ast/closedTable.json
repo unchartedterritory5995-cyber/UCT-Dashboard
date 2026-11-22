@@ -1690,7 +1690,7 @@
     },
     "refusedArm": {
       "args": [
-        "int"
+        "series"
       ],
       "argRoles": [
         "refusal"
@@ -3707,6 +3707,12 @@
       "vwapAnchorDev",
       "refusedArm"
     ]
+  },
+  "_functions_refusal_leaves": {
+    "_": "⭐⭐ e95 unit 2b (2026-11-22, the coordinator's ruling (B)): THE TABLE ENTRIES THAT NEVER COMPUTE A NUMBER. `refusedArm` is the leaf the member door writes for an arm of a knob `switch` the translator refused (`pine.js::Resolver.refusedArmLeaf`); the bind prunes it away unless the member's setting picks it (`bind.js::pruneKnobArms`), and evaluated it refuses by name (`interpret:refused-arm`, both evaluators). So it has no value for the conformance corpus to pin: `tools/ast_conformance.py::assert_corpus_covers_the_table` requires each name here to REFUSE in the Python lane with `guard` instead (the JS half: `ast/knobArmsParity.test.js`). ⛔ Only an entry that refuses on every bar may be listed: a name here that computed would be a table entry no corpus covers.",
+    "names": {
+      "refusedArm": "interpret:refused-arm"
+    }
   },
   "_functions_excluded": {
     "_supertrend_was_here": "⭐ SUPERTREND LEFT THIS LIST ON 2026-10-29, AND THE RULING ABOVE IT WAS RIGHT WHEN IT WAS WRITTEN. It refused the name because the grammar had no self-reference; `accum` (`_functions_recurrence`) is that self-reference, and `ta.supertrend(factor, atrPeriod)` is exactly three of them composed — the upper band's ratchet, the lower band's, and the direction flip — over `atrPine` (Pine's own ATR seed) and `hl2`. So it ships as an EXPANSION (`callExpansions.js::supertrendTrees`, mirrored by `call_expansions.py`), never as an entry here: no interpreter, alert lane, budget or linter learns a new name, and the ratchet and the flip are KEPT rather than dropped, which is the look-alike this ruling forbade. ⛔ It is bounded like every `accum`: each recurrence re-seeds 200 bars back, and the value is WITHHELD until both bands were known 200 bars earlier, so a published bar never reads a band that did not exist. ⭐ Measured against an independent full-history implementation of Pine's published source: 0 of 77,820 published bars differ (30 series × 3 settings, `supertrend.test.js`, re-measured every run).",

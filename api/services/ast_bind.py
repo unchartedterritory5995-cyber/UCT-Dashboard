@@ -640,8 +640,13 @@ def knob_test_value(test: Any, consts: Mapping[str, Any]):
 
 def prune_knob_arms(ast: Any, consts: Mapping[str, Any] = None) -> Any:
     """The tree with every knob ternary replaced by the arm this binding's knobs pick, and NOTHING else changed.
-    Mutates nothing; a subtree with nothing to prune is returned as is (the same object)."""
+    Mutates nothing; a subtree with nothing to prune is returned as is (the same object).
+
+    ⛔ A binding with no knob prunes nothing and walks nothing (the tree itself), and a tree too deep to walk is left as
+    it is: its own budget refuses it by name downstream (``budget:nodes``), never a ``RecursionError`` here."""
     consts = consts or {}
+    if not any(is_knob_name(k, consts) for k in consts):
+        return ast
 
     def walk(node: Any) -> Any:
         if not isinstance(node, Mapping) or not isinstance(node.get("args"), (list, tuple)):
@@ -658,7 +663,10 @@ def prune_knob_arms(ast: Any, consts: Mapping[str, Any] = None) -> Any:
         out["args"] = out_args
         return out
 
-    return walk(ast)
+    try:
+        return walk(ast)
+    except RecursionError:
+        return ast
 
 
 def fold_bound(ast: Any, consts: Mapping[str, Any] = None) -> Any:

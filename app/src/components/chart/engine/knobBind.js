@@ -16,7 +16,6 @@
 // with no knob ternary binds to ITSELF (the same object), so nothing else moves.
 
 import { pruneKnobArms, REFUSED_ARM_CALL } from './ast/bind.js'
-import { REFUSALS } from './ast/interpret'
 import { symTickersOf } from './otherSymbols.js'
 
 const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
@@ -98,7 +97,8 @@ export function boundDocument(def, consts) {
 
 /** The refused knob arm a BOUND tree still holds (the member's setting picked it): `{guard, message}` quoting the
  *  translator's own refusal (`meta.knobArmRefusals`, stamped by the member door), or null. ⛔ A leaf with no entry
- *  (a document saved without the stamp) still refuses, by the evaluator's own sentence. */
+ *  (a document saved without the stamp) is left to the evaluator, which refuses it by its own sentence
+ *  (`interpret.js::FN.refusedArm`, `interpret:refused-arm`). */
 export function armRefusalOfTree(tree, def) {
   const stack = [tree]
   while (stack.length) {
@@ -111,7 +111,7 @@ export function armRefusalOfTree(tree, def) {
       if (entry && typeof entry.guard === 'string' && typeof entry.message === 'string') {
         return { guard: entry.guard, message: entry.message }
       }
-      return { guard: 'interpret:refused-arm', message: REFUSALS['interpret:refused-arm'] }
+      return null
     }
     if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
   }

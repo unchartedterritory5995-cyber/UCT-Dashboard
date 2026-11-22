@@ -850,6 +850,13 @@ def _refuse(guard: str, detail: str) -> Any:
     raise TableRefusal(guard, f"{REFUSALS[guard]} {detail}")
 
 
+def _show_k(k: Any) -> str:
+    """A refused knob arm's entry number, from its scalar or its column (e95 unit 2b)."""
+    if isinstance(k, (list, tuple)):
+        k = k[0] if k else None
+    return str(int(k)) if isinstance(k, (int, float)) and not isinstance(k, bool) and math.isfinite(k) else "?"
+
+
 def _declared(obj: Mapping[str, Any]) -> str:
     return ", ".join(obj)
 
@@ -2302,6 +2309,8 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
     "boolNaWithheld": lambda x, _flag: x,
     # ENGINE 56 (S1) -- its operand; a highestbars / lowestbars over it names the newest of a tie
     "tieNewest": lambda x: x,
+    # e95 unit 2b -- a refused knob arm (``pine.js::REFUSED_ARM_CALL``) is never a number, bar by bar either.
+    "refusedArm": lambda k: _refuse("interpret:refused-arm", f"(refusal {_show_k(k)} of the document)"),
     "sqrt": _guarded_sqrt,
     "ln": _guarded_ln,
     "log10": _guarded_log10,
@@ -3193,7 +3202,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "vwapAnchor": lambda src, anchor, volume: _vwap_anchor_col(src, anchor, volume),
     "vwapAnchorDev": lambda src, anchor, volume: _vwap_anchor_col(src, anchor, volume, dev=True),
     # e95 unit 2b -- a refused knob arm (``pine.js::REFUSED_ARM_CALL``): never a number, refused by name.
-    "refusedArm": lambda k: _refuse("interpret:refused-arm", f"(refusal {k} of the document)"),
+    "refusedArm": lambda k: _refuse("interpret:refused-arm", f"(refusal {_show_k(k)} of the document)"),
     "cci": _fn_cci,
     "williamsR": _fn_williams_r,
     "mfi": _fn_mfi,

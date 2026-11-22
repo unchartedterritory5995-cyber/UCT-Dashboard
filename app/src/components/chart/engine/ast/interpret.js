@@ -2993,6 +2993,8 @@ const POINTWISE = Object.freeze({
   // ⭐ ENGINE 56 (S1) — its operand on every bar; a `highestbars` / `lowestbars` over it names
   // the newest of a tie (`isBarPriceTree`)
   tieNewest: (x) => x,
+  // ⭐⭐ e95 unit 2b — a refused knob arm (`pine.js::REFUSED_ARM_CALL`) is never a number, bar by bar either
+  refusedArm: (k) => refuse('interpret:refused-arm', `(refusal ${k} of the document)`),
 
   // ── pure math ────────────────────────────────────────────────────────────
   // ⭐⭐ EVERY DOMAIN REFUSAL ANSWERS NaN, AND THAT IS THE WHOLE DESIGN. JS hands
@@ -4085,7 +4087,7 @@ export const FN = Object.freeze({
   vwapAnchor: (src, anchor, volume) => vwapAnchorCol(vwapAnchorStep, src, anchor, volume),
   vwapAnchorDev: (src, anchor, volume) => vwapAnchorCol(vwapAnchorDevStep, src, anchor, volume),
   // ⭐⭐ e95 unit 2b — a refused knob arm (`pine.js::REFUSED_ARM_CALL`): never a number, refused by name
-  refusedArm: (k) => refuse('interpret:refused-arm', `(refusal ${k} of the document)`),
+  refusedArm: (k) => refuse('interpret:refused-arm', `(refusal ${k && k.length ? k[0] : k} of the document)`),
   cci: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeCCI(bars, n)),
   williamsR: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeWilliamsR(bars, n)),
   mfi: (h, l, c, v, n) => bindShipped(HLCV, [h, l, c, v], c.length, (bars) => computeMFI(bars, n)),
