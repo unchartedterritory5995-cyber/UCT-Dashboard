@@ -91,6 +91,42 @@
    "to": "if (false && folded && (typeof folded.text === 'string' || typeof folded.named === 'string')) {",
    "rail": "python -m pytest -q -p no:warnings tests/test_value_cases_found.py -k script_cases_through_the_engine",
    "expectRed": "a specimen the engine fixed is wrong again"
+  },
+  {
+   "id": "FF11",
+   "mutant": "the specimen claims an engine above the one the lane runs and is not the pending train's number (studio condition 1)",
+   "file": "tests/fixtures/authoring/value_cases.json",
+   "from": "\"since_engine\": 95",
+   "to": "\"since_engine\": 96",
+   "rail": "python -m pytest -q -p no:warnings tests/test_value_cases_found.py -k never_claimed_AHEAD",
+   "expectRed": "claimed ahead of the engine"
+  },
+  {
+   "id": "FF12",
+   "mutant": "the specimen's fixed_by no longer names #2433, the assistant-side fix engine_fixed sits beside (studio condition 2)",
+   "file": "tests/fixtures/authoring/value_cases.json",
+   "from": "\"pr\": \"#2433\"",
+   "to": "\"pr\": \"#2483\"",
+   "rail": "python -m pytest -q -p no:warnings tests/test_value_cases_found.py -k keeps_its_defect_and_its_fixed_by",
+   "expectRed": "assert"
+  },
+  {
+   "id": "FF13",
+   "mutant": "--adopt writes engine_fixed itself on a fixed defect (studio condition 1: hand-marked only)",
+   "file": "tools/value_eval.py",
+   "from": "\"fixed_by\": {\"pr\": fix[\"pr\"], \"merge\": fix[\"merge\"]}})",
+   "to": "\"fixed_by\": {\"pr\": fix[\"pr\"], \"merge\": fix[\"merge\"]}, \"engine_fixed\": {\"by\": fix[\"pr\"], \"since_engine\": 1}})",
+   "rail": "python -m pytest -q -p no:warnings tests/test_value_cases_found.py -k HAND_MARKED_only",
+   "expectRed": "assert"
+  },
+  {
+   "id": "FF14",
+   "mutant": "--adopt strips a hand-marked engine_fixed when it adopts the case again (studio condition 1: it leaves a marked one as it was)",
+   "file": "tools/value_eval.py",
+   "from": "case.setdefault(\"found\", []).append(",
+   "to": "[k.pop(\"engine_fixed\", None) for k in case.get(\"found\", [])]; case.setdefault(\"found\", []).append(",
+   "rail": "python -m pytest -q -p no:warnings tests/test_value_cases_found.py -k HAND_MARKED_only",
+   "expectRed": "assert"
   }
  ]
 }
