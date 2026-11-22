@@ -19,7 +19,8 @@ stamps (the build served, the model, what was spent, why it stopped).
     lock is never held for an hour;
   * NOTHING IS SAVED: every write to definitions, preferences, the workspace and charts is stopped and named in the
     row, except the turns of the request being sent and the admission question the window asks about a script;
-  * it stops at the spend cap and at the door's hourly limit (429), and is resumable (a recorded request is skipped);
+  * it stops at the spend cap, at the door's hourly limit (429) and at the member's daily allowance (a refusal
+    about the account is not an answer: the request stays to be sent), and is resumable (a recorded request is skipped);
   * on this PC a headless browser runs through the machine lock:
       python <uct-clips>/tools/heavy_lock.py --timeout 21600 run -- python tools/value_record.py ...
 
@@ -72,6 +73,29 @@ def last_answer(answers: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """The answer a member is left with: the last one the door gave with status 200."""
     good = [a for a in answers if a.get("status") == 200 and isinstance(a.get("body"), dict)]
     return good[-1]["body"] if good else None
+
+
+#: A refusal about the ACCOUNT, not the request: the member's daily allowance, or the product's daily spending limit,
+#: is used up. The door refuses such a turn before reading it, with status 200. It is NOT an answer to the request.
+ACCOUNT_REFUSALS = {"cost:user": "the member's daily allowance (cost:user)",
+                    "cost:global": "the product's daily spending limit (cost:global)"}
+
+
+def account_refusal(answers: List[Dict[str, Any]]) -> Optional[str]:
+    """Why the run must stop for the ACCOUNT, or None: one of the door's turns was refused by a gate that is about
+    who is asking and what they have left today, not about what was asked."""
+    for a in answers:
+        body = a.get("body")
+        if isinstance(body, dict) and body.get("ok") is False and body.get("gate") in ACCOUNT_REFUSALS:
+            return ACCOUNT_REFUSALS[body["gate"]]
+    return None
+
+
+def is_answer(answers: List[Dict[str, Any]]) -> bool:
+    """A request is ANSWERED (and never sent again) when the door answered every turn of it with status 200 and none
+    of those turns was a refusal about the account. A refusal about the REQUEST (an unknown name, a wall) is an
+    answer."""
+    return bool(answers) and all(a.get("status") == 200 for a in answers) and account_refusal(answers) is None
 
 
 def out_of_time(began: float, now: float, max_minutes: float) -> bool:
@@ -215,7 +239,8 @@ def main(argv: List[str]) -> int:
                 usd = sum(float(((a["body"] or {}).get("usage") or {}).get("usd") or 0) for a in answers)
                 spent += usd
                 body = last_answer(answers)
-                if body is not None:
+                refused = account_refusal(answers)
+                if body is not None and refused is None:
                     (out / f"{case['id']}-0.body.json").write_text(json.dumps(body, indent=1), encoding="utf-8")
                     pine = (body.get("script") or {}).get("pine") if isinstance(body.get("script"), dict) else None
                     if isinstance(pine, str):
@@ -224,9 +249,12 @@ def main(argv: List[str]) -> int:
                 row.update(seconds=round(time.time() - t0, 1), usd=round(usd, 6), answers=len(answers),
                            statuses=[a["status"] for a in answers], turn=(body or {}).get("turn"), disposition=(body or {}).get("disposition"),
                            writes_stopped=sorted(set(state["stopped"])), turns_nobody_sent=state["unsent"],
-                           done=bool(answers) and all(a["status"] == 200 for a in answers))
+                           done=is_answer(answers))
                 if any(a["status"] == 429 for a in answers):
                     stopped = "the door's hourly limit (429)"
+                if refused:
+                    row["not_an_answer"] = refused                 # the request stays to be sent; nothing was kept as its answer
+                    stopped = refused
             except Exception as exc:  # noqa: BLE001 -- one request failing to send is a row, not the end of the run
                 row["error"] = str(exc)[:300]
             with raw_path.open("a", encoding="utf-8") as fh:
