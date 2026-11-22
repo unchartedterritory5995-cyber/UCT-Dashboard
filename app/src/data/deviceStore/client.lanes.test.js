@@ -19,6 +19,13 @@
 //      the whole list warm that came before them
 //   L10 urgent reads take none of the background lane's places
 //   L11 a key dropped at the bound and asked for urgently in the same task is read
+//   L12 a waiting key asked for again (a warm, not urgent) joins the NEWEST ask: arrowing down a list asks the
+//       rows ahead on every press, and only the new frontier row was new, so the rows nearest the selection sat
+//       in older asks and were served LAST (review round 2, R2-M2)
+//   L13 the asks kept are bounded by what is waiting, however long the page lives (R2-M1)
+//   L14 an ask is the reads of one TASK: reads asked across microtask turns of one task are one ask
+//   L15 a read dropped out of an OLDER ask is forgotten at once too; and the dropped promise unwinding later
+//       never forgets the read that replaced it
 //   L7 a worker that dies answers every read null, waiting ones included; dispose does the same and posts nothing
 //   L8 inFlight() counts what is sent and what waits
 import { describe, it, expect, vi } from 'vitest'
@@ -198,6 +205,75 @@ describe('the two lanes of a device read', () => {
     w.answer('W4', 'D', COLS(4))
     expect((await mine).c[0]).toBe(4)
     expect(await ps[5]).toBeNull()                            // the dropped ask itself still answers null
+  })
+
+  it('L12 a waiting key asked for again joins the newest ask, in the order asked', async () => {
+    const { w, c } = boot()
+    const first = ['A', 'B', 'N1', 'N2', 'N3'].map((s) => c.getBars(s, 'D'))   // press 1: the rows ahead
+    await tick()
+    const again = ['N2', 'N3', 'N4'].map((s) => c.getBars(s, 'D'))            // press 2: one row on, nearest first
+    expect(again[0]).toBe(first[3])                             // still the one read of each key
+    expect(again[1]).toBe(first[4])
+    expect(w.reads()).toEqual(['A|D', 'B|D'])
+    const sent = []
+    for (const k of ['A', 'B', 'N2', 'N3', 'N4']) { w.answer(k); await tick(); sent.push(w.reads()[w.reads().length - 1]) }
+    // the rows the newest press asked for, nearest first; the row it no longer asked for, last
+    expect(w.reads()).toEqual(['A|D', 'B|D', 'N2|D', 'N3|D', 'N4|D', 'N1|D'])
+    expect(c.inFlight()).toBe(1)
+  })
+
+  it('L13 the asks kept stay bounded by what is waiting, however many there have been', async () => {
+    const { w, c } = boot()
+    expect(c.asksHeld()).toBe(0)
+    for (let round = 0; round < 40; round++) {
+      const syms = [`a${round}`, `b${round}`, `c${round}`, `d${round}`].map((s) => s.toUpperCase())
+      syms.forEach((s) => c.getBars(s, 'D'))                   // two sent, two waiting: one ask
+      await tick()
+      w.answer(syms[0]); w.answer(syms[1])
+      await tick()
+      w.answer(syms[2]); w.answer(syms[3])
+      await tick()
+      expect(c.inFlight()).toBe(0)
+    }
+    expect(c.asksHeld()).toBeLessThanOrEqual(1)                // it was 40: one per ask that ever waited
+    // ...and with several asks waiting, one entry per ask that still holds a read
+    ;['P', 'Q', 'X1', 'X2'].forEach((s) => c.getBars(s, 'D'))
+    await tick()
+    c.getBars('Y1', 'D')
+    await tick()
+    c.getBars('Z1', 'D')
+    await tick()
+    expect(c.asksHeld()).toBe(3)
+    w.answer('P'); w.answer('Q')
+    await tick()                                               // Z1 and Y1 sent: their asks are empty
+    expect(c.asksHeld()).toBe(1)
+  })
+
+  it('L14 an ask is the reads of one TASK: microtask turns inside it do not split it', async () => {
+    const { w, c } = boot()
+    ;['A', 'B', 'X1', 'X2'].forEach((s) => c.getBars(s, 'D'))
+    await Promise.resolve(); await Promise.resolve()           // the same task (a warm's deferred half)
+    ;['X3', 'X4'].forEach((s) => c.getBars(s, 'D'))
+    await tick()
+    c.getBars('Y1', 'D')
+    for (const k of ['A', 'B', 'Y1', 'X1', 'X2', 'X3']) { w.answer(k); await tick() }
+    expect(w.reads()).toEqual(['A|D', 'B|D', 'Y1|D', 'X1|D', 'X2|D', 'X3|D', 'X4|D'])
+  })
+
+  it('L15 a read dropped out of an OLDER ask is forgotten at once; its promise unwinding never forgets its replacement', async () => {
+    const { w, c } = boot({ waitingMax: 3 })
+    const old = ['A', 'B', 'X1', 'X2', 'X3'].map((s) => c.getBars(s, 'D'))
+    await tick()
+    c.getBars('Y1', 'D')                                       // past the bound: X3, the older ask's tail, is dropped
+    const mine = c.getBars('X3', 'D', { urgent: true })        // same task: the dropped promise has not unwound yet
+    expect(mine).not.toBe(old[4])
+    expect(w.reads()).toEqual(['A|D', 'B|D', 'X3|D'])
+    expect(await old[4]).toBeNull()                            // the dropped ask unwinds (its own cleanup runs)...
+    await tick()
+    expect(c.getBars('X3', 'D')).toBe(mine)                    // ...and the read that replaced it is still the key's read
+    expect(w.reads().filter((k) => k === 'X3|D')).toHaveLength(1)
+    w.answer('X3', 'D', COLS(3))
+    expect((await mine).c[0]).toBe(3)
   })
 
   it('L7 a worker that dies answers every read null, waiting ones included; so does dispose, posting nothing', async () => {
