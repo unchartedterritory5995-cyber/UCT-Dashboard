@@ -763,7 +763,8 @@ describe('the manifest', () => {
     // ⭐ 140 -> 141 IS `tieNewest` (2026-11-14, engine 56 S1).
     // ⭐ 141 -> 148 (2026-11-17): the regular session's two clock leaves and five readers.
     // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`.
-    expect(bar.size).toBe(149)
+    // e95 unit 2 (2026-11-22) 149 -> 151: `vwapAnchor`, `vwapAnchorDev`.
+    expect(bar.size).toBe(151)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
     // ⭐ 276 -> 287 (2026-11-06, UCT RS Phase 2a units 2a-01 and 2a-07): the bar half
     // is untouched at 138; the scalar half went 138 -> 139 (`base_pivot_px`) -> 149
@@ -772,7 +773,8 @@ describe('the manifest', () => {
     // ⭐ 288 -> 289 (2026-11-14, engine 56): the bar half 139 -> 140 (`boolNaWithheld`); 140 + 149 = 289.
     // ⭐ 289 -> 290 (2026-11-14, engine 56 S1): the bar half 140 -> 141 (`tieNewest`); 141 + 149 = 290.
     // ⭐ 290 -> 297 (2026-11-17): the bar half 141 -> 148 (the regular session's seven); 148 + 149 = 297.
-    expect(declared.size).toBe(298)
+    // ⭐ 298 -> 300 (2026-11-22, e95 unit 2): the bar half 149 -> 151 (`vwapAnchor`, `vwapAnchorDev`); 151 + 149 = 300.
+    expect(declared.size).toBe(300)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS

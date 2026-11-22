@@ -19,12 +19,6 @@ This file holds capabilities only: no member's request, no answer and no count f
 | Up and down arrows in their own colours (plotarrow) | this script is not drawn: TradingView draws a `plotarrow` as up and down arrows at its positive and negative values, which this chart does not draw yet, so it is not drawn as a line of its value | `pine:plotarrow-not-drawn` | `plotarrow-colours` |
 | Bars drawn from computed values (plotbar) | this script declares nothing a chart can draw | `withheld` | `plotbar` |
 
-## Calculations
-
-| a member cannot get | what the engine says | refused as | probe |
-|---|---|---|---|
-| VWAP with its own standard deviation bands | this Pine call answers with several values at once and a column carries one — `v` — this engine has no tuple form for `ta.vwap` — the ones it can take apart are `ta.bb`, `ta.dmi`, `ta.kc`, `ta.macd`, `ta.supertrend`. Writing it WITHOUT the brackets says more about why | `pine:tuple` | `vwap-deviation-bands` |
-
 ## Drawings
 
 | a member cannot get | what the engine says | refused as | probe |
@@ -53,7 +47,7 @@ This file holds capabilities only: no member's request, no answer and no count f
 
 ## Probes the engine serves today
 
-Asked the same way, and not a gap: `plotcandle` (candles drawn from computed values (Heikin Ashi, plotcandle)), `regression-channel-deviation` (a regression channel whose bands are the deviation around the line), `schaff-trend-cycle` (the Schaff Trend Cycle in its published two-stage form), `rsi-divergence-pivots` (a divergence between price and an oscillator, read pivot to pivot), `regression-channel-residual` (a regression channel whose bands are the deviation of price around the line), `zigzag-lines` (a zigzag that joins swing highs and lows with lines), `zones-extended-right` (zones as boxes that start at a past bar and extend to the right), `linefill` (a shaded area between two drawn lines (linefill)), `input-text-area` (a multi-line text setting (input.text_area)).
+Asked the same way, and not a gap: `plotcandle` (candles drawn from computed values (Heikin Ashi, plotcandle)), `vwap-deviation-bands` (vWAP with its own standard deviation bands), `regression-channel-deviation` (a regression channel whose bands are the deviation around the line), `schaff-trend-cycle` (the Schaff Trend Cycle in its published two-stage form), `rsi-divergence-pivots` (a divergence between price and an oscillator, read pivot to pivot), `regression-channel-residual` (a regression channel whose bands are the deviation of price around the line), `zigzag-lines` (a zigzag that joins swing highs and lows with lines), `zones-extended-right` (zones as boxes that start at a past bar and extend to the right), `linefill` (a shaded area between two drawn lines (linefill)), `input-text-area` (a multi-line text setting (input.text_area)).
 
 ## The probes
 

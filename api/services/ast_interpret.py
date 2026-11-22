@@ -6905,7 +6905,11 @@ def bar_index_mask(tree: Any, bars: List[dict],
         into = nested or node.get("type") in ("tf", "tf_live", "tf_merge", "sym")
         name = node.get("name")
         spec = functions.get(name) if node.get("type") == "call" and isinstance(name, str) else None
-        opened = unbounded or bool(spec is not None and spec.get("lookback") == SERIES_LOOKBACK)
+        # e95 (unit 2) -- not under an anchored sum (``_ANCHOR_RESET_CALLS``): its memory ends at its next reset, and
+        # ``builtin_witness_mask`` withholds every bar before the first anchor this chart knows fired
+        # (``interpret.js::barIndexMask``)
+        opened = unbounded or bool(spec is not None and spec.get("lookback") == SERIES_LOOKBACK
+                                   and name not in _ANCHOR_RESET_CALLS)
         args = node.get("args")
         if isinstance(args, list):
             for a in args:
