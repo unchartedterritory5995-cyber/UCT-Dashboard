@@ -1,0 +1,139 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 12%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+............F........................................................... [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+......................................ss................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+.....................................F.................................. [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+..............................................................s......... [ 72%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+....................................s......                              [100%]
+=================================== FAILURES ===================================
+______ test_every_call_site_is_in_a_module_this_migration_reasoned_about _______
+
+    def test_every_call_site_is_in_a_module_this_migration_reasoned_about():
+        """⛔⛔ THE RAIL, failing BY NAME on a site nobody has looked at. A new
+        caller of `get_user_ticker_sets` in a module outside the three F-S6-1
+        named is not wrong by construction -- `get_user_ticker_sets`'s shape is
+        unchanged, so it would likely still be a no-op -- but it is UNREASONED
+        ABOUT, and this rail's whole purpose is to stop that from being silent
+        the way F-S6-1's original "Calendar the only caller" claim was."""
+        sites = _call_sites_of("get_user_ticker_sets")
+        unreasoned = sorted({f for f, _ln in sites} - _KNOWN_2026_09_15 - _REASONED_AFTER_2026_09_15)
+>       assert not unreasoned, (
+            f"get_user_ticker_sets is now called from {unreasoned}, which this "
+            "migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. "
+            "Read what it does with the returned dict before trusting the "
+            "no-op claim for this site, then add it to _KNOWN_2026_09_15 here.")
+E       AssertionError: get_user_ticker_sets is now called from ['api/services/journal_two/notebook_widgets.py'], which this migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. Read what it does with the returned dict before trusting the no-op claim for this site, then add it to _KNOWN_2026_09_15 here.
+E       assert not ['api/services/journal_two/notebook_widgets.py']
+
+tests/test_s6_cp2_migration.py:118: AssertionError
+_______________ test_the_sweep_hands_an_INSTANT_and_never_a_mode _______________
+
+    def test_the_sweep_hands_an_INSTANT_and_never_a_mode():
+        """⛔ THE ENCODING ITSELF, PINNED BY AST. `mode` is not a clock. If this call
+        ever hands a mode-derived boolean again, the half-day case above goes wrong
+        three hours a year and nothing else notices."""
+        tree = pyast.parse(io.open(EVALUATOR, encoding="utf-8").read())
+        fn = next(n for n in pyast.walk(tree)
+                  if isinstance(n, pyast.FunctionDef) and n.name == "evaluate_one")
+        calls = [n for n in pyast.walk(fn) if isinstance(n, pyast.Call)
+                 and getattr(n.func, "attr", None) == "interpret"]
+        assert len(calls) == 1, f"{len(calls)} interpret calls in evaluate_one"
+        opts = {k.arg: k.value for k in calls[0].keywords}["opts"]
+>       keys = {k.value for k in opts.keys}
+E       AttributeError: 'NoneType' object has no attribute 'value'
+
+tests/test_scan_sweep_bar_close_state.py:111: AttributeError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_scan_run.py:1347
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+tests/test_runtime_repaint_memo.py: 1 warning
+tests/test_s6_cp2_migration.py: 3 warnings
+tests/test_sample_never_feeds_real_numbers.py: 5 warnings
+tests/test_scan_evaluator_off_request_path.py: 1 warning
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_runtime_repaint_memo.py::test_M6_nothing_else_lexes_a_runtime_script_or_bypasses_the_memo
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3454: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3457: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_schwab_partner_fixes.py::test_snapshot_now_is_admin_only_not_merely_logged_in
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_screener_backtest_auth.py::test_a_PAID_member_still_gets_200_on_EVERY_route
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'from' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [2] tests/test_scalar_population_rail.py:428: set SCALAR_POPULATION_ARTIFACT=<path to a screener.db> to measure a real snapshot (the suite's own DB is a sandbox)
+SKIPPED [1] tests/test_screener_auth_surface.py:71: SCREEN_BACKTEST_ENABLED is off — the router is not mounted, so there is no served route to check (this is the flag working, not a gap)
+SKIPPED [1] tests/test_screener_integration.py:15: local bars reader unavailable: no such table: ohlcv
+FAILED tests/test_s6_cp2_migration.py::test_every_call_site_is_in_a_module_this_migration_reasoned_about - AssertionError: get_user_ticker_sets is now called from ['api/services/journal_two/notebook_widgets.py'], which this migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. Read what it does with the returned dict before trusting the no-op claim for this site, then add it to _KNOWN_2026_09_15 here.
+assert not ['api/services/journal_two/notebook_widgets.py']
+FAILED tests/test_scan_sweep_bar_close_state.py::test_the_sweep_hands_an_INSTANT_and_never_a_mode - AttributeError: 'NoneType' object has no attribute 'value'
+2 failed, 3349 passed, 4 skipped, 20 warnings in 575.59s (0:09:35)

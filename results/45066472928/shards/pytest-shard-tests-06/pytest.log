@@ -1,0 +1,80 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  7%]
+........................................................................ [ 15%]
+........................................................................ [ 22%]
+........................................................................ [ 30%]
+........................................................................ [ 38%]
+........................................................................ [ 45%]
+...............
+[holiday week] 18:00 ET catch-up — day | store before | OLD downloads | NEW downloads
+  Fri 11-13 | 2026-11-03 | DOWNLOAD |        -
+  Sat 11-14 | 2026-11-03 | DOWNLOAD |        -
+  Sun 11-15 | 2026-11-03 | DOWNLOAD |        -
+  Mon 11-16 | 2026-11-03 | DOWNLOAD | DOWNLOAD
+  Tue 11-17 | 2026-11-10 |        - |        -
+  Wed 11-18 | 2026-11-10 | DOWNLOAD |        -
+  Thu 11-19 | 2026-11-10 | DOWNLOAD |        -
+.
+[normal week] 18:00 ET catch-up — day | store before | OLD downloads | NEW downloads
+  Fri 10-30 | 2026-10-20 | DOWNLOAD | DOWNLOAD
+  Sat 10-31 | 2026-10-27 |        - |        -
+  Sun 11-01 | 2026-10-27 |        - |        -
+  Mon 11-02 | 2026-10-27 |        - |        -
+  Tue 11-03 | 2026-10-27 |        - |        -
+  Wed 11-04 | 2026-10-27 | DOWNLOAD |        -
+  Thu 11-05 | 2026-10-27 | DOWNLOAD |        -
+........................................................ [ 53%]
+........................................................................ [ 61%]
+........................................................................ [ 68%]
+........................................................................ [ 76%]
+..........................................................sssssssssssss. [ 84%]
+........................................................................ [ 91%]
+........................................................................ [ 99%]
+.....                                                                    [100%]
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_corp_actions_census.py::test_the_census_finds_the_sites_we_KNOW_are_there
+tests/test_corp_actions_census.py::test_the_census_finds_the_sites_we_KNOW_are_there
+tests/test_corp_actions_census.py::test_the_census_finds_the_sites_we_KNOW_are_there
+tests/test_corp_actions_census.py::test_the_adjustment_entry_points_are_DERIVED_from_the_repos_own_defs
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_coverage_receipts_scans.py::test_the_screener_route_attaches_the_receipt_only_when_armed
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_cream_selection_audit_1009.py::test_card_still_renders_with_two_contracts_per_name
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/watchlist_card.py:131: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_cross_module_imports_resolve.py::test_no_module_imports_a_name_its_target_does_not_define
+tests/test_cross_module_imports_resolve.py::test_no_module_imports_a_name_its_target_does_not_define
+tests/test_cross_module_imports_resolve.py::test_the_sweep_actually_READ_something
+tests/test_cross_module_imports_resolve.py::test_every_KNOWN_DEAD_entry_is_still_dead
+tests/test_cross_module_imports_resolve.py::test_every_KNOWN_DEAD_entry_is_still_dead
+tests/test_d3_cp3_staleness_reader.py::test_nothing_in_api_calls_last_tick_age_yet
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_crypto_bars.py: 108 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:144: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:161: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:167: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:187: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:204: UCT_LAB_CUP_TIER unset
+SKIPPED [6] tests/test_cup_tier_lab_parity.py:223: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:248: UCT_LAB_CUP_TIER unset
+SKIPPED [1] tests/test_cup_tier_lab_parity.py:278: UCT_LAB_CUP_TIER unset
+928 passed, 13 skipped, 121 warnings in 553.86s (0:09:13)

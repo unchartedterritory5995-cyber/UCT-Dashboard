@@ -1,0 +1,18 @@
+{
+  "suite": "pytest",
+  "collected": 3528,
+  "passed": 3516,
+  "failed": 4,
+  "errored": 0,
+  "skipped": 8,
+  "wall_s": 588.69,
+  "failed_files": [
+    "tests/test_deep_backfill_sync.py",
+    "tests/test_deploy_watch.py",
+    "tests/test_discord_chart_prefs.py",
+    "tests/test_discord_chart_weekly_stats.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "4 failed, 3516 passed, 8 skipped, 58 warnings in 588.69s (0:09:48)",
+  "ok": true
+}

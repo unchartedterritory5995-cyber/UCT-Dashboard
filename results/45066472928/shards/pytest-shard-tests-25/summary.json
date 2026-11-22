@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 7288,
+  "passed": 7282,
+  "failed": 6,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 671.11,
+  "failed_files": [
+    "tests/test_trade_exchange_news_archive.py",
+    "tests/test_two_engines_do_not_agree.py",
+    "tests/test_upload_cap_member_doors.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "6 failed, 7282 passed, 34 warnings in 671.11s (0:11:11)",
+  "ok": true
+}

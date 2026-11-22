@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 2603,
+  "passed": 2535,
+  "failed": 25,
+  "errored": 12,
+  "skipped": 31,
+  "wall_s": 381.18,
+  "failed_files": [
+    "tests/test_gate_box_lock.py",
+    "tests/test_gate_shards.py",
+    "tests/test_history_lake_build.py",
+    "tests/test_history_lake_jobs.py",
+    "tests/test_history_lake_pack.py",
+    "tests/test_hub_sandbox_model_keys.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "25 failed, 2535 passed, 31 skipped, 15 warnings, 12 errors in 381.18s (0:06:21)",
+  "ok": true
+}

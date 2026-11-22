@@ -1,0 +1,248 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 4,
+    "fixed": 6,
+    "unchanged": 162,
+    "missing": 0,
+    "baseline": 168,
+    "current": 166,
+    "current_ran": 227295,
+    "new_flaky": 0,
+    "flaky_size": 0,
+    "flaky_new": 0,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 1,
+    "new_unattributed": 3
+  },
+  "arithmetic": "baseline 168 = unchanged 162 + fixed 6 + missing 0  |  current 166 = unchanged 162 + new 4 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "44945133066",
+  "current_run_id": "45066472928",
+  "baseline_sha": "6f989fd1d4ac1f2e11218a096a8a3d2edceae153",
+  "current_sha": "af1cb918a1d2743b56c4a8ca2b1f58be99e05629",
+  "commit_range": "6f989fd1d4ac1f2e11218a096a8a3d2edceae153..af1cb918a1d2743b56c4a8ca2b1f58be99e05629",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_account_deletion_manifest|test_the_generated_block_in_the_doc_is_current",
+    "pytest|tests.test_account_deletion_manifest|test_the_manifest_names_exactly_the_tables_the_purge_deletes",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "vitest|src/pages/formulas/memberReason.test.js|the member\u2019s sentence > today every entry shown is a KNOWN kind: nothing falls through to the fallback"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|api.services.journal_two.test_note_convert_d3|test_inline_raw_tags_scale_linearly[<lambda>1]",
+    "pytest|tests.test_ci_agent_docs_paths|test_every_docs_file_an_agent_suite_reads_is_an_agent_ci_path",
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_ocr_build_isolation.TestStartupSemanticsAreNotForked|test_every_other_deploy_setting_is_identical_to_the_shared_one",
+    "vitest|src/pages/journal-2-0/components/notebook/styles/KindSection.test.jsx|New note: pick a kind > \"Use this style\" inside the preview makes the note and closes the preview"
+  ],
+  "new_flaky": [],
+  "flaky": [],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_account_deletion_manifest|test_the_generated_block_in_the_doc_is_current": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6f989fd1d..af1cb918a touched tests/test_account_deletion_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_account_deletion_manifest|test_the_manifest_names_exactly_the_tables_the_purge_deletes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6f989fd1d..af1cb918a touched tests/test_account_deletion_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped": {
+      "class": "imported-file-change",
+      "commits": [
+        "c7641ae5e",
+        "ccefb8b1e",
+        "acb28d3dd",
+        "7ba0ba048",
+        "d096dbf23",
+        "418c8b6f5",
+        "edcd5fed9",
+        "b4e7999e7",
+        "1374abf27",
+        "faf1f9a5c",
+        "b5ca601d2",
+        "c647089e6",
+        "bf94425f3",
+        "6273c3f88",
+        "f1d9145c9",
+        "178738e60",
+        "b5a4f4b6e",
+        "ba7c82888"
+      ],
+      "workstreams": [
+        {
+          "commit": "c7641ae5e",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "ccefb8b1e",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "acb28d3dd",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7ba0ba048",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "d096dbf23",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "418c8b6f5",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "edcd5fed9",
+          "workstream": "agent/pl/exclusion-leave-alone",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "b4e7999e7",
+          "workstream": "agent/pl/exclusion-leave-alone",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "1374abf27",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "faf1f9a5c",
+          "workstream": "agent/pl/exclusion-leave-alone",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "b5ca601d2",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "c647089e6",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "bf94425f3",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "6273c3f88",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f1d9145c9",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "178738e60",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b5a4f4b6e",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "ba7c82888",
+          "workstream": "docs",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "vitest|src/pages/formulas/memberReason.test.js|the member\u2019s sentence > today every entry shown is a KNOWN kind: nothing falls through to the fallback": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6f989fd1d..af1cb918a touched src/pages/formulas/memberReason.test.js or anything it imports"
+    },
+    "pytest|api.services.journal_two.test_note_convert_d3|test_inline_raw_tags_scale_linearly[<lambda>1]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6f989fd1d..af1cb918a touched api/services/journal_two/test_note_convert_d3.py or anything it imports"
+    },
+    "pytest|tests.test_ci_agent_docs_paths|test_every_docs_file_an_agent_suite_reads_is_an_agent_ci_path": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6f989fd1d..af1cb918a touched tests/test_ci_agent_docs_paths.py or anything it imports"
+    },
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6f989fd1d..af1cb918a touched tests/test_discord_close_note.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6f989fd1d..af1cb918a touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_ocr_build_isolation.TestStartupSemanticsAreNotForked|test_every_other_deploy_setting_is_identical_to_the_shared_one": {
+      "class": "test-file-change",
+      "commits": [
+        "729b76154"
+      ],
+      "workstreams": [
+        {
+          "commit": "729b76154",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "vitest|src/pages/journal-2-0/components/notebook/styles/KindSection.test.jsx|New note: pick a kind > \"Use this style\" inside the preview makes the note and closes the preview": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 6f989fd1d..af1cb918a touched src/pages/journal-2-0/components/notebook/styles/KindSection.test.jsx or anything it imports"
+    }
+  },
+  "run_attempt": "1",
+  "rerun_flaky": []
+}

@@ -1,0 +1,135 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+F....................................................................... [ 10%]
+........................................................................ [ 21%]
+........................................................................ [ 31%]
+........................................................................ [ 42%]
+........................................................................ [ 52%]
+........................................................................ [ 63%]
+........................................................................ [ 73%]
+........................................................................ [ 84%]
+........................................................................ [ 94%]
+...................................                                      [100%]
+=================================== FAILURES ===================================
+__________ test_no_test_module_binds_into_sys_modules_at_import_time ___________
+
+    def test_no_test_module_binds_into_sys_modules_at_import_time():
+        """The stub cannot come back — in any test module, not just the three.
+    
+        A module-level bind into `sys.modules` is global state installed by an
+        import and removable by nobody. Whether it wins is decided by collection
+        order, which is why the same two files passed 27 and failed 7 depending
+        only on which one came first.
+        """
+        offenders = []
+        for path in _test_module_files():
+            for lineno, kind in _module_level_sys_modules_binds(path):
+                offenders.append(f"{path.relative_to(REPO)}:{lineno}  {kind}")
+>       assert offenders == [], (
+            "import-time sys.modules bind(s) — install AND remove it in a fixture, "
+            "or delete the stub if the reason for it has expired:\n  "
+            + "\n  ".join(offenders)
+        )
+E       AssertionError: import-time sys.modules bind(s) — install AND remove it in a fixture, or delete the stub if the reason for it has expired:
+E           tests/test_mobile_audit_route_validity.py:30  sys.modules[...] =
+E           tests/test_oi44_loop_blockers_gate.py:29  sys.modules[...] =
+E           tests/test_discord_render_goldens.py:37  sys.modules[...] =
+E           tests/test_w8_accuracy_audit.py:26  sys.modules[...] =
+E       assert ['tests/test_...dules[...] ='] == []
+E         
+E         Left contains 4 more items, first extra item: 'tests/test_mobile_audit_route_validity.py:30  sys.modules[...] ='
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     'tests/test_mobile_audit_route_validity.py:30  sys.modules[...] =',
+E         +     'tests/test_oi44_loop_blockers_gate.py:29  sys.modules[...] =',
+E         +     'tests/test_discord_render_goldens.py:37  sys.modules[...] =',
+E         +     'tests/test_w8_accuracy_audit.py:26  sys.modules[...] =',
+E         + ]
+
+tests/test_shared_state_landmines.py:116: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_wisdom_bans.py:627: SyntaxWarning: invalid escape sequence '\w'
+    `\w*journal`) would silently exempt every real reference that shares a line with a
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_alert_taxonomy_price_level_projection.py:968: SyntaxWarning: invalid escape sequence '\d'
+    incident reached `C:\data\auth.db` while reporting a clean start. A tool
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_definition_record.py:262: SyntaxWarning: invalid escape sequence '\d'
+    the one thing in the run that touched it. On a box where `C:\data` exists
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_widgets_service.py:3: SyntaxWarning: invalid escape sequence '\d'
+    Every consumed function is monkeypatched: no network, no live data, no C:\data.
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_definition_sharing.py:55: SyntaxWarning: invalid escape sequence '\d'
+    passed only because the shared `C:\data\auth.db` happened to hold a real
+
+tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests/test_shared_state_landmines.py::test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time
+tests/test_shared_state_landmines.py::test_the_connection_the_product_opens_is_never_the_shared_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/api/test_ltr_call_request.py:186: SyntaxWarning: invalid escape sequence '\['
+    assert "\[click\](http://x.test) \*\*big\*\* @everyone" in content
+
+tests/test_single_authority_rails.py::test_no_rolling_subtract_moving_average_survives_in_the_backend
+tests/test_single_authority_rails.py::test_every_rolling_shape_exemption_is_live_and_one_sentence
+tests/test_single_authority_rails.py::test_the_former_setup_history_exemption_is_gone_and_baseline_does_not_match
+tests/test_single_authority_rails.py::test_the_zero_movement_rsi_decision_is_made_in_exactly_one_function
+tests/test_single_authority_rails.py::test_no_module_carries_atr_pct_as_a_second_name_for_adr_pct
+tests/test_single_authority_rails.py::test_the_rs_lookbacks_and_weights_live_in_exactly_one_module
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time - AssertionError: import-time sys.modules bind(s) — install AND remove it in a fixture, or delete the stub if the reason for it has expired:
+    tests/test_mobile_audit_route_validity.py:30  sys.modules[...] =
+    tests/test_oi44_loop_blockers_gate.py:29  sys.modules[...] =
+    tests/test_discord_render_goldens.py:37  sys.modules[...] =
+    tests/test_w8_accuracy_audit.py:26  sys.modules[...] =
+assert ['tests/test_...dules[...] ='] == []
+  
+  Left contains 4 more items, first extra item: 'tests/test_mobile_audit_route_validity.py:30  sys.modules[...] ='
+  
+  Full diff:
+  - []
+  + [
+  +     'tests/test_mobile_audit_route_validity.py:30  sys.modules[...] =',
+  +     'tests/test_oi44_loop_blockers_gate.py:29  sys.modules[...] =',
+  +     'tests/test_discord_render_goldens.py:37  sys.modules[...] =',
+  +     'tests/test_w8_accuracy_audit.py:26  sys.modules[...] =',
+  + ]
+1 failed, 682 passed, 29 warnings in 355.11s (0:05:55)

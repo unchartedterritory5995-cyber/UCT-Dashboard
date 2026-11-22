@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 3933,
+  "passed": 3922,
+  "failed": 7,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 787.22,
+  "failed_files": [
+    "tests/test_notebook_upload_cap_2.py",
+    "tests/test_pattern_scan_depth_and_sym.py",
+    "tests/test_persistence_manifest_server_keys.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "7 failed, 3922 passed, 4 skipped, 60 warnings in 787.22s (0:13:07)",
+  "ok": true
+}

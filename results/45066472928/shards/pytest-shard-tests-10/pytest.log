@@ -1,0 +1,1921 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+.........................................................s.............. [ 16%]
+...........................................F.F....s....FssF............. [ 19%]
+.....ss...s............................................................. [ 22%]
+........................................s..............................F [ 24%]
+......................s................................................. [ 27%]
+.......................................ssssss.........ss....s........... [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+..............................................EEEEEFEFFFssss............ [ 41%]
+..........................s........FFFEEEFFFF.FFFFFFF................... [ 44%]
+..s..........................................................EEE........ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+.....................ssssss............................................. [ 55%]
+........................................s............................... [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 63%]
+........................................................................ [ 66%]
+................F.....F................................................. [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+...........                                                              [100%]
+==================================== ERRORS ====================================
+_____ ERROR at setup of test_synthetic_build_equals_independent_reference ______
+
+workroot = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0')
+syn_raw = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw')
+
+    @pytest.fixture(scope="module")
+    def syn_oneshot(workroot, syn_raw):
+        out = _newdir(workroot, "syn_oneshot")
+>       summary = _build(syn_raw, out, "2026-10-01..2027-01-31", chunk_rows=700)   # several flush chunks
+
+tests/test_history_lake_build.py:277: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_build.py:263: in _build
+    summary = BLD.Builder(Path(raw), Path(out), **kw).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw/2026/2026-10-30.csv.gz')
+day = '2026-10-30', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+________ ERROR at setup of test_synthetic_duplicate_rows_last_one_wins _________
+
+workroot = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0')
+syn_raw = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw')
+
+    @pytest.fixture(scope="module")
+    def syn_oneshot(workroot, syn_raw):
+        out = _newdir(workroot, "syn_oneshot")
+>       summary = _build(syn_raw, out, "2026-10-01..2027-01-31", chunk_rows=700)   # several flush chunks
+
+tests/test_history_lake_build.py:277: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_build.py:263: in _build
+    summary = BLD.Builder(Path(raw), Path(out), **kw).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw/2026/2026-10-30.csv.gz')
+day = '2026-10-30', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+____________ ERROR at setup of test_synthetic_index_matches_pieces _____________
+
+workroot = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0')
+syn_raw = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw')
+
+    @pytest.fixture(scope="module")
+    def syn_oneshot(workroot, syn_raw):
+        out = _newdir(workroot, "syn_oneshot")
+>       summary = _build(syn_raw, out, "2026-10-01..2027-01-31", chunk_rows=700)   # several flush chunks
+
+tests/test_history_lake_build.py:277: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_build.py:263: in _build
+    summary = BLD.Builder(Path(raw), Path(out), **kw).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw/2026/2026-10-30.csv.gz')
+day = '2026-10-30', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+_______ ERROR at setup of test_synthetic_rebuild_twice_is_byte_identical _______
+
+workroot = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0')
+syn_raw = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw')
+
+    @pytest.fixture(scope="module")
+    def syn_oneshot(workroot, syn_raw):
+        out = _newdir(workroot, "syn_oneshot")
+>       summary = _build(syn_raw, out, "2026-10-01..2027-01-31", chunk_rows=700)   # several flush chunks
+
+tests/test_history_lake_build.py:277: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_build.py:263: in _build
+    summary = BLD.Builder(Path(raw), Path(out), **kw).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw/2026/2026-10-30.csv.gz')
+day = '2026-10-30', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+________ ERROR at setup of test_synthetic_day_by_day_equals_all_at_once ________
+
+workroot = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0')
+syn_raw = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw')
+
+    @pytest.fixture(scope="module")
+    def syn_oneshot(workroot, syn_raw):
+        out = _newdir(workroot, "syn_oneshot")
+>       summary = _build(syn_raw, out, "2026-10-01..2027-01-31", chunk_rows=700)   # several flush chunks
+
+tests/test_history_lake_build.py:277: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_build.py:263: in _build
+    summary = BLD.Builder(Path(raw), Path(out), **kw).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw/2026/2026-10-30.csv.gz')
+day = '2026-10-30', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+____ ERROR at setup of test_synthetic_symbol_filter_builds_the_same_pieces _____
+
+workroot = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0')
+syn_raw = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw')
+
+    @pytest.fixture(scope="module")
+    def syn_oneshot(workroot, syn_raw):
+        out = _newdir(workroot, "syn_oneshot")
+>       summary = _build(syn_raw, out, "2026-10-01..2027-01-31", chunk_rows=700)   # several flush chunks
+
+tests/test_history_lake_build.py:277: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_build.py:263: in _build
+    summary = BLD.Builder(Path(raw), Path(out), **kw).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw/2026/2026-10-30.csv.gz')
+day = '2026-10-30', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+________ ERROR at setup of test_merge_equals_one_build_over_both_ranges ________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_merge_equals_one_build_ov0')
+
+    @pytest.fixture()
+    def lakes(tmp_path):
+        raw = tmp_path / "raw"
+        rng = random.Random(77)
+        for day in DAYS_A + DAYS_B:
+            _write_day(raw, day, rng)
+>       a = _build(raw, tmp_path / "a", "2026-01-01..2026-12-31")
+
+tests/test_history_lake_merge.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_merge.py:48: in _build
+    BLD.Builder(raw, out, quality=5, **QUIET).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_merge_equals_one_build_ov0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+___________ ERROR at setup of test_merge_refuses_instead_of_guessing ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_merge_refuses_instead_of_0')
+
+    @pytest.fixture()
+    def lakes(tmp_path):
+        raw = tmp_path / "raw"
+        rng = random.Random(77)
+        for day in DAYS_A + DAYS_B:
+            _write_day(raw, day, rng)
+>       a = _build(raw, tmp_path / "a", "2026-01-01..2026-12-31")
+
+tests/test_history_lake_merge.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_merge.py:48: in _build
+    BLD.Builder(raw, out, quality=5, **QUIET).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_merge_refuses_instead_of_0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+___ ERROR at setup of test_verify_sees_a_missing_a_stray_and_a_resized_piece ___
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_verify_sees_a_missing_a_s0')
+
+    @pytest.fixture()
+    def lakes(tmp_path):
+        raw = tmp_path / "raw"
+        rng = random.Random(77)
+        for day in DAYS_A + DAYS_B:
+            _write_day(raw, day, rng)
+>       a = _build(raw, tmp_path / "a", "2026-01-01..2026-12-31")
+
+tests/test_history_lake_merge.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_merge.py:48: in _build
+    BLD.Builder(raw, out, quality=5, **QUIET).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_verify_sees_a_missing_a_s0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+___ ERROR at setup of test_stamp_writes_the_tables_and_touches_nothing_else ____
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_stamp_writes_the_tables_a0')
+
+    @pytest.fixture()
+    def lake(tmp_path):
+        raw = tmp_path / "raw"
+        rng = random.Random(77)
+        for day in DAYS_A + DAYS_B:
+            _write_day(raw, day, rng)
+>       out = _build(raw, tmp_path / "lake", "2026-01-01..2027-12-31")
+
+tests/test_history_lake_stamp.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_merge.py:48: in _build
+    BLD.Builder(raw, out, quality=5, **QUIET).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_stamp_writes_the_tables_a0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+_______ ERROR at setup of test_the_builder_and_the_merge_keep_the_stamp ________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_builder_and_the_merge0')
+
+    @pytest.fixture()
+    def lake(tmp_path):
+        raw = tmp_path / "raw"
+        rng = random.Random(77)
+        for day in DAYS_A + DAYS_B:
+            _write_day(raw, day, rng)
+>       out = _build(raw, tmp_path / "lake", "2026-01-01..2027-12-31")
+
+tests/test_history_lake_stamp.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_merge.py:48: in _build
+    BLD.Builder(raw, out, quality=5, **QUIET).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_builder_and_the_merge0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+___________ ERROR at setup of test_stamp_refuses_instead_of_guessing ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_stamp_refuses_instead_of_0')
+
+    @pytest.fixture()
+    def lake(tmp_path):
+        raw = tmp_path / "raw"
+        rng = random.Random(77)
+        for day in DAYS_A + DAYS_B:
+            _write_day(raw, day, rng)
+>       out = _build(raw, tmp_path / "lake", "2026-01-01..2027-12-31")
+
+tests/test_history_lake_stamp.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_merge.py:48: in _build
+    BLD.Builder(raw, out, quality=5, **QUIET).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_stamp_refuses_instead_of_0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+=================================== FAILURES ===================================
+_________ test_a_DEAD_holder_is_reclaimed_AND_the_reclaim_is_recorded __________
+
+run_id = 'mine'
+
+    def acquire(run_id: str, *, path: pathlib.Path | None = None,
+                worktree: pathlib.Path | None = None, load: bool = True) -> dict:
+        """Take the box, or raise `LockHeld`. Returns the record that goes into the manifest.
+    
+        ⛔ ATOMIC CREATE, NEVER CHECK-THEN-WRITE. `O_CREAT | O_EXCL` is one syscall that either creates
+        the file or fails because somebody else already did. A `if not exists: write` has a window
+        between the two halves, and two gates starting in the same second is *precisely* the event
+        this lock exists for — the race is not hypothetical here, it is the use case.
+    
+        ⛔⛔ THE LOAD READING IS TAKEN AND RETURNED, AND IT CHANGES NOTHING ABOUT THE DECISION. This
+        is what `scripts/gate_shards.py` consults before it starts, so it is where the caller has to
+        learn that an EMPTY lock file does not mean an empty box. It is not a second refusal: the gate
+        would then be blocked by its own vitest workers, or by any co-resident pytest, and a queue
+        that refuses on load is no longer advisory. The manifest carries the reading; the operator
+        decides.
+    
+        ⭐ `load=False` is for a caller that must not pay for a PowerShell snapshot, and it yields the
+        explicit `NOT_PROBED` record rather than a zero — "nobody looked" stays visible in the result.
+        """
+        p = path or lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        record = _self_record(run_id, worktree)
+        reclaimed: dict | None = None
+    
+        # ⛔⛔ THE PROBE RUNS AFTER THE ATOMIC CREATE, NEVER BEFORE IT, AND THAT ORDER IS A CONTRACT.
+        # A PowerShell snapshot costs a second or two. Taking it on the way IN would put that second
+        # between the caller's decision to acquire and the `O_CREAT | O_EXCL` that settles the race —
+        # and two gates starting in the same second is not hypothetical here, it is the use case this
+        # whole file exists for. The lock decision must be the first thing that happens.
+        #
+        # ⛔ ONE READING, TAKEN ONCE, SHARED BY EVERY EXIT — including the refusal. Two snapshots taken
+        # at two moments would let the acquired-record and the refusal-record disagree about one box.
+        _seen: dict = {}
+    
+        def load_state() -> dict:
+            if "v" not in _seen:
+                _seen["v"] = (gate_box_sampler.box_load(exclude_tree=os.getpid()) if load
+                              else gate_box_sampler.load_not_probed(
+                                  "the caller passed load=False; no process probe was taken"))
+            return _seen["v"]
+    
+        for attempt in (1, 2):
+            try:
+>               fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+E               FileExistsError: [Errno 17] File exists: '/tmp/pytest-of-runner/pytest-0/test_a_DEAD_holder_is_reclaime0/box.lock'
+
+tools/gate_box_lock.py:268: FileExistsError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_DEAD_holder_is_reclaime0')
+
+    def test_a_DEAD_holder_is_reclaimed_AND_the_reclaim_is_recorded(tmp_path):
+        """⭐ RECORDED, NOT SILENTLY FORGOTTEN. A crashed gate that leaves a lock behind is how you
+        learn a run died without anybody noticing; swallowing it loses that entirely."""
+        lock = tmp_path / "box.lock"
+        proc = _spawn_gate_like(1)
+        proc.kill(); proc.wait(timeout=10)
+        dead_pid = proc.pid
+        for _ in range(8):                    # let the OS reap it
+            if not L._alive(dead_pid):
+                break
+            time.sleep(0.5)
+        _write_lock_for(dead_pid, lock, run_id="the-crashed-one")
+    
+>       rec = L.acquire("mine", path=lock)
+
+tests/test_gate_box_lock.py:103: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+run_id = 'mine'
+
+    def acquire(run_id: str, *, path: pathlib.Path | None = None,
+                worktree: pathlib.Path | None = None, load: bool = True) -> dict:
+        """Take the box, or raise `LockHeld`. Returns the record that goes into the manifest.
+    
+        ⛔ ATOMIC CREATE, NEVER CHECK-THEN-WRITE. `O_CREAT | O_EXCL` is one syscall that either creates
+        the file or fails because somebody else already did. A `if not exists: write` has a window
+        between the two halves, and two gates starting in the same second is *precisely* the event
+        this lock exists for — the race is not hypothetical here, it is the use case.
+    
+        ⛔⛔ THE LOAD READING IS TAKEN AND RETURNED, AND IT CHANGES NOTHING ABOUT THE DECISION. This
+        is what `scripts/gate_shards.py` consults before it starts, so it is where the caller has to
+        learn that an EMPTY lock file does not mean an empty box. It is not a second refusal: the gate
+        would then be blocked by its own vitest workers, or by any co-resident pytest, and a queue
+        that refuses on load is no longer advisory. The manifest carries the reading; the operator
+        decides.
+    
+        ⭐ `load=False` is for a caller that must not pay for a PowerShell snapshot, and it yields the
+        explicit `NOT_PROBED` record rather than a zero — "nobody looked" stays visible in the result.
+        """
+        p = path or lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        record = _self_record(run_id, worktree)
+        reclaimed: dict | None = None
+    
+        # ⛔⛔ THE PROBE RUNS AFTER THE ATOMIC CREATE, NEVER BEFORE IT, AND THAT ORDER IS A CONTRACT.
+        # A PowerShell snapshot costs a second or two. Taking it on the way IN would put that second
+        # between the caller's decision to acquire and the `O_CREAT | O_EXCL` that settles the race —
+        # and two gates starting in the same second is not hypothetical here, it is the use case this
+        # whole file exists for. The lock decision must be the first thing that happens.
+        #
+        # ⛔ ONE READING, TAKEN ONCE, SHARED BY EVERY EXIT — including the refusal. Two snapshots taken
+        # at two moments would let the acquired-record and the refusal-record disagree about one box.
+        _seen: dict = {}
+    
+        def load_state() -> dict:
+            if "v" not in _seen:
+                _seen["v"] = (gate_box_sampler.box_load(exclude_tree=os.getpid()) if load
+                              else gate_box_sampler.load_not_probed(
+                                  "the caller passed load=False; no process probe was taken"))
+            return _seen["v"]
+    
+        for attempt in (1, 2):
+            try:
+                fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError:
+                holder = read_holder(p)
+                if holder is None:                      # vanished between the two calls — retry
+                    continue
+                pid = holder.get("pid")
+                if pid is not None and not _alive(int(pid)):
+                    # ⭐ STALE, AND THE RECLAIM IS RECORDED RATHER THAN SILENT. A crashed gate that
+                    # leaves a lock behind is a fact worth seeing in the next manifest: it is how you
+                    # learn a run died without anybody noticing.
+                    reclaimed = dict(holder)
+                    try:
+                        p.unlink()
+                    except OSError:
+                        pass
+                    if attempt == 1:
+                        continue                        # one retry; if we lose the race, we are held
+                bypass = _bypass_reason()
+                if bypass:
+                    # ⛔⛔ R3: THE OVERRIDE LETS YOU RUN, IT DOES NOT LET YOU PRETEND. We do NOT take
+                    # the lock — the holder keeps it — and the caller is told it is running over a
+                    # live holder so the manifest and the sampler can both say so.
+                    _log_bypass(bypass, holder, record)
+                    return {"acquired": False, "bypass": True, "bypass_reason": bypass,
+                            "overrode": holder, "reclaimed": reclaimed, "path": str(p),
+                            "holder": holder, "self": record, "load": load_state()}
+>               raise LockHeld(holder, load=load_state())
+E               gate_box_lock.LockHeld: pid 3547 since 2026-09-14T23:00:00 [someone-else] python -u scripts/gate_shards.py --shards 6
+
+tools/gate_box_lock.py:294: LockHeld
+_ test_R3_a_bypassed_run_under_a_live_holder_still_lands_INCONCLUSIVE_CONTENDED _
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_R3_a_bypassed_run_under_a0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7aaaf459f380>
+
+    def test_R3_a_bypassed_run_under_a_live_holder_still_lands_INCONCLUSIVE_CONTENDED(tmp_path,
+                                                                                      monkeypatch):
+        """⛔⛔ OWNER RULING R3, AND IT IS THE POINT OF THE WHOLE BYPASS DESIGN.
+    
+        *"a bypass NEVER buys a CLEAR verdict: the bypassed run is still sampled and lands
+        INCONCLUSIVE-CONTENDED if the holder is alive, with the bypass reason in the manifest. The
+        override lets you run; it does not let you pretend."*
+    
+        The chain is driven end to end: a LIVE holder, a bypass WITH a reason, and then the sampler —
+        which knows nothing about locks or bypasses — asked for its verdict over the same interval.
+    
+        ⚠️ The holder is spawned by this test, so it is our own child; we therefore sample WITHOUT the
+        tree exclusion, because a real holder belongs to another session and is NOT our descendant.
+        The exclusion itself is exercised by its own rails in `test_gate_box_sampler.py`; using it
+        here would hide the very process the rule is about.
+        """
+        proc = _spawn_gate_like()
+        lock = tmp_path / "box.lock"
+        try:
+            _write_lock_for(proc.pid, lock)
+            monkeypatch.setenv(L.BYPASS_ENV, "R3 rail: proving a bypass does not buy CLEAR")
+    
+            rec = L.acquire("mine", path=lock)
+            # it RUNS ...
+            assert rec["bypass"] is True
+            assert rec["bypass_reason"] == "R3 rail: proving a bypass does not buy CLEAR"
+            assert rec["overrode"]["pid"] == proc.pid
+            # ... and it does NOT steal the lock from the live holder
+            assert rec["acquired"] is False
+            assert json.loads(lock.read_text(encoding="utf-8"))["pid"] == proc.pid
+    
+            # ... and the sampler's verdict is unmoved by any of that.
+            samples, seen = [], False
+            for _ in range(10):
+>               s = S.take_sample(S._self_pids())
+
+tests/test_gate_box_lock.py:167: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/gate_box_sampler.py:540: in take_sample
+    snap = _snapshot()
+tools/gate_box_sampler.py:294: in _snapshot
+    proc = subprocess.run(
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Popen: returncode: 255 args: ['powershell', '-NoProfile', '-NonInteractive'...>
+args = ['powershell', '-NoProfile', '-NonInteractive', '-Command', '$os = Get-CimInstance Win32_OperatingSystem;$cpu = (Get-C...eePhysicalMemory; total_kb=$os.TotalVisibleMemorySize; cpu_pct=$cpu; procs=@($p)} | ConvertTo-Json -Depth 4 -Compress']
+executable = b'powershell', preexec_fn = None, close_fds = True, pass_fds = ()
+cwd = None, env = None, startupinfo = None, creationflags = 0, shell = False
+p2cread = -1, p2cwrite = -1, c2pread = 10, c2pwrite = 11, errread = 12
+errwrite = 13, restore_signals = True, gid = None, gids = None, uid = None
+umask = -1, start_new_session = False, process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       restore_signals,
+                       gid, gids, uid, umask,
+                       start_new_session, process_group):
+        """Execute program (POSIX version)"""
+    
+        if isinstance(args, (str, bytes)):
+            args = [args]
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = [args]
+        else:
+            args = list(args)
+    
+        if shell:
+            # On Android the default shell is at '/system/bin/sh'.
+            unix_shell = ('/system/bin/sh' if
+                      hasattr(sys, 'getandroidapilevel') else '/bin/sh')
+            args = [unix_shell, "-c"] + args
+            if executable:
+                args[0] = executable
+    
+        if executable is None:
+            executable = args[0]
+    
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+    
+        if (_USE_POSIX_SPAWN
+                and os.path.dirname(executable)
+                and preexec_fn is None
+                and not close_fds
+                and not pass_fds
+                and cwd is None
+                and (p2cread == -1 or p2cread > 2)
+                and (c2pwrite == -1 or c2pwrite > 2)
+                and (errwrite == -1 or errwrite > 2)
+                and not start_new_session
+                and process_group == -1
+                and gid is None
+                and gids is None
+                and uid is None
+                and umask < 0):
+            self._posix_spawn(args, executable, env, restore_signals,
+                              p2cread, p2cwrite,
+                              c2pread, c2pwrite,
+                              errread, errwrite)
+            return
+    
+        orig_executable = executable
+    
+        # For transferring possible exec failure from child to parent.
+        # Data format: "exception name:hex errno:description"
+        # Pickle is not used; it is complex and involves memory allocation.
+        errpipe_read, errpipe_write = os.pipe()
+        # errpipe_write must not be in the standard io 0, 1, or 2 fd range.
+        low_fds_to_close = []
+        while errpipe_write < 3:
+            low_fds_to_close.append(errpipe_write)
+            errpipe_write = os.dup(errpipe_write)
+        for low_fd in low_fds_to_close:
+            os.close(low_fd)
+        try:
+            try:
+                # We must avoid complex work that could involve
+                # malloc or free in the child process to avoid
+                # potential deadlocks, thus we do all this here.
+                # and pass it to fork_exec()
+    
+                if env is not None:
+                    env_list = []
+                    for k, v in env.items():
+                        k = os.fsencode(k)
+                        if b'=' in k:
+                            raise ValueError("illegal environment variable name")
+                        env_list.append(k + b'=' + os.fsencode(v))
+                else:
+                    env_list = None  # Use execv instead of execve.
+                executable = os.fsencode(executable)
+                if os.path.dirname(executable):
+                    executable_list = (executable,)
+                else:
+                    # This matches the behavior of os._execvpe().
+                    executable_list = tuple(
+                        os.path.join(os.fsencode(dir), executable)
+                        for dir in os.get_exec_path(env))
+                fds_to_keep = set(pass_fds)
+                fds_to_keep.add(errpipe_write)
+                self.pid = _fork_exec(
+                        args, executable_list,
+                        close_fds, tuple(sorted(map(int, fds_to_keep))),
+                        cwd, env_list,
+                        p2cread, p2cwrite, c2pread, c2pwrite,
+                        errread, errwrite,
+                        errpipe_read, errpipe_write,
+                        restore_signals, start_new_session,
+                        process_group, gid, gids, uid, umask,
+                        preexec_fn, _USE_VFORK)
+                self._child_created = True
+            finally:
+                # be sure the FD is closed no matter what
+                os.close(errpipe_write)
+    
+            self._close_pipe_fds(p2cread, p2cwrite,
+                                 c2pread, c2pwrite,
+                                 errread, errwrite)
+    
+            # Wait for exec to fail or succeed; possibly raising an
+            # exception (limited in size)
+            errpipe_data = bytearray()
+            while True:
+                part = os.read(errpipe_read, 50000)
+                errpipe_data += part
+                if not part or len(errpipe_data) > 50000:
+                    break
+        finally:
+            # be sure the FD is closed no matter what
+            os.close(errpipe_read)
+    
+        if errpipe_data:
+            try:
+                pid, sts = os.waitpid(self.pid, 0)
+                if pid == self.pid:
+                    self._handle_exitstatus(sts)
+                else:
+                    self.returncode = sys.maxsize
+            except ChildProcessError:
+                pass
+    
+            try:
+                exception_name, hex_errno, err_msg = (
+                        errpipe_data.split(b':', 2))
+                # The encoding here should match the encoding
+                # written in by the subprocess implementations
+                # like _posixsubprocess
+                err_msg = err_msg.decode()
+            except ValueError:
+                exception_name = b'SubprocessError'
+                hex_errno = b'0'
+                err_msg = 'Bad exception data from child: {!r}'.format(
+                              bytes(errpipe_data))
+            child_exception_type = getattr(
+                    builtins, exception_name.decode('ascii'),
+                    SubprocessError)
+            if issubclass(child_exception_type, OSError) and hex_errno:
+                errno_num = int(hex_errno, 16)
+                if err_msg == "noexec:chdir":
+                    err_msg = ""
+                    # The error must be from chdir(cwd).
+                    err_filename = cwd
+                elif err_msg == "noexec":
+                    err_msg = ""
+                    err_filename = None
+                else:
+                    err_filename = orig_executable
+                if errno_num != 0:
+                    err_msg = os.strerror(errno_num)
+                if err_filename is not None:
+>                   raise child_exception_type(errno_num, err_msg, err_filename)
+E                   FileNotFoundError: [Errno 2] No such file or directory: 'powershell'
+
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/subprocess.py:1955: FileNotFoundError
+___________ test_the_load_reading_NEVER_changes_the_holder_contract ____________
+
+run_id = 'mine'
+
+    def acquire(run_id: str, *, path: pathlib.Path | None = None,
+                worktree: pathlib.Path | None = None, load: bool = True) -> dict:
+        """Take the box, or raise `LockHeld`. Returns the record that goes into the manifest.
+    
+        ⛔ ATOMIC CREATE, NEVER CHECK-THEN-WRITE. `O_CREAT | O_EXCL` is one syscall that either creates
+        the file or fails because somebody else already did. A `if not exists: write` has a window
+        between the two halves, and two gates starting in the same second is *precisely* the event
+        this lock exists for — the race is not hypothetical here, it is the use case.
+    
+        ⛔⛔ THE LOAD READING IS TAKEN AND RETURNED, AND IT CHANGES NOTHING ABOUT THE DECISION. This
+        is what `scripts/gate_shards.py` consults before it starts, so it is where the caller has to
+        learn that an EMPTY lock file does not mean an empty box. It is not a second refusal: the gate
+        would then be blocked by its own vitest workers, or by any co-resident pytest, and a queue
+        that refuses on load is no longer advisory. The manifest carries the reading; the operator
+        decides.
+    
+        ⭐ `load=False` is for a caller that must not pay for a PowerShell snapshot, and it yields the
+        explicit `NOT_PROBED` record rather than a zero — "nobody looked" stays visible in the result.
+        """
+        p = path or lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        record = _self_record(run_id, worktree)
+        reclaimed: dict | None = None
+    
+        # ⛔⛔ THE PROBE RUNS AFTER THE ATOMIC CREATE, NEVER BEFORE IT, AND THAT ORDER IS A CONTRACT.
+        # A PowerShell snapshot costs a second or two. Taking it on the way IN would put that second
+        # between the caller's decision to acquire and the `O_CREAT | O_EXCL` that settles the race —
+        # and two gates starting in the same second is not hypothetical here, it is the use case this
+        # whole file exists for. The lock decision must be the first thing that happens.
+        #
+        # ⛔ ONE READING, TAKEN ONCE, SHARED BY EVERY EXIT — including the refusal. Two snapshots taken
+        # at two moments would let the acquired-record and the refusal-record disagree about one box.
+        _seen: dict = {}
+    
+        def load_state() -> dict:
+            if "v" not in _seen:
+                _seen["v"] = (gate_box_sampler.box_load(exclude_tree=os.getpid()) if load
+                              else gate_box_sampler.load_not_probed(
+                                  "the caller passed load=False; no process probe was taken"))
+            return _seen["v"]
+    
+        for attempt in (1, 2):
+            try:
+>               fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+E               FileExistsError: [Errno 17] File exists: '/tmp/pytest-of-runner/pytest-0/test_the_load_reading_NEVER_ch0/dead.lock'
+
+tools/gate_box_lock.py:268: FileExistsError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_load_reading_NEVER_ch0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7aaaf47a4e90>
+
+    def test_the_load_reading_NEVER_changes_the_holder_contract(tmp_path, monkeypatch):
+        """⛔⛔ OWNER RULING R1 SURVIVES C-4 INTACT: the lock is ADVISORY, has NO TTL, and is stale
+        ONLY when the bound pid is dead. "pid alive but idle" is a Live-session-in-waiting.
+    
+        A busy box must not reclaim, refuse or promote anything. Driven against an IDLE LIVE holder —
+        this very pytest process, which is doing nothing the probe can call gate work — on the most
+        loaded box the fixtures can describe.
+        """
+        lock = tmp_path / "box.lock"
+        _write_lock_for(os.getpid(), lock, run_id="idle-but-live")
+    
+        _with_snapshot(monkeypatch, _busy_snapshot)
+        s = L.status(path=lock)
+        assert s["state"] == "HELD", "a loaded box reclassified a LIVE holder — R1 violated"
+        assert s["live"] is True
+        assert s["load"]["state"] == "BUSY"
+    
+        # ⛔ ADVISORY, NOT A MUTEX: a busy box does not become a refusal of its own.
+        free_lock = tmp_path / "free.lock"
+        rec = L.acquire("mine", path=free_lock)
+        assert rec["acquired"] is True, (
+            "the gate refused to start because the box was busy — that is a mutex, not a queue, and "
+            "it would deadlock a gate behind its own vitest workers")
+        assert rec["load"]["state"] == "BUSY", "the reading was taken but not reported to the caller"
+    
+        # ⭐ CONTROL, the only refusal there is: a DEAD holder is still reclaimed on a busy box…
+        dead_lock = tmp_path / "dead.lock"
+        _write_lock_for(999_999, dead_lock)
+>       assert L.acquire("mine", path=dead_lock)["acquired"] is True
+
+tests/test_gate_box_lock.py:514: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+run_id = 'mine'
+
+    def acquire(run_id: str, *, path: pathlib.Path | None = None,
+                worktree: pathlib.Path | None = None, load: bool = True) -> dict:
+        """Take the box, or raise `LockHeld`. Returns the record that goes into the manifest.
+    
+        ⛔ ATOMIC CREATE, NEVER CHECK-THEN-WRITE. `O_CREAT | O_EXCL` is one syscall that either creates
+        the file or fails because somebody else already did. A `if not exists: write` has a window
+        between the two halves, and two gates starting in the same second is *precisely* the event
+        this lock exists for — the race is not hypothetical here, it is the use case.
+    
+        ⛔⛔ THE LOAD READING IS TAKEN AND RETURNED, AND IT CHANGES NOTHING ABOUT THE DECISION. This
+        is what `scripts/gate_shards.py` consults before it starts, so it is where the caller has to
+        learn that an EMPTY lock file does not mean an empty box. It is not a second refusal: the gate
+        would then be blocked by its own vitest workers, or by any co-resident pytest, and a queue
+        that refuses on load is no longer advisory. The manifest carries the reading; the operator
+        decides.
+    
+        ⭐ `load=False` is for a caller that must not pay for a PowerShell snapshot, and it yields the
+        explicit `NOT_PROBED` record rather than a zero — "nobody looked" stays visible in the result.
+        """
+        p = path or lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        record = _self_record(run_id, worktree)
+        reclaimed: dict | None = None
+    
+        # ⛔⛔ THE PROBE RUNS AFTER THE ATOMIC CREATE, NEVER BEFORE IT, AND THAT ORDER IS A CONTRACT.
+        # A PowerShell snapshot costs a second or two. Taking it on the way IN would put that second
+        # between the caller's decision to acquire and the `O_CREAT | O_EXCL` that settles the race —
+        # and two gates starting in the same second is not hypothetical here, it is the use case this
+        # whole file exists for. The lock decision must be the first thing that happens.
+        #
+        # ⛔ ONE READING, TAKEN ONCE, SHARED BY EVERY EXIT — including the refusal. Two snapshots taken
+        # at two moments would let the acquired-record and the refusal-record disagree about one box.
+        _seen: dict = {}
+    
+        def load_state() -> dict:
+            if "v" not in _seen:
+                _seen["v"] = (gate_box_sampler.box_load(exclude_tree=os.getpid()) if load
+                              else gate_box_sampler.load_not_probed(
+                                  "the caller passed load=False; no process probe was taken"))
+            return _seen["v"]
+    
+        for attempt in (1, 2):
+            try:
+                fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError:
+                holder = read_holder(p)
+                if holder is None:                      # vanished between the two calls — retry
+                    continue
+                pid = holder.get("pid")
+                if pid is not None and not _alive(int(pid)):
+                    # ⭐ STALE, AND THE RECLAIM IS RECORDED RATHER THAN SILENT. A crashed gate that
+                    # leaves a lock behind is a fact worth seeing in the next manifest: it is how you
+                    # learn a run died without anybody noticing.
+                    reclaimed = dict(holder)
+                    try:
+                        p.unlink()
+                    except OSError:
+                        pass
+                    if attempt == 1:
+                        continue                        # one retry; if we lose the race, we are held
+                bypass = _bypass_reason()
+                if bypass:
+                    # ⛔⛔ R3: THE OVERRIDE LETS YOU RUN, IT DOES NOT LET YOU PRETEND. We do NOT take
+                    # the lock — the holder keeps it — and the caller is told it is running over a
+                    # live holder so the manifest and the sampler can both say so.
+                    _log_bypass(bypass, holder, record)
+                    return {"acquired": False, "bypass": True, "bypass_reason": bypass,
+                            "overrode": holder, "reclaimed": reclaimed, "path": str(p),
+                            "holder": holder, "self": record, "load": load_state()}
+>               raise LockHeld(holder, load=load_state())
+E               gate_box_lock.LockHeld: pid 999999 since 2026-09-14T23:00:00 [someone-else] python -u scripts/gate_shards.py --shards 6
+
+tools/gate_box_lock.py:294: LockHeld
+_______________ test_the_lock_self_check_still_passes_end_to_end _______________
+
+run_id = 'e'
+
+    def acquire(run_id: str, *, path: pathlib.Path | None = None,
+                worktree: pathlib.Path | None = None, load: bool = True) -> dict:
+        """Take the box, or raise `LockHeld`. Returns the record that goes into the manifest.
+    
+        ⛔ ATOMIC CREATE, NEVER CHECK-THEN-WRITE. `O_CREAT | O_EXCL` is one syscall that either creates
+        the file or fails because somebody else already did. A `if not exists: write` has a window
+        between the two halves, and two gates starting in the same second is *precisely* the event
+        this lock exists for — the race is not hypothetical here, it is the use case.
+    
+        ⛔⛔ THE LOAD READING IS TAKEN AND RETURNED, AND IT CHANGES NOTHING ABOUT THE DECISION. This
+        is what `scripts/gate_shards.py` consults before it starts, so it is where the caller has to
+        learn that an EMPTY lock file does not mean an empty box. It is not a second refusal: the gate
+        would then be blocked by its own vitest workers, or by any co-resident pytest, and a queue
+        that refuses on load is no longer advisory. The manifest carries the reading; the operator
+        decides.
+    
+        ⭐ `load=False` is for a caller that must not pay for a PowerShell snapshot, and it yields the
+        explicit `NOT_PROBED` record rather than a zero — "nobody looked" stays visible in the result.
+        """
+        p = path or lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        record = _self_record(run_id, worktree)
+        reclaimed: dict | None = None
+    
+        # ⛔⛔ THE PROBE RUNS AFTER THE ATOMIC CREATE, NEVER BEFORE IT, AND THAT ORDER IS A CONTRACT.
+        # A PowerShell snapshot costs a second or two. Taking it on the way IN would put that second
+        # between the caller's decision to acquire and the `O_CREAT | O_EXCL` that settles the race —
+        # and two gates starting in the same second is not hypothetical here, it is the use case this
+        # whole file exists for. The lock decision must be the first thing that happens.
+        #
+        # ⛔ ONE READING, TAKEN ONCE, SHARED BY EVERY EXIT — including the refusal. Two snapshots taken
+        # at two moments would let the acquired-record and the refusal-record disagree about one box.
+        _seen: dict = {}
+    
+        def load_state() -> dict:
+            if "v" not in _seen:
+                _seen["v"] = (gate_box_sampler.box_load(exclude_tree=os.getpid()) if load
+                              else gate_box_sampler.load_not_probed(
+                                  "the caller passed load=False; no process probe was taken"))
+            return _seen["v"]
+    
+        for attempt in (1, 2):
+            try:
+>               fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+E               FileExistsError: [Errno 17] File exists: '/tmp/gate-box-lock-sa1dkg1n/t.lock'
+
+tools/gate_box_lock.py:268: FileExistsError
+
+During handling of the above exception, another exception occurred:
+
+    def test_the_lock_self_check_still_passes_end_to_end():
+        """⛔ A SELF-CHECK NOBODY HAS RUN IS NOT A SELF-CHECK — and it now rehearses all four load
+        states against an injected box, so each is reachable on demand rather than whenever the
+        machine happens to be loaded."""
+>       assert L.self_check() == 0
+
+tests/test_gate_box_lock.py:627: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/gate_box_lock.py:428: in self_check
+    r = acquire("e", path=tmp, load=False)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+run_id = 'e'
+
+    def acquire(run_id: str, *, path: pathlib.Path | None = None,
+                worktree: pathlib.Path | None = None, load: bool = True) -> dict:
+        """Take the box, or raise `LockHeld`. Returns the record that goes into the manifest.
+    
+        ⛔ ATOMIC CREATE, NEVER CHECK-THEN-WRITE. `O_CREAT | O_EXCL` is one syscall that either creates
+        the file or fails because somebody else already did. A `if not exists: write` has a window
+        between the two halves, and two gates starting in the same second is *precisely* the event
+        this lock exists for — the race is not hypothetical here, it is the use case.
+    
+        ⛔⛔ THE LOAD READING IS TAKEN AND RETURNED, AND IT CHANGES NOTHING ABOUT THE DECISION. This
+        is what `scripts/gate_shards.py` consults before it starts, so it is where the caller has to
+        learn that an EMPTY lock file does not mean an empty box. It is not a second refusal: the gate
+        would then be blocked by its own vitest workers, or by any co-resident pytest, and a queue
+        that refuses on load is no longer advisory. The manifest carries the reading; the operator
+        decides.
+    
+        ⭐ `load=False` is for a caller that must not pay for a PowerShell snapshot, and it yields the
+        explicit `NOT_PROBED` record rather than a zero — "nobody looked" stays visible in the result.
+        """
+        p = path or lock_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        record = _self_record(run_id, worktree)
+        reclaimed: dict | None = None
+    
+        # ⛔⛔ THE PROBE RUNS AFTER THE ATOMIC CREATE, NEVER BEFORE IT, AND THAT ORDER IS A CONTRACT.
+        # A PowerShell snapshot costs a second or two. Taking it on the way IN would put that second
+        # between the caller's decision to acquire and the `O_CREAT | O_EXCL` that settles the race —
+        # and two gates starting in the same second is not hypothetical here, it is the use case this
+        # whole file exists for. The lock decision must be the first thing that happens.
+        #
+        # ⛔ ONE READING, TAKEN ONCE, SHARED BY EVERY EXIT — including the refusal. Two snapshots taken
+        # at two moments would let the acquired-record and the refusal-record disagree about one box.
+        _seen: dict = {}
+    
+        def load_state() -> dict:
+            if "v" not in _seen:
+                _seen["v"] = (gate_box_sampler.box_load(exclude_tree=os.getpid()) if load
+                              else gate_box_sampler.load_not_probed(
+                                  "the caller passed load=False; no process probe was taken"))
+            return _seen["v"]
+    
+        for attempt in (1, 2):
+            try:
+                fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError:
+                holder = read_holder(p)
+                if holder is None:                      # vanished between the two calls — retry
+                    continue
+                pid = holder.get("pid")
+                if pid is not None and not _alive(int(pid)):
+                    # ⭐ STALE, AND THE RECLAIM IS RECORDED RATHER THAN SILENT. A crashed gate that
+                    # leaves a lock behind is a fact worth seeing in the next manifest: it is how you
+                    # learn a run died without anybody noticing.
+                    reclaimed = dict(holder)
+                    try:
+                        p.unlink()
+                    except OSError:
+                        pass
+                    if attempt == 1:
+                        continue                        # one retry; if we lose the race, we are held
+                bypass = _bypass_reason()
+                if bypass:
+                    # ⛔⛔ R3: THE OVERRIDE LETS YOU RUN, IT DOES NOT LET YOU PRETEND. We do NOT take
+                    # the lock — the holder keeps it — and the caller is told it is running over a
+                    # live holder so the manifest and the sampler can both say so.
+                    _log_bypass(bypass, holder, record)
+                    return {"acquired": False, "bypass": True, "bypass_reason": bypass,
+                            "overrode": holder, "reclaimed": reclaimed, "path": str(p),
+                            "holder": holder, "self": record, "load": load_state()}
+>               raise LockHeld(holder, load=load_state())
+E               gate_box_lock.LockHeld: pid 999999 since 2026-11-22T21:12:13 [UCT-Dashboard] /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest/__main__.py -q -p no:cacheprovider --continue-on-collection-errors --timeout=120 --t
+
+tools/gate_box_lock.py:294: LockHeld
+----------------------------- Captured stdout call -----------------------------
+  ok   a free box acquires
+  ok   status reads HELD
+  ok   a live holder refuses a second acquire
+  ok   bypass with a reason runs over a live holder
+  ok   bypass does NOT steal the lock
+  ok   a blank bypass reason is ignored
+  ok   release removes our own lock
+  ok   release is idempotent
+  ok   status reads FREE again
+______ test_the_read_set_covers_every_root_relative_path_the_suite_reads _______
+
+    def test_the_read_set_covers_every_root_relative_path_the_suite_reads():
+        """
+        Every repo-root path a vitest source names is either IN the read set or
+        CLASSIFIED as named-but-not-read. Nothing may be neither.
+        """
+        import scripts.gate_shards as gs
+        uncovered = sorted(rel for rel in root_relative_literals()
+                           if not _covered_by(rel, gs.GATE_READ_PATHS) and rel not in NAMED_BUT_NOT_READ)
+>       assert not uncovered, (
+            'these paths are read by the suite and are NOT in GATE_READ_PATHS, so a re-derivation '
+            'would carry a verdict across a change to them:\n  ' + '\n  '.join(uncovered))
+E       AssertionError: these paths are read by the suite and are NOT in GATE_READ_PATHS, so a re-derivation would carry a verdict across a change to them:
+E           api/confluence_screen.py
+E           api/data/named_indicators.json
+E           api/data/pine_runtime_allowlist.json
+E           api/data/pine_runtime_killlist.json
+E           api/flow_scoreboard.py
+E           api/routers/ai_search.py
+E           api/routers/bars.py
+E           api/services/alert_rev_migration.py
+E           api/services/call_themes.py
+E           api/services/desk_session_insights.py
+E           api/services/events_timeline.py
+E           api/services/groups.py
+E           api/services/journal_two/coach_chat.py
+E           api/services/list_alerts.py
+E           api/services/pine_capabilities.py
+E           api/services/presentation_schema.py
+E           api/services/research/iv_history.py
+E           api/services/rs_benchmarks.py
+E           api/services/runtime_definitions.py
+E           api/services/short_data.py
+E           api/services/terminal_grammar.py
+E           api/services/tsdr_lessons.py
+E           api/services/uct_agent/marketdata/analyst_actions.py
+E           api/services/uct_agent/marketdata/leaders_long_run.py
+E           api/services/uct_agent/turn.py
+E           api/services/user_definitions.py
+E           api/services/voice_regime_classifier.py
+E           docs/pine/evidence/2026-11-15-w3n-d1/evidence.json
+E           docs/pine/evidence/2026-11-16-draw1-drawing-objects/runs/report.json
+E           docs/pine/rs-rating
+E           docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine
+E           docs/pine/vendor-harness/runtime-on/verdicts.json
+E           docs/pine/vendor-harness/strategy-verdicts
+E           docs/study/courses/F12/F12.07.json
+E           docs/study/courses/F5/F5.08.json
+E           tools/pine_coverage/paint_predicate.mjs
+E       assert not ['api/confluence_screen.py', 'api/data/named_indicators.json', 'api/data/pine_runtime_allowlist.json', 'api/data/pine_runtime_killlist.json', 'api/flow_scoreboard.py', 'api/routers/ai_search.py', ...]
+
+tests/test_gate_shards.py:1326: AssertionError
+__ test_finished_periods_are_flushed_and_ledgered_before_later_days_are_read ___
+
+workroot = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0')
+syn_raw = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw')
+
+    def test_finished_periods_are_flushed_and_ledgered_before_later_days_are_read(workroot, syn_raw):
+        """Memory discipline and resumability, observed while the build runs: when a later
+        day is logged, every period that ended before it is already off the spill, on disk
+        as pieces, and its days are in the ledger."""
+        out = _newdir(workroot, "syn_flush_order")
+        seen = {}
+    
+        def log(msg):
+            day = msg[:10]
+            if day in SYN_DAYS:
+                ledger = out / "ledger.json"
+                seen[day] = {
+                    "spill": sorted(os.listdir(out / "_spill")),
+                    "ledger": sorted(json.loads(ledger.read_text())["days"]) if ledger.exists() else [],
+                    "pieces": {k for k in _pieces_on_disk(out) if k[0] == "AAA"},
+                }
+    
+>       BLD.Builder(syn_raw, out, log=log).run("2026-10-01..2027-01-31")
+
+tests/test_history_lake_build.py:392: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw/2026/2026-10-30.csv.gz')
+day = '2026-10-30', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+______ test_revised_day_file_is_folded_in_again_and_new_bars_replace_old _______
+
+workroot = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0')
+syn_raw = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw')
+
+    def test_revised_day_file_is_folded_in_again_and_new_bars_replace_old(workroot, syn_raw):
+        raw = _newdir(workroot, "rev_raw")
+        out = _newdir(workroot, "rev_out")
+        src = syn_raw / "2026" / "2026-10-30.csv.gz"
+        with gzip.open(src, "rt") as f:
+            lines = f.read().splitlines()
+        _write_day(raw, "2026-10-30", [ln.split(",") for ln in lines[1:]])
+>       _build(raw, out, "2026-10-30")
+
+tests/test_history_lake_build.py:432: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_build.py:263: in _build
+    summary = BLD.Builder(Path(raw), Path(out), **kw).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/rev_raw_2/2026/2026-10-30.csv.gz')
+day = '2026-10-30', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+____________________ test_build_refuses_instead_of_guessing ____________________
+
+workroot = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0')
+syn_raw = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw')
+
+    def test_build_refuses_instead_of_guessing(workroot, syn_raw):
+        rows = _syn_rows("2026-11-10", random.Random(1))[:50]
+    
+        # a price with 7 decimals cannot be held exactly at 1e-6: stop, never round
+        raw = _newdir(workroot, "bad_raw")
+        bad = [list(r) for r in rows]
+        bad[3][2] = "412.1234567"
+        _write_day(raw, "2026-11-10", bad)
+        with pytest.raises(BLD.BuildError, match="round-trip"):
+>           _build(raw, _newdir(workroot, "bad_out"), "2026-11-10")
+
+tests/test_history_lake_build.py:459: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_history_lake_build.py:263: in _build
+    summary = BLD.Builder(Path(raw), Path(out), **kw).run(days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/bad_raw_4/2026/2026-11-10.csv.gz')
+day = '2026-11-10', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+__________________________ test_cli_prints_a_summary ___________________________
+
+workroot = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0')
+syn_raw = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw')
+capsys = <_pytest.capture.CaptureFixture object at 0x7aaaf364f1a0>
+
+    def test_cli_prints_a_summary(workroot, syn_raw, capsys):
+        out = _newdir(workroot, "cli_out")
+>       rc = BLD.main(["--raw", str(syn_raw), "--out", str(out), "--days", "2026-10-30..2026-11-02",
+                       "--symbols", "AAA,CON", "--quality", "5"])
+
+tests/test_history_lake_build.py:511: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:736: in main
+    spill_dir=args.spill_dir, min_spill_free_gb=args.min_spill_free_gb).run(args.days)
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/history_lake_build0/syn_raw/2026/2026-10-30.csv.gz')
+day = '2026-10-30', symbols = frozenset({'AAA', 'CON'}), foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+______________ test_a_pool_writes_exactly_what_one_process_writes ______________
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pool_writes_exactly_wha0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pool_writes_exactly_wha0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7aaaf4f95eb0>
+
+    def test_a_pool_writes_exactly_what_one_process_writes(raw, tmp_path, monkeypatch):
+        import concurrent.futures as cf
+        made, submitted = [], []
+    
+        class Spy(cf.ProcessPoolExecutor):
+            def __init__(self, *a, **k):
+                made.append(k.get("max_workers"))
+                super().__init__(*a, **k)
+    
+            def submit(self, *a, **k):
+                submitted.append(a[2])
+                return super().submit(*a, **k)
+    
+        monkeypatch.setattr(cf, "ProcessPoolExecutor", Spy)
+>       one = BLD.Builder(raw, tmp_path / "one", quality=5, **QUIET).run("2026-01-01..2027-12-31")
+
+tests/test_history_lake_jobs.py:44: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pool_writes_exactly_wha0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+_____________ test_a_pool_merges_into_existing_pieces_the_same_way _____________
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pool_merges_into_existi0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pool_merges_into_existi0')
+
+    def test_a_pool_merges_into_existing_pieces_the_same_way(raw, tmp_path):
+        # A then B into one tree, by one process and by a pool: B's month pieces merge into A's
+        for out, jobs in ((tmp_path / "one", 1), (tmp_path / "many", 4)):
+>           BLD.Builder(raw, out, quality=5, jobs=jobs, **QUIET).run("2026-11-27")
+
+tests/test_history_lake_jobs.py:72: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pool_merges_into_existi0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+_________________ test_a_pool_stops_on_a_piece_it_cannot_write _________________
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pool_stops_on_a_piece_i0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pool_stops_on_a_piece_i0')
+
+    def test_a_pool_stops_on_a_piece_it_cannot_write(raw, tmp_path):
+        out = tmp_path / "bad"
+>       BLD.Builder(raw, out, quality=5, jobs=2, **QUIET).run("2026-11-27")
+
+tests/test_history_lake_jobs.py:83: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pool_stops_on_a_piece_i0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+___________________ test_packs_hold_exactly_the_piece_files ____________________
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_packs_hold_exactly_the_pi0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_packs_hold_exactly_the_pi0')
+
+    def test_packs_hold_exactly_the_piece_files(raw, tmp_path):
+        files = tmp_path / "files"
+>       one = BLD.Builder(raw, files, quality=5, **QUIET).run(ALL)
+
+tests/test_history_lake_pack.py:44: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_packs_hold_exactly_the_pi0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+____________ test_the_index_offset_reads_the_piece_out_of_its_pack _____________
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_index_offset_reads_th0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_index_offset_reads_th0')
+
+    def test_the_index_offset_reads_the_piece_out_of_its_pack(raw, tmp_path):
+        out = tmp_path / "p"
+>       BLD.Builder(raw, out, quality=5, packs=True, **QUIET).run(ALL)
+
+tests/test_history_lake_pack.py:61: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_index_offset_reads_th0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+___ test_a_period_split_across_runs_keeps_symbols_the_later_run_did_not_see ____
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_period_split_across_run0')
+
+    def test_a_period_split_across_runs_keeps_symbols_the_later_run_did_not_see(tmp_path):
+        raw = tmp_path / "raw"
+        rng = random.Random(5)
+        _write_day(raw, "2026-11-27", rng)                            # all four symbols
+        # a later day of the same YEAR (15/30/60/60e pieces) with one symbol only
+        rows = [("AAA", "100.000000", f"{412.5:.6f}", f"{412.7:.6f}", f"{412.8:.6f}", f"{412.4:.6f}",
+                 _ts("2026-12-31", 10, m) * 1_000_000_000, 5) for m in range(0, 30)]
+        (raw / "2026").mkdir(exist_ok=True)
+        with gzip.open(raw / "2026" / "2026-12-31.csv.gz", "wt", encoding="ascii", newline="") as f:
+            f.write(HEADER)
+            for r in rows:
+                f.write(",".join(str(x) for x in r) + "\n")
+        whole = tmp_path / "whole"
+>       BLD.Builder(raw, whole, quality=5, packs=True, **QUIET).run("2026-11-27..2026-12-31")
+
+tests/test_history_lake_pack.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_period_split_across_run0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+________________ test_a_crash_leaves_nothing_a_later_run_trusts ________________
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_crash_leaves_nothing_a_0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_crash_leaves_nothing_a_0')
+
+    def test_a_crash_leaves_nothing_a_later_run_trusts(raw, tmp_path):
+        out = tmp_path / "p"
+>       BLD.Builder(raw, out, quality=5, packs=True, **QUIET).run("2026-11-27")
+
+tests/test_history_lake_pack.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_crash_leaves_nothing_a_0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+____________ test_publish_checks_merges_stamps_and_uploads_in_order ____________
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_publish_checks_merges_sta0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_publish_checks_merges_sta0')
+
+    def test_publish_checks_merges_stamps_and_uploads_in_order(raw, tmp_path):
+        a, b = tmp_path / "a", tmp_path / "b"
+>       BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run("2026-01-01..2026-12-31")
+
+tests/test_history_lake_pack.py:176: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_publish_checks_merges_sta0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+________________ test_upload_is_resumable_and_reports_progress _________________
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_upload_is_resumable_and_r0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_upload_is_resumable_and_r0')
+
+    def test_upload_is_resumable_and_reports_progress(raw, tmp_path):
+        """A re-run after an interrupted upload (the real lake is ~65 GB) sends only the packs the
+        bucket does not hold at the same size; indexes still go last; progress is logged."""
+        a = tmp_path / "a"
+>       BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+
+tests/test_history_lake_pack.py:250: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_upload_is_resumable_and_r0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+____ test_a_pack_rebuilt_by_the_daily_refresh_is_sent_even_at_the_same_size ____
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pack_rebuilt_by_the_dai0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pack_rebuilt_by_the_dai0')
+
+    def test_a_pack_rebuilt_by_the_daily_refresh_is_sent_even_at_the_same_size(raw, tmp_path):
+        """A current period's pack is rebuilt in place each day: the bucket's same-size copy is NOT proof it
+        is the same pack. Packs written since the run started (`forced_keys`) are always sent; the rest
+        keep the resumable size check."""
+        import os
+        a = tmp_path / "a"
+>       BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+
+tests/test_history_lake_pack.py:278: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pack_rebuilt_by_the_dai0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+___ test_an_index_put_that_fails_is_retried_on_its_own_and_the_rest_carry_on ___
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_an_index_put_that_fails_i0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_an_index_put_that_fails_i0')
+
+    def test_an_index_put_that_fails_is_retried_on_its_own_and_the_rest_carry_on(raw, tmp_path):
+        """2026-11-17: one of 36,676 index puts got R2's 'reduce your concurrent request rate for the same
+        object' and the whole run died. A failing put is retried with a backoff; the others are not held up."""
+        a = tmp_path / "a"
+>       BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+
+tests/test_history_lake_pack.py:304: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_an_index_put_that_fails_i0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+______ test_an_index_that_never_lands_is_NAMED_and_the_others_still_land _______
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_an_index_that_never_lands0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_an_index_that_never_lands0')
+
+    def test_an_index_that_never_lands_is_NAMED_and_the_others_still_land(raw, tmp_path):
+        a = tmp_path / "a"
+>       BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+
+tests/test_history_lake_pack.py:325: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_an_index_that_never_lands0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+__ test_scratch_rows_on_another_disk_change_nothing_and_stop_before_it_fills ___
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_scratch_rows_on_another_d0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_scratch_rows_on_another_d0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7aab147eb5c0>
+
+    def test_scratch_rows_on_another_disk_change_nothing_and_stop_before_it_fills(raw, tmp_path, monkeypatch):
+        here = tmp_path / "here"
+>       BLD.Builder(raw, here, quality=5, packs=True, **QUIET).run(ALL)
+
+tests/test_history_lake_pack.py:345: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_scratch_rows_on_another_d0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+_____ test_publish_check_in_a_process_pool_is_identical_and_still_refuses ______
+
+raw = PosixPath('/tmp/pytest-of-runner/pytest-0/test_publish_check_in_a_proces0/raw')
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_publish_check_in_a_proces0')
+
+    def test_publish_check_in_a_process_pool_is_identical_and_still_refuses(raw, tmp_path):
+        out = tmp_path / "lake"
+>       BLD.Builder(raw, out, quality=5, packs=True, **QUIET).run(ALL)
+
+tests/test_history_lake_pack.py:385: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/history_lake/build.py:427: in run
+    self._process_day(day, path, size)
+tools/history_lake/build.py:448: in _process_day
+    dd = read_day(path, day, self.symbols, self.foreign_rows)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_publish_check_in_a_proces0/raw/2026/2026-11-27.csv.gz')
+day = '2026-11-27', symbols = None, foreign_rows = 'error'
+
+    def read_day(path: Path, day: str, symbols: Optional[frozenset] = None,
+                 foreign_rows: str = "error") -> DayData:
+>       import pyarrow as pa
+E       ModuleNotFoundError: No module named 'pyarrow'
+
+tools/history_lake/build.py:182: ModuleNotFoundError
+_________________ test_c_sdk_implicit_env_is_fully_classified __________________
+
+launcher = <module 'hub_sandbox_boot_mk' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/scripts/hub_sandbox_boot.py'>
+
+    def test_c_sdk_implicit_env_is_fully_classified(launcher):
+        derived = derive_sdk_implicit_env()
+        # Non-vacuity: the scan must see the explicit keys it is reading past.
+        assert {"ANTHROPIC_API_KEY", "OPENAI_API_KEY"} <= set(derived), derived
+        implicit = set(derived) - set(launcher.MODEL_PROVIDER_KEYS)
+        classified = set(launcher.SDK_IMPLICIT_KEYS) | set(launcher.SDK_NON_CREDENTIAL_ENV)
+        assert not (set(launcher.SDK_IMPLICIT_KEYS) & set(launcher.SDK_NON_CREDENTIAL_ENV))
+>       assert implicit == classified, (
+            f"unclassified SDK env reads: {sorted(implicit - classified)}; "
+            f"classified but not read by the SDK: {sorted(classified - implicit)}")
+E       AssertionError: unclassified SDK env reads: ['ANTHROPIC_CUSTOM_HEADERS', 'ANTHROPIC_WEBHOOK_SIGNING_KEY']; classified but not read by the SDK: []
+E       assert {'ANTHROPIC_A..._ORG_ID', ...} == {'ANTHROPIC_A...BHOOK_SECRET'}
+E         
+E         Extra items in the left set:
+E         'ANTHROPIC_CUSTOM_HEADERS'
+E         'ANTHROPIC_WEBHOOK_SIGNING_KEY'
+E         
+E         Full diff:
+E           {
+E               'ANTHROPIC_AUTH_TOKEN',
+E               'ANTHROPIC_BASE_URL',
+E         +     'ANTHROPIC_CUSTOM_HEADERS',
+E         +     'ANTHROPIC_WEBHOOK_SIGNING_KEY',
+E               'OPENAI_BASE_URL',
+E               'OPENAI_ORG_ID',
+E               'OPENAI_PROJECT_ID',
+E               'OPENAI_WEBHOOK_SECRET',
+E           }
+
+tests/test_hub_sandbox_model_keys.py:249: AssertionError
+_________ test_a_no_request_leaves_with_a_credential_after_the_policy __________
+
+launcher = <module 'hub_sandbox_boot_mk' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/scripts/hub_sandbox_boot.py'>
+restore_env = None
+
+    def test_a_no_request_leaves_with_a_credential_after_the_policy(launcher, restore_env):
+        """Behavioural, on the shape of ai_search_personal.py:273 -- a client built from
+        the env's key with no check first.
+    
+        MEASURED, SDK 0.83.0: a blank ANTHROPIC_AUTH_TOKEN does NOT stop the request.
+        The SDK keeps "" (it only defaults on None) and sends `Authorization: Bearer `,
+        which passes its own header check; only an UNSET token raises before sending.
+        What blanking guarantees is that nothing it sends can authenticate (a 401,
+        never a billed call), and a setdefault .env loader cannot put a token back.
+        So the rail asserts on the CREDENTIAL carried, not on whether a socket opened.
+        CONTROL: the same call with the operator's token left in place carries it."""
+        anthropic = pytest.importorskip("anthropic")
+    
+        def call(base):
+            c = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+                                    base_url=base, max_retries=0, timeout=2)
+            return c.messages.create(model="x", max_tokens=1,
+                                     messages=[{"role": "user", "content": "hi"}])
+    
+        os.environ["ANTHROPIC_API_KEY"] = SENTINEL
+        os.environ["ANTHROPIC_AUTH_TOKEN"] = SENTINEL
+        launcher.apply_model_key_policy(os.environ, allow=False)
+        carried = _capture_requests(call)
+        assert all(k == "" and b == "" for k, b in carried), (
+            f"a request left the process carrying a credential: {carried}")
+    
+        os.environ["ANTHROPIC_AUTH_TOKEN"] = SENTINEL          # control: token back
+        control = _capture_requests(call)
+>       assert (("", SENTINEL) in control), (
+            f"CONTROL FAILED: the listener did not see the token it was handed: {control}")
+E       AssertionError: CONTROL FAILED: the listener did not see the token it was handed: []
+E       assert ('', 'sk-rail-sentinel-not-a-real-key') in []
+
+tests/test_hub_sandbox_model_keys.py:378: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_gate_trigger3.py::test_a_stuck_queue_turns_the_whole_verdict
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_gate_trigger3.py:148: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    doc = _resume(tmp_path / "r.md", datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), 4)
+
+tests/test_history_rev_corrections.py::test_a_repair_whose_provider_changed_only_the_boundary_row_does_not_bump
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3083: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
+
+tests/test_history_rev_corrections.py::test_a_repair_whose_provider_changed_only_the_boundary_row_does_not_bump
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3090: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_htf_closure_week_unreachable.py::test_a_calendar_ticker_loses_every_day_without_a_session_at_the_producer
+tests/test_htf_closure_week_unreachable.py::test_a_calendar_ticker_loses_every_day_without_a_session_at_the_producer
+tests/test_htf_closure_week_unreachable.py::test_a_calendar_ticker_loses_every_day_without_a_session_at_the_producer
+tests/test_htf_closure_week_unreachable.py::test_a_calendar_ticker_loses_every_day_without_a_session_at_the_producer
+tests/test_htf_closure_week_unreachable.py::test_a_calendar_ticker_loses_every_day_without_a_session_at_the_producer
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2746: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+
+tests/test_hub_sandbox_model_keys.py::test_a_the_derived_model_keys_are_all_blanked
+tests/test_hub_sandbox_model_keys.py::test_c_classification_equals_the_derived_read_set
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_i1_tool_registry_contract.py::test_RULE5_nothing_anywhere_mutates_the_registry_at_runtime
+tests/test_i1_tool_registry_contract.py::test_PART1_the_model_is_never_handed_a_tool__domain_choice_is_not_the_models
+tests/test_i1_tool_registry_contract.py::test_PART1_CONTROL_the_tool_detector_sees_a_real_tool_call
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_gallery_w11_fnote1.py:1455: spaces travel between the halves: not an address
+SKIPPED [1] tests/test_gate_box_lock.py:304: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_lock.py:537: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_lock.py:588: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_sampler.py:148: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_sampler.py:190: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_sampler.py:239: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_shards.py:478: OPT-IN rail: set UCT_RUN_REAL_VITEST=1 — real `npx vitest`, 3s..>300s, unbounded; it killed a landing run on 2026-09-17
+SKIPPED [1] tests/test_gate_shards.py:1841: OPT-IN rail: spawns two real vitest runs and samples process counts
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:120: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:137: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:158: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:172: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:207: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:237: INDICATOR_VISION_ENABLED is not '1' -- deliberate product flag, and DEC-008 requires it set ONLY in the same isolated environment as the scoped key, never globally.
+SKIPPED [1] tests/test_graph_wire_size.py:72: verified 4 bands for the bands on this machine; SKIPPED, NOT VERIFIED: 1 licence-held fixture(s) absent on this machine: u_c2d900000005.json [licence CC-BY-NC-SA; evidence ledger: no row (not a vendor capture; licence verdict per the record)]. Not committed (docs/pine/LICENSING.md section 1, 2c; docs/pine/vendor-harness/licence-held.json). Put the file in the capture store ($UCT_VENDOR_CAPTURE_STORE) at its recorded hash to run it.
+SKIPPED [1] tests/test_graph_wire_size.py:72: measured 4 bands for the bands on this machine; SKIPPED, NOT VERIFIED: 1 licence-held fixture(s) absent on this machine: u_c2d900000005.json [licence CC-BY-NC-SA; evidence ledger: no row (not a vendor capture; licence verdict per the record)]. Not committed (docs/pine/LICENSING.md section 1, 2c; docs/pine/vendor-harness/licence-held.json). Put the file in the capture store ($UCT_VENDOR_CAPTURE_STORE) at its recorded hash to run it.
+SKIPPED [1] tests/test_graph_wire_size.py:72: timed 4 bands for the bands on this machine; SKIPPED, NOT VERIFIED: 1 licence-held fixture(s) absent on this machine: u_c2d900000005.json [licence CC-BY-NC-SA; evidence ledger: no row (not a vendor capture; licence verdict per the record)]. Not committed (docs/pine/LICENSING.md section 1, 2c; docs/pine/vendor-harness/licence-held.json). Put the file in the capture store ($UCT_VENDOR_CAPTURE_STORE) at its recorded hash to run it.
+SKIPPED [1] tests/test_history_lake_build.py:537: real day files absent: ['D:/uct-history/raw/2026/2026-11-11.csv.gz', 'D:/uct-history/raw/2026/2026-11-12.csv.gz', 'D:/uct-history/raw/2026/2026-11-13.csv.gz']
+SKIPPED [1] tests/test_history_lake_build.py:554: real day files absent: ['D:/uct-history/raw/2026/2026-11-11.csv.gz', 'D:/uct-history/raw/2026/2026-11-12.csv.gz', 'D:/uct-history/raw/2026/2026-11-13.csv.gz']
+SKIPPED [1] tests/test_history_lake_build.py:560: real day files absent: ['D:/uct-history/raw/2026/2026-11-11.csv.gz', 'D:/uct-history/raw/2026/2026-11-12.csv.gz', 'D:/uct-history/raw/2026/2026-11-13.csv.gz']
+SKIPPED [1] tests/test_history_lake_build.py:569: real day files absent: ['D:/uct-history/raw/2026/2026-11-11.csv.gz', 'D:/uct-history/raw/2026/2026-11-12.csv.gz', 'D:/uct-history/raw/2026/2026-11-13.csv.gz']
+SKIPPED [1] tests/test_history_lake_factors.py:114: the vendor split reference is not on this machine
+SKIPPED [1] tests/test_history_lake_piece.py:599: real-data round trip needs D:/uct-history/raw/_probe-2026-11-13.csv.gz
+SKIPPED [3] tests/test_host_lane_probe_refuses_production.py:50: the probe's fixture patches playwright; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [3] tests/test_host_lane_probe_refuses_production.py:57: the probe's fixture patches playwright; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_house_sizing_table.py:65: SKIP, NOT A PASS: uct-intelligence not found (looked in ['external/uct-intelligence', 'C:\\Users\\Patrick\\uct-intelligence']); the house table was NOT compared against _SIZING_TABLE
+ERROR tests/test_history_lake_build.py::test_synthetic_build_equals_independent_reference - ModuleNotFoundError: No module named 'pyarrow'
+ERROR tests/test_history_lake_build.py::test_synthetic_duplicate_rows_last_one_wins - ModuleNotFoundError: No module named 'pyarrow'
+ERROR tests/test_history_lake_build.py::test_synthetic_index_matches_pieces - ModuleNotFoundError: No module named 'pyarrow'
+ERROR tests/test_history_lake_build.py::test_synthetic_rebuild_twice_is_byte_identical - ModuleNotFoundError: No module named 'pyarrow'
+ERROR tests/test_history_lake_build.py::test_synthetic_day_by_day_equals_all_at_once - ModuleNotFoundError: No module named 'pyarrow'
+ERROR tests/test_history_lake_build.py::test_synthetic_symbol_filter_builds_the_same_pieces - ModuleNotFoundError: No module named 'pyarrow'
+ERROR tests/test_history_lake_merge.py::test_merge_equals_one_build_over_both_ranges - ModuleNotFoundError: No module named 'pyarrow'
+ERROR tests/test_history_lake_merge.py::test_merge_refuses_instead_of_guessing - ModuleNotFoundError: No module named 'pyarrow'
+ERROR tests/test_history_lake_merge.py::test_verify_sees_a_missing_a_stray_and_a_resized_piece - ModuleNotFoundError: No module named 'pyarrow'
+ERROR tests/test_history_lake_stamp.py::test_stamp_writes_the_tables_and_touches_nothing_else - ModuleNotFoundError: No module named 'pyarrow'
+ERROR tests/test_history_lake_stamp.py::test_the_builder_and_the_merge_keep_the_stamp - ModuleNotFoundError: No module named 'pyarrow'
+ERROR tests/test_history_lake_stamp.py::test_stamp_refuses_instead_of_guessing - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_gate_box_lock.py::test_a_DEAD_holder_is_reclaimed_AND_the_reclaim_is_recorded - gate_box_lock.LockHeld: pid 3547 since 2026-09-14T23:00:00 [someone-else] python -u scripts/gate_shards.py --shards 6
+FAILED tests/test_gate_box_lock.py::test_R3_a_bypassed_run_under_a_live_holder_still_lands_INCONCLUSIVE_CONTENDED - FileNotFoundError: [Errno 2] No such file or directory: 'powershell'
+FAILED tests/test_gate_box_lock.py::test_the_load_reading_NEVER_changes_the_holder_contract - gate_box_lock.LockHeld: pid 999999 since 2026-09-14T23:00:00 [someone-else] python -u scripts/gate_shards.py --shards 6
+FAILED tests/test_gate_box_lock.py::test_the_lock_self_check_still_passes_end_to_end - gate_box_lock.LockHeld: pid 999999 since 2026-11-22T21:12:13 [UCT-Dashboard] /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest/__main__.py -q -p no:cacheprovider --continue-on-collection-errors --timeout=120 --t
+FAILED tests/test_gate_shards.py::test_the_read_set_covers_every_root_relative_path_the_suite_reads - AssertionError: these paths are read by the suite and are NOT in GATE_READ_PATHS, so a re-derivation would carry a verdict across a change to them:
+    api/confluence_screen.py
+    api/data/named_indicators.json
+    api/data/pine_runtime_allowlist.json
+    api/data/pine_runtime_killlist.json
+    api/flow_scoreboard.py
+    api/routers/ai_search.py
+    api/routers/bars.py
+    api/services/alert_rev_migration.py
+    api/services/call_themes.py
+    api/services/desk_session_insights.py
+    api/services/events_timeline.py
+    api/services/groups.py
+    api/services/journal_two/coach_chat.py
+    api/services/list_alerts.py
+    api/services/pine_capabilities.py
+    api/services/presentation_schema.py
+    api/services/research/iv_history.py
+    api/services/rs_benchmarks.py
+    api/services/runtime_definitions.py
+    api/services/short_data.py
+    api/services/terminal_grammar.py
+    api/services/tsdr_lessons.py
+    api/services/uct_agent/marketdata/analyst_actions.py
+    api/services/uct_agent/marketdata/leaders_long_run.py
+    api/services/uct_agent/turn.py
+    api/services/user_definitions.py
+    api/services/voice_regime_classifier.py
+    docs/pine/evidence/2026-11-15-w3n-d1/evidence.json
+    docs/pine/evidence/2026-11-16-draw1-drawing-objects/runs/report.json
+    docs/pine/rs-rating
+    docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine
+    docs/pine/vendor-harness/runtime-on/verdicts.json
+    docs/pine/vendor-harness/strategy-verdicts
+    docs/study/courses/F12/F12.07.json
+    docs/study/courses/F5/F5.08.json
+    tools/pine_coverage/paint_predicate.mjs
+assert not ['api/confluence_screen.py', 'api/data/named_indicators.json', 'api/data/pine_runtime_allowlist.json', 'api/data/pine_runtime_killlist.json', 'api/flow_scoreboard.py', 'api/routers/ai_search.py', ...]
+FAILED tests/test_history_lake_build.py::test_finished_periods_are_flushed_and_ledgered_before_later_days_are_read - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_build.py::test_revised_day_file_is_folded_in_again_and_new_bars_replace_old - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_build.py::test_build_refuses_instead_of_guessing - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_build.py::test_cli_prints_a_summary - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_jobs.py::test_a_pool_writes_exactly_what_one_process_writes - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_jobs.py::test_a_pool_merges_into_existing_pieces_the_same_way - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_jobs.py::test_a_pool_stops_on_a_piece_it_cannot_write - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_pack.py::test_packs_hold_exactly_the_piece_files - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_pack.py::test_the_index_offset_reads_the_piece_out_of_its_pack - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_pack.py::test_a_period_split_across_runs_keeps_symbols_the_later_run_did_not_see - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_pack.py::test_a_crash_leaves_nothing_a_later_run_trusts - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_pack.py::test_publish_checks_merges_stamps_and_uploads_in_order - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_pack.py::test_upload_is_resumable_and_reports_progress - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_pack.py::test_a_pack_rebuilt_by_the_daily_refresh_is_sent_even_at_the_same_size - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_pack.py::test_an_index_put_that_fails_is_retried_on_its_own_and_the_rest_carry_on - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_pack.py::test_an_index_that_never_lands_is_NAMED_and_the_others_still_land - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_pack.py::test_scratch_rows_on_another_disk_change_nothing_and_stop_before_it_fills - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_history_lake_pack.py::test_publish_check_in_a_process_pool_is_identical_and_still_refuses - ModuleNotFoundError: No module named 'pyarrow'
+FAILED tests/test_hub_sandbox_model_keys.py::test_c_sdk_implicit_env_is_fully_classified - AssertionError: unclassified SDK env reads: ['ANTHROPIC_CUSTOM_HEADERS', 'ANTHROPIC_WEBHOOK_SIGNING_KEY']; classified but not read by the SDK: []
+assert {'ANTHROPIC_A..._ORG_ID', ...} == {'ANTHROPIC_A...BHOOK_SECRET'}
+  
+  Extra items in the left set:
+  'ANTHROPIC_CUSTOM_HEADERS'
+  'ANTHROPIC_WEBHOOK_SIGNING_KEY'
+  
+  Full diff:
+    {
+        'ANTHROPIC_AUTH_TOKEN',
+        'ANTHROPIC_BASE_URL',
+  +     'ANTHROPIC_CUSTOM_HEADERS',
+  +     'ANTHROPIC_WEBHOOK_SIGNING_KEY',
+        'OPENAI_BASE_URL',
+        'OPENAI_ORG_ID',
+        'OPENAI_PROJECT_ID',
+        'OPENAI_WEBHOOK_SECRET',
+    }
+FAILED tests/test_hub_sandbox_model_keys.py::test_a_no_request_leaves_with_a_credential_after_the_policy - AssertionError: CONTROL FAILED: the listener did not see the token it was handed: []
+assert ('', 'sk-rail-sentinel-not-a-real-key') in []
+25 failed, 2535 passed, 31 skipped, 15 warnings, 12 errors in 381.18s (0:06:21)

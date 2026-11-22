@@ -1,0 +1,501 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.....F.................F.F..............F..F............................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 12%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 20%]
+..........................................................F............. [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+....................................s................................... [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+..................................................................       [100%]
+==============================================================================
+SHARED PRODUCTION DATA ROOT WRITTEN TO BY THE TEST SUITE — 2 attempt(s)
+==============================================================================
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/plan]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1124 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:12653 _flow_plan_sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:1060 _guarded_sqlite_connect
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/optimize]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1124 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:12696 _flow_optimize_sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:1060 _guarded_sqlite_connect
+
+=================================== FAILURES ===================================
+__________________ test_column_presets_have_a_typed_store_now __________________
+
+    def test_column_presets_have_a_typed_store_now():
+        """§2 gap 1 -- FLIPPED 2026-09-25 by A12 CP2 (the pin below did exactly what it
+        was written to do: it failed the day the store landed, and was updated rather
+        than made to pass again). `visiblePerf` is now backed by the per-member server
+        preference `watchlist_perf_cols` through `usePreferences`: hydrated once after
+        prefs load, written on change, unknown keys dropped on read. Pinned the same way
+        the gap was -- by the literals -- so a regression to session state fails here."""
+        path = os.path.join(_AT_ROOT, "app", "src", "pages", "Watchlists.jsx")
+        src = open(path, encoding="utf-8").read()
+        assert "const [visiblePerf, setVisiblePerf] = useState(new Set())" not in src, (
+            "visiblePerf is plain session state again -- A12 CP2's persistence was reverted")
+        assert "const WATCHLIST_PERF_COLS_KEY = 'watchlist_perf_cols'" in src
+        assert "parsePref(prefs?.[WATCHLIST_PERF_COLS_KEY], null)" in src, "the read side is gone"
+>       assert "setPref(WATCHLIST_PERF_COLS_KEY, serialized)" in src, "the write side is gone"
+E       AssertionError: the write side is gone
+E       assert 'setPref(WATCHLIST_PERF_COLS_KEY, serialized)' in '// app/src/pages/Watchlists.jsx\n//\n// ⚠️ READ BEFORE CHANGING THE LAYOUT OF THIS FILE.\n//\n// This component has T...        onUnavailable={() => setWlHistoryId(null)}\n          />\n        </Sheet>\n      )}\n\n    </div>\n  )\n}\n\n'
+
+tests/test_a12_s6_consistency_rail.py:250: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_column_presets_have_a_typ0/auth.db
+_____________ test_no_bare_catalyst_tag_literal_in_a_tag_position ______________
+
+    def test_no_bare_catalyst_tag_literal_in_a_tag_position():
+        failures = []
+        for rel in product_python_files():
+            tree = _parse(rel)
+            if tree is None:
+                continue
+            for ln, val in bare_tag_literals(tree):
+                failures.append(f"{rel}:{ln} bare tag literal {val!r} - use a8_taxonomy.CATALYST_TAG.{val.upper()}")
+>       assert not failures, "\n".join(failures)
+E       AssertionError: api/services/uct_agent/marketdata/eval/build_freshness.py:318 bare tag literal 'Catalyst' - use a8_taxonomy.CATALYST_TAG.CATALYST
+E       assert not ["api/services/uct_agent/marketdata/eval/build_freshness.py:318 bare tag literal 'Catalyst' - use a8_taxonomy.CATALYST_TAG.CATALYST"]
+
+tests/test_a8_taxonomy.py:334: AssertionError
+__________ test_no_new_cashtag_grammar_and_the_baseline_only_shrinks ___________
+
+    def test_no_new_cashtag_grammar_and_the_baseline_only_shrinks():
+        """Every OTHER cashtag grammar is a recorded, reasoned divergence (each has its
+        own owner ruling). A new one fails by name; one that disappeared must leave the
+        baseline in the same commit, so the ledger can only shrink."""
+        baseline = _cashtag_baseline()
+        for e in baseline.values():
+            assert len((e.get("reason") or "").strip()) >= 20, f"{e['path']}: a baseline entry needs a reason"
+        found = set()
+        new = []
+        for rel in product_python_files():
+            tree = _parse(rel)
+            if tree is None:
+                continue
+            for ln, pat in cashtag_grammars(tree):
+                if pat == A8.CASHTAG_PATTERN:
+                    continue  # the rail above owns this case
+                found.add((rel, pat))
+                if (rel, pat) not in baseline:
+                    new.append(f"{rel}:{ln} introduces a cashtag grammar {pat!r} - read a8_taxonomy.CASHTAG_RE")
+        stale = sorted(f"{p}  {pat!r}" for (p, pat) in set(baseline) - found)
+>       assert not new, "\n".join(new)
+E       AssertionError: api/services/tx_headline_match.py:63 introduces a cashtag grammar '\\$([A-Z]{1,5}(?:\\.[A-Z])?)\\b' - read a8_taxonomy.CASHTAG_RE
+E         api/services/uct_agent/turn.py:2101 introduces a cashtag grammar '\\$[A-Za-z]{1,6}\\b|(?<![A-Za-z0-9])[A-Z]{1,5}(?![A-Za-z0-9])' - read a8_taxonomy.CASHTAG_RE
+E         tools/agent_v2_corpus_cost.py:80 introduces a cashtag grammar '^\\$([A-Za-z]+)(?:\\[(\\d+)\\])?(?:\\{\\w+\\})?$' - read a8_taxonomy.CASHTAG_RE
+E       assert not ["api/services/tx_headline_match.py:63 introduces a cashtag grammar '\\\\$([A-Z]{1,5}(?:\\\\.[A-Z])?)\\\\b' - read a8_...uces a cashtag grammar '^\\\\$([A-Za-z]+)(?:\\\\[(\\\\d+)\\\\])?(?:\\\\{\\\\w+\\\\})?$' - read a8_taxonomy.CASHTAG_RE"]
+
+tests/test_a8_taxonomy.py:375: AssertionError
+_________ test_the_manifest_names_exactly_the_tables_the_purge_deletes _________
+
+    def test_the_manifest_names_exactly_the_tables_the_purge_deletes():
+        doc, runtime = _doc_purged(), _runtime_purged()
+        # Non-vacuity, by name, on BOTH sides.
+        for name in ("j2_notes", "j2_option_legs", "user_definitions", "definition_shares",
+                     "inbound_alert_tokens", "alert_predicates", "alert_fire_channel_reads",
+                     "spec_alerts_fired", "keyword_subs", "chart_iq_feedback", "agent_conversation_state",
+                     "study_game_runs", "j2_note_tweet_captures", "agent_turns", "agent_conversations",
+                     "study_profile", "study_feedback"):
+            assert name in runtime, f"the purge's own report does not name {name}: {sorted(runtime)}"
+            assert name in doc, f"the doc's table does not name {name}"
+        problem = _diff("the purge (runtime)", runtime, "docs/account-deletion-manifest.md", doc)
+>       assert not problem, ("the manifest and the purge disagree -- regenerate with "
+                             "`python tools/account_deletion_manifest.py --write`:\n" + problem)
+E       AssertionError: the manifest and the purge disagree -- regenerate with `python tools/account_deletion_manifest.py --write`:
+E           definition_server_translations: in the purge (runtime), NOT in docs/account-deletion-manifest.md
+E       assert not '  definition_server_translations: in the purge (runtime), NOT in docs/account-deletion-manifest.md'
+
+tests/test_account_deletion_manifest.py:163: AssertionError
+________________ test_the_generated_block_in_the_doc_is_current ________________
+
+    def test_the_generated_block_in_the_doc_is_current():
+        """Owner keys and ownership are derived too -- not only the names."""
+>       assert gen.doc_block(_doc_text()) == gen.render(), (
+            "docs/account-deletion-manifest.md is stale -- run "
+            "`python tools/account_deletion_manifest.py --write`")
+E       AssertionError: docs/account-deletion-manifest.md is stale -- run `python tools/account_deletion_manifest.py --write`
+E       assert '<!-- BEGIN G...GENERATED -->' == '<!-- BEGIN G...GENERATED -->'
+E         
+E         Skipping 17020 identical leading characters in diff, use -v to show
+E         - eaches: **9 tables**, deleted by `api/services/user_definitions_erasure.py` through `user_definitions.purge_user`.
+E         ?           ^
+E         + eaches: **8 tables**, deleted by `api/services/user_definitions_erasure.py` through `user_definitions.purge_user`.
+E         ?           ^
+E           
+E           | Table | Owner key | Ownership | How the purge deletes it |
+E           |---|---|---|---|
+E           | `user_definitions` | `user_id` | Direct (user_definitions.db) | `DELETE FROM user_definitions WHERE user_id = ?` |
+E           | `definition_shares` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_shares WHERE user_id = ?` |
+E           | `definition_listings` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_listings WHERE user_id = ?` |
+E           | `definition_listing_takedowns` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_listing_takedowns WHERE user_id = ?` |
+E           | `definition_load_measurements` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_load_measurements WHERE user_id = ?` |
+E           | `user_definition_relint_log` | `user_id` | Direct (user_definitions.db) | `DELETE FROM user_definition_relint_log WHERE user_id = ?` |
+E           | `definition_engine_status` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_engine_status WHERE user_id = ?` |
+E           | `definition_status_headlines` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_status_headlines WHERE user_id = ?` |
+E         - | `definition_server_translations` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_server_translations WHERE user_id = ?` |
+E           
+E           **alert_taxonomy.db** -- a second database, which no statement on auth.db reaches: **16 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+E           
+E           | Table | Owner key | Ownership | How the purge deletes it |
+E           |---|---|---|---|
+E           | `alert_fire_channel_reads` | `fire_id` → `alert_fires.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_fires`, run before the direct deletes |
+E           | `alert_fire_reminders` | `fire_id` → `alert_fires.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_fires`, run before the direct deletes |
+E           | `rating_change_shadow_state` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+E           | `catalyst_match_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+E           | `event_proximity_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+E           | `indicator_condition_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+E           | `position_risk_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+E           | `price_level_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+E           | `rating_change_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+E           | `regime_change_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+E           | `scan_membership_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+E           | `alert_webhooks` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_webhooks WHERE user_id = ?` |
+E           | `alert_webhook_deliveries` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_webhook_deliveries WHERE user_id = ?` |
+E           | `alert_routing_rule` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_routing_rule WHERE user_id = ?` |
+E           | `alert_fires` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_fires WHERE user_id = ?` |
+E           | `alert_predicates` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_predicates WHERE user_id = ?` |
+E           
+E           **screener.db** -- a second database, which no statement on auth.db reaches: **10 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+E           
+E           | Table | Owner key | Ownership | How the purge deletes it |
+E           |---|---|---|---|
+E           | `spec_alert_snapshots` | `sub_id` → `spec_alert_subs.user_id` | **Indirect** (screener.db) | join delete through `spec_alert_subs`, run before the direct deletes |
+E           | `spec_alerts_fired` | `sub_id` → `spec_alert_subs.user_id` | **Indirect** (screener.db) | join delete through `spec_alert_subs`, run before the direct deletes |
+E           | `screen_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM screen_alert_subs WHERE user_id = ?` |
+E           | `screen_alerts_fired` | `user_id` | Direct (screener.db) | `DELETE FROM screen_alerts_fired WHERE user_id = ?` |
+E           | `spec_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM spec_alert_subs WHERE user_id = ?` |
+E           | `rs_screen_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM rs_screen_alert_subs WHERE user_id = ?` |
+E           | `rs_screen_alerts_fired` | `user_id` | Direct (screener.db) | `DELETE FROM rs_screen_alerts_fired WHERE user_id = ?` |
+E           | `list_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM list_alert_subs WHERE user_id = ?` |
+E           | `list_alert_messages` | `user_id` | Direct (screener.db) | `DELETE FROM list_alert_messages WHERE user_id = ?` |
+E           | `list_alerts_told` | `user_id` | Direct (screener.db) | `DELETE FROM list_alerts_told WHERE user_id = ?` |
+E           
+E           **calendar_alerts.db** -- a second database, which no statement on auth.db reaches: **1 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+E           
+E           | Table | Owner key | Ownership | How the purge deletes it |
+E           |---|---|---|---|
+E           | `calendar_alerts_fired` | `user_id` | Direct (calendar_alerts.db) | `DELETE FROM calendar_alerts_fired WHERE user_id = ?` |
+E           
+E           **transcript_alerts.db** -- a second database, which no statement on auth.db reaches: **2 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+E           
+E           | Table | Owner key | Ownership | How the purge deletes it |
+E           |---|---|---|---|
+E           | `keyword_subs` | `user_id` | Direct (transcript_alerts.db) | `DELETE FROM keyword_subs WHERE user_id = ?` |
+E           | `keyword_fired` | `user_id` | Direct (transcript_alerts.db) | `DELETE FROM keyword_fired WHERE user_id = ?` |
+E           
+E           **catalysts.db** -- a second database, which no statement on auth.db reaches: **2 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+E           
+E           | Table | Owner key | Ownership | How the purge deletes it |
+E           |---|---|---|---|
+E           | `catalyst_alerts_fired` | `user_id` | Direct (catalysts.db) | `DELETE FROM catalyst_alerts_fired WHERE user_id = ?` |
+E           | `catalyst_feedback` | `user_id` | Direct (catalysts.db) | `DELETE FROM catalyst_feedback WHERE user_id = ?` |
+E           
+E           **chart_iq_feedback.db** -- a second database, which no statement on auth.db reaches: **1 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`.
+E           
+E           | Table | Owner key | Ownership | How the purge deletes it |
+E           |---|---|---|---|
+E           | `chart_iq_feedback` | `user_id` | Direct (chart_iq_feedback.db) | `DELETE FROM chart_iq_feedback WHERE user_id = ?` |
+E           
+E           **uct_agent.db** -- a second database, which no statement on auth.db reaches: **5 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`. **3 columns** keep their rows and lose the member's id (NULL, or '' where the column is NOT NULL).
+E           
+E           | Table | Owner key | Ownership | How the purge deletes it |
+E           |---|---|---|---|
+E           | `agent_turns` | `conversation_id` → `agent_conversations.user_id` | **Indirect** (uct_agent.db) | join delete through `agent_conversations`, run before the direct deletes |
+E           | `agent_conversation_state` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_conversation_state WHERE user_id = ?` |
+E           | `agent_turns` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_turns WHERE user_id = ?` |
+E           | `agent_telemetry` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_telemetry WHERE user_id = ?` |
+E           | `agent_requests` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_requests WHERE user_id = ?` |
+E           | `agent_conversations` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_conversations WHERE user_id = ?` |
+E           | `agent_spend` | `user_id` | **Anonymised** (uct_agent.db) | `UPDATE agent_spend SET user_id = NULL WHERE user_id = ?` ('' where NOT NULL); the rest of each row is kept |
+E           | `agent_rate_events` | `user_id` | **Anonymised** (uct_agent.db) | `UPDATE agent_rate_events SET user_id = NULL WHERE user_id = ?` ('' where NOT NULL); the rest of each row is kept |
+E           | `agent_inflight` | `user_id` | **Anonymised** (uct_agent.db) | `UPDATE agent_inflight SET user_id = NULL WHERE user_id = ?` ('' where NOT NULL); the rest of each row is kept |
+E           
+E           **study.db** -- a second database, which no statement on auth.db reaches: **11 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`. **3 columns** keep their rows and lose the member's id (NULL, or '' where the column is NOT NULL).
+E           
+E           | Table | Owner key | Ownership | How the purge deletes it |
+E           |---|---|---|---|
+E           | `study_game_runs` | `user_id` | Direct (study.db) | `DELETE FROM study_game_runs WHERE user_id = ?` |
+E           | `study_attempts` | `user_id` | Direct (study.db) | `DELETE FROM study_attempts WHERE user_id = ?` |
+E           | `study_item_state` | `user_id` | Direct (study.db) | `DELETE FROM study_item_state WHERE user_id = ?` |
+E           | `study_skill` | `user_id` | Direct (study.db) | `DELETE FROM study_skill WHERE user_id = ?` |
+E           | `study_sessions` | `user_id` | Direct (study.db) | `DELETE FROM study_sessions WHERE user_id = ?` |
+E           | `study_badges` | `user_id` | Direct (study.db) | `DELETE FROM study_badges WHERE user_id = ?` |
+E           | `study_checkpoints` | `user_id` | Direct (study.db) | `DELETE FROM study_checkpoints WHERE user_id = ?` |
+E           | `study_weekly_xp` | `user_id` | Direct (study.db) | `DELETE FROM study_weekly_xp WHERE user_id = ?` |
+E           | `study_reminder_log` | `user_id` | Direct (study.db) | `DELETE FROM study_reminder_log WHERE user_id = ?` |
+E           | `study_feedback` | `user_id` | Direct (study.db) | `DELETE FROM study_feedback WHERE user_id = ?` |
+E           | `study_profile` | `user_id` | Direct (study.db) | `DELETE FROM study_profile WHERE user_id = ?` |
+E           | `study_items` | `reviewed_by` | **Anonymised** (study.db) | `UPDATE study_items SET reviewed_by = NULL WHERE reviewed_by = ?` ('' where NOT NULL); the rest of each row is kept |
+E           | `study_corrections` | `by_user` | **Anonymised** (study.db) | `UPDATE study_corrections SET by_user = NULL WHERE by_user = ?` ('' where NOT NULL); the rest of each row is kept |
+E           | `study_feedback` | `handled_by` | **Anonymised** (study.db) | `UPDATE study_feedback SET handled_by = NULL WHERE handled_by = ?` ('' where NOT NULL); the rest of each row is kept |
+E           
+E           **Deleted WITH the account row** -- 2 tables in auth.db, deleted by `auth._cascade_delete_user` in the same transaction as `DELETE FROM users` (`DELETED_WITH_THE_ACCOUNT_ROW`), so they go if and only if the account goes.
+E           
+E           | Table | Owner key | Ownership | How the purge deletes it |
+E           |---|---|---|---|
+E           | `user_totp` | `user_id` | **With the account row** | `DELETE FROM user_totp WHERE user_id = ?` beside `DELETE FROM users` |
+E           | `user_backup_codes` | `user_id` | **With the account row** | `DELETE FROM user_backup_codes WHERE user_id = ?` beside `DELETE FROM users` |
+E           
+E           **ANONYMISED, not deleted** -- 2 tables in auth.db (`_ANONYMISED`): the rows stay, every identifying column is cleared (NULL, or '' where the column is NOT NULL).
+E           
+E           | Table | Owner key | Ownership | What the purge does |
+E           |---|---|---|---|
+E           | `page_views` | `user_id` | **Anonymised** | clears `user_id` on the member's rows; the rest of each row is kept |
+E           | `feedback` | `user_id` | **Anonymised** | clears `user_id`, `email` on the member's rows; the rest of each row is kept |
+E           
+E           <!-- END GENERATED -->
+
+tests/test_account_deletion_manifest.py:195: AssertionError
+_____ test_every_module_that_calls_a_model_is_described_in_the_door_table ______
+
+    def test_every_module_that_calls_a_model_is_described_in_the_door_table():
+        found = _found()
+        unlisted = sorted(set(found) - set(ai_doors.DOORS))
+>       assert not unlisted, (
+            "these modules call a model API and api/services/ai_doors.py does not say "
+            "what reaches them or what bounds their spend:\n"
+            + "\n".join(f"  {p}  <- {', '.join(str(s) for s in found[p][:3])}" for p in unlisted)
+            + "\n\nAdd a Door: kind, surface, budget, and for a member door the meter it "
+            "reads through and the module wiring the population cap (or `gap=` saying why not)."
+        )
+E       AssertionError: these modules call a model API and api/services/ai_doors.py does not say what reaches them or what bounds their spend:
+E           api/services/script_conversation.py  <- api/services/script_conversation.py:197 invoke .messages.create (in _call_model)
+E         
+E         Add a Door: kind, surface, budget, and for a member door the meter it reads through and the module wiring the population cap (or `gap=` saying why not).
+E       assert not ['api/services/script_conversation.py']
+
+tests/test_ai_doors_census.py:48: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_a8_primary_mention.py: 1 warning
+tests/test_account_size_authority.py: 1 warning
+tests/test_address_space.py: 2 warnings
+tests/test_alert_destination.py: 3 warnings
+tests/test_alert_erasure.py: 2 warnings
+tests/test_alert_ledger_admission.py: 3 warnings
+tests/test_alert_taxonomy_catalyst_match_compare.py: 1 warning
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_a8_primary_mention.py::test_every_reader_of_the_join_is_tweet_store_or_a_recorded_mention_lister
+tests/test_alert_ledger_admission.py::test_the_door_has_EXACTLY_ONE_production_call_site
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_ai_doors_census.py::test_every_module_that_calls_a_model_is_described_in_the_door_table
+  api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_ai_meters.py: 23 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_alert_replay.py:625: walks 1,845 bars; set ALERT_REPLAY_FULL=1 (or run `python tools/alert_replay.py --check`)
+FAILED tests/test_a12_s6_consistency_rail.py::test_column_presets_have_a_typed_store_now - AssertionError: the write side is gone
+assert 'setPref(WATCHLIST_PERF_COLS_KEY, serialized)' in '// app/src/pages/Watchlists.jsx\n//\n// ⚠️ READ BEFORE CHANGING THE LAYOUT OF THIS FILE.\n//\n// This component has T...        onUnavailable={() => setWlHistoryId(null)}\n          />\n        </Sheet>\n      )}\n\n    </div>\n  )\n}\n\n'
+FAILED tests/test_a8_taxonomy.py::test_no_bare_catalyst_tag_literal_in_a_tag_position - AssertionError: api/services/uct_agent/marketdata/eval/build_freshness.py:318 bare tag literal 'Catalyst' - use a8_taxonomy.CATALYST_TAG.CATALYST
+assert not ["api/services/uct_agent/marketdata/eval/build_freshness.py:318 bare tag literal 'Catalyst' - use a8_taxonomy.CATALYST_TAG.CATALYST"]
+FAILED tests/test_a8_taxonomy.py::test_no_new_cashtag_grammar_and_the_baseline_only_shrinks - AssertionError: api/services/tx_headline_match.py:63 introduces a cashtag grammar '\\$([A-Z]{1,5}(?:\\.[A-Z])?)\\b' - read a8_taxonomy.CASHTAG_RE
+  api/services/uct_agent/turn.py:2101 introduces a cashtag grammar '\\$[A-Za-z]{1,6}\\b|(?<![A-Za-z0-9])[A-Z]{1,5}(?![A-Za-z0-9])' - read a8_taxonomy.CASHTAG_RE
+  tools/agent_v2_corpus_cost.py:80 introduces a cashtag grammar '^\\$([A-Za-z]+)(?:\\[(\\d+)\\])?(?:\\{\\w+\\})?$' - read a8_taxonomy.CASHTAG_RE
+assert not ["api/services/tx_headline_match.py:63 introduces a cashtag grammar '\\\\$([A-Z]{1,5}(?:\\\\.[A-Z])?)\\\\b' - read a8_...uces a cashtag grammar '^\\\\$([A-Za-z]+)(?:\\\\[(\\\\d+)\\\\])?(?:\\\\{\\\\w+\\\\})?$' - read a8_taxonomy.CASHTAG_RE"]
+FAILED tests/test_account_deletion_manifest.py::test_the_manifest_names_exactly_the_tables_the_purge_deletes - AssertionError: the manifest and the purge disagree -- regenerate with `python tools/account_deletion_manifest.py --write`:
+    definition_server_translations: in the purge (runtime), NOT in docs/account-deletion-manifest.md
+assert not '  definition_server_translations: in the purge (runtime), NOT in docs/account-deletion-manifest.md'
+FAILED tests/test_account_deletion_manifest.py::test_the_generated_block_in_the_doc_is_current - AssertionError: docs/account-deletion-manifest.md is stale -- run `python tools/account_deletion_manifest.py --write`
+assert '<!-- BEGIN G...GENERATED -->' == '<!-- BEGIN G...GENERATED -->'
+  
+  Skipping 17020 identical leading characters in diff, use -v to show
+  - eaches: **9 tables**, deleted by `api/services/user_definitions_erasure.py` through `user_definitions.purge_user`.
+  ?           ^
+  + eaches: **8 tables**, deleted by `api/services/user_definitions_erasure.py` through `user_definitions.purge_user`.
+  ?           ^
+    
+    | Table | Owner key | Ownership | How the purge deletes it |
+    |---|---|---|---|
+    | `user_definitions` | `user_id` | Direct (user_definitions.db) | `DELETE FROM user_definitions WHERE user_id = ?` |
+    | `definition_shares` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_shares WHERE user_id = ?` |
+    | `definition_listings` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_listings WHERE user_id = ?` |
+    | `definition_listing_takedowns` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_listing_takedowns WHERE user_id = ?` |
+    | `definition_load_measurements` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_load_measurements WHERE user_id = ?` |
+    | `user_definition_relint_log` | `user_id` | Direct (user_definitions.db) | `DELETE FROM user_definition_relint_log WHERE user_id = ?` |
+    | `definition_engine_status` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_engine_status WHERE user_id = ?` |
+    | `definition_status_headlines` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_status_headlines WHERE user_id = ?` |
+  - | `definition_server_translations` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_server_translations WHERE user_id = ?` |
+    
+    **alert_taxonomy.db** -- a second database, which no statement on auth.db reaches: **16 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+    
+    | Table | Owner key | Ownership | How the purge deletes it |
+    |---|---|---|---|
+    | `alert_fire_channel_reads` | `fire_id` → `alert_fires.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_fires`, run before the direct deletes |
+    | `alert_fire_reminders` | `fire_id` → `alert_fires.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_fires`, run before the direct deletes |
+    | `rating_change_shadow_state` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+    | `catalyst_match_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+    | `event_proximity_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+    | `indicator_condition_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+    | `position_risk_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+    | `price_level_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+    | `rating_change_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+    | `regime_change_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+    | `scan_membership_comparison_spans` | `predicate_id` → `alert_predicates.user_id` | **Indirect** (alert_taxonomy.db) | join delete through `alert_predicates`, run before the direct deletes |
+    | `alert_webhooks` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_webhooks WHERE user_id = ?` |
+    | `alert_webhook_deliveries` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_webhook_deliveries WHERE user_id = ?` |
+    | `alert_routing_rule` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_routing_rule WHERE user_id = ?` |
+    | `alert_fires` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_fires WHERE user_id = ?` |
+    | `alert_predicates` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_predicates WHERE user_id = ?` |
+    
+    **screener.db** -- a second database, which no statement on auth.db reaches: **10 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+    
+    | Table | Owner key | Ownership | How the purge deletes it |
+    |---|---|---|---|
+    | `spec_alert_snapshots` | `sub_id` → `spec_alert_subs.user_id` | **Indirect** (screener.db) | join delete through `spec_alert_subs`, run before the direct deletes |
+    | `spec_alerts_fired` | `sub_id` → `spec_alert_subs.user_id` | **Indirect** (screener.db) | join delete through `spec_alert_subs`, run before the direct deletes |
+    | `screen_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM screen_alert_subs WHERE user_id = ?` |
+    | `screen_alerts_fired` | `user_id` | Direct (screener.db) | `DELETE FROM screen_alerts_fired WHERE user_id = ?` |
+    | `spec_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM spec_alert_subs WHERE user_id = ?` |
+    | `rs_screen_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM rs_screen_alert_subs WHERE user_id = ?` |
+    | `rs_screen_alerts_fired` | `user_id` | Direct (screener.db) | `DELETE FROM rs_screen_alerts_fired WHERE user_id = ?` |
+    | `list_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM list_alert_subs WHERE user_id = ?` |
+    | `list_alert_messages` | `user_id` | Direct (screener.db) | `DELETE FROM list_alert_messages WHERE user_id = ?` |
+    | `list_alerts_told` | `user_id` | Direct (screener.db) | `DELETE FROM list_alerts_told WHERE user_id = ?` |
+    
+    **calendar_alerts.db** -- a second database, which no statement on auth.db reaches: **1 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+    
+    | Table | Owner key | Ownership | How the purge deletes it |
+    |---|---|---|---|
+    | `calendar_alerts_fired` | `user_id` | Direct (calendar_alerts.db) | `DELETE FROM calendar_alerts_fired WHERE user_id = ?` |
+    
+    **transcript_alerts.db** -- a second database, which no statement on auth.db reaches: **2 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+    
+    | Table | Owner key | Ownership | How the purge deletes it |
+    |---|---|---|---|
+    | `keyword_subs` | `user_id` | Direct (transcript_alerts.db) | `DELETE FROM keyword_subs WHERE user_id = ?` |
+    | `keyword_fired` | `user_id` | Direct (transcript_alerts.db) | `DELETE FROM keyword_fired WHERE user_id = ?` |
+    
+    **catalysts.db** -- a second database, which no statement on auth.db reaches: **2 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+    
+    | Table | Owner key | Ownership | How the purge deletes it |
+    |---|---|---|---|
+    | `catalyst_alerts_fired` | `user_id` | Direct (catalysts.db) | `DELETE FROM catalyst_alerts_fired WHERE user_id = ?` |
+    | `catalyst_feedback` | `user_id` | Direct (catalysts.db) | `DELETE FROM catalyst_feedback WHERE user_id = ?` |
+    
+    **chart_iq_feedback.db** -- a second database, which no statement on auth.db reaches: **1 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`.
+    
+    | Table | Owner key | Ownership | How the purge deletes it |
+    |---|---|---|---|
+    | `chart_iq_feedback` | `user_id` | Direct (chart_iq_feedback.db) | `DELETE FROM chart_iq_feedback WHERE user_id = ?` |
+    
+    **uct_agent.db** -- a second database, which no statement on auth.db reaches: **5 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`. **3 columns** keep their rows and lose the member's id (NULL, or '' where the column is NOT NULL).
+    
+    | Table | Owner key | Ownership | How the purge deletes it |
+    |---|---|---|---|
+    | `agent_turns` | `conversation_id` → `agent_conversations.user_id` | **Indirect** (uct_agent.db) | join delete through `agent_conversations`, run before the direct deletes |
+    | `agent_conversation_state` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_conversation_state WHERE user_id = ?` |
+    | `agent_turns` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_turns WHERE user_id = ?` |
+    | `agent_telemetry` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_telemetry WHERE user_id = ?` |
+    | `agent_requests` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_requests WHERE user_id = ?` |
+    | `agent_conversations` | `user_id` | Direct (uct_agent.db) | `DELETE FROM agent_conversations WHERE user_id = ?` |
+    | `agent_spend` | `user_id` | **Anonymised** (uct_agent.db) | `UPDATE agent_spend SET user_id = NULL WHERE user_id = ?` ('' where NOT NULL); the rest of each row is kept |
+    | `agent_rate_events` | `user_id` | **Anonymised** (uct_agent.db) | `UPDATE agent_rate_events SET user_id = NULL WHERE user_id = ?` ('' where NOT NULL); the rest of each row is kept |
+    | `agent_inflight` | `user_id` | **Anonymised** (uct_agent.db) | `UPDATE agent_inflight SET user_id = NULL WHERE user_id = ?` ('' where NOT NULL); the rest of each row is kept |
+    
+    **study.db** -- a second database, which no statement on auth.db reaches: **11 tables**, deleted by `api/services/member_store_erasure.py` through `member_store_erasure.purge_user`. **3 columns** keep their rows and lose the member's id (NULL, or '' where the column is NOT NULL).
+    
+    | Table | Owner key | Ownership | How the purge deletes it |
+    |---|---|---|---|
+    | `study_game_runs` | `user_id` | Direct (study.db) | `DELETE FROM study_game_runs WHERE user_id = ?` |
+    | `study_attempts` | `user_id` | Direct (study.db) | `DELETE FROM study_attempts WHERE user_id = ?` |
+    | `study_item_state` | `user_id` | Direct (study.db) | `DELETE FROM study_item_state WHERE user_id = ?` |
+    | `study_skill` | `user_id` | Direct (study.db) | `DELETE FROM study_skill WHERE user_id = ?` |
+    | `study_sessions` | `user_id` | Direct (study.db) | `DELETE FROM study_sessions WHERE user_id = ?` |
+    | `study_badges` | `user_id` | Direct (study.db) | `DELETE FROM study_badges WHERE user_id = ?` |
+    | `study_checkpoints` | `user_id` | Direct (study.db) | `DELETE FROM study_checkpoints WHERE user_id = ?` |
+    | `study_weekly_xp` | `user_id` | Direct (study.db) | `DELETE FROM study_weekly_xp WHERE user_id = ?` |
+    | `study_reminder_log` | `user_id` | Direct (study.db) | `DELETE FROM study_reminder_log WHERE user_id = ?` |
+    | `study_feedback` | `user_id` | Direct (study.db) | `DELETE FROM study_feedback WHERE user_id = ?` |
+    | `study_profile` | `user_id` | Direct (study.db) | `DELETE FROM study_profile WHERE user_id = ?` |
+    | `study_items` | `reviewed_by` | **Anonymised** (study.db) | `UPDATE study_items SET reviewed_by = NULL WHERE reviewed_by = ?` ('' where NOT NULL); the rest of each row is kept |
+    | `study_corrections` | `by_user` | **Anonymised** (study.db) | `UPDATE study_corrections SET by_user = NULL WHERE by_user = ?` ('' where NOT NULL); the rest of each row is kept |
+    | `study_feedback` | `handled_by` | **Anonymised** (study.db) | `UPDATE study_feedback SET handled_by = NULL WHERE handled_by = ?` ('' where NOT NULL); the rest of each row is kept |
+    
+    **Deleted WITH the account row** -- 2 tables in auth.db, deleted by `auth._cascade_delete_user` in the same transaction as `DELETE FROM users` (`DELETED_WITH_THE_ACCOUNT_ROW`), so they go if and only if the account goes.
+    
+    | Table | Owner key | Ownership | How the purge deletes it |
+    |---|---|---|---|
+    | `user_totp` | `user_id` | **With the account row** | `DELETE FROM user_totp WHERE user_id = ?` beside `DELETE FROM users` |
+    | `user_backup_codes` | `user_id` | **With the account row** | `DELETE FROM user_backup_codes WHERE user_id = ?` beside `DELETE FROM users` |
+    
+    **ANONYMISED, not deleted** -- 2 tables in auth.db (`_ANONYMISED`): the rows stay, every identifying column is cleared (NULL, or '' where the column is NOT NULL).
+    
+    | Table | Owner key | Ownership | What the purge does |
+    |---|---|---|---|
+    | `page_views` | `user_id` | **Anonymised** | clears `user_id` on the member's rows; the rest of each row is kept |
+    | `feedback` | `user_id` | **Anonymised** | clears `user_id`, `email` on the member's rows; the rest of each row is kept |
+    
+    <!-- END GENERATED -->
+FAILED tests/test_ai_doors_census.py::test_every_module_that_calls_a_model_is_described_in_the_door_table - AssertionError: these modules call a model API and api/services/ai_doors.py does not say what reaches them or what bounds their spend:
+    api/services/script_conversation.py  <- api/services/script_conversation.py:197 invoke .messages.create (in _call_model)
+  
+  Add a Door: kind, surface, budget, and for a member door the meter it reads through and the module wiring the population cap (or `gap=` saying why not).
+assert not ['api/services/script_conversation.py']
+6 failed, 2867 passed, 1 skipped, 41 warnings in 781.38s (0:13:01)

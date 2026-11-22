@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 683,
+  "passed": 682,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 355.11,
+  "failed_files": [
+    "tests/test_shared_state_landmines.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 682 passed, 29 warnings in 355.11s (0:05:55)",
+  "ok": true
+}

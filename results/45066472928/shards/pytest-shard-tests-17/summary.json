@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 3147,
+  "passed": 3145,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 529.65,
+  "failed_files": [
+    "tests/test_program_doc_shas_resolve.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 3145 passed, 1 skipped, 5 warnings in 529.65s (0:08:49)",
+  "ok": true
+}
