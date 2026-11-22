@@ -546,7 +546,10 @@ function eventRecordsOf(symbols) {
     const r = Array.isArray(series) ? series[SERIES_EVENT_RECORD] : null
     if (r && typeof r === 'object' && r.fund !== true) {
       out.push({ ticker: r.ticker, family: r.family, symbol: r.symbol, knownFrom: r.knownFrom, from: r.from || null,
-        ...(r.window ? { window: r.window } : {}) })
+        ...(r.window ? { window: r.window } : {}),
+        // ⭐⭐ T4 F1b — a financial read's id, period and why its newest withheld bar is withheld (its sentence)
+        ...(r.family === 'financial' ? { field: r.field || null, period: r.period || null,
+          unknown: r.unknown ? { why: r.unknown.why, day: r.unknown.day } : null } : {}) })
     }
   }
   return out

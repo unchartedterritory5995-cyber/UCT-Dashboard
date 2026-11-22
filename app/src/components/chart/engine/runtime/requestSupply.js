@@ -31,7 +31,9 @@ import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeri
 import { isTradingDay, covers } from '../../../../lib/marketClock/sessionCalendar.js'
 import { overnightTailFrom, overnightSentence, REQUEST_OVERNIGHT_GUARD } from './overnightTail.js'
 // ⭐⭐ T4 E2 — a corporate-events read's depth is UCT's record of the family (its own words, its own per-bar code)
-import { SERIES_EVENT_RECORD, EVENT_BEFORE_RECORD_CODE, eventBeforeRecordSentence, eventLabel, eventReadOf } from '../pineEvents.js'
+import { SERIES_EVENT_RECORD, eventBeforeRecordSentence, eventLabel, eventReadOf } from '../pineEvents.js'
+// ⭐⭐ T4 F1b — a financial read's withheld bars carry their own code (`interpret.js::beforeRecordCodeOf`)
+import { beforeRecordCodeOf } from '../ast/interpret.js'
 /** `request.<family>` for an event read's ticker (the words a wait names), else the ticker itself. */
 const eventFamilyCall = (ticker) => { const r = eventReadOf(ticker); return r ? `request.${r.family}` : String(ticker) }
 
@@ -742,7 +744,7 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       const record = Array.isArray(srcBars) ? srcBars[SERIES_EVENT_RECORD] : null
       if (record) {
         out.refusal = { guard: REQUEST_GUARD, knownFrom: lastDepth + 1,
-          why: { code: EVENT_BEFORE_RECORD_CODE, reason: eventBeforeRecordSentence(record) },
+          why: { code: beforeRecordCodeOf(record), reason: eventBeforeRecordSentence(record) },
           message: `${eventLabel(record.ticker)}${at(site)} cannot be read on every bar of this chart (its history reaches `
             + `${String(earlyT)}): ${eventBeforeRecordSentence(record)}${CARRIES}` }
         return out

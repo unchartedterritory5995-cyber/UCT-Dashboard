@@ -15,6 +15,8 @@ import { lexPine } from './pine.js'
 import { CLASSIFICATION_FIELD_NAMES, symbolSubstitutions } from './bind.js'
 // ⭐⭐ T4 E2 — a corporate-events read is disclosed by its family, never by the engine's internal name
 import { EVENT_VENUE, eventReadOf } from '../pineEvents.js'
+// ⭐⭐ T4 F1b — a financial read is disclosed as UCT data from company filings, never TradingView's figures
+import { FINANCIAL_SOURCE_NOTE } from '../pineFinancial.js'
 
 const CLASSIFICATION_NAMES = CLASSIFICATION_FIELD_NAMES.map((f) => `syminfo.${f}`)
 
@@ -75,7 +77,8 @@ export function otherSymbolSourceNotesFor(otherSymbols) {
     if (Array.isArray(r.spellings) && r.spellings.includes(EVENT_VENUE)) {
       const read = eventReadOf(r.ticker)
       const name = read ? `request.${read.family}` : null
-      if (name && !seen.has(name)) { seen.add(name); out.push({ name, note: EVENT_SOURCE_NOTE(read.family) }) }
+      const note = read && read.family === 'financial' ? FINANCIAL_SOURCE_NOTE : read ? EVENT_SOURCE_NOTE(read.family) : null
+      if (name && !seen.has(name)) { seen.add(name); out.push({ name, note }) }
       continue
     }
     // a spelling is the PREFIX the script wrote before the ticker (`SP` of `SP:SPX`, `AMEX` of `AMEX:SPY`; '' when bare)

@@ -146,6 +146,32 @@ def test_an_event_read_is_handed_over_only_while_its_door_answers_members(monkey
     assert rows["earnings-data"]["served"] is True and rows["dividends-data"]["served"] is True
 
 
+def test_a_financial_read_is_handed_over_only_while_its_door_answers_members(monkeypatch):
+    """T4 F1b (NUMBER PENDING, train e95): the engine reads `request.financial` as UCT data from company filings, and
+    ONE door supplies it, staged by `PINE_FINANCIAL_SUPPLY_ENABLED`. Dark for members (unset, `admins`, `off`), the
+    assistant is never handed it and its gap stays a gap; at `all` both move. The door's own stage is the authority."""
+    ref = copy.deepcopy(REF)
+    names = {v["name"] for v in ref.get("values") or []}
+    assert set(pa.FINANCIAL_READS) <= names, "the engine's reference no longer lists request.financial (premise moved)"
+    for stage in ("", "admins", "off"):
+        monkeypatch.setenv("PINE_FINANCIAL_SUPPLY_ENABLED", stage)
+        values = section(pa.document(ref), "VALUE FUNCTIONS AND VARIABLES")
+        assert "`request.financial`" not in values, stage
+        assert not set(pa.FINANCIAL_READS) & pa.served_names(ref), stage
+        rows = {r["id"]: r for r in pa.gap_rows()}
+        assert rows["financial-data"]["served"] is False, stage
+        assert rows["financial-data"]["guard"] == pa.FINANCIAL_DARK_GUARD, stage
+    monkeypatch.setenv("PINE_FINANCIAL_SUPPLY_ENABLED", "all")
+    values = section(pa.document(ref), "VALUE FUNCTIONS AND VARIABLES")
+    assert "`request.financial`" in values
+    rows = {r["id"]: r for r in pa.gap_rows()}
+    assert rows["financial-data"]["served"] is True
+    # the two doors are separate: the events stage never hands over request.financial
+    monkeypatch.setenv("PINE_FINANCIAL_SUPPLY_ENABLED", "")
+    monkeypatch.setenv("PINE_EVENTS_SUPPLY_ENABLED", "all")
+    assert "`request.financial`" not in section(pa.document(ref), "VALUE FUNCTIONS AND VARIABLES")
+
+
 def test_a_pitfall_is_warned_about_only_while_it_stands():
     assert set(pa.standing_pitfalls()) <= set(pa.PITFALL_WORDS), "a standing pitfall has no sentence"
     never = section(pa.document(), "NEVER")

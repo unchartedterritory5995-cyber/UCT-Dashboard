@@ -504,10 +504,24 @@ def events_open_to_members() -> bool:
     return pine_events.stage() == "all"
 
 
+#: ⭐ (T4 F1b, NUMBER PENDING, train e95) `request.financial` is supplied by ONE door, `GET /api/pine/financial/<symbol>`,
+#: staged by `PINE_FINANCIAL_SUPPLY_ENABLED` (`pine_financial.stage()`): the assistant is handed it only while that door
+#: answers every paid member, and its gap stays a gap until then. Its figures are UCT data from company filings.
+FINANCIAL_READS = ("request.financial",)
+FINANCIAL_DARK_GUARD = "other-symbol:financial-not-available"
+
+
+def financial_open_to_members() -> bool:
+    """Does the financial door answer every paid member (`PINE_FINANCIAL_SUPPLY_ENABLED=all`)? Read per call."""
+    from api.services import pine_financial
+    return pine_financial.stage() == "all"
+
+
 def _values(ref: Mapping[str, Any]) -> List[Mapping[str, Any]]:
-    """`ref["values"]`, less the event reads while their door is dark for members."""
+    """`ref["values"]`, less the event reads and the financial read while their doors are dark for members."""
     rows = [v for v in ref.get("values") or [] if isinstance(v, Mapping) and isinstance(v.get("name"), str)]
-    return rows if events_open_to_members() else [v for v in rows if v["name"] not in EVENT_READS]
+    dark = (() if events_open_to_members() else EVENT_READS) + (() if financial_open_to_members() else FINANCIAL_READS)
+    return [v for v in rows if v["name"] not in dark]
 
 
 def served_names(ref: Optional[Mapping[str, Any]] = None) -> frozenset:
@@ -698,6 +712,10 @@ def gap_rows(doc: Optional[Mapping[str, Any]] = None, admitted: Optional[List[st
         elif pine_capabilities._EVENTS_RX.search(p["source"]) and not events_open_to_members():
             # the engine reads it; the door that supplies it is dark for members (`EVENT_READS`)
             row["guard"] = EVENTS_DARK_GUARD
+            row["says"] = "the engine reads it, and the data is not available on a member's chart yet"
+        elif pine_capabilities._FINANCIAL_RX.search(p["source"]) and not financial_open_to_members():
+            # the engine reads it; the door that supplies it is dark for members (`FINANCIAL_READS`)
+            row["guard"] = FINANCIAL_DARK_GUARD
             row["says"] = "the engine reads it, and the data is not available on a member's chart yet"
         elif p.get("lane") == "runtime":
             missing = sorted(set(pine_capabilities.capabilities_of(p["source"])) - allowed)

@@ -1,0 +1,140 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "T4 F1b (NUMBER PENDING, train e95): `request.financial` on the chart's own symbol, rewritten at parse into a data read (`pineFinancial.js::financialCallParts` via `pine.js::eventAsSecurity`), supplied by the financial door only (`financialSupply.js`, never `/api/bars`), placed on the first bar closing at or after each filing's knownFrom (`placeFinancial`), withheld by name where UCT knows no current figure, disclosed as UCT data from company filings, and never graded MATCH. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "FN1",
+   "mutant": "the chart's financial entry is handed to the bars door (the synthetic key becomes a /api/bars fetch)",
+   "file": "app/src/components/chart/engine/useSecondarySources.js",
+   "from": "  const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY && k !== EVENTS_KEY && k !== FINANCIAL_KEY),",
+   "to": "  const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY && k !== EVENTS_KEY),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/financialSupply.test.js",
+   "expectRed": "the bars door nothing"
+  },
+  {
+   "id": "FN2",
+   "mutant": "the engine's internal financial name is no longer recognised as one (a script spelling it reads it as a symbol)",
+   "file": "app/src/components/chart/engine/pineEvents.js",
+   "from": "export const EVENT_TICKER = /^EV-(?:[EDS][A-Z]-(?:[01][01]|X[SCA])|F[A-Z]{2}-(?:[QTYHD][01]|X[SCAP]))$/",
+   "to": "export const EVENT_TICKER = /^EV-(?:[EDS][A-Z]-(?:[01][01]|X[SCA]))$/",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "refused by name"
+  },
+  {
+   "id": "FN3",
+   "mutant": "a figure steps one session late (the first bar closing strictly AFTER its knownFrom)",
+   "file": "app/src/components/chart/engine/pineFinancial.js",
+   "from": "    const i = firstWhere(n, (j) => sessions[j].close >= p.knownFrom)",
+   "to": "    const i = firstWhere(n, (j) => sessions[j].close > p.knownFrom)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "TOTAL_REVENUE FQ"
+  },
+  {
+   "id": "FN4",
+   "mutant": "gaps_on carries the figure like gaps_off",
+   "file": "app/src/components/chart/engine/pineFinancial.js",
+   "from": "    vals[i] = gaps && !stepped ? NaN : p.v",
+   "to": "    vals[i] = p.v",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "barmerge.gaps_on"
+  },
+  {
+   "id": "FN5",
+   "mutant": "a GAP point (a filing that left the figure unknown) is no longer unknown",
+   "file": "app/src/components/chart/engine/pineFinancial.js",
+   "from": "    else if (gaps ? stepped && !known : !known) why = 'gap'",
+   "to": "    else if (false) why = 'gap'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "a gap"
+  },
+  {
+   "id": "FN6",
+   "mutant": "a figure past its staleFrom is carried",
+   "file": "app/src/components/chart/engine/pineFinancial.js",
+   "from": "    else if (!gaps && typeof p.staleFrom === 'string' && ISO.test(p.staleFrom) && sessions[i].close >= p.staleFrom) why = 'stale'",
+   "to": "    else if (false) why = 'stale'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "staleFrom"
+  },
+  {
+   "id": "FN7",
+   "mutant": "the unknown bars are no longer cut: the series starts at the chart's first bar",
+   "file": "app/src/components/chart/engine/pineFinancial.js",
+   "from": "  const from = last + 1",
+   "to": "  const from = 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js"
+  },
+  {
+   "id": "FN8",
+   "mutant": "the host lane stops naming a financial read's withheld bars per bar",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  sinkPerBar(opts, FINANCIAL_UNKNOWN_CODE, eventBeforeRecordMask(ast, bars, opts, FINANCIAL_UNKNOWN_CODE))",
+   "to": "  void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "before the first filing"
+  },
+  {
+   "id": "FN9",
+   "mutant": "an id UCT does not serve is no longer refused by its own name",
+   "file": "app/src/components/chart/engine/pineFinancial.js",
+   "from": "  if (r.refused && !r.periodRefused) return { code: codes.FINANCIAL_FIELD, reason: `${r.refused}${tail}` }",
+   "to": "  if (false) return { code: codes.FINANCIAL_FIELD, reason: `${r.refused}${tail}` }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "other-symbol:financial-field"
+  },
+  {
+   "id": "FN10",
+   "mutant": "the door dark for the member reads as a wait, never a named refusal",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "    return { code: R.FINANCIAL_NOT_AVAILABLE, reason: `financial figures are not available on this chart yet, ${notComputed}` }",
+   "to": "    return loading",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "door dark"
+  },
+  {
+   "id": "FN11",
+   "mutant": "a rewrite's financial read is handed to the bars door (fetchableOtherSymbols no longer skips data reads)",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "    if (isEventRequest(ticker, spellings)) continue",
+   "to": "    if (false) continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "asks the financial door only"
+  },
+  {
+   "id": "FN12",
+   "mutant": "the plot's disclosure no longer says UCT data from company filings",
+   "file": "app/src/components/chart/engine/ast/symbolSubstitution.js",
+   "from": "      const note = read && read.family === 'financial' ? FINANCIAL_SOURCE_NOTE : read ? EVENT_SOURCE_NOTE(read.family) : null",
+   "to": "      const note = read ? EVENT_SOURCE_NOTE(read.family) : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "UCT data (company filings)"
+  },
+  {
+   "id": "FN13",
+   "mutant": "the runtime lane no longer probes a financial read's depth (its unknown bars refuse the run, unnamed)",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  if (!/\\brequest\\.(security|seed|earnings|dividends|splits|financial)\\b/.test(source) || !depthGapPossible(rows, ctx)) return 0",
+   "to": "  if (!/\\brequest\\.(security|seed|earnings|dividends|splits)\\b/.test(source) || !depthGapPossible(rows, ctx)) return 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "runtime lane"
+  },
+  {
+   "id": "FN14",
+   "mutant": "a run that read UCT data can grade MATCH again",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  if (uctData) {",
+   "to": "  if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js -t \"T4 F1b\"",
+   "expectRed": "UCT-data substitution"
+  },
+  {
+   "id": "FN15",
+   "mutant": "the assistant is handed request.financial while its door is dark for members",
+   "file": "api/services/pine_authoring.py",
+   "from": "    dark = (() if events_open_to_members() else EVENT_READS) + (() if financial_open_to_members() else FINANCIAL_READS)",
+   "to": "    dark = (() if events_open_to_members() else EVENT_READS)",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_authoring.py -k financial_read",
+   "expectRed": "test_a_financial_read_is_handed_over_only_while_its_door_answers_members"
+  }
+ ]
+}
