@@ -180,6 +180,8 @@ describe('B2 R4 — the placement, on both lanes', () => {
     expect(Object.values(columnErrors(cols))).toEqual([])
     const key = Object.keys(cols)[0]
     expect(asWant(cols[key])).toEqual(SAME)
+    // the bar is named by the BREADTH code, never by an event family's (the code is printed when this goes red)
+    expect(Object.keys(withheldBarsReport(cols)[key])).toEqual([BREADTH_BEFORE_RECORD_CODE])
     expect(Array.from(withheldBarsReport(cols)[key][BREADTH_BEFORE_RECORD_CODE])).toEqual([1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
     const notes = externalReadNotices(d.definition, cols).filter((n) => n.code === BREADTH_BEFORE_RECORD_CODE)
     expect(notes).toEqual([{ code: BREADTH_BEFORE_RECORD_CODE, reason: 'Not drawn before 2026-01-06: UCT\'s NYSE breadth '
