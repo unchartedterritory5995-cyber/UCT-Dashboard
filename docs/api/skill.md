@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (804)
+## Member session reads (806)
 
 ### Limits
 
@@ -658,6 +658,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/patterns/{sym}` | paid | screener | {sym}, tf=D, types, min_conf=50.0, confirmed_only=True, include_structures=False |
 | GET | `/api/pine/breadth/{spelling}` | paid | screener | {spelling} |
 | GET | `/api/pine/events/{ticker}` | paid | screener | {ticker} |
+| GET | `/api/pine/financial/{ticker}` | paid | screener | {ticker} |
 | GET | `/api/pine/history-window` | member | screener |  |
 | GET | `/api/pine/libraries` | member | screener |  |
 | GET | `/api/pine/libraries/{author}/{name}/{version}` | member | screener | {author}, {name}, {version} |
@@ -686,6 +687,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/event-study/series` | paid | research-studies |  |
 | GET | `/api/research/events/{sym}` | paid | research | {sym} |
 | GET | `/api/research/expected-move/{sym}` | paid | research | {sym}, report_date, grade=True |
+| GET | `/api/research/factor-exposure/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/fed-watch` | paid | research |  |
 | GET | `/api/research/filing-search` | paid | research | q (required), sym, form, section, limit=40 |
 | GET | `/api/research/filings-feed` | paid | research | form |

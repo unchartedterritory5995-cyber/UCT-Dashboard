@@ -4227,6 +4227,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/pine/financial/{ticker}",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "",
       "path": "/api/pine/history-window",
       "rate_limit_family": "screener",
@@ -4445,6 +4453,14 @@
       "method": "GET",
       "params": "{sym}, report_date, grade=True",
       "path": "/api/research/expected-move/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/factor-exposure/{ticker}",
       "rate_limit_family": "research",
       "tier": "paid"
     },

@@ -729,6 +729,14 @@ export const FUNCTIONS = [
   // search on 2026-11-22 found no stock or fund listed under it.
   { code: 'VFP', label: 'Volume footprint and gaps (accumulation and distribution days, pocket pivots, every gap of 3% or more)', group: 'Security',
     ticker: { panel: 'VolumeFootprint' } },
+  // FCTX (2026-11-22): how one stock trades, worked out by the server from the daily closes it already stores (GET
+  // /api/research/factor-exposure/{ticker}, held for the session): an ordinary least-squares regression of its daily
+  // return on six fund spreads (SPY; IWM, MTUM, QUAL and USMV less SPY; IWF less IWD) over the newest 252 common
+  // sessions and the 252 before them, each loading with its t-statistic, R-squared and the idiosyncratic share, and a
+  // plain line built only from loadings whose t is above 2. No arguments. FCTX is not in the site's universe, and a
+  // web search on 2026-11-22 found no stock or fund listed under it (FEX, the brief's first pick, is a First Trust fund).
+  { code: 'FCTX', label: 'Factor exposure (market, size, growth vs value, momentum, quality, low volatility)', group: 'Security',
+    ticker: { panel: 'FactorExposure' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -1117,6 +1125,12 @@ const FUNCTION_WORDS = {
   VFP: { example: 'NVDA VFP', keywords: ['volume footprint', 'accumulation days', 'distribution days', 'pocket pivots',
     'pocket pivot', 'gap history', 'gaps', 'unfilled gaps', 'up down volume'],
     note: "From UCT's stored daily bars (settled sessions; prices and volumes split-adjusted). A record, not a forecast." },
+  // FCTX: "exposure" stays REGM's (the market exposure call), "growth" GRPS's and "value" PEER's; no keyword starts with
+  // either word ("growth or value" would have taken "growth" from GRPS). "momentum" and "quality" find FCTX through
+  // its label: no other function answers them.
+  FCTX: { example: 'NVDA FCTX', keywords: ['factor exposure', 'factor exposures', 'factor loadings', 'factors', 'style',
+    'style factors', 'momentum exposure'],
+    note: "From UCT's stored daily closes of the stock and the factor funds (settled sessions, price returns). Descriptive, not a forecast." },
   // OSCR RICH / OSCR CHEAP: no keyword. "iv" and "implied volatility" stay IVH's, and any keyword holding "rank" would
   // put OSCR ahead of RSL for a one-word search on "rank" (OSCR sits earlier in the registry).
   OSCR: { example: 'OSCR RICH',
