@@ -269,6 +269,53 @@ describe('background: a warm of a key the device already answered', () => {
   })
 })
 
+describe('a held device copy asked for again', () => {
+  it('N1 a copy that is no newer than the one the key holds is dropped without building its rows', async () => {
+    // every warm of a device-held key asks the device again (the rows around the selection, on every press)
+    let built = 0
+    let cached = false
+    const hit = () => ({ n: ROWS.length, through: THROUGH, savedAt: THROUGH * 1000, get rows() { built++; return ROWS } })
+    const device = { peek: vi.fn(() => (cached ? hit() : null)), read: vi.fn(async () => { cached = true; return hit() }) }
+    const { store, pf } = boot({ device })
+    pf.warmMemFromIDB(['MINE'], ['D'])
+    await settle()
+    expect(store.peek(keyOf({ sym: 'MINE', tf: 'D' }))?.source).toBe('device')
+    expect(built).toBeGreaterThan(0)                         // the copy that landed was built
+    const b0 = built
+    device.peek.mockClear()
+    const hold = pf.createNeighborHold()
+    for (let i = 0; i < 5; i++) {
+      pf.warmMemFromIDB(['MINE'], ['D'])
+      hold.set(['MINE'], 'D')
+      pf.prefetchBarsToIDB(['MINE'], 'D', { priority: true })
+      pf.deviceVerdict('MINE', 'D')
+      pf.deviceWarm('MINE', 'D')
+      await settle()
+    }
+    expect(device.peek.mock.calls.length).toBeGreaterThan(4)  // the device WAS asked again (the control)
+    expect(built).toBe(b0)                                   // ...and not one row was built for it
+    hold.clear()
+    store.dispose()
+  })
+
+  it('N2 a NEWER copy is still taken, rows and all', async () => {
+    let through = THROUGH - 86400
+    let cached = false
+    const hit = () => ({ n: ROWS.length, through, savedAt: through * 1000, get rows() { return ROWS } })
+    const device = { peek: vi.fn(() => (cached ? hit() : null)), read: vi.fn(async () => { cached = true; return hit() }) }
+    const { store, pf } = boot({ device })
+    const key = keyOf({ sym: 'MINE', tf: 'D' })
+    pf.warmMemFromIDB(['MINE'], ['D'])
+    await settle()
+    expect(store.persist.deviceThroughOf(key)).toBe(THROUGH - 86400)
+    through = THROUGH
+    pf.deviceWarm('MINE', 'D')
+    await settle()
+    expect(store.persist.deviceThroughOf(key)).toBe(THROUGH)
+    store.dispose()
+  })
+})
+
 describe('the two meet', () => {
   it('M1 a warm asked for the key, then the key press: the device is asked again, urgently', async () => {
     const { store, device, pf } = boot()
