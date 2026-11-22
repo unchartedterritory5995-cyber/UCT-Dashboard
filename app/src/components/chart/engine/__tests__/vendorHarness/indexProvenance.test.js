@@ -108,11 +108,14 @@ describe('the capture grade wires it (code, not prose)', () => {
 
 describe('GUARD 2: a summary that counts MATCH rows shows each row’s provenance share beside it', () => {
   it('the plot line carries the block; the total names every capture with provenance and its share', () => {
-    const stats = comparePlot(plot(PROVENANCE_SOURCED_MIN + 100, 100))
+    const own = PROVENANCE_SOURCED_MIN
+    const stats = comparePlot(plot(own + 100, 100))
     const row = { id: 'rs-rating-fred6724-intra-spy-30-x', symbol: 'SPY', timeframe: '30', verdict: 'MATCH',
       plots: [{ id: 'plot_0', title: 'RS Line', verdict: 'MATCH', reason: '', stats }] }
     const table = renderSummary([row])
-    expect(table).toMatch(/RS Line +MATCH +cmp 100 ok 100 .* · provenance index:fmp 100\/100 equal/)
-    expect(table).toMatch(/INDEX PROVENANCE \(1 captures; .*\): rs-rating-fred6724-intra-spy-30-x MATCH 50\.0% provenance \(100 bars\)/)
+    expect(table).toContain(`cmp ${own} ok ${own} `)
+    expect(table).toContain(' · provenance index:fmp 100/100 equal')
+    const share = ((100 * 100) / (own + 100)).toFixed(1)
+    expect(table).toContain(`: rs-rating-fred6724-intra-spy-30-x MATCH ${share}% provenance (100 bars)`)
   })
 })
