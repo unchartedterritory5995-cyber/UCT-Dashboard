@@ -26,6 +26,9 @@
 //   L14 an ask is the reads of one TASK: reads asked across microtask turns of one task are one ask
 //   L15 a read dropped out of an OLDER ask is forgotten at once too; and the dropped promise unwinding later
 //       never forgets the read that replaced it
+//   L16 the ask a task is filling stays listed when it empties inside that task: reads the task adds afterwards
+//       are sent (taken off the list there, they would wait for ever: never sent, never dropped)
+//   L17 an ask emptied by an answer before its task ended leaves the list when the task ends
 //   L7 a worker that dies answers every read null, waiting ones included; dispose does the same and posts nothing
 //   L8 inFlight() counts what is sent and what waits
 import { describe, it, expect, vi } from 'vitest'
@@ -274,6 +277,33 @@ describe('the two lanes of a device read', () => {
     expect(w.reads().filter((k) => k === 'X3|D')).toHaveLength(1)
     w.answer('X3', 'D', COLS(3))
     expect((await mine).c[0]).toBe(3)
+  })
+
+  it('L16 the ask a task is filling survives being emptied inside that task: what the task adds next is sent', async () => {
+    const { w, c } = boot()
+    ;['A', 'B', 'X1'].forEach((s) => c.getBars(s, 'D'))        // X1 waits in this task's ask
+    c.getBars('X1', 'D', { urgent: true })                     // ...and is hurried out of it: the ask is empty, still open
+    ;['X2', 'X3'].forEach((s) => c.getBars(s, 'D'))            // the same task goes on asking
+    expect(w.reads()).toEqual(['A|D', 'B|D', 'X1|D'])
+    expect(c.inFlight()).toBe(5)
+    w.answer('A'); w.answer('B')
+    await tick()
+    expect(w.reads()).toEqual(['A|D', 'B|D', 'X1|D', 'X2|D', 'X3|D'])
+    w.answer('X1'); w.answer('X2'); w.answer('X3')
+    await tick()
+    expect(c.inFlight()).toBe(0)
+    expect(c.asksHeld()).toBe(0)
+  })
+
+  it('L17 an ask emptied by an answer before its task ended leaves the list when the task ends', async () => {
+    const { w, c } = boot()
+    ;['A', 'B', 'X1'].forEach((s) => c.getBars(s, 'D'))
+    expect(c.asksHeld()).toBe(1)
+    w.answer('A')                                              // the worker answers within the task
+    for (let i = 0; i < 6; i++) await Promise.resolve()        // microtasks only: the task is not over
+    expect(w.reads()).toEqual(['A|D', 'B|D', 'X1|D'])          // X1 has been sent: the ask is empty, and still open
+    await tick()                                               // the task ends
+    expect(c.asksHeld()).toBe(0)
   })
 
   it('L7 a worker that dies answers every read null, waiting ones included; so does dispose, posting nothing', async () => {
