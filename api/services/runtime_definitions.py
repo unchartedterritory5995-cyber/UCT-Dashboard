@@ -75,9 +75,13 @@ variables, both read per call:
   (`pine_capabilities.capabilities_of`, one detector, over-declaring, closed world) is admitted
   in the committed registry (`pine_runtime_allowlist.json` ``capabilities``, each admitted row
   carrying vendor-graded MATCH evidence: `rollout_gate.pine_capability_admission`). The served
-  stamp, the save door and the allow report follow it because they ask `not_graded`. ⛔ The
-  SERVER lanes do not: `server_lane_refusal` asks ``graded_only=True``, which stays per-script.
-  With ``off`` every answer here is the one before Part 2, byte for byte.
+  stamp, the save door and the allow report follow it because they ask `not_graded`.
+  ⭐ TRACK 6 (2026-11-22, owner ruling "Any TradingView pine script able to be converted by anyone",
+  coordinator ruling D3, superseding ruling Q8): the SERVER lanes follow it too.
+  `server_lane_refusal` admits a script on the graded list OR one this admission admits, never one
+  only the operator variable names, and a script using a capability admitted for closed-bar history
+  only (G6) runs only on a lane that evaluates CLOSED bars (`CLOSED_BAR_LANES`). With ``off`` every
+  answer here is the one before Part 2, byte for byte, the server lanes' included.
 * ``PINE_RUNTIME_CAPABILITY_DENY`` -- capability ids SUBTRACTED from the admitted set (comma- or
   whitespace-separated). ⛔ SUBTRACT-ONLY: no variable ever adds a capability; admitting one is a
   commit to the registry, with its evidence. The kill list stays the per-script safety net and is
@@ -403,6 +407,64 @@ def service_missing() -> list[str]:
     return missing
 
 
+#: ⭐ TRACK 6 (coordinator ruling D3, 2026-11-22) -- the server lanes that evaluate CLOSED bars only,
+#: by construction. Only these may run a script using a capability admitted for closed-bar history
+#: only (G6: `admitted_capabilities()["historyOnly"]`, today `realtime-state` and `request-other`).
+#:   * ``alert``: every door of the alert lane sends `alert_user_series.runtime_wire_bars`, which cuts
+#:     the bars at `indicator_alert_evaluator.closed_bar_index` (ruling Q3: closed bars only).
+#:   * ``sweep``: the nightly sweep's as-of is `expected_session()`, which is the PREVIOUS session
+#:     before the 09:35 ET roll, and `sweep_deadline` stops it before the open; the live cycle
+#:     refuses every runtime document (`gate:cadence`).
+#: NOT closed, so they refuse such a script BY NAME (`FORMING_GUARD`):
+#:   * ``on-demand``: after 09:35 ET its as-of is today's session, and the bars store can hold
+#:     today's evolving bar;
+#:   * ``backtest``: both backtest doors read the newest daily bars from the store, which can be
+#:     today's evolving bar (`bars_sqlite.avg_daily_volume` names it);
+#:   * ``record``: nothing calls it yet, so nothing proves its bars closed.
+#: A lane joins this set only with a rail proving its bars are closed.
+CLOSED_BAR_LANES = frozenset({"alert", "sweep"})
+#: The guard a closed-bar-only script answers on a lane that can evaluate a forming bar.
+FORMING_GUARD = "runtime:server-forming-bar"
+
+
+def _server_capability_refusal(source: Any, lane_name: str, graded_reason: str,
+                               why_not: str) -> Optional[tuple[str, str]]:
+    """STEP 2's second half (track 6): a script the GRADED list does not hold may still run on a
+    server lane when capability admission admits it, exactly as the chart pane serves it.
+
+    ONE VERDICT: `admission_verdict`, the rule the pane's verdict door and the script turn share
+    (the admission flag, the kill list, G6's ``historyOnly``), over `capability_admitted`'s closed
+    world. ⛔ NEVER the operator variable `PINE_RUNTIME_ALLOWLIST` (it carries no evidence).
+    ``None`` admits; otherwise ``(guard, sentence)``:
+      * admission off, or a capability not admitted -> ``runtime:not-yet-graded``, the graded
+        list's own sentence (the answer before track 6);
+      * the detector has not answered yet -> ``runtime:not-yet-graded`` with the pending sentence
+        (fail closed, by name; it fills on a later call);
+      * admitted, but a capability is admitted for closed bars only and this lane can evaluate a
+        forming bar -> ``FORMING_GUARD``, naming the capabilities.
+    Never raises: anything it cannot read is not admitted."""
+    if not capability_admission_on():
+        return ("runtime:not-yet-graded", graded_reason)
+    try:
+        ok, missing = capability_admitted(source)
+        verdict = admission_verdict(source, [] if ok else missing, lambda: capabilities_for(source))
+    except Exception:  # noqa: BLE001 -- what cannot be read is not admitted
+        log.warning("[runtime_definitions] server-lane capability admission unreadable; refused")
+        return ("runtime:not-yet-graded", graded_reason)
+    if not verdict.get("admitted"):
+        if verdict.get("missing") == [PENDING]:
+            h = source_hash(source) if isinstance(source, str) else ""
+            return ("runtime:not-yet-graded", f"{PENDING_SENTENCE.format(h=h[:12])}, {why_not}")
+        return ("runtime:not-yet-graded", graded_reason)
+    hist = verdict.get("historyOnly") or []
+    if hist and lane_name not in CLOSED_BAR_LANES:
+        return (FORMING_GUARD,
+                f"this script uses {', '.join(hist)}, which has only been checked against "
+                "TradingView on finished bars, and this lane can evaluate a bar that is still "
+                f"forming, {why_not}")
+    return None
+
+
 def server_lane_refusal(row: Any, *, lane: Any) -> Optional[tuple[str, str]]:
     """THE ONLY ADMISSION QUESTION A SERVER LANE ASKS of a stored runtime document:
     ``(guard, sentence)`` for the FIRST refusal that applies, or ``None`` when the lane
@@ -410,20 +472,24 @@ def server_lane_refusal(row: Any, *, lane: Any) -> Optional[tuple[str, str]]:
     non-refusal for a row it cannot read.
 
       1. kill list       `killed(def_id, source)`                 -> ``runtime:killed``
-      2. graded          `not_graded(source)`                     -> ``runtime:not-yet-graded``
+      2. graded          `not_graded(source, graded_only=True)`, then (track 6) capability
+                         admission (`_server_capability_refusal`)  -> ``runtime:not-yet-graded``
+                         or ``runtime:server-forming-bar``
       3. pane stage      `pane_permitted(owner_role, owner_id)`   -> ``runtime:stage``
       4. server stage    `server_permitted(owner_role, owner_id)` -> ``runtime:server-stage``
       5. service set up  `service_missing()` is empty             -> ``runtime:server-unavailable``
 
     ONE AUTHORITY PER QUESTION: steps 1-3 ask the very functions the chart's serving path
     asks, so a script the chart refuses is refused here by the same reason and the same
-    sentence (steps 1 and 2 return that sentence verbatim). Step 2 therefore admits only
-    a script on the GRADED allowlist (ruling Q8: only allowlisted, MATCH-graded documents may
-    use the service): `not_graded(source, graded_only=True)` asks `graded_allow_list` (the
-    committed JSON served through `rollout_gate.pine_runtime_admission`), never a second
-    list. ⛔ The operator variable `PINE_RUNTIME_ALLOWLIST` carries no evidence, so it keeps
-    admitting on the browser pane only and NEVER on a server lane (coordinator ruling,
-    2026-11-02).
+    sentence (steps 1 and 2 return that sentence verbatim). Step 2 asks the GRADED allowlist
+    first: `not_graded(source, graded_only=True)` asks `graded_allow_list` (the committed JSON
+    served through `rollout_gate.pine_runtime_admission`), never a second list. ⭐ TRACK 6
+    (2026-11-22, the owner's ruling supersedes Q8's "only allowlisted documents"): a script that
+    list does not hold is then asked of capability admission (`_server_capability_refusal`), so a
+    server lane admits exactly what the chart pane serves under the committed, evidence-backed
+    registry, and a closed-bar-only script only on a `CLOSED_BAR_LANES` lane. ⛔ The operator
+    variable `PINE_RUNTIME_ALLOWLIST` carries no evidence, so it keeps admitting on the browser
+    pane only and NEVER on a server lane (coordinator ruling, 2026-11-02, unchanged).
 
     ALL FIVE ARE READ ON EVERY CALL and nothing is cached: a kill, a stage change or a
     demotion reaches the NEXT call, and nothing stored is touched (a kill switch is never
@@ -447,7 +513,9 @@ def server_lane_refusal(row: Any, *, lane: Any) -> Optional[tuple[str, str]]:
         return ("runtime:killed", reason)
     reason = not_graded(source, graded_only=True)
     if reason:
-        return ("runtime:not-yet-graded", reason)
+        refused = _server_capability_refusal(source, lane_name, reason, why_not)
+        if refused is not None:
+            return refused
     owner_id = row.get("user_id")
     role = _owner_role(owner_id)
     if not pane_permitted(role, owner_id):
