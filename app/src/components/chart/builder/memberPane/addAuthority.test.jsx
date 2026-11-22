@@ -89,9 +89,9 @@ describe('⭐⭐ reachability: a build minted on a pending admission is never ke
   it('the oversize keep needs the runtime lane, which waits for the verdict: no Add is offered, none can be queued', () => {
     runtimeOn()
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))   // the admission ask never answers
+    __resetRuntimeAdmission()                                     // (first: it also switches admission off)
     setRuntimeAllowList([])                                       // not the test grant: the server decides
     setRuntimeCapabilityAdmission(true)
-    __resetRuntimeAdmission()
     const d = door(VDUBUS)
     expect(runtimeConsultPendingOf({ source: VDUBUS }), 'the build was minted on a pending admission').toBe(true)
     expect(d.ok).toBe(true)
