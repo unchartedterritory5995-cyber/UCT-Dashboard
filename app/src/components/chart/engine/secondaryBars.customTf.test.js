@@ -9,7 +9,10 @@ import {
   refreshSecondaryTail, secondaryFetchOf,
 } from './secondaryBars'
 import { BARS_ASK_MAX } from './otherSymbols'
-import { fetchTf, resampleSpec } from '../timeframes'
+import { baseBarsFor, fetchTf, resampleSpec } from '../timeframes'
+import {
+  BENCHMARK_TAIL_BARS, benchmarkTailFor, benchmarkTailUrl, tailBarsFromWire, _inflightBenchmarkTails, _resetBenchmarkTailsForTests,
+} from './liveTail'
 import { resampleForSpec } from '../../../utils/resampleBars'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -176,5 +179,43 @@ describe('what does not change', () => {
   it('a custom timeframe is never primed from a payload of unknown shape', () => {
     expect(primeSecondaryBars('SPX', '240', 50, { bars: rows(60) })).toBeNull()
     expect(cachedBars('SPX', '240', 50)).toBeNull()
+  })
+})
+
+describe('the benchmark live tail (`liveTail.js`) on a custom timeframe: the same base, the same rule', () => {
+  it('asks the native base for one bucket more than the tail, never the custom code', () => {
+    const u = benchmarkTailUrl('SPX', '240')
+    expect(u).toBe(`/api/bars/SPX?tf=60&bars=${baseBarsFor('240', BENCHMARK_TAIL_BARS + 1)}`)
+    expect(u).not.toContain('tf=240')
+    expect(benchmarkTailUrl('SPX', '60')).toBe(`/api/bars/SPX?tf=60&bars=${BENCHMARK_TAIL_BARS}`)   // native unchanged
+  })
+
+  it('resamples the base rows by the chart’s rule and drops the first (maybe partial) bucket', () => {
+    const base = rows(60).slice(-baseBarsFor('240', BENCHMARK_TAIL_BARS + 1))   // begins inside a bucket
+    const want = resampleForSpec(base, resampleSpec('240')).slice(1).slice(-BENCHMARK_TAIL_BARS)
+    expect(tailBarsFromWire({ bars: base }, '240')).toEqual(want.map((b) => ({ t: b.t, c: b.c })))
+    expect(tailBarsFromWire({ bars: rows(60) }, '60')).toEqual(rows(60).slice(-BENCHMARK_TAIL_BARS).map((b) => ({ t: b.t, c: b.c })))
+  })
+
+  it('a short base window: the partial first bucket is never one of the tail’s rows', () => {
+    const base = rows(60).slice(-9)                     // Thu 14:30, 15:30 (a partial 13:30 bucket), then all of Friday
+    const got = tailBarsFromWire({ bars: base }, '240')
+    expect(got.map((b) => b.t)).toEqual([at('2026-11-20', '9:30'), at('2026-11-20', '13:30')])
+  })
+
+  it('through the live path: the landed tail is the resampled one (the chart’s timeframe reaches the parser)', async () => {
+    _resetBenchmarkTailsForTests()
+    const asked = []
+    const fetcher = (url) => { asked.push(url); return Promise.resolve({ bars: rows(60).slice(-9) }) }
+    expect(benchmarkTailFor('SPX', '240', { fetcher, now: 1000 })).toBeNull()
+    await Promise.all(_inflightBenchmarkTails())
+    const hit = benchmarkTailFor('SPX', '240', { fetcher, now: 1001 })
+    expect(asked[0]).toContain('tf=60&')
+    expect(hit.bars.map((b) => b.t)).toEqual([at('2026-11-20', '9:30'), at('2026-11-20', '13:30')])
+    _resetBenchmarkTailsForTests()
+  })
+
+  it('one ratio: secondaryBars’ base ask is `timeframes.baseBarsFor`', () => {
+    for (const tf of ['240', '120', '45', '2D', '3M']) expect(baseAskOf(tf, 77)).toBe(baseBarsFor(tf, 77))
   })
 })

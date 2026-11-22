@@ -43,7 +43,7 @@ const BARS_PATH = '/api/bars/'
 // off that session (a weekend, outside 04:00-20:00 ET, or an intraday row off the base grid anchored at 09:30: crypto,
 // futures, a clock-hour series) is REFUSED by name (`UNSUPPORTED` + note), never resampled on a grid it does not have,
 // until a capture witnesses how TradingView builds it.
-import { fetchTf, resampleSpec } from '../timeframes'
+import { baseBarsFor, fetchTf, resampleSpec } from '../timeframes'
 import { resampleForSpec } from '../../../utils/resampleBars'
 
 /**
@@ -84,11 +84,7 @@ const BASE_ASK_MAX = 60000
 /** The native base rows a custom timeframe's window of `bars` rows asks for: an upper bound of base rows per output
  *  row (a 4h bucket holds at most four 60m rows; an N-day window at most N daily rows), capped at the route's limit. */
 export function baseAskOf(tf, bars) {
-  const spec = resampleSpec(tf == null || tf === '' ? 'D' : String(tf))
-  const n = askedBarsOf(bars)
-  if (!spec) return n
-  const per = spec.kind === 'intradaySession' ? Math.ceil(spec.minutes / Number(spec.base)) : Math.max(1, spec.n || 1)
-  return Math.min(BASE_ASK_MAX, n * per)
+  return baseBarsFor(tf == null || tf === '' ? 'D' : String(tf), askedBarsOf(bars), BASE_ASK_MAX)
 }
 
 /**
