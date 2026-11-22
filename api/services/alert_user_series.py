@@ -1110,6 +1110,48 @@ def runtime_output_keys(definition: Mapping[str, Any]) -> list:
     return [str(k) for k in outputs]
 
 
+#: ⭐ TRACK 6, AL3 -- THE ALERT TARGET FOR A RUNTIME DOCUMENT'S alert() CALLS: ``<def_id>.__alert``.
+#: No stored plot can be spelled so (a plot key starts with a letter: `runtime_definitions._PLOT_KEY_RE`),
+#: so it never collides with a real plot. Its value on a closed bar is 1 when the script called alert()
+#: on that bar, else 0; the trigger is ``is_true`` only (`alert_trigger_policy.admit_request`), and each
+#: closed bar with an event is its OWN fire (`alert_fired_log.fire_key(per_bar=True)`), carrying the
+#: script's message (`alert_calls_message`), truncated to ``ALERT_CALLS_MESSAGE_MAX``.
+ALERT_CALLS_KEY = "__alert"
+ALERT_CALLS_MESSAGE_MAX = 512
+_ALERT_CALL_RE = re.compile(r"(?<![\w.])alert\s*\(")
+
+
+def is_alert_calls_address(address: Any) -> bool:
+    """Is ``address`` a runtime document's alert() target (``<def_id>.__alert``)?"""
+    return isinstance(address, str) and is_user_address(address) \
+        and split_user_address(address)[1] == ALERT_CALLS_KEY
+
+
+def runtime_offers_alert_calls(definition: Mapping[str, Any]) -> bool:
+    """Does this runtime document's source call ``alert()``? Read off the source with its ``//``
+    comments cut (``alertcondition`` is not ``alert``). It decides only whether the target is
+    OFFERED: the run's own record decides whether it ever fires."""
+    if not is_runtime_document(definition):
+        return False
+    src = (definition.get("compute") or {}).get("source")
+    if not isinstance(src, str):
+        return False
+    code = "\n".join(line.split("//", 1)[0] for line in src.splitlines())
+    return bool(_ALERT_CALL_RE.search(code))
+
+
+def runtime_alert_keys(definition: Mapping[str, Any]) -> list:
+    """Every target an alert on a runtime document may watch: its plots (`runtime_output_keys`),
+    then ``ALERT_CALLS_KEY`` when its source calls alert()."""
+    return runtime_output_keys(definition) + ([ALERT_CALLS_KEY] if runtime_offers_alert_calls(definition) else [])
+
+
+def _runtime_want(key: str) -> str:
+    """The ``want`` entry a target is asked under: a plot by its key, the alert() target as ``#alerts``."""
+    from api.services import pine_runtime_codec as codec
+    return codec.ALERTS_WANT if key == ALERT_CALLS_KEY else key
+
+
 def runtime_inputs_for(definition: Mapping[str, Any], params: Optional[Mapping]) -> dict:
     """The script's inputs for one alert: the row's ``params_json`` restricted to the
     inputs the document DECLARES (``inputs[].key``). The runtime reads the same keys and
@@ -1354,6 +1396,101 @@ def _make_runtime_value_fn(row: Mapping[str, Any], def_id: str, plot_key: str,
     return fn
 
 
+class RuntimeAlertColumn(list):
+    """The alert() target's column: 1.0 on a closed bar the script called alert() on, 0.0 on every
+    other closed bar, ``None`` after the newest closed one; ``.messages`` = ``{bar index: text or
+    None}`` (None: the script's message could not be read, AL1's ``messageWithheld``)."""
+
+    def __init__(self, values: Any, messages: Mapping[int, Optional[str]]):
+        super().__init__(values)
+        self.messages = dict(messages)
+
+
+def _make_runtime_alert_fn(row: Mapping[str, Any], def_id: str,
+                           definition: Mapping[str, Any]) -> Callable[..., Optional[float]]:
+    """TRACK 6, AL3: one admitted runtime document -> "did the script call alert() on this bar".
+    The `_make_runtime_value_fn` shape and prelude (symbol, timeframe, closed bars, the timeframe
+    setting, the admission asked on every call); the run asks ``want=('#alerts',)``
+    (`runtime_server_lane.runtime_alerts_fn`) and its record becomes a 0/1 column."""
+    from api.services import pine_runtime_client as prc
+    from api.services import runtime_server_lane as rsl
+
+    address = f"{def_id}.{ALERT_CALLS_KEY}"
+
+    def column(bars: list, params: Optional[Mapping] = None, tf: Optional[str] = None,
+               sym: Optional[str] = None) -> list:
+        if not sym or not tf:
+            raise rsl.ServerLaneWithheld(
+                prc.INTEGRITY, f"{address}: a script drawn bar by bar runs on one symbol and "
+                "timeframe, and this call named none")
+        batch = _RUNTIME_BATCH.get()
+        now = batch.now if batch is not None and (batch.sym, batch.tf) == (sym, tf) else time.time()
+        try:
+            wire, k = runtime_wire_bars(bars, tf, now)
+        except RuntimeBarsRefused as exc:
+            raise rsl.ServerLaneWithheld(exc.guard, exc.sentence) from exc
+        if k < 0:
+            return RuntimeAlertColumn([None] * len(bars or []), {})
+        tf_why = runtime_timeframe_moved(definition, params)
+        if tf_why:
+            raise rsl.ServerLaneWithheld(TIMEFRAME_SETTING_GUARD, f"{address}: {tf_why}")
+        run = rsl.runtime_alerts_fn(row, RUNTIME_LANE, client_factory=_client_factory())
+        record = run(wire, runtime_inputs_for(definition, params), tf=str(tf), ticker=str(sym))
+        n = len(wire)
+        values: list = [0.0] * n + [None] * (len(bars or []) - n)
+        texts: dict = {}
+        for event in (record or {}).get("events") or []:
+            bar = event.get("bar")
+            if not isinstance(bar, int) or isinstance(bar, bool) or not 0 <= bar < n:
+                continue                     # an event the record could not place on a bar
+            values[bar] = 1.0
+            msg = event.get("message")
+            texts.setdefault(bar, []).append(msg if isinstance(msg, str) else None)
+        messages = {}
+        for bar, parts in texts.items():
+            said = [p for p in parts if p]
+            messages[bar] = "; ".join(said)[:ALERT_CALLS_MESSAGE_MAX] if said else None
+        return RuntimeAlertColumn(values, messages)
+
+    def fn(bars: list, params: Optional[Mapping] = None, tf: Optional[str] = None,
+           sym: Optional[str] = None) -> Optional[float]:
+        return _last_finite(column(bars, params, tf, sym))
+
+    def withheld(bars: list, params: Optional[Mapping] = None, tf: Optional[str] = None) -> Optional[str]:
+        return None
+
+    column.__name__ = f"_runtime_alert_calls_column_{def_id}"
+    fn.__name__ = f"_runtime_alert_calls_{def_id}"
+    for f in (fn, column):
+        f.runtime_plot = ALERT_CALLS_KEY                 # type: ignore[attr-defined]
+        f.runtime_row = row                             # type: ignore[attr-defined]
+        f.reads_symbols = ()                            # type: ignore[attr-defined]
+    fn.column = column                                  # type: ignore[attr-defined]
+    fn.withheld = withheld                              # type: ignore[attr-defined]
+    fn.block_runs_refusal = lambda *a, **k: None        # type: ignore[attr-defined]
+    fn.lookback = None                                  # type: ignore[attr-defined]
+    return fn
+
+
+def alert_calls_message(alert: Mapping[str, Any], bars: list, index: int) -> Optional[str]:
+    """The script's alert() message on closed bar ``index`` for an alert() target, or ``None``
+    (not such a target, no message, or anything unreadable: a fire is NEVER held for its text).
+    Inside the cycle the column is answered from the group's batch, so this costs no request."""
+    try:
+        address = str(alert.get("indicator") or "")
+        if not is_alert_calls_address(address):
+            return None
+        fn = USER_FUNCS.get(scoped_key(alert.get("user_id"), address))
+        column = getattr(fn, "column", None)
+        if column is None:
+            return None
+        from api.services import indicator_alert_evaluator as ev
+        col = column(bars, ev._parse_params(dict(alert)), alert.get("tf"), alert.get("sym"))
+        return (getattr(col, "messages", None) or {}).get(index)
+    except Exception:  # noqa: BLE001 -- the fire is delivered without its text
+        return None
+
+
 def call_series(f: Any, bars: list, params: Mapping, *, tf: Optional[str] = None,
                 sym: Optional[str] = None) -> Any:
     """⭐ THE ONE CALL SHAPE for an alert value function or column: a runtime plot takes
@@ -1470,8 +1607,9 @@ def _gate_runtime_service(row: Mapping[str, Any], definition: Mapping[str, Any],
     tf_why = runtime_timeframe_moved(definition, params)
     if tf_why:
         raise _server_run_refusal(def_id, "", TIMEFRAME_SETTING_GUARD, tf_why)
-    keys = runtime_output_keys(definition)
-    job = prc.Job(job=f"{sym}|{tf}|arm", ticker=str(sym), tf=str(tf), bars=wire, want=tuple(keys),
+    keys = runtime_alert_keys(definition)
+    job = prc.Job(job=f"{sym}|{tf}|arm", ticker=str(sym), tf=str(tf), bars=wire,
+                  want=tuple(_runtime_want(k) for k in keys),
                   runtime_inputs=runtime_inputs_for(definition, params))
     [res] = _runtime_client().run(def_id=def_id, version=row.get("version"), doc=definition,
                                   owner_id=row.get("user_id"), profile=RUNTIME_LANE, jobs=[job])
@@ -1480,7 +1618,7 @@ def _gate_runtime_service(row: Mapping[str, Any], definition: Mapping[str, Any],
         run = prc.Refusal("*", prc.INTEGRITY, "the job is withheld with no run-wide reason")
     if run is not None:
         raise _server_run_refusal(def_id, "", run.guard, run.sentence)
-    return {"plots": {key: res.refusal_for(key) for key in keys}, "compared": len(wire),
+    return {"plots": {key: res.refusal_for(_runtime_want(key)) for key in keys}, "compared": len(wire),
             "rel_tol": None, "digest": res.digest}
 
 
@@ -1559,7 +1697,8 @@ def _prime_runtime_batch(batch: RuntimeBatch, alerts: Sequence[Mapping[str, Any]
                               default=str)
             jobs.setdefault(ikey, (inputs, set()))[1].add(plot)
         batch_jobs = [prc.Job(job=f"{batch.sym}|{batch.tf}|{i}", ticker=batch.sym, tf=batch.tf,
-                              bars=wire, want=tuple(sorted(plots)), runtime_inputs=inputs)
+                              bars=wire, want=tuple(sorted(_runtime_want(p) for p in plots)),
+                              runtime_inputs=inputs)
                       for i, (inputs, plots) in enumerate(jobs.values())]
         batch.requests += 1
         results = _runtime_client().run(def_id=def_id, version=version, doc=definition,
@@ -2027,7 +2166,8 @@ def _admit_runtime_definition(user_id: Any, row: Mapping[str, Any], def_id: str,
         if refusal is not None:
             withheld[address] = _server_run_refusal(def_id, plot_key, refusal.guard, refusal.sentence)
             continue
-        fn = _make_runtime_value_fn(row, def_id, plot_key, definition)
+        fn = (_make_runtime_alert_fn(row, def_id, definition) if plot_key == ALERT_CALLS_KEY
+              else _make_runtime_value_fn(row, def_id, plot_key, definition))
         _with_line(fn, user_id, def_id, plot_key, row.get("version"))
         fns.append((address, fn))
         addresses.append(address)
@@ -2089,14 +2229,15 @@ def user_value_function(user_id: Any, address: str
     if is_runtime_document(definition):
         # ⭐ W5-T13 -- the prefill's (and `create`'s line read's) runtime plot. No service
         # call here: the function asks the verdict and the admission on every call.
-        keys = set(runtime_output_keys(definition))
+        keys = set(runtime_alert_keys(definition))
         if plot_key not in keys:
             raise AdmissionRefused(
                 "definition",
                 f"{address!r} {REFUSAL_FRAGMENTS['definition']} — "
                 f"{def_id} computes plots {sorted(keys)}")
-        return _with_line(_make_runtime_value_fn(row, def_id, plot_key, definition), user_id,
-                          def_id, plot_key, row.get("version"))
+        made = (_make_runtime_alert_fn(row, def_id, definition) if plot_key == ALERT_CALLS_KEY
+                else _make_runtime_value_fn(row, def_id, plot_key, definition))
+        return _with_line(made, user_id, def_id, plot_key, row.get("version"))
     keys = {str(p.get("key")) if isinstance(p, dict) else str(p)
             for p in (definition.get("plots") or [])}
     if plot_key not in keys:
@@ -2399,7 +2540,9 @@ def user_catalog(user_id: Any) -> list[dict]:
             # ⭐ W5-T13 -- a runtime document lists the plots its run computes.
             outputs = set(runtime_output_keys(definition))
             pairs = [(p, k) for p, k in pairs if k in outputs]
-        if not pairs:
+        # ⭐ AL3 -- and, when its source calls alert(), "the script's alert() calls"
+        alert_calls = runtime_offers_alert_calls(definition)
+        if not pairs and not alert_calls:
             continue
         plots = [
             {
@@ -2424,6 +2567,17 @@ def user_catalog(user_id: Any) -> list[dict]:
             }
             for plot, plot_key in pairs
         ]
+        if alert_calls:
+            plots.append({
+                "value": f"{def_id}.{ALERT_CALLS_KEY}",
+                "label": f"{_definition_label(definition, def_id)}: the script's alert() calls",
+                "conditions": [dict(c) for c in conditions],
+                "default_threshold": None,
+                "inputs": _inputs_for(definition, None),
+                "instance_label": _instance_label(definition, def_id),
+                # an event per closed bar: offered as a trigger policy, and only `is true` is admitted
+                "output_type": "events",
+            })
         entries.append({
             "indicator": def_id,
             "label": _definition_label(definition, def_id),
