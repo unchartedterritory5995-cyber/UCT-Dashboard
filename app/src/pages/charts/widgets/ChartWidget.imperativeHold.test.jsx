@@ -22,6 +22,17 @@ import { createGroupSymsStore } from '../groupSymsStore'
 import { decideGroupShow, chartGroupKey, __resetHandoffGroupsForTests } from '../../../hooks/handoffGroups'
 
 const W = vi.hoisted(() => ({ renders: [], props: [], ctl: null, applied: [], delisted: {} }))
+// ⛔ The hooks below answer the SAME objects on every call, as the real ones do (usePreferences' setPref is a
+// useCallback): a mock that made a new function per render would re-render the memoised chart on every pane
+// render, and this rail would measure the mock.
+const STABLE = vi.hoisted(() => ({
+  flagged: { isFlagged: () => false, toggle: () => {} },
+  alerts: { alerts: [], createAlert: () => {}, deleteAlert: () => {} },
+  fundamentals: { data: null, isLoading: false },
+  prefs: { prefs: {}, setPref: () => {}, loading: false },
+  themeIdx: { isIndex: false, bars: null, name: null, sector: null, loading: false },
+  market: { isOpen: false, isPremarket: false, isExtended: false },
+}))
 
 const memState = new Map()
 vi.mock('../../../utils/barsMemCache', () => ({
@@ -61,13 +72,13 @@ vi.mock('./ChartMarketClock', () => ({ default: () => <span>clock</span> }))
 vi.mock('./ChartDayGain', () => ({ default: () => <span>gain</span> }))
 vi.mock('./AiSearchWidget', () => ({ default: () => null }))
 vi.mock('./TimeframeMenu', () => ({ default: () => null }))
-vi.mock('../../../hooks/useFlagged', () => ({ useFlagged: () => ({ isFlagged: () => false, toggle: () => {} }) }))
-vi.mock('../../../hooks/useWatchlistAlerts', () => ({ default: () => ({ alerts: [], createAlert: () => {}, deleteAlert: () => {} }) }))
-vi.mock('../../../hooks/useFundamentalSnapshot', () => ({ default: () => ({ data: null, isLoading: false }) }))
-vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: () => {}, loading: false }) }))
-vi.mock('../../../hooks/useThemeIndexBars', () => ({ default: () => ({ isIndex: false, bars: null, name: null, sector: null, loading: false }) }))
+vi.mock('../../../hooks/useFlagged', () => ({ useFlagged: () => STABLE.flagged }))
+vi.mock('../../../hooks/useWatchlistAlerts', () => ({ default: () => STABLE.alerts }))
+vi.mock('../../../hooks/useFundamentalSnapshot', () => ({ default: () => STABLE.fundamentals }))
+vi.mock('../../../hooks/usePreferences', () => ({ default: () => STABLE.prefs }))
+vi.mock('../../../hooks/useThemeIndexBars', () => ({ default: () => STABLE.themeIdx }))
 vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null }))
-vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => ({ isOpen: false, isPremarket: false, isExtended: false }) }))
+vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => STABLE.market }))
 // the pane's delisted lookup: what a case says each symbol is
 vi.mock('../../../components/chart/restedReaders', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -119,6 +130,12 @@ function Board() {
   )
 }
 const release = async () => { await act(async () => { await vi.advanceTimersByTimeAsync(40) }) }
+/** Which props of the chart moved between two of its renders (a held render's cause, named in the failure). */
+const moved = (from) => {
+  const a = W.props[from - 1] || {}
+  const b = W.props[from] || {}
+  return Object.keys({ ...a, ...b }).filter((k) => a[k] !== b[k]).join(', ')
+}
 
 beforeEach(() => {
   memState.clear()
@@ -140,7 +157,7 @@ test('switch ON: a decided switch renders the chart ZERO times between the key a
   act(() => { press('BBB') })
   expect(W.applied, 'the decision painted BBB').toEqual(['BBB'])
   expect(screen.getByTestId('dock-sym').textContent, 'the host shows BBB in the key\'s task').toBe('BBB')
-  expect(W.renders.slice(n0), 'the chart rendered while its body was held').toEqual([])
+  expect(W.renders.slice(n0), `the chart rendered while its body was held; props that moved: ${moved(n0)}`).toEqual([])
   await release()
   expect(W.renders.slice(n0).length, 'the chart renders the new symbol after the release').toBeGreaterThan(0)
   expect(W.renders.slice(n0).every((s) => s === 'BBB')).toBe(true)
@@ -154,7 +171,7 @@ test('switch ON: a delisted target is held the same way (its watermark props are
   const n0 = W.renders.length
   act(() => { press('BBB') })
   expect(W.applied).toEqual(['BBB'])
-  expect(W.renders.slice(n0), 'the chart rendered while its body was held').toEqual([])
+  expect(W.renders.slice(n0), `the chart rendered while its body was held; props that moved: ${moved(n0)}`).toEqual([])
   await release()
   const after = W.props.slice(n0)
   expect(after.length).toBeGreaterThan(0)
