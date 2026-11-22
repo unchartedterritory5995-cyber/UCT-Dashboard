@@ -6,8 +6,8 @@
    "id": "BR1",
    "mutant": "a breadth key reaches the bars fetch (the ensureAll filter forgets it)",
    "file": "app/src/components/chart/engine/useSecondarySources.js",
-   "from": "k !== EVENTS_KEY && !isBreadthKey(k)),",
-   "to": "k !== EVENTS_KEY),",
+   "from": "k !== FINANCIAL_KEY && !isBreadthKey(k)),",
+   "to": "k !== FINANCIAL_KEY),",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
    "expectRed": "ISOLATION"
   },
@@ -69,8 +69,8 @@
    "id": "BR8",
    "mutant": "every record is read as an event family's (the breadth code is lost)",
    "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "const recordCodeOf = (r) => (r && typeof r.code === 'string' ? r.code : EVENT_BEFORE_RECORD_CODE)",
-   "to": "const recordCodeOf = () => EVENT_BEFORE_RECORD_CODE",
+   "from": "(record && typeof record.code === 'string' ? record.code",
+   "to": "(record && false ? record.code",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
    "expectRed": "breadth-before-record"
   },

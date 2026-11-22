@@ -6,8 +6,8 @@
    "id": "FN1",
    "mutant": "the chart's financial entry is handed to the bars door (the synthetic key becomes a /api/bars fetch)",
    "file": "app/src/components/chart/engine/useSecondarySources.js",
-   "from": "  const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY && k !== EVENTS_KEY && k !== FINANCIAL_KEY),",
-   "to": "  const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY && k !== EVENTS_KEY),",
+   "from": "k !== EVENTS_KEY && k !== FINANCIAL_KEY && !isBreadthKey(k)),",
+   "to": "k !== EVENTS_KEY && !isBreadthKey(k)),",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/financialSupply.test.js",
    "expectRed": "the bars door nothing"
   },
