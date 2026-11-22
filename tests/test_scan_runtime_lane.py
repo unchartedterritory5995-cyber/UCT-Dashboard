@@ -955,3 +955,34 @@ def test_the_sweep_job_runs_and_refuses_the_multi_plot_document_by_name(world, l
         ev.sweep_job()
     assert "could not read the definitions to sweep" not in caplog.text
     assert len(seen.get("defs") or []) == 1
+
+
+def test_a_sweep_over_good_poison_good_answers_both_good_documents(world, live_rows, monkeypatch, caplog):
+    """⛔⛔ PER-DOCUMENT ISOLATION (coordinator, 2026-11-22): ANY row the sweep cannot read -- here a gate that
+    RAISES -- is counted under its guard, named in one line and skipped; both good documents are still swept.
+    Mutation proof: let the raise escape the row loop -> RED."""
+    good1, poison, good2 = _distinct_rows(1)[0], _row(def_id="u_00000bad0001", user_id="member-x",
+                                                      definition=_doc(source=SOURCE + "\n// poison")), _distinct_rows(1, start=1)[0]
+    live_rows += [good1, poison, good2]
+    real = user_definitions.engine_withheld_reason
+
+    def gate(row):
+        if row.get("def_id") == "u_00000bad0001":
+            raise RuntimeError("a gate that cannot answer")
+        return real(row)
+
+    monkeypatch.setattr(user_definitions, "engine_withheld_reason", gate)
+    _on_day(monkeypatch, 740_000)
+    with caplog.at_level("INFO"):
+        out = ev.definitions_to_sweep()
+    assert sorted(d.lane_row["def_id"] for d in out) == sorted([good1["def_id"], good2["def_id"]])
+    assert "sweep skipped definition u_00000bad0001" in caplog.text
+    assert f"{ev.SWEEP_UNREADABLE_GUARD} x1" in caplog.text
+    # and the sweep itself answers both
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_resume_order", lambda entries, tf, as_of, **k: list(entries))
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(2026, 11, 4, 5, 0, tzinfo=ZoneInfo("America/New_York")))
+    monkeypatch.setattr(ev, "sweep_deadline", lambda now=None: datetime.datetime(2026, 11, 4, 9, 0, tzinfo=ZoneInfo("America/New_York")))
+    receipt = ev.run_sweep(out, universe=["UP", "DN"], as_of=SESSION)
+    assert receipt["swept"] == 2 and receipt["refused"] == 0

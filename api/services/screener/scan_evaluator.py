@@ -2978,6 +2978,10 @@ RUNTIME_SWEEP_CAP = 25
 #: how many rotated out, and they lead on the following nights (`_runtime_sweep_turn`).
 RUNTIME_SWEEP_CAP_GUARD = "runtime:sweep-cap"
 
+#: 2026-11-22: a live definition `definitions_to_sweep` could not read (a gate that raised, a malformed
+#: document). Counted and named in the log, never raised: one row never takes the whole night down.
+SWEEP_UNREADABLE_GUARD = "sweep:unreadable-definition"
+
 
 #: ⭐ TRACK 6, PR-C -- THE PER-MEMBER QUOTA (owner ruling Q2, 2026-11-02: "Per-member quota: YES, required
 #: before stage `all`. Initial proposal: 3 runtime documents per member in the nightly sweep"). At most this
@@ -3040,59 +3044,68 @@ def definitions_to_sweep() -> list:
     seen: set = set()
     not_admitted: dict = {}
     for row in user_definitions.live_definitions():
-        definition = row.get("definition")
-        if not isinstance(definition, dict):
-            continue
-        # ⛔ THE CONSUMER CONTRACT, AND THIS IS THE DOOR IT MATTERS MOST AT.
-        # `user_definitions.consumer_refusal` is one authority for five consumers;
-        # here it stops a fetch-dependent column from being filed in `scan_hits`
-        # under an `ast_hash` that promises the number means the same thing
-        # tomorrow. ⚠️ SILENT ON PURPOSE, unlike the other four: the sweep is a
-        # background job with no member in front of it, and the SAME definition is
-        # refused BY NAME at `routers/user_definitions._stamped` before it can
-        # ever be offered as a filter — so nobody learns of this skip by its
-        # absence. A log line per definition per night would be noise about a
-        # refusal the member already read.
-        if user_definitions.consumer_refusal("sweep", row.get("requirements")):
-            continue
-        # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is
-        # not swept (silent here for the reason above: the member reads it BY NAME
-        # at `routers/user_definitions._stamped`, gate `withheld`).
-        if user_definitions.engine_withheld_reason(row):
-            continue
-        compute = definition.get("compute")
-        if runtime_definitions.is_runtime(definition):
-            # W5-T14: admitted only when the lane admission says so, asked per row
-            # on every sweep. Silent per row (the member read the sentence at the
-            # door), counted per guard in one line below.
-            try:
-                plot = scan_runtime.runtime_scan_spec(definition)["plot"]
-            except scan_definition.ScanRefused:
-                # not scannable: handed on, so `run_sweep` refuses it BY NAME (counted
-                # `refused`); it asks for no plot, runs nothing, sends nothing.
-                plot = None
-            refused = (scan_runtime.runtime_admission(row, "sweep", plot)
-                       if plot is not None else None)
-            if refused is not None:
-                not_admitted[refused[0]] = not_admitted.get(refused[0], 0) + 1
-                continue
-            definition = scan_runtime.runtime_scan_doc(row)
-        elif not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:
-            continue
-        # ⭐⭐ DEDUPED BY MATHS **AND SEMANTICS** (owner decision A). The row's
-        # `ast_hash` names the tree only, so deduping on it collapsed a semantics-1
-        # and a semantics-2 definition of the same tree into ONE sweep — whichever
-        # came first — and the other's answers were never computed under its own
-        # semantics. `result_identity` is the key the sweep files results under.
+        # ⛔⛔ ONE ROW CAN NEVER TAKE THE NIGHT DOWN (2026-11-22). Any row this loop cannot read (a gate
+        # that raises, a malformed document) is counted under SWEEP_UNREADABLE_GUARD, named by its def_id
+        # in one line, and skipped; every other member's definitions are still swept.
         try:
-            handle = _result_handle(definition)
-        except Exception:                                    # noqa: BLE001
-            # not hashable: let `run_sweep` refuse it BY NAME, never drop it here
-            handle = ("unhashable", row.get("def_id"), row.get("version"))
-        if handle in seen:
-            continue
-        seen.add(handle)
-        out.append(definition)
+            definition = row.get("definition")
+            if not isinstance(definition, dict):
+                continue
+            # ⛔ THE CONSUMER CONTRACT, AND THIS IS THE DOOR IT MATTERS MOST AT.
+            # `user_definitions.consumer_refusal` is one authority for five consumers;
+            # here it stops a fetch-dependent column from being filed in `scan_hits`
+            # under an `ast_hash` that promises the number means the same thing
+            # tomorrow. ⚠️ SILENT ON PURPOSE, unlike the other four: the sweep is a
+            # background job with no member in front of it, and the SAME definition is
+            # refused BY NAME at `routers/user_definitions._stamped` before it can
+            # ever be offered as a filter — so nobody learns of this skip by its
+            # absence. A log line per definition per night would be noise about a
+            # refusal the member already read.
+            if user_definitions.consumer_refusal("sweep", row.get("requirements")):
+                continue
+            # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is
+            # not swept (silent here for the reason above: the member reads it BY NAME
+            # at `routers/user_definitions._stamped`, gate `withheld`).
+            if user_definitions.engine_withheld_reason(row):
+                continue
+            compute = definition.get("compute")
+            if runtime_definitions.is_runtime(definition):
+                # W5-T14: admitted only when the lane admission says so, asked per row
+                # on every sweep. Silent per row (the member read the sentence at the
+                # door), counted per guard in one line below.
+                try:
+                    plot = scan_runtime.runtime_scan_spec(definition)["plot"]
+                except scan_definition.ScanRefused:
+                    # not scannable: handed on, so `run_sweep` refuses it BY NAME (counted
+                    # `refused`); it asks for no plot, runs nothing, sends nothing.
+                    plot = None
+                refused = (scan_runtime.runtime_admission(row, "sweep", plot)
+                           if plot is not None else None)
+                if refused is not None:
+                    not_admitted[refused[0]] = not_admitted.get(refused[0], 0) + 1
+                    continue
+                definition = scan_runtime.runtime_scan_doc(row)
+            elif not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:
+                continue
+            # ⭐⭐ DEDUPED BY MATHS **AND SEMANTICS** (owner decision A). The row's
+            # `ast_hash` names the tree only, so deduping on it collapsed a semantics-1
+            # and a semantics-2 definition of the same tree into ONE sweep — whichever
+            # came first — and the other's answers were never computed under its own
+            # semantics. `result_identity` is the key the sweep files results under.
+            try:
+                handle = _result_handle(definition)
+            except Exception:                                    # noqa: BLE001
+                # not hashable: let `run_sweep` refuse it BY NAME, never drop it here
+                handle = ("unhashable", row.get("def_id"), row.get("version"))
+            if handle in seen:
+                continue
+            seen.add(handle)
+            out.append(definition)
+        except Exception as exc:                             # noqa: BLE001
+            not_admitted[SWEEP_UNREADABLE_GUARD] = not_admitted.get(SWEEP_UNREADABLE_GUARD, 0) + 1
+            log.warning("[scan] sweep skipped definition %s: it could not be read (%s: %s)",
+                        str(row.get("def_id") if isinstance(row, dict) else "?")[:64], type(exc).__name__, str(exc)[:200])
+
     # ⭐ TRACK 6, PR-B -- the Q2 cap, applied AFTER admission and the dedupe, so a document the
     # lane refuses or a second member's copy of the same script never takes a slot.
     day = _now_et().date().toordinal()
