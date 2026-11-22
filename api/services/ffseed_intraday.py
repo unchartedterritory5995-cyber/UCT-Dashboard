@@ -44,14 +44,18 @@ complete), the answer was WHOLE, its rows reached the store, and the series has 
 WHOLE (`later_trade`) is a rule about the answer, not about what the store held: the answer has bars OF the
 as-of day (an empty answer, or one with other days only, proves nothing), and NO OTHER RECORD of that
 symbol's as-of day shows a trade in a later bucket. The records: the newest as-of-day bar the store holds
-at 1m (the 1m pass's own, separate provider read), at 5m and at 15m, and the newest as-of-day bar of the
-other timeframe's answer in this same pass (a separate request). A trade in any of them is a trade the
-provider's bar at this timeframe must hold, so an answer that ends before its bucket was cut short.
-Whichever record is missing is simply not consulted; the two answers always check each other. The
-ledger (<DATA_DIR>/ffseed_intraday_complete.json) records, per timeframe and symbol, the store's revision
-of the series right after the pass's write; a later write (or a store replaced wholesale) changes the
-revision and the entry no longer proves anything, so the next pass asks again. A symbol with no print in
-the session's last bucket is complete all the same: every record agrees its trading ended earlier.
+at 1m (the 1m pass's own, separate provider read), at 5m, 15m, 30m and 60m (read before this pass writes;
+a stored 30m / 60m bar's START is mapped onto the answer's grid, which never asks for more than it holds),
+and the newest as-of-day bar of the other timeframe's answer in this same pass (a separate request). A
+trade in any of them is a trade the provider's bar at this timeframe must hold, so an answer that ends
+before its bucket was cut short. Whichever record is missing is simply not consulted; the two answers
+always check each other. The ledger (<DATA_DIR>/ffseed_intraday_complete.json) records, per timeframe and
+symbol, `[the store's revision of the series right after the pass's write, the first day written, the
+check instant of the rows written]`; a later write (or a store replaced wholesale) changes the revision
+and the entry no longer proves anything, so the next pass asks again. A re-derived 30m / 60m write carries
+its 15m's check instant (this run's, or the one the 15m's entry recorded), never the wall clock, so a
+newer check's seal still wins over it. A symbol with no print in the session's last bucket is complete all
+the same: every record agrees its trading ended earlier.
 `ffseed.build_tf` packs an intraday symbol only on this proof; everything else is left out of that
 timeframe and counted (`incomplete`).
 
@@ -229,9 +233,10 @@ def _store_rev(sym: str, tf: str) -> int:
 
 
 def _holds(entry, sym: str, tf: str, rev: Callable[[str, str], int]) -> bool:
-    """A ledger entry is `[revision after the pass's write, first day written]`; it proves the series
-    complete while the store's revision is still that one (read only when there is an entry)."""
-    return isinstance(entry, list) and len(entry) == 2 and int(entry[0]) == int(rev(sym, tf))
+    """A ledger entry is `[revision after the pass's write, first day written, check instant of the rows
+    written]` (the instant since 2026-11-22; older entries have two items); it proves the series complete
+    while the store's revision is still that one (read only when there is an entry)."""
+    return isinstance(entry, list) and len(entry) in (2, 3) and int(entry[0]) == int(rev(sym, tf))
 
 
 def known_complete(asof: date, *, rev: Callable[[str, str], int] = None,
@@ -351,10 +356,10 @@ def complete_session(asof: date, symbols: Optional[Iterable[str]] = None, *,
         with lock:
             stats["tfs"][tf][key] += n
 
-    def mark(tf: str, sym: str, frm: date) -> None:
+    def mark(tf: str, sym: str, frm: date, checked: float) -> None:
         r = rev(sym, tf)
         with lock:
-            led["tfs"][tf][sym] = [int(r), frm.isoformat()]
+            led["tfs"][tf][sym] = [int(r), frm.isoformat(), float(checked)]
             unsaved[0] += 1
             if unsaved[0] >= _SAVE_EVERY:
                 unsaved[0] = 0
@@ -408,11 +413,12 @@ def complete_session(asof: date, symbols: Optional[Iterable[str]] = None, *,
             except Exception as e:  # noqa: BLE001 - one symbol never stops the pass
                 log.info("[ffseed-intraday] %s tf=%s failed: %s", sym, tf, type(e).__name__)
                 bump(tf, "failed")
-        # every record of the symbol's as-of day: what the store holds at 1m and at the provider
-        # timeframes, and what each answer of this pass holds (see WHOLE in the module doc)
+        # every record of the symbol's as-of day: what the store holds at 1m, at the provider timeframes and
+        # at the derived ones (read before this pass writes), and what each answer of this pass holds (see
+        # WHOLE in the module doc)
         records: List[Tuple[str, int]] = []
         try:
-            for r_tf in ("1",) + base_tfs:
+            for r_tf in ("1",) + base_tfs + derived_tfs:
                 t = day_tail(sym, r_tf, asof)
                 if t is not None:
                     records.append((f"the stored {r_tf}m", t))
@@ -440,7 +446,7 @@ def complete_session(asof: date, symbols: Optional[Iterable[str]] = None, *,
                 if not n:
                     bump(tf, "failed")            # the provider answered and nothing reached the store
                     continue
-                mark(tf, sym, frm)
+                mark(tf, sym, frm, checked)
                 bump(tf, "done")
                 bump(tf, "rows", n)
                 state[tf] = "done"
@@ -462,6 +468,12 @@ def complete_session(asof: date, symbols: Optional[Iterable[str]] = None, *,
                 with lock:
                     base_e = led["tfs"][derived_base].get(sym)
                 base_from = date.fromisoformat(base_e[1])   # the first day whose 15m this pass refetched
+                # the derived rows are as old as the stored 15m they resample: its check instant, this run's or
+                # the one its ledger entry recorded; an entry without one (written before 2026-11-22) gets the
+                # session's settle instant, which no check of the pass can predate. Never the wall clock: a
+                # newer check's seal wins over this write.
+                base_checked = (checked_base if checked_base is not None
+                                else float(base_e[2]) if len(base_e) > 2 else float(settled_at(asof)))
                 own_from = first_day(asof, last_ts(sym, tf), reach)
                 if own_from is None or own_from < base_from:
                     bump(tf, "behind")            # its tail is on a day whose 15m was not refetched
@@ -476,12 +488,11 @@ def complete_session(asof: date, symbols: Optional[Iterable[str]] = None, *,
                 if gap is not None:
                     refuse_short(sym, tf, last, gap)
                     continue
-                # the base's own check instant when it was fetched in this run: a newer check's seal wins
-                n = int(store(sym, tf, rows, checked_base if checked_base is not None else time.time()) or 0)
+                n = int(store(sym, tf, rows, base_checked) or 0)
                 if not n:
                     bump(tf, "failed")
                     continue
-                mark(tf, sym, base_from)
+                mark(tf, sym, base_from, base_checked)
                 bump(tf, "done")
                 bump(tf, "rows", n)
             except Exception as e:  # noqa: BLE001
