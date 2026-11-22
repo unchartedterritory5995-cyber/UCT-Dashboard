@@ -86,6 +86,7 @@ on:
       # agent-ci-required. An edit to one is an Agent change, and being a workflow it is self-protected as well, so in
       # a merge queue it lands only through AUDIT's local evidence.
       - '.github/workflows/agent-ci-queue.yml'
+      - '.github/workflows/agent-ci-queue-verdict.yml'
       - '.github/workflows/agent-ci-required.yml'
   pull_request:
     branches: [agent/int, master]
@@ -127,6 +128,7 @@ on:
       # agent-ci-required. An edit to one is an Agent change, and being a workflow it is self-protected as well, so in
       # a merge queue it lands only through AUDIT's local evidence.
       - '.github/workflows/agent-ci-queue.yml'
+      - '.github/workflows/agent-ci-queue-verdict.yml'
       - '.github/workflows/agent-ci-required.yml'
   # RE-ARM (P2b; P2c 2026-11-18: repository_dispatch, the ONE re-arm path): ONE named PR's evidence run on its current
   # merge commit. Start it only through tools/agent_ci_rearm.py (it refuses a merge conflict, a closed / non-agent /
@@ -137,7 +139,8 @@ on:
     types: [agent-ci-evidence]
   # MERGE QUEUE (2026-11-22; INERT until a merge queue exists on master). .github/workflows/agent-ci-queue.yml calls
   # this file from a `merge_group` run, and ONLY when the queued PR's own diff touches an Agent path (a merge_group
-  # trigger takes no `paths:` filter, so that workflow's `scope` job decides, with master's copy of the deciding code).
+  # trigger takes no `paths:` filter, so that workflow's `scope` job decides, with master's copy of the deciding code;
+  # agent-ci-queue-verdict.yml, the trusted follower, recomputes that scope before it posts agent-ci-required).
   # This file never listens for merge_group itself: every job would run for every queued PR, and agent-ci-required.yml
   # (it watches every completed "agent ci" run) would post its own status over the queue's verdict.
   # In a called workflow `github` is the CALLER's context: github.event_name is 'merge_group' and GITHUB_SHA is the

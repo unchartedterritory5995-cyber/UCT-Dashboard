@@ -1,8 +1,9 @@
-# promotion-gate: no — a merge-queue check on a merge group's temporary commit, never a deploy gate
+# promotion-gate: no — a merge-queue workflow on a merge group's temporary commit, never a deploy gate
 #   (tools/promotion_gate.py ignores it). The master deploy gate still runs the whole Agent suite on every master push.
 #
-# agent ci queue — the Agent program's CI INSIDE a GitHub merge queue, and the `agent-ci-required` status on the
-# merge group's commit. Design: docs/merge-queue/DESIGN.md sections 3.3, 3.4 and 4 (branch docs/merge-queue-design).
+# agent ci queue — the Agent program's CI INSIDE a GitHub merge queue. It RUNS the Agent jobs on the merge group's
+# commit. It does NOT decide or post `agent-ci-required`: agent-ci-queue-verdict.yml does, from master (see below).
+# Design: docs/merge-queue/DESIGN.md sections 3.3, 3.4 and 4 (branch docs/merge-queue-design).
 #
 # ⛔ INERT (2026-11-22). The only trigger is `merge_group`. GitHub sends that event only for a branch that has a
 #   merge queue, and no branch of this repo has one, so nothing starts this workflow. Turning a queue on is a
@@ -14,14 +15,14 @@
 # merge_group.base_sha..head_sha is exactly the queued pull request's own diff. A `merge_group` trigger takes no
 # `paths:` filter, so the `scope` job does the scoping.
 #
-# THREE JOBS.
+# TWO JOBS, and NO token that can write anything.
 #   scope    reads the queued pull request's own diff from git objects (a fetch and `git diff --name-only`; nothing
 #            of the pull request is checked out or executed) and answers with ONE code:
 #              no-agent-paths   the diff touches no Agent path (the `paths:` list of agent-ci.yml's push trigger,
 #                               read at run time, never restated). It needs no Agent evidence, WHETHER OR NOT it
 #                               touches a self-protected path, exactly as on a pull request today, and whether or
 #                               not the protected list can be read (the pull request that repairs an unreadable
-#                               list is one of these); the status description says which
+#                               list is one of these)
 #              self-protected   it touches an Agent path AND a path its own run executes
 #                               (agent_ci_evidence.SELF_PROTECTED and the lists derived from the vite / vitest
 #                               configs): it needs Agent evidence, and its own run could vouch for itself
@@ -30,55 +31,47 @@
 #                               an Agent path, the protected list could not be read, or the files it is derived
 #                               from differ between master and the tree this entry is built on (an entry AHEAD in
 #                               the queue edits them, and master's copy is not the one this entry runs with)
+#            Here the code decides ONE thing: whether the Agent jobs are started. Nobody trusts it for the verdict.
 #   agent    ONLY for `agent-paths`: calls agent-ci.yml, so every Agent job (server, the 12 browser shards, the 3
 #            capability regression clock legs, their join, the union rail) runs on the merge group's commit and
 #            uploads its evidence record. In a called workflow `github` is THIS workflow's context: the event is
 #            merge_group and GITHUB_SHA is the commit under test, so the checkout needs no payload and no tool ref.
-#   verdict  ALWAYS runs, and is the ONLY job that may write a status. It posts `agent-ci-required` on the merge
-#            group's commit:
-#              success   no-agent-paths (straight away: the Agent jobs are skipped), or agent-paths with every
-#                        Agent job (names read from agent-ci.yml, matrix legs expanded) = success in THIS run
-#              failure   everything else (fail closed): self-protected (ALWAYS, saying AUDIT's local evidence
-#                        decides: such a pull request lands outside the queue after AUDIT signs off), unknown, a
-#                        scope job that did not succeed, a missing / skipped / cancelled / failed Agent job, a job
-#                        list that could not be read
-#            Never pending: it is the last word on that commit. Whatever goes wrong while deciding is POSTED as a
-#            failure, and the jobs GET and the status POST are each tried three times (transport errors, 5xx and
-#            429 only). Only a status POST that still fails leaves NO status: the job exits non-zero and the queue
-#            removes the entry at its own check timeout.
 #
-# THE DECIDING CODE IS MASTER'S. `scope` and `verdict` check out the DEFAULT BRANCH (as agent-ci-required.yml does),
-# so tools/agent_ci_required.py, tools/agent_ci_evidence.py, agent-ci.yml's path list and job names, and the configs
-# the protected list is derived from are master's copies, never the queued pull request's.
-# ⚠️ LIMITS (design 3.4 and AUDIT F1 on #2501, stated on purpose):
-#   * THIS FILE and agent-ci.yml are read from the merge group's commit, so they include the queued pull request's
-#     edits. What the lists say about such an edit:
-#       - agent-ci.yml, THIS FILE and agent-ci-required.yml are Agent paths (AUDIT F2) and, being workflows,
-#         self-protected: `self-protected`, failure, AUDIT decides.
-#       - Under tools/, every tools/agent_* file is an Agent path, but only tools/agent_ci_*.py,
-#         tools/agent_suite_lock.py, tools/agent_vitest_shards.py and its timings file are self-protected. An edit to
-#         any other tools/agent_* file is a plain Agent change: `agent-paths`, judged by its Agent jobs.
-#       - Any OTHER workflow file is self-protected and not an Agent path: `no-agent-paths`, success, with
-#         "self-protected path(s) touched" in the status description.
-#   * The status can be posted by more than this file. ANY workflow in the merge group's commit (added or edited by
-#     the queued pull request, or already on master) that listens for `merge_group` and holds `statuses: write` can
-#     post the context `agent-ci-required` on that commit, and so can a rewrite of this file. Every workflow token
-#     posts as the same source (GitHub Actions). So the rules above hold against an accident, NOT against a
-#     deliberate edit; agent-ci-required.yml has the same limit on a pull request today.
-#   * The per-entry verdict is sound only with merge method MERGE and grouping ALLGREEN. With HEADGREEN a failed
-#     entry can land behind a green one. With SQUASH or REBASE the merge group's commit is not a two-parent merge
-#     whose first parent is base_sha, and `scope` answers `unknown` for every entry (fail closed).
+# THE VERDICT IS NOT HERE (AUDIT F1 on #2501, D1 on #2495). Every workflow token posts a commit status as the same
+# source, GitHub Actions, and THIS FILE and agent-ci.yml are read from the merge group's commit, i.e. they include
+# the queued pull request's edits and those of the entries ahead of it. A status posted from in here could be forged
+# by any workflow in the merge group that listens for `merge_group` with `statuses: write`, or by a rewrite of this
+# file. So this workflow holds `contents: read` and nothing else, and `agent-ci-required` on a merge group's commit
+# is posted ONLY by .github/workflows/agent-ci-queue-verdict.yml:
+#   * it is triggered by `workflow_run` when this workflow completes, so GitHub runs MASTER's copy of that file, on
+#     master, whatever the merge group contains;
+#   * it posts with a GitHub App's token whose key lives in an environment only `master` may use (a merge-group job
+#     runs on gh-readonly-queue/..., so it cannot reach it), and the ruleset pins the required check to that App;
+#   * it trusts nothing this run says about itself: it recomputes the scope above from the commit with master's
+#     code and re-reads this run's jobs. If a queued pull request rewrote this file to skip `scope` or `agent`, the
+#     follower still answers `agent-paths`, finds no green Agent jobs, and posts failure.
+# What the lists say about an edit to the machinery:
+#   - agent-ci.yml, THIS FILE, agent-ci-queue-verdict.yml and agent-ci-required.yml are Agent paths (AUDIT F2) and,
+#     being workflows, self-protected: `self-protected`, failure, AUDIT's local evidence decides.
+#   - Under tools/, every tools/agent_* file is an Agent path, but only tools/agent_ci_*.py,
+#     tools/agent_suite_lock.py, tools/agent_vitest_shards.py and its timings file are self-protected. An edit to
+#     any other tools/agent_* file is a plain Agent change: `agent-paths`, judged by its Agent jobs.
+#   - Any OTHER workflow file is self-protected and not an Agent path: `no-agent-paths` for the pull request that
+#     edits it. An Agent entry queued BEHIND it is failed by the follower until that edit has landed on master.
+# ⚠️ Sound only with merge method MERGE and grouping ALLGREEN. With HEADGREEN a failed entry can land behind a green
+#   one. With SQUASH or REBASE the merge group's commit is not a two-parent merge whose first parent is base_sha:
+#   `scope` answers `unknown` and the follower posts failure for every entry (fail closed).
 #
-# CI COST. scope + verdict run for EVERY queued pull request: two sparse default-branch checkouts, PyYAML, one
-# depth-2 fetch, one API read and one POST; no node, no tests. The Agent jobs run only for a queued pull request
-# that touches an Agent path (13% of merges, 2026-11-17..21), in place of today's re-arm runs.
+# CI COST. `scope` runs for EVERY queued pull request: one sparse default-branch checkout, PyYAML, one depth-2
+# fetch; no node, no tests, no API call. The Agent jobs run only for a queued pull request that touches an Agent
+# path (13% of merges, 2026-11-17..21), in place of today's re-arm runs.
 # NO concurrency block: a merge group gets ONE merge_group event, on a ref that never moves, so there is nothing to
 # supersede; and a group shared with the called workflow's own (`agent-ci-<ref>`) would deadlock the call.
 # NO `timeout-minutes` on `agent`: GitHub rejects that key on a job that calls a workflow. agent-ci.yml's jobs
 # carry their own (5 to 40 minutes).
 #
-# Logic + tests: tools/agent_ci_required.py (decide_scope, decide_queue) and tests/test_agent_ci_required.py; the
-# rails on this file and on the call into agent-ci.yml are in tests/test_ci_agent_merge_ref.py.
+# Logic + tests: tools/agent_ci_required.py (decide_scope, queue_scope) and tests/test_agent_ci_required.py; the
+# rails on this file, on the follower and on the call into agent-ci.yml are in tests/test_ci_agent_merge_ref.py.
 name: agent ci queue
 
 on:
@@ -99,8 +92,8 @@ jobs:
     steps:
       # MASTER's copies, never the merge group's tree. app/ is here because the protected list is DERIVED from the
       # vite / vitest configs and every file they import (tools/agent_ci_evidence.py protected_patterns); a file
-      # that is not on disk makes that list unreadable and the code `unknown`. tests/test_ci_agent_merge_ref.py
-      # holds this list to every file the decision reads.
+      # that is not on disk makes that list unreadable. tests/test_ci_agent_merge_ref.py holds this list to every
+      # file the decision reads.
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.repository.default_branch }}
@@ -135,41 +128,3 @@ jobs:
     uses: ./.github/workflows/agent-ci.yml
     with:
       pr: ${{ needs.scope.outputs.pr }}
-
-  verdict:
-    name: agent-ci-required verdict
-    needs: [scope, agent]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      statuses: write
-      actions: read
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.repository.default_branch }}
-          sparse-checkout: |
-            /tools/__init__.py
-            /tools/agent_ci_required.py
-            /tools/agent_ci_evidence.py
-            /.github/workflows/agent-ci.yml
-          sparse-checkout-cone-mode: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Decide and post agent-ci-required on the merge group's commit
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAD_SHA: ${{ github.event.merge_group.head_sha }}
-          RUN_ID: ${{ github.run_id }}
-          SCOPE_RESULT: ${{ needs.scope.result }}
-          SCOPE_CODE: ${{ needs.scope.outputs.code }}
-          SCOPE_DETAIL: ${{ needs.scope.outputs.detail }}
-          AGENT_RESULT: ${{ needs.agent.result }}
-          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          python -m pip install --quiet pyyaml==6.0.2   # pinned: this job holds statuses:write
-          python tools/agent_ci_required.py --event merge_group --stage verdict --sha="$HEAD_SHA" --run-id="$RUN_ID" --scope-result="$SCOPE_RESULT" --scope-code="$SCOPE_CODE" --scope-detail="$SCOPE_DETAIL" --agent-result="$AGENT_RESULT"

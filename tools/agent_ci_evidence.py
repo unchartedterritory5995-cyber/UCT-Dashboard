@@ -48,8 +48,16 @@ Any API / download error is a FAIL (`api-error`).
 MERGE QUEUE (2026-11-22; inert until a queue exists on master): agent-ci-queue.yml calls agent-ci.yml on a `merge_group`
 event. There GITHUB_SHA IS the commit under test (GitHub's merge group commit: first parent = the queue's base, second =
 the PR head), so `record` compares HEAD to it and to the event's merge_group.head_sha, and reads the PR number from the
-queue's branch name (queue_pr). `verify` does not read those records: it accepts pull_request (/ rearm) runs only, so a
-merge_group record can never pass it. The queue's own verdict is tools/agent_ci_required.py decide_queue.
+queue's branch name (queue_pr). `verify --pr --tree` does not read those records: it accepts pull_request (/ rearm) runs
+only, so a merge_group record can never pass it. The queue's own verdict is tools/agent_ci_required.py follow_verdict.
+
+    python tools/agent_ci_evidence.py verify --pr <n> --merge-group <landed master commit> [--root <master checkout>]
+
+is the WRITTEN TRAIL for a PR that landed through the queue (AUDIT 8.3 on #2495; decide_merge_group): PASS only when
+the landed commit is on master's first-parent chain and is the head_sha of a merge_group run of agent-ci-queue.yml, the
+queue ref names the PR, all the required jobs' records agree on sha, tree and parents and name that commit, and the PR
+head is the second parent. It reads through `gh` like the other mode, plus `git fetch origin master` + `git rev-list
+--first-parent` in --root (the local object store and FETCH_HEAD only; never the remote).
 
 The required jobs are read from agent-ci.yml under --root, which should be a MASTER checkout: a PR cannot drop a job
 from its own verdict (the same reason agent-ci-required runs the default branch's copy).
@@ -438,6 +446,92 @@ def decide(pr: dict, base_tip: str, runs: list[dict], keys: dict[str, str], expe
     return "PASS", f"run {run.get('id')} passed all {len(keys)} required jobs on merge tree {rec.get('tree')}", evidence
 
 
+# ============================================================================================ verify --merge-group (pure)
+#: how far back along master's first-parent chain `verify --merge-group` looks for the landed commit by default
+FIRST_PARENT_LIMIT = 5000
+
+
+def decide_merge_group(pr: dict, landed: str, on_first_parent, runs: list[dict], keys: dict[str, str]):
+    """The written trail for ONE PR that landed through the merge queue (AUDIT 8.3 on #2495): was `landed`, a commit on
+    master, the commit its Agent jobs tested? pr: {number, head_sha} (the PR as it is now; it is closed once landed).
+    on_first_parent: True when `landed` is on master's first-parent chain (False / None: it is not, or it was not read).
+    runs: the agent-ci-queue.yml runs whose head_sha is `landed`, each {id, event, status, conclusion, created_at,
+    html_url, head_branch, path, head_sha, jobs: [{name, conclusion}], records: {key: record|None}}.
+    keys: required job name -> evidence key (master's agent-ci.yml). Returns (PASS|FAIL, reason, evidence).
+    AUDIT's four points, each a named guard, plus the same job and record guards `decide` has:
+      not-landed       `landed` is not on master's first-parent chain                                   (point 1)
+      no-run           no merge_group run of agent-ci-queue.yml tested exactly `landed`                 (point 1)
+      queue-ref        the run's queue branch, or a record's ref, does not name this PR                 (point 2)
+      record-mismatch  the 18 records disagree on sha / tree / parents, name another run or PR, are not
+                       merge_group records, report an error, or name a commit that is not `landed`      (point 3)
+      wrong-parents / stale-head   the tested commit is not a two-parent merge / its second parent is
+                       not the PR head                                                                  (point 4)
+      run-in-progress, missing-job, job-not-success, missing-artifact   as in `decide`."""
+    from tools import agent_ci_required as acr
+    n = pr.get("number")
+    if not SHA_RE.match(str(landed or "")):  # guard: mg-landed-not-a-sha
+        return _fail("not-landed", f"{landed!r} is not a full 40-hex commit")
+    if on_first_parent is not True:  # guard: mg-not-on-first-parent
+        return _fail("not-landed", f"{landed} is not on master's first-parent chain (or the chain could not be read)")
+    cands = [r for r in runs if r.get("event") == MERGE_GROUP_EVENT and r.get("path") == acr.QUEUE_WORKFLOW.as_posix()
+             and r.get("head_sha") == landed]
+    if not cands:  # guard: mg-no-run
+        return _fail("no-run", f"no merge_group run of {acr.QUEUE_WORKFLOW.as_posix()} tested {landed}")
+    run = max(cands, key=lambda r: (r.get("created_at") or "", r.get("id") or 0))
+    if run.get("status") != "completed":  # guard: mg-run-in-progress
+        return _fail("run-in-progress", f"the newest run {run.get('id')} is {run.get('status')}")
+    if type(n) is not int or queue_pr(run.get("head_branch")) != n:  # guard: mg-queue-ref-run
+        return _fail("queue-ref", f"run {run.get('id')} ran on {run.get('head_branch')!r}, which does not name PR #{n}")
+    if not keys:  # guard: mg-no-required-jobs
+        return _fail("missing-job", "no required jobs could be read from agent-ci.yml")
+    prefix = acr.QUEUE_CALL_JOB + " / "
+    by_name: dict[str, list] = {}
+    for j in run.get("jobs") or []:
+        if str(j.get("name") or "").startswith(prefix):
+            by_name.setdefault(j["name"][len(prefix):], []).append(j.get("conclusion"))
+    missing = [name for name in keys if name not in by_name]
+    if missing:  # guard: mg-missing-job
+        return _fail("missing-job", f"{len(missing)} required job(s) absent from run {run.get('id')}: {missing[0]}")
+    bad = [name for name in keys if any(c != "success" for c in by_name[name])]
+    if bad:  # guard: mg-job-not-success
+        return _fail("job-not-success", f"{len(bad)} required job(s) not success: {bad[0]} ({by_name[bad[0]]})")
+    records = run.get("records") or {}
+    absent = [k for k in keys.values() if not isinstance(records.get(k), dict)]
+    if absent:  # guard: mg-missing-artifact
+        return _fail("missing-artifact", f"{len(absent)} evidence record(s) missing: {ARTIFACT_PREFIX}{n}-{absent[0]}")
+    recs = [records[k] for k in keys.values()]
+    for k, rec in zip(keys.values(), recs):
+        if rec.get("schema") != SCHEMA or rec.get("job_key") != k:  # guard: mg-record-schema
+            return _fail("missing-artifact", f"record {k} is not a {SCHEMA} record for that job")
+        if rec.get("event") != MERGE_GROUP_EVENT:  # guard: mg-record-event
+            return _fail("record-mismatch", f"record {k} is from a {rec.get('event')!r} run, not a merge_group one")
+        if rec.get("pr") != n or rec.get("run_id") != run.get("id"):  # guard: mg-record-other-run
+            return _fail("record-mismatch", f"record {k} names PR {rec.get('pr')} run {rec.get('run_id')}, not PR #{n} run {run.get('id')}")
+        if queue_pr(rec.get("ref")) != n:  # guard: mg-queue-ref-record
+            return _fail("queue-ref", f"record {k} ran on {rec.get('ref')!r}, which does not name PR #{n}")
+        if rec.get("errors"):  # guard: mg-record-errors
+            return _fail("record-mismatch", f"record {k} reports: {rec['errors'][0]}")
+    if len({(r.get("sha"), r.get("tree"), tuple(r.get("parents") or [])) for r in recs}) != 1:  # guard: mg-records-disagree
+        return _fail("record-mismatch", "the jobs' records name different commits / trees / parents")
+    rec = recs[0]
+    if rec.get("sha") != landed:  # guard: mg-record-not-landed
+        return _fail("record-mismatch", f"the records name {rec.get('sha')}, not the landed commit {landed}")
+    if len(rec.get("parents") or []) != 2:  # guard: mg-not-a-merge
+        return _fail("wrong-parents", f"{rec.get('sha')} has parents {rec.get('parents')}, not a two-parent merge")
+    if not SHA_RE.match(str(pr.get("head_sha") or "")) or rec["parents"][1] != pr.get("head_sha"):  # guard: mg-stale-head
+        return _fail("stale-head", f"the tested commit merged {rec['parents'][1]}, but PR #{n}'s head is {pr.get('head_sha')}")
+    failed = {}
+    for r in recs:
+        for suite, names in (r.get("failed") or {}).items():
+            failed.setdefault(suite, []).extend(names)
+    evidence = {"pr": n, "run_id": run.get("id"), "run_url": run.get("html_url"), "event": run.get("event"),
+                "landed_sha": landed, "merge_sha": rec.get("sha"), "tree": rec.get("tree"), "base_sha": rec["parents"][0],
+                "head_sha": rec["parents"][1], "queue_ref": run.get("head_branch"), "jobs": len(keys), "records": len(recs),
+                "failed_tests": {k: sorted(set(v)) for k, v in failed.items()}}
+    return "PASS", (f"PR #{n} landed as {landed}: run {run.get('id')} passed all {len(keys)} required jobs on that commit "
+                    f"(tree {rec.get('tree')})"), evidence
+
+
 # ============================================================================================ GitHub reads (gh)
 class GhApi:
     """Read-only: `gh api` GETs, `gh run download` and `git ls-remote`. Never posts, pushes, dispatches or reruns anything."""
@@ -462,6 +556,16 @@ class GhApi:
             raise ApiError(f"ls-remote {ref}: {p.stderr.strip()[:200]}")
         hits = [ln.split("\t") for ln in p.stdout.splitlines() if ln.endswith("\t" + ref)]
         return hits[0][0] if len(hits) == 1 else None
+
+    def on_first_parent(self, root, sha: str, limit: int = FIRST_PARENT_LIMIT) -> bool:
+        """Is `sha` one of the newest `limit` commits of master's FIRST-PARENT chain? Asked of git in `root` after a
+        fetch of master (local objects and FETCH_HEAD only): the REST API lists a branch's commits in no such order."""
+        for argv in (["fetch", "--no-tags", "--quiet", f"https://github.com/{self.repo}.git", "refs/heads/master"],
+                     ["rev-list", "--first-parent", f"--max-count={int(limit)}", "FETCH_HEAD"]):
+            p = subprocess.run(["git", "-C", str(root), *argv], capture_output=True, text=True, encoding="utf-8")
+            if p.returncode != 0:
+                raise ApiError(f"git {argv[0]} (master's first-parent chain): {p.stderr.strip()[:200]}")
+        return sha in p.stdout.split()
 
     def download(self, run_id: int, name: str, dest: str) -> None:
         p = subprocess.run(["gh", "run", "download", str(run_id), "-R", self.repo, "-n", name, "-D", dest],
@@ -550,8 +654,49 @@ def gather(api, n: int, keys: dict[str, str], accept_dispatch: bool):
     return pr, base_tip, out, dispatch_busy, changed, ref_sha
 
 
+def gather_merge_group(api, n: int, landed: str, keys: dict[str, str], root, limit: int = FIRST_PARENT_LIMIT):
+    """(pr, on_first_parent, runs) for decide_merge_group. Only the newest completed run is read in full."""
+    from tools import agent_ci_required as acr
+    pr = _pr_info(api, n)
+    wf = f"actions/workflows/{acr.QUEUE_WORKFLOW.name}/runs"
+    found = [r for r in (api.get(f"{wf}?event={MERGE_GROUP_EVENT}&head_sha={landed}&per_page=50") or {}).get("workflow_runs", [])
+             if r.get("head_sha") == landed]
+    newest = max(found, key=lambda r: (r.get("created_at") or "", r.get("id") or 0)) if found else None
+    runs = []
+    for r in found:
+        item = {k: r.get(k) for k in ("id", "event", "status", "conclusion", "created_at", "html_url", "head_branch", "path", "head_sha")}
+        if r is newest and r.get("status") == "completed":
+            item["jobs"] = _jobs(api, r["id"])
+            item["records"] = _records(api, r["id"], n, keys)
+        runs.append(item)
+    return pr, api.on_first_parent(root, landed, limit), runs
+
+
+def cmd_verify_merge_group(a) -> int:
+    import yaml
+    doc = yaml.safe_load((pathlib.Path(a.root) / ".github" / "workflows" / WORKFLOW_FILE).read_text(encoding="utf-8"))
+    keys = required_keys(doc)
+    if not SHA_RE.match(a.merge_group):
+        print(f"FAIL usage: --merge-group must be the landed commit's full 40-hex sha, got {a.merge_group!r}")
+        return 1
+    try:
+        pr, on_chain, runs = gather_merge_group(GhApi(a.repo), a.pr, a.merge_group, keys, a.root, a.first_parent_limit)
+        verdict, reason, evidence = decide_merge_group(pr, a.merge_group, on_chain, runs, keys)
+    except (ApiError, OSError, ValueError, KeyError, TypeError) as e:
+        verdict, reason, evidence = "FAIL", f"api-error: {e}"[:300], {}
+    print(f"{verdict} PR #{a.pr}: {reason}")
+    if evidence:
+        print(json.dumps(evidence, indent=1, sort_keys=True))
+    return 0 if verdict == "PASS" else 1
+
+
 def cmd_verify(a) -> int:
     import yaml
+    if a.merge_group is not None:
+        if a.tree is not None or a.accept_dispatch:
+            print("FAIL usage: --merge-group takes neither --tree nor --accept-dispatch (the landed commit is the evidence)")
+            return 1
+        return cmd_verify_merge_group(a)
     doc = yaml.safe_load((pathlib.Path(a.root) / ".github" / "workflows" / WORKFLOW_FILE).read_text(encoding="utf-8"))
     keys = required_keys(doc)
     try:
@@ -597,7 +742,11 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     v = sub.add_parser("verify", help="PASS/FAIL the merge-tree evidence of one PR")
     v.add_argument("--pr", type=int, required=True)
-    v.add_argument("--tree", required=True, help="the expected merge tree (git rev-parse <merge>^{tree})")
+    v.add_argument("--tree", help="the expected merge tree (git rev-parse <merge>^{tree}); required unless --merge-group")
+    v.add_argument("--merge-group", metavar="LANDED_SHA",
+                   help="merge-queue mode: the commit on master this PR landed as (the merge group's commit)")
+    v.add_argument("--first-parent-limit", type=int, default=FIRST_PARENT_LIMIT,
+                   help="--merge-group: how far back along master's first-parent chain to look for the landed commit")
     v.add_argument("--repo", default=_this_repo("unchartedterritory5995-cyber/UCT-Dashboard"))
     v.add_argument("--root", default=".", help="a MASTER checkout: its agent-ci.yml names the required jobs")
     v.add_argument("--accept-dispatch", action="store_true",
@@ -609,6 +758,8 @@ def main(argv=None) -> int:
     r.add_argument("--pytest-log", action="append", default=[], help="a `pytest -rA` console log")
     r.add_argument("--out", default="evidence/evidence.json")
     a = ap.parse_args(argv)
+    if a.cmd == "verify" and a.merge_group is None and a.tree is None:
+        ap.error("the following arguments are required: --tree")      # argparse's own words and exit code, as before
     return cmd_verify(a) if a.cmd == "verify" else cmd_record(a)
 
 

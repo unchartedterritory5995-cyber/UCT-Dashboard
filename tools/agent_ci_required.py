@@ -17,24 +17,35 @@ job, or a changed-file list too long to read whole.
     python tools/agent_ci_required.py --event workflow_run   --sha <head>
     (env: GITHUB_TOKEN, GITHUB_REPOSITORY; optional GITHUB_API_URL, TARGET_URL; --dry-run prints, posts nothing)
 
-MERGE QUEUE (2026-11-22; inert until a queue exists on master). .github/workflows/agent-ci-queue.yml runs on
-`merge_group` and posts this same status on the merge group's commit, in two stages, both from MASTER's copy of this file:
-  scope    the queued PR's OWN diff (git: the merge group's base_sha..head_sha; nothing of the PR is checked out or
+WHO POSTS (2026-11-22): every status under this context, on a pull request's head or on a merge group's commit, is
+POSTed with a GitHub App's installation token (env AGENT_CI_VERDICT_TOKEN), never with GITHUB_TOKEN, which only reads.
+At the merge-queue cutover the ruleset pins the required check to that App; a status under the same context from any
+other identity does not count, and posted after the App's it would block the pull request again (last writer wins).
+
+MERGE QUEUE (2026-11-22; inert until a queue exists on master). The same status on a merge group's commit, decided by
+MASTER's copy of this file in two places:
+  scope    (.github/workflows/agent-ci-queue.yml, INSIDE the merge group; it writes no status and nobody trusts it: it
+           only decides whether the Agent jobs are started) the queued PR's OWN diff (git: the merge group's base_sha..head_sha; nothing of the PR is checked out or
            run) -> no-agent-paths | agent-paths | self-protected | unknown. `self-protected` = an Agent path AND a
            path the PR's own run executes; a PR that touches NO Agent path needs no Agent evidence and is
            no-agent-paths whatever else it touches (as on a pull request today) and whatever the protected list
            says, even unreadable, with that said in the detail. An Agent-path PR is `unknown` when that list is
            unreadable, or when its sources differ between master and the entry's base (an entry ahead edits them).
-  verdict  success ONLY for no-agent-paths, or for agent-paths when every required Agent job (agent-ci.yml, called by
-           that workflow on the merge group's commit) is success in that run. self-protected is ALWAYS failure
-           (AUDIT's local evidence decides), and so is an unreadable diff, a scope job that did not succeed, a missing /
-           skipped / cancelled / failed job or an API error. Never pending: it is the last word on that commit.
-           Whatever goes wrong while deciding is POSTED as a failure; the jobs GET and the status POST are tried 3
-           times (transport / 5xx / 429 only). Only a POST that still fails leaves the commit without a status.
+  follow   (.github/workflows/agent-ci-queue-verdict.yml: `workflow_run` on that workflow, so master's copy of the
+           file, on master, in an environment only master may use; AUDIT F1 on #2501) the TRUSTED verdict. It reads
+           nothing the merge group's run says about itself: it recomputes the scope from the commit, and posts with a
+           GitHub App's token. success ONLY for no-agent-paths, or for agent-paths when (a) no self-protected path
+           differs between the commit and the master commit the group is built on (an entry AHEAD may have edited the
+           Agent CI machinery), (b) the clock is outside the weekday deploy freeze windows, and (c) every required
+           Agent job (master's agent-ci.yml) is success under the queue workflow's call in that run. self-protected is
+           ALWAYS failure (AUDIT's local evidence decides), and so is anything unreadable. Never pending.
+           Whatever goes wrong while deciding is POSTED as a failure; API calls are tried 3 times (transport / 5xx /
+           429 only). Only a POST that still fails leaves the commit without a status. A run that is not the queue
+           workflow's own merge-group run gets NO status from it (exit 2).
 
-    python tools/agent_ci_required.py --event merge_group --stage scope   --sha <head> --base <base> --head-ref <ref>
-    python tools/agent_ci_required.py --event merge_group --stage verdict --sha <head> --run-id <id> \
-        --scope-result <needs.scope.result> --scope-code <code> --scope-detail <text> --agent-result <needs.agent.result>
+    python tools/agent_ci_required.py --event merge_group --stage scope  --sha <head> --base <base> --head-ref <ref>
+    python tools/agent_ci_required.py --event merge_group --stage follow --sha <run head_sha> --run-id <id> \
+        --head-ref <run head_branch> --run-event <run event>     (env: GITHUB_TOKEN reads, AGENT_CI_VERDICT_TOKEN posts)
 """
 from __future__ import annotations
 
@@ -308,8 +319,27 @@ def evaluate(api: Api, sha: str, prs: list[int], doc: dict) -> tuple[str, str, s
 
 
 # ---------------------------------------------------------------------------------------------- merge queue
-#: (2026-11-22; inert until a queue exists) .github/workflows/agent-ci-queue.yml: scope -> agent -> verdict.
+#: (2026-11-22; inert until a queue exists) .github/workflows/agent-ci-queue.yml runs INSIDE the merge group (scope ->
+#: agent) and writes no status. .github/workflows/agent-ci-queue-verdict.yml follows it (workflow_run, so master's copy
+#: of that file, on master) and posts agent-ci-required with a GitHub App's token: the trusted identity (AUDIT F1).
 QUEUE_WORKFLOW = pathlib.Path(".github") / "workflows" / "agent-ci-queue.yml"
+FOLLOWER_WORKFLOW = pathlib.Path(".github") / "workflows" / "agent-ci-queue-verdict.yml"
+#: the branch the queue builds into (agent_ci_evidence.QUEUE_REF_RE pins the same name)
+QUEUE_BASE_BRANCH = "master"
+#: where the follower keeps master's tip while it works (a private ref of its own throwaway checkout)
+FOLLOW_MASTER_REF = "refs/agent-ci-verdict/master"
+#: how many first-parent commits of master and of the merge group the follower fetches to find the master commit the
+#: group is built on. More entries ahead than this, or a master that moved further, is `unknown` (failure).
+FOLLOW_DEPTH = 50
+#: the environment variable that holds the GitHub App's installation token: the ONLY token the follower POSTs with
+VERDICT_TOKEN_ENV = "AGENT_CI_VERDICT_TOKEN"
+#: D2.1 (AUDIT on #2495): deploy freeze windows, weekdays, wall clock in FREEZE_TZ, both ends included. An entry that
+#: needs Agent evidence is failed inside one. ⚠️ The clock is read when the VERDICT is decided, which is seconds
+#: before the entry lands; and this knows no market holiday (a holiday that falls on a weekday is treated as a
+#: trading day: an Agent entry is refused in the window for nothing, which is the safe side).
+FREEZE_TZ = "America/New_York"
+FREEZE_WINDOWS = (((9, 20), (9, 45)), ((15, 30), (16, 15)))
+MACHINERY_EDITED = "; an entry ahead edits the Agent CI machinery: AUDIT decides"
 #: that workflow's job that CALLS agent-ci.yml. The Actions API reports a called workflow's jobs as
 #: "<calling job's name> / <job name>" (and the calling job alone, by its bare name, when it was skipped), so the
 #: required jobs are matched under exactly this prefix; the calling job carries no `name:` (a rail holds that).
@@ -357,6 +387,15 @@ def _git_reader(root, run=subprocess.run, log=_job_log):
     return git
 
 
+def commit_parents(git, what: str, sha: str):
+    """The parents of `sha`, read from the commit object itself (a shallow history still answers); None = unreadable."""
+    commit = git(what, "cat-file", "commit", sha)
+    if commit is None:
+        return None
+    header = commit.decode("utf-8", "replace").split("\n\n", 1)[0]
+    return [ln.split()[1] for ln in header.splitlines() if ln.startswith("parent ") and len(ln.split()) == 2]
+
+
 def merge_group_changed_paths(root, base_sha, head_sha, fetch: bool = True, run=subprocess.run, log=_job_log):
     """The queued PR's OWN diff: every path that differs between a merge group's base_sha and its head_sha, read from
     git objects in the checkout at `root` (master's). Nothing of the PR is checked out or executed, and a rename lists
@@ -373,11 +412,9 @@ def merge_group_changed_paths(root, base_sha, head_sha, fetch: bool = True, run=
     if fetch and git("the queued PR's diff, fetching the merge group", "fetch", "--no-tags", "--quiet", "--depth=2",
                      "--filter=blob:none", "origin", head_sha) is None:
         return None
-    commit = git("the queued PR's diff, reading the merge group's commit", "cat-file", "commit", head_sha)
-    if commit is None:
+    parents = commit_parents(git, "the queued PR's diff, reading the merge group's commit", head_sha)
+    if parents is None:
         return None
-    header = commit.decode("utf-8", "replace").split("\n\n", 1)[0]
-    parents = [ln.split()[1] for ln in header.splitlines() if ln.startswith("parent ") and len(ln.split()) == 2]
     if len(parents) != 2 or parents[0] != base_sha:
         log(f"the queued PR's diff: {head_sha} has parents {parents}, not a two-parent merge whose first parent is {base_sha}")
         return None
@@ -459,9 +496,13 @@ def queue_scope(root, doc, head_sha, base_sha, head_ref, tested_sha, fetch: bool
 
 def decide_queue(scope_result, scope_code, scope_detail, agent_result, jobs, jobs_required) -> tuple[str, str]:
     """`agent-ci-required` for a merge group's commit: SUCCESS or FAILURE, never pending (it is the last word on that
-    commit). scope_result / agent_result: the two jobs' `needs.<job>.result`. jobs: THIS run's jobs as the API lists
-    them, [{"name", "conclusion"}], or anything else when they could not be read. jobs_required is read only for
-    `agent-paths` (the caller need not load it for any other code).
+    commit). The caller is the trusted follower (follow_verdict), and every argument is something IT established:
+    scope_result: "success" when its own recompute of the scope ran (anything else: no answer, failure);
+    scope_code / scope_detail: that recompute's answer, never the merge group's own scope job's;
+    agent_result: what the call into agent-ci.yml must have been for that code ("skipped" for no-agent-paths: nothing
+    of the run is needed; "success" for agent-paths: the per-job rule below then proves it);
+    jobs: the merge group run's jobs as the API lists them, [{"name", "conclusion"}], or anything else when they could
+    not be read. jobs_required is read only for `agent-paths` (the caller need not load it for any other code).
     SUCCESS only when the scope job succeeded AND (it answered no-agent-paths and the Agent call was skipped, OR it
     answered agent-paths, the call concluded success, and every required job is listed under the call with conclusion
     success). The call's own result is not enough: a job skipped inside it would not turn it red."""
@@ -506,47 +547,161 @@ def write_outputs(values: dict, path=None) -> None:
             fh.write(f"{key}={_safe(value)}\n")
 
 
-def queue_verdict(api: Api, a) -> tuple[str, str]:
-    """The verdict stage's decision. agent-ci.yml's job names and this run's job list are read ONLY for `agent-paths`:
-    every other code is decided without touching the workflow file or the API, so neither can fail those entries.
-    ANY exception in here is a FAILURE with a short reason, never a crash: a verdict that dies before its POST leaves no
-    status, and the queue then holds every entry behind this one until its check timeout."""
+def freeze_window(now) -> str | None:
+    """The deploy freeze window the instant `now` falls in, as "09:20-09:45 ET", or None. `now` is an AWARE datetime
+    (a naive one raises: a clock that cannot be placed is not a clock). Weekdays only, both ends included, read in
+    FREEZE_TZ's wall clock, so the UTC instants move with daylight saving. No market holiday is known here."""
+    import zoneinfo
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("freeze_window needs an aware datetime")
+    local = now.astimezone(zoneinfo.ZoneInfo(FREEZE_TZ))
+    if local.weekday() >= 5:
+        return None
+    at = (local.hour, local.minute, local.second)
+    for (h1, m1), (h2, m2) in FREEZE_WINDOWS:
+        if (h1, m1, 0) <= at <= (h2, m2, 0):
+            return f"{h1:02d}:{m1:02d}-{h2:02d}:{m2:02d} ET"
+    return None
+
+
+def _utcnow():
+    import datetime
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def master_base(git, head_sha: str, depth: int = FOLLOW_DEPTH):
+    """The master commit a merge group is built on: the first commit on head_sha's FIRST-PARENT chain, after head_sha
+    itself, that is on master's first-parent chain (FOLLOW_MASTER_REF). With merge method MERGE that chain is this
+    group, the groups ahead of it, then master, so this is `git merge-base head master` when the history is whole; this
+    form needs only the two chains, so a shallow history cannot make it name another commit. None = not found within
+    `depth` commits, or unreadable (the caller fails closed)."""
+    chains = []
+    for what, tip in (("master's first-parent chain", FOLLOW_MASTER_REF), ("the merge group's first-parent chain", head_sha)):
+        out = git(what, "rev-list", "--first-parent", f"--max-count={int(depth)}", tip)
+        if out is None:
+            return None
+        chains.append(out.decode("ascii", "replace").split())
+    on_master, group = set(chains[0]), chains[1]
+    if not group or group[0] != head_sha:
+        return None
+    return next((c for c in group[1:] if c in on_master), None)
+
+
+def machinery_edits(git, base: str, head_sha: str, protected):
+    """Every self-protected path that is not byte-identical between `base` (the master commit the group is built on)
+    and head_sha: this entry's edits AND those of every entry ahead of it in the group, which a scope of this entry's
+    own diff cannot see. Tree entries are compared (blob ids), so no file content is read. None = unreadable."""
+    out = git("the Agent CI machinery, master against the merge group", "diff", "--no-renames", "--name-only", "-z", base, head_sha)
+    if out is None:
+        return None
+    return _evidence().self_protected_hits([p for p in out.decode("utf-8", "surrogateescape").split("\0") if p], protected)
+
+
+def follow_verdict(root, api: Api, run_id, head_sha: str, head_ref: str, now, run=subprocess.run, log=_job_log) -> tuple[str, str]:
+    """`agent-ci-required` for one merge group commit, decided by the trusted follower from MASTER's checkout at `root`.
+    NOTHING the merge group's run says about itself is read: not its scope job's outputs, not its conclusion. The
+    follower fetches the commit, RECOMPUTES the scope with master's code (same rule: a two-parent merge, the diff
+    against its first parent), and for an entry that needs Agent evidence it also requires, in this order:
+      * every self-protected path byte-identical between the commit and the master commit the group is built on
+        (machinery_edits: an entry AHEAD may have edited what this entry's jobs ran with);
+      * the clock outside the deploy freeze windows (freeze_window);
+      * every required Agent job (master's agent-ci.yml) listed under the queue workflow's call in THAT run, success.
+    An entry that touches no Agent path needs none of this and is success. Anything unreadable is failure."""
+    ev = _evidence()
+    git = _git_reader(root, run, log)
+    if git("the merge group and master, fetching", "fetch", "--no-tags", "--quiet", "--filter=blob:none", f"--depth={FOLLOW_DEPTH}",
+           "origin", f"+refs/heads/{QUEUE_BASE_BRANCH}:{FOLLOW_MASTER_REF}", head_sha) is None:
+        return FAILURE, "fail closed: the merge group's commit and master could not be fetched"
+    parents = commit_parents(git, "the merge group's commit", head_sha)
+    if parents is None or len(parents) != 2:
+        log(f"{head_sha} has parents {parents}: not a two-parent merge (merge method MERGE is the only one judged)")
+        return FAILURE, "fail closed: the merge group's commit is not a two-parent merge"
+    doc = load_agent_ci(root)
+    scope = queue_scope(root, doc, head_sha, parents[0], head_ref, head_sha, fetch=False)
+    code, detail = scope["code"], scope["detail"]
+    log(f"recomputed scope for PR {scope['pr']}: {code} ({detail})")
+    jobs, required = None, []
+    if code == SCOPE_AGENT:
+        base = master_base(git, head_sha)
+        if base is None:
+            return FAILURE, f"fail closed: the master commit this merge group is built on was not found within {FOLLOW_DEPTH} commits"
+        hits = machinery_edits(git, base, head_sha, ev.protected_patterns(root))
+        if hits is None:
+            return FAILURE, "fail closed: the Agent CI machinery could not be compared with master's"
+        if hits:
+            head = f"{len(hits)} self-protected path(s) differ from master, e.g. {hits[0]}"
+            return FAILURE, head[:140 - len(MACHINERY_EDITED)] + MACHINERY_EDITED
+        window = freeze_window(now)
+        if window:
+            return FAILURE, f"deploy freeze window {window} on weekdays: an Agent entry does not land in it; queue it again afterwards"
+        required = required_jobs(doc)
+        try:
+            jobs = run_jobs(api, run_id)
+        except ApiError as e:
+            jobs = {"error": str(e)}
+    return decide_queue(SUCCESS, code, detail, SUCCESS if code == SCOPE_AGENT else "skipped", jobs, required)
+
+
+def follow(read: Api, a, now, run=subprocess.run, log=_job_log):
+    """What the follower posts for one completed run that fired it: (state, reason), or None = post NOTHING.
+    From the workflow_run payload it takes only the run id, head_sha, head_branch and event (a.run_id, a.sha, a.head_ref,
+    a.run_event); the run's workflow path is read from the API.
+    None (nothing is posted, the job exits non-zero) when this is not the queue workflow's own merge-group run for a
+    commit: no 40-hex commit, an event other than merge_group (a status on a PR head would overwrite the pull-request
+    side's), a run whose workflow file is not QUEUE_WORKFLOW (any workflow may NAME itself "agent ci queue"; only that
+    file's run is the judge's, and its own follower run speaks for the commit), or a run the API describes otherwise.
+    FAILURE (posted) when it IS that run but cannot be judged: the run could not be read, its branch names no pull
+    request into master, or anything at all goes wrong while deciding (a verdict that dies leaves no status, and the
+    queue then holds every entry behind this one until its check timeout)."""
+    sha, branch = a.sha or "", a.head_ref or ""
+    if not _SHA.match(sha) or a.run_event != "merge_group" or not a.run_id:
+        log(f"not a merge group's run (event {a.run_event!r}, run {a.run_id!r}, a 40-hex commit: {bool(_SHA.match(sha))}): nothing is posted")
+        return None
     try:
-        jobs, required = None, []
-        if a.scope_code == SCOPE_AGENT:
-            required = required_jobs(load_agent_ci(a.root))
-            try:
-                jobs = run_jobs(api, a.run_id)
-            except ApiError as e:
-                jobs = {"error": str(e)}
-        return decide_queue(a.scope_result, a.scope_code, a.scope_detail, a.agent_result, jobs, required)
+        described = read.get(f"actions/runs/{int(a.run_id)}") or {}
+    except ApiError as e:
+        log(f"run {a.run_id} could not be read: {e}"[:400])
+        return FAILURE, "fail closed: the merge group's run could not be read"
+    theirs = {k: described.get(k) for k in ("path", "event", "head_sha", "head_branch")}
+    if theirs != {"path": QUEUE_WORKFLOW.as_posix(), "event": "merge_group", "head_sha": sha, "head_branch": branch}:
+        log(f"run {a.run_id} is not {QUEUE_WORKFLOW.as_posix()}'s merge-group run for {sha} on {branch!r} ({theirs}): nothing is posted")
+        return None
+    try:
+        if _evidence().queue_pr(branch) is None:
+            return FAILURE, "fail closed: the merge group's branch names no pull request into master"
+        return follow_verdict(a.root, read, int(a.run_id), sha, branch, now, run=run, log=log)
     except Exception as e:  # noqa: BLE001  fail closed AND say so on the commit
-        _job_log(f"the verdict could not be computed: {type(e).__name__}: {e}"[:400])
+        log(f"the verdict could not be computed: {type(e).__name__}: {e}"[:400])
         return FAILURE, f"the verdict could not be computed ({type(e).__name__}): fail closed"[:140]
 
 
 def _main_merge_group(a) -> int:
-    """scope: prints the answer and writes the job outputs; exit 0 whatever the code (the verdict stage judges it).
-    verdict: posts the status, then exits 0 for success and 1 for failure, so the run is red when the status is.
-    Nothing but the POST itself can leave the commit without a status: whatever goes wrong while deciding is posted as
-    a failure (queue_verdict), and the jobs GET and the status POST are each tried RETRY_ATTEMPTS times. A POST that
-    still fails raises: no status at all, and the queue's own check timeout removes the entry."""
+    """scope (inside the merge group, agent-ci-queue.yml): prints the answer and writes the job outputs; exit 0 whatever
+    the code. It decides only whether the Agent jobs are worth starting; it writes no status and nobody trusts it.
+    follow (agent-ci-queue-verdict.yml, master's copy on master): decides and POSTS agent-ci-required on the merge
+    group's commit with the App's token (VERDICT_TOKEN_ENV), then exits 0 for success and 1 for failure. It exits 2
+    without posting when the run that fired it is not the queue workflow's merge-group run. Reads use GITHUB_TOKEN.
+    Nothing but the POST itself can leave a judged commit without a status: whatever goes wrong while deciding is
+    posted as a failure, and every API call is tried RETRY_ATTEMPTS times. A POST that still fails raises."""
     if a.stage == "scope":
         out = queue_scope(a.root, load_agent_ci(a.root), a.sha, a.base, a.head_ref, os.environ.get("GITHUB_SHA", ""))
         print(json.dumps({"stage": "scope", "sha": a.sha, **out}))
         write_outputs({"code": out["code"], "pr": out["pr"] or "", "detail": out["detail"]})
         return 0
-    if a.stage != "verdict" or not _SHA.match(a.sha or "") or not a.run_id:
-        print("merge_group needs --stage scope, or --stage verdict with a 40-hex --sha and a --run-id", file=sys.stderr)
+    if a.stage != "follow":
+        print("merge_group needs --stage scope or --stage follow", file=sys.stderr)
         return 2
-    api = Api(os.environ["GITHUB_TOKEN"], os.environ["GITHUB_REPOSITORY"], os.environ.get("GITHUB_API_URL", "https://api.github.com"),
-              attempts=RETRY_ATTEMPTS)
-    state, reason = queue_verdict(api, a)
+    repo, base = os.environ["GITHUB_REPOSITORY"], os.environ.get("GITHUB_API_URL", "https://api.github.com")
+    post_token = os.environ[VERDICT_TOKEN_ENV]          # read first: without the App's token there is nothing to do
+    verdict = follow(Api(os.environ["GITHUB_TOKEN"], repo, base, attempts=RETRY_ATTEMPTS), a, _utcnow())
+    if verdict is None:
+        return 2
+    state, reason = verdict
     body = {"state": state, "context": CONTEXT, "description": reason[:140], "target_url": os.environ.get("TARGET_URL") or None}
     body = {k: v for k, v in body.items() if v is not None}
-    print(json.dumps({"stage": "verdict", "sha": a.sha, **body}))
+    print(json.dumps({"stage": "follow", "sha": a.sha, "run_id": a.run_id, **body}))
     if not a.dry_run:
-        api.call("POST", f"statuses/{a.sha}", body)
+        Api(post_token, repo, base, attempts=RETRY_ATTEMPTS).call("POST", f"statuses/{a.sha}", body)
     return 0 if state == SUCCESS else 1
 
 
@@ -557,19 +712,17 @@ def main(argv=None) -> int:
     ap.add_argument("--pr", type=int, action="append", default=[])
     ap.add_argument("--root", default=".")
     ap.add_argument("--dry-run", action="store_true")
-    # merge_group only (agent-ci-queue.yml)
-    ap.add_argument("--stage", choices=["scope", "verdict"])
+    # merge_group only: scope (agent-ci-queue.yml) and follow (agent-ci-queue-verdict.yml)
+    ap.add_argument("--stage", choices=["scope", "follow"])
     ap.add_argument("--base")
     ap.add_argument("--head-ref")
     ap.add_argument("--run-id", type=int)
-    ap.add_argument("--scope-result", default="")
-    ap.add_argument("--scope-code", default="")
-    ap.add_argument("--scope-detail", default="")
-    ap.add_argument("--agent-result", default="")
+    ap.add_argument("--run-event", default="")
     a = ap.parse_args(argv)
     if a.event == "merge_group":
         return _main_merge_group(a)
-    api = Api(os.environ["GITHUB_TOKEN"], os.environ["GITHUB_REPOSITORY"], os.environ.get("GITHUB_API_URL", "https://api.github.com"))
+    repo, base = os.environ["GITHUB_REPOSITORY"], os.environ.get("GITHUB_API_URL", "https://api.github.com")
+    api = Api(os.environ["GITHUB_TOKEN"], repo, base)          # READS only: the job's own token cannot write a status
     doc = load_agent_ci(a.root)
     prs = a.pr
     if a.event == "workflow_run" and not prs:
@@ -585,7 +738,17 @@ def main(argv=None) -> int:
     body = {k: v for k, v in body.items() if v is not None}
     print(json.dumps({"sha": a.sha, "prs": prs, **body}))
     if not a.dry_run:
-        api.call("POST", f"statuses/{a.sha}", body)
+        # 2026-11-22: the App's token, and no other, posts this context (the ruleset pins the required check to the
+        # App, and a later status from any other identity under the same context would block the pull request again)
+        app_token = os.environ.get(VERDICT_TOKEN_ENV, "")
+        if not app_token:
+            # an OLDER copy of agent-ci-required.yml (a branch that has not taken master's yet: it still runs on
+            # `pull_request` with its own token) checks out master's copy of this tool and hands it no App token.
+            # Then NOTHING is posted, and never with GITHUB_TOKEN: no status is not a success anywhere.
+            print(f"::warning::{VERDICT_TOKEN_ENV} is not set: no {CONTEXT} status is posted for {a.sha} (only the App posts it). "
+                  "The workflow file that ran this is older than master's agent-ci-required.yml.")
+            return 0
+        Api(app_token, repo, base).call("POST", f"statuses/{a.sha}", body)
     return 0
 
 

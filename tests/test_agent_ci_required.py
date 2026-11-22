@@ -58,8 +58,14 @@ def test_the_workflow_runs_the_tool_and_watches_the_right_workflow():
     wf = yaml.safe_load((ROOT / ".github" / "workflows" / "agent-ci-required.yml").read_text(encoding="utf-8"))
     on = wf.get("on") or wf[True]
     assert on["workflow_run"]["workflows"] == [DOC["name"]] and on["workflow_run"]["types"] == ["completed"]
-    assert set(on["pull_request"]["types"]) == {"opened", "synchronize", "reopened"}
-    assert wf["permissions"] == {"statuses": "write", "actions": "read", "contents": "read", "pull-requests": "read"}
+    # 2026-11-22: pull_request -> pull_request_target, master only. The status is posted with a GitHub App whose key
+    # lives in an environment only master may use, and a `pull_request` job runs on refs/pull/N/merge. The types are
+    # the ones they were. Shape and safety rails: tests/test_ci_agent_merge_ref.py (pr_stage_violations).
+    assert "pull_request" not in on and on["pull_request_target"]["branches"] == ["master"]
+    assert set(on["pull_request_target"]["types"]) == {"opened", "synchronize", "reopened"}
+    # the workflow's own token no longer writes anything (it was statuses: write): the App's token posts
+    assert wf["permissions"] == {"contents": "read"}
+    assert wf["jobs"]["status"]["permissions"] == {"actions": "read", "contents": "read", "pull-requests": "read"}
     steps = " ".join(s.get("run") or "" for s in wf["jobs"]["status"]["steps"])
     assert "tools/agent_ci_required.py" in steps and "npm" not in steps and "pytest" not in steps
 
@@ -226,7 +232,8 @@ def test_agent_ci_jobs_run_on_pull_request_for_non_agent_heads():
 
 # ── MERGE QUEUE (2026-11-22; inert until a queue exists on master). .github/workflows/agent-ci-queue.yml posts this same
 #    status on a merge group's commit: `scope` reads the queued PR's OWN diff with master's code, the Agent jobs run on the
-#    merge group's commit only for an Agent change, and `verdict` is success ONLY for "no Agent path" or "every Agent job
+#    merge group's commit only for an Agent change, and the verdict (decided and posted by the trusted FOLLOWER,
+#    agent-ci-queue-verdict.yml, which recomputes that scope) is success ONLY for "no Agent path" or "every Agent job
 #    green in this run". A PR that needs Agent evidence AND edits a self-protected path is ALWAYS failure; one that touches
 #    no Agent path needs none, whatever else it touches. The workflow's own shape: tests/test_ci_agent_merge_ref.py.
 PROTECTED = ev.protected_patterns(ROOT)
@@ -324,9 +331,9 @@ def test_MQ_ordinary_agent_paths_are_not_self_protected():
 
 # ---- the verdict ----------------------------------------------------------------------------------------------------
 def _listed(names=None, conclusion="success", prefix=CALL):
-    """A merge-group run's jobs as the API lists them: the called Agent jobs under "agent / ", plus the run's own two."""
+    """A merge-group run's jobs as the API lists them: the called Agent jobs under "agent / ", plus the run's own scope job."""
     return [{"name": prefix + n, "conclusion": conclusion} for n in (JOBS if names is None else names)] + \
-           [{"name": "agent-ci-queue scope", "conclusion": "success"}, {"name": "agent-ci-required verdict", "conclusion": None}]
+           [{"name": "agent-ci-queue scope", "conclusion": "success"}]
 
 
 def _verdict(scope_result="success", code=acr.SCOPE_AGENT, agent="success", jobs=None, detail="Agent paths changed", required=JOBS):
@@ -623,77 +630,364 @@ def test_MQ_an_output_is_one_plain_line_whatever_a_file_is_called(tmp_path, monk
     assert (tmp_path / "env.txt").read_text(encoding="utf-8") == "code=x" + chr(10)
 
 
-class _StatusApi:
-    """The verdict stage's API: this run's jobs (GET), then one status (POST)."""
-    def __init__(self, jobs=None, fail_get=False, fail_post=False):
-        self.jobs, self.fail_get, self.fail_post, self.posted = jobs, fail_get, fail_post, []
+# ---- THE TRUSTED FOLLOWER (AUDIT F1 on #2501): agent-ci-queue-verdict.yml, `--stage follow` ------------------------------
+# It runs master's copy of the tool on master and posts with a GitHub App's token. It reads NOTHING the merge group's run
+# says about itself: it recomputes the scope from the commit and re-reads the run's jobs.
+import datetime  # noqa: E402
 
-    def __call__(self, token, repo, base=None, attempts=1):          # stands in for the Api class
-        assert (token, repo) == ("t", "o/r")
-        self.attempts = attempts
-        return self
+UTC = datetime.timezone.utc
+#: Wednesday 2026-11-18 17:00 UTC = 12:00 in New York: a weekday, outside both freeze windows
+OPEN_CLOCK = datetime.datetime(2026, 11, 18, 17, 0, tzinfo=UTC)
+RUN_ID = 55
+
+
+def _et(y, mo, d, h, mi, s=0):
+    """An instant given as New York wall-clock time (the freeze windows' own terms), as an aware UTC datetime."""
+    import zoneinfo
+    return datetime.datetime(y, mo, d, h, mi, s, tzinfo=zoneinfo.ZoneInfo("America/New_York")).astimezone(UTC)
+
+
+@pytest.mark.parametrize("at,window", [
+    ((9, 19, 59), None), ((9, 20, 0), "09:20-09:45 ET"), ((9, 30, 0), "09:20-09:45 ET"), ((9, 45, 0), "09:20-09:45 ET"), ((9, 45, 1), None),
+    ((12, 0, 0), None),
+    ((15, 29, 59), None), ((15, 30, 0), "15:30-16:15 ET"), ((16, 0, 0), "15:30-16:15 ET"), ((16, 15, 0), "15:30-16:15 ET"), ((16, 15, 1), None),
+    ((0, 0, 0), None), ((23, 59, 59), None), ((21, 30, 0), None),          # 09:30 PM is not 09:30
+])
+def test_MQ_the_freeze_windows_at_their_edges(at, window):
+    for day in (16, 17, 18, 19, 20):                                       # Monday .. Friday, 2026-11-16..20
+        assert acr.freeze_window(_et(2026, 11, day, *at)) == window, (day, at)
+    for day in (21, 22):                                                   # Saturday, Sunday: never frozen
+        assert acr.freeze_window(_et(2026, 11, day, *at)) is None, (day, at)
+    assert acr.FREEZE_WINDOWS == (((9, 20), (9, 45)), ((15, 30), (16, 15))) and acr.FREEZE_TZ == "America/New_York"
+
+
+def test_MQ_the_freeze_windows_follow_new_yorks_clock_across_a_daylight_saving_change():
+    """The windows are wall-clock times in New York, so the UTC instant moves by an hour when the clocks change (US:
+    2026-03-08 and 2026-11-01). The same UTC time of day is inside the window on one side and outside on the other."""
+    utc = lambda y, mo, d, h, mi: datetime.datetime(y, mo, d, h, mi, tzinfo=UTC)   # noqa: E731
+    # Friday 2026-03-06 is EST (UTC-5): 09:20 ET = 14:20Z. Monday 2026-03-09 is EDT (UTC-4): 09:20 ET = 13:20Z.
+    assert acr.freeze_window(utc(2026, 3, 6, 13, 30)) is None and acr.freeze_window(utc(2026, 3, 6, 14, 30)) == "09:20-09:45 ET"
+    assert acr.freeze_window(utc(2026, 3, 9, 13, 30)) == "09:20-09:45 ET" and acr.freeze_window(utc(2026, 3, 9, 14, 30)) is None
+    # Friday 2026-10-30 is EDT: 15:30 ET = 19:30Z. Monday 2026-11-02 is EST: 15:30 ET = 20:30Z.
+    assert acr.freeze_window(utc(2026, 10, 30, 19, 45)) == "15:30-16:15 ET" and acr.freeze_window(utc(2026, 10, 30, 20, 45)) is None
+    assert acr.freeze_window(utc(2026, 11, 2, 19, 45)) is None and acr.freeze_window(utc(2026, 11, 2, 20, 45)) == "15:30-16:15 ET"
+    # the instant decides, whatever zone it is written in: 09:30 in New York given as Tokyo time
+    tokyo = datetime.timezone(datetime.timedelta(hours=9))
+    assert acr.freeze_window(_et(2026, 11, 18, 9, 30).astimezone(tokyo)) == "09:20-09:45 ET"
+    # a Friday evening in New York that is already Saturday in UTC is still a weekday; a Sunday evening that is Monday in UTC is not
+    assert acr.freeze_window(datetime.datetime(2026, 11, 21, 0, 0, tzinfo=UTC)) is None             # Fri 19:00 ET, outside
+    assert acr.freeze_window(_et(2026, 11, 22, 15, 45)) is None                                    # Sunday afternoon
+    with pytest.raises(ValueError):
+        acr.freeze_window(datetime.datetime(2026, 11, 18, 9, 30))        # a naive clock cannot be placed
+    assert acr._utcnow().tzinfo is not None
+
+
+class _RunApi:
+    """The follower's READ side: the run's own description, then its jobs. Records every call; never posts."""
+    def __init__(self, described=None, jobs=None, fail=None):
+        self.described, self.jobs, self.fail, self.calls = described, jobs, fail, []
 
     def get(self, path):
-        assert path.startswith("actions/runs/55/jobs?filter=latest&per_page=100&page="), path
-        if self.fail_get:
+        self.calls.append(path)
+        if self.fail and self.fail in path:
             raise acr.ApiError(f"GET {path}: HTTP 502")
-        return {"jobs": self.jobs if self.jobs is not None else _listed()}
+        if path == f"actions/runs/{RUN_ID}":
+            return self.described
+        assert path.startswith(f"actions/runs/{RUN_ID}/jobs?filter=latest&per_page=100&page="), path
+        return {"jobs": _listed() if self.jobs is None else self.jobs}
 
-    def call(self, method, path, body=None):
-        assert method == "POST"
-        if self.fail_post:
-            raise acr.ApiError(f"POST {path}: HTTP 403")
-        self.posted.append((path, body))
+    def call(self, *a, **k):
+        raise AssertionError("the read token never posts")
 
 
-def _verdict_cli(monkeypatch, api, code="agent-paths", scope="success", agent="success", detail="Agent paths changed", extra=()):
+def _follow(r, api=None, now=OPEN_CLOCK, ref=None, sha=None, log=None):
+    return acr.follow_verdict(r.work, api or _RunApi(), RUN_ID, sha or r.merge, ref or r.ref, now, log=log or (lambda m: None))
+
+
+def test_MQ_the_follower_recomputes_the_scope_and_needs_nothing_of_the_run_for_a_plain_entry(tmp_path):
+    r = _queue_repo(tmp_path, {"README.md": "r2\n", ".github/workflows/other.yml": "name: y\n"})
+    api = _RunApi(fail="actions/")                                # every API read would fail: none is made
+    assert _follow(r, api) == ("success", "no Agent paths changed (1 self-protected path(s) touched, no Agent evidence needed)")
+    assert api.calls == []
+    assert _git(r.work, "rev-parse", "HEAD") == r.base and (r.work / "README.md").read_text(encoding="utf-8") == "r\n"   # nothing checked out
+    # ... inside a freeze window too: the windows are for entries that need Agent evidence
+    assert _follow(r, api, now=_et(2026, 11, 18, 9, 30))[0] == "success"
+
+
+def test_MQ_the_follower_judges_an_agent_entry_by_the_runs_jobs(tmp_path):
+    r = _queue_repo(tmp_path, {"app/src/agent/a.js": "a2\n"})
+    lines = []
+    assert _follow(r, log=lines.append) == ("success", "all 18 Agent jobs passed on the merge group's commit")
+    assert any("recomputed scope for PR 7: agent-paths" in ln for ln in lines)
+    for jobs, word in ((_listed(JOBS[1:]), "missing"), (_listed(conclusion="failure"), "not success"), (_listed(prefix=""), "missing"),
+                       ([], "missing"), (_listed(prefix="other / "), "missing")):
+        state, reason = _follow(r, _RunApi(jobs=jobs))
+        assert state == "failure" and word in reason, (reason, word)
+    state, reason = _follow(r, _RunApi(fail="/jobs"))
+    assert state == "failure" and "could not read this run's jobs" in reason
+
+
+def test_MQ_a_merge_group_run_that_lied_about_its_own_scope_changes_nothing(tmp_path):
+    """AUDIT F1. The queued PR rewrote agent-ci-queue.yml's jobs (or its run simply says so): its `scope` job is green,
+    its `agent` call was "skipped", the run concluded success. The follower reads none of that. The diff touches an
+    Agent path, so it wants the 18 jobs, finds none, and fails."""
+    r = _queue_repo(tmp_path, {"app/src/agent/a.js": "a2\n"})
+    lied = [{"name": "agent-ci-queue scope", "conclusion": "success"}, {"name": "agent", "conclusion": "skipped"},
+            {"name": "agent-ci-required verdict", "conclusion": "success"}]
+    described = {"path": ".github/workflows/agent-ci-queue.yml", "event": "merge_group", "head_sha": r.merge,
+                 "head_branch": r.ref[len("refs/heads/"):], "conclusion": "success", "status": "completed"}
+    api = _RunApi(described=described, jobs=lied)
+    a = types.SimpleNamespace(sha=r.merge, head_ref=r.ref[len("refs/heads/"):], run_event="merge_group", run_id=RUN_ID, root=str(r.work))
+    state, reason = acr.follow(api, a, OPEN_CLOCK, log=lambda m: None)
+    assert state == "failure" and "18 required Agent job(s) missing" in reason, reason
+    # control: the same call with the real 18 green jobs is a success
+    assert acr.follow(_RunApi(described=described), a, OPEN_CLOCK, log=lambda m: None)[0] == "success"
+    # ... and follow_verdict takes no scope code, detail or conclusion from anyone: it has no such parameter
+    import inspect
+    assert list(inspect.signature(acr.follow_verdict).parameters) == ["root", "api", "run_id", "head_sha", "head_ref", "now", "run", "log"]
+
+
+@pytest.mark.parametrize("pr_files,word", [
+    ({".github/workflows/agent-ci.yml": AGENT_CI_TEXT + "# edited\n"}, "AUDIT's local evidence decides"),
+    ({"app/src/agent/a.js": "a2\n", "requirements.txt": "x\n"}, "AUDIT's local evidence decides"),
+])
+def test_MQ_the_follower_fails_an_agent_entry_that_edits_what_its_own_run_executes(tmp_path, pr_files, word):
+    r = _queue_repo(tmp_path, pr_files)
+    api = _RunApi()
+    state, reason = _follow(r, api)
+    assert state == "failure" and word in reason and "self-protected path(s), e.g." in reason, reason
+    assert api.calls == []                                        # all 18 jobs green would change nothing: they are not read
+
+
+# ---- the entries AHEAD: every self-protected path byte-identical between the commit and the master it is built on ------
+def test_MQ_an_agent_entry_behind_an_unlanded_machinery_edit_is_failed(tmp_path):
+    """An entry ahead in the group edited a workflow and package.json. This entry's OWN diff is one Agent file, so its
+    scope is `agent-paths`; but its jobs ran with the entry ahead's machinery, which master does not have."""
+    ahead = {".github/workflows/ahead.yml": "name: x\n", "app/package.json": "{}\n", "README.md": "ahead\n"}
+    r = _queue_repo(tmp_path / "stacked", {"app/src/agent/a.js": "a2\n"}, ahead_files=ahead, landed=False)
+    api = _RunApi()
+    state, reason = _follow(r, api)
+    assert (state, reason) == ("failure", "2 self-protected path(s) differ from master, e.g. .github/workflows/ahead.yml"
+                                          "; an entry ahead edits the Agent CI machinery: AUDIT decides") and len(reason) <= 140
+    # a long path is cut, the sentence that says who decides is not
+    long = {".github/workflows/" + "x" * 60 + ".yml": "name: x\n"}
+    rl = _queue_repo(tmp_path / "long", {"app/src/agent/a.js": "a2\n"}, ahead_files=long, landed=False)
+    cut = _follow(rl)[1]
+    assert len(cut) == 140 and cut.endswith("; an entry ahead edits the Agent CI machinery: AUDIT decides") and cut.startswith("1 self-protected")
+    assert api.calls == []                                        # decided before the jobs are read
+    # control 1: the same entry once the one ahead has LANDED on master (master's machinery is then that machinery)
+    r = _queue_repo(tmp_path / "landed", {"app/src/agent/a.js": "a2\n"}, ahead_files=ahead, landed=True)
+    assert _follow(r)[0] == "success"
+    # control 2: an entry ahead that edits nothing self-protected does not hold this one up
+    r = _queue_repo(tmp_path / "plain-ahead", {"app/src/agent/a.js": "a2\n"}, ahead_files={"README.md": "ahead\n", "app/src/agent/ahead.js": "x\n"}, landed=False)
+    assert _follow(r)[0] == "success"
+    # control 3: an entry that needs NO Agent evidence is not held up by the edit ahead of it
+    r = _queue_repo(tmp_path / "no-agent", {"docs/x.md": "x\n"}, ahead_files=ahead, landed=False)
+    assert _follow(r)[0] == "success"
+
+
+def test_MQ_master_base_is_the_master_commit_the_group_is_built_on(tmp_path):
+    r = _queue_repo(tmp_path / "stacked", {"app/src/agent/a.js": "a2\n"}, landed=False)       # master = start; base_sha = the entry ahead
+    assert _follow(r)[0] == "failure"                               # (brings the commits in; AHEAD_FILES holds a workflow)
+    git = acr._git_reader(r.work, log=lambda m: None)
+    assert acr.master_base(git, r.merge) == r.start != r.base       # NOT the first parent: that is an unlanded entry
+    assert acr.master_base(git, r.base) == r.start                  # the entry ahead is built on master itself
+    assert acr.master_base(git, "f" * 40) is None                   # unreadable chain
+    assert acr.master_base(git, r.start) is None                    # master's tip itself: no commit AFTER it on its chain here
+    hits = acr.machinery_edits(git, r.start, r.merge, PROTECTED)
+    assert hits == [".github/workflows/ahead.yml"] and acr.machinery_edits(git, r.base, r.merge, PROTECTED) == []
+    assert acr.machinery_edits(git, "f" * 40, r.merge, PROTECTED) is None
+    r2 = _queue_repo(tmp_path / "landed", {"app/src/agent/a.js": "a2\n"}, landed=True)        # master = the entry ahead
+    assert _follow(r2)[0] == "success"
+    git2 = acr._git_reader(r2.work, log=lambda m: None)
+    assert acr.master_base(git2, r2.merge) == r2.base
+    # a depth that does not reach master: not found, never guessed
+    assert acr.master_base(git, r.merge, depth=2) is None and acr.master_base(git, r.merge, depth=3) == r.start
+    assert acr.FOLLOW_DEPTH == 50 and acr.FOLLOW_MASTER_REF == "refs/agent-ci-verdict/master" and acr.QUEUE_BASE_BRANCH == "master"
+
+
+def test_MQ_the_follower_fails_closed_on_everything_it_cannot_read(tmp_path, monkeypatch):
+    r = _queue_repo(tmp_path, {"app/src/agent/a.js": "a2\n"})
+    assert _follow(r)[0] == "success"                                # control: this repository can be judged
+    assert _follow(r, sha="f" * 40) == ("failure", "fail closed: the merge group's commit and master could not be fetched")
+    assert _follow(r, sha=r.head) == ("failure", "fail closed: the merge group's commit is not a two-parent merge")      # a PR head
+    assert _follow(r, sha=r.base) == ("failure", "fail closed: the merge group's commit is not a two-parent merge")      # squash / rebase shape
+    state, reason = _follow(r, ref="refs/heads/master")
+    assert state == "failure" and "names no queued pull request" in reason
+    monkeypatch.setattr(acr, "master_base", lambda *a, **k: None)
+    assert _follow(r) == ("failure", "fail closed: the master commit this merge group is built on was not found within 50 commits")
+    monkeypatch.undo()
+    monkeypatch.setattr(acr, "machinery_edits", lambda *a, **k: None)
+    assert _follow(r) == ("failure", "fail closed: the Agent CI machinery could not be compared with master's")
+    monkeypatch.undo()
+    assert _follow(r)[0] == "success"
+
+
+@pytest.mark.parametrize("at,window", [((9, 20), "09:20-09:45 ET"), ((9, 45), "09:20-09:45 ET"), ((15, 30), "15:30-16:15 ET"), ((16, 15), "15:30-16:15 ET")])
+def test_MQ_an_agent_entry_is_failed_inside_a_freeze_window_and_a_plain_one_is_not(tmp_path, at, window):
+    r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"})
+    api = _RunApi()
+    state, reason = _follow(r, api, now=_et(2026, 11, 18, *at))
+    assert (state, reason) == ("failure", f"deploy freeze window {window} on weekdays: an Agent entry does not land in it; queue it again afterwards")
+    assert len(reason) <= 140 and api.calls == []
+    assert _follow(r, now=_et(2026, 11, 18, at[0], at[1]) + datetime.timedelta(hours=1))[0] == "success"        # control: an hour later
+    assert _follow(r, now=_et(2026, 11, 21, *at))[0] == "success"                                             # control: a Saturday
+    plain = _queue_repo(tmp_path / "plain", {"README.md": "r2\n"})
+    assert _follow(plain, now=_et(2026, 11, 18, *at))[0] == "success"
+
+
+# ---- follow(): which runs are judged at all ------------------------------------------------------------------------------------
+def _args(r, **over):
+    base = dict(sha=r.merge, head_ref=r.ref[len("refs/heads/"):], run_event="merge_group", run_id=RUN_ID, root=str(r.work))
+    return types.SimpleNamespace(**{**base, **over})
+
+
+def _described(r, **over):
+    return {"path": ".github/workflows/agent-ci-queue.yml", "event": "merge_group", "head_sha": r.merge,
+            "head_branch": r.ref[len("refs/heads/"):], "name": "agent ci queue", **over}
+
+
+def test_MQ_follow_posts_nothing_for_a_run_that_is_not_the_queue_workflows_merge_group_run(tmp_path):
+    r = _queue_repo(tmp_path, {"README.md": "r2\n"})
+    quiet = lambda m: None                                       # noqa: E731
+    assert acr.follow(_RunApi(described=_described(r)), _args(r), OPEN_CLOCK, log=quiet) == ("success", "no Agent paths changed")   # control
+    # the payload does not describe a merge group's run: nothing is read, nothing is posted
+    for over in (dict(run_event="pull_request"), dict(run_event="push"), dict(run_event="workflow_dispatch"), dict(run_event=""),
+                 dict(sha="refs/heads/master"), dict(sha=r.merge[:39]), dict(sha=""), dict(sha=None), dict(run_id=None), dict(run_id=0)):
+        api = _RunApi(described=_described(r))
+        assert acr.follow(api, _args(r, **over), OPEN_CLOCK, log=quiet) is None, over
+        assert api.calls == [], over
+    # the API describes the run otherwise: ANOTHER workflow file that names itself "agent ci queue", another event,
+    # another commit, another branch, or nothing at all
+    for over in (dict(path=".github/workflows/impostor.yml"), dict(path=".github/workflows/agent-ci-queue.yml@refs/heads/x"), dict(path=None),
+                 dict(event="pull_request"), dict(head_sha=r.base), dict(head_branch="master"), dict(head_branch="refs/heads/" + r.ref)):
+        assert acr.follow(_RunApi(described=_described(r, **over)), _args(r), OPEN_CLOCK, log=quiet) is None, over
+    for nothing in (None, {}, {"message": "Not Found"}):
+        assert acr.follow(_RunApi(described=nothing), _args(r), OPEN_CLOCK, log=quiet) is None
+
+
+def test_MQ_follow_posts_a_failure_for_the_queue_workflows_run_it_cannot_judge(tmp_path, monkeypatch):
+    r = _queue_repo(tmp_path, {"README.md": "r2\n"})
+    quiet = lambda m: None                                       # noqa: E731
+    # the run itself could not be read (after the retries the Api makes)
+    assert acr.follow(_RunApi(fail="actions/runs"), _args(r), OPEN_CLOCK, log=quiet) == ("failure", "fail closed: the merge group's run could not be read")
+    # it IS agent-ci-queue.yml's merge-group run, but on a queue branch that names no pull request into master
+    other = "gh-readonly-queue/agent/int/pr-7-" + r.base
+    assert acr.follow(_RunApi(described=_described(r, head_branch=other)), _args(r, head_ref=other), OPEN_CLOCK, log=quiet) == (
+        "failure", "fail closed: the merge group's branch names no pull request into master")
+    # anything that breaks while deciding is a failure to POST, never a crash that leaves no status
+    for where in ("follow_verdict", "load_agent_ci", "queue_scope", "decide_queue", "commit_parents"):
+        lines = []
+        monkeypatch.setattr(acr, where, lambda *a, _w=where, **k: (_ for _ in ()).throw(RuntimeError("kaboom " + _w)))
+        assert acr.follow(_RunApi(described=_described(r)), _args(r), OPEN_CLOCK, log=lines.append) == (
+            "failure", "the verdict could not be computed (RuntimeError): fail closed"), where
+        assert any("kaboom " + where in ln for ln in lines)        # the detail is in the job log, never in the status
+        monkeypatch.undo()
+    assert acr.follow(_RunApi(described=_described(r)), _args(r), OPEN_CLOCK, log=quiet)[0] == "success"
+
+
+# ---- the stage as the workflow runs it: two tokens, one of which can post -------------------------------------------------
+class _TwoTokens:
+    """Stands in for acr.Api: each instance remembers its token; reads answer from a _RunApi, POSTs are recorded."""
+    def __init__(self, reads, fail_post=False):
+        self.reads, self.fail_post, self.made = reads, fail_post, []
+
+    def __call__(self, token, repo, base=None, attempts=1):
+        assert repo == "o/r" and attempts == acr.RETRY_ATTEMPTS == 3
+        outer = self
+
+        class One:
+            def __init__(self):
+                self.token, self.posted = token, []
+
+            def get(self, path):
+                assert token == "read-token", "only the read-only workflow token reads"
+                return outer.reads.get(path)
+
+            def call(self, method, path, body=None):
+                assert method == "POST" and token == "app-token", "only the App's token posts"
+                if outer.fail_post:
+                    raise acr.ApiError(f"POST {path}: HTTP 403")
+                self.posted.append((path, body))
+        one = One()
+        self.made.append(one)
+        return one
+
+    @property
+    def posted(self):
+        return [p for one in self.made for p in one.posted]
+
+
+def _follow_cli(monkeypatch, r, api, extra=(), **over):
     monkeypatch.setattr(acr, "Api", api)
-    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    monkeypatch.setattr(acr, "_utcnow", lambda: OPEN_CLOCK)
+    monkeypatch.setenv("GITHUB_TOKEN", "read-token")
+    monkeypatch.setenv(acr.VERDICT_TOKEN_ENV, "app-token")
     monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
     monkeypatch.delenv("TARGET_URL", raising=False)
-    return acr.main(["--event", "merge_group", "--stage", "verdict", f"--sha={SHA}", "--run-id=55", f"--scope-result={scope}",
-                     f"--scope-code={code}", f"--scope-detail={detail}", f"--agent-result={agent}", "--root", str(ROOT), *extra])
+    a = _args(r, **over)
+    return acr.main(["--event", "merge_group", "--stage", "follow", f"--sha={a.sha}", f"--run-id={a.run_id}", f"--head-ref={a.head_ref}",
+                     f"--run-event={a.run_event}", "--root", a.root, *extra])
 
 
-def test_MQ_the_verdict_stage_posts_one_status_on_the_merge_groups_commit(monkeypatch):
-    api = _StatusApi()
-    assert _verdict_cli(monkeypatch, api) == 0
-    assert api.posted == [(f"statuses/{SHA}", {"state": "success", "context": "agent-ci-required",
-                                               "description": "all 18 Agent jobs passed on the merge group's commit"})]
-    red = _StatusApi(jobs=_listed(JOBS[:-1]))
-    assert _verdict_cli(monkeypatch, red) == 1                         # the run is red when the status is
+def test_MQ_the_follow_stage_posts_one_status_with_the_app_token(tmp_path, monkeypatch, capsys):
+    r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"})
+    api = _TwoTokens(_RunApi(described=_described(r)))
+    assert _follow_cli(monkeypatch, r, api) == 0
+    assert api.posted == [(f"statuses/{r.merge}", {"state": "success", "context": "agent-ci-required",
+                                                   "description": "all 18 Agent jobs passed on the merge group's commit"})]
+    assert [one.token for one in api.made] == ["read-token", "app-token"]
+    assert json.loads(capsys.readouterr().out.splitlines()[-1])["stage"] == "follow"
+    red = _TwoTokens(_RunApi(described=_described(r), jobs=_listed(JOBS[:-1])))
+    assert _follow_cli(monkeypatch, r, red) == 1                       # the job is red when the status is
     assert [b["state"] for _, b in red.posted] == ["failure"]
-    clear = _StatusApi(fail_get=True)                                  # no Agent path: the job list is never read
-    assert _verdict_cli(monkeypatch, clear, code="no-agent-paths", agent="skipped") == 0 and clear.posted[0][1]["state"] == "success"
-    prot = _StatusApi()
-    assert _verdict_cli(monkeypatch, prot, code="self-protected", agent="skipped", detail="1 self-protected path(s), e.g. pytest.ini") == 1
-    assert prot.posted[0][1]["state"] == "failure" and "AUDIT's local evidence decides" in prot.posted[0][1]["description"]
+    frozen = _TwoTokens(_RunApi(described=_described(r)))
+    monkeypatch.setattr(acr, "Api", frozen)
+    monkeypatch.setattr(acr, "_utcnow", lambda: _et(2026, 11, 18, 9, 30))
+    assert acr.main(["--event", "merge_group", "--stage", "follow", f"--sha={r.merge}", f"--run-id={RUN_ID}",
+                     f"--head-ref={r.ref[len('refs/heads/'):]}", "--run-event=merge_group", "--root", str(r.work)]) == 1
+    assert frozen.posted[0][1]["description"].startswith("deploy freeze window 09:20-09:45 ET")
+    dry = _TwoTokens(_RunApi(described=_described(r)))
+    assert _follow_cli(monkeypatch, r, dry, extra=["--dry-run"]) == 0 and dry.posted == []
 
 
-def test_MQ_the_verdict_stage_fails_closed_on_api_errors(monkeypatch):
-    unread = _StatusApi(fail_get=True)
-    assert _verdict_cli(monkeypatch, unread) == 1
-    assert unread.posted[0][1]["state"] == "failure" and "could not read" in unread.posted[0][1]["description"]
-    # a status that cannot be POSTed is never reported as posted: the stage raises, the job is red, the commit has no status
+def test_MQ_the_follow_stage_posts_nothing_and_exits_2_for_a_run_that_is_not_ours(tmp_path, monkeypatch):
+    r = _queue_repo(tmp_path, {"README.md": "r2\n"})
+    for over, described in ((dict(run_event="pull_request"), _described(r)), (dict(), _described(r, path=".github/workflows/impostor.yml")),
+                            (dict(sha="0" * 39), _described(r))):
+        api = _TwoTokens(_RunApi(described=described))
+        assert _follow_cli(monkeypatch, r, api, **over) == 2, over
+        assert api.posted == [] and [one.token for one in api.made] == ["read-token"]      # the App's token was never even wrapped
+    ours = _TwoTokens(_RunApi(described=_described(r)))
+    assert _follow_cli(monkeypatch, r, ours) == 0 and len(ours.posted) == 1                # control
+
+
+def test_MQ_only_a_failed_post_leaves_a_judged_commit_without_a_status(tmp_path, monkeypatch):
+    r = _queue_repo(tmp_path, {"app/src/agent/a.js": "a2\n"})
+    unread = _TwoTokens(_RunApi(fail="actions/runs"))
+    assert _follow_cli(monkeypatch, r, unread) == 1
+    assert unread.posted == [(f"statuses/{r.merge}", {"state": "failure", "context": "agent-ci-required",
+                                                      "description": "fail closed: the merge group's run could not be read"})]
     with pytest.raises(acr.ApiError):
-        _verdict_cli(monkeypatch, _StatusApi(fail_post=True))
-    dry = _StatusApi()
-    assert _verdict_cli(monkeypatch, dry, extra=["--dry-run"]) == 0 and dry.posted == []
+        _follow_cli(monkeypatch, r, _TwoTokens(_RunApi(described=_described(r)), fail_post=True))
 
 
-@pytest.mark.parametrize("argv", [
-    ["--event", "merge_group", "--sha", SHA, "--run-id", "55"],                                        # no stage
-    ["--event", "merge_group", "--stage", "verdict", "--sha", SHA],                                    # no run id
-    ["--event", "merge_group", "--stage", "verdict", "--sha", SHA[:39], "--run-id", "55"],             # not a commit
-    ["--event", "merge_group", "--stage", "verdict", "--sha", "refs/heads/master", "--run-id", "55"],
-])
-def test_MQ_a_verdict_call_that_names_no_commit_or_run_posts_nothing(monkeypatch, argv):
-    api = _StatusApi()
-    monkeypatch.setattr(acr, "Api", api)
+def test_MQ_the_verdict_stage_is_gone_and_the_tool_has_one_place_that_posts_in_a_merge_group(monkeypatch):
+    """The in-group `verdict` job is deleted with its stage: a status posted from inside a merge group proves nothing
+    (AUDIT F1), so the capability is removed rather than switched off."""
+    with pytest.raises(SystemExit):
+        acr.main(["--event", "merge_group", "--stage", "verdict", "--sha", SHA, "--run-id", "55"])
     monkeypatch.setenv("GITHUB_TOKEN", "t")
     monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
-    assert acr.main([*argv, "--scope-result=success", "--scope-code=no-agent-paths", "--agent-result=skipped", "--root", str(ROOT)]) == 2
-    assert api.posted == []
+    monkeypatch.setattr(acr, "Api", lambda *a, **k: pytest.fail("no API object without a stage"))
+    assert acr.main(["--event", "merge_group", "--sha", SHA, "--run-id", "55"]) == 2
+    src = (ROOT / "tools" / "agent_ci_required.py").read_text(encoding="utf-8")
+    # two places post, a merge group's commit and a pull request's head, and BOTH take the App's token from the environment
+    posts = sorted(ln.strip() for ln in src.splitlines() if '.call("POST"' in ln)
+    assert len(posts) == 2 and "queue_verdict" not in src and 'api.call("POST"' not in src
+    assert posts[0].startswith("Api(app_token, repo, base)") and posts[1].startswith("Api(post_token, repo, base,")
+    assert "post_token = os.environ[VERDICT_TOKEN_ENV]" in src and 'app_token = os.environ.get(VERDICT_TOKEN_ENV, "")' in src
+    assert src.count("os.environ[VERDICT_TOKEN_ENV]") + src.count("os.environ.get(VERDICT_TOKEN_ENV") == 2      # and nowhere else
 
 
 def test_MQ_the_pull_request_and_workflow_run_paths_are_the_ones_they_were(monkeypatch, capsys):
@@ -703,7 +997,7 @@ def test_MQ_the_pull_request_and_workflow_run_paths_are_the_ones_they_were(monke
         def __init__(self, token, repo, base=None, **more):
             assert more == {}, f"the pull_request / workflow_run paths construct the API as before: {more}"
             super().__init__(files=[AGENT_FILE], runs=[GREEN])
-            self.posted = []
+            self.token, self.posted = token, []
             made.append(self)
 
         def get(self, path):
@@ -712,20 +1006,33 @@ def test_MQ_the_pull_request_and_workflow_run_paths_are_the_ones_they_were(monke
             return super().get(path)
 
         def call(self, method, path, body=None):
+            assert self.token == "app-token", "only the App's token posts agent-ci-required (2026-11-22)"
             self.posted.append((method, path, body))
     made = []
     monkeypatch.setattr(acr, "Api", Api)
-    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    monkeypatch.setenv("GITHUB_TOKEN", "read-token")
+    monkeypatch.setenv(acr.VERDICT_TOKEN_ENV, "app-token")
     monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
     monkeypatch.delenv("TARGET_URL", raising=False)
-    assert acr.main(["--event", "pull_request", "--sha", SHA, "--pr", "1", "--root", str(ROOT), "--stage", "verdict", "--scope-code", "self-protected"]) == 0
+    assert acr.main(["--event", "pull_request", "--sha", SHA, "--pr", "1", "--root", str(ROOT), "--stage", "follow", "--run-event", "merge_group", "--run-id", "5"]) == 0
     want = [("POST", f"statuses/{SHA}", {"state": "success", "context": "agent-ci-required",
                                          "description": "agent ci run passed all 18 required jobs"})]
-    assert made[-1].posted == want
+    assert [m.token for m in made] == ["read-token", "app-token"] and made[0].posted == [] and made[1].posted == want
     # workflow_run (an agent ci run completed): the open PRs for the SHA are looked up, then the same evaluation
-    assert acr.main(["--event", "workflow_run", "--sha", SHA, "--root", str(ROOT), "--stage", "scope", "--scope-code", "unknown"]) == 0
-    assert len(made) == 2 and made[-1].posted == want
+    assert acr.main(["--event", "workflow_run", "--sha", SHA, "--root", str(ROOT), "--stage", "scope", "--base", SHA, "--head-ref", "x"]) == 0
+    assert [m.token for m in made[2:]] == ["read-token", "app-token"] and made[2].posted == [] and made[3].posted == want
     assert json.loads(capsys.readouterr().out.splitlines()[-1])["prs"] == [1]
+    # without the App's token (an older copy of the workflow, on a branch that has not taken master's) NOTHING is posted,
+    # and GITHUB_TOKEN is never used in its place; the job says so
+    for missing in (None, ""):
+        monkeypatch.delenv(acr.VERDICT_TOKEN_ENV, raising=False)
+        if missing is not None:
+            monkeypatch.setenv(acr.VERDICT_TOKEN_ENV, missing)
+        n = len(made)
+        assert acr.main(["--event", "pull_request", "--sha", SHA, "--pr", "1", "--root", str(ROOT)]) == 0
+        assert [m.token for m in made[n:]] == ["read-token"] and made[-1].posted == []
+        assert f"::warning::{acr.VERDICT_TOKEN_ENV} is not set: no agent-ci-required status is posted for {SHA}" in capsys.readouterr().out
+    assert acr.main(["--event", "pull_request", "--sha", SHA, "--pr", "1", "--root", str(ROOT), "--dry-run"]) == 0      # a dry run needs none
     assert acr.run_jobs(FakeApi(), 9) == [{"name": n, "conclusion": "success"} for n in JOBS]
 
 
@@ -802,6 +1109,17 @@ def test_MQ_an_entry_stacked_on_a_config_edit_is_unknown_when_it_needs_agent_evi
     assert acr.queue_scope(r.work, acr.load_agent_ci(r.work), r.merge, r.base, r.ref, r.merge)["code"] == "no-agent-paths"
     r = _queue_repo(tmp_path / "landed", {"app/src/agent/a.js": "a2\n"}, ahead_files=ahead, landed=True)
     assert acr.queue_scope(r.work, acr.load_agent_ci(r.work), r.merge, r.base, r.ref, r.merge)["code"] == "agent-paths"
+
+
+def test_MQ_a_comparison_git_could_not_make_is_unknown_for_an_agent_entry(tmp_path, monkeypatch):
+    """Only a comparison that says "the same" lets an Agent entry through: one that could not be made is not that."""
+    r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"})
+    plain = _queue_repo(tmp_path / "plain", {"README.md": "r2\n"})
+    scope = lambda q: acr.queue_scope(q.work, acr.load_agent_ci(q.work), q.merge, q.base, q.ref, q.merge)["code"]   # noqa: E731
+    assert scope(r) == "agent-paths" and scope(plain) == "no-agent-paths"            # control
+    for answer, code in ((None, "unknown"), (True, "unknown"), (False, "agent-paths")):
+        monkeypatch.setattr(acr, "protected_sources_differ", lambda *a, _x=answer, **k: _x)
+        assert scope(r) == code and scope(plain) == "no-agent-paths", answer
 
 
 def test_MQ_the_protected_sources_are_the_configs_and_every_file_they_import(tmp_path):
@@ -928,43 +1246,3 @@ def test_MQ_an_unparsable_answer_is_not_asked_again_and_one_attempt_is_one_attem
         api.get("pulls/1")
     assert len(calls) == 1 and slept == []
     assert acr.Api("t", "o/r", attempts=0).attempts == 1 and acr.Api("t", "o/r").attempts == 1      # the default: as before
-
-
-def test_MQ_the_verdict_stage_asks_for_three_attempts(monkeypatch):
-    api = _StatusApi()
-    assert _verdict_cli(monkeypatch, api) == 0 and api.attempts == acr.RETRY_ATTEMPTS == 3
-
-
-# ---- nothing but the POST itself can leave a merge group's commit without a status -------------------------------------------
-def test_MQ_agent_ci_yml_is_read_only_for_an_entry_that_needs_agent_evidence(tmp_path, monkeypatch):
-    """The job names come from agent-ci.yml. An entry that touches no Agent path (or is already a failure) is decided
-    without reading it, so a missing or unparsable copy on master cannot leave those entries without a status."""
-    empty = ["--root", str(tmp_path)]                    # a root with no .github/workflows/agent-ci.yml at all
-    clear = _StatusApi(fail_get=True)
-    assert _verdict_cli(monkeypatch, clear, code="no-agent-paths", agent="skipped", detail="no Agent paths changed", extra=empty) == 0
-    assert clear.posted == [(f"statuses/{SHA}", {"state": "success", "context": "agent-ci-required", "description": "no Agent paths changed"})]
-    for code in ("self-protected", "unknown", "bogus"):
-        api = _StatusApi(fail_get=True)
-        assert _verdict_cli(monkeypatch, api, code=code, agent="skipped", detail="d", extra=empty) == 1
-        assert [b["state"] for _, b in api.posted] == ["failure"], code
-    # control: an Agent entry DOES need the file, and without it the answer is a posted failure, not a crash
-    agent = _StatusApi()
-    assert _verdict_cli(monkeypatch, agent, extra=empty) == 1
-    assert agent.posted == [(f"statuses/{SHA}", {"state": "failure", "context": "agent-ci-required",
-                                                 "description": "the verdict could not be computed (FileNotFoundError): fail closed"})]
-
-
-@pytest.mark.parametrize("where", ["required_jobs", "run_jobs", "decide_queue", "load_agent_ci"])
-def test_MQ_whatever_breaks_while_deciding_is_posted_as_a_failure(monkeypatch, capsys, where):
-    def boom(*a, **k):
-        raise RuntimeError("kaboom " + where)
-    monkeypatch.setattr(acr, where, boom)
-    api = _StatusApi()
-    assert _verdict_cli(monkeypatch, api) == 1
-    assert api.posted == [(f"statuses/{SHA}", {"state": "failure", "context": "agent-ci-required",
-                                               "description": "the verdict could not be computed (RuntimeError): fail closed"})]
-    assert "kaboom " + where in capsys.readouterr().err          # the detail is in the job log, never in the status
-    # control: with nothing broken the same call posts success (first test of this stage), and a POST that still
-    # fails after the retries is the ONE thing that leaves no status
-    with pytest.raises(acr.ApiError):
-        _verdict_cli(monkeypatch, _StatusApi(fail_post=True))

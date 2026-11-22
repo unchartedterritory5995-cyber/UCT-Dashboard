@@ -1187,7 +1187,8 @@ def test_remote_ref_is_none_when_the_exact_ref_is_listed_twice(monkeypatch):
 
 # ---- MERGE QUEUE (2026-11-22; inert until a queue exists): a merge_group record ------------------------------------------
 # agent-ci-queue.yml calls agent-ci.yml on `merge_group`. GITHUB_SHA is then the commit under test (GitHub's merge group
-# commit), and the PR is named only by the queue's branch. `verify` does not accept these records (design question 8.3).
+# commit), and the PR is named only by the queue's branch. `verify --pr --tree` does not accept these records; the
+# merge-queue trail is `verify --pr --merge-group <landed commit>` (AUDIT 8.3; test_MG_* below).
 QUEUE_REF = "refs/heads/gh-readonly-queue/master/pr-1700-" + "9" * 40
 MG_ENV = dict(PR_ENV, GITHUB_EVENT_NAME="merge_group", GITHUB_SHA=M, GITHUB_REF=QUEUE_REF)
 MG_PAYLOAD = {"merge_group": {"head_sha": M, "base_sha": B, "head_ref": QUEUE_REF, "base_ref": "refs/heads/master"}}
@@ -1249,8 +1250,8 @@ def test_MQ_the_record_pr_is_the_queue_branch_and_nothing_else():
 
 
 def test_MQ_a_merge_group_record_never_passes_verify():
-    """Design question 8.3 is open: until AUDIT answers it, `verify` reads pull_request (/ rearm) evidence only. A
-    merge_group record under a PR run, or a merge_group run, is refused whatever the caller accepts."""
+    """`verify --pr --tree` reads pull_request (/ rearm) evidence only. A merge_group record under a PR run, or a
+    merge_group run, is refused whatever the caller accepts; the merge queue has its own mode (--merge-group)."""
     fx = _fx()
     assert _code(_decide(fx)) == "PASS"                          # control: the fixture passes until it is touched
     for rec in _recs(fx).values():
@@ -1290,3 +1291,228 @@ def test_MQ_record_cli_on_a_real_merge_group_commit(tmp_path, monkeypatch):
     payload.write_text(json.dumps({"merge_group": {"head_sha": base, "base_sha": base, "head_ref": ref}}), encoding="utf-8")
     assert ev.main(["record", "--job-key", "union", "--out", str(out)]) == 1
     assert "merge group's head_sha" in json.loads(out.read_text(encoding="utf-8"))["errors"][0]
+
+
+# ---- verify --pr N --merge-group <landed commit> (AUDIT 8.3 on #2495): the written trail for a PR the queue landed -----------
+# AUDIT's four points: the landed master commit is the run's merge_group head_sha and is on master's first-parent chain;
+# the queue ref names the PR; all 18 records agree on sha, tree and parents; the PR head is the second parent.
+QUEUE_PATH = ".github/workflows/agent-ci-queue.yml"
+CALLED = acr.QUEUE_CALL_JOB + " / "
+
+
+def _mg_fx():
+    """The PASS fixture as a merge-queue landing: the same 18 records, written by a merge_group run of agent-ci-queue.yml
+    on the queue's branch for PR 1700, whose commit M (parents [B, H]) is the commit that landed on master."""
+    fx = _fx()
+    run = _run(fx)
+    run.update(event="merge_group", path=QUEUE_PATH, head_sha=M, head_branch=QUEUE_REF[len("refs/heads/"):])
+    run["jobs"] = [{"name": CALLED + j["name"], "conclusion": j["conclusion"]} for j in run["jobs"]] + \
+                  [{"name": "agent-ci-queue scope", "conclusion": "success"}]
+    for rec in run["records"].values():
+        rec.update(event="merge_group", ref=QUEUE_REF)
+    fx["pr"]["state"] = "closed"                    # a landed PR is closed; this mode never asks for an open one
+    fx["landed"], fx["on_first_parent"] = M, True
+    return fx
+
+
+def _mg_decide(fx, keys=None):
+    return ev.decide_merge_group(fx["pr"], fx["landed"], fx["on_first_parent"], fx["runs"], KEYS if keys is None else keys)
+
+
+def test_MG_the_fixture_passes_and_reports_the_trail():
+    verdict, reason, evidence = _mg_decide(_mg_fx())
+    assert verdict == "PASS", reason
+    assert reason == f"PR #1700 landed as {M}: run 44100000001 passed all 18 required jobs on that commit (tree {'e' * 40})"
+    assert (evidence["landed_sha"], evidence["merge_sha"], evidence["base_sha"], evidence["head_sha"]) == (M, M, B, H)
+    assert evidence["queue_ref"] == QUEUE_REF[len("refs/heads/"):] and evidence["records"] == 18 and evidence["event"] == "merge_group"
+    assert M == _recs(_fx())["server"]["sha"] and [B, H] == _recs(_fx())["server"]["parents"]      # the fixture's own commit
+
+
+MG_CASES = {
+    # point 1: the landed commit is on master's first-parent chain, and is the run's head_sha
+    "not-on-the-first-parent-chain": (lambda f: f.update(on_first_parent=False), "not-landed"),
+    "chain-unread": (lambda f: f.update(on_first_parent=None), "not-landed"),
+    "chain-truthy-but-not-true": (lambda f: f.update(on_first_parent="yes"), "not-landed"),
+    "landed-is-not-a-sha": (lambda f: f.update(landed="master"), "not-landed"),
+    "landed-is-another-commit": (lambda f: f.update(landed="a" * 40), "no-run"),
+    "run-tested-another-commit": (lambda f: _run(f).update(head_sha="a" * 40), "no-run"),
+    "no-run": (lambda f: f.update(runs=[]), "no-run"),
+    "a-pull-request-run-is-not-a-merge-group-run": (lambda f: _run(f).update(event="pull_request"), "no-run"),
+    "a-run-of-another-workflow-file": (lambda f: _run(f).update(path=".github/workflows/agent-ci.yml"), "no-run"),
+    "run-in-progress": (lambda f: _run(f).update(status="in_progress", conclusion=None), "run-in-progress"),
+    "newer-run-in-progress": (lambda f: f["runs"].append(dict(copy.deepcopy(_run(f)), id=9, status="queued", conclusion=None,
+                                                               created_at="2026-11-17T11:00:00Z")), "run-in-progress"),
+    # point 2: the queue ref names the PR
+    "queue-ref-names-another-pr": (lambda f: _run(f).update(head_branch="gh-readonly-queue/master/pr-1699-" + "9" * 40), "queue-ref"),
+    "queue-ref-on-another-base": (lambda f: _run(f).update(head_branch="gh-readonly-queue/agent/int/pr-1700-" + "9" * 40), "queue-ref"),
+    "run-on-a-plain-branch": (lambda f: _run(f).update(head_branch="master"), "queue-ref"),
+    "pr-number-is-not-a-number": (lambda f: f["pr"].update(number="1700"), "queue-ref"),
+    "a-records-ref-names-another-pr": (lambda f: _recs(f)["browser-4"].update(ref="refs/heads/gh-readonly-queue/master/pr-1699-" + "9" * 40), "queue-ref"),
+    "a-records-ref-is-a-pull-ref": (lambda f: _recs(f)["union"].update(ref="refs/pull/1700/merge"), "queue-ref"),
+    # the jobs (under the queue workflow's call) and the records, as in the pull_request mode
+    "missing-job": (lambda f: _run(f)["jobs"].pop(4), "missing-job"),
+    "no-jobs": (lambda f: _run(f).update(jobs=[]), "missing-job"),
+    "jobs-not-under-the-call": (lambda f: _run(f).update(jobs=[{"name": j["name"][len(CALLED):], "conclusion": j["conclusion"]} for j in _run(f)["jobs"]]), "missing-job"),
+    "job-failed": (lambda f: _run(f)["jobs"][0].update(conclusion="failure"), "job-not-success"),
+    "job-skipped": (lambda f: _run(f)["jobs"][12].update(conclusion="skipped"), "job-not-success"),
+    "missing-artifact": (lambda f: _recs(f).pop("union"), "missing-artifact"),
+    "unreadable-artifact": (lambda f: _recs(f).update(server=None), "missing-artifact"),
+    "wrong-schema": (lambda f: _recs(f)["server"].update(schema="other/v0"), "missing-artifact"),
+    "record-for-another-job": (lambda f: _recs(f)["server"].update(job_key="browser-1"), "missing-artifact"),
+    # point 3: the 18 records agree on sha, tree and parents (and are this run's merge_group records of that commit)
+    "a-pull-request-record": (lambda f: _recs(f)["browser-2"].update(event="pull_request"), "record-mismatch"),
+    "record-for-another-pr": (lambda f: _recs(f)["browser-2"].update(pr=1699), "record-mismatch"),
+    "record-from-another-run": (lambda f: _recs(f)["browser-2"].update(run_id=1), "record-mismatch"),
+    "record-reports-error": (lambda f: _recs(f)["browser-2"].update(errors=["checked-out HEAD is not the merge group's head_sha"]), "record-mismatch"),
+    "records-disagree-on-sha": (lambda f: _recs(f)["browser-5"].update(sha="f" * 40), "record-mismatch"),
+    "records-disagree-on-tree": (lambda f: _recs(f)["browser-5"].update(tree="f" * 40), "record-mismatch"),
+    "records-disagree-on-parents": (lambda f: _recs(f)["browser-5"].update(parents=[B, "f" * 40]), "record-mismatch"),
+    "records-disagree-on-the-base-parent": (lambda f: _recs(f)["capability-regression"].update(parents=["f" * 40, H]), "record-mismatch"),
+    "all-records-name-another-commit": (lambda f: [r.update(sha="f" * 40) for r in _recs(f).values()], "record-mismatch"),
+    # point 4: the PR head is the second parent
+    "not-a-merge-commit": (lambda f: [r.update(parents=[B]) for r in _recs(f).values()], "wrong-parents"),
+    "three-parents": (lambda f: [r.update(parents=[B, H, "a" * 40]) for r in _recs(f).values()], "wrong-parents"),
+    "pr-head-moved": (lambda f: f["pr"].update(head_sha="a" * 40), "stale-head"),
+    "pr-head-unread": (lambda f: f["pr"].update(head_sha=None), "stale-head"),
+    "parents-swapped": (lambda f: [r.update(parents=[H, B]) for r in _recs(f).values()], "stale-head"),
+}
+
+
+@pytest.mark.parametrize("case", sorted(MG_CASES))
+def test_MG_every_fail_closed_branch(case):
+    mutate, code = MG_CASES[case]
+    fx = _mg_fx()
+    mutate(fx)
+    verdict, reason, evidence = _mg_decide(fx)
+    assert verdict == "FAIL" and evidence == {}, (case, verdict, reason)
+    assert _code((verdict, reason, evidence)) == code, (case, reason)
+
+
+def test_MG_no_required_jobs_never_passes_and_the_two_modes_do_not_accept_each_others_runs():
+    assert _code(_mg_decide(_mg_fx(), keys={})) == "missing-job"
+    # the pull_request fixture, untouched, is not a merge-queue landing ...
+    plain = _fx()
+    plain["landed"], plain["on_first_parent"] = M, True
+    assert _code(_mg_decide(plain)) == "no-run"
+    # ... and a merge-queue landing is not pull_request evidence, whatever the caller accepts
+    mg = _mg_fx()
+    mg["pr"]["state"] = "open"
+    assert _code(_decide(mg)) == "no-run" and _code(_decide(mg, accept=BOTH)) == "no-run"
+
+
+class FakeGhQueue(FakeGh):
+    """FakeGh for the merge-group mode: the queue workflow's runs for a head_sha, and master's first-parent chain."""
+    chain = None                 # None -> the landed commit is on it
+
+    def get(self, path):
+        if path.startswith("actions/workflows/agent-ci-queue.yml/runs?"):
+            self.calls.append(path)
+            if self.fail and self.fail in path:
+                raise ev.ApiError(f"GET {path}: HTTP 502")
+            assert "event=merge_group" in path and f"head_sha={self.fx['landed']}" in path, path
+            return {"workflow_runs": [dict(_run(self.fx))] + self.extra}
+        assert "runs?event=" not in path and not path.startswith("git/ref/"), f"the merge-group mode read {path}"
+        return super().get(path)
+
+    def on_first_parent(self, root, sha, limit=None):
+        self.calls.append(f"first-parent {sha} {limit}")
+        if self.fail == "first-parent":
+            raise ev.ApiError("git fetch (master's first-parent chain): boom")
+        return sha in (self.chain if self.chain is not None else [sha])
+
+
+def _mg_gather_decide(api, limit=ev.FIRST_PARENT_LIMIT):
+    fx = api.fx
+    pr, on_chain, runs = ev.gather_merge_group(api, fx["pr"]["number"], fx["landed"], KEYS, ROOT, limit)
+    return ev.decide_merge_group(pr, fx["landed"], on_chain, runs, KEYS)
+
+
+def test_MG_gather_reads_the_run_for_the_landed_commit_and_passes():
+    api = FakeGhQueue(_mg_fx())
+    assert _code(_mg_gather_decide(api)) == "PASS"
+    assert f"first-parent {M} {ev.FIRST_PARENT_LIMIT}" in api.calls and ev.FIRST_PARENT_LIMIT == 5000
+    assert not any("pulls/1700/files" in c or "compare/" in c or "ls-remote" in c for c in api.calls)     # nothing of the re-arm path
+    # a run GitHub lists for another commit is not this landing's, even when it is green
+    other = dict(copy.deepcopy(_run(_mg_fx())), id=7, head_sha="a" * 40, created_at="2026-11-18T10:00:00Z")
+    assert _code(_mg_gather_decide(FakeGhQueue(_mg_fx(), extra_runs=[other]))) == "PASS"
+    stale = _mg_fx()
+    api = FakeGhQueue(stale)
+    api.chain = ["a" * 40, "b" * 40]                       # master's chain does not hold the commit
+    assert _code(_mg_gather_decide(api)) == "not-landed"
+    assert _code(_mg_gather_decide(FakeGhQueue(_mg_fx(), artifacts=[]))) == "missing-artifact"
+    for fail in ("pulls/", "agent-ci-queue.yml/runs", "/jobs?", "first-parent"):
+        with pytest.raises(ev.ApiError):
+            _mg_gather_decide(FakeGhQueue(_mg_fx(), fail=fail))
+
+
+def test_MG_verify_cli(monkeypatch, capsys):
+    made = []
+
+    def fake(repo):
+        api = FakeGhQueue(_mg_fx())
+        made.append(api)
+        return api
+    monkeypatch.setattr(ev, "GhApi", fake)
+    assert ev.main(["verify", "--pr", "1700", "--merge-group", M, "--root", str(ROOT), "--repo", "o/r"]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith(f"PASS PR #1700: PR #1700 landed as {M}") and '"landed_sha"' in out
+    # an API error is a FAIL, never a traceback
+    monkeypatch.setattr(ev, "GhApi", lambda repo: FakeGhQueue(_mg_fx(), fail="agent-ci-queue.yml/runs"))
+    assert ev.main(["verify", "--pr", "1700", "--merge-group", M, "--root", str(ROOT), "--repo", "o/r"]) == 1
+    assert capsys.readouterr().out.startswith("FAIL PR #1700: api-error:")
+    # usage: not a full sha; and the two modes do not mix
+    for argv in (["--merge-group", M[:39]], ["--merge-group", "master"], ["--merge-group", M, "--tree", "e" * 40],
+                 ["--merge-group", M, "--accept-dispatch"]):
+        assert ev.main(["verify", "--pr", "1700", "--root", str(ROOT), "--repo", "o/r", *argv]) == 1
+        assert capsys.readouterr().out.startswith("FAIL usage:"), argv
+    # the first-parent limit reaches the reader
+    monkeypatch.setattr(ev, "GhApi", fake)
+    assert ev.main(["verify", "--pr", "1700", "--merge-group", M, "--first-parent-limit", "7", "--root", str(ROOT), "--repo", "o/r"]) == 0
+    assert f"first-parent {M} 7" in made[-1].calls
+    capsys.readouterr()
+
+
+def test_MG_the_pull_request_mode_is_the_one_it_was(monkeypatch, capsys):
+    """`verify --pr N --tree T` is unchanged: --tree is still required there (argparse's own error and exit code 2), and
+    it never touches the merge-group reads."""
+    with pytest.raises(SystemExit) as e:
+        ev.main(["verify", "--pr", "1700", "--root", str(ROOT), "--repo", "o/r"])
+    assert e.value.code == 2 and "the following arguments are required: --tree" in capsys.readouterr().err
+    api = FakeGh(_fx())
+    monkeypatch.setattr(ev, "GhApi", lambda repo: api)
+    assert ev.main(["verify", "--pr", "1700", "--tree", "e" * 40, "--root", str(ROOT), "--repo", "o/r"]) == 0
+    assert capsys.readouterr().out.startswith("PASS PR #1700: run 44100000001 passed all 18 required jobs on merge tree")
+    assert not any("agent-ci-queue" in c or "first-parent" in c for c in api.calls)
+
+
+def test_MG_on_first_parent_reads_masters_chain_from_a_real_repository(tmp_path, monkeypatch):
+    """GhApi.on_first_parent against a throwaway origin: a commit that came in through a merge's SECOND parent is an
+    ancestor of master but is not on its first-parent chain, which is the difference AUDIT's point 1 asks for."""
+    origin, work = tmp_path / "origin", tmp_path / "work"
+    origin.mkdir()
+
+    def git(repo, *a):
+        return subprocess.run(["git", "-C", str(repo), "-c", "user.email=a@b", "-c", "user.name=a", *a], check=True, capture_output=True, text=True).stdout.strip()
+    git(origin, "init", "-q", "-b", "master")
+    git(origin, "commit", "-q", "--allow-empty", "-m", "start")
+    start = git(origin, "rev-parse", "HEAD")
+    git(origin, "checkout", "-q", "-b", "feature")
+    git(origin, "commit", "-q", "--allow-empty", "-m", "the PR's own commit")
+    side = git(origin, "rev-parse", "HEAD")
+    git(origin, "checkout", "-q", "master")
+    git(origin, "merge", "-q", "--no-ff", "-m", "merge group", "feature")
+    landed = git(origin, "rev-parse", "HEAD")
+    git(origin, "commit", "-q", "--allow-empty", "-m", "a later landing")
+    subprocess.run(["git", "init", "-q", str(work)], check=True, capture_output=True)
+    real_run = subprocess.run
+
+    def run(argv, **kw):                                   # the tool names github.com: answer from the throwaway origin
+        return real_run([str(origin) if str(a).startswith("https://github.com/") else a for a in argv], **kw)
+    monkeypatch.setattr(ev.subprocess, "run", run)
+    api = ev.GhApi("o/r")
+    assert api.on_first_parent(work, landed) is True and api.on_first_parent(work, start) is True
+    assert api.on_first_parent(work, side) is False                      # an ancestor, but only through a second parent
+    assert api.on_first_parent(work, "f" * 40) is False
+    assert api.on_first_parent(work, landed, limit=1) is False and api.on_first_parent(work, landed, limit=2) is True
+    with pytest.raises(ev.ApiError):
+        api.on_first_parent(tmp_path / "nowhere", landed)
