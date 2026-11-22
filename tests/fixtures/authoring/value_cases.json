@@ -12038,6 +12038,33 @@
    }
   },
   {
+   "id": "table-format-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Show a table with yesterday's high and yesterday's low",
+   "rule": {
+    "digest": "0b43088a670147d6",
+    "history": [
+     {
+      "digest": "0b43088a670147d6",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-22",
+    "front": "6a532bd3a0"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The table shows its two labels and NO VALUES. The script adds a \"Decimal places\" setting and builds the number format from text (`fmt = \"#.\" + str.replace_all(...)`, then `str.tostring(pdh, fmt)`); the engine withholds a text whose format is not a string literal, with no error and no word to the member. What it reads is right (the prior bar, with no request for another timeframe). The script document now says to write the format as a string literal, until the engine serves a computed one.",
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Yesterday's High & Low Table\", overlay=true)\n\ndigits = input.int(2, \"Decimal places\", minval=0, maxval=8)\nfmt = digits == 0 ? \"#\" : \"#.\" + str.replace_all(str.substring(\"00000000\", 0, digits), \"0\", \"#\")\n\npdh = high[1]\npdl = low[1]\n\nvar table t = table.new(position.top_right, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Yesterday High\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(pdh, fmt), text_color=color.white)\ntable.cell(t, 0, 1, \"Yesterday Low\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(pdl, fmt), text_color=color.white)\n\nplot(pdh, \"Yesterday high\", color=color.new(color.gray, 100))\nplot(pdl, \"Yesterday low\", color=color.new(color.gray, 100))"
+    }
+   }
+  },
+  {
    "id": "wall-01",
    "lane": "wall",
    "words": "Plot the put/call ratio for this stock's options under the chart.",
