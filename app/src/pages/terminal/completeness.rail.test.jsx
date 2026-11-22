@@ -143,6 +143,7 @@ const ARG_SAMPLE = {
   tideScope: 'ETFS',
   seasMeasure: 'AVG',
   cotMarketName: 'GOLD', anlgCount: '7', insView: 'CLUSTER',
+  marketView: 'MARKET', segView: 'REGION', segPeriod: 'QUARTERLY', idxcIndex: 'NASDAQ100',
   fundMetric: 'PE', fundMetrics: 'REV+EPS', fundPeers: 'AMD',
   mkthIndex: 'NDX',
   groupsKind: 'INDUSTRIES', groupsView: 'VALUATION',

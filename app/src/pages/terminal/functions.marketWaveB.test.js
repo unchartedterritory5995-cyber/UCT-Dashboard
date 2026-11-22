@@ -42,8 +42,9 @@ describe('the three codes', () => {
   })
 
   it('DVD reads the member\'s own stocks alone and one stock with a ticker, in the Calendar group', () => {
-    expect(BY_CODE.DVD.market).toEqual({ panel: 'DividendCalendar' })
-    expect(BY_CODE.DVD.ticker).toEqual({ panel: 'DividendCalendar' })
+    // DVD MARKET (2026-11-21): both variants take the market view word (functions.marketView.test.js)
+    expect(BY_CODE.DVD.market).toEqual({ panel: 'DividendCalendar', args: [{ kind: 'marketView', prop: 'view' }] })
+    expect(BY_CODE.DVD.ticker).toEqual({ panel: 'DividendCalendar', args: [{ kind: 'marketView', prop: 'view' }] })
     expect(BY_CODE.DVD.group).toBe('Calendar')
     expect(BY_CODE.DVD.label).toBe('Dividend calendar (next ex-dates and splits ahead)')
     expect(exampleFor(BY_CODE.DVD)).toBe('DVD')
