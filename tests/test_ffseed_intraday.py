@@ -649,6 +649,44 @@ def test_a_store_replaced_wholesale_voids_every_proof(store):
     assert len(calls) == 2 and all(intraday.known_complete(FRI)(sym, tf) for tf in ffseed.GATED_TFS)
 
 
+def test_a_rederived_series_sealed_after_its_bases_recorded_check_is_rewritten_and_proven(store, monkeypatch):
+    """The real store. After the nightly pass (15m checked at t1), a request-path check of the 15m at t2
+    finds nothing new and SEALS it (a seal is not a write: the 15m proof stands); the 30m read path then
+    rebuilds the 30m from that 15m (a write: the 30m proof is void) and seals it at the 15m seal's own
+    check, t2 (bars_fetch._local_tail_repair). The retry pass re-derives the 30m from the same 15m: a
+    write claiming t1 would lose to the t2 seal (bars_sqlite._drop_stale_sealed drops every row, put_bars
+    returns 0) and the 30m would stay unproven. The rows it resamples were checked at t2."""
+    sym = "ZZSEAL"
+    wall = _Wall(float(intraday.settled_at(FRI) + 300))           # the nightly pass asks at 20:06
+    monkeypatch.setattr(intraday, "time", wall)
+    intraday.complete_session(FRI, [sym], fetch=provider([]), n_workers=1, now=AFTER)
+    assert all(intraday.known_complete(FRI)(sym, tf) for tf in ffseed.GATED_TFS)
+    t1, t2 = wall.t, wall.t + 1800.0
+    lo, _hi = intraday.day_bounds(FRI)
+    end = float(et(FRI, 20, 0))
+    bs.record_sealed(sym, "15", end, float(lo), t2)
+    bs.put_bars(sym, "30", bars_fetch._derive_from_stored_base(sym, "30", lo))
+    bs.record_sealed(sym, "30", end, float(lo), t2)
+    proven = intraday.known_complete(FRI)
+    assert proven(sym, "15") and not proven(sym, "30") and proven(sym, "60")
+    assert bs.series_meta(sym, "15")["sealed_checked_at"] == t2 == bs.series_meta(sym, "30")["sealed_checked_at"]
+    wrote = []
+    real_store = intraday._store
+
+    def spy(s, tf, rows, ck):
+        n = real_store(s, tf, rows, ck)
+        wrote.append((tf, ck, n))
+        return n
+    monkeypatch.setattr(intraday, "_store", spy)
+    wall.t = t2 + 1800.0                                           # the retry pass, an hour after t1
+    again = intraday.complete_session(FRI, [sym], fetch=provider([]), n_workers=1, now=AFTER)
+    assert again["requests"] == 0 and again["tfs"]["15"]["current"] == 1 and again["tfs"]["60"]["current"] == 1
+    assert len(wrote) == 1 and wrote[0][2] > 0, wrote              # put_bars wrote the re-derived rows
+    assert wrote[0][:2] == ("30", t2) and t1 < t2                  # at the newest check of the rows it resamples
+    assert (again["tfs"]["30"]["done"], again["tfs"]["30"]["failed"]) == (1, 0)
+    assert intraday.known_complete(FRI)(sym, "30")
+
+
 # ---- the measure: full, short and early-close fixtures -------------------------------------------
 
 def _table(asof: date, tf: str, tails: dict) -> dict:
@@ -1263,3 +1301,45 @@ def test_a_same_session_rebuild_whose_split_read_failed_keeps_the_published_list
     # another session's list is never carried over: the next session without an answer has none
     b4 = ffseed.build_and_publish(asof=MON, now=_utc(TUE, 1, 31), **kw)
     assert "splits" not in b4
+
+
+def _d_only():
+    return dict(tfs=["D"], symbols=SYMS, read=_read(_daily(MON, SYMS)), min_symbols=1)
+
+
+def _applies(r2: FakeR2, held_key: str, delta_key: str, new_key: str) -> bool:
+    """A device holding `held_key`'s pack that applies the delta holds exactly `new_key`'s pack."""
+    from api.services import ffseed_delta as dl
+    got, new = dl.apply_delta(r2.get(held_key), r2.get(delta_key)), r2.get(new_key)
+    return all(list(got[s][k]) == list(fmt.decode_symbol(new, fmt.read_trailer(new), s)[k])
+               for s in SYMS for k in fmt.COLUMNS)
+
+
+def test_a_rebuild_whose_recorded_base_is_gone_diffs_against_the_published_build(r2):
+    b0 = ffseed.build_and_publish(asof=THU, now=_utc(FRI, 1, 31), **_d_only())
+    b1 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 1, 37), **_d_only())
+    for key in [k for k in r2.objs if k.startswith(f"ffseed/{b0['build']}/")]:
+        del r2.objs[key]                                       # the recorded base is gone from R2
+    b2 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 2, 7), **_d_only())
+    d = b2["tfs"]["D"]["delta"]                                # a delta all the same, from the published build
+    assert d["base"] == b1["build"]
+    assert _applies(r2, b1["tfs"]["D"]["key"], d["key"], b2["tfs"]["D"]["key"])
+
+
+@pytest.mark.parametrize("tfs", [7, "D", ["D"]])
+def test_a_malformed_recorded_base_reads_as_no_record_and_never_stops_a_rebuild(r2, tmp_path, tfs):
+    ffseed.build_and_publish(asof=THU, now=_utc(FRI, 1, 31), **_d_only())
+    b1 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 1, 37), **_d_only())
+    path = tmp_path / ".ffseed_delta_base.json"
+    rec = json.loads(path.read_text(encoding="ascii"))
+    rec["manifest"]["tfs"] = tfs                               # still kind ffseed, still a build id
+    path.write_text(json.dumps(rec), encoding="ascii")
+    b2 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 2, 7), **_d_only())
+    assert b2["tfs"]["D"]["delta"]["base"] == b1["build"]     # as with no record: the published build
+
+
+def test_a_malformed_published_manifest_reads_as_none_and_never_stops_a_build(r2):
+    r2.objs["ffseed/latest.json"] = json.dumps({"kind": fmt.KIND, "build": "20261120T0131Z",
+                                                "asof": "2026-11-19", "tfs": 7}).encode()
+    b1 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 1, 37), **_d_only())
+    assert set(b1["tfs"]) == {"D"} and "delta" not in b1["tfs"]["D"]
