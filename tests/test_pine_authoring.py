@@ -124,6 +124,28 @@ def test_a_drawing_family_is_printed_only_when_the_reference_admits_it():
         assert banned not in doc, banned
 
 
+def test_an_event_read_is_handed_over_only_while_its_door_answers_members(monkeypatch):
+    """T4 E2 (NUMBER PENDING, train e95): the engine reads `request.earnings` / `.dividends` / `.splits`, and ONE door
+    supplies them, staged by `PINE_EVENTS_SUPPLY_ENABLED`. Dark for members (unset, `admins`, `off`), the assistant is
+    never handed them and their gaps stay gaps; at `all` both move. The stage the door reads is the only authority."""
+    ref = copy.deepcopy(REF)
+    names = {v["name"] for v in ref.get("values") or []}
+    assert set(pa.EVENT_READS) <= names, "the engine's reference no longer lists the event reads (premise moved)"
+    rows = {r["id"]: r for r in pa.gap_rows()}
+    for stage in ("", "admins", "off"):
+        monkeypatch.setenv("PINE_EVENTS_SUPPLY_ENABLED", stage)
+        values = section(pa.document(ref), "VALUE FUNCTIONS AND VARIABLES")
+        assert not any(f"`{n}`" in values for n in pa.EVENT_READS), stage
+        assert not set(pa.EVENT_READS) & pa.served_names(ref), stage
+        rows = {r["id"]: r for r in pa.gap_rows()}
+        assert rows["earnings-data"]["served"] is False and rows["earnings-data"]["guard"] == pa.EVENTS_DARK_GUARD, stage
+    monkeypatch.setenv("PINE_EVENTS_SUPPLY_ENABLED", "all")
+    values = section(pa.document(ref), "VALUE FUNCTIONS AND VARIABLES")
+    assert all(f"`{n}`" in values for n in pa.EVENT_READS)
+    rows = {r["id"]: r for r in pa.gap_rows()}
+    assert rows["earnings-data"]["served"] is True and rows["dividends-data"]["served"] is True
+
+
 def test_a_pitfall_is_warned_about_only_while_it_stands():
     assert set(pa.standing_pitfalls()) <= set(pa.PITFALL_WORDS), "a standing pitfall has no sentence"
     never = section(pa.document(), "NEVER")
