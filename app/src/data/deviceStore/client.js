@@ -38,6 +38,11 @@
 // one of the OLDEST ask (it answers null, and is read again the moment it is asked for). One ask larger than the
 // bound (a screener result list, a watchlist in scan mode: about 1,000 keys) so keeps the rows it asked first,
 // the ones on screen; a head drop threw exactly those away.
+// ⭐ A WAITING KEY ASKED FOR AGAIN JOINS THE NEWEST ASK (review round 2). Arrowing down a list asks the rows
+// ahead on every press, nearest first, and only the new frontier row is new to the queue: left where they were,
+// the rows nearest the selection sat in older asks and were served last, the opposite of what a scan needs.
+// `asks` holds only asks with a read still waiting (and the one this task is filling), so it stays bounded by
+// what is waiting however long the page lives.
 //
 // Loaded only by source.js's dynamic import, and only when the switch is on; the worker is a separate
 // chunk. Nothing here is in first-open bytes. Never throws at a caller: every failure reads as null.
@@ -174,7 +179,14 @@ export function createDeviceClient({
     const w = ask.get(k)
     ask.delete(k)
     askOf.delete(k)
+    if (!ask.size && ask !== openAsk) _forget(ask)
     return w
+  }
+
+  /** Take an ask with nothing left waiting out of the list (the open one stays until its task is over). */
+  function _forget(ask) {
+    const i = asks.indexOf(ask)
+    if (i >= 0) asks.splice(i, 1)
   }
 
   /** Put a background read in this task's ask; past the bound, drop the last read of the oldest ask. */
@@ -182,9 +194,9 @@ export function createDeviceClient({
     if (!openAsk) {
       const mine = new Map()
       openAsk = mine
-      setTimer(() => { if (openAsk === mine) openAsk = null }, 0)
+      asks.push(mine)
+      setTimer(() => { if (openAsk === mine) openAsk = null; if (!mine.size) _forget(mine) }, 0)
     }
-    if (!asks.includes(openAsk)) asks.push(openAsk)
     openAsk.set(k, w)
     askOf.set(k, openAsk)
     if (askOf.size <= waitingMax) return
@@ -202,10 +214,7 @@ export function createDeviceClient({
   function _pump() {
     while (backgroundOut < backgroundMax && askOf.size) {
       let ask = null
-      for (let i = asks.length - 1; i >= 0 && !ask; i--) {
-        if (asks[i].size) ask = asks[i]
-        else asks.splice(i, 1)               // an ask all sent (or dropped); a task still adding to it puts it back
-      }
+      for (let i = asks.length - 1; i >= 0 && !ask; i--) if (asks[i].size) ask = asks[i]   // (the open ask may be empty)
       if (!ask) break
       _take(ask.keys().next().value).send(true)
     }
@@ -274,7 +283,9 @@ export function createDeviceClient({
       const running = reads.get(k)
       if (running) {
         // asked for in earnest while it waits its turn: it goes now (already sent: the answer is on its way)
-        if (urgent === true) { const w = _take(k); if (w) w.send(false) }
+        // ...or, asked for again by a warm, it joins this task's ask: the newest, served first
+        const w = _take(k)
+        if (w) { if (urgent === true) w.send(false); else _wait(k, w) }
         return running
       }
       const st = { dropped: false, p: null }
@@ -299,6 +310,8 @@ export function createDeviceClient({
     info() { return _call({ op: 'info' }) },
     /** Diagnostics: this page's requests still unanswered, sent or waiting their turn (a held arrow's backlog). */
     inFlight() { return pending.size + askOf.size },
+    /** Diagnostics: the asks held (each with a read still waiting, plus the one this task is filling). */
+    asksHeld() { return asks.length },
     /** Diagnostics: the worker's rule behind what getBars answers (engine.why), or null with no engine yet. */
     why(sym, tf) { return sym ? _call({ op: 'why', sym: String(sym).toUpperCase(), tf: String(tf) }) : Promise.resolve(null) },
     status: () => ({ ...(status || {}), storage: { ...persist } }),
