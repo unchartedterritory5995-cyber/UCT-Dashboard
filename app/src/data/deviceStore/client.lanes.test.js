@@ -13,7 +13,12 @@
 //      it does not let a third background read into the worker
 //   L4 an urgent ask for a key already sent posts nothing more
 //   L5 with nothing else asked, two reads leave at once without `urgent` (a typed ticker's two charts)
-//   L6 past WAITING_READS_MAX the OLDEST waiting read is dropped (answers null), never the newest
+//   L6 past WAITING_READS_MAX the least wanted read is dropped (answers null): the TAIL of the OLDEST ask. One ask
+//      larger than the bound keeps the rows it asked first (a); across asks the older one loses its tail (b)
+//   L9 asks are served newest first (each in its own order): the rows around a new selection do not wait behind
+//      the whole list warm that came before them
+//   L10 urgent reads take none of the background lane's places
+//   L11 a key dropped at the bound and asked for urgently in the same task is read
 //   L7 a worker that dies answers every read null, waiting ones included; dispose does the same and posts nothing
 //   L8 inFlight() counts what is sent and what waits
 import { describe, it, expect, vi } from 'vitest'
@@ -118,24 +123,81 @@ describe('the two lanes of a device read', () => {
     expect(w.reads()).toEqual(['TYPED|D', 'TYPED|30'])
   })
 
-  it('L6 past the waiting bound the OLDEST waiting read is dropped (null), never the newest', async () => {
+  it('L6a one ask larger than the bound loses its TAIL: the rows asked first are the ones read', async () => {
+    // a list warm asks top row first; under a head drop the rows on screen were the ones thrown away (review M1)
     const { w, c } = boot({ waitingMax: 3 })
-    const ps = ['A', 'B', 'W1', 'W2', 'W3', 'W4'].map((s) => c.getBars(s, 'D'))
+    const ps = ['A', 'B', 'W1', 'W2', 'W3', 'W4', 'W5'].map((s) => c.getBars(s, 'D'))
     expect(w.reads()).toEqual(['A|D', 'B|D'])
-    expect(await ps[2]).toBeNull()                            // W1: the oldest waiting, dropped by W4's arrival
-    expect(c.inFlight()).toBe(5)                              // A, B out; W2, W3, W4 waiting
+    expect(await ps[5]).toBeNull()                            // W4 and W5: past the bound, the tail
+    expect(await ps[6]).toBeNull()
+    expect(c.inFlight()).toBe(5)                              // A, B out; W1, W2, W3 waiting
     w.answer('A'); w.answer('B')
     await tick()
-    expect(w.reads()).toEqual(['A|D', 'B|D', 'W2|D', 'W3|D'])
-    w.answer('W2'); w.answer('W3')
+    expect(w.reads()).toEqual(['A|D', 'B|D', 'W1|D', 'W2|D'])
+    w.answer('W1'); w.answer('W2')
     await tick()
-    w.answer('W4')
-    expect((await ps[5]).t.length).toBe(3)                    // the newest was kept and read
-    // a dropped key is read again when it is asked for again
-    const again = c.getBars('W1', 'D')
-    expect(w.reads().filter((k) => k === 'W1|D')).toHaveLength(1)
-    w.answer('W1')
+    w.answer('W3')
+    expect((await ps[4]).t.length).toBe(3)
+    // a dropped key is read when it is asked for again
+    const again = c.getBars('W5', 'D')
+    expect(w.reads().filter((k) => k === 'W5|D')).toHaveLength(1)
+    w.answer('W5')
     expect((await again).t.length).toBe(3)
+  })
+
+  it('L6b past the bound across asks, the OLDER ask loses its tail; the newer ask is whole', async () => {
+    const { w, c } = boot({ waitingMax: 3 })
+    const old = ['A', 'B', 'X1', 'X2', 'X3'].map((s) => c.getBars(s, 'D'))
+    await tick()                                              // a later task: the list scrolled on, a new ask
+    const newer = ['Y1', 'Y2'].map((s) => c.getBars(s, 'D'))
+    expect(await old[4]).toBeNull()                           // X3, then X2: the older ask's tail
+    expect(await old[3]).toBeNull()
+    expect(c.inFlight()).toBe(5)                              // A, B out; X1, Y1, Y2 waiting
+    w.answer('A'); w.answer('B')
+    await tick()
+    expect(w.reads()).toEqual(['A|D', 'B|D', 'Y1|D', 'Y2|D'])
+    w.answer('Y1'); w.answer('Y2')
+    await tick()
+    expect(w.reads()).toEqual(['A|D', 'B|D', 'Y1|D', 'Y2|D', 'X1|D'])
+    w.answer('X1')
+    expect((await Promise.all([...newer, old[2]])).every((x) => x && x.t.length === 3)).toBe(true)
+  })
+
+  it('L9 the newest ask is served first, in its own order; an older ask keeps its order behind it', async () => {
+    // the rows around a new selection are asked AFTER the list warm, and must not sit behind all of it (review M3)
+    const { w, c } = boot()
+    ;['A', 'B', 'X1', 'X2', 'X3'].forEach((s) => c.getBars(s, 'D'))
+    await tick()
+    ;['Y1', 'Y2'].forEach((s) => c.getBars(s, 'D'))
+    await tick()
+    c.getBars('Z1', 'D')
+    expect(w.reads()).toEqual(['A|D', 'B|D'])
+    const order = ['A', 'B']
+    for (let n = 0; n < 6; n++) { w.answer(order[n]); await tick(); order.push(w.reads()[w.reads().length - 1].split('|')[0]) }
+    expect(w.reads()).toEqual(['A|D', 'B|D', 'Z1|D', 'Y1|D', 'Y2|D', 'X1|D', 'X2|D', 'X3|D'])
+  })
+
+  it('L10 urgent reads take none of the background lane\'s places', async () => {
+    const { w, c } = boot()
+    c.getBars('U1', 'D', { urgent: true }); c.getBars('U2', 'D', { urgent: true }); c.getBars('U3', 'D', { urgent: true })
+    c.getBars('B1', 'D'); c.getBars('B2', 'D'); c.getBars('B3', 'D')
+    expect(w.reads()).toEqual(['U1|D', 'U2|D', 'U3|D', 'B1|D', 'B2|D'])   // both places still free after three urgent reads
+    w.answer('U1'); w.answer('U2'); w.answer('U3')
+    await tick()
+    expect(w.reads()).toHaveLength(5)                          // an urgent answer frees no background place
+    w.answer('B1')
+    await tick()
+    expect(w.reads()).toEqual(['U1|D', 'U2|D', 'U3|D', 'B1|D', 'B2|D', 'B3|D'])
+  })
+
+  it('L11 a key dropped at the bound and asked for urgently in the same task is read, not answered null', async () => {
+    const { w, c } = boot({ waitingMax: 3 })
+    const ps = ['A', 'B', 'W1', 'W2', 'W3', 'W4'].map((s) => c.getBars(s, 'D'))
+    const mine = c.getBars('W4', 'D', { urgent: true })       // same task: the dropped promise has not unwound yet
+    expect(w.reads()).toEqual(['A|D', 'B|D', 'W4|D'])
+    w.answer('W4', 'D', COLS(4))
+    expect((await mine).c[0]).toBe(4)
+    expect(await ps[5]).toBeNull()                            // the dropped ask itself still answers null
   })
 
   it('L7 a worker that dies answers every read null, waiting ones included; so does dispose, posting nothing', async () => {

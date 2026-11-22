@@ -8,12 +8,19 @@
 //   U3 the intraday prepare of the switch (prepareForDisplay)
 //   U4 the D/W/M prepare of the switch (prepareDailyForDisplay)
 //   U5 a chart on screen subscribing to its key (the store's start)
+//   U6 the D/W/M prepare of a key that already holds rows that make no claim (the pack's): a host with no linked
+//      group never primes at the key press (the screener's focus chart, the breadth drill), and the hydrate
+//      returns such an entry without reading the device (review of #2438, M2)
+//   U7 the same for the intraday prepare
+//   U8 the device rule bringing a held device copy forward (deviceVerdict, the switch's own question)
 // BACKGROUND (no third argument): every warm
 //   B1 the rows around the selection (createNeighborHold().set)
 //   B2 the promote of the rows around (warmMemFromIDB)
 //   B3 the rows on screen (prewarmVisibleList) and the queued warms (prefetchBarsToIDB, prefetchBars), the next
 //      rows' `urgent` NETWORK rank included: that rank is the request's, not the device read's
-//   B4 a first look that is not the switch's own (peekBars / holdsBars / peekDisplayable on an unseen key)
+//   B4 a first look at an unseen key (peekBars / holdsBars / peekDisplayable): the look itself is background, the
+//      switch's own read is the prepare's or the key press's
+//   B5 a warm of a key that holds a device copy (the refresh) stays background
 // And the two meet:
 //   M1 a warm's read of a key, then the key press for the same key: the device is asked again, urgently (the
 //      client sends a waiting read at that moment: client.lanes.test.js L3)
@@ -44,14 +51,20 @@ function sessions(n) {
 const ROWS = sessions(40).map((t, i) => { const o = 40 + (i % 7); return { t, o, h: o + 1, l: o - 1, c: o + 0.5, v: 1000 + i } })
 
 /** A device source whose reads never answer unless `answers` is set; every call's arguments are kept. */
-function recordingDevice({ answers = false } = {}) {
+function recordingDevice({ answers = false, through = THROUGH } = {}) {
   return {
     peek: vi.fn(() => null),
     read: vi.fn((...args) => (answers
-      ? Promise.resolve({ rows: ROWS, through: THROUGH, savedAt: THROUGH * 1000 })
+      ? Promise.resolve({ rows: ROWS, through, savedAt: through * 1000 })
       : new Promise(() => {}))),
   }
 }
+/** A saved copy that makes no claim (the universe pack's rows in IndexedDB: no stamp), in the cache's row shape. */
+const iso = (t) => new Date(t * 1000).toISOString().slice(0, 10)
+const PACK_D = { bars: ROWS.slice(-25).map((r) => ({ ...r, t: iso(r.t) })), savedAt: SAT - 6 * 3600 * 1000 }
+const etOpen = (t) => t + 14 * 3600 + 30 * 60            // November: 09:30 ET = 14:30 UTC
+const rth30 = (day, n = 13) => Array.from({ length: n }, (_, i) => { const t = etOpen(day) + i * 1800; const o = 50 + (i % 5); return { t, o, h: o + 0.5, l: o - 0.5, c: o + 0.25, v: 1000 + i } })
+const PACK_30 = { bars: [...rth30(FRI - 86400), ...rth30(FRI)], savedAt: SAT - 6 * 3600 * 1000 }
 /** The lanes the device was asked on for `sym`: 'urgent' or 'background' per read, in order. */
 const lanesOf = (device, sym) => device.read.mock.calls
   .filter((a) => a[0] === sym)
@@ -62,10 +75,10 @@ beforeAll(() => { fakeDb = installFakeIndexedDB() })
 beforeEach(() => { memClear(); fakeDb._clear(); vi.useFakeTimers(); vi.setSystemTime(SAT) })
 afterEach(() => { vi.useRealTimers() })
 
-function boot({ device = recordingDevice() } = {}) {
+function boot({ device = recordingDevice(), saved = null } = {}) {
   const request = vi.fn(() => new Promise(() => {}))    // the server never answers
   const io = {
-    idbGet: vi.fn(async () => null), idbGetHistoryEntry: async () => null,
+    idbGet: vi.fn(async (sym) => (sym === 'MINE' ? saved : null)), idbGetHistoryEntry: async () => null,
     idbPutMonotonic: async () => {}, memPutMonotonic: () => {},
   }
   const store = createBarStore({
@@ -134,6 +147,53 @@ describe('urgent: the member\'s own ask', () => {
   })
 })
 
+describe('urgent: a key the switch finds already holding rows', () => {
+  it('U6 the D/W/M prepare of a key that holds the pack\'s rows asks the device, urgently', async () => {
+    const { store, device, pf } = boot({ saved: PACK_D })
+    const key = keyOf({ sym: 'MINE', tf: 'D' })
+    pf.holdsBars('MINE', 'D')                             // a first look lands the saved copy (its device read: background)
+    await settle()
+    expect(store.peek(key)?.bars?.length).toBeGreaterThan(0)
+    expect(store.peek(key)?.source).not.toBe('device')
+    device.read.mockClear()
+    pf.prepareDailyForDisplay('MINE', 'D').catch(() => {})
+    await settle()
+    const lanes = lanesOf(device, 'MINE')
+    expect(lanes.length).toBeGreaterThan(0)
+    expect(lanes.every((l) => l === 'urgent')).toBe(true)
+    store.dispose()
+  })
+
+  it('U7 the intraday prepare of a key that holds the pack\'s rows asks the device, urgently', async () => {
+    const { store, device, pf } = boot({ saved: PACK_30 })
+    pf.peekDisplayable('MINE', '30')
+    await settle()
+    expect(store.peek(pf.keyFor('MINE', '30'))?.bars?.length).toBeGreaterThan(0)
+    device.read.mockClear()
+    pf.prepareForDisplay('MINE', '30').catch(() => {})
+    await settle()
+    const lanes = lanesOf(device, 'MINE')
+    expect(lanes.length).toBeGreaterThan(0)
+    expect(lanes.every((l) => l === 'urgent')).toBe(true)
+    store.dispose()
+  })
+
+  it('U8 the device rule bringing a held device copy that is behind forward', async () => {
+    const device = recordingDevice({ answers: true, through: FRI - 6 * 86400 })   // a copy a week behind: not fresh
+    const { store, pf } = boot({ device })
+    pf.warmMemFromIDB(['MINE'], ['D'])
+    await settle()
+    expect(store.peek(keyOf({ sym: 'MINE', tf: 'D' }))?.source).toBe('device')
+    device.read.mockClear()
+    expect(pf.deviceVerdict('MINE', 'D').paints).toBe(false)
+    await settle()
+    const lanes = lanesOf(device, 'MINE')
+    expect(lanes.length).toBeGreaterThan(0)
+    expect(lanes.every((l) => l === 'urgent')).toBe(true)
+    store.dispose()
+  })
+})
+
 describe('background: every warm', () => {
   it('B1 the rows around the selection', async () => {
     const { store, device, pf } = boot()
@@ -185,6 +245,26 @@ describe('background: every warm', () => {
       expect(lanes.length, s).toBeGreaterThan(0)
       expect(lanes.every((l) => l === 'background'), `${s}: ${lanes}`).toBe(true)
     }
+    store.dispose()
+  })
+})
+
+describe('background: a warm of a key the device already answered', () => {
+  it('B5 the refresh of a held device copy by a warm', async () => {
+    const device = recordingDevice({ answers: true })
+    const { store, pf } = boot({ device })
+    pf.warmMemFromIDB(['MINE'], ['D'])
+    await settle()
+    expect(store.peek(keyOf({ sym: 'MINE', tf: 'D' }))?.source).toBe('device')
+    device.read.mockClear()
+    pf.warmMemFromIDB(['MINE'], ['D'])
+    const hold = pf.createNeighborHold()
+    hold.set(['MINE'], 'D')
+    await settle()
+    const lanes = lanesOf(device, 'MINE')
+    expect(lanes.length).toBeGreaterThan(0)
+    expect(lanes.every((l) => l === 'background'), `${lanes}`).toBe(true)
+    hold.clear()
     store.dispose()
   })
 })
