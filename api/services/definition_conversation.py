@@ -795,7 +795,10 @@ CONVERSE_SYSTEM_PROMPT = (
     "whole-number literals; `capabilities.formulaFunctions` lists them). A number the "
     "MEMBER sets (account size, risk %, entry, stop): declare it as an input (create `inputs`, "
     "or set_input) and read it in a tree as a series named by its key. NEVER invent the member's "
-    "own figures -- default 0 and tell them to set it in the indicator's settings. Changing a "
+    "own figures -- default 0 and tell them to set it in the indicator's settings. A setting that "
+    "is DRAWN on the price chart (an entry, a stop, an average cost) draws NOTHING until the member "
+    "fills it in: write `avgCost > 0 ? avgCost : 0 / 0`, never the bare setting, which is a line at "
+    "price 0 that squeezes the member's chart to fit it. Changing a "
     "setting's value (set_input) also sets it on the chart being edited when the member saves. Informational "
     "only: nothing here places an order. When the member NAMES the indicator or an output "
     "(\"call it My Trend\"), use exactly their words; to rename later, rename_definition / "
@@ -3085,6 +3088,37 @@ def _refuse_a_placeholder_reply(envelope: Mapping[str, Any]) -> None:
             "sentences saying what was built; and check the formulas for a number left standing in for a value.")
 
 
+def _refuse_a_bare_fill_in_setting(envelope: Mapping[str, Any]) -> None:
+    """2026-11-22 -- A SETTING AT 0 DRAWN AS A LEVEL AT 0. Found by the first full live run of the value cases.
+
+    Asked to "plot the number of shares I own and my average cost", the door built two settings for the member to fill
+    in (right: it cannot read an account, and it said so) and drew the average cost as the BARE setting. Until the
+    member fills it in that is a line at price 0, and the price pane rescales to include 0, so the member's chart is
+    squeezed into a strip. A value standing where nothing should be.
+
+    Refused: on a `create` placed on the PRICE pane, a visible output whose tree is nothing but a setting this same
+    create declares with a default of 0 (or none). It passes when the setting has a real default (a level the member
+    asked for: "a line at 100"), when the output is hidden, on any other pane (a zero line under a chart is a line
+    at zero), and when the tree says when to draw (`x > 0 ? x : 0 / 0`). Measured before it was written over the 202
+    recorded answers that change something: ONE declares settings (this one), and it is the one refused.
+    """
+    for o in envelope.get("ops") or []:
+        if not isinstance(o, Mapping) or o.get("op") != "create" or o.get("placement") != "price":
+            continue
+        unfilled = {x["key"] for x in o.get("inputs") or []
+                    if isinstance(x, Mapping) and isinstance(x.get("key"), str) and x.get("default") in (0, 0.0, None)}
+        for i, out in enumerate(o.get("outputs") or []):
+            tree = out.get("tree") if isinstance(out, Mapping) else None
+            if (isinstance(tree, Mapping) and tree.get("type") == "series" and tree.get("name") in unfilled
+                    and not out.get("hidden")):
+                key = tree["name"]
+                raise _Refused(
+                    "envelope:reference",
+                    f"outputs[{i}] draws the setting `{key}` bare on the price chart. Until the member fills it in "
+                    "it is 0: a line at price 0, and the chart is squeezed to fit it. Draw nothing until it is "
+                    f"filled: `{key} > 0 ? {key} : 0 / 0`.")
+
+
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
     """BY NAME, before the schema (whose ``series`` enum no longer offers them):
     defence in depth for a model that emits a nightly scalar anyway."""
@@ -4381,6 +4415,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     _refuse_a_reading_compared_with_itself(_trees_of(envelope))
     _refuse_a_scope_read_of_nothing(_trees_of(envelope))
     _refuse_a_placeholder_reply(envelope)
+    _refuse_a_bare_fill_in_setting(envelope)
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:

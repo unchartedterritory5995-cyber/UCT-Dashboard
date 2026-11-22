@@ -37,8 +37,9 @@ def trees_of(answer):
     out, inputs = [], {}
     for op in (answer or {}).get('ops') or []:
         for inp in op.get('inputs') or []:
-            if isinstance(inp, dict) and 'name' in inp:
-                inputs[inp['name']] = inp.get('default')
+            # the door writes a setting's name as `key` (an older shape wrote `name`): both are read
+            if isinstance(inp, dict) and (inp.get('key') or inp.get('name')):
+                inputs[inp.get('key') or inp['name']] = inp.get('default')
         for o in op.get('outputs') or ([op['output']] if isinstance(op.get('output'), dict) else []):
             if isinstance(o, dict) and o.get('tree') is not None:
                 out.append((f"output {o.get('key')}", o['tree']))
@@ -125,6 +126,9 @@ def grade(case_id, answer, chart='daily'):
     calc = calc_timeframe_of(answer)
     cols = [(name, *evaluate(tree, inputs, chart, calc)) for name, tree in built]
     lines, right = [], True
+    fill = want.pop('__fill_in__', None)
+    if fill is not None:
+        return _grade_fill_in(fill, built, inputs, cols, chart, calc)
     expect_n = want.pop('__outputs__', None)
     outputs = [n for n, _ in built if n.startswith('output ')]
     if expect_n is not None and len(outputs) != expect_n:
@@ -153,6 +157,42 @@ def grade(case_id, answer, chart='daily'):
         elif sum(1 for x in got if _ok(x) and abs(x) > 1e12):
             right = False
             lines.append(f'{name} holds values above 1e12')
+    return {'verdict': 'right' if right else 'wrong', 'lines': lines}
+
+
+def _grade_fill_in(fill, built, inputs, cols, chart, calc):
+    """A rule about SETTINGS the member fills in: `fill` is [(what, a value to try)]. Right when
+    (1) there is a setting for each, every one defaulting to 0 or to nothing (the member's own figures are never invented);
+    (2) with nothing filled in, NOTHING has a value on any bar (no line at 0, no example position);
+    (3) with the settings filled in, each value is shown by some output on every bar (whichever setting holds which)."""
+    import itertools
+    lines, right = [], True
+    names = list(inputs)
+    if len(names) < len(fill):
+        return {'verdict': 'wrong', 'lines': [f'{len(names)} setting(s) for {len(fill)} figure(s) the member must give: {[w for w, _v in fill]}']}
+    invented = {n: d for n, d in inputs.items() if d not in (0, 0.0, None)}
+    if invented:
+        right = False
+        lines.append(f'a figure of the member is INVENTED as a default: {invented}')
+    drawn = [name for name, got, _err in cols if got is not None and any(_ok(v) for v in got)]
+    if drawn:
+        right = False
+        lines.append(f'with nothing filled in, {drawn} has a value on the chart (a setting at 0 is drawn as a level at 0)')
+    else:
+        lines.append('with nothing filled in, nothing is drawn')
+    values = [v for _w, v in fill]
+    shown = None
+    for chosen in itertools.permutations(names, len(values)):
+        filled = {**inputs, **dict(zip(chosen, values))}
+        got = [evaluate(tree, filled, chart, calc)[0] for _name, tree in built]
+        if all(any(col is not None and col and all(_ok(x) and abs(x - v) <= 1e-9 * max(1.0, abs(v)) for x in col) for col in got) for v in values):
+            shown = dict(zip([w for w, _v in fill], chosen))
+            break
+    if shown is None:
+        right = False
+        lines.append(f'filled in with {values}, no output shows each of them on every bar')
+    else:
+        lines.append(f'filled in, each figure is shown on every bar: {shown}')
     return {'verdict': 'right' if right else 'wrong', 'lines': lines}
 
 
@@ -225,6 +265,12 @@ def grade_case(case, answer=None):
         result = grade_wall(case, answer)
     elif case['lane'] == 'formula':
         result = grade(case['id'], answer, case.get('chart', 'daily'))
+        # a formula case may also hold what the member is TOLD (`says`: each group needs one of its phrases)
+        told = ' '.join(str(answer.get('reply') or '').lower().split())
+        for group in case.get('says') or []:
+            if not any(p.lower() in told for p in group):
+                result = {'verdict': 'wrong' if result['verdict'] == 'right' else result['verdict'],
+                          'lines': result['lines'] + [f'the reply says none of {group}']}
         if got_lane != 'formula':
             result = {'verdict': 'wrong' if got_lane == 'script' else result['verdict'], 'lines': result['lines'] + [f'answered on the {got_lane} lane, the formula lane expected']}
     else:
@@ -240,7 +286,7 @@ def rule_digest(case_id):
     h = hashlib.sha256()
     for what in sorted(want):
         h.update(repr(what).encode())
-        if what == '__outputs__':
+        if what in ('__outputs__', '__fill_in__'):
             h.update(repr(want[what]).encode())
             continue
         for reading, column in want[what]:

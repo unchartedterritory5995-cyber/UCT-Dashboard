@@ -122,7 +122,10 @@ def grade_run(data, run_dir):
 def record_of(case, answer):
     """A fresh answer cut to what a case keeps: what is graded, nothing else of the response."""
     if case["lane"] == "formula":
-        return {"contract": "uct.authoring.patch/1", "ops": answer.get("ops")}
+        kept = {"contract": "uct.authoring.patch/1", "ops": answer.get("ops")}
+        if case.get("says"):
+            kept["reply"] = answer.get("reply")                    # this case holds what the member is told, too
+        return kept
     if case["lane"] == "script":
         return {"turn": "script", "script": {"pine": (answer.get("script") or {}).get("pine")}}
     kept = {"disposition": answer.get("disposition"), "reply": answer.get("reply")}
