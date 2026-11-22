@@ -1568,7 +1568,7 @@
       ],
       "note": ""
     },
-    "FFSEED_ENABLED": {"status": "dark", "since": "2026-11-20", "where": ["worker"], "note": "DARK until the owner arms it. First-frame seed builder (api/services/ffseed.py, started from api/worker_main.py): once per closed session after 20:15 ET (FFSEED_BUILD_AFTER_MIN) it reads every cap_universe symbol's newest N bars per timeframe (1m 600, 5m/15m/30m 300, 60m 1000 regular-session bars on the '60' grid, D 350) through the /api/bars warm path (bars_sqlite.get_bars + bars_fetch._fmt_sqlite_bars, zero provider calls), encodes one UFFSEED1 pack per timeframe (docs/charts/first-frame-seed-format.md), uploads ffseed/<build>/<tf>.ffs to the DATA_SYNC R2 bucket one pack at a time and ffseed/latest.json last, keeps 2 builds. Refuses to publish a timeframe below FFSEED_MIN_SYMBOLS (1500). Since 2026-11-21 a 5m/15m/30m/60m symbol is packed only when the post-close pass (api/services/ffseed_intraday.py: the as-of session's 5m and 15m from the provider, 30m/60m derived from the stored 15m; FFSEED_INTRADAY_BACKFILL=0 turns it off) proved its session complete, and such a timeframe is refused ALONE (D and 1m still publish) under its symbol floor or when fewer than FFSEED_MIN_TAIL_PCT (90, per timeframe FFSEED_MIN_TAIL_PCT_<tf>) percent of its symbols end at the session's last regular bucket. The pass runs only between the as-of session's extended close and the next trading day's 04:00 ET; a refused gated timeframe is retried on later ticks, at most FFSEED_GATED_RETRIES (2) times. Served from the edge only (edge/bars-edge-router/seed.js, /api/seed/v1/*, entitlement enforced), never the web pod; that route is not deployed. Rails: tests/test_ffseed.py, tests/test_ffseed_intraday.py, tests/test_ffseed_format.py, edge seed.test.mjs. Arm (owner): railway variables --service worker --set FFSEED_ENABLED=1, then a manual worker deploy. Rollback: unset or 0 (the edge keeps serving the last published build)."},
+    "FFSEED_ENABLED": {"status": "dark", "since": "2026-11-20", "where": ["worker"], "note": "DARK until the owner arms it. First-frame seed builder (api/services/ffseed.py, started from api/worker_main.py): once per closed session after 20:15 ET (FFSEED_BUILD_AFTER_MIN) it reads every cap_universe symbol's newest N bars per timeframe (1m 600, 5m/15m/30m 300, 60m 1000 regular-session bars on the '60' grid, D 350) through the /api/bars warm path (bars_sqlite.get_bars + bars_fetch._fmt_sqlite_bars, zero provider calls), encodes one UFFSEED1 pack per timeframe (docs/charts/first-frame-seed-format.md), uploads ffseed/<build>/<tf>.ffs to the DATA_SYNC R2 bucket one pack at a time and ffseed/latest.json last, keeps the newest FFSEED_KEEP (2) builds plus, while a session already published is rebuilt (a gated retry or a force), the build that session's first build diffed against (the delta base of devices on the previous session). Refuses to publish a timeframe below FFSEED_MIN_SYMBOLS (1500). Since 2026-11-21 a 5m/15m/30m/60m symbol is packed only when the post-close pass (api/services/ffseed_intraday.py: the as-of session's 5m and 15m from the provider, 30m/60m derived from the stored 15m; FFSEED_INTRADAY_BACKFILL=0 turns it off) proved its session complete, and such a timeframe is refused ALONE (D and 1m still publish) under its symbol floor or when fewer than FFSEED_MIN_TAIL_PCT (90, per timeframe FFSEED_MIN_TAIL_PCT_<tf>) percent of its symbols end at the session's last regular bucket. The pass runs only between the as-of session's extended close and the next trading day's 04:00 ET; a refused gated timeframe is retried on later ticks, at most FFSEED_GATED_RETRIES (2) times. Served from the edge only (edge/bars-edge-router/seed.js, /api/seed/v1/*, entitlement enforced), never the web pod; that route is not deployed. Rails: tests/test_ffseed.py, tests/test_ffseed_intraday.py, tests/test_ffseed_format.py, edge seed.test.mjs. Arm (owner): railway variables --service worker --set FFSEED_ENABLED=1, then a manual worker deploy. Rollback: unset or 0 (the edge keeps serving the last published build)."},
     "J2_ATTACHMENT_BACKUP_ENABLED": {
       "status": "armed",
       "where": [
@@ -2441,7 +2441,7 @@
         "1"
       ],
       "owner": "owner",
-      "note": "KILL SWITCH, default ON (unset = on; only 0/false/no/off kills), read per call in api/index_bars.py::deep_enabled. SERVICES: web and bars-api (both run index_bars' warm loop, which starts the deep backfill thread). NOT SET ANYWHERE: unset is the new behaviour (FMP's settled 5-minute index history, about 3 years, prepended before Yahoo's 60-day intraday window for SPX and NDX 5/15/30/60, behind the seam check). Off (0): every intraday index answer is exactly what it was before 2026-11-21 (Yahoo only), and the backfill thread asks FMP nothing. Coordinator ruling 2026-11-21 (Fred RS intraday grade)."
+      "note": "KILL SWITCH, default ON (unset = on; only 0/false/no/off kills), read per call in api/index_bars.py::deep_enabled. SERVICES: web and bars-api (both run index_bars' warm loop, which starts the deep backfill thread). NOT SET ANYWHERE: unset is the new behaviour (FMP's settled 5-minute index history, about 6 years since 2026-11-22 (the 5m grid itself at most 3), prepended before Yahoo's 60-day intraday window for SPX and NDX 5/15/30/60, behind the seam check; since 2026-11-22 also FMP's settled 1-minute history, DEEP_1M_DAYS = 180 days, before Yahoo's 7 sessions on tf=1, from its own store). Off (0): every intraday index answer is exactly what it was before 2026-11-21 (Yahoo only), and the backfill thread asks FMP nothing. Coordinator ruling 2026-11-21 (Fred RS intraday grade)."
     },
     "INDEX_INTRADAY_DEEP_FILL_ENABLED": {
       "status": "dark",
@@ -2525,6 +2525,32 @@
         "worker"
       ],
       "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Arms the after-close daily sweep so the web pod's newer-wins merge cold-populates every empty daily and advances every stale one, and a first view of ANY symbol serves from SQLite instead of shedding a warming 503."
+    },
+    "PINE_BREADTH_SUPPLY_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-22",
+      "where": [],
+      "default": "admins",
+      "values": [
+        "off",
+        "admins",
+        "all"
+      ],
+      "owner": "Pine track 4 (the data indicators need), unit B1",
+      "note": "A STAGE, read per request in api/services/pine_breadth.py::stage() by GET /api/pine/breadth/{spelling} (api/routers/pine_breadth.py): UCT's own NYSE / Nasdaq breadth under TradingView's USI: spellings, labelled UCT breadth, for the breadth supply (B2). UNSET or admins = signed-in admins only (dark for members; admins read the values to grade them against capture Q-T4-B1). all (or 1/true/on) = paid members, who are still refused by the Pine data catalog's licence sentence while uct_breadth (massive/derived_analytics, held at R: ESC-03) is not servable. off, or any unknown value = nobody (404). Rails: tests/test_pine_breadth.py."
+    },
+    "PINE_EVENTS_SUPPLY_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-22",
+      "where": [],
+      "default": "admins",
+      "values": [
+        "off",
+        "admins",
+        "all"
+      ],
+      "owner": "Pine track 4 (the data indicators need), unit E1",
+      "note": "A STAGE, read per request in api/services/pine_events.py::stage() by GET /api/pine/events/{ticker} (api/routers/pine_events.py): a chart symbol's earnings, dividends and splits for the Pine event supply. UNSET or admins = signed-in admins only (dark for members): this is how production's own vendor fetch is graded against TradingView (tools/vendor_harness/event_grade.py, coordinator ruling 2026-11-22). all (or 1/true/on) = every paid member; set only when the engine's event supply (E2) ships. off, or any unknown value = nobody (404, fail closed). Members get 404 while dark, so the route is not an oracle. Nothing in the engine reads the route until E2. Rails: tests/test_pine_events.py."
     },
     "PINE_SUPPORT_REPORTS_ENABLED": {
       "status": "armed",

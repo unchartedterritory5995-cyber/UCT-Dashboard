@@ -761,6 +761,16 @@ def _repair_fields(rep: dict, out: list) -> dict:
         seam = deep.get("seam")
         if isinstance(seam, dict):
             fields["deep"]["seam"] = {k: seam.get(k) for k in ("d", "compared", "equal", "worst_rel")}
+        # ⛔ (2026-11-22) THE ETF FILL's disclosure, cut to the answer's span like `repaired`: production served the
+        # filled run with no `filled` field because this projection named only the five keys above.
+        filled = []
+        for f in deep.get("filled") or []:
+            try:
+                if lo <= _dt.date.fromisoformat(f["d"]) <= hi:
+                    filled.append({k: f.get(k) for k in ("d", "slots", "src")})
+            except (KeyError, TypeError, ValueError):
+                continue
+        fields["deep"]["filled"] = filled
     return fields
 
 
@@ -792,16 +802,43 @@ def _repair_fields(rep: dict, out: list) -> dict:
 #     with the reason): a seam cliff on an RS line would be a new wrong picture.
 #   - ⛔ A REQUEST NEVER PARSES THE STORE: the prefix is built on a background refresh and cached per (symbol, tf,
 #     store version, Yahoo's first day); a request refresh that finds none serves Yahoo only.
-#   - SIZE: about 3 years of 5m is ~59,000 bars, about 4 MB of JSON per vendor symbol on disk.
+#   - SIZE: about 6 years of 5m is ~118,000 bars, about 8 MB of JSON per vendor symbol on disk (2026-11-22: 3 -> 6 years).
 # Kill switch: INDEX_INTRADAY_DEEP_ENABLED=0 (unset = on) serves exactly what this module served before.
 DEEP_SOURCE = "fmp"
-#: Calendar days of settled history the store holds (about 3 years).
-DEEP_DAYS = 1095
+#: Calendar days of settled history the store holds (about 6 years).
+DEEP_DAYS = 2190
+#: ⭐ (2026-11-22) 6 years, not 3: FMP's 5min answers ^GSPC from 2020 and ^NDX from 2021 (measured on the pod; 2019
+#: answers "no data"), and TradingView's own SPY 60m window in the Fred RS capture began 2021-01-04 while ours began
+#: 2023-11-24. A session before FMP's history is recorded "empty" and ends the run, as before. The 5-minute GRID itself
+#: is served at most DEEP_5M_SERVED_DAYS: `/api/bars` answers at most 60,000 bars (`bars: Query(le=60000)`), which 3
+#: years of 5m already fill; the deeper sessions serve 15 / 30 / 60.
+DEEP_5M_SERVED_DAYS = 1095
 #: The UI timeframes served with deep history, and the grid each rolls to.
-DEEP_TFS = {"5": "5", "15": "15", "30": "30", "60": "60", "1h": "60"}
+DEEP_TFS = {"1": "1", "5": "5", "15": "15", "30": "30", "60": "60", "1h": "60"}
 #: The indices served with deep history (SPX/NDX: what relative-strength scripts read). XSP/XND/RUT/DJX/VIX: as before.
 DEEP_SERVED_SYMS = frozenset({"SPX", "NDX"})
 DEEP_SRC_INTERVAL, DEEP_SRC_STEP = "5min", 300
+# ⭐ THE 1-MINUTE LANE (2026-11-22): Yahoo's ^GSPC 1m holds 7 sessions, a stock's own 1m chart about 5 months, so
+# Fred RS on 1m drew 7 sessions. FMP's 1min (3 sessions an answer, back to 2023) equals Yahoo's 1m to the cent on 2,337
+# of 2,340 bars (worst 1.1e-4, 6 sessions, measured on the pod 2026-11-22) and its 5-minute roll-up equals FMP's own
+# 5min. It is kept in its OWN store (`_deep_path(sym, "1")`), DEEP_1M_DAYS deep, and served before Yahoo's on tf=1
+# behind the same seam, run and ETF-fill rules as the 5-minute lane. A lane = the served grid it backs: "5" backs
+# 5 / 15 / 30 / 60 (rolled up), "1" backs 1.
+DEEP_1M_DAYS = 180
+DEEP_1M_PAGE_DAYS = 4
+DEEP_LANE_TFS = {"5": ("5", "15", "30", "60"), "1": ("1",)}
+
+
+def _lane(rtf: str) -> str:
+    """The store lane a served grid rolls up from."""
+    return "1" if rtf == "1" else "5"
+
+
+def _lane_cfg(lane: str) -> tuple:
+    """(FMP interval, step seconds, calendar days held, calendar days a page) of a lane."""
+    if lane == "1":
+        return "1min", 60, DEEP_1M_DAYS, DEEP_1M_PAGE_DAYS
+    return DEEP_SRC_INTERVAL, DEEP_SRC_STEP, DEEP_DAYS, DEEP_PAGE_DAYS
 #: Calendar days one FMP call covers (at most 5 sessions, 390 rows: under the ~546 rows one answer held, measured).
 DEEP_PAGE_DAYS = 6
 #: FMP calls one backfill pass may make, over all vendor symbols.
@@ -878,8 +915,8 @@ def deep_vendor_symbols() -> List[str]:
     return sorted({INDEX_MAP[s][0] for s in DEEP_SERVED_SYMS})
 
 
-def _deep_path(yahoo_sym: str) -> str:
-    return os.path.join(_DISK_DIR, f"{yahoo_sym.lstrip('^')}_5min.deep.json")
+def _deep_path(yahoo_sym: str, lane: str = "5") -> str:
+    return os.path.join(_DISK_DIR, f"{yahoo_sym.lstrip('^')}_{_lane_cfg(lane)[0]}.deep.json")
 
 
 def _deep_lock(path: str) -> threading.Lock:
@@ -956,7 +993,7 @@ def _deep_due(held: Optional[dict], now: float) -> bool:
 
 
 def deep_step(yahoo_sym: str, now: Optional[float] = None, max_fetches: int = DEEP_MAX_FETCHES,
-              turn=None) -> dict:
+              turn=None, lane: str = "5") -> dict:
     """ONE backfill pass for a vendor symbol: ask FMP for the settled sessions the store lacks, newest first, in
     pages of `DEEP_PAGE_DAYS` calendar days, at most `max_fetches` calls; each call inside `turn()` when given (the
     background lane). Returns the pass's counts. NEVER call this on a request thread."""
@@ -964,10 +1001,11 @@ def deep_step(yahoo_sym: str, now: Optional[float] = None, max_fetches: int = DE
     import datetime as _dt
     from api.services import fmp_client
     now = float(now if now is not None else time.time())
+    interval, _step, days_held, page_days = _lane_cfg(lane)
     today = _et_date(now)
-    start = today - _dt.timedelta(days=DEEP_DAYS)
-    path = _deep_path(yahoo_sym)
-    stats = {"sym": yahoo_sym, "asked": 0, "due": 0, "complete": 0, "changed": False, "stopped": None}
+    start = today - _dt.timedelta(days=days_held)
+    path = _deep_path(yahoo_sym, lane)
+    stats = {"sym": yahoo_sym, "lane": lane, "asked": 0, "due": 0, "complete": 0, "changed": False, "stopped": None}
     with _deep_lock(path):
         held = _load_deep(path)
         days = dict(held["days"])                 # entries are replaced, never edited: readers never see a half one
@@ -982,11 +1020,11 @@ def deep_step(yahoo_sym: str, now: Optional[float] = None, max_fetches: int = DE
         i = 0
         while i < len(due) and stats["asked"] < max_fetches:
             hi = due[i]
-            lo = hi - _dt.timedelta(days=DEEP_PAGE_DAYS - 1)
+            lo = hi - _dt.timedelta(days=page_days - 1)
             page = [x for x in due[i:] if x >= lo]
             try:
                 with (turn() if turn is not None else contextlib.nullcontext()):
-                    res = fmp_client.get_index_intraday(yahoo_sym, DEEP_SRC_INTERVAL, lo.isoformat(),
+                    res = fmp_client.get_index_intraday(yahoo_sym, interval, lo.isoformat(),
                                                         hi.isoformat(), timeout=DEEP_FMP_TIMEOUT_S)
                 if getattr(res, "degraded", None):
                     raise RuntimeError(f"degraded answer: {res.degraded}")
@@ -1018,7 +1056,7 @@ def deep_step(yahoo_sym: str, now: Optional[float] = None, max_fetches: int = DE
                 prior = days.get(iso) or {}
                 held_bars = {int(b["t"]): b for b in prior.get("bars") or []
                              if isinstance(b, dict) and isinstance(b.get("t"), (int, float))}
-                exp = _expected("5", x)
+                exp = _expected(lane, x)
                 expset = set(exp)
                 merged = {t: b for t, b in {**held_bars, **_parse_fmp_intraday(raw, x)}.items() if t in expset}
                 state = ("complete" if exp and all(t in merged for t in exp)
@@ -1039,13 +1077,14 @@ def deep_step(yahoo_sym: str, now: Optional[float] = None, max_fetches: int = DE
     return stats
 
 
-def _proxy_session_bars(proxy: str, d) -> Dict[int, dict]:
+def _proxy_session_bars(proxy: str, d, lane: str = "5") -> Dict[int, dict]:
     """The ETF's own 5m bars of session `d`, from the stock store (`serve_bars`, a `to=` read, warm: it may be shed,
     then it is asked at the next pass). Never on a request thread."""
     import json as _json
     import datetime as _dt
     from api.routers import bars as _bars
-    r = _bars.serve_bars(proxy, "5", bars=400, to=(d + _dt.timedelta(days=1)).isoformat(), warm=1)
+    r = _bars.serve_bars(proxy, lane, bars=400 if lane == "5" else 1000, to=(d + _dt.timedelta(days=1)).isoformat(),
+                         warm=1)
     body = getattr(r, "body", None)
     data = _json.loads(body) if body else (r if isinstance(r, dict) else {})
     out: Dict[int, dict] = {}
@@ -1076,15 +1115,16 @@ def _edge_ratio(exp: List[int], i: int, step: int, have: Dict[int, dict], proxy_
     return statistics.median(vals) if vals else None
 
 
-def _fill_session(d, have: Dict[int, dict], proxy_bars: Dict[int, dict]) -> dict:
+def _fill_session(d, have: Dict[int, dict], proxy_bars: Dict[int, dict], lane: str = "5") -> dict:
     """The ETF fill of session `d`'s missing 5m slots: `{"state": "filled", "bars": [...], "slots", "worst_drift"}`
     or `{"state": "refused", "reason"}`. Pure: `have` = FMP's bars, `proxy_bars` = the ETF's."""
-    exp = _expected("5", d)
+    exp = _expected(lane, d)
     missing = [i for i, t in enumerate(exp) if t not in have]
     if not exp or not missing:
         return {"state": "refused", "reason": "nothing to fill"}
-    if len(missing) > DEEP_FILL_MAX_SLOTS:
-        return {"state": "refused", "reason": f"{len(missing)} slots missing (fill at most {DEEP_FILL_MAX_SLOTS})"}
+    max_slots = DEEP_FILL_MAX_SLOTS * DEEP_SRC_STEP // _lane_cfg(lane)[1]     # the same span of time in every lane
+    if len(missing) > max_slots:
+        return {"state": "refused", "reason": f"{len(missing)} slots missing (fill at most {max_slots})"}
     runs, cur = [], [missing[0]]
     for i in missing[1:]:
         if i == cur[-1] + 1:
@@ -1121,7 +1161,7 @@ def _fill_session(d, have: Dict[int, dict], proxy_bars: Dict[int, dict]) -> dict
 
 
 def deep_fill_step(yahoo_sym: str, now: Optional[float] = None, max_reads: int = DEEP_FILL_MAX_PER_PASS,
-                   turn=None) -> dict:
+                   turn=None, lane: str = "5") -> dict:
     """Complete from the ETF every session FMP still answers partial after its retries (see THE ETF FILL). Returns
     the pass's counts. NEVER call this on a request thread."""
     import contextlib
@@ -1131,7 +1171,7 @@ def deep_fill_step(yahoo_sym: str, now: Optional[float] = None, max_reads: int =
     proxy = DEEP_FILL_PROXY.get(yahoo_sym)
     if not proxy or not deep_fill_enabled():
         return stats
-    path = _deep_path(yahoo_sym)
+    path = _deep_path(yahoo_sym, lane)
     with _deep_lock(path):
         held = _load_deep(path)
         days = dict(held["days"])
@@ -1152,14 +1192,14 @@ def deep_fill_step(yahoo_sym: str, now: Optional[float] = None, max_reads: int =
             stats["read"] += 1
             try:
                 with (turn() if turn is not None else contextlib.nullcontext()):
-                    pb = _proxy_session_bars(proxy, d)
+                    pb = _proxy_session_bars(proxy, d, lane)
             except Exception as x:  # noqa: BLE001 - fail-soft: asked again at the next pass
                 logger.warning(f"[index_bars] deep fill {yahoo_sym} {iso}: the {proxy} read FAILED: "
                                f"{type(x).__name__}: {x}")
                 continue
             if not pb:
                 continue                               # shed or not yet stored: the next pass asks again
-            fill = dict(_fill_session(d, have, pb), src=proxy, at=now)
+            fill = dict(_fill_session(d, have, pb, lane), src=proxy, at=now)
             stats["filled" if fill["state"] == "filled" else "refused"] += 1
             (logger.info if fill["state"] == "filled" else logger.warning)(
                 f"[index_bars] deep fill {yahoo_sym} {iso} from {proxy}: {fill['state']} "
@@ -1180,7 +1220,7 @@ def _seam_parity(rtf: str, d, deep_day: Optional[dict], yf_bars: list, divisor: 
         seam["reason"] = "the store does not hold the junction session"
         return seam
     src = {int(b["t"]): b for b in deep_day.get("bars") or [] if isinstance(b, dict)}
-    rolled = _roll_into_buckets(rtf, d, src, DEEP_SRC_STEP)
+    rolled = _roll_into_buckets(rtf, d, src, _lane_cfg(_lane(rtf))[1])
     worst, cmp_n, eq = 0.0, 0, 0
     for b in yf_bars:
         f = rolled.get(int(b["t"]))
@@ -1222,7 +1262,7 @@ def _overlap_parity(rtf: str, days: dict, by_day: Dict[Any, list], divisor: floa
         if not e or e.get("state") != "complete":
             continue
         rolled = _roll_into_buckets(rtf, d, {int(b["t"]): b for b in e.get("bars") or [] if isinstance(b, dict)},
-                                    DEEP_SRC_STEP)
+                                    _lane_cfg(_lane(rtf))[1])
         n0 = out["compared"]
         for b in by_day[d]:
             f = rolled.get(int(b["t"]))
@@ -1245,7 +1285,10 @@ def _build_deep_prefix(sym: str, rtf: str, data: dict, first_day, divisor: float
     counts), rolled to `rtf` and divided: (bars, the number of sessions, the oldest session's ISO date or None, the
     filled sessions `[{"d", "slots", "src"}]`)."""
     import datetime as _dt
-    start = _et_date(_now()) - _dt.timedelta(days=DEEP_DAYS)
+    _interval, step, days_held, _page = _lane_cfg(_lane(rtf))
+    if rtf == "5":
+        days_held = min(days_held, DEEP_5M_SERVED_DAYS)
+    start = _et_date(_now()) - _dt.timedelta(days=days_held)
     days = data.get("days") or {}
     run: List[list] = []
     fills: List[dict] = []
@@ -1265,7 +1308,7 @@ def _build_deep_prefix(sym: str, rtf: str, data: dict, first_day, divisor: float
                 break
             src = {**{int(b["t"]): b for b in f.get("bars") or [] if isinstance(b, dict)}, **src}   # FMP's bar wins
             fills.append({"d": d.isoformat(), "slots": int(f.get("slots") or 0), "src": f.get("src")})
-        rolled = _roll_into_buckets(rtf, d, src, DEEP_SRC_STEP)
+        rolled = _roll_into_buckets(rtf, d, src, step)
         exp = _expected(rtf, d)
         if not exp or any(t not in rolled for t in exp):
             break
@@ -1285,7 +1328,7 @@ def _merge_deep(sym: str, tf: str, out: list) -> tuple:
     if rtf is None or sym not in DEEP_SERVED_SYMS or not out or not deep_enabled():
         return out, None
     yahoo_sym, divisor = INDEX_MAP[sym]
-    path = _deep_path(yahoo_sym)
+    path = _deep_path(yahoo_sym, _lane(rtf))
     sig = _deep_sig(path)
     if sig is None:
         return out, None
@@ -1372,29 +1415,31 @@ def _deep_turn():
 def deep_backfill_pass(now: Optional[float] = None) -> List[dict]:
     """One pass over every vendor symbol, sharing `DEEP_MAX_FETCHES` calls; then the series that changed are
     refreshed (their prefix is rebuilt off the request)."""
-    budget = DEEP_MAX_FETCHES
     passes = []
-    for ysym in deep_vendor_symbols():
-        if budget <= 0:
-            break
-        st = deep_step(ysym, now=now, max_fetches=budget, turn=_deep_turn)
-        budget -= st["asked"]
-        fill = deep_fill_step(ysym, now=now, turn=_deep_turn)
-        if fill["read"]:
-            st["fill"] = fill
-        passes.append(st)
+    for lane in DEEP_LANE_TFS:
+        budget = DEEP_MAX_FETCHES                  # per lane: the 1-minute backfill never starves the 5-minute one
+        for ysym in deep_vendor_symbols():
+            if budget <= 0:
+                break
+            st = deep_step(ysym, now=now, max_fetches=budget, turn=_deep_turn, lane=lane)
+            budget -= st["asked"]
+            fill = deep_fill_step(ysym, now=now, turn=_deep_turn, lane=lane)
+            if fill["read"]:
+                st["fill"] = fill
+            passes.append(st)
     # A served series whose prefix was not built for the store as it stands (the store changed, or this process
     # never built it: after a restart a tf refreshed only by member reads would otherwise wait for the next change)
     # is refreshed in the background, where the prefix is built. Once per store version per series.
     for sym in sorted(DEEP_SERVED_SYMS):
-        sig = _deep_sig(_deep_path(INDEX_MAP[sym][0]))
-        if sig is None:
-            continue
-        for tf in ("5", "15", "30", "60"):
-            with _deep_prefix_lock:
-                hit = _deep_prefix.get((sym, tf))
-            if not hit or hit[0][0] != sig:
-                _kick_bg_refresh(sym, tf)
+        for lane, tfs in DEEP_LANE_TFS.items():
+            sig = _deep_sig(_deep_path(INDEX_MAP[sym][0], lane))
+            if sig is None:
+                continue
+            for tf in tfs:
+                with _deep_prefix_lock:
+                    hit = _deep_prefix.get((sym, tf))
+                if not hit or hit[0][0] != sig:
+                    _kick_bg_refresh(sym, tf)
     if any(p["asked"] or p.get("fill") for p in passes):
         logger.info(f"[index_bars] deep pass: {passes}")
     return passes

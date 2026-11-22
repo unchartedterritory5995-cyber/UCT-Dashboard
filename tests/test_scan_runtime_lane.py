@@ -622,6 +622,81 @@ def test_the_turn_is_a_pure_window_over_the_sorted_handles():
     assert ev._runtime_sweep_turn(list(reversed(hs)), 3, 1) == {"h03", "h04", "h05"}, "order-free"
 
 
+# ═══ 8c. track 6 PR-C: the Q2 per-member quota (at the effective stage `all`) ═══════
+
+def _owned_rows(owner, n, start=0):
+    """n admitted runtime rows of DIFFERENT scripts, all owned by ``owner``."""
+    return [_row(def_id="u_%012x" % (0xa00000 + start + i), user_id=owner,
+                 definition=_doc(source=SOURCE + f"\n// {owner} {i}")) for i in range(n)]
+
+
+def _stage(monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv(runtime_definitions.STAGE_ENV, raising=False)
+        monkeypatch.delenv(runtime_definitions.SERVER_STAGE_ENV, raising=False)
+    else:
+        monkeypatch.setenv(runtime_definitions.STAGE_ENV, value)
+        monkeypatch.setenv(runtime_definitions.SERVER_STAGE_ENV, value)
+
+
+def _swept_by_owner():
+    out = {}
+    for d in ev.definitions_to_sweep():
+        if runtime_definitions.is_runtime(d):
+            out.setdefault(d.lane_row["user_id"], set()).add(ev._result_handle(d))
+    return out
+
+
+def test_the_quota_is_q2s_3_and_at_stage_all_one_member_runs_at_most_3_a_night(world, live_rows, monkeypatch, caplog):
+    assert ev.RUNTIME_SWEEP_PER_MEMBER == 3 and ev.RUNTIME_SWEEP_QUOTA_GUARD == "runtime:sweep-member-quota"
+    _stage(monkeypatch, "all")
+    _on_day(monkeypatch, 740_000)
+    live_rows += _owned_rows("heavy", 5) + _distinct_rows(4)
+    with caplog.at_level("INFO"):
+        got = _swept_by_owner()
+    assert len(got["heavy"]) == 3
+    assert sum(len(v) for k, v in got.items() if k != "heavy") == 4, "every other member still runs"
+    assert "member quota: 2 runtime document(s)" in caplog.text
+    assert "runtime:sweep-member-quota x2" in caplog.text
+
+
+@pytest.mark.parametrize("stage", [None, "admins", "cohort"])
+def test_below_stage_all_the_cap_alone_governs(world, live_rows, monkeypatch, stage):
+    _stage(monkeypatch, stage)
+    _on_day(monkeypatch, 740_000)
+    live_rows += _owned_rows("operator", 12)
+    assert len(_swept_by_owner()["operator"]) == 12
+
+
+def test_one_members_documents_rotate_through_the_nights(world, live_rows, monkeypatch):
+    _stage(monkeypatch, "all")
+    live_rows += _owned_rows("heavy", 7)
+    every = set()
+    for day in (740_000, 740_001, 740_002):              # ceil(7 / 3) = 3 nights
+        _on_day(monkeypatch, day)
+        tonight = _swept_by_owner()["heavy"]
+        assert len(tonight) == 3
+        every |= tonight
+    assert len(every) == 7
+
+
+def test_the_quota_comes_before_the_cap_so_one_member_cannot_crowd_out_the_rest(world, live_rows, monkeypatch):
+    _stage(monkeypatch, "all")
+    _on_day(monkeypatch, 740_000)
+    live_rows += _owned_rows("heavy", 30) + _distinct_rows(10)
+    got = _swept_by_owner()
+    assert len(got["heavy"]) == 3
+    assert sum(len(v) for k, v in got.items() if k != "heavy") == 10, "all ten other members run"
+
+
+def test_many_members_within_quota_still_meet_the_cap(world, live_rows, monkeypatch):
+    _stage(monkeypatch, "all")
+    _on_day(monkeypatch, 740_000)
+    for m in range(20):
+        live_rows += _owned_rows(f"m{m}", 2, start=m * 10)
+    assert sum(len(v) for v in _swept_by_owner().values()) == 25
+
+
 # ═══ 9. NOTHING reaches members while PINE_RUNTIME_SERVER_STAGE is unset ═════
 
 _REAL_SERVER_LANE_REFUSAL = runtime_definitions.server_lane_refusal

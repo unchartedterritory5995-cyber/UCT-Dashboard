@@ -49,7 +49,9 @@ ffseed/<build>/<tf>.ffs                        /api/seed/v1/<build>/<tf>.ffs    
 
 `<build>` is the build's UTC time `YYYYMMDDTHHMMZ`; `<tf>` is one of `1 5 15 30 60 D`. Packs are
 uploaded first and `latest.json` last, so a manifest never names a pack that is not there. The two
-newest builds are kept.
+newest builds are kept (`FFSEED_KEEP`), and while a session already published is rebuilt (a gated
+retry, a force: section 9) also the build that session's first build diffed against (section 10,
+"Which base").
 
 `latest.json` (compact JSON, keys sorted; wrapped here):
 
@@ -112,6 +114,10 @@ must not be joined to it. `splits` tells the device which symbols those are:
   symbol splits next session", never "could not ask". **Field absent** = the source could not
   answer (no key, an error on any page, a truncated answer): the device keeps its guard closed and
   uses no copy past `asof`. A build never fails for want of this list; it publishes without it.
+  Except (2026-11-22): a REBUILD of a session already published (a gated retry, a force) whose own read
+  fails keeps the published manifest's `splits` when it is for the same `session` (that read answered
+  completely for it), rather than replacing it with a manifest that has none (which would close every
+  device's guard for that session). What that list cannot know is the same as below, as of its own read.
 * **Source.** The store's bars are Massive aggregates fetched `adjusted=true`, which adjust for
   splits only (forward and reverse; never dividends or spin-offs), and the serve path heals a split
   factor the store missed from FMP's split list (`bars_sanitize._fetch_meta`). So a split is the
@@ -367,19 +373,32 @@ build (`ffseed.nightly`) therefore runs, in order:
    Two requests a symbol (~7,300 a night), 2 threads (`FFSEED_INTRADAY_WORKERS`), at most 90 min
    (`FFSEED_INTRADAY_DEADLINE_S`); `FFSEED_INTRADAY_BACKFILL=0` turns it off (the build then refuses
    those timeframes). What it proved is the ledger `<DATA_DIR>/ffseed_intraday_complete.json`: per
-   timeframe and symbol the store's revision of the series right after the pass's write, so any later
-   write voids the entry. An answer proves the session only when it is **whole**: it holds bars of
-   the as-of day (an empty answer never proves anything) and no other record of that day shows a
-   trade in a later bucket: the stored 1m (the 1m pass's own read), the stored 5m and 15m, and the
-   other timeframe's answer of the same pass. Otherwise nothing is written and it is counted
-   (`short_answer`, logged with the record that contradicts it; `empty`);
+   timeframe and symbol `[the store's revision of the series right after the pass's write, the first
+   day written, the check instant of the rows written]` (the instant since 2026-11-22), so any later
+   write voids the entry. A 30m / 60m re-derived from a 15m an earlier pass proved is written with that
+   15m's recorded check instant (an older entry without one: the session's settle instant), or with the
+   15m's own seal when a later provider check sealed it (`sealed_checked_at`: a seal is not a write, so
+   the 15m proof stands, and the serve path seals the derived series at that same instant), whichever is
+   newer; never the wall clock, so a newer check's seal still wins over it. An answer proves the session only
+   when it is **whole**: it holds bars of the as-of day (an empty answer never proves anything) and no
+   other record of that day shows a trade in a later bucket: the stored 1m (the 1m pass's own read),
+   the stored 5m, 15m, 30m and 60m (read before the pass writes; a 30m / 60m bar's start is mapped onto
+   the answer's grid), and the other timeframe's answer of the same pass. Otherwise nothing is written
+   and it is counted (`short_answer`, logged with the record that contradicts it; `empty`);
 3. the build and publish, then the marker. 5m / 15m / 30m / 60m pack only proven symbols and are
    refused one at a time under their floors (section 2, `complete` and `refused`); D and 1m as before.
    **A refused gated timeframe is not final for the night** (`<DATA_DIR>/.ffseed_gated_retry`): on
    later ticks, while that session is still the newest closed one and its quiet gap is open, the pass
    runs again, at most `FFSEED_GATED_RETRIES` (2) times, and the session is rebuilt and published
-   again only when the pass proved something new. This also covers a forced rebuild that refused
-   (the force itself stays one-shot) and a `FFSEED_BUILD_AFTER_MIN` set before the extended close;
+   again only when the pass proved something new FOR A REFUSED TIMEFRAME (its own series, or the 15m a
+   refused 30m / 60m derives from; a re-proof of a timeframe that was published does not republish) and
+   the pass ended before the quiet gap closed (a pass that ran past 04:00 ET is not followed by a
+   build: the next session's fetches are writing the store). A retry is counted before its work, in the
+   file and in the worker process: when the file cannot be written the process count still bounds it,
+   and a count in the file that is not a whole number counts as spent, never as zero. A republish diffs
+   against the build devices held before that session (section 10, "Which base"). This also covers a
+   forced rebuild that refused (the force itself stays one-shot, and its refusals get fresh retries)
+   and a `FFSEED_BUILD_AFTER_MIN` set before the extended close;
 4. **the 1m retention**: a symbol keeps its newest 5 sessions of 1m (`FFSEED_1M_KEEP_SESSIONS`, 0 = off;
    `bars_sqlite.prune_before`, a prefix trim that bumps the series' history revision) ONLY when the pass
    itself filled it (the long-tail ledger `<DATA_DIR>/ffseed_1m_longtail.json`: per symbol the first
@@ -397,7 +416,13 @@ deploy it as usual). On its next tick (at most 30 min after boot plus `FFSEED_BO
 the whole nightly sequence for that session once and records it in `<DATA_DIR>/.last_ffseed_forced`, so
 the variable may stay set; unset it at your convenience. It is refused (logged, nothing built) unless the
 session IS the newest closed session: publishing an older build after a newer one would roll every device
-back. `status()` reports `forced_session`.
+back. It runs only in that session's **quiet gap** (2026-11-22; from the extended close + 60 s to the next
+trading day's 04:00 ET): before the gap it waits and runs on the first tick after it opens; after the gap
+(e.g. Friday's force set on Monday morning, when Friday is still the newest closed session until 20:15) it
+is refused, because the pass could not run and the force would publish every gated timeframe refused.
+Both are logged once and neither is spent (`.last_ffseed_forced` is not written). A force that still
+refuses a timeframe gives it fresh gated retries, and its log line says how many (or that there are none,
+and why). `status()` reports `forced_session`.
 
 **Daily delta**: built, section 10.
 
@@ -423,6 +448,37 @@ The manifest's timeframe entry gains, ONLY when the delta was proven (below):
 
 A client holding exactly build `base` of that timeframe (and nothing else) may apply it; it checks
 `bytes` and `sha256` as for a pack. No `delta` key: take the full pack.
+
+### Which base (2026-11-22)
+
+A session's FIRST build diffs each timeframe against the manifest published when it starts: the build
+devices hold (the previous session's), and it records that manifest on the worker
+(`<DATA_DIR>/.ffseed_delta_base.json`, keyed on its as-of day). A REBUILD of a session already published
+(a gated retry, a force: same `asof` as the published manifest) diffs each timeframe against that recorded
+manifest, not against the session's own earlier build, because devices hold the previous session's build
+overnight and a delta for another base is refused on the device (`other-base`, `engine.js`
+`_deltaRefusal`): every device would download every full pack (79.5 MB, section 7, against 16.2 MB for the
+first real nightly delta). A timeframe the recorded build does not hold (it refused it) diffs against the
+published one instead, and so does one whose recorded pack is gone from R2 or gives no proven delta (never
+no delta for that reason alone). While such rebuilds run, the prune keeps the recorded build on R2 as well
+as the newest `FFSEED_KEEP`, so a second rebuild still finds it; the next session's first build prunes as
+usual. No record (another as-of day, an unreadable or malformed file, e.g. a `tfs` that is not an object):
+the rebuild diffs against the published build, as before, and logs it. A published manifest that is
+malformed the same way is no base at all (no delta), never an error that stops the build.
+
+**The manifest format does not change.** `delta.base` and `base_asof` simply name that older build, which
+is exactly what a device holding it checks. The cost lands on the few devices that took the session's
+first build between its publish and the rebuild: they hold neither base and download the full pack.
+
+**Known behaviour, kept on purpose (review of #2450).** (1) A device that took a session's first build
+downloads every full pack it holds on a same-session republish (a gated retry or a force), since every delta
+names the previous session's build. (2) A force outside its session's quiet gap no longer republishes D and
+1m during the day: it waits for the gap or is refused (section 9), and the next session's own build
+supersedes it. (3) The after-the-gap check bounds a retry's pass, not its build: a pass that ends just
+before the gap closes still builds, and that build may run past 04:00 ET (a symbol voided by the next
+session's writes is left out as incomplete, never published stale); a forced or late nightly is not
+checked after its pass at all. (4) A same-session rebuild whose split read failed carries the published
+list as of that list's own read (section 2).
 
 ### Layout
 

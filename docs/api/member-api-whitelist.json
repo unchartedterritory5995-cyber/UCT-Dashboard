@@ -4203,6 +4203,22 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{spelling}",
+      "path": "/api/pine/breadth/{spelling}",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/pine/events/{ticker}",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "",
       "path": "/api/pine/history-window",
       "rate_limit_family": "screener",
@@ -4365,6 +4381,14 @@
       "method": "GET",
       "params": "{sym}",
       "path": "/api/research/earnings-reaction/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "metric=eps, window=30",
+      "path": "/api/research/estimate-history",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -4781,6 +4805,14 @@
       "method": "GET",
       "params": "rank, limit",
       "path": "/api/research/short-interest-list",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/stock-stats/{ticker}",
       "rate_limit_family": "research",
       "tier": "paid"
     },

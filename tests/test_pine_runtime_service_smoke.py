@@ -72,9 +72,11 @@ class Svc:
         return 404, "{}"
 
 
-def go(svc, fixture=FIXTURE, web=5, lines=None):
+def go(svc, fixture=FIXTURE, web=5, lines=None, ident="same"):
     out = [] if lines is None else lines
-    code = smoke.run_smoke(BASE, SECRET, copy.deepcopy(fixture), http=svc, web_engine=lambda: web, say=out.append, sleep=lambda s: None)
+    who = dict(ENGINE) if ident == "same" else ident
+    code = smoke.run_smoke(BASE, SECRET, copy.deepcopy(fixture), http=svc, web_engine=lambda: web, say=out.append,
+                           sleep=lambda s: None, web_identity=lambda: who)
     return code, "\n".join(out)
 
 
@@ -84,7 +86,8 @@ def test_pass_is_exit_0_and_all_four_checks_ran():
     svc = Svc()
     code, text = go(svc)
     assert code == 0, text
-    assert text.count("PASS:") == 5  # four checks and the summary
+    assert text.count("PASS:") == 6  # five checks and the summary
+    assert "web identity: web's client signs as the service's engine" in text
     assert ("POST", "/v1/run", False) in svc.calls and ("POST", "/v1/run", True) in svc.calls
 
 
@@ -99,6 +102,10 @@ def test_pass_is_exit_0_and_all_four_checks_ran():
     ("server error", Svc(run_status=500), {}, "HTTP 500"),
     ("unsigned accepted", Svc(unsigned_status=200), {}, "answered 200, not 401"),
     ("health not 200", Svc(health=503), {}, "not alive"),
+    # track 6 (2026-11-22, measured): the service passes 1-4 while web cannot sign as it
+    ("web cannot state its identity", Svc(), {"ident": None}, "cannot state the engine identity it signs runs with"),
+    ("web signs as another bundle", Svc(), {"ident": {**ENGINE, "bundle_sha256": "cd" * 32}},
+     "bundle_sha256 web cdcdcdcdcdcd vs service abababababab"),
 ])
 def test_failed_is_exit_1(name, svc, kw, needle):
     code, text = go(svc, **kw)

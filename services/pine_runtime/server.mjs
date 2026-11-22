@@ -37,6 +37,7 @@
 import { createServer as createHttpServer } from 'node:http'
 import { connect } from 'node:net'
 import { readFileSync } from 'node:fs'
+import { availableParallelism } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
@@ -73,6 +74,8 @@ export const ENV_ALLOWLIST = Object.freeze([
   // variable, so mirroring web's value of one must not refuse the boot. Nothing reads them at run
   // time (the bundle baked them); a rail holds this pair equal to the build script's list.
   'VITE_PINE_LOWER_TF_ENABLED', 'VITE_PINE_RUNTIME_PANE_ENABLED',
+  // Track 6 (2026-11-22): the pool's worker count (`workersOf`), a whole number; not a credential.
+  'PINE_RUNTIME_WORKERS',
   // Track 6 (2026-11-22): a Railway runtime flag, injected into the running process of every service
   // (measured: /proc/1/environ NAMES of chart-renderer, a service with no public domain). Not a credential.
   'RAILWAY_BETA_ENABLE_RUNTIME_V2',
@@ -116,6 +119,24 @@ export function envRefusal(env, platform = process.platform) {
   if (extra.length === 0) return null
   return `the pine-runtime service refuses to start: ${extra.length} variable(s) outside its allowlist are set `
     + `(${extra.join(', ')}). It holds no credentials by design; remove them.`
+}
+
+/** Track 6 (2026-11-22) -- THE POOL FOLLOWS THE CONTAINER'S CPU LIMIT, NOT THE HOST'S CPU COUNT. Measured on the
+ *  first Railway deploy: `availableParallelism()` answered 48 (the host's CPUs) inside a container limited to
+ *  2 vCPU / 2 GB, so the boot started 48 workers and sat at 1.63 GB idle, one canary away from the 2 GB limit
+ *  (each worker may grow to its resourceLimits heap). Node 20 does not read the cgroup CPU quota, and the L4
+ *  permission model reads nothing outside /app, so the count is stated: `PINE_RUNTIME_WORKERS` when set, else
+ *  DEFAULT_SERVICE_WORKERS, the design's "workers = vCPU" for the Q2 size of 2 vCPU. Never more than the
+ *  host's parallelism when unset; a malformed value refuses the boot, like PORT. */
+export const DEFAULT_SERVICE_WORKERS = 2
+export const MAX_SERVICE_WORKERS = 16
+export function workersOf(env, available = availableParallelism()) {
+  const raw = env.PINE_RUNTIME_WORKERS
+  if (raw === undefined || raw === '') return Math.max(1, Math.min(DEFAULT_SERVICE_WORKERS, available))
+  if (!/^\d{1,2}$/.test(raw) || Number(raw) < 1 || Number(raw) > MAX_SERVICE_WORKERS) {
+    throw new Error(`PINE_RUNTIME_WORKERS is not a whole number from 1 to ${MAX_SERVICE_WORKERS}; the service refuses to start.`)
+  }
+  return Number(raw)
 }
 
 /** The listening port: PORT when it is a whole number 1-65535, DEFAULT_PORT when unset. */
@@ -327,7 +348,7 @@ export async function main({ env = process.env, bundle = DEFAULT_BUNDLE, runner 
   const secrets = parseSecrets(env.PINE_RUNTIME_SERVICE_SECRET)
   const port = portOf(env)
   const door = await loadBundle(bundle)
-  const pool = !runner && poolOpts ? await createPool({ ...poolOpts, bundle }) : null
+  const pool = !runner && poolOpts ? await createPool({ workers: workersOf(env), ...poolOpts, bundle }) : null
   const canary = pool && canaryOn
     ? createCanary({ run: pool.run, inputs: loadCanaryInputs(), identity: door.identity, log })
     : null

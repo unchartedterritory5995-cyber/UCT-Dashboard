@@ -12,7 +12,7 @@ const CAT_ICON = {
   type: 'markets', descriptive: 'info', fundamental: 'dollar', performance: 'chart',
   technical: 'sliders', momentum: 'bolt', single_candle: 'ind-series',
   multi_candle: 'ind-series', pattern: 'patterns', ownership: 'user',
-  events: 'calendar', context: 'globe', flow: 'flow',
+  events: 'calendar', context: 'globe', flow: 'flow', fundamental_trends: 'earnings',
   my_lists: 'star', my_scans: 'screener',
 }
 

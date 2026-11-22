@@ -3,6 +3,7 @@ behind its own flag: unset, its routes answer FastAPI's 404 before identity is r
 
   RESEARCH_PEOPLE_ENABLED   GET /api/research/people/{sym}            api.services.research_people
   ESTIMATE_HISTORY_ENABLED  GET /api/research/estimate-history/{sym}  api.services.estimate_history
+                            GET /api/research/estimate-history        (by sector: api.services.estimate_revisions)
   FILINGS_FEED_ENABLED      GET /api/research/filings-feed/{sym}      api.services.filings_feed
                             GET /api/research/filings-feed            (market-wide)
 
@@ -10,6 +11,11 @@ Every handler is a plain `def`: People reads FMP (cached) and estimate history
 reads SQLite, both blocking, and an `async def` that awaits nothing would run
 that ON the event loop (tests/test_async_routes_do_not_block.py). Estimate
 history and the filings feed make no vendor call on a request at all.
+
+The market-wide estimate-history read (EEHSC, 2026-11-21) adds the same store up
+by sector, behind the same switch, as the filings feed has a ticker read and a
+market read: it answers from what `estimate_revisions` holds and never reads
+the store on the request.
 """
 from __future__ import annotations
 
@@ -72,6 +78,15 @@ def research_people_route(sym: str, _user: dict = Depends(require_paid)):
 @router.get("/api/research/estimate-history/{sym}", dependencies=[Depends(_estimates_armed)])
 def estimate_history_route(sym: str, _user: dict = Depends(require_paid)):
     return estimate_history.history(_sym(sym))
+
+
+@router.get("/api/research/estimate-history", dependencies=[Depends(_estimates_armed)])
+def estimate_revisions_route(metric: str = Query(default="eps", pattern="^(eps|revenue)$"),
+                             window: str = Query(default="30", pattern="^(7|30)$"),
+                             _user: dict = Depends(require_paid)):
+    """Every sector's estimate revision breadth among the tracked stocks, for one estimate and one window."""
+    from api.services import estimate_revisions
+    return estimate_revisions.get_breadth(metric, int(window))
 
 
 @router.get("/api/research/filings-feed/{sym}", dependencies=[Depends(_feed_armed)])
