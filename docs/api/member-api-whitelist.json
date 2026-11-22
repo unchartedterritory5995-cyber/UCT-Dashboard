@@ -4451,6 +4451,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/factor-exposure/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "",
       "path": "/api/research/fed-watch",
       "rate_limit_family": "research",

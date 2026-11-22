@@ -12373,6 +12373,8 @@ from api.routers import setup_history as setup_history_router  # noqa: E402  (SE
 app.include_router(setup_history_router.router)  # /api/research/setup-history, /api/research/setup-history/{ticker}
 from api.routers import volume_footprint as volume_footprint_router  # noqa: E402  (VFP: one stock's accumulation and distribution, biggest volume days, pocket pivots, gaps, paid)
 app.include_router(volume_footprint_router.router)  # /api/research/volume-footprint/{ticker}
+from api.routers import factor_exposure as factor_exposure_router  # noqa: E402  (FCTX: one stock's loadings on the market, size, growth vs value, momentum, quality and low volatility, paid)
+app.include_router(factor_exposure_router.router)  # /api/research/factor-exposure/{ticker}
 from api.routers import public_records as public_records_router  # noqa: E402  (PUBR: one company's contracts, trials, FDA approvals and lobbying from government records, paid)
 app.include_router(public_records_router.router)  # /api/research/public-records/{ticker}
 from api.routers import event_study as event_study_router  # noqa: E402  (EVST: a member's own historical event study over stored series, paid)
