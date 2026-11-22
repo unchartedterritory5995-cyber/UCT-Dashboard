@@ -64,7 +64,12 @@ settings too (the default-bound budget fits them).
 - `ast/knobArmsParity.test.js` and `tests/test_knob_arms_parity.py`: both lanes against ONE pinned fixture
   (`tests/fixtures/ast/knob_arms_parity.json`, neither lane the oracle), the leaf refuses when evaluated (JS, Python),
   the Python interpreter binds at its entry, the server save gate measures at the defaults.
-- Mutants `ci/mutants/e95-knob-arms.json`, KA1-KA13: PENDING.
+- Mutants `ci/mutants/e95-knob-arms.json`, KA1-KA13: **all 13 KILLED, byte-identical restores, in CI** (`pine heavy`
+  dispatch, mutants only, run 45066091357): the door folds the switch again (KA1); a refused arm aborts the knob (KA2);
+  a PICKED refusing leaf does not refuse at bind (KA3); the leaf computes na in JS / Python (KA4, KA5); the bind never
+  prunes, JS / Python (KA6, KA7); the Python interpreter does not bind at its entry (KA8); the chart lane decides on the
+  saved document (KA9); the install / door / server budgets measure every arm (KA10, KA11, KA12); a script spells the
+  leaf (KA13). (KA11 survived its first run, which broke one of the door budget pass's two reads; it now breaks both.)
 
 ## Rails that move by design (each says so where it stands)
 
