@@ -104,6 +104,7 @@ import { ENGINE_ERROR } from './ast/parse'
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { bindConstsFor } from './ast/bind'
 import { isPineOriginDoc, otherSymbolPending, staticOtherSymbolMessage } from './otherSymbols'
+import { OTHER_SYMBOL_BEFORE_HELD_CODE, otherSymbolBeforeHeldSentence } from './ast/interpret'
 // ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
 // are the SHARED EVALUABILITY GATE's (`evaluability.js`); this module applies them.
 import { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE } from './evaluability'
@@ -2367,6 +2368,14 @@ export function externalReadNotices(def, columns) {
       if (otherSymbolPending(r)) continue
       out.push({ code: r.code, reason: r.static === true ? staticOtherSymbolMessage(r.ticker, r)
         : `This indicator reads \`${r.ticker}\`: ${r.reason}` })
+    }
+    // ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22) — the bars a series withholds before its first row are named
+    // per bar (`OTHER_SYMBOL_BEFORE_HELD_CODE`); where a plot carries them, the member reads why, once per series
+    const held = withheldBarsReport(columns) || {}
+    if (Object.values(held).some((codes) => codes && codes[OTHER_SYMBOL_BEFORE_HELD_CODE])) {
+      for (const b of (other && other.beforeHeld) || []) {
+        out.push({ code: OTHER_SYMBOL_BEFORE_HELD_CODE, reason: otherSymbolBeforeHeldSentence(b.ticker, b.from) })
+      }
     }
     // ⭐ review F1 — and every paint whose colour that refusal leaves undrawn, by its own name
     out.push(...colourReaderPaintNotices(def, columns))
