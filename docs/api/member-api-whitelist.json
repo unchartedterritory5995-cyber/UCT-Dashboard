@@ -4219,6 +4219,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/pine/financial/{ticker}",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "",
       "path": "/api/pine/history-window",
       "rate_limit_family": "screener",

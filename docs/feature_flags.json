@@ -2552,6 +2552,19 @@
       "owner": "Pine track 4 (the data indicators need), unit E1",
       "note": "A STAGE, read per request in api/services/pine_events.py::stage() by GET /api/pine/events/{ticker} (api/routers/pine_events.py): a chart symbol's earnings, dividends and splits for the Pine event supply. UNSET or admins = signed-in admins only (dark for members): this is how production's own vendor fetch is graded against TradingView (tools/vendor_harness/event_grade.py, coordinator ruling 2026-11-22). all (or 1/true/on) = every paid member; set only when the engine's event supply (E2) ships. off, or any unknown value = nobody (404, fail closed). Members get 404 while dark, so the route is not an oracle. Nothing in the engine reads the route until E2. Rails: tests/test_pine_events.py."
     },
+    "PINE_FINANCIAL_SUPPLY_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-22",
+      "where": [],
+      "default": "admins",
+      "values": [
+        "off",
+        "admins",
+        "all"
+      ],
+      "owner": "Pine track 4 (the data indicators need), unit F1a",
+      "note": "A STAGE, read per request in api/services/pine_financial.py::stage() by GET /api/pine/financial/{ticker} (api/routers/pine_financial.py): a chart symbol's figures from SEC filings (UCT's point-in-time fundamentals store) for Pine's request.financial, served as UCT data and never graded as TradingView's. UNSET or admins = signed-in admins only (dark for members). all (or 1/true/on) = every paid member; set only when the engine's request.financial supply (F1b) ships, and the assistant is handed request.financial only at all. off, or any unknown value = nobody (404, fail closed). Members get 404 while dark, so the route is not an oracle. Rails: tests/test_pine_financial.py."
+    },
     "PINE_SUPPORT_REPORTS_ENABLED": {
       "status": "armed",
       "where": [
