@@ -14036,6 +14036,105 @@
    },
    "needs": "a list filled only on some bars, averaged (`array.*`, `for ... in`)",
    "distinguishes": "differs from the plain 10 bar average volume on 1,974 of 2,000 bars"
+  },
+  {
+   "id": "fund-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot quarterly revenue growth in a pane under the chart",
+   "rule": {
+    "digest": "e41a747d1bf7519b",
+    "history": [
+     {
+      "digest": "e41a747d1bf7519b",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "quarterly revenue read from the filings, and REPORTS counted (the same quarter a year before is four reports back, never a number of bars)",
+   "distinguishes": "31 reports over 2,000 bars; against the same quarter a year before the line has a value on 1,704 bars and is exactly 0 on 61 of them; against the quarter before, on 1,902 bars; a reading 252 BARS back differs from the four-reports reading on 144 bars",
+   "waits_for": "the engine serving a company's filed figures to members (`request.financial` as UCT data)"
+  },
+  {
+   "id": "fund-02",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot diluted EPS over the trailing twelve months as a line under the chart",
+   "rule": {
+    "digest": "f43fd320e70bfef1",
+    "history": [
+     {
+      "digest": "f43fd320e70bfef1",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "diluted EPS of the trailing twelve months read from the filings, left empty where no figure is public yet",
+   "distinguishes": "a value on 1,781 of 2,000 bars and nothing on the first 219; the single-quarter figure differs from it on 1,960 bars",
+   "waits_for": "the engine serving a company's filed figures to members (`request.financial` as UCT data)"
+  },
+  {
+   "id": "fund-03",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot free cash flow per share under the chart",
+   "rule": {
+    "digest": "698a0421d68b2179",
+    "history": [
+     {
+      "digest": "698a0421d68b2179",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "two figures read from the filings and divided, left empty wherever either one is withheld (never filled with a zero or an older value)",
+   "distinguishes": "a value on 1,524 of 2,000 bars; a line that carries the older cash flow across the report that left it unknown differs on 257 bars",
+   "waits_for": "the engine serving a company's filed figures to members (`request.financial` as UCT data)"
+  },
+  {
+   "id": "fund-04",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot book value per share under the chart",
+   "rule": {
+    "digest": "c29b479df42ae374",
+    "history": [
+     {
+      "digest": "c29b479df42ae374",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "total equity over shares outstanding, both from the filings, said to be computed from filings (it is not a figure a data vendor publishes under that name)",
+   "distinguishes": "a value on 1,843 of 2,000 bars and nothing on the first 157 (the share count is first reported two reports after the equity)",
+   "waits_for": "the engine serving a company's filed figures to members (`request.financial` as UCT data)",
+   "says": [
+    [
+     "filings",
+     "filed"
+    ]
+   ]
+  },
+  {
+   "id": "fund-05",
+   "lane": "wall",
+   "words": "Plot the analyst EPS estimate for each quarter under the chart",
+   "wall": {
+    "names": [
+     "analyst",
+     "estimate"
+    ],
+    "offers": [
+     {
+      "what": "EPS as the company filed it (the figure UCT does hold)",
+      "words": [
+       "eps",
+       "fil"
+      ]
+     }
+    ]
+   },
+   "waits_for": "the engine serving a company's filed figures to members (`request.financial` as UCT data)"
   }
  ]
 }
