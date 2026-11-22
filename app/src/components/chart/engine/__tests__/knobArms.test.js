@@ -103,6 +103,14 @@ describe('the member door: the anchor is a member setting, and the saved trees k
     expect(def.meta.knobArmRefusals).toBeUndefined()
   })
 
+  it('⛔ a knob is offered only on a chart that draws: a DEFAULT the translator refuses keeps the switch folded and refused', () => {
+    const live = memberPaneDefinition({ source: anchorScript('Quarter'), id: 'u_knob_q', name: 'q' })
+    const before = memberPaneDefinition({ source: anchorScript('Quarter'), id: 'u_knob_q', name: 'q', enumInputs: false })
+    expect(live.ok).toBe(false)
+    expect(live.guard).toBe(before.guard)
+    expect(live.reason).toBe(before.reason)
+  })
+
   it('⛔ a Pine script cannot spell the refusing leaf: `refusedArm(1)` written by a script is refused, never a leaf', () => {
     const t = translatePine([...H, 'plot(refusedArm(1), "x")'].join('\n'), { strict: true })
     expect(t.ok).toBe(false)

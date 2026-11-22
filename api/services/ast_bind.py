@@ -601,9 +601,11 @@ def is_knob_name(name: Any, consts: Mapping[str, Any]) -> bool:
 
 
 def knob_test_value(test: Any, consts: Mapping[str, Any]):
-    """The value of a ternary TEST that COMPARES KNOBS TO CONSTANTS: ``knob == c`` / ``knob != c`` (either side), and
-    ``and`` / ``or`` / ``not`` over such comparisons, for this binding; ``None`` for any other test (a bar, a clock flag,
-    a bare knob, an ordering, arithmetic). The mirror of ``bind.js::knobTestValue``."""
+    """The value of a ternary TEST made of KNOBS AND CONSTANTS: a knob, ``knob == c`` / ``knob != c`` (either side), and
+    ``and`` / ``or`` / ``not`` over those and numbers, with at least one knob, for this binding; ``None`` for any other
+    test (a bar, a clock flag, an ordering, arithmetic). The mirror of ``bind.js::knobTestValue``."""
+    seen = {"knob": False}
+
     def is_knob(n: Any) -> bool:
         return isinstance(n, Mapping) and n.get("type") == "series" and is_knob_name(n.get("name"), consts)
 
@@ -611,15 +613,23 @@ def knob_test_value(test: Any, consts: Mapping[str, Any]):
         return isinstance(n, Mapping) and n.get("type") == "num"
 
     def ok(n: Any) -> bool:
+        if is_knob(n):
+            seen["knob"] = True
+            return True
+        if is_num(n):
+            return True
         if not isinstance(n, Mapping) or n.get("type") != "op" or not isinstance(n.get("args"), (list, tuple)):
             return False
         args = n["args"]
         name = n.get("name")
         if name in ("==", "!="):
-            return len(args) == 2 and ((is_knob(args[0]) and is_num(args[1])) or (is_num(args[0]) and is_knob(args[1])))
+            fits = len(args) == 2 and ((is_knob(args[0]) and is_num(args[1])) or (is_num(args[0]) and is_knob(args[1])))
+            if fits:
+                seen["knob"] = True
+            return fits
         return name in _KNOB_LOGIC_OPS and len(args) == (1 if name == "!" else 2) and all(ok(a) for a in args)
 
-    if not ok(test):
+    if not ok(test) or not seen["knob"]:
         return None
     try:
         v = fold_scalar(test, consts)

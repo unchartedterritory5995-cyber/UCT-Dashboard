@@ -4211,13 +4211,6 @@ export const VWAP_DEV_CALL = 'ta.vwap stdev'
 // ⭐⭐ e95 unit 2b — `REFUSED_ARM_CALL` (`bind.js`) is the table function a refused knob arm stands as
 // (`Resolver.refusedArmLeaf`); it is re-exported for the rails.
 export { REFUSED_ARM_CALL }
-/** A knob chain (`enumSwitch`) all of whose arms are refused leaves. */
-function isRefusedArmChain(node) {
-  if (!node || typeof node !== 'object') return false
-  if (node.type === 'call' && node.name === REFUSED_ARM_CALL) return true
-  return node.type === 'op' && node.name === '?:' && Array.isArray(node.args) && node.args.length === 3
-    && isRefusedArmChain(node.args[1]) && isRefusedArmChain(node.args[2])
-}
 
 const PINE_TUPLE_BUILTINS = Object.freeze({
   // ⭐⭐ e95 (unit 2) — `[vwap, upper, lower] = ta.vwap(source, anchor, stdev_mult)`: TradingView's built-in VWAP
@@ -10559,23 +10552,30 @@ export class Resolver {
     if (!covered && !bound.fallback) return null
     // ⭐ (approved 2026-11-22, the refusing leaf) an arm this translator refuses is carried as `refusedArm(k)`: the bind
     // prunes it away unless the knob picks it, and then refuses THAT plot by name, quoting the refusal it had here
-    const armOf = (binding, label) => {
+    const armOf = (binding) => {
       try {
-        return this.resolveBinding(binding, tok, name)
+        return { node: this.resolveBinding(binding, tok, name) }
       } catch (err) {
         // ⛔ the step budget and the door's clock are the translation's, never an arm's: they propagate
         if (!(err instanceof PineRefusal) || err.guard === 'pine:timeout' || !this.knobArmRefusals) throw err
-        return this.refusedArmLeaf(en, label, err)
+        return { refused: err }
       }
     }
     // every option labelled: the last arm is the chain's end (its test can only be true there)
     const last = covered ? arms.pop() : null
-    let out = last ? armOf(last.binding, en.options[last.idx]) : armOf(bound.fallback, null)
-    for (let k = arms.length - 1; k >= 0; k -= 1) {
-      out = cOp('?:', [this.enumKnobTest(en, arms[k].idx, true), armOf(arms[k].binding, en.options[arms[k].idx]), out])
+    const end = { ...armOf(last ? last.binding : bound.fallback), label: last ? en.options[last.idx] : null,
+      idx: last ? last.idx : -1 }
+    const built = arms.map((a) => ({ ...armOf(a.binding), label: en.options[a.idx], idx: a.idx }))
+    // ⛔ THE DEFAULT'S PROGRAM MUST TRANSLATE: an arm the knob's default picks that this translator refused keeps the
+    // switch folded to its default, refused as it always was (a knob is offered only on a chart that draws)
+    const defIdx = en.options.indexOf(en.def)
+    const atDefault = built.find((a) => a.idx === defIdx) || end
+    if (atDefault.refused) return null
+    const nodeOf = (a) => (a.refused ? this.refusedArmLeaf(en, a.label, a.refused) : a.node)
+    let out = nodeOf(end)
+    for (let k = built.length - 1; k >= 0; k -= 1) {
+      out = cOp('?:', [this.enumKnobTest(en, built[k].idx, true), nodeOf(built[k]), out])
     }
-    // ⛔ a chain whose every arm was refused is no knob: the fold to the default arm answers (and refuses) as before
-    if (isRefusedArmChain(out)) return null
     return out
   }
 

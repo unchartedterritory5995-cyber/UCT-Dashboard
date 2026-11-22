@@ -617,21 +617,27 @@ export function isKnobName(name, consts) {
     && typeof consts[name] === 'number' && Number.isFinite(consts[name])
 }
 
-/** The value of a ternary TEST that COMPARES KNOBS TO CONSTANTS (the ruling's words): `knob == c` / `knob != c` (either
- *  side), and `and` / `or` / `not` over such comparisons, for this binding; null for any other test (a bar, a clock
- *  flag, a bare knob, an ordering, arithmetic), which is left to the evaluator, bar by bar. That is the shape
- *  `enumCompare` / `enumSwitch` write (`kind == 1`), and a numeric knob compared for equality. */
+/** The value of a ternary TEST made of KNOBS AND CONSTANTS: a knob, `knob == c` / `knob != c` (either side), and `and` /
+ *  `or` / `not` over those and numbers, with at least one knob, for this binding; null for any other test (a bar, a
+ *  clock flag, an ordering, arithmetic), which is left to the evaluator, bar by bar. That is the shape `enumCompare` /
+ *  `enumSwitch` write (`kind == 1`), a numeric knob compared for equality, and a yes/no setting read as a condition
+ *  (`show ? x : na`, `not (hide and timeframe.isdwm)` once the period folded). */
 export function knobTestValue(test, consts) {
   const isKnob = (n) => !!n && n.type === 'series' && isKnobName(n.name, consts)
   const isNum = (n) => !!n && n.type === 'num'
+  let knob = false
   const ok = (n) => {
+    if (isKnob(n)) { knob = true; return true }
+    if (isNum(n)) return true
     if (!n || n.type !== 'op' || !Array.isArray(n.args)) return false
     if (n.name === '==' || n.name === '!=') {
-      return n.args.length === 2 && ((isKnob(n.args[0]) && isNum(n.args[1])) || (isNum(n.args[0]) && isKnob(n.args[1])))
+      const fits = n.args.length === 2 && ((isKnob(n.args[0]) && isNum(n.args[1])) || (isNum(n.args[0]) && isKnob(n.args[1])))
+      if (fits) knob = true
+      return fits
     }
     return KNOB_LOGIC_OPS.has(n.name) && n.args.length === (n.name === '!' ? 1 : 2) && n.args.every(ok)
   }
-  if (!ok(test)) return null
+  if (!ok(test) || !knob) return null
   try {
     const v = foldScalar(test, consts)
     return Number.isFinite(v) ? v : null

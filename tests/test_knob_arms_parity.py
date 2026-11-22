@@ -71,3 +71,25 @@ def test_the_interpreter_binds_at_its_entry_an_unpicked_refused_arm_is_never_eva
         ai.interpret(tree, _bars(), {"anchor": 3})
     assert exc.value.guard == "interpret:refused-arm"
     assert "a setting picks a branch of this script that the translator refused" in str(exc.value)
+
+
+def test_the_server_save_gate_measures_the_budget_at_the_knobs_defaults():
+    """``user_definitions._admit_new_maths`` (the browser's install rule, ``nativeRegistry.validateAstLane``): a tree
+    whose arms together read more series than the cap is admitted when the program the knobs' DEFAULTS draw is within
+    it; the arm a later setting picks is measured by that binding's compute budget."""
+    from api.services import user_definitions as ud
+    from api.services import ast_budget
+    S = lambda n: {"type": "series", "name": n}                                     # noqa: E731
+    wide = S("high")
+    for n in ("low", "open", "close", "volume", "hour", "minute", "dayofmonth", "month", "year"):
+        wide = {"type": "op", "name": "+", "args": [wide, S(n)]}
+    tree = {"type": "op", "name": "?:", "args": [
+        {"type": "op", "name": "==", "args": [S("anchor"), {"type": "num", "value": 1}]}, wide, S("close")]}
+    assert ast_budget.budget_result(tree, None)["ok"] is False, "the saved tree must be over the cap for this to mean anything"
+    definition = {"id": "u_knob", "inputs": [{"key": "anchor", "type": "enum", "default": "A", "options": ["A", "B"]}],
+                  "plots": [{"key": "value", "style": "line"}], "compute": {"kind": "ast", "ast": tree}}
+    ud._admit_new_maths(definition, {})            # admitted: at its default the knob picks `close`
+    moved = dict(definition, inputs=[{"key": "anchor", "type": "enum", "default": "B", "options": ["A", "B"]}])
+    with pytest.raises(ud.SaveRefused) as exc:
+        ud._admit_new_maths(moved, {})             # a default that picks the wide arm is over the cap: refused
+    assert exc.value.gate == "budget"

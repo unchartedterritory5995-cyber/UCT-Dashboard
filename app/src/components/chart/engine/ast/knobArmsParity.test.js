@@ -56,3 +56,14 @@ describe('this lane prunes to the PINNED bound tree', () => {
     expect(pruneAtLeafDefaults(c.tree)).toBe(c.tree)
   })
 })
+
+describe('the refusing leaf, evaluated, refuses by name (`interpret.js` `FN.refusedArm`)', () => {
+  it('a `refusedArm(k)` the bind kept (the setting picked it) never computes a number', async () => {
+    const { interpret } = await import('./interpret.js')
+    const bars = Array.from({ length: 5 }, (_, i) => ({ t: `2026-01-0${i + 1}`, o: 1, h: 2, l: 0, c: 1, v: 10 }))
+    let err = null
+    try { interpret({ type: 'call', name: 'refusedArm', args: [{ type: 'num', value: 1 }] }, bars) } catch (e) { err = e }
+    expect(err && err.guard).toBe('interpret:refused-arm')
+    expect(String(err.message)).toContain('a setting picks a branch of this script that the translator refused')
+  })
+})

@@ -1,5 +1,5 @@
 {
- "_": "e95 unit 2b -- the bind-time prune of a knob's unpicked arms (bind.js::pruneKnobArms / ast_bind.prune_knob_arms), pinned: both lanes are asserted against these rows, neither against the other. A test prunes only when it COMPARES knobs to constants (`knob == c`, `knob != c`, and/or/not over such). `inputs` are a binding's inputs (bindingConstants), `prunedTo` the bound tree.",
+ "_": "e95 unit 2b -- the bind-time prune of a knob's unpicked arms (bind.js::pruneKnobArms / ast_bind.prune_knob_arms), pinned: both lanes are asserted against these rows, neither against the other. A test prunes only when it is made of knobs and constants (a knob, `knob == c`, `knob != c`, and/or/not over those and numbers, at least one knob). `inputs` are a binding's inputs (bindingConstants), `prunedTo` the bound tree.",
  "cases": [
   {
    "id": "enum-chain-picks-week",
@@ -871,7 +871,7 @@
    }
   },
   {
-   "id": "bare-knob-left-alone",
+   "id": "bare-yes-no-knob",
    "tree": {
     "type": "op",
     "name": "?:",
@@ -894,12 +894,94 @@
     "show": 0
    },
    "prunedTo": {
+    "type": "series",
+    "name": "low"
+   }
+  },
+  {
+   "id": "yes-no-knob-and-a-folded-period",
+   "tree": {
     "type": "op",
     "name": "?:",
     "args": [
      {
+      "type": "op",
+      "name": "!",
+      "args": [
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "series",
+          "name": "hide"
+         },
+         {
+          "type": "num",
+          "value": 1
+         }
+        ]
+       }
+      ]
+     },
+     {
       "type": "series",
-      "name": "show"
+      "name": "close"
+     },
+     {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "num",
+        "value": 0
+       },
+       {
+        "type": "num",
+        "value": 0
+       }
+      ]
+     }
+    ]
+   },
+   "inputs": {
+    "hide": 0
+   },
+   "prunedTo": {
+    "type": "series",
+    "name": "close"
+   }
+  },
+  {
+   "id": "constant-test-without-a-knob-left-alone",
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     }
+    ]
+   },
+   "inputs": {
+    "show": 0
+   },
+   "prunedTo": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "num",
+      "value": 1
      },
      {
       "type": "series",
