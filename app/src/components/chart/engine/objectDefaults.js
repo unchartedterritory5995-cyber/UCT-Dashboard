@@ -21,11 +21,19 @@
 //   v5  box.text_color            `color.black`, `#363A45` (745 boxes)
 //   v5  cell.text_color           `color.black`, `#363A45` (htf-liquidity, vold,
 //                                  keltner-center-of-gravity: 32 cells)
+//   v4  cell.text_color           `color.black`, `#363A45` (vw-tf-tick-format-idiom-v4
+//                                  spy / eurusd 2026-11-20)
+//   v6  cell.text_color           `color.black`, `#363A45` (vw-w3-format-date,
+//                                  -loop-helper-text, -str-repeat-length 2026-11-16;
+//                                  vw-tf-*, vw-lastbar-forming 2026-11-20: 12 captures)
+//   ⭐ e93 (2026-11-21): so a cell's unset text colour is `color.black` in EVERY version
+//   that draws one, a NAMED default (`NAMED_OBJECT_DEFAULTS.cell`), never a per-version row.
+//   ⚰️ Witnessed for v5 only until then, v4 and v6 cells fell to the table renderer's fixed
+//   `#D1D4DC` (`objectTableDom.js`), a light grey where TradingView draws near-black.
 //
 // ⛔ ONLY THE (version, slot) PAIRS A CAPTURE SHOWS. A v6 box's unset fill, a v4
-// box's border, a v6 cell's text colour are unwitnessed: they keep the base
-// default (`objectRenderState.js::OBJECT_DEFAULTS`; a cell's is the table
-// renderer's own) until a capture says otherwise.
+// box's border are unwitnessed: they keep the base default
+// (`objectRenderState.js::OBJECT_DEFAULTS`) until a capture says otherwise.
 // ⛔ The hexes come from the palette authority (`pinePalette.js`) AT THAT
 // VERSION, never typed here — `color.blue` is `#2196F3` in v4 and `#2962FF`
 // from v5.
@@ -50,6 +58,8 @@ export const NAMED_OBJECT_DEFAULTS = Object.freeze({
   label: Object.freeze({ color: Object.freeze(['color.blue', null]), textcolor: Object.freeze(['color.white', null]) }),
   box: Object.freeze({ border_color: Object.freeze(['color.blue', null]), bgcolor: Object.freeze(['color.blue', 0.2]) }),
   linefill: Object.freeze({ color: Object.freeze(['color.blue', 0.2]) }),
+  // `table.cell`'s `text_color = color.black`, witnessed in v4, v5 and v6 (the header)
+  cell: Object.freeze({ text_color: Object.freeze(['color.black', null]) }),
 })
 /** The version an object program that states none is drawn at: the base (`pine.js` stamps
  *  `pineVersion` only for `VERSIONS_WITH_OBJECT_DEFAULTS`). */
@@ -93,7 +103,7 @@ const VERSION_DEFAULTS = Object.freeze({
   5: Object.freeze({
     label: Object.freeze({ textcolor: 'color.black' }),
     box: Object.freeze({ bgcolor: 'color.blue', text_color: 'color.black' }),
-    cell: Object.freeze({ text_color: 'color.black' }),
+    // (a cell's text colour is `color.black` in every version: `NAMED_OBJECT_DEFAULTS.cell`)
   }),
 })
 

@@ -1,0 +1,46 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "U-BUILTIN B4b (feat/pine-b4b-colour-cast, engine 93): `color(x)` of a colour is that colour on the runtime lane (the reference, color(): \"The value of the argument after casting to color\"), so bolingger-bands-inside-bar-boxes' drawing program builds and its boxes are withheld by name (objects:count-at-cap) instead of the grade reading DIVERGE. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "B4b-1",
+   "mutant": "the identity cast never applies (the served defect: the program does not build)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    && !colourNaCast(node, scope)\n    && holdsColour(node.args[0].value",
+   "to": "    && !colourNaCast(node, scope)\n    && false && holdsColour(node.args[0].value",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b4bColourCast.test.js"
+  },
+  {
+   "id": "B4b-2",
+   "mutant": "a number is read as a colour: color(close) is cast",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    && holdsColour(node.args[0].value !== undefined ? node.args[0].value : node.args[0], scope)\n  /** ⭐ U-BUILTIN B4 — a `color(na)` anywhere",
+   "to": "    && true\n  /** ⭐ U-BUILTIN B4 — a `color(na)` anywhere",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js -t B4b"
+  },
+  {
+   "id": "B4b-3",
+   "mutant": "holdsColour does not read the cast as a colour",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (node.type === 'call' && colourIdentityCast(node, scope)) return true\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js -t B4b"
+  },
+  {
+   "id": "B4b-4",
+   "mutant": "the call arm does not lower the cast as the colour it holds",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (colourIdentityCast(node, scope)) {\n",
+   "to": "        if (false) {\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js -t B4b"
+  },
+  {
+   "id": "B4b-5",
+   "mutant": "a named argument is taken as the cast's argument",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    && Array.isArray(node.args) && node.args.length === 1 && !!node.args[0] && !node.args[0].name\n    && !colourNaCast(node, scope)\n",
+   "to": "    && Array.isArray(node.args) && node.args.length === 1 && !!node.args[0]\n    && !colourNaCast(node, scope)\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js -t B4b"
+  }
+ ]
+}
