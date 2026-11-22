@@ -131,7 +131,7 @@
       "vendor": "massive",
       "dataClass": "derived_analytics",
       "licence": {
-        "class": "R",
+        "class": "LA",
         "registerRow": "T-11"
       },
       "disclosure": "UCT RS Rating is UCT's own calculation.",
@@ -148,7 +148,7 @@
       "vendor": "massive",
       "dataClass": "derived_analytics",
       "licence": {
-        "class": "R",
+        "class": "LA",
         "registerRow": "T-11"
       },
       "disclosure": "The UCT RS line is UCT's own calculation.",
@@ -165,7 +165,7 @@
       "vendor": "massive",
       "dataClass": "derived_analytics",
       "licence": {
-        "class": "R",
+        "class": "LA",
         "registerRow": "T-11"
       },
       "disclosure": "UCT breadth series are UCT's own calculations.",

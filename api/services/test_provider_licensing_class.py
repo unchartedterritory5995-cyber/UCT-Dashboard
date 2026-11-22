@@ -6,9 +6,10 @@ def test_known_pairs_return_expected_classes():
     # The Bus / DDLA columns, in force since the register's 2026-09-19 note (table restated 2026-11-19).
     assert plc.licensing_class_for("massive", "quotes") == "LA"
     assert plc.licensing_class_for("fmp", "fundamentals") == "LA"
-    # Held at R: owner questions ESC-03 (Derived Works) and ESC-11 (transcript AI).
-    assert plc.licensing_class_for("massive", "derived_analytics") == "R"
+    # Held at R: owner question ESC-11 (transcript AI).
     assert plc.licensing_class_for("fmp", "transcripts") == "R"
+    # ESC-03 (Derived Works) ANSWERED BY THE OWNER 2026-11-22: LA, member display.
+    assert plc.licensing_class_for("massive", "derived_analytics") == "LA"
 
 
 def test_unknown_pair_returns_unknown_never_a_permissive_default():
