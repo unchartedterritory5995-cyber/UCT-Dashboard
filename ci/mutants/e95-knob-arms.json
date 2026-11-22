@@ -94,10 +94,10 @@
   },
   {
    "id": "KA11",
-   "mutant": "the door's budget pass measures the saved tree, so it hands the knob back",
+   "mutant": "the door's budget pass measures the saved tree (every arm), so it hands the knob back",
    "file": "app/src/components/chart/builder/builderInputs.js",
-   "from": "      try { b = checkBudget(pruneAtLeafDefaults(o.ast)) } catch { return false }\n",
-   "to": "      try { b = checkBudget(o.ast) } catch { return false }\n",
+   "from": "      try { b = checkBudget(pruneAtLeafDefaults(o.ast)) } catch { return false }\n      return !!b && !b.ok && b.guard === 'budget:series'\n    }\n    for (let round = 0; round < 4; round += 1) {\n      const over = (attempt.outputs || []).filter(overSeries)\n      if (!over.length) break\n      const read = new Set(over.flatMap((o) => [...seriesNamesOf(pruneAtLeafDefaults(o.ast))]))\n",
+   "to": "      try { b = checkBudget(o.ast) } catch { return false }\n      return !!b && !b.ok && b.guard === 'budget:series'\n    }\n    for (let round = 0; round < 4; round += 1) {\n      const over = (attempt.outputs || []).filter(overSeries)\n      if (!over.length) break\n      const read = new Set(over.flatMap((o) => [...seriesNamesOf(o.ast)]))\n",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/knobArms.test.js",
    "expectRed": "failed"
   },
