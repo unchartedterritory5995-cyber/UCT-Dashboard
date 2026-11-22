@@ -327,6 +327,11 @@ def test_the_answer_carries_the_record_and_history_rev_moves_with_the_store(fmp,
     fields = index_bars._repair_fields(info["repair"], out)
     assert fields["deep"]["joined"] and fields["deep"]["from"] == NOV21.isoformat()
     assert fields["deep"]["seam"]["equal"] == 78
+    # ⭐ (2026-11-22) the prefix's newest session: Yahoo's own bars begin the session after it (NOV27 is Thanksgiving)
+    assert fields["deep"]["through"] == NOV28.isoformat()
+    first_yahoo = min(b["t"] for b in yahoo)
+    newest_prefix = max(b["t"] for b in out if b["t"] < first_yahoo)
+    assert index_bars._et_date(newest_prefix).isoformat() == fields["deep"]["through"]
 
 
 # ── H12 ───────────────────────────────────────────────────────────────────────────────────────────────
