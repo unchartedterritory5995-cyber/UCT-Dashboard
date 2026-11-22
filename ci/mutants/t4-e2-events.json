@@ -136,6 +136,15 @@
    "to": "      return false",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
    "expectRed": "anchor idiom"
+  },
+  {
+   "id": "EV16",
+   "mutant": "the assistant is handed the event reads (and their gaps read served) while the events door is dark for members",
+   "file": "api/services/pine_authoring.py",
+   "from": "    return pine_events.stage() == \"all\"",
+   "to": "    return True",
+   "rail": "python -m pytest -q tests/test_pine_authoring.py",
+   "expectRed": "request.earnings"
   }
  ]
 }

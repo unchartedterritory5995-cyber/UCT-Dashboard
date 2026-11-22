@@ -36,9 +36,9 @@ This file holds capabilities only: no member's request, no answer and no count f
 
 | a member cannot get | what the engine says | refused as | probe |
 |---|---|---|---|
-| Earnings dates or earnings numbers on the chart | this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.earnings` | `pine:request` | `earnings-data` |
+| Earnings dates or earnings numbers on the chart | the engine reads it, and the data is not available on a member's chart yet | `other-symbol:event-not-available` | `earnings-data` |
 | A fundamental number on the chart (sales, margins) | this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.financial` | `pine:request` | `financial-data` |
-| Dividends on the chart | this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.dividends` | `pine:request` | `dividends-data` |
+| Dividends on the chart | the engine reads it, and the data is not available on a member's chart yet | `other-symbol:event-not-available` | `dividends-data` |
 | A value read from a lower timeframe than the chart's | this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `5` is not one of th | `pine:request` | `lower-timeframe` |
 
 ## Language
