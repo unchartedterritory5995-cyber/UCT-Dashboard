@@ -2979,6 +2979,40 @@ RUNTIME_SWEEP_CAP = 25
 RUNTIME_SWEEP_CAP_GUARD = "runtime:sweep-cap"
 
 
+#: ⭐ TRACK 6, PR-C -- THE PER-MEMBER QUOTA (owner ruling Q2, 2026-11-02: "Per-member quota: YES, required
+#: before stage `all`. Initial proposal: 3 runtime documents per member in the nightly sweep"). At most this
+#: many of ONE owner's admitted runtime documents are swept per night, so one member cannot take the whole
+#: cap from everyone else. It applies at the effective server stage ``all`` (Q2's "before stage all"); at
+#: ``admins`` and ``cohort`` the cap alone governs, so the operators' measured load (L-cohort) stays possible.
+#: Re-derived from the deployed service's numbers like the cap; changing it is a commit.
+RUNTIME_SWEEP_PER_MEMBER = 3
+#: The guard a document over its owner's quota is counted under (never silent; it rotates in like the cap's).
+RUNTIME_SWEEP_QUOTA_GUARD = "runtime:sweep-member-quota"
+
+
+def _runtime_owner(definition: Any) -> str:
+    """The owner of a swept runtime document (its stored row's ``user_id``), or ``""`` when unknown."""
+    row = getattr(definition, "lane_row", None)
+    owner = row.get("user_id") if isinstance(row, Mapping) else None
+    return str(owner) if owner else ""
+
+
+def _runtime_sweep_quota(docs: Sequence[Any], quota: int, day: int) -> tuple:
+    """``(kept handles, over-quota count)``: per owner, a `_runtime_sweep_turn` window of ``quota`` over that
+    owner's handles, so each owner's documents rotate through the nights exactly as the cap's do. An owner
+    that cannot be read is its own group under ``""`` (fails toward fewer runs, never more)."""
+    by_owner: dict = {}
+    for d in docs:
+        by_owner.setdefault(_runtime_owner(d), []).append(_result_handle(d))
+    kept: set = set()
+    over = 0
+    for handles in by_owner.values():
+        turn = _runtime_sweep_turn(handles, quota, day)
+        kept |= turn
+        over += len(set(handles)) - len(turn)
+    return kept, over
+
+
 def _runtime_sweep_turn(handles: Sequence[str], cap: int, day: int) -> set:
     """WHICH runtime documents tonight's sweep runs when there are more than `cap`: a window of
     `cap` over the handles in sorted order, starting at ``(day * cap) % n``. Consecutive nights'
@@ -3061,9 +3095,21 @@ def definitions_to_sweep() -> list:
         out.append(definition)
     # ⭐ TRACK 6, PR-B -- the Q2 cap, applied AFTER admission and the dedupe, so a document the
     # lane refuses or a second member's copy of the same script never takes a slot.
+    day = _now_et().date().toordinal()
+    # ⭐ TRACK 6, PR-C -- the per-member quota FIRST (at the effective stage `all` only), then the cap over
+    # what is left, so the cap rotates over documents every owner is entitled to tonight.
+    if runtime_definitions.effective_server_stage() == runtime_definitions.STAGE_ALL:
+        kept, over = _runtime_sweep_quota([d for d in out if runtime_definitions.is_runtime(d)],
+                                          RUNTIME_SWEEP_PER_MEMBER, day)
+        if over:
+            out = [d for d in out if not runtime_definitions.is_runtime(d) or _result_handle(d) in kept]
+            not_admitted[RUNTIME_SWEEP_QUOTA_GUARD] = over
+            log.warning("[scan] runtime sweep member quota: %d runtime document(s) over their owner's quota of "
+                        "%d are not swept tonight (ruling Q2) and lead on the following nights",
+                        over, RUNTIME_SWEEP_PER_MEMBER)
     runtime_handles = [_result_handle(d) for d in out if runtime_definitions.is_runtime(d)]
     if len(runtime_handles) > RUNTIME_SWEEP_CAP:
-        turn = _runtime_sweep_turn(runtime_handles, RUNTIME_SWEEP_CAP, _now_et().date().toordinal())
+        turn = _runtime_sweep_turn(runtime_handles, RUNTIME_SWEEP_CAP, day)
         out = [d for d in out if not runtime_definitions.is_runtime(d) or _result_handle(d) in turn]
         capped = len(runtime_handles) - len(turn)
         not_admitted[RUNTIME_SWEEP_CAP_GUARD] = capped
