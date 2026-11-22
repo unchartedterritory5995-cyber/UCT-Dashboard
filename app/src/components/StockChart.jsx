@@ -66,7 +66,7 @@ import {
 const LEGEND_MODE_MENU_LABELS = { always: 'Always', hold: 'Hold to peek', off: 'Off' }
 import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from './chart/watermarkPrimitive'
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
-import { useChartTickerMeta, useChartTickerIpo } from './chart/restedReaders'
+import { useChartTickerMeta, useChartTickerIpo, chartStoredTickerMeta } from './chart/restedReaders'
 import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
 import { isStrategyWindowDefinition, strategyNeedsFullDailyHistory } from './chart/engine/strategyWindow'
 import { servedFromListingOf, listingReferenceDate, listingStartOf } from './chart/engine/listingSeed'
@@ -1904,7 +1904,6 @@ import { getBarStore } from '../data/barStore/index'
 import { cache as swrCache } from 'swr/_internal'
 import { tickerMetaKey } from '../hooks/tickerMetaKey'
 import { tickerIpoKey } from '../hooks/tickerIpoKey'
-import { storedTickerMeta } from '../hooks/useTickerMeta'
 import {
   LEGACY_LIVE, devOnScreenSource, liveAfterSetData, liveAfterVolumeSetData,
   useLegacyGapWatchdog, useLegacyLiveReset, useLegacyWriterA, useLegacyPushWriterB, useLegacyHeldPushFold,
@@ -23383,7 +23382,7 @@ function switchPeek(key) {
 function switchMetaFor(sym, built, cfg, live, inp) {
   const on = live && !!sym
   const meta = {
-    tickerMeta: on ? (switchPeek(tickerMetaKey(sym)) || storedTickerMeta(sym) || null) : null,
+    tickerMeta: on ? (switchPeek(tickerMetaKey(sym)) || chartStoredTickerMeta(sym) || null) : null,
     ipoInfo: on ? (switchPeek(tickerIpoKey(sym)) || SWITCH_NO_IPO) : SWITCH_NO_IPO,
     markersData: on && cfg.markers ? switchPeek(markersKeyOf(sym)) : undefined,
     newsData: on && cfg.news ? switchPeek(newsKeyOf(sym)) : undefined,
