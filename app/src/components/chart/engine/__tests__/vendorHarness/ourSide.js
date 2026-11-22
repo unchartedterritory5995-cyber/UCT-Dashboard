@@ -1738,7 +1738,7 @@ function runOurSideOnTheParityClock(capture) {
     // ⭐⭐ SETTINGS PARITY (2c) — THE SETTINGS THE CAPTURE WAS TAKEN AT. At every default this is
     // `undefined` and our side computes exactly as it always has; a capture with a setting moved is
     // computed with the same setting moved, or refused by name (`captureInputs.js`).
-    const taken = captureInstanceInputs(capture, def)
+    const taken = captureInstanceInputs(capture, def, source)
     if (!taken.ok) {
       return { ok: false, refusal: `the capture was taken at settings our side cannot set: ${taken.why}`, plots: [], notes }
     }
