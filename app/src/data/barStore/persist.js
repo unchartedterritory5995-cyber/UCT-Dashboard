@@ -251,7 +251,9 @@ export function createPersist({
     if (!got || !(got.n ?? got.rows?.length)) return false
     const before = registry.peek(key)
     const held = devThrough.get(key)
-    // ⛔ FIRST, AND WITHOUT TOUCHING `got.rows`: this is what nearly every warm of a device-held key ends in
+    // What nearly every warm of a device-held key ends in. It reads no row: the count above is `got.n`, and for an
+    // entry the device already holds `_joinRefused` returns before it reads one either. (The saving is the lazy
+    // `rows` of deviceStore/source.js, not this check's place in the order.)
     if (before?.source === 'device' && held != null && !(got.through > held)) return false   // not newer
     if (_joinRefused(before, p, got, ownDev)) return false
     const was = { dev: devThrough.has(key), through: held, saved: savedAt.has(key), savedAt: savedAt.get(key) }

@@ -51,6 +51,8 @@ export function buildTimeMs(build) {
 // timeframe, on every press), and nearly every time it drops the copy after one look at `through`: no newer than
 // the one it holds. Building one object per bar first cost 20 ms of main-thread work around a next-row press and
 // made the press 4 ms slower with the store on (devgates4). `n` is the row count, for a caller that needs no row.
+// `rows` is READ-ONLY (a getter with no setter: assigning to it throws in a module) and is built once per hit;
+// every peek / read makes a new hit over the cached columns.
 const _hit = (cols) => {
   const n = cols?.t?.length || 0
   if (!n) return null
