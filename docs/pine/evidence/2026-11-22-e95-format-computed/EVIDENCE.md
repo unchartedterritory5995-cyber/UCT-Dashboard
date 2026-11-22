@@ -65,6 +65,11 @@ sentences as `drawn.why` (additive: a case with nothing withheld has exactly its
 - Mutants `ci/mutants/e95-format-fold.json`, FF1-FF9, each KILLED locally with a byte-identical restore (FF7 first
   survived; its rail was added).
 
+**The value case moves WRONG -> RIGHT.** `table-format-01` ("Show a table with yesterday's high and yesterday's low"),
+recorded WRONG on 2026-11-22 because its answer's table showed two labels and no values (`fmt = "#." +
+str.replace_all(...)`, then `str.tostring(pdh, fmt)`), grades RIGHT on the script lane with this unit (the PR's
+`value cases` check found it). It leaves the WRONG list (`tests/test_value_cases.py`); the recorded answer is unchanged.
+
 CENSUS_AND_GRADE_PENDING
 
 ## Findings outside this unit

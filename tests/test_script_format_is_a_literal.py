@@ -160,8 +160,11 @@ def test_THE_PERCENT_SENTENCE_STAYS_EXACTLY_AS_LONG_AS_THE_ENGINE_WITHHOLDS_FORM
     assert "\n13. " + pa.PERCENT_FORMAT_RULE in pa.document()
 
 
-def test_the_recorded_answer_is_a_case_recorded_WRONG():
-    """The record stays what it was: on 2026-11-22 that answer drew NO VALUES. It draws them since e95."""
-    assert CASE["lane"] == "script" and CASE["recorded_verdict"] == "wrong" and "NO VALUES" in CASE["defect"]
+def test_the_recorded_answer_is_no_longer_a_case_recorded_WRONG():
+    """On 2026-11-22 that answer drew NO VALUES (its table showed two labels and no numbers: the engine withheld a text
+    whose format was not a string literal), and the case was recorded WRONG. Since e95 unit 1 the engine folds a
+    format that is fixed, the same recorded answer grades RIGHT on the script lane
+    (`tests/test_value_cases_scripts.py`), and the case left the WRONG list (`tests/test_value_cases.py`)."""
+    assert CASE["lane"] == "script" and "recorded_verdict" not in CASE and "defect" not in CASE
     assert "str.tostring(pdh, fmt)" in RECORDED and "request.security" not in RECORDED
     assert script_rules.has_rule("table-format-01")

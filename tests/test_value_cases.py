@@ -67,7 +67,9 @@ def test_the_fixture_is_whole():
         # a case may be recorded WRONG: a known defect of the door, named, never silently passed
         assert case.get("recorded_verdict", "wrong" if "defect" in case else None) in (None, "wrong"), case["id"]
         assert ("defect" in case) == (case.get("recorded_verdict") == "wrong") and len(case.get("defect") or "x" * 99) > 80, case["id"]
-    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "date-start-01", "wall-18", "j06", "count-on-bars-01", "table-format-01", "wall-26", "intraday-02"]     # every one is named here, on purpose
+    # e95 unit 1 (2026-11-22): `table-format-01` left the list: its recorded answer (a computed number format) draws its
+    # values since the engine folds a format that is fixed (`tests/test_script_format_is_a_literal.py`)
+    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "date-start-01", "wall-18", "j06", "count-on-bars-01", "wall-26", "intraday-02"]     # every one is named here, on purpose
 
 
 @pytest.mark.parametrize("case", HERE, ids=[c["id"] for c in HERE])

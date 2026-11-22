@@ -12317,8 +12317,6 @@
     "on": "2026-11-22",
     "front": "6a532bd3a0"
    },
-   "recorded_verdict": "wrong",
-   "defect": "The table shows its two labels and NO VALUES. The script adds a \"Decimal places\" setting and builds the number format from text (`fmt = \"#.\" + str.replace_all(...)`, then `str.tostring(pdh, fmt)`); the engine withholds a text whose format is not a string literal, with no error and no word to the member. What it reads is right (the prior bar, with no request for another timeframe). The script document now says to write the format as a string literal, until the engine serves a computed one.",
    "answer": {
     "turn": "script",
     "script": {
