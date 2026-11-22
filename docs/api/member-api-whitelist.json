@@ -4387,6 +4387,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "metric=eps, window=30",
+      "path": "/api/research/estimate-history",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}",
       "path": "/api/research/estimate-history/{sym}",
       "rate_limit_family": "research",
@@ -4398,6 +4406,22 @@
       "params": "{sym}, consensus=0, revisions=0",
       "path": "/api/research/estimates/{sym}",
       "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "30/minute",
+      "method": "GET",
+      "params": "kind, universe, metric, series, indicator, period, market, group, op, threshold, symbol, horizons, episodes=first, entry=event_close",
+      "path": "/api/research/event-study",
+      "rate_limit_family": "research-studies",
+      "tier": "paid"
+    },
+    {
+      "limit": "30/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/research/event-study/series",
+      "rate_limit_family": "research-studies",
       "tier": "paid"
     },
     {
@@ -4733,6 +4757,14 @@
       "method": "GET",
       "params": "{sym}",
       "path": "/api/research/people/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/public-records/{ticker}",
       "rate_limit_family": "research",
       "tier": "paid"
     },

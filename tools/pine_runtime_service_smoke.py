@@ -174,8 +174,16 @@ def _web_engine() -> Optional[int]:
     return read_script_engine_version()
 
 
+def _web_identity() -> Optional[Dict[str, Any]]:
+    """Track 6 (2026-11-22): the identity web's runtime client SIGNS every run with
+    (`pine_runtime_client.caller_identity`), or None when web cannot state it."""
+    from api.services.pine_runtime_client import caller_identity
+    return caller_identity()
+
+
 def run_smoke(base: str, secret: str, fixture: Dict[str, Any], http: Http = urllib_http,
               web_engine: Callable[[], Optional[int]] = _web_engine, timeout: float = 30.0,
+              web_identity: Callable[[], Optional[Dict[str, Any]]] = _web_identity,
               say: Callable[[str], None] = print, record: bool = False,
               sleep: Callable[[float], None] = time.sleep) -> int:
     results: List[Tuple[str, str]] = []
@@ -305,6 +313,34 @@ def run_smoke(base: str, secret: str, fixture: Dict[str, Any], http: Http = urll
                 else:
                     done(PASS, f"run: {SMOKE_SLUG} over {fixture['series']['n']} D bars equals the committed digest {got[:12]}")
 
+    # 5. WEB IDENTITY (track 6, measured 2026-11-22): the service can pass checks 1-4 while web's own client cannot
+    # state the identity it signs every run with (the server bundle it hashes was missing from web's image), and then
+    # EVERY server-lane run is withheld runtime:server-unavailable. So the smoke asks web's client too, and holds it
+    # equal to the service's, field for field: a lane is only as alive as the identity both sides agree on.
+    if metrics_state:
+        done(INCONCLUSIVE, f"web identity: no service identity to compare ({metrics_state})")
+    else:
+        try:
+            mine = web_identity()
+        except Exception as e:  # noqa: BLE001 -- a reader that raises is a web that cannot state it
+            mine = None
+            say(f"(web identity raised {type(e).__name__})")
+        theirs = metrics.get("engine") or {}
+        if mine is None:
+            done(FAIL, "web identity: web's runtime client cannot state the engine identity it signs runs with "
+                       "(the server bundle it hashes is missing or unreadable), so every server-lane run is withheld")
+        else:
+            # the FULL identity the client signs and the service checks (codec.ENGINE_FIELDS, bundle sha included);
+            # this tool's own ENGINE_FIELDS leave the bundle out on purpose (its digest is artifact-neutral)
+            from api.services import pine_runtime_codec
+            diff = [k for k in pine_runtime_codec.ENGINE_FIELDS if str(mine.get(k)) != str(theirs.get(k))]
+            if diff:
+                done(FAIL, "web identity: web signs runs as another engine than the service runs ("
+                           + ", ".join(f"{k} web {str(mine.get(k))[:12]} vs service {str(theirs.get(k))[:12]}" for k in diff)
+                           + "), so every run is refused runtime:server-engine-mismatch")
+            else:
+                done(PASS, f"web identity: web's client signs as the service's engine (bundle {str(mine.get('bundle_sha256'))[:12]})")
+
     # 4. AUTH (an unsigned request needs no key, so it runs whatever happened above)
     try:
         status, _ = http("POST", base + "/v1/run", {"Content-Type": "application/json"}, b"{}", timeout)
@@ -322,7 +358,7 @@ def run_smoke(base: str, secret: str, fixture: Dict[str, Any], http: Http = urll
     if INCONCLUSIVE in states:
         say("INCONCLUSIVE: not a pass and not a failure; never a rollback trigger.")
         return 2
-    say("PASS: engine, canary, run and auth all measured and good.")
+    say("PASS: engine, canary, run, web identity and auth all measured and good.")
     return 0
 
 

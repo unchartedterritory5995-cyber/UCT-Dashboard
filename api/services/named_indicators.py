@@ -185,6 +185,53 @@ def built_in_answer(e: Mapping[str, Any]) -> str:
     return f"{named}: {b['what']}.{differs} It is not a formula to build here."
 
 
+#: ⭐ ANOTHER PUBLISHER'S OWN NUMBER (found by the first full live run of the value cases, 2026-11-22). Asked for "the
+#: same proprietary RS Rating number IBD publishes", the door answered by name: "RS Rating is one of UCT's own
+#: indicators, UCT RS Rating: ...", with the offer to add it. It never said it is NOT IBD's number. A named offer under
+#: the words of another publisher's proprietary number reads as a yes.
+#: Each row: the name the member is told, and the words that name that publisher. Only publishers of ratings, ranks
+#: and scores of their own; a data vendor or a charting site named in passing is not one.
+OTHER_PUBLISHERS: Tuple[Tuple[str, str], ...] = (
+    ("IBD", r"\bibd\b|investor'?s\s+business\s+daily|\bmarket\s?smith\b|\bmarket\s?surge\b"),
+    ("Zacks", r"\bzacks\b"),
+    ("Morningstar", r"\bmorningstar\b"),
+    ("Value Line", r"\bvalue\s+line\b"),
+    ("TipRanks", r"\btip\s?ranks\b"),
+    ("Barchart", r"\bbarchart\b"),
+    ("Seeking Alpha", r"\bseeking\s+alpha\b"),
+)
+
+
+def other_publisher(message: Any) -> Optional[str]:
+    """The other publisher the member's words name (the first of the table that they do), or None."""
+    if not isinstance(message, str):
+        return None
+    import re
+    for name, words in OTHER_PUBLISHERS:
+        if re.search(words, message, re.I):
+            return name
+    return None
+
+
+def their_number(message: Any, e: Mapping[str, Any], can_add: bool) -> Optional[str]:
+    """What the door says, IN PLACE of its usual sentence, when the member asked for another publisher's own number
+    and named something UCT holds by that name. None when the words name no other publisher (the usual sentence
+    stands). It says FIRST that the publisher's number cannot be given here; only then that UCT has its own, what
+    that is (the built-in's own `what`, said once), and that it is not theirs. `can_add`: this browser can add the
+    built-in now (the one-tap offer rides beside the sentence), else where to look for it."""
+    publisher = other_publisher(message)
+    if publisher is None:
+        return None
+    first = f"{publisher}'s {e['name']} is {publisher}'s own and is not available here."
+    b = built_in(e)
+    if b is None:
+        return f"{first} {way_forward(e)}"
+    defect = open_defect(b.get("indicator"))
+    differs = f" UCT's built-in differs from the published indicator today: {defect}; a fix is pending." if defect else ""
+    said = f"{first} UCT has its own, {b['name']}: {b['what']}.{differs} It is not {publisher}'s number"
+    return said + (", and it is not a formula to build here." if can_add else f". Look for {b['name']} in the Indicators list.")
+
+
 def needs_script(e: Any) -> Optional[str]:
     """Why a held name can only be a script (its published form is more than a formula holds), or None."""
     because = e.get("needs_script") if isinstance(e, Mapping) else None

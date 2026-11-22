@@ -642,15 +642,15 @@ def rules(cid):
         from .stat_rules import stat_rules
         got = stat_rules(cid, C, V, [None if not ok(x) else x for x in SC])
         return {group: [(name, [NAN if v is None else v for v in col]) for name, col in readings] for group, readings in got.items()}
-    if cid == 'intraday-01':                                # today's low so far plus the 14 day ATR; today's high so far minus it
-        # ⚠ GRADED ON THE DAILY MARKET until the intraday market exists (the next unit): here each bar is its own
-        # day, so "today's low so far" at the bar's close is the bar's low and the 14 day ATR is the ATR of 14 bars.
-        out = {"today's low plus the 14 day ATR": [], "today's high minus the 14 day ATR": []}
-        for kind in ('rma', 'wilder', 'sma'):
-            a = atr(14, kind)
-            out["today's low plus the 14 day ATR"].append((f'ATR by {kind}', [L[i] + a[i] if ok(a[i]) else NAN for i in range(N)]))
-            out["today's high minus the 14 day ATR"].append((f'ATR by {kind}', [H[i] - a[i] if ok(a[i]) else NAN for i in range(N)]))
-        return out
+    if cid == 'wall-18':                                    # the number of shares I own and my average cost: the member's OWN figures
+        # nothing here can be computed from bars: the rule is about the two settings (see `grade._grade_fill_in`)
+        return {'__fill_in__': [('the shares the member owns', 150.0), ('the average cost', 48.25)]}
+    if cid and cid.startswith('udaily-'):                  # a daily measure below a day: the acceptance rules of the 5 minute chart
+        from .udaily_rules import udaily_rules
+        return udaily_rules(cid)
+    if cid and cid.startswith('intraday-'):                 # a request on a 5 minute chart: the intraday chart's own rules
+        from .intraday_rules import intraday_rules
+        return intraday_rules(cid)
     if cid and cid.startswith('date-start-'):               # a running value that starts on a date the member wrote out
         def since(start, first, step):
             """No value before the date; `first` on the first bar on or after it; `step` on every bar after."""

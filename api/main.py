@@ -3225,11 +3225,32 @@ def register_screener_jobs(scheduler):
     # one fixed copy beside one stale copy is the second-authority defect again.
     from api.services.screener import scan_evaluator
 
+    # ⛔ ONE NIGHTLY SWEEP AT A TIME, across BOTH jobs below (the 05:00 ET sweep and its
+    # boot catch-up): `max_instances=1` guards each job id alone, and a catch-up that
+    # ran beside a sweep in flight would read that sweep's missing receipts as "behind".
+    _nightly_sweep_running = threading.Lock()
+
     def _run_scan_sweep():
+        if not _nightly_sweep_running.acquire(blocking=False):
+            print("[scheduler] screener scan sweep: the catch-up is running; not starting a second sweep")
+            return
         try:
             scan_evaluator.sweep_job()
         except Exception as e:
             print(f"[scheduler] screener scan sweep error: {e}")
+        finally:
+            _nightly_sweep_running.release()
+
+    def _run_scan_sweep_catchup():
+        if not _nightly_sweep_running.acquire(blocking=False):
+            print("[scheduler] screener scan sweep catch-up: a sweep is running; nothing to catch up")
+            return
+        try:
+            scan_evaluator.sweep_catch_up()
+        except Exception as e:
+            print(f"[scheduler] screener scan sweep catch-up error: {e}")
+        finally:
+            _nightly_sweep_running.release()
 
     if scan_evaluator.enabled():
         # ⛔⛔ `misfire_grace_time` AND `coalesce` WERE MISSING HERE AND PRESENT ON
@@ -3265,6 +3286,20 @@ def register_screener_jobs(scheduler):
                                 timezone=_ET),
             id="screener_scan_sweep", max_instances=1, replace_existing=True,
             coalesce=True, misfire_grace_time=3600)
+
+        # -- ... and its BOOT CATCH-UP (2026-11-22: a web restart at 10:00-10:01Z landed
+        # on the 05:00 ET slot and the night's sweep never ran). The grace above only
+        # helps a scheduler that was RUNNING at the slot: a pod that boots after it
+        # computes the next fire as tomorrow. A DATE job a few minutes after every boot
+        # (never inline: the boot is not slowed) sweeps, once, only the definitions with
+        # no `scan_coverage` row for the session, and only between today's slot and its
+        # deadline (`scan_evaluator.sweep_catch_up`, artifact-first like #1281).
+        from datetime import timedelta as _td
+        scheduler.add_job(
+            _run_scan_sweep_catchup, trigger="date",
+            run_date=datetime.now(_ET) + _td(seconds=scan_evaluator.SWEEP_CATCHUP_BOOT_DELAY_S),
+            id="screener_scan_sweep_catchup_boot", max_instances=1, replace_existing=True,
+            misfire_grace_time=3600)
 
         # -- RISK-024 (Phase One Track B, 2026-09-04): the prune this table was --
         # -- always meant to ship with, finally wired ---------------------------
@@ -11382,6 +11417,13 @@ async def lifespan(app: FastAPI):
         print(f"[shutdown] discord-render V2 stop failed (non-fatal): {e}")
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
+    # The cold-preload pool's idle workers would otherwise hold api/serve_dual.py's bounded exit join for
+    # its whole 5 s on every swap (measured 2026-11-22). Never fatal: the join bounds them either way.
+    try:
+        from api.services.discord_render import cold_start_guard as _csg_stop
+        _csg_stop.shutdown()
+    except Exception as e:  # noqa: BLE001
+        print(f"[shutdown] cold-preload pool stop failed (non-fatal): {type(e).__name__}")
 
     # ⚡ Last write before the pod goes away, so the REPLACEMENT boots warm.
     # Deliberately after the scheduler stops (no job can be mutating the cache
@@ -12325,6 +12367,10 @@ from api.routers import index_changes as index_changes_router  # noqa: E402  (ID
 app.include_router(index_changes_router.router)  # /api/research/index-changes
 from api.routers import stock_stats as stock_stats_router  # noqa: E402  (STAT: one stock's volatility, beta, returns, drawdowns, corrections, paid)
 app.include_router(stock_stats_router.router)  # /api/research/stock-stats/{ticker}
+from api.routers import public_records as public_records_router  # noqa: E402  (PUBR: one company's contracts, trials, FDA approvals and lobbying from government records, paid)
+app.include_router(public_records_router.router)  # /api/research/public-records/{ticker}
+from api.routers import event_study as event_study_router  # noqa: E402  (EVST: a member's own historical event study over stored series, paid)
+app.include_router(event_study_router.router)  # /api/research/event-study, /api/research/event-study/series
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)

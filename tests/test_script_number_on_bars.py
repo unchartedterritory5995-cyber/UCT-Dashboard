@@ -1,4 +1,4 @@
-"""A NUMBER WRITTEN ON BARS: rule 13 of the script document, and a value case that can hold one.
+"""A NUMBER WRITTEN ON BARS: rule 12 of the script document, and a value case that can hold one.
 
 Found by a value check of a live round, 2026-11-22. Asked to "count runs of closes that are each above the close 4
 bars earlier, and write the count above each bar of the run as a number from 1 to 9", the assistant counted right
@@ -66,15 +66,15 @@ FORMS = {**RIGHT, **{name: source for name, (source, _why) in WRONG.items()}}
 
 def test_the_document_carries_the_rule_once_after_rule_12():
     doc = pa.document()
-    assert "\n13. A NUMBER WRITTEN ON BARS that changes from bar to bar" in doc
-    rule = doc.split("\n13. ")[1].split("\n")[0]
+    assert "\n12. A NUMBER WRITTEN ON BARS that changes from bar to bar" in doc
+    rule = doc.split("\n12. ")[1].split("\n")[0]
     assert rule == pa.NUMBER_ON_BARS_RULE and doc.count(pa.NUMBER_ON_BARS_RULE) == 1 and "{number_on_bars}" not in doc
     for piece in ("is written with a label, one per bar", "`label.new(bar_index, high, str.tostring(n), style = label.style_none",
                   "`max_labels_count = 500` in `indicator(...)`",
                   "`plotchar` and `plotshape` draw ONE FIXED character or text per call, the same on every bar",
                   '`plotchar(n, char = "")` writes no number at all'):
         assert piece in rule, piece
-    assert doc.index("\n12. ") < doc.index("\n13. ")
+    assert doc.index("\n11. ") < doc.index("\n12. ")
 
 
 # ── by value ──

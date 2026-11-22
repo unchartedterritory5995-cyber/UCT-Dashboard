@@ -918,3 +918,388 @@ def test_a_finite_value_inside_the_warmup_withholds_the_symbol_never_a_non_hit(w
     assert out["withheld_reason"] == prc.INTEGRITY
     assert "warm-up" in out["runtime_withheld_symbols"][0]["sentence"]
     assert out["persisted"] is False and world.hits_written == []
+
+
+# ═══ 8d. 2026-11-22: an UNSCANNABLE runtime document is handed on, never counted ══════════════
+#
+# The 05:00 ET sweep of 2026-11-22 swept NOTHING for anyone: `definitions_to_sweep` RAISED on one admin's
+# three-plot runtime document ("a scan reads ONE plot and this script maps 3"), because the cap counted
+# `_result_handle` of every runtime document, and a multi-plot one has none. Such a document is kept so
+# `run_sweep` refuses it BY NAME; it must take no cap or quota slot and must never take the night down.
+# Mutation proof: count it again (the old `[_result_handle(d) for d in out if is_runtime(d)]`) -> RED here.
+
+def _multi_plot_row(i=0, owner="admin-1"):
+    return _row(def_id="u_%012x" % (0xbad000 + i), user_id=owner,
+                definition=_doc(outputs={"value": 0, "out2": 1, "out3": 2}, source=SOURCE + f"\n// three plots {i}"))
+
+
+@pytest.mark.parametrize("stage", [None, "admins", "all"])
+@pytest.mark.parametrize("scannable", [3, 30])
+def test_a_multi_plot_runtime_document_never_takes_the_night_down(world, live_rows, monkeypatch, stage, scannable):
+    _stage(monkeypatch, stage)
+    _on_day(monkeypatch, 740_000)
+    live_rows += _distinct_rows(scannable) + [_multi_plot_row(0), _multi_plot_row(1, owner="member-0")]
+    out = ev.definitions_to_sweep()                     # raised ScanRefused before the fix
+    runtime = [d for d in out if runtime_definitions.is_runtime(d)]
+    multi = [d for d in runtime if len(d["compute"]["outputs"]) > 1]
+    assert len(multi) == 2, "handed on, so run_sweep refuses each BY NAME"
+    assert len(runtime) - len(multi) == min(scannable, ev.RUNTIME_SWEEP_CAP), "and it took no slot"
+
+
+def test_the_sweep_job_runs_and_refuses_the_multi_plot_document_by_name(world, live_rows, monkeypatch, caplog):
+    _on_day(monkeypatch, 740_000)
+    live_rows += [_multi_plot_row(0)]
+    seen = {}
+    monkeypatch.setattr(ev, "run_sweep", lambda defs, *a, **k: seen.setdefault("defs", list(defs)) and None)
+    with caplog.at_level("INFO"):
+        ev.sweep_job()
+    assert "could not read the definitions to sweep" not in caplog.text
+    assert len(seen.get("defs") or []) == 1
+
+
+def test_a_sweep_over_good_poison_good_answers_both_good_documents(world, live_rows, monkeypatch, caplog):
+    """⛔⛔ PER-DOCUMENT ISOLATION (coordinator, 2026-11-22): ANY row the sweep cannot read -- here a gate that
+    RAISES -- is counted under its guard, named in one line and skipped; both good documents are still swept.
+    Mutation proof: let the raise escape the row loop -> RED."""
+    good1, poison, good2 = _distinct_rows(1)[0], _row(def_id="u_00000bad0001", user_id="member-x",
+                                                      definition=_doc(source=SOURCE + "\n// poison")), _distinct_rows(1, start=1)[0]
+    live_rows += [good1, poison, good2]
+    real = user_definitions.engine_withheld_reason
+
+    def gate(row):
+        if row.get("def_id") == "u_00000bad0001":
+            raise RuntimeError("a gate that cannot answer")
+        return real(row)
+
+    monkeypatch.setattr(user_definitions, "engine_withheld_reason", gate)
+    _on_day(monkeypatch, 740_000)
+    with caplog.at_level("INFO"):
+        out = ev.definitions_to_sweep()
+    assert sorted(d.lane_row["def_id"] for d in out) == sorted([good1["def_id"], good2["def_id"]])
+    assert "sweep skipped definition u_00000bad0001" in caplog.text
+    assert f"{ev.SWEEP_UNREADABLE_GUARD} x1" in caplog.text
+    # and the sweep itself answers both
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_resume_order", lambda entries, tf, as_of, **k: list(entries))
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(2026, 11, 4, 5, 0, tzinfo=ZoneInfo("America/New_York")))
+    monkeypatch.setattr(ev, "sweep_deadline", lambda now=None: datetime.datetime(2026, 11, 4, 9, 0, tzinfo=ZoneInfo("America/New_York")))
+    receipt = ev.run_sweep(out, universe=["UP", "DN"], as_of=SESSION)
+    assert receipt["swept"] == 2 and receipt["refused"] == 0
+
+
+# ═══ 8e. 2026-11-22 FAIRNESS: a member's tree definition is never queued behind a runtime document ═══
+#
+# The 2026-11-22 boot catch-up handed 25 runtime documents (~9-10 min each) and 41 members' tree
+# definitions. On `_resume_order`'s one bit ("no receipt for the previous session leads") every runtime
+# document sorted AHEAD of every tree: about four hours of service work in front of them against the
+# 05:00-09:00 ET window, so the trees were never reached. The order is now tier first (trees, then runtime
+# documents), the resume bit second. The sweep below runs on a FAKE clock: each evaluation advances it by
+# its kind's cost (a tree 2 s, a runtime document 600 s) and nothing is computed. The runtime documents run
+# as ONE group (`_evaluate_runtime_group`, section 8f), faked here in the real group's shape: 74 chunks
+# (~3,700 symbols / 50), the stop checked between chunks, and a stopped group files nothing.
+# Mutation proof: restore the one-bit order (`sorted(entries, key=_swept_last_time)`) -> RED here.
+
+_ET = ZoneInfo("America/New_York")
+_FAIR_PREV = 20261102
+_FAIR_START = datetime.datetime(2026, 11, 3, 5, 0, tzinfo=_ET)
+_FAIR_DEADLINE = datetime.datetime(2026, 11, 3, 9, 0, tzinfo=_ET)
+
+
+def _fair_trees(n):
+    from tests.test_scan_evaluator import _definition, _num, _op, _series
+    return [_definition(_op(">", _series("close"), _num(100 + i)), def_id="u_%012x" % (0xfee000 + i))
+            for i in range(n)]
+
+
+def _fair_sweep(monkeypatch, handed, *, receipts=(), tree_cost_s=2, doc_cost_s=600, prev=_FAIR_PREV):
+    """Run the REAL `run_sweep` (its real `_resume_order`) from 05:00 ET to a 09:00 ET deadline on a fake
+    clock. ``receipts``: the handles that carry a scan_coverage row for the previous session.
+    Returns ``(order swept, receipt)``."""
+    now = {"t": _FAIR_START}
+    order = []
+    have = set(receipts)
+    monkeypatch.setattr(ev, "_now_et", lambda: now["t"])
+    monkeypatch.setattr(ev, "previous_session", lambda as_of: prev)
+    monkeypatch.setattr(scan_store, "coverage",
+                        lambda h, tf, as_of: {"as_of": as_of} if (as_of == _FAIR_PREV and h in have) else None)
+
+    def _evaluate(definition, tf, **kw):
+        assert not runtime_definitions.is_runtime(definition), "a runtime document goes to the group"
+        order.append(ev._scannable_handle(definition))
+        now["t"] += datetime.timedelta(seconds=tree_cost_s)
+        return {"hits": [], "recorded": 0, "stale_excluded": 0}
+
+    def _group(definitions, tf, *, stop_reason=None, **kw):
+        per_chunk = datetime.timedelta(seconds=doc_cost_s * len(definitions) / 74)
+        for _chunk in range(74):
+            stopped = stop_reason() if stop_reason is not None else None
+            if stopped:
+                return [None] * len(definitions), stopped
+            now["t"] += per_chunk
+        order.extend(ev._scannable_handle(d) for d in definitions)
+        return [{"hits": [], "recorded": 0, "stale_excluded": 0} for _ in definitions], None
+
+    monkeypatch.setattr(ev, "evaluate_one", _evaluate)
+    monkeypatch.setattr(ev, "_evaluate_runtime_group", _group)
+    receipt = ev.run_sweep(list(handed), "D", universe=["UP"], as_of=SESSION, deadline=_FAIR_DEADLINE)
+    return order, receipt
+
+
+def _handles(defs):
+    return [ev._scannable_handle(d) for d in defs]
+
+
+@pytest.mark.parametrize("handed_order", ["trees-first", "runtime-first", "interleaved"])
+def test_FAIRNESS_every_tree_definition_completes_under_a_deadline_beside_25_runtime_documents(
+        monkeypatch, handed_order):
+    """⛔⛔ THE PRODUCTION SHAPE: the trees carry the previous session's receipt (they were swept), the runtime
+    documents carry none (new, rotated by the cap, or withheld). 41 trees + 25 runtime documents, a deadline
+    the runtime documents alone overrun. EVERY tree is swept, before ANY runtime document, whatever order
+    the caller handed them in; the deadline still bites (the control: the runtime group is stopped between
+    two chunks, so none of its documents is filed)."""
+    trees = _fair_trees(41)
+    docs = [_doc_of(r) for r in _distinct_rows(25)]
+    handed = {"trees-first": trees + docs, "runtime-first": docs + trees,
+              "interleaved": [x for pair in zip(docs, trees) for x in pair] + trees[len(docs):]}[handed_order]
+    order, receipt = _fair_sweep(monkeypatch, handed, receipts=_handles(trees))
+    tree_h, doc_h = set(_handles(trees)), set(_handles(docs))
+    assert tree_h <= set(order), (
+        f"{len(tree_h - set(order))} of 41 members' tree definitions were never swept: the runtime documents "
+        "went first and the deadline stopped the sweep before it reached them")
+    assert order[:41] == [h for h in _handles(handed) if h in tree_h], "trees first, in the caller's order"
+    assert set(order[41:]) <= doc_h
+    assert receipt["stopped_early"] and receipt["unswept"] == 25, "the control: the deadline did bite"
+    assert set(receipt["unswept_definitions"]) == doc_h, "only the runtime documents are left unswept"
+
+
+@pytest.mark.parametrize("prev", [_FAIR_PREV, None])
+def test_FAIRNESS_with_no_receipts_anywhere_the_trees_still_go_first(monkeypatch, prev):
+    """The first night (nobody swept last time), or a calendar with no previous session (``None``): the
+    resume bit says nothing, so the old order was the caller's, and a caller that lists runtime documents
+    first starved the trees."""
+    trees, docs = _fair_trees(10), [_doc_of(r) for r in _distinct_rows(25)]
+    order, receipt = _fair_sweep(monkeypatch, docs + trees, prev=prev)
+    assert order == _handles(trees)
+    assert receipt["swept"] == 10 and receipt["unswept"] == 25
+
+
+def test_FAIRNESS_within_each_tier_the_last_runs_tail_still_leads(monkeypatch):
+    """The resume bit still orders INSIDE each tier (the tail the last run never reached leads it), and the
+    caller's order survives inside each bucket (`sorted` is stable). No deadline pressure here."""
+    trees, docs = _fair_trees(4), [_doc_of(r) for r in _distinct_rows(4)]
+    th, dh = _handles(trees), _handles(docs)
+    swept_last_time = {th[0], th[2], dh[1]}
+    order, receipt = _fair_sweep(monkeypatch, docs + trees, receipts=swept_last_time, doc_cost_s=60)
+    assert order == [th[1], th[3], th[0], th[2], dh[0], dh[2], dh[3], dh[1]]
+    assert receipt["stopped_early"] is False
+
+
+def test_FAIRNESS_the_live_cycles_order_puts_trees_first_too():
+    """The five-minute cycle hands its own predicate (`swept_last_time`); the tier is still the first key."""
+    trees, docs = _fair_trees(2), [_doc_of(r) for r in _distinct_rows(2)]
+    entries = [(ev._scannable_handle(d), d) for d in (docs + trees)]
+    out = ev._resume_order(entries, "D", SESSION, swept_last_time=lambda h: h == entries[2][0])
+    assert [h for h, _ in out] == [entries[3][0], entries[2][0], entries[0][0], entries[1][0]]
+
+
+# ═══ 8f. 2026-11-22 THROUGHPUT: the night's runtime documents run as ONE group, each symbol read ONCE ═══
+#
+# The L-cohort's sweep of 25 runtime documents ran at ~400 jobs/min (~4 h against a 60-min bar) while the
+# service sat near idle: per job, reading, converting and encoding the bars was ~92% of the web side's
+# time (measured locally), and none of it depends on the document. `_evaluate_runtime_group` is
+# CHUNK-OUTER, DOCUMENT-INNER: each chunk is read and encoded once and sent once per document, and every
+# per-document rule (admission per chunk, the receipt rule, one document's failure is its own) holds.
+# Mutation proof: see each test's last line.
+
+def _group_docs(n):
+    return [_doc_of(r) for r in _distinct_rows(n)]
+
+
+def _mixed_universe(world):
+    """122 symbols over 3 chunks: hits, non-hits, one with no bars, one with stale bars."""
+    syms = [f"S{i:03d}" for i in range(120)]
+    world.bars = {s: _bars(up=(i % 3 != 0)) for i, s in enumerate(syms)}
+    world.bars["OLD"] = _bars(end=20261030)
+    return syms + ["NONE", "OLD"]
+
+
+def _group(docs, syms, *, mode="nightly", stop_reason=None):
+    return ev._evaluate_runtime_group(docs, "D", universe=syms, as_of=SESSION, limits=None, mode=mode,
+                                      tick=T0, stop_reason=stop_reason)
+
+
+def test_THROUGHPUT_the_group_reads_and_encodes_each_symbol_ONCE_for_every_document(world, monkeypatch):
+    syms = _mixed_universe(world)
+    docs = _group_docs(5)
+    encoded = []
+    real = prc.encode_bars
+    monkeypatch.setattr(prc, "encode_bars", lambda bars: (encoded.append(1), real(bars))[1])
+    outs, stopped = _group(docs, syms)
+    assert stopped is None and all(isinstance(o, dict) and o["answered"] == 120 for o in outs)
+    assert sorted(world.reads) == sorted(syms), "each symbol's bars are read ONCE for the whole group"
+    assert len(encoded) == 120, "and encoded once (not once per document)"
+    assert len(world.fake.calls) == 3 * 5, "3 chunks, sent once per document"
+    assert len(world.cov_written) == 5
+    # mutants T1 (run_sweep without the group) and T2 (no encode_once) -> RED here
+
+
+@pytest.mark.parametrize("mode", ["nightly", "on-demand"])
+def test_THROUGHPUT_each_documents_answer_receipt_and_requests_are_exactly_what_it_got_alone(world, mode):
+    syms = _mixed_universe(world)
+    world.fake.withhold["7:S007"] = ("runtime:limit", "the script ran past its instruction budget")
+    docs = _group_docs(3)
+    alone = [ev._evaluate_runtime(d, "D", universe=syms, as_of=SESSION, limits=None, mode=mode, tick=T0)
+             for d in docs]
+    calls_alone, cov_alone, hits_alone = list(world.fake.calls), list(world.cov_written), list(world.hits_written)
+    world.fake.calls.clear()
+    world.cov_written.clear()
+    world.hits_written.clear()
+    outs, _ = _group(docs, syms, mode=mode)
+    assert outs == alone
+    key = lambda c: (c["definition"]["def_id"], c["jobs"][0]["job"])     # noqa: E731
+    assert sorted(world.fake.calls, key=key) == sorted(calls_alone, key=key), "the same requests, per document"
+    assert world.cov_written == cov_alone and world.hits_written == hits_alone
+    assert all(o["withheld"] == 1 for o in outs), "the withheld symbol is withheld for every document"
+
+
+def test_THROUGHPUT_an_encoded_once_job_sends_the_bytes_the_raw_bars_would_have(world):
+    bars = [{"t": 1_700_000_000 + 86_400 * i, "o": 1.0 + i, "h": 2.0 + i, "l": 0.5, "c": 1.5 + i, "v": 10.0}
+            for i in range(30)]
+    bodies = []
+
+    def transport(url, body, headers, timeout):
+        bodies.append(body)
+        return world.fake(url, body, headers, timeout)
+
+    client = prc.PineRuntimeClient(url="http://pine-runtime.test", secret=FIXTURE_SECRET, identity=FIXTURE_IDENTITY,
+                                   transport=transport, clock=lambda: T0, sleep=lambda s: None)
+    raw = prc.Job(job="0:X", ticker="X", tf="D", bars=bars, want=(OUT,))
+    enc = prc.encode_once(bars)
+    assert isinstance(enc, prc.EncodedBars)
+    r_raw = client.run(def_id=DEF_ID, version=3, doc=_doc(), owner_id="u", profile="sweep", jobs=[raw])
+    r_enc = client.run(def_id=DEF_ID, version=3, doc=_doc(), owner_id="u", profile="sweep",
+                       jobs=[prc.Job(job="0:X", ticker="X", tf="D", bars=enc, want=(OUT,))])
+    assert bodies[0] == bodies[1], "byte-identical request"
+    assert r_raw[0].status == r_enc[0].status == "ok"
+    assert r_raw[0].digest == r_enc[0].digest, "the same answer (NaN != NaN, so the digest is compared)"
+    # a refused encoding has ONE authority: encode_once says None, the raw bars ride on, `run` withholds by name
+    bad = list(bars)
+    bad[3] = {**bad[3], "c": float("nan")}
+    assert prc.encode_once(bad) is None
+    [w] = client.run(def_id=DEF_ID, version=3, doc=_doc(), owner_id="u", profile="sweep",
+                     jobs=[prc.Job(job="0:X", ticker="X", tf="D", bars=bad, want=(OUT,))])
+    assert w.status == "withheld" and w.refusals[0].guard == prc.INTEGRITY
+    # mutant T6 (the encoded columns sent in another order) -> RED here
+
+
+def test_THROUGHPUT_the_admission_is_still_asked_per_chunk_and_per_document(world, monkeypatch):
+    syms = [f"S{i:03d}" for i in range(120)]
+    world.bars = {s: _bars() for s in syms}
+    docs = _group_docs(2)
+    ok_id, killed = docs[0].lane_row["def_id"], docs[1].lane_row["def_id"]
+    asked = []
+
+    def admission(row, lane, plot):
+        asked.append(row["def_id"])
+        if row["def_id"] == killed and asked.count(killed) > 2:      # its door + chunk 1 pass, then killed
+            return ("runtime:killed", "killed mid-run")
+        return None
+
+    monkeypatch.setattr(scan_runtime, "runtime_admission", admission)
+    outs, _ = _group(docs, syms)
+    assert asked.count(ok_id) == 1 + 3 and asked.count(killed) == 1 + 3, "the door, then every chunk"
+    assert outs[0]["answered"] == 120 and outs[0]["withheld"] == 0 and outs[0]["persisted"] is True
+    assert (outs[1]["answered"], outs[1]["withheld"], outs[1]["withheld_reason"]) == (50, 70, "runtime:killed")
+    assert outs[1]["persisted"] is False
+    assert [c["definition"]["def_id"] for c in world.fake.calls].count(killed) == 1
+    # mutant T3 (the admission asked for the first chunk only) -> RED here
+
+
+def test_THROUGHPUT_one_documents_failure_is_its_own(world, monkeypatch):
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    docs = _group_docs(3)
+    bad = docs[1].lane_row["def_id"]
+    real_client = ev._runtime_client
+
+    def client():
+        c = real_client()
+        run = c.run
+
+        def run_or_fail(**kw):
+            if kw["def_id"] == bad:
+                raise RuntimeError("a bug in one document's request")
+            return run(**kw)
+
+        c.run = run_or_fail
+        return c
+
+    monkeypatch.setattr(ev, "_runtime_client", client)
+    outs, stopped = _group(docs, ["UP", "DN"])
+    assert stopped is None and isinstance(outs[1], RuntimeError)
+    assert outs[0]["answered"] == outs[2]["answered"] == 2
+    assert len(world.cov_written) == 2
+    # and the sweep books it as one refusal beside two receipts
+    world.cov_written.clear()
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(2026, 11, 4, 5, 0, tzinfo=_ET))
+    receipt = ev.run_sweep(docs, universe=["UP", "DN"], as_of=SESSION,
+                           deadline=datetime.datetime(2026, 11, 4, 9, 0, tzinfo=_ET))
+    assert (receipt["swept"], receipt["refused"], receipt["unswept"]) == (2, 1, 0)
+    assert receipt["refusals"][0]["def_hash"] == ev._scannable_handle(docs[1])
+    assert "RuntimeError" in receipt["refusals"][0]["detail"]
+    # mutant T4 (a document's failure aborts the group) -> RED here
+
+
+def test_THROUGHPUT_a_group_stopped_between_chunks_files_nothing_and_names_every_document(world, monkeypatch):
+    syms = [f"S{i:03d}" for i in range(120)]
+    world.bars = {s: _bars() for s in syms}
+    docs = _group_docs(3)
+    asks = []
+
+    def stop():
+        asks.append(1)
+        return ev.UNSWEPT_REASON if len(asks) > 1 else None            # before chunk 2
+
+    outs, stopped = _group(docs, syms, stop_reason=stop)
+    assert stopped == ev.UNSWEPT_REASON and outs == [None, None, None]
+    assert world.cov_written == [] and world.hits_written == [], "a partial universe is never filed"
+    assert len(world.fake.calls) == 3, "chunk 1, once per document; the overrun is one chunk"
+    # through the sweep: every document is named unswept, none is refused or swept
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    now = {"t": datetime.datetime(2026, 11, 4, 5, 0, tzinfo=_ET)}
+    monkeypatch.setattr(ev, "_now_et", lambda: now["t"])
+    real_prepare = ev._runtime_prepare
+
+    def prepare_and_tick(*a, **k):
+        now["t"] += datetime.timedelta(hours=3)                         # past the deadline after chunk 1
+        return real_prepare(*a, **k)
+
+    monkeypatch.setattr(ev, "_runtime_prepare", prepare_and_tick)
+    receipt = ev.run_sweep(docs, universe=syms, as_of=SESSION,
+                           deadline=datetime.datetime(2026, 11, 4, 7, 0, tzinfo=_ET))
+    assert (receipt["swept"], receipt["refused"], receipt["unswept"]) == (0, 0, 3) and receipt["stopped_early"]
+    assert sorted(receipt["unswept_definitions"]) == sorted(ev._scannable_handle(d) for d in docs)
+    assert world.cov_written == []
+    # mutant T5 (a stopped group files its documents) -> RED here
+
+
+def test_THROUGHPUT_run_sweep_hands_the_nights_runtime_documents_to_ONE_group(world, monkeypatch):
+    from tests.test_scan_evaluator import _definition, _num, _op, _series
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    docs = _group_docs(4)
+    tree = _definition(_op(">", _series("close"), _num(100)), def_id="u_00000000aaaa")
+    groups, singles = [], []
+    real_group = ev._evaluate_runtime_group
+    monkeypatch.setattr(ev, "_evaluate_runtime_group",
+                        lambda defs, *a, **k: (groups.append(len(defs)), real_group(defs, *a, **k))[1])
+    monkeypatch.setattr(ev, "evaluate_one", lambda d, *a, **k: (singles.append(d), {"hits": [], "recorded": 0})[1])
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(2026, 11, 4, 5, 0, tzinfo=_ET))
+    receipt = ev.run_sweep(docs + [tree], universe=["UP", "DN"], as_of=SESSION,
+                           deadline=datetime.datetime(2026, 11, 4, 9, 0, tzinfo=_ET))
+    assert groups == [4] and singles == [tree], "the tree alone, then the four runtime documents as one group"
+    assert receipt["swept"] == 5 and receipt["hits"] == 4
+    assert sorted(world.reads) == ["DN", "UP"], "each symbol read once for the four documents"
+    assert len(world.cov_written) == 4
+    # mutant T1 (run_sweep without the group) -> RED here

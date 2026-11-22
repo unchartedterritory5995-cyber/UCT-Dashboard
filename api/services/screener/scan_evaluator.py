@@ -131,10 +131,12 @@ scale that is a screen silently dropping symbols and looking like a quiet market
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import datetime
 import logging
 import math
 import os
+import time
 from typing import Any, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
 
@@ -1524,31 +1526,240 @@ def _runtime_coverage_line(def_hash: str, *, universe: int, evaluated: int, answ
     return line
 
 
+class _RuntimeRun:
+    """ONE runtime document's run: its whole-run gates (in the constructor, which raises
+    ``ScanRunRefused``), its four counts and lists, and its receipt (`finish`). A sweep keeps one of
+    these per document of the night and feeds every one of them from the same prepared chunk."""
+
+    def __init__(self, definition: Any, tf: str, *, mode: str):
+        try:
+            spec = scan_runtime.runtime_scan_spec(definition)
+        except scan_definition.ScanRefused as exc:
+            raise ScanRunRefused("not-scannable", str(exc)) from exc
+        self.definition = definition
+        self.def_hash, self.plot = spec["def_hash"], spec["plot"]
+        self.tf_code = scan_store._normalise_tf(tf)
+        if self.tf_code != DEFAULT_TF:
+            raise ScanRunRefused("tf", _wrong_tf_reason(self.tf_code))
+        if mode == LIVE:
+            raise ScanRunRefused(
+                "cadence",
+                "a runtime script is evaluated on CLOSED bars only (ruling Q3), so "
+                "re-running it every five minutes returns the nightly answer while "
+                "implying new information arrived; the live sweep does not run it")
+        self.mode = mode
+        self.row = _runtime_row(definition)
+        self.profile = _RUNTIME_PROFILES[mode]
+        refused = scan_runtime.runtime_admission(self.row, self.profile, self.plot)
+        if refused is not None:
+            raise ScanRunRefused("not-scannable", refused[1])
+        self.hits: list = []
+        self.hit_rows: list = []
+        self.unanswered: list = []
+        self.withheld_listed: list = []
+        self.guards: dict = {}
+        self.evaluated = self.answered = self.dropped = self.not_computable = 0
+
+    def note(self, sym: str, reason: str, detail: Optional[str] = None) -> None:
+        if len(self.unanswered) >= _DROPPED_LISTED_MAX:
+            return
+        entry = {"ticker": sym, "reason": reason}
+        if detail:
+            entry["detail"] = detail
+        self.unanswered.append(entry)
+
+    def withhold(self, sym: str, guard: str, sentence: str) -> None:
+        self.guards[guard] = self.guards.get(guard, 0) + 1
+        if len(self.withheld_listed) < _DROPPED_LISTED_MAX:
+            self.withheld_listed.append({"ticker": sym, "guard": guard, "sentence": sentence[:240]})
+
+    def unread(self, sym: str, reason: str, detail: Optional[str]) -> None:
+        """A symbol the shared preparation could not send (no bars, stale bars, an unreadable time)."""
+        self.evaluated += 1
+        self.note(sym, reason, detail=detail)
+        if reason == NOT_COMPUTABLE_REASON:
+            self.not_computable += 1
+        else:
+            self.dropped += 1
+
+    def take(self, jobs: Sequence[Any], results: Sequence[Any], sent: Mapping[str, tuple]) -> None:
+        plot = self.plot
+        for job, res in zip(jobs, results):
+            sym, bar_time = sent[job.job]
+            run = res.run_refusal()
+            if res.status != "ok" or run is not None:
+                # ⛔ WITHHELD IS WITHHELD: never looked at, never a non-hit.
+                self.withhold(sym, run.guard if run else pine_runtime_client.INTEGRITY,
+                              run.sentence if run else "the service answered with no reason")
+                continue
+            self.evaluated += 1
+            why = res.refusal_for(plot)
+            if why is not None:
+                self.note(sym, NOT_COMPUTABLE_REASON, detail=f"{why.guard}: {why.sentence}"[:160])
+                self.not_computable += 1
+                continue
+            column = res.columns[plot]
+            value = column[-1]
+            odd = next((x for x in column if not math.isnan(x) and x not in (0.0, 1.0)), None)
+            if odd is not None:
+                self.note(sym, NOT_COMPUTABLE_REASON,
+                          detail=f"plot `{plot}` is not a 0/1 condition (it holds {odd!r})")
+                self.not_computable += 1
+                continue
+            if math.isnan(value):
+                self.note(sym, NOT_COMPUTABLE_REASON, detail=f"plot `{plot}` is na on the as-of bar")
+                self.not_computable += 1
+                continue
+            self.answered += 1
+            if value == 1.0:
+                self.hits.append(sym)
+                self.hit_rows.append({"symbol": sym, "value": float(value), "bar_time": bar_time})
+
+    def finish(self, *, session: int, universe: int, limit_withheld: int, limit_reason: Optional[str],
+               history_withheld: bool, tick: Optional[int]) -> dict:
+        def_hash, tf_code, mode, guards = self.def_hash, self.tf_code, self.mode, self.guards
+        runtime_withheld = sum(guards.values())
+        withheld = limit_withheld + runtime_withheld
+        _assert_coverage_closes(evaluated=self.evaluated, answered=self.answered, dropped=self.dropped,
+                                not_computable=self.not_computable, withheld=withheld,
+                                universe=universe)
+        truncated = len(self.unanswered) < (self.dropped + self.not_computable)
+        line = _runtime_coverage_line(
+            def_hash, universe=universe, evaluated=self.evaluated, answered=self.answered,
+            dropped=self.dropped, not_computable=self.not_computable, withheld=withheld,
+            guards=guards)
+        persisted = False
+        if mode == NIGHTLY and not history_withheld and not runtime_withheld:
+            scan_store.record_hits(def_hash, tf_code, session, self.hits,
+                                   values={r["symbol"]: r["value"] for r in self.hit_rows})
+            scan_store.record_coverage(
+                def_hash, tf_code, session, evaluated=self.evaluated, answered=self.answered,
+                dropped=self.dropped, not_computable=self.not_computable,
+                dropped_symbols=self.unanswered, freshness=ast_freshness.UNKNOWN)
+            persisted = True
+        if runtime_withheld:
+            log.warning("[scan] %s -- %s", line,
+                        "NO receipt filed" if mode == NIGHTLY else "nothing is written in this mode")
+        return {
+            "def_hash": def_hash,
+            "rev": self.definition["compute"].get("rev"),
+            "tf": tf_code,
+            "as_of": session,
+            "freshness": ast_freshness.UNKNOWN,
+            "cadence": None,
+            "snapshot_date": None,
+            "hits": self.hits,
+            "evaluated": self.evaluated,
+            "answered": self.answered,
+            "dropped": self.dropped,
+            "stale_excluded": 0,
+            "not_computable": self.not_computable,
+            "withheld": withheld,
+            "withheld_reason": (limit_reason if limit_withheld else
+                                (sorted(guards, key=lambda g: (-guards[g], g))[0] if guards else None)),
+            "runtime_withheld": runtime_withheld,
+            "runtime_withheld_guards": dict(sorted(guards.items())),
+            "runtime_withheld_symbols": self.withheld_listed,
+            "coverage_line": line,
+            "dropped_symbols": self.unanswered,
+            "dropped_listed": len(self.unanswered),
+            "truncated": truncated,
+            "recorded": 0,
+            "record_refused": 0,
+            "hit_rows": self.hit_rows,
+            "mode": mode,
+            "tick": tick,
+            "persisted": persisted,
+        }
+
+
+def _runtime_prepare(chunk: Sequence[str], start: int, tf_code: str, want: int,
+                     session: int) -> tuple:
+    """ONE chunk's bars, read, cut and ENCODED ONCE for every document of the group:
+    ``(jobs, sent, unread)``. ``jobs`` carry no ``want`` (each document asks its own plot);
+    ``unread`` is ``[(sym, reason, detail)]`` for the symbols nothing is sent for."""
+    jobs: list = []
+    sent: dict = {}
+    unread: list = []
+    for offset, sym in enumerate(chunk):
+        bars = _read_bars(sym, tf_code, want)
+        if not bars:
+            unread.append((sym, "no-bars", None))
+            continue
+        index = _last_confirmed_index(bars, session)
+        if index is None:
+            unread.append((sym, "stale-bars", f"newest bar {bars[-1].get('t')!r}"))
+            continue
+        seconds = _runtime_bar_seconds(bars[:index + 1])
+        if seconds is None:
+            unread.append((sym, NOT_COMPUTABLE_REASON, "a bar's time could not be read as a date"))
+            continue
+        job_id = f"{start + offset}:{sym}"
+        # ⭐ ENCODED ONCE. On a refusal the RAW bars ride on, so the client withholds the job by
+        # name exactly as it always has (`pine_runtime_client.encode_once`).
+        encoded = pine_runtime_client.encode_once(seconds)
+        jobs.append(pine_runtime_client.Job(job=job_id, ticker=sym, tf=tf_code,
+                                            bars=encoded if encoded is not None else seconds))
+        sent[job_id] = (sym, bars[index].get("t"))
+    return jobs, sent, unread
+
+
 def _evaluate_runtime(definition: Any, tf: str, *, universe: Optional[Sequence[str]],
                       as_of: Optional[Any], limits: Any, mode: str,
                       tick: Optional[int]) -> dict:
     """``evaluate_one`` for a RUNTIME document: the same envelope, the same four
     outcomes (``answered`` / ``dropped`` / ``not_computable`` / ``withheld``), the
-    same closed identities, evaluated by the service. See the section header."""
-    try:
-        spec = scan_runtime.runtime_scan_spec(definition)
-    except scan_definition.ScanRefused as exc:
-        raise ScanRunRefused("not-scannable", str(exc)) from exc
-    def_hash, plot = spec["def_hash"], spec["plot"]
-    tf_code = scan_store._normalise_tf(tf)
-    if tf_code != DEFAULT_TF:
-        raise ScanRunRefused("tf", _wrong_tf_reason(tf_code))
-    if mode == LIVE:
-        raise ScanRunRefused(
-            "cadence",
-            "a runtime script is evaluated on CLOSED bars only (ruling Q3), so "
-            "re-running it every five minutes returns the nightly answer while "
-            "implying new information arrived; the live sweep does not run it")
-    row = _runtime_row(definition)
-    profile = _RUNTIME_PROFILES[mode]
-    refused = scan_runtime.runtime_admission(row, profile, plot)
-    if refused is not None:
-        raise ScanRunRefused("not-scannable", refused[1])
+    same closed identities, evaluated by the service. See the section header.
+
+    ⛔ ONE IMPLEMENTATION: this is `_evaluate_runtime_group` over a group of ONE, and
+    a whole-run gate raises here exactly as it always did."""
+    outs, _stopped = _evaluate_runtime_group([definition], tf, universe=universe, as_of=as_of,
+                                             limits=limits, mode=mode, tick=tick)
+    if isinstance(outs[0], BaseException):
+        raise outs[0]
+    return outs[0]
+
+
+def _evaluate_runtime_group(definitions: Sequence[Any], tf: str, *,
+                            universe: Optional[Sequence[str]], as_of: Optional[Any],
+                            limits: Any, mode: str, tick: Optional[int],
+                            stop_reason: Any = None) -> tuple:
+    """Evaluate SEVERAL runtime documents over ONE universe, reading and encoding each
+    symbol's bars ONCE for all of them. Returns ``(outcomes, stopped)``: one outcome per
+    definition, in order -- its envelope, the exception that refused or failed it, or
+    ``None`` when ``stop_reason`` stopped the group before it finished -- and the word
+    ``stop_reason`` answered with (or ``None``).
+
+    ⭐⭐ TRACK 6 THROUGHPUT (2026-11-22). The L-cohort's nightly sweep of 25 runtime
+    documents ran at ~400 jobs/min (~4 h for 25 x ~3,700 symbols against a 60-min bar)
+    while the service sat near idle. Measured locally on this path (200 symbols, ~3,000
+    daily bars): per job, reading the bars ~23%, converting their times ~49%, encoding
+    them ~21%, everything else (the request, the reply, the tally) ~8% -- and the first
+    three do not depend on the document. So the loop is CHUNK-OUTER, DOCUMENT-INNER:
+    each chunk is prepared once (`_runtime_prepare`) and sent once per document. The
+    request each document's chunk sends is byte-identical to the one it sent before.
+
+    ⛔ WHAT DID NOT CHANGE, PER DOCUMENT: the admission is asked again for EVERY chunk and
+    EVERY document (a kill, a stage step back or a demotion reaches the next chunk, and
+    what it stops is withheld by name, never run); a document's receipt is filed only
+    when its run completed with nothing withheld; one document's failure (any exception
+    in its request or its tally) is that document's alone.
+
+    ⛔ THE STOP IS CHECKED BETWEEN CHUNKS, AND A STOPPED GROUP FILES NOTHING. Every
+    document of a group completes at the group's last chunk, so a group the deadline
+    stops has no complete document: each one is `None` (never started, in the sweep's
+    words), never a receipt describing part of the universe as all of it. The overrun
+    is one chunk, not one document.
+    """
+    outcomes: list = [None] * len(definitions)
+    runs: list = []
+    for i, definition in enumerate(definitions):
+        try:
+            runs.append((i, _RuntimeRun(definition, tf, mode=mode)))
+        except Exception as exc:                             # noqa: BLE001
+            outcomes[i] = exc
+    if not runs:
+        return outcomes, None
 
     session = int(scan_store._normalise_as_of(
         as_of if as_of is not None else expected_session()))
@@ -1556,164 +1767,89 @@ def _evaluate_runtime(definition: Any, tf: str, *, universe: Optional[Sequence[s
         universe = snapshot_builder._load_universe()
     universe = [str(s).strip().upper() for s in (universe or []) if str(s).strip()]
     if not universe:
-        raise ScanRunRefused(
+        refusal = ScanRunRefused(
             "no-universe",
             "the sweep was handed no symbols. An empty universe produces an empty "
             "hit list that is indistinguishable from a quiet market.")
+        for i, _run in runs:
+            outcomes[i] = refusal
+        return outcomes, None
     kept, limit_withheld, limit_reason = _apply_limits(universe, limits)
     want = HISTORY_WINDOW_BARS
     history_withheld = _history_withheld(want, limits)
     if history_withheld:
         kept, limit_withheld, limit_reason = [], len(universe), HISTORY_WITHHELD
-
-    hits: list = []
-    hit_rows: list = []
-    unanswered: list = []
-    withheld_listed: list = []
-    guards: dict = {}
-    evaluated = answered = dropped = not_computable = 0
-
-    def _unanswered(sym: str, reason: str, detail: Optional[str] = None) -> None:
-        if len(unanswered) >= _DROPPED_LISTED_MAX:
-            return
-        entry = {"ticker": sym, "reason": reason}
-        if detail:
-            entry["detail"] = detail
-        unanswered.append(entry)
-
-    def _withhold(sym: str, guard: str, sentence: str) -> None:
-        guards[guard] = guards.get(guard, 0) + 1
-        if len(withheld_listed) < _DROPPED_LISTED_MAX:
-            withheld_listed.append({"ticker": sym, "guard": guard, "sentence": sentence[:240]})
+    tf_code = runs[0][1].tf_code
 
     client = None
+    # ⚠️ A STOPWATCH FOR THE LOG LINE BELOW, NEVER A BUDGET: the budget is `stop_reason`,
+    # handed in by `run_sweep`, the one thing that knows how long the sweep has run.
+    timing = {"prepare": 0.0, "service": 0.0, "jobs": 0}
+    t_start = time.perf_counter()
+    live = list(runs)
     for start in range(0, len(kept), _RUNTIME_CHUNK):
+        stopped = stop_reason() if stop_reason is not None else None
+        if stopped:
+            for i, _run in live:
+                outcomes[i] = None
+            return outcomes, stopped
         chunk = kept[start:start + _RUNTIME_CHUNK]
-        # ⛔ ASKED AGAIN FOR EVERY CHUNK: a kill, a stage step back or a demotion
-        # reaches the next chunk, and what it stops is withheld by name, never run.
-        refused = scan_runtime.runtime_admission(row, profile, plot)
-        if refused is not None:
-            for sym in chunk:
-                _withhold(sym, refused[0], refused[1])
+        # ⛔ ASKED AGAIN FOR EVERY CHUNK AND EVERY DOCUMENT.
+        admitted = []
+        for i, run in live:
+            refused = scan_runtime.runtime_admission(run.row, run.profile, run.plot)
+            if refused is not None:
+                for sym in chunk:
+                    run.withhold(sym, refused[0], refused[1])
+            else:
+                admitted.append((i, run))
+        if not admitted:
             continue
-        jobs: list = []
-        sent: dict = {}
-        for offset, sym in enumerate(chunk):
-            bars = _read_bars(sym, tf_code, want)
-            if not bars:
-                evaluated += 1
-                _unanswered(sym, "no-bars")
-                dropped += 1
-                continue
-            index = _last_confirmed_index(bars, session)
-            if index is None:
-                evaluated += 1
-                _unanswered(sym, "stale-bars", detail=f"newest bar {bars[-1].get('t')!r}")
-                dropped += 1
-                continue
-            seconds = _runtime_bar_seconds(bars[:index + 1])
-            if seconds is None:
-                evaluated += 1
-                _unanswered(sym, NOT_COMPUTABLE_REASON,
-                            detail="a bar's time could not be read as a date")
-                not_computable += 1
-                continue
-            job_id = f"{start + offset}:{sym}"
-            jobs.append(pine_runtime_client.Job(job=job_id, ticker=sym, tf=tf_code,
-                                                bars=seconds, want=(plot,)))
-            sent[job_id] = (sym, bars[index].get("t"))
-        if not jobs:
-            continue
-        if client is None:
-            client = _runtime_client()
-        results = client.run(def_id=row["def_id"], version=row["version"], doc=definition,
-                             owner_id=row["user_id"], profile=profile, jobs=jobs)
-        for job, res in zip(jobs, results):
-            sym, bar_time = sent[job.job]
-            run = res.run_refusal()
-            if res.status != "ok" or run is not None:
-                # ⛔ WITHHELD IS WITHHELD: never looked at, never a non-hit.
-                _withhold(sym, run.guard if run else pine_runtime_client.INTEGRITY,
-                          run.sentence if run else "the service answered with no reason")
-                continue
-            evaluated += 1
-            why = res.refusal_for(plot)
-            if why is not None:
-                _unanswered(sym, NOT_COMPUTABLE_REASON,
-                            detail=f"{why.guard}: {why.sentence}"[:160])
-                not_computable += 1
-                continue
-            column = res.columns[plot]
-            value = column[-1]
-            odd = next((x for x in column if not math.isnan(x) and x not in (0.0, 1.0)), None)
-            if odd is not None:
-                _unanswered(sym, NOT_COMPUTABLE_REASON,
-                            detail=f"plot `{plot}` is not a 0/1 condition (it holds {odd!r})")
-                not_computable += 1
-                continue
-            if math.isnan(value):
-                _unanswered(sym, NOT_COMPUTABLE_REASON,
-                            detail=f"plot `{plot}` is na on the as-of bar")
-                not_computable += 1
-                continue
-            answered += 1
-            if value == 1.0:
-                hits.append(sym)
-                hit_rows.append({"symbol": sym, "value": float(value), "bar_time": bar_time})
+        t0 = time.perf_counter()
+        jobs, sent, unread = _runtime_prepare(chunk, start, tf_code, want, session)
+        timing["prepare"] += time.perf_counter() - t0
+        failed = set()
+        for i, run in admitted:
+            try:
+                for sym, reason, detail in unread:
+                    run.unread(sym, reason, detail)
+                if not jobs:
+                    continue
+                if client is None:
+                    client = _runtime_client()
+                mine = [dataclasses.replace(j, want=(run.plot,)) for j in jobs]
+                t0 = time.perf_counter()
+                results = client.run(def_id=run.row["def_id"], version=run.row["version"],
+                                     doc=run.definition, owner_id=run.row["user_id"],
+                                     profile=run.profile, jobs=mine)
+                timing["service"] += time.perf_counter() - t0
+                timing["jobs"] += len(mine)
+                run.take(mine, results, sent)
+            except Exception as exc:                         # noqa: BLE001
+                # ⛔ ONE DOCUMENT'S FAILURE IS ITS OWN: the others still run the night.
+                outcomes[i] = exc
+                failed.add(i)
+        if failed:
+            live = [(i, run) for i, run in live if i not in failed]
+            if not live:
+                return outcomes, None
 
-    runtime_withheld = sum(guards.values())
-    withheld = limit_withheld + runtime_withheld
-    _assert_coverage_closes(evaluated=evaluated, answered=answered, dropped=dropped,
-                            not_computable=not_computable, withheld=withheld,
-                            universe=len(universe))
-    truncated = len(unanswered) < (dropped + not_computable)
-    line = _runtime_coverage_line(
-        def_hash, universe=len(universe), evaluated=evaluated, answered=answered,
-        dropped=dropped, not_computable=not_computable, withheld=withheld,
-        guards=guards)
-    persisted = False
-    if mode == NIGHTLY and not history_withheld and not runtime_withheld:
-        scan_store.record_hits(def_hash, tf_code, session, hits,
-                               values={r["symbol"]: r["value"] for r in hit_rows})
-        scan_store.record_coverage(
-            def_hash, tf_code, session, evaluated=evaluated, answered=answered,
-            dropped=dropped, not_computable=not_computable, dropped_symbols=unanswered,
-            freshness=ast_freshness.UNKNOWN)
-        persisted = True
-    if runtime_withheld:
-        log.warning("[scan] %s -- %s", line,
-                    "NO receipt filed" if mode == NIGHTLY else "nothing is written in this mode")
-    return {
-        "def_hash": def_hash,
-        "rev": definition["compute"].get("rev"),
-        "tf": tf_code,
-        "as_of": session,
-        "freshness": ast_freshness.UNKNOWN,
-        "cadence": None,
-        "snapshot_date": None,
-        "hits": hits,
-        "evaluated": evaluated,
-        "answered": answered,
-        "dropped": dropped,
-        "stale_excluded": 0,
-        "not_computable": not_computable,
-        "withheld": withheld,
-        "withheld_reason": (limit_reason if limit_withheld else
-                            (sorted(guards, key=lambda g: (-guards[g], g))[0] if guards else None)),
-        "runtime_withheld": runtime_withheld,
-        "runtime_withheld_guards": dict(sorted(guards.items())),
-        "runtime_withheld_symbols": withheld_listed,
-        "coverage_line": line,
-        "dropped_symbols": unanswered,
-        "dropped_listed": len(unanswered),
-        "truncated": truncated,
-        "recorded": 0,
-        "record_refused": 0,
-        "hit_rows": hit_rows,
-        "mode": mode,
-        "tick": tick,
-        "persisted": persisted,
-    }
+    for i, run in live:
+        try:
+            outcomes[i] = run.finish(session=session, universe=len(universe),
+                                     limit_withheld=limit_withheld, limit_reason=limit_reason,
+                                     history_withheld=history_withheld, tick=tick)
+        except Exception as exc:                             # noqa: BLE001
+            outcomes[i] = exc
+    if len(runs) > 1:
+        wall = time.perf_counter() - t_start
+        log.info("[scan] runtime sweep group: %d document(s) x %d symbol(s) = %d job(s) in %.1fs "
+                 "(%.0f jobs/min); bars read+encoded once per symbol in %.1fs, the requests "
+                 "(encode the body, the service, the reply) %.1fs",
+                 len(runs), len(kept), timing["jobs"], wall,
+                 (60.0 * timing["jobs"] / wall) if wall > 0 else 0.0,
+                 timing["prepare"], timing["service"])
+    return outcomes, None
 
 
 def _runtime_client() -> "pine_runtime_client.PineRuntimeClient":
@@ -2373,9 +2509,10 @@ def _resume_order(entries: Sequence[tuple], tf_code: str, as_of: int, *,
 
     ⛔ `sorted` IS STABLE AND THAT IS LOAD-BEARING. Within each bucket the
     caller's order survives untouched; on a first run, or one where every
-    definition was swept last time, this is the identity. It must never sort,
-    sample or shuffle beyond the one bit it is entitled to — `apply_symbol_cap`
-    refuses the same thing for the same reason ("the order is the caller's").
+    definition was swept last time, this is the identity within each tier. It must
+    never sort, sample or shuffle beyond the two bits it is entitled to (the tier,
+    then the resume bit) — `apply_symbol_cap` refuses the same thing for the same
+    reason ("the order is the caller's").
 
     ⭐ `swept_last_time` IS THE LIVE CYCLE'S ARTIFACT, AND IT REPLACES THE PROBE
     RATHER THAN JOINING IT. The nightly sweep's artifact is a `scan_coverage` row
@@ -2383,14 +2520,28 @@ def _resume_order(entries: Sequence[tuple], tf_code: str, as_of: int, *,
     read, so it hands in a predicate over the LAST CYCLE'S OWN `swept` list -- the
     thing it does write. When it does, the previous-session probe is not consulted
     at all: two answers to "was this reached last time" is exactly the second
-    authority this function's one bit of ordering cannot afford.
+    authority this function's resume bit cannot afford.
+
+    ⛔⛔ AND A MEMBER'S TREE DEFINITION IS NEVER QUEUED BEHIND A RUNTIME DOCUMENT
+    (2026-11-22, fairness). The first key is `_sweep_tier`, the resume bit only the
+    second. A runtime document has no receipt for the previous session far more often
+    than a tree does (it is new, the Q2 cap rotated it out, or a withheld symbol kept
+    its receipt from being filed), so on the resume bit alone the runtime documents led
+    the night. Measured on the 2026-11-22 catch-up: 25 runtime documents at ~9-10 min
+    each sorted ahead of 41 members' tree definitions, about four hours of service work
+    in front of them against a 05:00-09:00 ET window, so the trees would never have
+    been reached. A tree costs seconds; a runtime document costs minutes. Trees first
+    means a sweep with any number of runtime documents still completes every tree the
+    trees alone would have completed. Within each tier the order is exactly the old
+    one: the resume bit, then the caller's order (`sorted` is stable).
     """
     if swept_last_time is not None:
-        return sorted(entries, key=lambda item: 1 if swept_last_time(item[0]) else 0)
+        return sorted(entries, key=lambda item: (_sweep_tier(item),
+                                                 1 if swept_last_time(item[0]) else 0))
 
     prev = previous_session(as_of)
     if prev is None:
-        return list(entries)
+        return sorted(entries, key=_sweep_tier)
 
     def _swept_last_time(item) -> int:
         try:
@@ -2400,7 +2551,14 @@ def _resume_order(entries: Sequence[tuple], tf_code: str, as_of: int, *,
             # the front: being swept twice is free, being starved is the bug.
             return 0
 
-    return sorted(entries, key=_swept_last_time)
+    return sorted(entries, key=lambda item: (_sweep_tier(item), _swept_last_time(item)))
+
+
+def _sweep_tier(item: tuple) -> int:
+    """The FIRST key of the sweep's order: ``0`` for a member's tree definition, ``1``
+    for a runtime document (`runtime_definitions.is_runtime`, the one authority on the
+    kind). See `_resume_order`: runtime documents never go ahead of trees."""
+    return 1 if runtime_definitions.is_runtime(item[1]) else 0
 
 
 def _resolve_entries(definitions: Sequence[Any]) -> tuple:
@@ -2448,7 +2606,7 @@ def _resolve_entries(definitions: Sequence[Any]) -> tuple:
 
 
 def _sweep_entries(entries: Sequence[tuple], *, evaluate: Any, stop_reason: Any,
-                   on_result: Any) -> tuple:
+                   on_result: Any, evaluate_group: Any = None) -> tuple:
     """PHASE 2 -- sweep each entry under a stop condition CHECKED BETWEEN THEM.
 
     Returns `(swept, unswept, refused, refusals, stopped)`: the handles swept, the
@@ -2466,29 +2624,63 @@ def _sweep_entries(entries: Sequence[tuple], *, evaluate: Any, stop_reason: Any,
     definitions over a 3,742-symbol universe; retaining every envelope so a caller
     can sum it afterwards would hold every hit list of every definition in memory
     at once for counts that are three integers.
+
+    ⭐ `evaluate_group` (the nightly sweep's, track 6 throughput 2026-11-22): a RUN of
+    consecutive runtime documents (`_sweep_tier`; `_resume_order` puts them all after
+    the trees) is handed over in ONE call, `evaluate_group(definitions, stop_reason)
+    -> (outcomes, stopped)`, so each symbol's bars are read and encoded once for all of
+    them (`_evaluate_runtime_group`). Each outcome is booked exactly as one `evaluate`
+    would have been: an envelope is swept, an exception is refused, and `None` (the
+    group was stopped between two chunks, with nothing filed) is unswept.
     """
     swept: list = []
     unswept: list = []
     refused = 0
     refusals: list = []
     stopped = None
-    for position, (handle, definition) in enumerate(entries):
+
+    def _refuse(handle: str, exc: BaseException) -> None:
+        nonlocal refused
+        refused += 1
+        if isinstance(exc, ScanRunRefused):
+            refusals.append({"def_hash": handle, "gate": exc.gate,
+                             "detail": exc.detail[:200]})
+            return
+        refusals.append({"def_hash": handle, "gate": "not-scannable",
+                         "detail": f"{type(exc).__name__}: {exc}"[:200]})
+        log.error("[scan] sweep failed for %s", handle[:15], exc_info=exc)
+
+    position, n = 0, len(entries)
+    while position < n:
         stopped = stop_reason()
         if stopped:
             unswept = [h for h, _ in entries[position:]]
             break
+        if evaluate_group is not None and _sweep_tier(entries[position]):
+            end = position
+            while end < n and _sweep_tier(entries[end]):
+                end += 1
+            group = entries[position:end]
+            outcomes, stopped = evaluate_group([d for _, d in group], stop_reason)
+            for (handle, _), out in zip(group, outcomes):
+                if out is None:
+                    unswept.append(handle)
+                elif isinstance(out, BaseException):
+                    _refuse(handle, out)
+                else:
+                    swept.append(handle)
+                    on_result(out)
+            if stopped:
+                unswept += [h for h, _ in entries[end:]]
+                break
+            position = end
+            continue
+        handle, definition = entries[position]
+        position += 1
         try:
             out = evaluate(definition)
-        except ScanRunRefused as exc:
-            refused += 1
-            refusals.append({"def_hash": handle, "gate": exc.gate,
-                             "detail": exc.detail[:200]})
-            continue
         except Exception as exc:                             # noqa: BLE001
-            refused += 1
-            refusals.append({"def_hash": handle, "gate": "not-scannable",
-                             "detail": f"{type(exc).__name__}: {exc}"[:200]})
-            log.exception("[scan] sweep failed for %s", handle[:15])
+            _refuse(handle, exc)
             continue
         swept.append(handle)
         on_result(out)
@@ -2593,6 +2785,10 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
             # and the bar-close tri-state is DERIVED rather than assumed. Without
             # it every CLOCK_REALTIME column in every nightly scan blanks.
             tick=int(started.timestamp())),
+        # ⭐ the runtime documents, as ONE group: each symbol's bars read and encoded once
+        evaluate_group=lambda definitions, stop: _evaluate_runtime_group(
+            definitions, tf, universe=universe, as_of=session, limits=None, mode=NIGHTLY,
+            tick=int(started.timestamp()), stop_reason=stop),
         stop_reason=lambda: UNSWEPT_REASON if _now_et() >= deadline else None,
         on_result=_tally)
     swept = len(swept_handles)
@@ -2978,6 +3174,10 @@ RUNTIME_SWEEP_CAP = 25
 #: how many rotated out, and they lead on the following nights (`_runtime_sweep_turn`).
 RUNTIME_SWEEP_CAP_GUARD = "runtime:sweep-cap"
 
+#: 2026-11-22: a live definition `definitions_to_sweep` could not read (a gate that raised, a malformed
+#: document). Counted and named in the log, never raised: one row never takes the whole night down.
+SWEEP_UNREADABLE_GUARD = "sweep:unreadable-definition"
+
 
 #: ⭐ TRACK 6, PR-C -- THE PER-MEMBER QUOTA (owner ruling Q2, 2026-11-02: "Per-member quota: YES, required
 #: before stage `all`. Initial proposal: 3 runtime documents per member in the nightly sweep"). At most this
@@ -3040,77 +3240,101 @@ def definitions_to_sweep() -> list:
     seen: set = set()
     not_admitted: dict = {}
     for row in user_definitions.live_definitions():
-        definition = row.get("definition")
-        if not isinstance(definition, dict):
-            continue
-        # ⛔ THE CONSUMER CONTRACT, AND THIS IS THE DOOR IT MATTERS MOST AT.
-        # `user_definitions.consumer_refusal` is one authority for five consumers;
-        # here it stops a fetch-dependent column from being filed in `scan_hits`
-        # under an `ast_hash` that promises the number means the same thing
-        # tomorrow. ⚠️ SILENT ON PURPOSE, unlike the other four: the sweep is a
-        # background job with no member in front of it, and the SAME definition is
-        # refused BY NAME at `routers/user_definitions._stamped` before it can
-        # ever be offered as a filter — so nobody learns of this skip by its
-        # absence. A log line per definition per night would be noise about a
-        # refusal the member already read.
-        if user_definitions.consumer_refusal("sweep", row.get("requirements")):
-            continue
-        # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is
-        # not swept (silent here for the reason above: the member reads it BY NAME
-        # at `routers/user_definitions._stamped`, gate `withheld`).
-        if user_definitions.engine_withheld_reason(row):
-            continue
-        compute = definition.get("compute")
-        if runtime_definitions.is_runtime(definition):
-            # W5-T14: admitted only when the lane admission says so, asked per row
-            # on every sweep. Silent per row (the member read the sentence at the
-            # door), counted per guard in one line below.
-            try:
-                plot = scan_runtime.runtime_scan_spec(definition)["plot"]
-            except scan_definition.ScanRefused:
-                # not scannable: handed on, so `run_sweep` refuses it BY NAME (counted
-                # `refused`); it asks for no plot, runs nothing, sends nothing.
-                plot = None
-            refused = (scan_runtime.runtime_admission(row, "sweep", plot)
-                       if plot is not None else None)
-            if refused is not None:
-                not_admitted[refused[0]] = not_admitted.get(refused[0], 0) + 1
-                continue
-            definition = scan_runtime.runtime_scan_doc(row)
-        elif not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:
-            continue
-        # ⭐⭐ DEDUPED BY MATHS **AND SEMANTICS** (owner decision A). The row's
-        # `ast_hash` names the tree only, so deduping on it collapsed a semantics-1
-        # and a semantics-2 definition of the same tree into ONE sweep — whichever
-        # came first — and the other's answers were never computed under its own
-        # semantics. `result_identity` is the key the sweep files results under.
+        # ⛔⛔ ONE ROW CAN NEVER TAKE THE NIGHT DOWN (2026-11-22). Any row this loop cannot read (a gate
+        # that raises, a malformed document) is counted under SWEEP_UNREADABLE_GUARD, named by its def_id
+        # in one line, and skipped; every other member's definitions are still swept.
         try:
-            handle = _result_handle(definition)
-        except Exception:                                    # noqa: BLE001
-            # not hashable: let `run_sweep` refuse it BY NAME, never drop it here
-            handle = ("unhashable", row.get("def_id"), row.get("version"))
-        if handle in seen:
-            continue
-        seen.add(handle)
-        out.append(definition)
+            definition = row.get("definition")
+            if not isinstance(definition, dict):
+                continue
+            # ⛔ THE CONSUMER CONTRACT, AND THIS IS THE DOOR IT MATTERS MOST AT.
+            # `user_definitions.consumer_refusal` is one authority for five consumers;
+            # here it stops a fetch-dependent column from being filed in `scan_hits`
+            # under an `ast_hash` that promises the number means the same thing
+            # tomorrow. ⚠️ SILENT ON PURPOSE, unlike the other four: the sweep is a
+            # background job with no member in front of it, and the SAME definition is
+            # refused BY NAME at `routers/user_definitions._stamped` before it can
+            # ever be offered as a filter — so nobody learns of this skip by its
+            # absence. A log line per definition per night would be noise about a
+            # refusal the member already read.
+            if user_definitions.consumer_refusal("sweep", row.get("requirements")):
+                continue
+            # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is
+            # not swept (silent here for the reason above: the member reads it BY NAME
+            # at `routers/user_definitions._stamped`, gate `withheld`).
+            if user_definitions.engine_withheld_reason(row):
+                continue
+            compute = definition.get("compute")
+            if runtime_definitions.is_runtime(definition):
+                # W5-T14: admitted only when the lane admission says so, asked per row
+                # on every sweep. Silent per row (the member read the sentence at the
+                # door), counted per guard in one line below.
+                try:
+                    plot = scan_runtime.runtime_scan_spec(definition)["plot"]
+                except scan_definition.ScanRefused:
+                    # not scannable: handed on, so `run_sweep` refuses it BY NAME (counted
+                    # `refused`); it asks for no plot, runs nothing, sends nothing.
+                    plot = None
+                refused = (scan_runtime.runtime_admission(row, "sweep", plot)
+                           if plot is not None else None)
+                if refused is not None:
+                    not_admitted[refused[0]] = not_admitted.get(refused[0], 0) + 1
+                    continue
+                definition = scan_runtime.runtime_scan_doc(row)
+            elif not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:
+                continue
+            # ⭐⭐ DEDUPED BY MATHS **AND SEMANTICS** (owner decision A). The row's
+            # `ast_hash` names the tree only, so deduping on it collapsed a semantics-1
+            # and a semantics-2 definition of the same tree into ONE sweep — whichever
+            # came first — and the other's answers were never computed under its own
+            # semantics. `result_identity` is the key the sweep files results under.
+            try:
+                handle = _result_handle(definition)
+            except Exception:                                    # noqa: BLE001
+                # not hashable: let `run_sweep` refuse it BY NAME, never drop it here
+                handle = ("unhashable", row.get("def_id"), row.get("version"))
+            if handle in seen:
+                continue
+            seen.add(handle)
+            out.append(definition)
+        except Exception as exc:                             # noqa: BLE001
+            not_admitted[SWEEP_UNREADABLE_GUARD] = not_admitted.get(SWEEP_UNREADABLE_GUARD, 0) + 1
+            log.warning("[scan] sweep skipped definition %s: it could not be read (%s: %s)",
+                        str(row.get("def_id") if isinstance(row, dict) else "?")[:64], type(exc).__name__, str(exc)[:200])
+
     # ⭐ TRACK 6, PR-B -- the Q2 cap, applied AFTER admission and the dedupe, so a document the
     # lane refuses or a second member's copy of the same script never takes a slot.
     day = _now_et().date().toordinal()
+    # ⛔⛔ AN UNSCANNABLE RUNTIME DOCUMENT IS HANDED ON, NEVER COUNTED (2026-11-22). A runtime document
+    # that maps more than one plot is kept above so `run_sweep` refuses it BY NAME; it has no result
+    # handle (`_result_handle` raises ScanRefused). Counting it below raised out of this function, and
+    # `sweep_job` then logged "could not read the definitions to sweep" and swept NOTHING for anyone:
+    # the 2026-11-22 05:00 ET sweep died that way on one admin's three-plot document. `_capped` is the
+    # only way the quota and the cap read a handle; a document with none takes no slot and stays handed on.
+    def _capped(d) -> Optional[str]:
+        try:
+            return _result_handle(d)
+        except Exception:                                    # noqa: BLE001
+            return None
+
+    def _uncounted(d) -> bool:
+        return not runtime_definitions.is_runtime(d) or _capped(d) is None
+
     # ⭐ TRACK 6, PR-C -- the per-member quota FIRST (at the effective stage `all` only), then the cap over
     # what is left, so the cap rotates over documents every owner is entitled to tonight.
     if runtime_definitions.effective_server_stage() == runtime_definitions.STAGE_ALL:
-        kept, over = _runtime_sweep_quota([d for d in out if runtime_definitions.is_runtime(d)],
+        kept, over = _runtime_sweep_quota([d for d in out if not _uncounted(d)],
                                           RUNTIME_SWEEP_PER_MEMBER, day)
         if over:
-            out = [d for d in out if not runtime_definitions.is_runtime(d) or _result_handle(d) in kept]
+            out = [d for d in out if _uncounted(d) or _capped(d) in kept]
             not_admitted[RUNTIME_SWEEP_QUOTA_GUARD] = over
             log.warning("[scan] runtime sweep member quota: %d runtime document(s) over their owner's quota of "
                         "%d are not swept tonight (ruling Q2) and lead on the following nights",
                         over, RUNTIME_SWEEP_PER_MEMBER)
-    runtime_handles = [_result_handle(d) for d in out if runtime_definitions.is_runtime(d)]
+    runtime_handles = [_capped(d) for d in out if not _uncounted(d)]
     if len(runtime_handles) > RUNTIME_SWEEP_CAP:
         turn = _runtime_sweep_turn(runtime_handles, RUNTIME_SWEEP_CAP, day)
-        out = [d for d in out if not runtime_definitions.is_runtime(d) or _result_handle(d) in turn]
+        out = [d for d in out if _uncounted(d) or _capped(d) in turn]
         capped = len(runtime_handles) - len(turn)
         not_admitted[RUNTIME_SWEEP_CAP_GUARD] = capped
         log.warning("[scan] runtime sweep cap: %d of %d admitted runtime documents are swept tonight "
@@ -3167,6 +3391,83 @@ def sweep_job() -> None:
             "because they failed. They lead the next run.",
             receipt.get("unswept"), receipt["distinct"],
             receipt.get("unswept_reason"), receipt.get("deadline"))
+
+
+#: How long after a boot the catch-up looks (never inline: the boot is not slowed).
+#: The rs-history catch-up's delay, for the same reason.
+SWEEP_CATCHUP_BOOT_DELAY_S = 300
+
+
+def _has_receipt(definition: Any, tf_code: str, as_of: int) -> bool:
+    """Whether ``definition`` carries a ``scan_coverage`` row for ``as_of``: the
+    artifact a COMPLETED nightly evaluation leaves, and the only thing the catch-up
+    believes. Unhashable or unreadable counts as NO receipt: a definition swept
+    twice costs a little; one never swept is the defect this exists for."""
+    try:
+        return scan_store.coverage(_scannable_handle(definition), tf_code, as_of) is not None
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def sweep_catch_up() -> Optional[dict]:
+    """THE BOOT CATCH-UP for a nightly sweep a restart skipped or cut short.
+
+    🔴 THE SCHEDULER CANNOT DO THIS ITSELF. Its jobs live in memory, so a pod that
+    starts after 05:00 ET computes the next fire as TOMORROW: `misfire_grace_time`
+    only helps a scheduler that was running at the slot. Measured 2026-11-22: a web
+    restart at 10:00-10:01Z landed on the 05:00 ET slot and the night's sweep did
+    not run at all.
+
+    ⭐ ARTIFACT-FIRST (the store-backup catch-up's pattern, #1281): what is behind is
+    READ from the store, never remembered. Past today's slot and before its
+    deadline, the definitions tonight's sweep would take (`definitions_to_sweep`,
+    the same admission, cap and rotation) are checked for a `scan_coverage` row for
+    the session the sweep screens; ONLY those without one are swept, once, under the
+    sweep's own deadline. Run twice, the second run finds the receipts the first
+    wrote and sweeps nothing. A run killed half-way leaves the rest without receipts
+    for the next boot to find.
+
+    ⛔ IT NEVER RUNS BESIDE THE SCHEDULED SWEEP: the caller (`api/main.py`) holds one
+    lock over both jobs. This module imports no concurrency primitive (the census in
+    tests/test_scan_evaluator.py).
+
+    Returns the run's receipt, or ``None`` when nothing was due.
+    """
+    now = _now_et()
+    slot = now.replace(hour=SWEEP_HOUR_ET, minute=SWEEP_MINUTE_ET, second=0, microsecond=0)
+    if now < slot:
+        log.info("[scan] sweep catch-up: %s is before today's %s slot; the scheduled sweep "
+                 "runs it", now.isoformat(), slot.strftime("%H:%M ET"))
+        return None
+    deadline = sweep_deadline(now)
+    if now >= deadline:
+        log.info("[scan] sweep catch-up: %s is past today's deadline %s; nothing to catch "
+                 "up today", now.isoformat(), deadline.isoformat())
+        return None
+    try:
+        definitions = definitions_to_sweep()
+    except Exception as exc:                                 # noqa: BLE001
+        log.exception("[scan] sweep catch-up could not read the definitions to sweep: %s", exc)
+        return None
+    as_of = int(scan_store._normalise_as_of(expected_session()))
+    tf_code = scan_store._normalise_tf(DEFAULT_TF)
+    missing = [d for d in definitions if not _has_receipt(d, tf_code, as_of)]
+    if not missing:
+        log.info("[scan] sweep catch-up: all %s definitions carry a scan_coverage row for "
+                 "as_of=%s; nothing to catch up", len(definitions), as_of)
+        return None
+    log.warning("[scan] sweep catch-up: %s of %s definitions carry NO scan_coverage row for "
+                "as_of=%s (a restart skipped or cut today's %s sweep); sweeping them once now",
+                len(missing), len(definitions), as_of, slot.strftime("%H:%M ET"))
+    receipt = run_sweep(missing, as_of=as_of, deadline=deadline)
+    if not receipt:
+        log.warning("[scan] sweep catch-up did not run")
+        return None
+    proven = sum(1 for d in missing if _has_receipt(d, tf_code, as_of))
+    log.info("[scan] sweep catch-up receipts read back: %s of %s definitions now carry a "
+             "scan_coverage row for as_of=%s (stopped_early=%s)", proven, len(missing), as_of,
+             receipt.get("stopped_early"))
+    return receipt
 
 
 def live_sweep_job() -> None:
