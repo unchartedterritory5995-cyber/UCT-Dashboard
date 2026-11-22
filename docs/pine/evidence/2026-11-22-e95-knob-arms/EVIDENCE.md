@@ -75,6 +75,9 @@ settings too (the default-bound budget fits them).
 - `builder/knobInstallBudget.test.js`: four yes/no knobs whose saved tree reads nine series (every arm) were handed
   back at the door, folded to the author's defaults. The install now measures the defaults' program (one series), so
   the knobs stay live and the script installs; each setting draws its own branch, and none reaches the cap.
+- `engine/ast/btSessionClock.test.js`: the committed `session-hilo` script's three toggles (`s_useSess`, `s_incWE`,
+  `s_lines`) were handed back the same way; they now stay its member settings, it still installs, and each setting
+  computes.
 - The closed table's counts and lists (`parse.test.js`, `sentence.test.js`, `interpret.test.js`,
   `tests/test_ast_interpret.py`, `tests/test_ast_scalars.py`, `docs/formulas/GRAMMAR.md`,
   `input_compat_saved_documents.json`, `refusalCodes.json`) gain `refusedArm` / `interpret:refused-arm`.

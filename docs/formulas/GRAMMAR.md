@@ -169,7 +169,7 @@ decide whether a formula can run at all.
 | `pow(left, right)` | a number | 0 bars | `left` raised to the power `right` |
 | `pvtN(period)` | a number | whatever `period` asks for | the change in price-volume trend across the last `period` bars |
 | `rci(source, period)` | a number | whatever `period` asks for | the `period`-bar rank correlation index of `source` |
-| `refusedArm(refusal)` | a number | 0 bars | a branch this engine does not compute (refusal `refusal` of the document) |
+| `refusedArm(source)` | a number | 0 bars | a branch this engine does not compute (refusal `source` of the document) |
 | `rising(source, period)` | true or false | whatever `period` asks for | `source` rising for `period` bars |
 | `rma(source, period)` | a number | whatever `period` asks for | the `period`-bar Wilder average of `source` |
 | `round(source)` | a number | 0 bars | `source` rounded to a whole number |
