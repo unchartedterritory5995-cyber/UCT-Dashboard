@@ -114,6 +114,13 @@ def test_the_name_is_read_as_the_built_in_and_never_asked_a_formula_question(con
     got = conv.understand_turn(words, CHART)
     assert got["refusal"] is not None and got["refusal"]["gate"] == conv.NAMED_BUILT_IN_GATE, words
     assert got["built_in"]["id"] == entry_id and got["held"] == [entry_id]
+    if "ibd" in words.lower():
+        # another publisher's own number, named: said first that it is theirs and not available here, then UCT's own
+        reason = got["refusal"]["reason"]
+        assert reason.startswith("IBD's RS Rating is IBD's own and is not available here. UCT has its own, UCT RS Rating: ")
+        assert "It is not IBD's number" in reason and reason != ni.way_forward(ni.entry(entry_id))
+        return
+    assert ni.other_publisher(words) is None
     assert got["refusal"]["reason"] == ni.way_forward(ni.entry(entry_id))
 
 

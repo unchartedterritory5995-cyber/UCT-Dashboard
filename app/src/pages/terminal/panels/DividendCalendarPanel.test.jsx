@@ -313,6 +313,37 @@ describe('DVD one stock, and the doors', () => {
     expect(method).toContain('The server keeps an answer for up to 12 hours.')
   })
 
+  it('own stocks carry the two view chips; "Whole market" writes DVD MARKET back; one stock names itself and writes SYM DVD MARKET', async () => {
+    serve({ [MINE]: answer(BOOK) })
+    const rerun = vi.fn()
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+        <PanelListContext.Provider value={{ open: vi.fn(), run: vi.fn(), rerun, publish: vi.fn(), publishRows: vi.fn() }}>
+          <TerminalPanelContext.Provider value={{ code: 'DVD', density: 'comfortable', inset: true }}><DividendCalendarPanel /></TerminalPanelContext.Provider>
+        </PanelListContext.Provider>
+      </SWRConfig>,
+    )
+    await screen.findByTestId('terminal-dvd-this')
+    expect(screen.getByTestId('terminal-dvd-view-mine').getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByTestId('terminal-dvd-view-market').getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(screen.getByTestId('terminal-dvd-view-market'))
+    expect(rerun).toHaveBeenCalledWith('DVD MARKET')
+    cleanup()
+    serve({ [ONE]: answer([div('NVDA', TODAY, 0.01)]) })
+    const again = vi.fn()
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+        <PanelListContext.Provider value={{ open: vi.fn(), run: vi.fn(), rerun: again, publish: vi.fn(), publishRows: vi.fn() }}>
+          <TerminalPanelContext.Provider value={{ code: 'DVD', density: 'comfortable', inset: true }}><DividendCalendarPanel sym="NVDA" /></TerminalPanelContext.Provider>
+        </PanelListContext.Provider>
+      </SWRConfig>,
+    )
+    await screen.findByTestId('terminal-dvd-this')
+    expect(screen.getByTestId('terminal-dvd-view-mine').textContent).toBe('NVDA')
+    fireEvent.click(screen.getByTestId('terminal-dvd-view-market'))
+    expect(again).toHaveBeenCalledWith('NVDA DVD MARKET')
+  })
+
   it('a new symbol is a new read: one stock\'s events are never drawn under another\'s name', async () => {
     serve({ [ONE]: answer([div('NVDA', TODAY, 0.01)]), '/api/calendar/dividends?syms=KO': PENDING })
     const view = renderPanel({ sym: 'NVDA' })

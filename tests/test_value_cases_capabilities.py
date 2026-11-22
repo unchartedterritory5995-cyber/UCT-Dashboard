@@ -58,8 +58,8 @@ def test_a_worded_capability_with_no_case_is_on_the_list_and_the_list_is_true():
 def test_the_list_may_only_shrink():
     # MEASURED 2026-11-22, when the rule began: 29 worded, 13 with a case, 16 without. The number below is the most
     # the list has ever been allowed to hold; lower it as cases arrive, never raise it.
-    assert len(DATA["capabilities_without_a_case"]) <= 16
-    assert len(WORDED) - len(DATA["capabilities_without_a_case"]) >= 13
+    assert len(DATA["capabilities_without_a_case"]) <= 14
+    assert len(WORDED) - len(DATA["capabilities_without_a_case"]) >= 15
 
 
 def test_CONTROL_a_new_wording_with_no_case_is_caught():
@@ -79,3 +79,23 @@ def test_the_detector_answers_ids_and_every_script_case_uses_the_core():
     assert all(isinstance(c, str) and c for c in USED)
     assert sorted(USED.get("core", [])) == sorted(c["id"] for c in SCRIPT)
     assert len(USED) >= 10
+
+
+def test_a_case_that_reads_what_the_assistant_is_not_offered_is_one_whose_words_ask_for_it():
+    """`request-other` is not offered to the assistant (it is admitted for finished bars only). A recorded script may
+    still read another symbol or timeframe when the MEMBER'S WORDS ask for one, and only then: the rule the door
+    applies to every script it returns (`pine_authoring.other_read_asked`), held here on the record."""
+    used_not_offered = {cap: ids for cap, ids in USED.items() if pine_authoring.not_offered(cap)}
+    assert sorted(used_not_offered) == DATA["capabilities_used_without_words"]
+    assert set(used_not_offered) <= {"request-other"}, sorted(used_not_offered)       # nothing else not offered is ever written
+    checked = 0
+    for ids in used_not_offered.values():
+        for cid in ids:
+            case = next(c for c in SCRIPT if c["id"] == cid)
+            verdict, unasked = pine_authoring.other_read_asked(case["words"], case["answer"]["script"]["pine"], {"sym": "NVDA", "tf": "D"})
+            assert verdict == pine_authoring.OTHER_READ_ASKED, (cid, verdict, unasked, case["words"])
+            checked += 1
+    assert checked >= 3
+    # CONTROL: the same scripts under words that ask for nothing of the kind are NOT passed
+    some = next(c for c in SCRIPT if c["id"] in used_not_offered["request-other"])
+    assert pine_authoring.other_read_asked("Plot a line", some["answer"]["script"]["pine"], {"sym": "NVDA", "tf": "D"})[0] != pine_authoring.OTHER_READ_ASKED

@@ -122,13 +122,25 @@ def test_a_held_name_that_is_a_built_in_says_so(conv, clean_env, model, message)
 
 
 def test_every_held_alias_is_refused_however_it_is_capitalised(conv):
+    named_a_publisher = []
     for e in ni.held_names():
         for alias in e["aliases"]:
             for words in (alias, alias.title(), alias.upper()):
-                got = conv.understand_turn(f"add the {words}", CHART)
+                said = f"add the {words}"
+                got = conv.understand_turn(said, CHART)
                 gate = conv.NAMED_BUILT_IN_GATE if ni.built_in(e) is not None else UNCHECKED
                 assert got["refusal"] is not None and got["refusal"]["gate"] == gate, words
+                publisher = ni.other_publisher(said)
+                if publisher is not None:
+                    # the alias names ANOTHER PUBLISHER's rating: the same gate, and said first that theirs is not here
+                    theirs = ni.their_number(said, e, False)
+                    assert theirs is not None and theirs.startswith(f"{publisher}'s ") and "is not available here" in theirs, words
+                    assert got["refusal"]["reason"] == theirs != ni.way_forward(e), words
+                    named_a_publisher.append(alias)
+                    continue
                 assert got["refusal"]["reason"] == ni.way_forward(e), words
+    # the two aliases that name a publisher (three capitalisations each), and no other
+    assert named_a_publisher == ["ibd rs rating"] * 3 + ["ibd relative strength rating"] * 3
 
 
 def test_a_phrase_that_only_meant_not_available_is_taken_and_nothing_else_is(conv):

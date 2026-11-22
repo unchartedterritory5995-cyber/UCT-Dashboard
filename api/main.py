@@ -3104,6 +3104,25 @@ def register_screener_jobs(scheduler):
                       id="rs_history_stale_watchdog", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
 
+    # -- Fundamental trends: the evening run behind the eight trend columns ------------
+    #
+    # Hourly ticks from 20:35 to 02:35 ET (`fund_trends.TICK_HOURS_ET`), all inside the
+    # quiet span `scan_period` keeps whole-universe work to and all before the 03:00
+    # build that reads the answer. Each tick is a no-op once the evening is stored (one
+    # SELECT), so the later ticks only matter when a deploy or a failed read cost the
+    # first one; `fund_trends.run_evening` runs one build at a time, never more than
+    # `TRIES_PER_EVENING` an evening, and never on a member's request.
+    #
+    # REGISTERED UNCONDITIONALLY (depth 0 under `_add_job_gate_depth`): the switch is
+    # `FUNDAMENTALS_PIT_ENABLED` (the store's own, read per call inside the job), so the
+    # store's routes and this job go dark together with no deploy.
+    from api.services.screener import fund_trends as _fund_trends
+    scheduler.add_job(_fund_trends.scheduled_run,
+                      trigger=CronTrigger(hour=_fund_trends.TICK_HOURS_ET,
+                                          minute=_fund_trends.TICK_MINUTE_ET, timezone=_ET),
+                      id="screener_fund_trends_evening", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=1800)
+
     # -- UCT Relative Strength evidence: the web pull of the worker's artifact --
     #
     # 04:30 ET (unit 2b-03): after the worker's 21:30 ET evidence run has
@@ -3206,11 +3225,32 @@ def register_screener_jobs(scheduler):
     # one fixed copy beside one stale copy is the second-authority defect again.
     from api.services.screener import scan_evaluator
 
+    # ⛔ ONE NIGHTLY SWEEP AT A TIME, across BOTH jobs below (the 05:00 ET sweep and its
+    # boot catch-up): `max_instances=1` guards each job id alone, and a catch-up that
+    # ran beside a sweep in flight would read that sweep's missing receipts as "behind".
+    _nightly_sweep_running = threading.Lock()
+
     def _run_scan_sweep():
+        if not _nightly_sweep_running.acquire(blocking=False):
+            print("[scheduler] screener scan sweep: the catch-up is running; not starting a second sweep")
+            return
         try:
             scan_evaluator.sweep_job()
         except Exception as e:
             print(f"[scheduler] screener scan sweep error: {e}")
+        finally:
+            _nightly_sweep_running.release()
+
+    def _run_scan_sweep_catchup():
+        if not _nightly_sweep_running.acquire(blocking=False):
+            print("[scheduler] screener scan sweep catch-up: a sweep is running; nothing to catch up")
+            return
+        try:
+            scan_evaluator.sweep_catch_up()
+        except Exception as e:
+            print(f"[scheduler] screener scan sweep catch-up error: {e}")
+        finally:
+            _nightly_sweep_running.release()
 
     if scan_evaluator.enabled():
         # ⛔⛔ `misfire_grace_time` AND `coalesce` WERE MISSING HERE AND PRESENT ON
@@ -3246,6 +3286,20 @@ def register_screener_jobs(scheduler):
                                 timezone=_ET),
             id="screener_scan_sweep", max_instances=1, replace_existing=True,
             coalesce=True, misfire_grace_time=3600)
+
+        # -- ... and its BOOT CATCH-UP (2026-11-22: a web restart at 10:00-10:01Z landed
+        # on the 05:00 ET slot and the night's sweep never ran). The grace above only
+        # helps a scheduler that was RUNNING at the slot: a pod that boots after it
+        # computes the next fire as tomorrow. A DATE job a few minutes after every boot
+        # (never inline: the boot is not slowed) sweeps, once, only the definitions with
+        # no `scan_coverage` row for the session, and only between today's slot and its
+        # deadline (`scan_evaluator.sweep_catch_up`, artifact-first like #1281).
+        from datetime import timedelta as _td
+        scheduler.add_job(
+            _run_scan_sweep_catchup, trigger="date",
+            run_date=datetime.now(_ET) + _td(seconds=scan_evaluator.SWEEP_CATCHUP_BOOT_DELAY_S),
+            id="screener_scan_sweep_catchup_boot", max_instances=1, replace_existing=True,
+            misfire_grace_time=3600)
 
         # -- RISK-024 (Phase One Track B, 2026-09-04): the prune this table was --
         # -- always meant to ship with, finally wired ---------------------------
@@ -10857,6 +10911,30 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] insider clusters job registration failed (non-fatal): {e}")
 
+        # Funds (N-PORT) on OWN (2026-11-22): which mutual funds and ETFs hold a stock, from the SEC's
+        # quarterly Form N-PORT data sets (api/services/fund_holders_nport.py). Daily at 00:50 ET, early in
+        # scan_period's quiet span (to 07:00 on a weekday) and clear of the 00:20 / 00:40 / 01:20 jobs: a run
+        # asks for nothing while the index holds the newest posted data set, and otherwise downloads that one
+        # and the one before it (about 0.9 GB, one zip on disk at a time, deleted when read) on its own
+        # thread, holding one CUSIP partition of holdings at a time, bounded by a 90-minute budget and the end
+        # of the quiet span; a run cut short leaves the last good index. Nothing on a member's request starts it.
+        _boot_mark("S10239N")
+        try:
+            def _fund_holders_nport_job():
+                from api.services import fund_holders_nport as _fhn
+                print(f"[scheduler] fund holders (SEC Form N-PORT) check: {_fhn.run_scheduled()}")
+
+            from api.services import fund_holders_nport as _fhn_mod
+            _scheduler.add_job(
+                _fund_holders_nport_job,
+                trigger=CronTrigger(hour=_fhn_mod.RUN_AT_ET[0], minute=_fhn_mod.RUN_AT_ET[1], timezone=_ET),
+                id="fund_holders_nport_daily", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print("[startup] fund holders (SEC Form N-PORT) scheduled -- daily 00:50 ET")
+        except Exception as e:
+            print(f"[startup] fund holders (N-PORT) job registration failed (non-fatal): {e}")
+
         # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
         # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
         # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).
@@ -11339,6 +11417,13 @@ async def lifespan(app: FastAPI):
         print(f"[shutdown] discord-render V2 stop failed (non-fatal): {e}")
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
+    # The cold-preload pool's idle workers would otherwise hold api/serve_dual.py's bounded exit join for
+    # its whole 5 s on every swap (measured 2026-11-22). Never fatal: the join bounds them either way.
+    try:
+        from api.services.discord_render import cold_start_guard as _csg_stop
+        _csg_stop.shutdown()
+    except Exception as e:  # noqa: BLE001
+        print(f"[shutdown] cold-preload pool stop failed (non-fatal): {type(e).__name__}")
 
     # ⚡ Last write before the pod goes away, so the REPLACEMENT boots warm.
     # Deliberately after the scheduler stops (no job can be mutating the cache
@@ -12262,12 +12347,38 @@ from api.routers import dilution_watch as dilution_watch_router  # noqa: E402  (
 app.include_router(dilution_watch_router.router)  # /api/research/dilution-watch/{ticker}
 from api.routers import corporate_actions as corporate_actions_router  # noqa: E402  (CACT: splits and dividends the server already holds, paid)
 app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
+from api.routers import pine_events as pine_events_router  # noqa: E402  (track 4 E1: a chart symbol's earnings, dividends and splits for Pine, paid, DARK: admins unless PINE_EVENTS_SUPPLY_ENABLED=all)
+app.include_router(pine_events_router.router)  # /api/pine/events/{ticker}
+from api.routers import pine_financial as pine_financial_router  # noqa: E402  (track 4 F1a: a chart symbol's SEC-filing figures for Pine's request.financial, as UCT data, paid, DARK: admins unless PINE_FINANCIAL_SUPPLY_ENABLED=all)
+app.include_router(pine_financial_router.router)  # /api/pine/financial/{ticker}
+from api.routers import pine_breadth as pine_breadth_router  # noqa: E402  (track 4 B1: UCT breadth under USI: spellings for Pine, paid, DARK: admins unless PINE_BREADTH_SUPPLY_ENABLED=all; members served at `all` since ESC-03 was answered 2026-11-22)
+app.include_router(pine_breadth_router.router)  # /api/pine/breadth/{spelling}
 from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
 app.include_router(fed_watch_router.router)  # /api/research/fed-watch
 from api.routers import market_history as market_history_router  # noqa: E402  (MKTH: corrections, bear markets, the rallies and their leaders, paid)
 app.include_router(market_history_router.router)  # /api/research/market-history
 from api.routers import group_stats as group_stats_router  # noqa: E402  (GRP / GRPS: group fundamentals and breadth, built each evening, paid)
 app.include_router(group_stats_router.router)  # /api/research/group-stats
+from api.routers import market_dividends as market_dividends_router  # noqa: E402  (DVD MARKET: the market's ex-dividend dates and splits, this week and next, paid)
+app.include_router(market_dividends_router.router)  # /api/research/market-dividends
+from api.routers import revenue_segments as revenue_segments_router  # noqa: E402  (SEG: one stock's revenue by product and by region, paid)
+app.include_router(revenue_segments_router.router)  # /api/research/revenue-segments/{ticker}
+from api.routers import mergers as mergers_router  # noqa: E402  (MNA: the latest M&A deals, or one company's, paid)
+app.include_router(mergers_router.router)  # /api/research/mergers
+from api.routers import index_changes as index_changes_router  # noqa: E402  (IDXC: S&P 500, Nasdaq 100 and Dow additions and removals, paid)
+app.include_router(index_changes_router.router)  # /api/research/index-changes
+from api.routers import stock_stats as stock_stats_router  # noqa: E402  (STAT: one stock's volatility, beta, returns, drawdowns, corrections, paid)
+app.include_router(stock_stats_router.router)  # /api/research/stock-stats/{ticker}
+from api.routers import setup_history as setup_history_router  # noqa: E402  (SETH: how setups acted in every correction and rally, and one stock's own, paid)
+app.include_router(setup_history_router.router)  # /api/research/setup-history, /api/research/setup-history/{ticker}
+from api.routers import volume_footprint as volume_footprint_router  # noqa: E402  (VFP: one stock's accumulation and distribution, biggest volume days, pocket pivots, gaps, paid)
+app.include_router(volume_footprint_router.router)  # /api/research/volume-footprint/{ticker}
+from api.routers import factor_exposure as factor_exposure_router  # noqa: E402  (FCTX: one stock's loadings on the market, size, growth vs value, momentum, quality and low volatility, paid)
+app.include_router(factor_exposure_router.router)  # /api/research/factor-exposure/{ticker}
+from api.routers import public_records as public_records_router  # noqa: E402  (PUBR: one company's contracts, trials, FDA approvals and lobbying from government records, paid)
+app.include_router(public_records_router.router)  # /api/research/public-records/{ticker}
+from api.routers import event_study as event_study_router  # noqa: E402  (EVST: a member's own historical event study over stored series, paid)
+app.include_router(event_study_router.router)  # /api/research/event-study, /api/research/event-study/series
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)

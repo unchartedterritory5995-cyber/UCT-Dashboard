@@ -48,8 +48,12 @@ const EXPORTS = [
   'computeRuntimeColumns', 'decodeColumn', 'encodeColumn',
   'libraryEntryProblem',
   'referenceBars', 'referenceBenchmarkBars', 'referenceDigest', 'referenceOptions',
-  'registerPineLibrary', 'resetRuntimeLedgers', 'resetRuntimeSessions',
-  'runtimeStrategyOf', 'runtimeVersionRefusal', 'runtimeWarmupOf', 'strategyRecordShapeErrors',
+  'registerPineLibrary',
+  // TRACK 6, G-BROKER (2026-11-22): the broker gate REGISTRY, armed by services/pine_runtime/job.mjs for one
+  // '#strategy' job and put back off after it (never the browser's build-flag reader).
+  'registerStrategyBrokerGate',
+  'resetRuntimeLedgers', 'resetRuntimeSessions',
+  'runtimeStrategyOf', 'runtimeVersionRefusal', 'runtimeWarmupOf', 'strategyBrokerGateOn', 'strategyRecordShapeErrors',
   // Studio R5 (backlog 44): a script's top-level names with lines, for "Inspect a bar" (runtime/topLevelNames.js).
   'topLevelNames',
 ]

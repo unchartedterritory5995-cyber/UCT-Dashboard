@@ -13,10 +13,12 @@
 // (`newYorkOffsetSeconds`, twin `_new_york_offset_seconds`).
 // A bar dated on a day the exchange held no session (a Good Friday bar: impossible for a listing the store serves, real
 // for a symbol trading on such a day) was in one lane's week and not the other's (weekly high 10.5 against 9.5). Both
-// lanes now keep every bar the series holds (one aggregate). Whether TradingView's week holds such a bar is NOT
-// measured (Q-REQ-CLOSURE): by the coordinator's ruling (C) the withhold that would name it waits for that capture,
-// because no series the store serves holds such a bar (`tests/test_htf_closure_week_unreachable.py`, the tripwire),
-// and a venue that would bring one is refused by name (below).
+// lanes now keep every bar the series holds (one aggregate). ⭐⭐ Q-CLOSURE ANSWERED (2026-11-21, captures
+// `vw-req-w-closure-day-{eurusd,es1}-1d-2026-11-20`): TradingView's week HOLDS such a bar (FX:EURUSD's Good Friday 2024
+// closes week 13, 1.07894 against 1.07861 without it). Such a symbol's daily sessions open the evening before, and
+// which week a bar is in is its SESSION's (`htfSessionWeek.test.js`, the keying and the venue withhold). No series the
+// store serves holds such a bar (`tests/test_htf_closure_week_unreachable.py`, the tripwire), and a venue that would
+// bring one is refused by name (below).
 //
 // THE SHARED FIXTURE `tests/fixtures/ast/htf_exchange_day.json` is WRITTEN here (HTF_EXCHANGE_DAY_WRITE=1) and READ by
 // `tests/test_pine_htf_exchange_day.py`: the bars of every set (the SPY weeks are the capture's own rows), each case's
@@ -88,7 +90,7 @@ const CASES = [
   { name: 'tf_live(M, close) on November 30th 19:00 New York: still November',
     set: 'nov', opts: INTRADAY, tree: () => live(CLOSE, 'M'), pick: () => [at('nov', '2021-11-30', 19)], expect: [457.4] },
   // ⭐ A SESSION THE EXCHANGE NEVER HELD (Good Friday 2024-03-29, bar 9): ONE aggregate in both lanes, the bar kept (its
-  // high 10.5 is week 13's); whether TradingView keeps it is Q-REQ-CLOSURE's (no served series holds one: the tripwire)
+  // high 10.5 is week 13's), as TradingView keeps it (Q-CLOSURE, `htfSessionWeek.test.js`; no served series holds one)
   { name: 'nz(tf_merge(W, high)) on the Good Friday series: week 13 holds its Friday bar in both lanes (10.5)',
     set: 'goodFriday', opts: DAY, tree: () => call('nz', merge(HIGH), num(0)), pick: () => [4, 5, 8, 9, 10, 13, 14],
     expect: [5.5, 5.5, 5.5, 10.5, 10.5, 10.5, 15.5] },
@@ -189,16 +191,19 @@ describe('every case is its hand-written answer', () => {
         if (c.expect[k] === null) expect(c.served[j], `${c.name} bar ${j}`).toBe(null)
         else expect(c.served[j], `${c.name} bar ${j}`).toBeCloseTo(c.expect[k], 9)
       })
-      // nothing here names a closure-week withhold: ruling (C) defers it to Q-REQ-CLOSURE
-      expect(c.codes.filter((k) => k.includes('closure')), c.name).toEqual([])
+      // nothing here names a closure-week withhold: TradingView's week holds the bar (Q-CLOSURE), and these sets'
+      // sessions open on their own dates (the venue withhold, `request:htf-venue-calendar`, is never named on them)
+      expect(c.codes.filter((k) => k.includes('closure') || k.includes('venue')), c.name).toEqual([])
     })
   }
 })
 
 // ⭐⭐ THE TRIPWIRE'S CHART HALF (ruling (C)): a symbol whose own sessions fall on exchange closures (crypto, FX, futures)
-// reaches a weekly or monthly merge here only through a door that refuses it by name today. If one of these ever
-// translates, a series holding closure-day bars can reach the aggregate whose TradingView answer is unmeasured: the
-// withhold deferred to Q-REQ-CLOSURE (`vw-req-w-closure-day-eurusd-1d` / `-es1-1d`) has to land first.
+// reaches a weekly or monthly merge here only through a door that refuses it by name today. Q-CLOSURE answered what
+// such a series' week is (`vw-req-w-closure-day-{eurusd,es1}-1d-2026-11-20`: the session keying and the venue withhold,
+// `htfSessionWeek.test.js`); if one of these ever translates, check its other-symbol supply against that rail first: a
+// bar dated by its trading day keeps its date, one dated by its evening open is keyed the next day, and a supply that
+// mixes the two is neither.
 describe('⭐⭐ the tripwire: a venue whose sessions fall on exchange closures is refused by name before any weekly read', () => {
   for (const venue of ['BINANCE:BTCUSDT', 'BITSTAMP:BTCUSD', 'FX:EURUSD', 'CME_MINI:ES1!']) {
     it(`request.security("${venue}", "W", high) is refused by name`, () => {

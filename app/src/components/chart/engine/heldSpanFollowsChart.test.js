@@ -82,8 +82,9 @@ describe('the chart feeds the hook the held span (StockChart.jsx), code, not pro
     expect(call, 'the hook call').not.toBeNull()
     const args = call[1].split(',').map((x) => x.trim())
     expect(args[3]).toBe('_heldSpan')
-    expect(code).toMatch(/const _heldSpan = heldSpanFor\(_heldLoaded, barCount\)/)
-    expect(code).toMatch(/const loaded = barCountRef\.current/)
+    // ⭐⭐ (2026-11-22) the span starts at the timeframe's full target and only its own rows raise it (`chart/heldSpanPlan.js`)
+    expect(code).toMatch(/const _heldSpan = heldSpanOn\(resolvedTf, _heldLoaded\.n, _heldLoaded\.tf, barCount\)/)
+    expect(code).toMatch(/const loaded = heldRowsFor\(resolvedTf, barCountRef\.current, heldNewestTRef\.current\)/)
     // CONTROL: the matcher sees the real call (a reverted line, `barCount` 4th, would read here); the 9th argument is
     // the chart's symbol binding (`ownDailyFollowsChartSymbol.test.js`, the e83 live capture)
     expect(args).toHaveLength(10)

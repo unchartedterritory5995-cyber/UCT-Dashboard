@@ -26,6 +26,7 @@
 // source (64 hex; a prefix of at least 12 hex is accepted, as git accepts one).
 import { sha256Hex } from './ast/parse.js'
 import { setRunHalfObjectEvidence } from './runHalfRailSeam.js'
+import { FORMING_REASON_BY_ID, FORMING_REASON_UNKNOWN, formingReasonOf } from './formingReason.js'
 
 /** The server's read of the list (`api/routers/user_definitions.py::runtime_kill`). */
 export const RUNTIME_KILL_PATH = '/api/user-definitions/runtime-kill'
@@ -493,24 +494,17 @@ export function runtimeNotGradedOf({ source, hash } = {}) {
 /** The guard a refused forming-bar run carries (runtime documents, run halves, run colours). */
 export const RUNTIME_FORMING_GUARD = 'pane:forming-ungraded'
 
-/** What a script does that is admitted for finished bars only, by the server's capability id
- *  (`rollout_gate.PINE_CAPABILITY_FORMING_UNGRADED`). Each phrase completes "this script ...". */
-export const FORMING_REASON_BY_ID = Object.freeze({
-  'realtime-state': 'reads the state of the bar as it forms (barstate or the clock)',
-  varip: 'keeps a `varip` value that changes within a forming bar',
-  'request-other': 'reads another symbol or timeframe',
-})
-/** ⛔ FAIL CLOSED: an id this tab does not know, or no id at all, is still a refusal, said plainly. */
-export const FORMING_REASON_UNKNOWN = 'uses a part of Pine'
+// ⭐ The reason words live in ONE leaf (`formingReason.js`), read by all three forming sentences; re-exported
+// here so a caller of this module reads the same names.
+export { FORMING_REASON_BY_ID, FORMING_REASON_UNKNOWN, formingReasonOf }
 
-/** The reason words for a latched verdict's ids: each id once, in the server's order, joined by "and". */
-export function formingReasonOf(ids) {
-  const said = []
-  for (const id of Array.isArray(ids) ? ids : []) {
-    const phrase = Object.prototype.hasOwnProperty.call(FORMING_REASON_BY_ID, id) ? FORMING_REASON_BY_ID[id] : FORMING_REASON_UNKNOWN
-    if (!said.includes(phrase)) said.push(phrase)
-  }
-  return said.length ? said.join(' and ') : FORMING_REASON_UNKNOWN
+/** The capability ids the server named for this script's finished-bars-only verdict (`historyOnlyIds`), or
+ *  `[]` (no verdict, or one without ids). What a run colour or a run half hands its forming sentence. */
+export function runtimeFormingIdsOf({ source, hash } = {}) {
+  const h = typeof hash === 'string' && hash ? hash.toLowerCase()
+    : (typeof source === 'string' ? runtimeSourceHash(source) : '')
+  const v = h ? _verdicts.get(h) : undefined
+  return v && Array.isArray(v.historyOnlyIds) ? [...v.historyOnlyIds] : []
 }
 
 /** Why this script is NOT drawn bar by bar on THIS chart's newest bar (G6), or null.

@@ -1,0 +1,25 @@
+/* The OWN panel's Funds (N-PORT) block (FundsNportBlock.jsx). The table, the sort buttons, the holder cell, the
+   tones and the foot are the Funds (13F) block's own classes (FundHoldersBlock.module.css); these are the few
+   pieces only this block draws. */
+
+/* The fund's trust (the registrant that filed it) under the fund's name: one line, cut with an ellipsis, capped by
+   the PANEL's width like the name above it. */
+.family {
+  display: block;
+  max-width: 11rem;
+  max-width: min(11rem, 36cqi);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+.plainState { color: var(--text-muted); }
+
+/* The funds that sold out: a short list under the table. */
+.sold { margin-top: var(--space-sm); min-width: 0; }
+.soldTitle { color: var(--text); font-size: var(--text-sm); font-weight: 600; margin-bottom: var(--space-xs); }
+.soldList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
+.soldRow { min-width: 0; overflow-wrap: break-word; }
+.soldName { color: var(--text-bright); font-size: var(--text-sm); overflow-wrap: break-word; }
+.soldRow .family { max-width: 100%; }

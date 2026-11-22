@@ -159,7 +159,13 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # chart's rsExit maths, their filters, starters and methodology). Re-pinned in the same PR.
 # Re-pinned again 2026-11-13: 494a406a7b changes filters.py on purpose (the three per-warning RS exit ages
 # marked agent_omit, short labels on the two the Agent keeps). Re-pinned in the same PR.
-SCREENER_PIN = "494a406a7bd63a71eb6935f4e36f1822acc5a8c2"
+# Re-pinned 2026-11-21 (fundamental trend filters): this change edits fund_trends.py (new), filters.py,
+# methodology.py, snapshot_builder.py and snapshot_db.py on purpose (eight point-in-time trend columns from SEC
+# filings, their filters, view and methodology). It was written uncommitted, so the pin moves to master's newest
+# Screener commit at the time, a9936b447a (#1964, the short-interest columns: finviz_universe.py, short_columns.py,
+# snapshot_builder.py); whoever commits this may move it to that commit (the rail reads pin...F16_HEAD, so either
+# is green). Re-pinned in the same PR.
+SCREENER_PIN = "a9936b447a18a0eb67b0bb910adfd479b9439397"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 # The F16 change set is immutable: #1029's own PR head (merged as 4dacc81529). The rail compares the pin against THIS commit,
 # never HEAD, so a later Screener change by another team (e.g. #1021, the RS split) can no longer turn master's deploy gate
@@ -251,7 +257,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/filters.py" in r.stdout.split()  # a file the pinned commit changed (the RS exit agent_omit marks)
+    assert "api/services/screener/short_columns.py" in r.stdout.split()  # a file the pinned commit changed (#1964)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

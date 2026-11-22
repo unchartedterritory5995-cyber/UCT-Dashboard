@@ -164,3 +164,53 @@
   color: var(--text-muted);
   font-size: var(--text-xs);
 }
+
+/* ── the weekly rank (2026-11-22): GRPS RANK's small lines and movers strip; GRP's "Rank" section uses .line ─────── */
+
+/* A row's small line: the year's weekly rank, 1st at the top, drawn with the breadth line's own trace (.line .trace).
+   After .line so its box wins. */
+.spark {
+  width: 4.5rem;
+  max-width: none;
+  height: 1.25rem;
+}
+
+/* The movers strip above GRPS RANK: the most places climbed and fallen over 4 and 13 weeks. Positioned, so the
+   screen-reader words inside it stay inside it. */
+.movers {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  font-size: var(--text-xs);
+}
+
+/* Each label, name and run of words is one flex item, so the rows wrap evenly where the touch tier gives each
+   name its tap floor. */
+.moverRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.3em;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-muted);
+  overflow-wrap: break-word;
+}
+
+.moverWindow {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.moverLabel {
+  color: var(--text-bright);
+  font-weight: 600;
+}

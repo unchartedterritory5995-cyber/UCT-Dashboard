@@ -6,7 +6,9 @@
 ## ⛔⛔ The rule (owner decision 2026-11-13)
 
 **worker AUTO DEPLOY IS DISABLED in Railway** (worker → Settings → Source → Branch connected to
-production → "Auto deploy is disabled"). A push or a merged PR no longer restarts it. Your
+production → "Auto deploy is disabled"). In that heading "production" is the Railway ENVIRONMENT:
+the git branch worker is connected to is **`master`**, not `production`, and was before the org
+move too. A push or a merged PR no longer restarts it. Your
 change reaches the worker only when someone deploys it by hand, **outside market hours**.
 
 Why (measured 2026-11-12): the worker builds the R2 snapshots every other service pulls bars
@@ -20,8 +22,14 @@ set 2026-11-13 03:09 UTC) needs the base build to run for hours uninterrupted.
 
 1. **When:** after 16:15 ET and before 07:45 ET on a trading day, or a weekend. Check first that
    no base build is running (below): a deploy kills it, and it starts over the next ET day.
-2. **How:** Railway → project `luminous-recreation` → `worker` → Ctrl/Cmd+K →
-   **"Deploy latest commit"**. (`railway redeploy --service worker` re-runs the CURRENT image.)
+2. **How:** deploy the commit the `production` branch points at (`git rev-parse origin/production`):
+   that is the newest commit the master deploy gate has passed.
+   ⛔ **"Deploy latest commit"** (Ctrl/Cmd+K) deploys the head of `master`, gated or not. Use it only
+   when `origin/master` and `origin/production` are the same commit. On 2026-11-22 07:40 UTC it built
+   `757fb5eae6` while that commit's gate was still queued; the build was cancelled and the gated
+   commit was deployed by SHA instead (Railway API `serviceInstanceDeploy` with `commitSha`,
+   deployment `e4d0a88e`). The two deploys of 2026-11-21 (`f936a01b`, `137e5d6d`) also carried
+   master heads. (`railway redeploy --service worker` re-runs the CURRENT image.)
 3. **Verify:** the new deployment's commit is the one you meant, then `/internal/health` on the
    pod (below) shows `uploader_alive: true` within ~25 minutes.
 

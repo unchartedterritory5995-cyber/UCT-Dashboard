@@ -42,12 +42,16 @@ def _say(line):
     _LINES.append(line)
 
 
-def best(cols, want, label, flag=False):
+def best(cols, want, label, flag=False, exact=False):
+    """`exact`: a bar where the rule holds NOTHING must hold nothing in the column too (the words said "plot nothing",
+    "only while"); without it only the bars where the rule has a value are compared."""
     rows = []
     for k, col in cols.items():
-        cmp = [i for i in range(N) if want[i] is not None]
+        cmp = list(range(N)) if exact else [i for i in range(N) if want[i] is not None]
         if flag:
             diff = sum(1 for i in cmp if bool(col[i]) != bool(want[i]))
+        elif exact:
+            diff = sum(1 for i in cmp if (col[i] is None) != (want[i] is None) or (want[i] is not None and abs(col[i] - want[i]) > 1e-9))
         else:
             diff = sum(1 for i in cmp if col[i] is None or abs(col[i] - want[i]) > 1e-9)
         rows.append((diff, len(cmp), k))
@@ -333,12 +337,269 @@ def _new_high_dates():
     return strict
 
 
+def _run_counts():
+    """A run of closes each above the close 4 bars earlier, counted 1 to 9 and starting again at 1 after 9; 0 where
+    the run is broken (and on the first four bars, which have no close 4 bars earlier)."""
+    out, n = [], 0
+    for i in range(N):
+        up = i >= 4 and C[i] > C[i - 4]
+        n = (1 if n >= 9 else n + 1) if up else 0
+        out.append(n)
+    return out
+
+
+# ── ROUND 17: what a script must show for nine requests whose honest answer needs an array, a loop over one, a
+#    `while`, a `switch`, a drawing deleted or read back, or `barstate`. Written from the WORDS, before any answer. ──
+
+def _swings(x, k, high):
+    """The bars whose value is strictly beyond the k bars before it AND the k bars after it. Such a bar is only KNOWN
+    k bars later (the bars after it have to exist)."""
+    out = []
+    for i in range(k, N - k):
+        around = [x[j] for j in range(i - k, i + k + 1) if j != i]
+        if all(x[i] > v for v in around) if high else all(x[i] < v for v in around):
+            out.append(i)
+    return out
+
+
+def rule_cap01():
+    """How many bars back the most recent close ABOVE this bar's close was (1 = the bar before), looking back at most
+    250 bars; NOTHING when no close in reach is higher."""
+    col = []
+    for i in range(N):
+        k = next((k for k in range(1, min(250, i) + 1) if C[i - k] > C[i]), None)
+        col.append(None if k is None else float(k))
+    return [('bars back to the most recent higher close, nothing when there is none in 250', col, None, 'exact')]
+
+
+def rule_cap02():
+    """A choice of SMA, EMA or WMA with SMA the default: what is drawn before the member touches the setting is the
+    plain 20 bar average of the close."""
+    return [('the 20 bar simple average of the close (the default choice)', _sma(C, 20))]
+
+
+def rule_cap03():
+    """The average of the last 5 swing highs KNOWN on each bar (a swing high at bar p is known at p + 3). Before five
+    are known the words ask for nothing in particular, so those bars are not compared."""
+    known_at = [(p + 3, H[p]) for p in _swings(H, 3, True)]
+    col, seen, j = [], [], 0
+    for i in range(N):
+        while j < len(known_at) and known_at[j][0] <= i:
+            seen.append(known_at[j][1])
+            j += 1
+        col.append(sum(seen[-5:]) / 5 if len(seen) >= 5 else None)
+    return [('the average of the last 5 swing highs known on each bar', col)]
+
+
+def rule_cap07():
+    """The 10 bar average ONLY while the close is above the 50 bar average; nothing on every other bar (the bars
+    before the 50 bar average exists included)."""
+    fast, slow = _sma(C, 10), _sma(C, 50)
+    col = [fast[i] if (slow[i] is not None and fast[i] is not None and C[i] > slow[i]) else None for i in range(N)]
+    return [('the 10 bar average while the close is above the 50 bar average, nothing otherwise', col, None, 'exact')]
+
+
+def rule_cap09():
+    """The average volume of the last 10 UP days (a close above the prior close) up to and including each bar; the down
+    days in between are skipped. Before ten up days exist those bars are not compared."""
+    ups, col = [], []
+    for i in range(N):
+        if i > 0 and C[i] > C[i - 1]:
+            ups.append(V[i])
+        col.append(sum(ups[-10:]) / 10 if len(ups) >= 10 else None)
+    return [('the average volume of the last 10 up days', col)]
+
+
+# ── a company's own figures, from its filings (2026-11-22: rules first; pending until the engine serves them) ──
+# A script reads a figure with `request.financial(syminfo.tickerid, "<ID>", "<FQ|TTM>")`. UCT answers from company
+# filings, each figure dated by the day its filing became public. The built company below is the same on every run.
+
+#: the session of the first report, and the sessions from each report to the next, year after year: three quarterly
+#: reports and a later annual one, as companies file (so a quarter is NEVER a fixed number of bars)
+FIRST_FILING = 40
+FILING_GAPS = (58, 61, 60, 73)
+#: `na` on a bar where a figure is known but did not step (a read with gaps on); never equal to a value
+NA = float('nan')
+
+
+def _iso_plus(day, days):
+    return (_dt.date.fromisoformat(day) + _dt.timedelta(days=days)).isoformat()
+
+
+def filings_doc(days):
+    """The built company's figures on these session days (ISO strings), in the shape the financial door serves:
+    {fields: {'<ID>:<PERIOD>': {state, knownFrom, points: [{knownFrom, v, staleFrom}]}}}. Four reports a year,
+    unevenly spaced. On purpose: one quarter's revenue EQUALS the same quarter a year before (growth exactly 0) and one
+    equals the quarter before; one quarter loses money; the share count is first reported two reports late; the
+    cash-flow figure is UNKNOWN for one report (a gap); one report is dated on a Saturday (it lands on Monday)."""
+    state = {'s': 20261122}
+
+    def rnd():
+        state['s'] = (state['s'] * 1664525 + 1013904223) % 4294967296
+        return state['s'] / 4294967296
+    at = [FIRST_FILING]
+    while at[-1] + FILING_GAPS[(len(at) - 1) % 4] + 6 < len(days):
+        at.append(at[-1] + FILING_GAPS[(len(at) - 1) % 4] + int(rnd() * 13) - 6)     # up to six sessions early or late
+    known = [days[i] for i in at]
+    monday = next(k for k in range(8, len(at)) if _dt.date.fromisoformat(known[k]).weekday() == 0)
+    known[monday] = _iso_plus(known[monday], -2)                    # public on the Saturday: read from Monday's bar
+    rev, eps, equity, shares, fcf = [], [], [], [], []
+    base, book, count = 8.0e8, 2.4e9, 2.5e8
+    for k in range(len(at)):
+        base *= 1.02 + (rnd() - 0.35) * 0.05
+        r = round(base * (1.00, 0.92, 0.97, 1.18)[k % 4], -5)
+        margin = -0.04 if k == 7 else 0.08 + rnd() * 0.07
+        count = round(count * (1 - 0.004 * rnd()), -4)
+        book = round(book + r * margin * 0.6, -5)
+        rev.append(r)
+        eps.append(round(r * margin / count, 2))
+        equity.append(book)
+        shares.append(count)
+        fcf.append(round(r * (margin + 0.02 + (rnd() - 0.5) * 0.03), -5))
+    rev[9] = rev[5]                                                 # the same quarter a year before, to the dollar
+    rev[12] = rev[11]                                               # the quarter before, to the dollar
+
+    def field(values, first=0):
+        pts = [{'knownFrom': known[k], 'v': values[k], 'staleFrom': None if values[k] is None else _iso_plus(known[k], 500)}
+               for k in range(first, len(at))]
+        return {'state': 'ok', 'knownFrom': pts[0]['knownFrom'], 'points': pts}
+
+    def trailing(q):
+        return [None if k < 3 else round(sum(q[k - 3:k + 1]), 2) for k in range(len(q))]
+    fcf_ttm = trailing(fcf)
+    fcf_ttm[6] = None                                               # the newest filing did not yield it: UNKNOWN
+    return {'schema': 'uct.pine-financial/v1', 'family': 'financial', 'familyState': 'ok', 'state': 'ready', 'refreshedAt': 1,
+            'fields': {'TOTAL_REVENUE:FQ': field(rev), 'TOTAL_REVENUE:TTM': field(trailing(rev), 3),
+                       'EARNINGS_PER_SHARE_DILUTED:FQ': field(eps), 'EARNINGS_PER_SHARE_DILUTED:TTM': field(trailing(eps), 3),
+                       'TOTAL_EQUITY:FQ': field(equity), 'TOTAL_SHARES_OUTSTANDING:FQ': field(shares, 2),
+                       'FREE_CASH_FLOW:TTM': field(fcf_ttm, 3)}}
+
+
+def placed(field, days, gaps=False):
+    """One figure on daily bars, bar by bar: the value, `None` where UCT holds no current figure (WITHHELD), or `NA`
+    (a read with gaps on, on a bar where the figure did not step).
+      * a figure is read from the first bar on or after the day its filing became public (never its period end);
+      * carried until the next one (gaps off); with gaps on it is read on its own bar only;
+      * a bar is withheld when no figure is public yet, when the newest filing left the figure unknown, or when the
+        figure in force has gone stale; and every bar BEFORE the last such bar is withheld too (an older value is
+        never carried across a hole)."""
+    pts, n = field['points'], len(days)
+    landed = [-1] * n
+    for k, p in enumerate(pts):
+        i = next((j for j in range(n) if days[j] >= p['knownFrom']), n)
+        if i < n:
+            landed[i] = k
+    vals, cur, last = [None] * n, -1, -1
+    for i in range(n):
+        stepped = landed[i] >= 0 and (i > 0 or pts[landed[i]]['knownFrom'] >= days[0])
+        if landed[i] >= 0:
+            cur = landed[i]
+        p = pts[cur] if cur >= 0 else None
+        has = p is not None and p['v'] is not None
+        if p is None or ((stepped and not has) if gaps else not has) or (not gaps and p.get('staleFrom') and days[i] >= p['staleFrom']):
+            last = i
+            continue
+        vals[i] = NA if (gaps and not stepped) else p['v']
+    for i in range(last + 1):
+        vals[i] = None
+    return vals
+
+
+def _reports(field):
+    """The figure report by report: [(the bar it is read from, its value)], the unknown ones left out."""
+    out = []
+    for p in field['points']:
+        i = next((j for j in range(N) if T[j] >= p['knownFrom']), None)
+        if i is not None and p['v'] is not None:
+            out.append((i, p['v']))
+    return out
+
+
+def _fig(key):
+    return filings_doc(T)['fields'][key]
+
+
+def _growth(back, percent):
+    """Revenue of the newest quarter against the quarter `back` REPORTS before it, on every bar from that report on;
+    nothing before there are that many reports. Reports are counted, never bars."""
+    reports, col, k = _reports(_fig('TOTAL_REVENUE:FQ')), [None] * N, -1
+    for i in range(N):
+        while k + 1 < len(reports) and reports[k + 1][0] <= i:
+            k += 1
+        if k >= back and reports[k - back][1]:
+            col[i] = (reports[k][1] / reports[k - back][1] - 1) * (100.0 if percent else 1.0)
+    return col
+
+
+def rule_fund01():
+    """ "Quarterly revenue growth" reads two honest ways, and either is right: the newest quarter against the SAME
+    QUARTER A YEAR BEFORE (four reports back), or against the QUARTER BEFORE (one report back). In percent or as a
+    fraction. What it may not be: a number of BARS back (63 or 252 bars is not a report), or a value on a bar before
+    there are enough reports."""
+    return [('quarterly revenue against the same quarter a year before (4 reports back), in percent', _growth(4, True), None, 'exact'),
+            ('quarterly revenue against the same quarter a year before (4 reports back), as a fraction', _growth(4, False), None, 'exact'),
+            ('quarterly revenue against the quarter before (1 report back), in percent', _growth(1, True), None, 'exact'),
+            ('quarterly revenue against the quarter before (1 report back), as a fraction', _growth(1, False), None, 'exact')]
+
+
+def rule_fund02():
+    """Diluted earnings per share over the trailing twelve months, as filed: a step on each filing's bar, carried
+    until the next, and nothing before the first trailing figure is public."""
+    return [('diluted EPS, trailing twelve months, from the bar each filing became public', placed(_fig('EARNINGS_PER_SHARE_DILUTED:TTM'), T), None, 'exact')]
+
+
+def _per_share(key):
+    top, count = placed(_fig(key), T), placed(_fig('TOTAL_SHARES_OUTSTANDING:FQ'), T)
+    return [top[i] / count[i] if (top[i] is not None and count[i]) else None for i in range(N)]
+
+
+def rule_fund03():
+    """Free cash flow of the trailing twelve months over the shares outstanding. Nothing wherever EITHER figure is
+    withheld: before the share count is first reported, and through the report that left the cash flow unknown (an
+    older cash flow is never carried across it)."""
+    return [('trailing free cash flow over shares outstanding, nothing where either is withheld', _per_share('FREE_CASH_FLOW:TTM'), None, 'exact')]
+
+
+def rule_fund04():
+    """Book value per share, computed from what the filings hold: total equity over shares outstanding, both of the
+    newest quarter. Nothing before the share count is first reported."""
+    return [('total equity over shares outstanding, nothing before both are reported', _per_share('TOTAL_EQUITY:FQ'), None, 'exact')]
+
+
+def _gap_boxes(keep):
+    """A gap bar g: its low is above the prior bar's high. The box runs from the prior high (bottom) to that low (top),
+    from g to the first later bar whose low drops below the top (the newest bar while none has). The `keep` newest."""
+    out = []
+    for g in range(1, N):
+        if L[g] > H[g - 1]:
+            end = next((j for j in range(g + 1, N) if L[j] < L[g]), LAST)
+            out.append((T[g], T[end], L[g], H[g - 1]))
+    return out[-keep:]
+
+
 def drawn_rules(sid):
-    """{numbers: [(what, [values any of which is right])], words: [(what, must, must_not)], labels: (what, dates, text or None)}"""
+    """{numbers: [(what, [values any of which is right])], words: [(what, must, must_not)], labels: (what, dates, text or None),
+    numbers_on_bars: (what, {day: the whole number written on that bar})}"""
+    if sid == 'table-format-01':                             # a table with yesterday's high and yesterday's low (a daily chart)
+        return {'numbers': [("yesterday's high", [H[LAST - 1]]), ("yesterday's low", [L[LAST - 1]])]}
+    if sid == 'intraday-04':
+        # today's bars: the newest bar and every bar before it back to the last overnight gap (the stamps are unix
+        # seconds on a 5 minute chart; two bars of one session are minutes apart, two sessions are hours apart)
+        first = LAST
+        while first > 0 and B[first]['t'] - B[first - 1]['t'] < 6 * 3600:
+            first -= 1
+        low = min(b['l'] for b in B[first:LAST + 1])
+        return {'numbers': [("today's low so far, on the newest bar", [low]),
+                            ('the dollars lost on 100 shares bought at the latest price with the stop at that low', [(C[LAST] - low) * 100])]}
+    if sid == 'count-on-bars-01':
+        counts = _run_counts()
+        return {'numbers_on_bars': ('the count written on each bar of a run (1 to 9, starting again at 1 after 9)',
+                                    {T[i]: counts[i] for i in range(N) if counts[i] > 0})}
     if sid == 'i01':
         v = _atr_variants(14)
-        return {'numbers': [('ATR 14 on the newest bar', [a[LAST] for _n, a in v if a[LAST] is not None]),
-                            ('ATR as a percent of the close on the newest bar', [a[LAST] / C[LAST] * 100 for _n, a in v if a[LAST] is not None])]}
+        # corrected on review 11-22: "show its latest value" asks for the latest value of the PERCENT only. The ATR in
+        # dollars beside it was learned from the first answer (the rule learning from the door), and is not asked.
+        return {'numbers': [('ATR as a percent of the close on the newest bar', [a[LAST] / C[LAST] * 100 for _n, a in v if a[LAST] is not None])]}
     if sid == 'i02':
         return {'numbers': [('volume over its 50 bar average on the newest bar', [V[LAST] / (sum(V[LAST - 49:LAST + 1]) / 50)])]}
     if sid == 'i03':
@@ -348,6 +609,24 @@ def drawn_rules(sid):
                 'words': [('the status for that count', 'under pressure' if n >= 5 else 'normal', 'normal' if n >= 5 else 'under pressure')]}
     if sid == 'i04':
         return {'labels': ('a label on each bar whose close crosses above the 50 bar average', _cross_up_dates(), 'Cross')}
+    if sid == 'cap-04':                                          # a line at each of the last 3 swing lows, the oldest removed
+        known = [p for p in _swings(L, 3, False) if p + 3 <= LAST]
+        return {'level_lines_exact': ('a horizontal line at each of the last 3 swing lows, from its swing bar to the right edge, and no other line',
+                                      [(T[p], L[p]) for p in known[-3:]])}
+    if sid == 'cap-05':                                          # a line from the lowest low of 60 bars to the close, and its rise
+        k = min(range(LAST - 59, LAST + 1), key=lambda i: (L[i], -i))
+        return {'segments': [('from the lowest low of the last 60 bars to the newest close', T[k], L[k], T[LAST], C[LAST])],
+                'labels_at': [('the end of the line, showing how many dollars it rises', T[LAST], C[LAST] - L[k])]}
+    if sid == 'cap-06':                                          # ONE label, on the latest bar, with the percent from the 50 bar average
+        return {'labels_at': [('the latest bar, showing the percent the close is from its 50 bar average', T[LAST], (C[LAST] / _sma(C, 50)[LAST] - 1) * 100)],
+                'only_labels': 1}
+    if sid == 'cap-08':                                          # a box on each gap up until a later low drops into it; the 10 newest
+        return {'boxes_exact': [(f'the gap up of {left}', left, right, top, bottom) for left, right, top, bottom in _gap_boxes(10)],
+                'only_boxes': 10}
+    if sid == 'weekly-plot-01':
+        # the line is held by value in RULES (every honest reading of a weekly average on a daily bar); the labels are
+        # held to the line the script itself plots: on exactly the bars where the close crosses above THAT line
+        return {'labels_cross_own': ('a label on each bar where the close crosses above the plotted 10 week average', 'Cross')}
     if sid == 'i05':
         out = []
         for n in (10, 21, 50):
@@ -464,6 +743,21 @@ def check_drawn(sid, s):
         hit = [l for l in lines if {(day(l['x1']), round(l['y1'], 6)), (day(l['x2']), round(l['y2'], 6))} == {(x1, round(y1, 6)), (x2, round(y2, 6))}]
         _say(f"  {'RIGHT' if hit else 'CHECK'}  a line {what}: by hand ({x1}, {y1:.4f}) to ({x2}, {y2:.4f})" + ('' if hit else f'; drawn {[(day(l["x1"]), round(l["y1"], 4), day(l["x2"]), round(l["y2"], 4)) for l in lines[-3:]]}'))
         good = good and bool(hit)
+    if 'level_lines_exact' in rules:
+        what, want = rules['level_lines_exact']
+        flat = [l for l in lines if near(l['y1'], l['y2'])]
+        got = sorted((day(l['x1']), round(l['y1'], 6)) for l in flat)
+        exp = sorted((d, round(v, 6)) for d, v in want)
+        reach = bool(flat) and all(day(l['x2']) == T[LAST] or l.get('extend') in ('right', 'both') for l in flat)
+        ok = got == exp and len(flat) == len(lines) and reach
+        _say(f"  {'RIGHT' if ok else 'CHECK'}  {what}: by hand {[(d, round(v, 4)) for d, v in exp]}" + ('' if ok else
+             f'; drawn {len(lines)} line(s), level ones {[(d, round(v, 4)) for d, v in got][-5:]}' + ('' if reach else '; not all reach the right edge')))
+        good = good and ok
+    for kind, drawn_list, name in (('only_labels', labels, 'label'), ('only_boxes', boxes, 'box')):
+        if kind in rules:
+            ok = len(drawn_list) == rules[kind]
+            _say(f"  {'RIGHT' if ok else 'CHECK'}  {rules[kind]} {name}(s) on the chart and no more: {len(drawn_list)} drawn")
+            good = good and ok
     if 'boxes_on' in rules:
         what, want = rules['boxes_on']
         got = sorted((day(b['left']), round(b['top'], 6), round(b['bottom'], 6)) for b in boxes)
@@ -488,6 +782,49 @@ def check_drawn(sid, s):
         ok = bool(row) and any(word in (c or '').lower() for c in row) and not any(other in (c or '').lower() for c in row)
         _say(f"  {'RIGHT' if ok else 'CHECK'}  table row for {what}: expected {word.upper()}; row {row}")
         good = good and ok
+    if 'numbers_on_bars' in rules:
+        what, want = rules['numbers_on_bars']
+        days = sorted(want)
+        # (a) one LABEL per bar, each showing its own bar's number (the newest ones, when the chart keeps only those)
+        got = sorted(str(l['x'])[:10] for l in labels)
+        kept = days[-len(got):] if got else []
+        where = bool(got) and got in (days, kept)
+        off = [l for l in labels if not _shows([l['text'] or ''], float(want.get(str(l['x'])[:10], float('nan'))))]
+        by_labels = where and not off
+        # (b) one MARK per number: a fixed text that IS the number, on exactly the bars of that number
+        marks, cols = s.get('marks') or {}, s.get('columns') or {}
+        on = lambda key: {T[i] for i, v in enumerate(cols.get(key) or []) if v}  # noqa: E731
+        missing = [v for v in sorted(set(want.values()))
+                   if not any(str(m.get('text') or '').strip() == str(v) and on(k) == {d for d, x in want.items() if x == v} for k, m in marks.items())]
+        by_marks = bool(marks) and not missing
+        if by_labels:
+            note = f'a label on {"all " + str(len(days)) if got == days else "the newest " + str(len(got)) + " of " + str(len(days))} bars, each showing its number'
+        elif by_marks:
+            note = f'{len(set(want.values()))} marks, each a fixed number on exactly its bars'
+        elif labels:
+            note = (f'{len(got)} label(s) against {len(days)} bars by hand' + ('' if where else '; NOT on the bars of the run')
+                    + (f'; {len(off)} show another number, e.g. {off[0]}' if off else ''))
+        elif marks:
+            note = (f'no label; the marks write {sorted(set(str(m.get("text")) for m in marks.values()))}: '
+                    f'no mark is the number {missing[0]} on exactly its bars' + (f' ({len(missing)} of {len(set(want.values()))} numbers have none)' if len(missing) > 1 else ''))
+        else:
+            note = 'nothing is written on the bars: no label and no mark'
+        _say(f"  {'RIGHT' if by_labels or by_marks else 'CHECK'}  {what}: {note}")
+        good = good and (by_labels or by_marks)
+    if 'labels_cross_own' in rules:
+        what, text = rules['labels_cross_own']
+        got = sorted(str(l['x'])[:10] for l in labels)
+        hit = None
+        for key, col in cols.items():
+            crosses = [T[i] for i in range(1, N) if col[i] is not None and col[i - 1] is not None and C[i] > col[i] and C[i - 1] <= col[i - 1]]
+            if len(crosses) >= 5 and got and got in (crosses, crosses[-len(got):]):
+                hit = (key, len(crosses))
+                break
+        words_ok = bool(labels) and all((l['text'] or '').strip() == text for l in labels)
+        _say(f"  {'RIGHT' if hit else 'CHECK'}  {what}: " + (f'{len(got)} label(s), the crosses of column {hit[0]!r} ({hit[1]} by hand from that column)' if hit else
+             f'{len(got)} label(s) that are the crosses of NO plotted column; columns {sorted(cols)}'))
+        _say(f"  {'RIGHT' if words_ok else 'CHECK'}  every label reads {text!r}")
+        good = good and bool(hit) and words_ok
     if 'labels' in rules:
         what, dates, text = rules['labels']
         got = sorted(str(l['x'])[:10] for l in labels)
@@ -515,14 +852,22 @@ def check_drawn(sid, s):
 
 RULES = {'h03': rule_h03, 'h05': rule_h05, 'i01': rule_i01, 'i02': rule_i02, 'i03': rule_i03, 'i04': rule_i04, 'i05': rule_i05, 'i06': rule_i06,
          'j01': rule_j01, 'j02': rule_j02, 'j03': rule_j03, 'j06': rule_j06,
-         'k02': rule_k02, 'k03': rule_k03, 'k04': rule_k04, 'k05': rule_k05, 'k06': rule_k06}
+         'k02': rule_k02, 'k03': rule_k03, 'k04': rule_k04, 'k05': rule_k05, 'k06': rule_k06,
+         'weekly-plot-01': rule_j02,
+         'cap-01': rule_cap01, 'cap-02': rule_cap02, 'cap-03': rule_cap03, 'cap-07': rule_cap07, 'cap-09': rule_cap09,
+         'fund-01': rule_fund01, 'fund-02': rule_fund02, 'fund-03': rule_fund03, 'fund-04': rule_fund04}                     # a script that PLOTS the 10 week average of the weekly close: the same readings
 #: what each request ASKED to see; anything else the script draws is listed as not asked for
 ASKED = {'h03': {'plot'}, 'h05': {'plotshape'}, 'i01': {'plot', 'table'}, 'i02': {'plot', 'table'}, 'i03': {'plot', 'table'},
-         'i04': {'plot', 'label'}, 'i05': {'plot', 'table'}, 'i06': {'plot', 'label'},
+         'i04': {'plot', 'label'}, 'i05': {'plot', 'table'}, 'i06': {'plot', 'label'}, 'weekly-plot-01': {'plot', 'label'},
          'j01': {'plot'}, 'j02': {'plot'}, 'j03': {'plot'}, 'j04': {'plot'}, 'j05': {'plot'}, 'j06': {'table'},
          'l01': {'line', 'plot'}, 'l02': {'box'}, 'l03': {'line'}, 'l04': {'box'}, 'l05': {'line', 'plot'}, 'l06': {'label'},
+         'table-format-01': {'table'},
+         'count-on-bars-01': {'label', 'plotchar', 'plotshape'}, 'intraday-04': {'table'},
          'k01': {'table'}, 'k02': {'plot'}, 'k03': {'plot', 'background'}, 'k04': {'plot', 'table'}, 'k05': {'plot'}, 'k06': {'plot'}}
 #: ids whose column rules are DIFFERENT columns that must all be there, not readings of one
+ASKED.update({'cap-01': {'plot'}, 'cap-02': {'plot'}, 'cap-03': {'plot'}, 'cap-04': {'line'}, 'cap-05': {'line', 'label'},
+              'cap-06': {'label'}, 'cap-07': {'plot'}, 'cap-08': {'box'}, 'cap-09': {'plot'}})
+ASKED.update({'fund-01': {'plot'}, 'fund-02': {'plot'}, 'fund-03': {'plot'}, 'fund-04': {'plot'}})
 NEED_ALL = {'i05'}
 
 
@@ -531,7 +876,7 @@ def has_rule(case_id):
 
 
 def drawn_rules_known(case_id):
-    return case_id in {'i01', 'i02', 'i03', 'i04', 'i05', 'i06', 'j06', 'k01', 'k04', 'l01', 'l02', 'l03', 'l04', 'l05', 'l06'}
+    return case_id in {'table-format-01', 'weekly-plot-01', 'cap-04', 'cap-05', 'cap-06', 'cap-08', 'i01', 'i02', 'i03', 'i04', 'i05', 'i06', 'j06', 'k01', 'k04', 'l01', 'l02', 'l03', 'l04', 'l05', 'l06', 'count-on-bars-01', 'intraday-04'}
 
 
 def code_of(source):
@@ -572,7 +917,7 @@ def grade_script(case_id, source, run, chart):
     plots_any = bool(re.search(r'(?<![.\w])plot(shape|char)?\s*\(', code_of(source)))
     variants = RULES[case_id]() if case_id in RULES and plots_any else []
     groups = [v[2] if len(v) > 2 else None for v in variants]
-    right = [best(run['columns'], v[1], v[0], flag=(len(v) > 3 and v[3] == 'flag')) for v in variants]
+    right = [best(run['columns'], v[1], v[0], flag=(len(v) > 3 and v[3] == 'flag'), exact=(len(v) > 3 and v[3] == 'exact')) for v in variants]
     if any(g is not None for g in groups):                # grouped readings: every group needs one that is right
         if not all(any(r for r, g in zip(right, groups) if g == name) for name in set(groups)):
             right_all = False

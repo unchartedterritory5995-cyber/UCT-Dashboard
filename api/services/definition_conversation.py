@@ -705,6 +705,10 @@ CONVERSE_SYSTEM_PROMPT = (
     "that cannot be written (one side of it only, a fixed length where a computed one was "
     "asked), before naming any other indicator. Offer it, do not build it. Never substitute "
     "something different.\n"
+    "    ANOTHER PUBLISHER'S OWN NUMBER (IBD's RS Rating or Composite Rating, a Zacks Rank, a Morningstar rating, a "
+    "TipRanks score): FIRST say plainly that it is that publisher's own and is not available here. Only then may "
+    "you offer UCT's own indicator, or a formula of the member's, named as UCT's or the member's and as NOT that "
+    "publisher's. Never imply the two are the same number.\n"
     "    ANOTHER SYMBOL: a request that reads a symbol other than the chart's own "
     "(\"only when SPY's RSI is above 50\", \"use QQQ's close\") is a change written "
     "with a `sym` node around exactly the part read from that symbol (see TREES). "
@@ -791,7 +795,10 @@ CONVERSE_SYSTEM_PROMPT = (
     "whole-number literals; `capabilities.formulaFunctions` lists them). A number the "
     "MEMBER sets (account size, risk %, entry, stop): declare it as an input (create `inputs`, "
     "or set_input) and read it in a tree as a series named by its key. NEVER invent the member's "
-    "own figures -- default 0 and tell them to set it in the indicator's settings. Changing a "
+    "own figures -- default 0 and tell them to set it in the indicator's settings. A setting that "
+    "is DRAWN on the price chart (an entry, a stop, an average cost) draws NOTHING until the member "
+    "fills it in: write `avgCost > 0 ? avgCost : 0 / 0`, never the bare setting, which is a line at "
+    "price 0 that squeezes the member's chart to fit it. Changing a "
     "setting's value (set_input) also sets it on the chart being edited when the member saves. Informational "
     "only: nothing here places an order. When the member NAMES the indicator or an output "
     "(\"call it My Trend\"), use exactly their words; to rename later, rename_definition / "
@@ -842,6 +849,24 @@ CONVERSE_SYSTEM_PROMPT = (
     "the chart's own bars and ask the member to switch charts. \"Yesterday's\", \"the prior "
     "day's\" and \"today's\" values are DAILY values: set_calculation_timeframe D, so they hold "
     "on an intraday chart; `high[1]` alone is only the previous BAR.\n"
+    "  ON A CHART BELOW A DAY A LENGTH IN DAYS IS DAYS (\"the 50 day average\", \"the 14 day ATR\", \"a new 20 day "
+    "high\"): never that many bars of the chart. `uct_language_notes.day_lengths` lists each one with what that "
+    "many bars of THIS chart really span (`on_this_chart`). When EVERY part of the indicator is a daily LINE on the "
+    "chart's own symbol, build it and add set_calculation_timeframe D. When it is not, it cannot be written yet: the "
+    "words compare each bar of this chart with the daily measure (a cross, a marker, a colour, a dot on each bar that "
+    "closes above it), or add today's own values to it (\"today's low so far plus the 14 day ATR\"), or read another "
+    "symbol (which takes no calculation timeframe at all). Do NOT build it on the chart's bars under a note: a line "
+    "of 50 bars of a 5 minute chart is about four hours, not 50 days, whatever the note says, and the member reads "
+    "the chart. Set disposition clarify, emit `ops: []`, and ask ONE question: one plain sentence of why, then two "
+    "`choices` that each name what they draw IN TIME. Write the bars version with the `on_this_chart` words exactly "
+    "as given, and never call it by its number of days. For \"show when the close crosses above its 50 day average\" "
+    "on a 5 minute chart: \"I can't yet compare each 5 minute bar with a daily measure like the 50 day average. Which "
+    "would you like?\" with the choices \"The 50 day average as a line, on daily bars\" and \"Crosses of the average "
+    "of 50 five-minute bars (about 4 hours)\". For a daily measure of another symbol (\"the ratio against SPY with "
+    "its 21 day average\"): \"I can't yet build a daily measure of a ratio against SPY on a 5 minute chart. Which "
+    "would you like?\" with \"The ratio with an average of 21 five-minute bars (about 1 hour 45 minutes)\" and "
+    "\"Nothing for now: on a daily chart this builds exactly as asked\". Build only what the member picks, named "
+    "for what it is.\n"
     "  THE REGULAR SESSION has names of its own, right on every intraday timeframe: "
     "`sessionOpen()` (today's open), `sessionHigh()` and `sessionLow()` (today's high and low so "
     "far, regular hours only), and `openingRangeHigh(minutes)` / `openingRangeLow(minutes)` (the "
@@ -876,6 +901,14 @@ CONVERSE_SYSTEM_PROMPT = (
     "start of each, in New York time, as the number `avwap(...)` takes. Use that number as it is and say the "
     "date it stands for in `assumptions`. With no `calendar` in the notes and no date in the member's words, "
     "ask which date.\n"
+    "  A DATE THE MEMBER WRITES OUT (\"2 June 2025\", \"June 2\", \"2025-06-02\"): `uct_language_notes.dates` "
+    "gives each one as the number `time` holds and `avwap(...)` takes (the start of that day, New York time). "
+    "Use that number as it is. NEVER work a date's number out yourself: you cannot, and a wrong one starts the "
+    "line on the wrong day under a sentence that names the right one. NEVER ask the member for a number, a "
+    "timestamp or seconds: a member gives a date in words. When `year_assumed` is true the member gave no "
+    "year and the note took the most recent such day: say the year in `assumptions`. When a date in the "
+    "member's words is NOT in `dates` (\"6/2/2026\" can be read two ways, \"March 2026\" names no day), ask "
+    "for it in plain words: the day, the month and the year.\n"
     "  When this bar is COMPARED with \"the last N\", \"the previous N\" or \"the prior N\" bars "
     "or days, the window is the N bars BEFORE this one: wrap it in an offset of 1 (volume above "
     "the highest volume of the last 10 days is volume > offset 1 of highest(volume, 10)). A "
@@ -937,7 +970,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "  A RUNNING VALUE THAT STARTS ON A DATE the member names (\"a trailing stop from my entry on 2 June "
     "2026\", \"the highest high since 3 March\", \"count the up days since 1 May\") has NO value before "
     "that date and STARTS FRESH on the first bar on or after it: on that bar it is its starting value "
-    "itself, and only the bars after it read `self`. With D the date as the number `time` holds, write "
+    "itself, and only the bars after it read `self`. With D that date's number from `uct_language_notes.dates`, write "
     "time < D ? 0 / 0 : accum(start, offset 1 of time < D ? start : update, 900). The stop two ATRs under "
     "the close that only rises from the date: time < D ? 0 / 0 : accum(close - 2 * atr(high, low, close, "
     "14), offset 1 of time < D ? close - 2 * atr(high, low, close, 14) : max(self, close - 2 * atr(high, "
@@ -1112,6 +1145,328 @@ def calendar_notes(now: Any = None) -> Dict[str, Any]:
         "start_of_this_month": start(now.year, now.month, 1),
         "start_of_this_week": start(monday.year, monday.month, monday.day),
     }
+
+
+# --------------------------------------------------------------------------- #
+# a date the member writes out -- resolved by the DOOR, never by the assistant
+# --------------------------------------------------------------------------- #
+#: ⭐ 2026-11-22 -- found by the live re-check of "a running value that starts on a date". The door gave the
+#: assistant a number for "this year" and none for "2 June 2026", so it either worked the number out (four
+#: days off on the re-check: the line started on 6 June under a sentence naming 2 June) or asked the member
+#: for "the exact start-of-day timestamp in seconds". The fix is the fact, as it was for the calendar.
+_MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+_MONTH_RE = (r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|"
+             r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?(?![a-z])")
+_DAY_RE = r"(\d{1,2})(?:st|nd|rd|th)?"
+_YEAR_RE = r"(?:,?\s+((?:19|20)\d{2})(?!\d))?"
+#: "2 June 2026", "2nd of June", "2 Jun, 2026"
+_DATE_DAY_FIRST = re.compile(rf"(?<![\d/.:-]){_DAY_RE}\s+(?:of\s+)?{_MONTH_RE}{_YEAR_RE}", re.I)
+#: "June 2, 2026", "June 2nd", "Jun 2 2026" -- never "June 20 day average" (a length, not a day)
+_DATE_MONTH_FIRST = re.compile(
+    rf"\b{_MONTH_RE}\s+{_DAY_RE}(?![\d:%/.-])(?!\s*-?\s*(?:day|bar|week|month|period|session|ema|sma|ma)s?\b){_YEAR_RE}", re.I)
+#: "2026-06-02" -- the one all-number form that reads one way. "6/2/2026" reads two ways and is NOT resolved.
+_DATE_ISO = re.compile(r"(?<![\d/.-])((?:19|20)\d{2})-(\d{1,2})-(\d{1,2})(?![\d/.-])")
+#: how many dates one turn carries
+MAX_DATES = 6
+
+
+def _date_note(words: str, year: Optional[int], month: int, day: int, today: Any) -> Optional[Dict[str, Any]]:
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    assumed = year is None
+    if assumed:                                   # no year: the most recent such day, today included
+        for candidate in range(today().year, today().year - 9, -1):
+            try:
+                if _dt.date(candidate, month, day) <= today():
+                    year = candidate
+                    break
+            except ValueError:                    # 29 February of a year that has none
+                continue
+        if year is None:
+            return None
+    try:
+        at = _dt.datetime(year, month, day, tzinfo=ZoneInfo(CALENDAR_TZ))
+    except ValueError:                            # 31 June
+        return None
+    note: Dict[str, Any] = {"words": " ".join(words.split()), "date": at.date().isoformat(), "epoch": int(at.timestamp())}
+    if assumed:
+        note["year_assumed"] = True
+    return note
+
+
+def dates_named(message: Any, now: Any = None) -> List[Dict[str, Any]]:
+    """Every date the member WROTE OUT, each at 00:00 New York time as epoch seconds (the number `time`
+    holds and `avwap` takes), in the order written. A date with no year is the most recent such day and
+    says so (`year_assumed`). A form that reads two ways ("6/2/2026") or names no day ("March 2026") is
+    not resolved: the assistant asks for it in plain words. The clock is read only for a date with no year."""
+    if not isinstance(message, str) or not message.strip():
+        return []
+    clock: Dict[str, Any] = {}
+
+    def today() -> Any:
+        if "today" not in clock:
+            clock["today"] = (now or _now()).date()
+        return clock["today"]
+
+    found: List[Tuple[int, int, Dict[str, Any]]] = []
+
+    def taken(start: int, end: int) -> bool:
+        return any(start < e and s < end for s, e, _ in found)
+
+    def keep(match: Any, year: Any, month: Any, day: Any) -> None:
+        if taken(match.start(), match.end()):
+            return
+        if isinstance(month, str):
+            name = month.lower()
+            # "may" is a word: it is a month only with a capital or a year ("it may 5x" is not the 5th of May)
+            if name == "may" and year is None and "M" not in match.group(0):
+                return
+            month = _MONTHS.index(name[:3]) + 1
+        note = _date_note(match.group(0), int(year) if year else None, int(month), int(day), today)
+        if note:
+            found.append((match.start(), match.end(), note))
+
+    for m in _DATE_ISO.finditer(message):
+        keep(m, m.group(1), int(m.group(2)), m.group(3))
+    for m in _DATE_DAY_FIRST.finditer(message):
+        keep(m, m.group(3), m.group(2), m.group(1))
+    for m in _DATE_MONTH_FIRST.finditer(message):
+        keep(m, m.group(3), m.group(1), m.group(2))
+    out: List[Dict[str, Any]] = []
+    for _, _, note in sorted(found, key=lambda f: f[0]):
+        if all(note["date"] != seen["date"] for seen in out):
+            out.append(note)
+    return out[:MAX_DATES]
+
+
+#: a number this large beside `time` is a date (epoch seconds since 1979, or milliseconds)
+_DATE_NUMBER_FLOOR = 300_000_000
+_NUMBER_RUN = re.compile(r"(?<![\d.])\d{9,13}(?![\d.])")
+
+
+def supplied_date_numbers(message: Any, notes: Any, view: Any, turns: Any) -> Dict[int, str]:
+    """Every date number this turn may use, with the words it stands for: the dates and the calendar of
+    the notes, a date the member wrote in an earlier turn, a number the member typed, and every number
+    already in the member's own indicator (an edit re-sends its formulas)."""
+    out: Dict[int, str] = {}
+    notes = notes if isinstance(notes, Mapping) else {}
+    for note in notes.get("dates") or []:
+        out[note["epoch"]] = note["date"]
+    for key, value in (notes.get("calendar") or {}).items():
+        if isinstance(value, Mapping) and isinstance(value.get("epoch"), int):
+            out[value["epoch"]] = key.replace("_", " ")
+    for turn in turns or []:
+        if isinstance(turn, Mapping) and turn.get("role") == "member":
+            for note in dates_named(turn.get("text")):
+                out.setdefault(note["epoch"], note["date"])
+    for text, what in ((message if isinstance(message, str) else "", "a number in the member's words"),
+                       (json.dumps(view, default=str) if view is not None else "", "already in the indicator")):
+        for run in _NUMBER_RUN.findall(text):
+            out.setdefault(int(run), what)
+    return out
+
+
+def _reads_time(node: Any) -> bool:
+    if isinstance(node, list):
+        return any(_reads_time(child) for child in node)
+    if not isinstance(node, Mapping):
+        return False
+    return (node.get("type") == "series" and node.get("name") == "time") or _reads_time(node.get("args"))
+
+
+def _is_date_number(node: Any) -> bool:
+    return (isinstance(node, Mapping) and node.get("type") == "num" and isinstance(node.get("value"), (int, float))
+            and not isinstance(node.get("value"), bool) and node["value"] >= _DATE_NUMBER_FLOOR)
+
+
+_DATE_COMPARISONS = frozenset({"<", "<=", ">", ">=", "==", "!="})
+
+
+def check_date_numbers(envelope: Mapping[str, Any], supplied: Mapping[int, str]) -> None:
+    """A DATE NUMBER THE TURN DID NOT SUPPLY IS REFUSED, so the model gets its repair with the right one.
+
+    Looked for where a date number does its work: compared with `time` (read on this bar or a bar back),
+    and as the anchor of `avwap`. A number the notes gave, the member typed, or the indicator already
+    holds passes. Measured before it was written over the 200 recorded answers that change something:
+    four hold a date number; it refuses ONE, the answer that started four days late, and no other.
+    """
+    def refuse(where: str, value: Any, how: str) -> None:
+        have = "; ".join(f"{words} is {number}" for number, words in supplied.items()
+                         if "member's words" not in words and "already in" not in words)
+        raise _Refused(
+            "envelope:reference",
+            f"{where}: {how} {int(value)}, a date number this turn did not give you. A date's number is never "
+            "worked out. Use the `epoch` of the date in `uct_language_notes.dates` (or `calendar`) exactly as it "
+            f"is given{' (' + have + ')' if have else ''}; for a later day add whole days to it as arithmetic "
+            "(D + 86400). If the member's date is in neither, ask for it in plain words (the day, the month "
+            "and the year), and never ask for a number.")
+
+    def visit(node: Any, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        args = node.get("args")
+        if node.get("type") == "op" and node.get("name") in _DATE_COMPARISONS and isinstance(args, list) and len(args) == 2:
+            for number, other in ((args[0], args[1]), (args[1], args[0])):
+                if _is_date_number(number) and _reads_time(other) and int(number["value"]) not in supplied:
+                    refuse(where, number["value"], "`time` is compared with")
+        if node.get("type") == "call" and node.get("name") == "avwap" and isinstance(args, list) and args:
+            if _is_date_number(args[0]) and int(args[0]["value"]) not in supplied:
+                refuse(where, args[0]["value"], "`avwap` is anchored at")
+        visit(args, where)
+
+    for where, tree in _trees_of(envelope):
+        visit(tree, where)
+
+
+# --------------------------------------------------------------------------- #
+# on a chart below a day a length in days is days
+# --------------------------------------------------------------------------- #
+#: ⭐ 2026-11-22 -- found by the value cases' 5 minute chart. Asked on a 5 minute chart for "today's low so far plus
+#: 60 percent of the 14 day ATR", the assistant built the ATR of fourteen 5 MINUTE bars and said so in a note. By
+#: value it was not what was asked on any of 3,120 bars; the member reads the chart, not the note. The ruling:
+#: right by value, or refused by name with the nearest builds offered. Never a stand-in under a disclosure.
+#: MEASURED before it shipped, over the 200 answers recorded in the live rounds AS IF asked on a 5 minute chart: 61
+#: requests give a length in days that their answer takes as a window of bars (no false trigger among them); 31 of
+#: those are lines only and can be built on daily bars, 30 cannot (a marker or a condition on each bar, or another
+#: symbol) and end at the question until a daily read below a day exists.
+#: a length in days in the member's words ("14 day", "20-day", "3 sessions"); "2 days ago" is a look-back, not a length
+_DAY_LENGTH = re.compile(r"(?<![\d.])(\d{1,3})[\s-]*(?:day|session)s?\b(?!\s+(?:ago|back|earlier|before|prior))", re.I)
+#: the member's words name a chart below a day
+_MINUTE_WORDS = re.compile(r"(?<![\d.])(\d{1,3})[\s-]*(?:minutes?|mins?)\b", re.I)
+_HOUR_WORDS = re.compile(r"(?<![\d.])(\d{1,2})[\s-]*(?:hours?|hr)\b|\b(hourly)\b", re.I)
+_INTRADAY_WORD = re.compile(r"\bintraday\b", re.I)
+_HIGHER_FRAMES = ("D", "W", "M")
+#: a regular session, in minutes (09:30 to 16:00)
+SESSION_MINUTES = 390
+_MINUTE_NAMES = {1: "one", 2: "two", 3: "three", 5: "five", 10: "ten", 15: "fifteen", 30: "thirty", 45: "forty-five"}
+
+
+def chart_minutes(message: Any, chart: Any) -> Optional[int]:
+    """The minutes in one bar of a chart below a day: the chart's own timeframe when it is one (a number of
+    minutes), else the one the member's words name ("on a 5 minute chart", "the hourly chart"). None when the
+    chart is not below a day, or is only known to be ("intraday")."""
+    tf = chart.get("tf") if isinstance(chart, Mapping) else None
+    if isinstance(tf, (str, int)) and not isinstance(tf, bool) and str(tf).isdigit() and int(tf) > 0:
+        return int(tf)
+    words = message if isinstance(message, str) else ""
+    m = _MINUTE_WORDS.search(words)
+    if m and int(m.group(1)) > 0:
+        return int(m.group(1))
+    h = _HOUR_WORDS.search(words)
+    if h:
+        return 60 if h.group(2) else int(h.group(1)) * 60 or None
+    return None
+
+
+def below_a_day(message: Any, chart: Any) -> bool:
+    """Is this request about a chart below a day: the chart itself is, or the member's words name one."""
+    return chart_minutes(message, chart) is not None or (isinstance(message, str) and bool(_INTRADAY_WORD.search(message)))
+
+
+def day_lengths(message: Any) -> List[int]:
+    """Every length in days the member's words give (each once, in order): 2 or more. A number the member ALSO gives
+    in bars ("50 five-minute bars", "a 14 bar ATR") is theirs in bars: that is how an offered choice is picked."""
+    words = message if isinstance(message, str) else ""
+    out: List[int] = []
+    for m in _DAY_LENGTH.finditer(words):
+        n = int(m.group(1))
+        if n >= 2 and n not in out and not re.search(rf"(?<![\d.]){n}\s+(?:[a-z-]+\s+)?bars?\b", words, re.I):
+            out.append(n)
+    return out
+
+
+def span_on_this_chart(bars: int, minutes: Optional[int]) -> str:
+    """What `bars` bars of a chart below a day really span, the way a trader says it: "50 five-minute bars, about 4
+    hours". Under a session in hours and minutes, a session or more in trading days. The DOOR works this out; the
+    assistant is told to use it as written (it once worked a date out four days wrong)."""
+    if not minutes:
+        return f"{bars} bars of this chart"
+    kind = "hourly" if minutes == 60 else f"{_MINUTE_NAMES.get(minutes, minutes)}-minute"
+    total = bars * minutes
+    if total >= SESSION_MINUTES:
+        days = round(total / SESSION_MINUTES * 2) / 2
+        about = f"about {days:g} trading day{'' if days == 1 else 's'}"
+    elif total < 60:
+        about = f"about {total} minutes"
+    else:
+        step = 5 if total < 120 else 30
+        total = int(round(total / step) * step)
+        hours, rest = divmod(total, 60)
+        about = f"about {hours} hour{'' if hours == 1 else 's'}" + (f" {rest} minutes" if rest else "")
+    return f"{bars} {kind} bars, {about}"
+
+
+def day_length_notes(message: Any, chart: Any) -> List[Dict[str, Any]]:
+    """For a request below a day that gives lengths in days: each one with what that many bars of the chart span."""
+    if not below_a_day(message, chart):
+        return []
+    minutes = chart_minutes(message, chart)
+    return [{"days": n, "on_this_chart": span_on_this_chart(n, minutes)} for n in day_lengths(message)]
+
+
+def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> None:
+    """A LENGTH IN DAYS BUILT AS THAT MANY BARS OF A CHART BELOW A DAY IS REFUSED, so the model gets its repair; and
+    a QUESTION that offers the bars version must say what it spans and never call it by its number of days.
+
+    A change passes when the whole indicator is moved to a daily (or higher) calculation timeframe, which is how a
+    daily value is built; when the member asked in bars; and on a daily chart, where N bars ARE N days.
+    """
+    lengths = day_length_notes(message, chart)
+    if not lengths:
+        return
+    by_days = {n["days"]: n["on_this_chart"] for n in lengths}
+    if envelope.get("disposition") == "clarify":
+        for q in envelope.get("questions") or []:
+            for choice in (q.get("choices") or []) if isinstance(q, Mapping) else []:
+                text = " ".join(str(choice).split())
+                # the BARS version is a choice that speaks of this chart's bars; "on daily bars" is the daily line
+                if not re.search(r"\bbars?\b", text, re.I) or re.search(r"\bdaily\s+bars?\b", text, re.I):
+                    continue
+                span = next((s for s in by_days.values() if s.split(",")[0] in text and s.split(", ")[-1] in text), None)
+                called_days = next((n for n in by_days if re.search(rf"(?<![\d.]){n}[\s-]*days?\b", text, re.I)), None)
+                if span is None or called_days is not None:
+                    raise _Refused(
+                        "envelope:reference",
+                        f"the choice {text!r} offers a version on this chart's bars. Name it for what it spans, with the "
+                        f"words of `uct_language_notes.day_lengths` exactly ({'; '.join(by_days.values())}), and never "
+                        "call it by its number of days.")
+        return
+    if envelope.get("disposition") not in (None, "change") or not envelope.get("ops"):
+        return
+    for o in envelope.get("ops") or []:
+        if isinstance(o, Mapping) and o.get("op") == "set_calculation_timeframe" and o.get("timeframe") in _HIGHER_FRAMES:
+            return
+
+    def visit(node: Any, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        args = node.get("args")
+        if node.get("type") == "call" and isinstance(args, list):
+            for a in args:
+                if (isinstance(a, Mapping) and a.get("type") == "num" and isinstance(a.get("value"), (int, float))
+                        and not isinstance(a.get("value"), bool) and a["value"] in by_days):
+                    n = int(a["value"])
+                    raise _Refused(
+                        "envelope:reference",
+                        f"{where}: `{node.get('name')}(..., {n})` is {by_days[n]}, and the member asked for {n} DAYS. If "
+                        "EVERY part of the indicator is a daily line on the chart's own symbol, keep the formula and "
+                        "add set_calculation_timeframe D. If not (each bar is compared with the daily measure, today's "
+                        "own values are added to it, or another symbol is read), it cannot be written yet: do NOT build "
+                        "it on the chart's bars under a note. Answer with disposition clarify, `ops: []`, and ONE "
+                        "question: one plain sentence of why, then two `choices` that each name what they draw in time, "
+                        f"the bars version written as \"{by_days[n]}\" and never as {n} days.")
+        visit(args, where)
+
+    for where, tree in _trees_of(envelope):
+        visit(tree, where)
 
 
 def user_turn(message: str, notes: Mapping[str, Any], view: Mapping[str, Any],
@@ -2104,11 +2459,12 @@ def vwap_bands_ask(message: Any) -> Optional[str]:
 
 
 def _door_offer(pointer: Mapping[str, Any], revision: Any, view: Any, trace: Dict[str, Any],
-                read: Mapping[str, Any], value: Any = None) -> Optional[Dict[str, Any]]:
+                read: Mapping[str, Any], value: Any = None, message: Any = None) -> Optional[Dict[str, Any]]:
     """⭐ THE DOOR ANSWERS, with no model call, and OFFERS THE ACTION: this browser said it can add that
     built-in now. Nothing is built and nothing is changed by the answer itself. None when the door's own
     answer does not pass the door (never: if it ever is, the turn goes on as if nothing was offered)."""
-    said = named_indicators.built_in_answer(pointer)
+    # (another publisher's own number is refused by name FIRST, in place of the usual sentence: `their_number`)
+    said = named_indicators.their_number(message, pointer, True) or named_indicators.built_in_answer(pointer)
     answer = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "answer",
               "reply": said}
     try:
@@ -2667,6 +3023,100 @@ def _refuse_a_reading_compared_with_itself(trees: List[Tuple[str, Any]]) -> None
 
     for where, tree in trees:
         visit(tree, where)
+
+
+#: a wrapper that reads ITS CHILD somewhere else: on another timeframe, or on another symbol
+_SCOPE_WRAPPERS = ("tf", "tf_live", "sym")
+
+
+def _reads_a_bar(node: Any) -> bool:
+    """Does this formula read anything of a bar: a series, or a call (which computes from bars)?"""
+    if isinstance(node, list):
+        return any(_reads_a_bar(child) for child in node)
+    if not isinstance(node, Mapping):
+        return False
+    return node.get("type") in ("series", "call") or _reads_a_bar(node.get("args"))
+
+
+def _refuse_a_scope_read_of_nothing(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-22 -- A NUMBER STANDING WHERE A VALUE SHOULD BE. Found by a value check of a live round.
+
+    Asked for "today's low so far plus the 14 day ATR, and today's high so far minus the 14 day ATR", the model
+    answered `sessionLow() + tf(0, W)` and `sessionHigh() - tf(0, W)`: a weekly read of the CONSTANT 0 where the
+    ATR it could not write should have been. The door accepted it on the first attempt. Labelled "Session low +
+    ATR", it drew the session low. A wrong picture under an honest-looking label.
+
+    Refused: a `tf`, `tf_live` or `sym` wrapper whose child reads nothing of a bar (no series, no call). Such a
+    read is that number on every bar and never an answer; the model gets its one repair, told to write the value
+    or to say it cannot. Measured before it was written over the 298 answers recorded in the live rounds (281
+    formulas): it refuses that one answer and no other.
+    """
+    def visit(node: Any, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        if node.get("type") in _SCOPE_WRAPPERS and not _reads_a_bar(node.get("args")):
+            raise _Refused(
+                "envelope:reference",
+                f"{where}: `{node['type']}` here reads a plain number, not a value of a bar, so it is that number on "
+                "every bar: a number is standing where the value the member asked for should be. Write the formula "
+                "the read is OF inside it (the weekly close is tf(close, W)). If what the member asked for cannot be "
+                "written with what the table offers, do not stand a number in for it: answer `unsupported` and say "
+                "what is missing.")
+        visit(node.get("args"), where)
+
+    for where, tree in trees:
+        visit(tree, where)
+
+
+#: a reply that is a word left where the sentence should be
+_PLACEHOLDER_REPLY = re.compile(r"^\W*(?:placeholder|todo|tbd|n/?a|reply|text|string|lorem ipsum\b.*)\W*$", re.IGNORECASE)
+
+
+def _refuse_a_placeholder_reply(envelope: Mapping[str, Any]) -> None:
+    """2026-11-22 -- THE SAME ANSWER SAID "Placeholder" TO THE MEMBER. A change whose `reply` is a placeholder
+    word is refused, so the model gets its one repair and writes the sentence. A reply is never checked for what
+    it claims here (the engine writes what was built); only that it IS one. An empty reply is left as it was."""
+    reply = envelope.get("reply")
+    if envelope.get("ops") and isinstance(reply, str) and _PLACEHOLDER_REPLY.match(reply):
+        raise _Refused(
+            "envelope:reference",
+            f"`reply` is {reply.strip()!r}: a placeholder, not what the member is told. Write one or two plain "
+            "sentences saying what was built; and check the formulas for a number left standing in for a value.")
+
+
+def _refuse_a_bare_fill_in_setting(envelope: Mapping[str, Any]) -> None:
+    """2026-11-22 -- A SETTING AT 0 DRAWN AS A LEVEL AT 0. Found by the first full live run of the value cases.
+
+    Asked to "plot the number of shares I own and my average cost", the door built two settings for the member to fill
+    in (right: it cannot read an account, and it said so) and drew the average cost as the BARE setting. Until the
+    member fills it in that is a line at price 0, and the price pane rescales to include 0, so the member's chart is
+    squeezed into a strip. A value standing where nothing should be.
+
+    Refused: on a `create` placed on the PRICE pane, a visible output whose tree is nothing but a setting this same
+    create declares with a default of 0 (or none). It passes when the setting has a real default (a level the member
+    asked for: "a line at 100"), when the output is hidden, on any other pane (a zero line under a chart is a line
+    at zero), and when the tree says when to draw (`x > 0 ? x : 0 / 0`). Measured before it was written over the 202
+    recorded answers that change something: ONE declares settings (this one), and it is the one refused.
+    """
+    for o in envelope.get("ops") or []:
+        if not isinstance(o, Mapping) or o.get("op") != "create" or o.get("placement") != "price":
+            continue
+        unfilled = {x["key"] for x in o.get("inputs") or []
+                    if isinstance(x, Mapping) and isinstance(x.get("key"), str) and x.get("default") in (0, 0.0, None)}
+        for i, out in enumerate(o.get("outputs") or []):
+            tree = out.get("tree") if isinstance(out, Mapping) else None
+            if (isinstance(tree, Mapping) and tree.get("type") == "series" and tree.get("name") in unfilled
+                    and not out.get("hidden")):
+                key = tree["name"]
+                raise _Refused(
+                    "envelope:reference",
+                    f"outputs[{i}] draws the setting `{key}` bare on the price chart. Until the member fills it in "
+                    "it is 0: a line at price 0, and the chart is squeezed to fit it. Draw nothing until it is "
+                    f"filled: `{key} > 0 ? {key} : 0 / 0`.")
 
 
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
@@ -3963,6 +4413,9 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     _refuse_a_value_at_an_event_that_cannot_look_back(_trees_of(envelope))
     _refuse_a_stand_in_drawn_as_a_value(_trees_of(envelope))
     _refuse_a_reading_compared_with_itself(_trees_of(envelope))
+    _refuse_a_scope_read_of_nothing(_trees_of(envelope))
+    _refuse_a_placeholder_reply(envelope)
+    _refuse_a_bare_fill_in_setting(envelope)
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
@@ -5063,7 +5516,7 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
             first = unchecked[0]["entry"]
             is_built_in = named_indicators.built_in(first) is not None
             return {"refusal": {"ok": False, "gate": NAMED_BUILT_IN_GATE if is_built_in else NAMED_UNCHECKED_GATE,
-                                "reason": named_indicators.way_forward(first),
+                                "reason": named_indicators.their_number(message, first, False) or named_indicators.way_forward(first),
                                 "not_understood": not_understood, "unavailable": unavailable},
                     "held": [u["entry"]["id"] for u in unchecked],
                     # ⭐ one of UCT's own built-in indicators: the turn may be ANSWERED with an offer
@@ -5212,14 +5665,14 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     if bands is not None:
         pointer = named_indicators.entry(VWAP_BANDS_ENTRY)
         if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in can_add:
-            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"] or understood_turn, bands)
+            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"] or understood_turn, bands, message)
             if offered is not None:
                 return offered
     if understood_turn["refusal"] is not None:
         trace["named_held"] = understood_turn.get("held") or []
         pointer = understood_turn.get("built_in")
         if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in can_add:
-            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"])
+            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"], None, message)
             if offered is not None:
                 return offered
         if understood_turn["refusal"].get("preflight"):
@@ -5265,6 +5718,15 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     if names_a_calendar_start(message):
         notes = {**notes, "calendar": calendar_notes()}
         trace["calendar"] = True
+    written_dates = dates_named(message)
+    if written_dates:
+        notes = {**notes, "dates": written_dates}
+        trace["dates"] = len(written_dates)        # how many, never which
+    date_numbers = supplied_date_numbers(message, notes, view, turns)
+    days_as_bars = day_length_notes(message, chart)
+    if days_as_bars:
+        notes = {**notes, "day_lengths": days_as_bars}
+        trace["day_lengths"] = len(days_as_bars)       # how many, never which
     from api.services import worked_examples
     carried = worked_examples.for_turn(message, view, admin=admin, asked=examples)
     content = user_turn(request_text, {**notes, "worked_examples": carried} if carried else notes,
@@ -5375,6 +5837,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             trace.setdefault("mended", ",".join(mended))
         try:
             envelope = check_envelope(candidate, revision, view)
+            check_date_numbers(envelope, date_numbers)         # a date number is the door's, never the assistant's
+            check_day_lengths(envelope, message, chart)        # below a day, a length in days is never that many bars
             check_output_renames(envelope, message, view, turns)
             check_named(envelope, view, named)                 # a named indicator is its checked formula, or nothing
             check_withheld(envelope, withheld, understood_turn.get("member_names"))   # an unchecked name is never written

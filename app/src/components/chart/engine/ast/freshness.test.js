@@ -190,7 +190,11 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //   excluded 146 + 2 = 148       UCT RS Leaders' two list columns (2026-11-14, unit U12), written by
     //                                `rs_leaders_list.run` inside the post-pass only while
     //                                RS_SCREENS_ENABLED is on (R8). Python pin: (149, 146) -> (149, 148).
-    expect(Object.keys(excluded).length).toBe(148)
+    //   excluded 148 + 8 = 156       the eight fundamental trend columns (2026-11-21), read into the row
+    //                                by `fund_trends.read_fields` from the evening job's side table, NULL
+    //                                until the first build after the first evening run (R8).
+    //                                Python pin: (149, 148) -> (149, 156).
+    expect(Object.keys(excluded).length).toBe(156)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)
