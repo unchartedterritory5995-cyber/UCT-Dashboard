@@ -11393,6 +11393,13 @@ async def lifespan(app: FastAPI):
         print(f"[shutdown] discord-render V2 stop failed (non-fatal): {e}")
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
+    # The cold-preload pool's idle workers would otherwise hold api/serve_dual.py's bounded exit join for
+    # its whole 5 s on every swap (measured 2026-11-22). Never fatal: the join bounds them either way.
+    try:
+        from api.services.discord_render import cold_start_guard as _csg_stop
+        _csg_stop.shutdown()
+    except Exception as e:  # noqa: BLE001
+        print(f"[shutdown] cold-preload pool stop failed (non-fatal): {type(e).__name__}")
 
     # ⚡ Last write before the pod goes away, so the REPLACEMENT boots warm.
     # Deliberately after the scheduler stops (no job can be mutating the cache
