@@ -101,5 +101,14 @@ CENSUS_AND_GRADE_PENDING
 
 ## Findings outside this unit
 
-- The no-volume guard above (`running-total:window` on charts not from the listing).
-- A `switch` on a text input is no member setting (above).
+- The no-volume guard above (`running-total:window` on charts not from the listing): `ta.cum(volume) == 0` is read as
+  `dep` (`==` has no side), so the built-in is withheld whole there on the host lane. A total of a never-negative
+  source that is already above 0 on this chart is above 0 on TradingView too, so `== 0` is KNOWN false wherever this
+  chart's own total is positive: a threshold refinement of `barIndexShift.js`, its own unit.
+- A `switch` on a text input is no member setting (above): unit 2b.
+- (4a) On bar 0 the host lane draws `timeframe.change(...)` as `na` where the run draws 0 (named in #2474's evidence;
+  not changed here). For an anchor it is the safe side: an unknown anchor is no known reset.
+- (4b) `var int len = input(14)` builds on the runtime lane in isolation; 5 corpus rows declare a `var` numeric input,
+  to be measured through the member door.
+- (4c) The 60m earnings probe's `time_close` reads `na` (a capture-side observation; the E2 event engine refuses
+  events intraday, so no served value depends on it today).
