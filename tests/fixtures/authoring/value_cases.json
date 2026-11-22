@@ -11617,11 +11617,16 @@
    "chart": "daily",
    "words": "Plot the 14 day ATR as a percent of the close, and show its latest value in a table in the top right corner",
    "rule": {
-    "digest": "6f20c7a98b3eb080",
+    "digest": "9e5a737d047f3985",
     "history": [
      {
       "digest": "6f20c7a98b3eb080",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "9e5a737d047f3985",
+      "quote": "show its latest value",
+      "reason": "corrected on review 11-22: the words ask for the latest value of the percent only. The rule also required the ATR in dollars in the table, because the first recorded answer happened to show both (the rule learning from the door). The live answer of 2026-11-22 plots the percent (0 of 1,986 bars differ) and its table reads \"ATR 14 %\" | \"2.2%\": what was asked."
      }
     ]
    },
@@ -11785,7 +11790,7 @@
     "front": "104db22eb5"
    },
    "recorded_verdict": "wrong",
-   "defect": "The script reads the weekly and the monthly average one DAILY bar back (`wMA[1]` outside `request.security`). On a bar that completes its week or month it shows the average one whole period stale (113.56 where the 10 week average is 114.05; 120.29 where the 10 month average is 118.72, on the engine's built bars). Mid-period it equals the last finished period's. Open: the script door has no wording for reading another timeframe, so nothing tells the assistant where a look-back goes.",
+   "defect": "The table shows each average one whole period stale on a bar that completes its week or month (113.56 where the 10 week average is 114.05; 120.29 where the 10 month average is 118.72, on the engine's built bars, whose newest bar is a Friday and a month end). The script reads each average one bar back (`wMA[1]` outside `request.security`); the live answer of 2026-11-22 put the look-back inside the request instead and shows the same two numbers. THE ENGINE SERVES NO \"AS IT STANDS\" VALUE OF A FORMING HIGHER-TIMEFRAME BAR (G6): written as it stands, a last-bar table is right once the newest bar has finished and EMPTY all session; written one bar back it has a value all session (the last finished period) and is one period stale on the bar that completes one. No wording makes a last-bar table right in both states (a rule that tried was served for nine hours on 2026-11-22 and removed: it changed the form and not the value). This is an acceptance case of the engine unit that serves the forming higher-timeframe value, and becomes RIGHT that day.",
    "answer": {
     "turn": "script",
     "script": {
@@ -12608,6 +12613,22 @@
     ],
     "theirs": "IBD"
    }
+  },
+  {
+   "id": "weekly-plot-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the 10 week simple moving average of the weekly close on my daily chart, and put a label with the text Cross on each bar where the close crosses above it",
+   "rule": {
+    "digest": "7ff9bf10ef31cbee",
+    "history": [
+     {
+      "digest": "7ff9bf10ef31cbee",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "why": "No recorded script PLOTS a weekly or monthly value: the measurement that removed the other-timeframe rule (2026-11-22) could not see whether a script plot of another timeframe comes out right. This case asks it. The line is held by value to every honest reading of a weekly average on a daily bar; the labels to the line the script itself plots."
   }
  ]
 }

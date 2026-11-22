@@ -676,6 +676,16 @@ export const FUNCTIONS = [
   // history. No arguments. STAT is not in the site's stock universe.
   { code: 'STAT', label: 'Stock statistics (volatility, beta, returns, drawdowns, how it acted in every market correction)', group: 'Security',
     ticker: { panel: 'StockStats' } },
+  // EEHSC (2026-11-21): estimate revisions by sector. Among the stocks UCT tracks (the S&P 500 list the estimate job
+  // follows and the stocks members opened EEH on; not the whole market), how many had the consensus for their next
+  // fiscal quarter raised, cut or held over 7 or 30 days, by sector, with net breadth and the largest raises and cuts
+  // (GET /api/research/estimate-history, the market read of EEH's own snapshot store, behind EEH's switch).
+  // `EEHSC 7D REVENUE`. Not a GRPS view: another population (at most 600 tracked stocks, not the universe) behind another
+  // switch. EEH for one stock, EEHSC for every sector. Not in the site's universe, and no word members type is within
+  // the command line's close-spelling reach of it (a four-letter EEHS came up before PEER for "peers").
+  { code: 'EEHSC', label: 'Estimate revisions by sector', group: 'Market',
+    market: { panel: 'RevisionBreadth', flag: 'estimateHistoryEnabled',
+      args: [{ kind: 'eehscWindow', prop: 'window' }, { kind: 'eehscMetric', prop: 'metric' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -1037,6 +1047,10 @@ const FUNCTION_WORDS = {
   STAT: { example: 'NVDA STAT', keywords: ['stock statistics', 'statistics', 'stock stats', 'atr', 'beta', 'max drawdown',
     'up capture', 'down capture'],
     note: "From UCT's stored daily prices (split-adjusted, price only). A record, not a forecast." },
+  // 'revisions' and 'estimate revisions' stay with EEH (one stock's history), 'breadth' with BRD.
+  EEHSC: { example: 'EEHSC', keywords: ['revision breadth', 'estimate revisions by sector', 'revisions by sector', 'sector revisions',
+    'earnings revisions by sector', 'estimate breadth'],
+    note: 'Among the stocks UCT tracks (the S&P 500 list and stocks members looked at), not the whole market. A change of more than 0.5% either way is a raise or a cut. One stock: NVDA EEH.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
