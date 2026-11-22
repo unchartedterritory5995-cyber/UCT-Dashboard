@@ -25,6 +25,9 @@ import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf, OWN_
 // ⭐⭐ T4 E2 — the chart's own corporate events: one door (`/api/pine/events/<symbol>`), never `/api/bars`
 import { EVENTS_KEY } from './pineEvents'
 import { ensureEvents, subscribeEvents } from './eventSupply'
+// ⭐⭐ T4 B2 — a `USI:` breadth spelling's rows: one door (`/api/pine/breadth/<spelling>`), never `/api/bars`
+import { isBreadthKey, breadthSpellingOfKey } from './pineBreadth'
+import { ensureBreadth, subscribeBreadth } from './breadthSupply'
 import { runtimeReadsOwnDaily } from './runtime/runtimeColumns'
 import { runtimeReadsOwnDailyOffThread, ownDailyKeyOf, onOwnDailyAnswer } from './runtime/ownDailyAsync'
 import { instanceDocumentForFetch } from './symbolInputs'
@@ -57,8 +60,18 @@ export function heldSpanFor(loaded, requested) {
 
 export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = null, heldSessions = 0) {
   const list = Array.isArray(keys) ? keys : []
-  const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY && k !== EVENTS_KEY), tf, barCount, fetcher)
+  // ⛔⛔ T4 B2 — a breadth key (held or not: `USI~ADVN.NY`, `USI~ADVN.NY@D`) never reaches the bars fetch
+  const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY && k !== EVENTS_KEY && !isBreadthKey(k)),
+    tf, barCount, fetcher)
   for (const k of list) {
+    // ⭐⭐ T4 B2 — a `USI:` breadth spelling's rows, from the breadth door (`breadthSupply.js`), at every chart timeframe
+    // (a weekly or monthly chart holds them at D: the same rows under the held key)
+    if (isBreadthKey(k)) {
+      const spelling = breadthSpellingOfKey(k)
+      const entry = spelling ? ensureBreadth(spelling, fetcher) : null
+      if (entry) out.set(k, entry)
+      continue
+    }
     // ⭐⭐ T4 E2 — this chart symbol's corporate events: its own door and cache (`eventSupply.js`), never a bars fetch
     if (k === EVENTS_KEY) {
       const ev = chartSymbol ? ensureEvents(chartSymbol, fetcher) : null
@@ -97,6 +110,8 @@ export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSym
   for (const k of Array.isArray(keys) ? keys : []) {
     // ⭐⭐ T4 E2 — the events entry has no tail (its own door, `eventSupply.js`, keeps its age)
     if (k === EVENTS_KEY) continue
+    // ⭐⭐ T4 B2 — nor a breadth spelling's (`breadthSupply.js` keeps its age; never a bars tail)
+    if (isBreadthKey(k)) continue
     // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows ride the tail as a held daily key does
     if (k === OWN_DAILY_KEY && !chartSymbol) continue
     const held = k === OWN_DAILY_KEY ? { symbol: String(chartSymbol).trim().toUpperCase(), tf: 'D' } : heldKeyParts(k)
@@ -222,13 +237,18 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
     const unsub = subscribe(apply)
     // ⭐⭐ T4 E2 — and an events answer landing (or its retry coming due) binds again
     const unsubEvents = symbols.includes(EVENTS_KEY) ? subscribeEvents(apply) : null
+    // ⭐⭐ T4 B2 — and a breadth answer landing (or its retry coming due)
+    const unsubBreadth = symbols.some(isBreadthKey) ? subscribeBreadth(apply) : null
     // ⭐⭐ RS RATING L11 PR 2 — a forming series is re-read while this chart is up (`liveTailTick`); a
     // changed entry notifies, and `apply` above hands the chart the new one
     const timer = setInterval(() => {
       liveTailTick(symbols, tf, barCount, fetcher, typeof chartFormingOf === 'function' ? chartFormingOf() : null, chartSymbol,
         heldSessions)
     }, LIVE_TAIL_MS)
-    return () => { alive = false; unsub(); if (unsubEvents) unsubEvents(); clearInterval(timer); if (offAnswer) offAnswer() }
+    return () => {
+      alive = false; unsub(); if (unsubEvents) unsubEvents(); if (unsubBreadth) unsubBreadth(); clearInterval(timer)
+      if (offAnswer) offAnswer()
+    }
   }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol, chartSymbolMeta, ownDailyGen, heldSessions])
 
   return state.map
@@ -268,20 +288,28 @@ async function _askExchange(ticker, notify) {
  * chart's Pine documents read. Its identity changes only when an answer lands,
  * so it can join `updateChart`'s dependencies without repainting on every render.
  */
+/** The tickers the chart asks our store's exchange for (`/api/ticker-meta/<ticker>`): every fetchable other symbol of
+ *  every Pine document. ⛔⛔ T4 B2 — never a breadth key (`USI~ADVN.NY`): a `USI:` spelling resolves through the breadth
+ *  door alone, never the symbol resolver. Exported for its rail. */
+export function exchangeLookupTickers(list, defOf) {
+  const tickers = new Set()
+  for (const inst of Array.isArray(list) ? list : []) {
+    const def = inst && defOf ? defOf(inst.defId) : null
+    // ⭐ P0 — only a Pine translation's spelling needs our store's exchange; a
+    // formula document's `sym` names the store ticker itself (`otherSymbols.js`).
+    if (!isPineOriginDoc(def)) continue
+    // ⭐ SETTINGS PARITY (symbol): as THIS instance's symbol choice makes the document
+    for (const t of fetchableOtherSymbols(instanceDocumentForFetch(def, inst))) if (!isBreadthKey(t)) tickers.add(t)
+  }
+  return tickers
+}
+
 export function useOtherSymbolExchanges(instances, defOf, revalidate) {
   const [gen, setGen] = useState(0)
   useEffect(() => {
     let alive = true
     const list = instances ? instances() : null
-    const tickers = new Set()
-    for (const inst of Array.isArray(list) ? list : []) {
-      const def = inst && defOf ? defOf(inst.defId) : null
-      // ⭐ P0 — only a Pine translation's spelling needs our store's exchange; a
-      // formula document's `sym` names the store ticker itself (`otherSymbols.js`).
-      if (!isPineOriginDoc(def)) continue
-      // ⭐ SETTINGS PARITY (symbol): as THIS instance's symbol choice makes the document
-      for (const t of fetchableOtherSymbols(instanceDocumentForFetch(def, inst))) tickers.add(t)
-    }
+    const tickers = exchangeLookupTickers(list, defOf)
     for (const t of tickers) {
       if (!_exchanges.has(t)) _askExchange(t, () => { if (alive) setGen((g) => g + 1) })
     }

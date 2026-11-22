@@ -9374,6 +9374,11 @@ export const SERIES_EVENT_RECORD = '__eventRecord'
 /** ⭐⭐ T4 E2 — the per-bar code for a bar withheld because it lies before UCT's record of an event family (the member's
  *  words: `pineEvents.js::eventBeforeRecordSentence`, on the strip, `nativeRegistry.externalReadNotices`). */
 export const EVENT_BEFORE_RECORD_CODE = 'other-symbol:event-before-record'
+/** ⭐⭐ T4 B2 — the per-bar code for a bar withheld because it lies before UCT's breadth counts begin (a `USI:` read,
+ *  `otherSymbols.js::markBreadthSeries`: the record's `code`; the member's words: `pineBreadth.js::
+ *  breadthBeforeRecordSentence`). A record that names no `code` is an event family's. */
+export const BREADTH_BEFORE_RECORD_CODE = 'other-symbol:breadth-before-record'
+const recordCodeOf = (r) => (r && typeof r.code === 'string' ? r.code : EVENT_BEFORE_RECORD_CODE)
 
 /** ⭐⭐ C26 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON AN OTHER-SYMBOL BAR WE
  *  DO NOT HOLD, as a 0/1 column (1 = withheld), or null when nothing is withheld.
@@ -9460,7 +9465,7 @@ export function symAlignmentMask(tree, bars, opts) {
  *  a placed event series' first row (`SERIES_EVENT_RECORD`), and every bar within the tree's reach of one, as a 0/1
  *  column, or null. The same bars `symAlignmentMask` withholds for that series (`SERIES_UNKNOWN_BEFORE_FIRST`), named.
  *  ⛔ A `sym` read nested in another read is not aligned on these bars (the mask withholds it whole, unnamed). */
-export function eventBeforeRecordMask(tree, bars, opts) {
+export function eventBeforeRecordMask(tree, bars, opts, code = EVENT_BEFORE_RECORD_CODE) {
   const n = Array.isArray(bars) ? bars.length : 0
   const supplied = (opts && opts.symbols) || {}
   const nodes = []
@@ -9472,7 +9477,8 @@ export function eventBeforeRecordMask(tree, bars, opts) {
     seen.add(node)
     if (node.type === 'sym' && !under) {
       const series = supplied[String(node.value).trim().toUpperCase()]
-      if (Array.isArray(series) && series[SERIES_EVENT_RECORD]) nodes.push([node, series])
+      // ⭐ T4 B2 — only the records of THIS code (an event family's, or a breadth spelling's)
+      if (Array.isArray(series) && series[SERIES_EVENT_RECORD] && recordCodeOf(series[SERIES_EVENT_RECORD]) === code) nodes.push([node, series])
     }
     const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
@@ -9658,6 +9664,8 @@ function withSymAlignment(ast, bars, out, opts) {
   if (!isColumn(out) || !treeReadsSym(ast)) return out
   // ⭐⭐ T4 E2 — the bars before UCT's record of an event family, BY NAME, per bar (every one is inside the mask below)
   sinkPerBar(opts, EVENT_BEFORE_RECORD_CODE, eventBeforeRecordMask(ast, bars, opts))
+  // ⭐⭐ T4 B2 — and the bars before UCT's breadth counts begin, by their own name
+  sinkPerBar(opts, BREADTH_BEFORE_RECORD_CODE, eventBeforeRecordMask(ast, bars, opts, BREADTH_BEFORE_RECORD_CODE))
   const mask = symAlignmentMask(ast, bars, opts)
   if (!mask) return out
   const copy = Float64Array.from(out)

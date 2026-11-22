@@ -45,10 +45,14 @@
 //     keeps its refusal (`other-symbol:class-share`).
 
 import { SYMBOL_EXCHANGE_CONFIRMED } from './ast/bind'
-import { isoDay, SERIES_GAPS_READ_NA, SERIES_UNKNOWN_BEFORE_FIRST, isoWeekDayOf, isoDayPlus, tfBucket, EVENT_BEFORE_RECORD_CODE } from './ast/interpret'
+import { isoDay, SERIES_GAPS_READ_NA, SERIES_UNKNOWN_BEFORE_FIRST, isoWeekDayOf, isoDayPlus, tfBucket, EVENT_BEFORE_RECORD_CODE,
+  SERIES_EVENT_RECORD, BREADTH_BEFORE_RECORD_CODE } from './ast/interpret'
 // ⭐ RS RATING L13 — the exchange's sessions (a month's first session, a row's next session)
 import { isTradingDay, closeTime, isHalfDay } from '../../../lib/marketClock/sessionCalendar.js'
 import REQUEST_WITNESSES from './requestWitnesses.json'
+// ⭐⭐ T4 B2 — TradingView's `USI:` breadth spellings, served from UCT's own breadth (`pineBreadth.js`)
+import { BREADTH_VENUE, BREADTH_SPELLINGS, BREADTH_COVERAGE_FROM, BREADTH_DATA_WORDS, breadthBaseOf, breadthStaticRefusal, isBreadthSpread,
+  breadthSpreadRefusal, breadthIntradayReason, breadthNotAvailableReason } from './pineBreadth.js'
 // ⭐⭐ T4 E2 — the chart's own corporate events (`request.earnings` / `request.dividends` / `request.splits`)
 import { EVENT_VENUE, EVENTS_KEY, EVENT_TICKER, eventReadOf, eventStaticRefusal, eventSpellingReason, eventLabel,
   eventTimeframeCode, placeEvents, markEventSeries, EARNINGS_WINDOW_FROM, EVENT_DATE_KEY } from './pineEvents.js'
@@ -92,6 +96,14 @@ export const OTHER_SYMBOL_REFUSAL = Object.freeze({
   EVENT_NONE: 'other-symbol:event-none',                // UCT holds no event of the family for this symbol
   EVENT_UNAVAILABLE: 'other-symbol:event-unavailable',  // the events could not be read just now
   EVENT_BEFORE_RECORD: EVENT_BEFORE_RECORD_CODE,         // PER BAR: a bar before UCT's record of the family
+  // ⭐⭐ T4 B2 — a `USI:` breadth read (`pineBreadth.js`), each refused by its own name:
+  BREADTH_NOT_HELD: 'other-symbol:breadth-not-held',    // volume breadth, TICK / TRIN: UCT holds none
+  BREADTH_EXCHANGE: 'other-symbol:breadth-exchange',    // another exchange's counts (AMEX, Arca, the US composite, the Dow)
+  BREADTH_UNKNOWN: 'other-symbol:breadth-unknown',      // any other `USI:` series
+  BREADTH_SPREAD: 'other-symbol:breadth-spread',        // several breadth spellings in one string (the built-in ADL's)
+  BREADTH_INTRADAY: 'other-symbol:breadth-intraday',    // an intraday chart: UCT holds one count per session
+  BREADTH_NOT_AVAILABLE: 'other-symbol:breadth-not-available', // the breadth door is dark or refused for this member
+  BREADTH_BEFORE_RECORD: BREADTH_BEFORE_RECORD_CODE,     // PER BAR: a bar before UCT's breadth counts begin
 })
 
 const CONFIRMED_PINE = new Set(Object.values(SYMBOL_EXCHANGE_CONFIRMED))
@@ -224,6 +236,11 @@ export const WITNESS_PERIOD_READS = Object.freeze({
   // 10,353 of 10,353 bars, values and na, three fields; "the oldest wins" is off on the 2 weekend bars, a bar that
   // CONTAINS the instant on 21, ET midnight on 18. `utcMidnightAtOrAfterOf`.
   UTC_MIDNIGHT_AT_OR_AFTER: 'utc-midnight-at-or-after',
+  // ⭐⭐ T4 B2 — FOLD (a `period` read), for a series whose DAILY read is `same-date` (`pineBreadth.js`, pending Q-T4-B2):
+  // the held daily rows folded into Monday-to-Sunday weeks / calendar months exactly as `previous-week` /
+  // `previous-month` fold them, each read on the chart bar of its OWN week / month (no shift)
+  SAME_WEEK: 'same-week',
+  SAME_MONTH: 'same-month',
 })
 /** ⭐ RS RATING L12 — the intraday chart timeframes a block may stand on, and their bar step in minutes. */
 const INTRADAY_STEP_MIN = Object.freeze({ 1: 1, 5: 5, 15: 15, 30: 30, 60: 60 })
@@ -232,9 +249,9 @@ const INTRADAY_STEP_MIN = Object.freeze({ 1: 1, 5: 5, 15: 15, 30: 30, 60: 60 })
  *  samples (a read below the chart) a block on it may name. A daily read on a weekly or a monthly chart
  *  are the witnessed shapes; a week's reads never stand on a month, nor the other way. */
 const PERIOD_READS_OF = Object.freeze({
-  W: Object.freeze({ held: 'D', folds: [WITNESS_PERIOD_READS.PREVIOUS_WEEK],
+  W: Object.freeze({ held: 'D', folds: [WITNESS_PERIOD_READS.PREVIOUS_WEEK, WITNESS_PERIOD_READS.SAME_WEEK],
     samples: [WITNESS_PERIOD_READS.WEEK_LAST_ROW, WITNESS_PERIOD_READS.WEEK_FIRST_DAY] }),
-  M: Object.freeze({ held: 'D', folds: [WITNESS_PERIOD_READS.PREVIOUS_MONTH],
+  M: Object.freeze({ held: 'D', folds: [WITNESS_PERIOD_READS.PREVIOUS_MONTH, WITNESS_PERIOD_READS.SAME_MONTH],
     samples: [WITNESS_PERIOD_READS.MONTH_LAST_ROW, WITNESS_PERIOD_READS.MONTH_FIRST_SESSION] }),
   // ⭐ RS RATING L12 — each intraday timeframe is held at ITSELF (the index's own bars of the chart's period)
   // and ALSO at D (its official daily closes, for the extended-hours bars)
@@ -342,7 +359,10 @@ export function witnessRowServes(row) {
 function witnessPendingWhy(row) {
   return { code: OTHER_SYMBOL_REFUSAL.WITNESS_PENDING, reason: `\`${row.spelling}\` is served only once a `
     + `TradingView capture witnesses it (capture-queue row ${row.queue_row}, probe \`${row.probe}\`), and that `
-    + 'capture has not been matched, so what this indicator draws from it is not computed.' }
+    + 'capture has not been matched, so what this indicator draws from it is not computed.'
+    // ⭐ T4 B2 — and a breadth spelling says what it will be when it is served
+    + (row.kind === 'breadth' ? ` It is a market breadth series, which UCT serves from ${BREADTH_DATA_WORDS} once that `
+      + 'capture lands.' : '') }
 }
 
 /** ⭐ RS RATING L11 — is this chart timeframe's block in (`witness` + `captured`), held at the one
@@ -894,10 +914,20 @@ export function __sessionCloseMemoSizeForTests(reset = false) {
 export function periodFoldOf(fold, held, own = null, also = null) {
   if (fold === WITNESS_PERIOD_READS.PREVIOUS_WEEK) return previousWeekBarsOf(held, own)
   if (fold === WITNESS_PERIOD_READS.PREVIOUS_MONTH) return previousMonthBarsOf(held, own)
+  // ⭐⭐ T4 B2 — the same folds, each period read on its OWN chart bar
+  if (fold === WITNESS_PERIOD_READS.SAME_WEEK) return previousWeekBarsOf(held).map((w) => ({ ...w, t: isoDayPlus(w.t, -7) }))
+  if (fold === WITNESS_PERIOD_READS.SAME_MONTH) return previousMonthBarsOf(held).map((m) => ({ ...m, t: previousMonthFirst(m.t) }))
   if (fold === WITNESS_PERIOD_READS.AT_OR_BEFORE) {
     return atOrBeforeGridOf(held, also && also.daily, also && also.tf, { dailyForming: !!(also && also.dailyForming) })
   }
   return null
+}
+
+/** ⭐ T4 B2 — the 1st of the month before the month whose 1st is `first` (`YYYY-MM-01`). */
+function previousMonthFirst(first) {
+  const y = Number(first.slice(0, 4))
+  const m = Number(first.slice(5, 7))
+  return m === 1 ? `${String(y - 1).padStart(4, '0')}-12-01` : `${first.slice(0, 5)}${String(m - 1).padStart(2, '0')}-01`
 }
 
 /** The first trading session on or after `day` (the exchange calendar, `sessionCalendar.js`), or null. */
@@ -1009,6 +1039,9 @@ export function staticallyUnservable(ticker, venue) {
   // ⭐ RS RATING L1b — a spelling with a witness row is decided by its row alone
   const row = witnessRowOf(venue, t)
   if (row) return witnessRowServes(row) ? null : witnessPendingWhy(row)
+  // ⭐⭐ T4 B2 — any other `USI:` spelling: refused by its own name (`pineBreadth.js::breadthStaticRefusal`)
+  const usi = String(venue || '').trim().toUpperCase() === BREADTH_VENUE ? breadthStaticRefusal(t, OTHER_SYMBOL_REFUSAL) : null
+  if (usi) return usi
   const breadth = BREADTH_SHAPE.test(t)
   const notYet = breadth
     ? ' It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.'
@@ -1056,6 +1089,9 @@ export function spellingUnservable(raw) {
       + 'store does not hold (the seeds it serves are listed in `requestWitnesses.json`), so what this indicator draws '
       + 'from it is not computed.' }
   }
+  // ⭐⭐ T4 B2 — several breadth spellings combined in one string (TradingView's built-in Advance Decline Line):
+  // refused by name (`pineBreadth.js::breadthSpreadRefusal`)
+  if (isBreadthSpread(s)) return { ticker: s, ...breadthSpreadRefusal(raw, OTHER_SYMBOL_REFUSAL) }
   const m = /^([A-Z][A-Z0-9_.]{0,15}):(.*)$/.exec(s)
   const venue = m ? m[1] : ''
   const ticker = m ? m[2].trim() : s
@@ -1064,6 +1100,9 @@ export function spellingUnservable(raw) {
     const why = staticallyUnservable(ticker, venue)
     return why ? { ticker, ...why } : null
   }
+  // ⭐⭐ T4 B2 — a `USI:` spelling with no row: refused by its own name, never as a foreign exchange
+  const usi = m && venue === BREADTH_VENUE ? breadthStaticRefusal(ticker, OTHER_SYMBOL_REFUSAL) : null
+  if (usi) return { ticker: s, ...usi }
   if (m && !US_EQUITY_VENUES.has(venue)) {
     const notYet = BREADTH_SHAPE.test(ticker)
       ? ' It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.'
@@ -1349,6 +1388,17 @@ export function fetchableOtherSymbols(def) {
   return [...new Set(out)]
 }
 
+/** ⭐⭐ T4 B2 — the `USI:` breadth spellings a Pine document reads (`{spellings: ['USI:ADVN.NY', ...], words}`), or null:
+ *  what the grade tags a run with (a run that reads UCT breadth never grades MATCH, `compare.mjs`). Pending or served:
+ *  either way what it draws is UCT's count, never TradingView's. */
+export function breadthReadsOf(def) {
+  if (!def || !isPineOriginDoc(def)) return null
+  const spellings = otherSymbolRequestsOf(def)
+    .filter(({ ticker, spellings }) => spellings.includes(BREADTH_VENUE) && breadthBaseOf(ticker))
+    .map(({ ticker }) => `${BREADTH_VENUE}:${ticker}`)
+  return spellings.length ? { spellings: [...new Set(spellings)].sort(), words: BREADTH_DATA_WORDS } : null
+}
+
 /** ⭐⭐ T4 E2 — is this request an event read (the rewrite's, or the internal name a script spelled)? */
 export function isEventRequest(ticker, spellings) {
   return EVENT_TICKER.test(String(ticker || '').trim().toUpperCase())
@@ -1361,6 +1411,25 @@ export function eventsNeeded(def) {
   if (!def || !isPineOriginDoc(def) || !def.meta || !Array.isArray(def.meta.otherSymbols)) return false
   return otherSymbolRequestsOf(def).some(({ ticker, spellings }) => spellings.length > 0
     && spellings.every((v) => v === EVENT_VENUE) && !staticallyUnservable(ticker, EVENT_VENUE))
+}
+
+/** ⭐⭐ T4 B2 — mark a served breadth series with its record (`SERIES_EVENT_RECORD`, code `BREADTH_BEFORE_RECORD_CODE`): the
+ *  chart bars before its first row are withheld (`SERIES_UNKNOWN_BEFORE_FIRST`) and NAMED per bar (`interpret.js::
+ *  recordBeforeMask`), in the words `pineBreadth.js::breadthBeforeRecordSentence` says. `knownFrom` is the door's own
+ *  (B1: the first session UCT counts), else the exchange's coverage start. */
+export function markBreadthSeries(series, ticker, entry) {
+  if (!Array.isArray(series)) return series
+  const base = breadthBaseOf(ticker) || String(ticker).trim().toUpperCase()
+  const spec = BREADTH_SPELLINGS[base] || null
+  const exchange = spec ? spec.exchange : null
+  const knownFrom = (entry && typeof entry.knownFrom === 'string' && entry.knownFrom)
+    || (exchange ? BREADTH_COVERAGE_FROM[exchange] : null)
+  const first = series.length ? isoDay(series[0].t) : null
+  if (!series[SERIES_UNKNOWN_BEFORE_FIRST]) Object.defineProperty(series, SERIES_UNKNOWN_BEFORE_FIRST, { value: true, enumerable: false })
+  Object.defineProperty(series, SERIES_EVENT_RECORD, { value: Object.freeze({ code: BREADTH_BEFORE_RECORD_CODE,
+    family: 'breadth', ticker: String(ticker).trim().toUpperCase(), spelling: base, exchange, knownFrom, from: first }),
+  enumerable: false, configurable: true })
+  return series
 }
 
 /** The sentences the bind says for an event read on a chart timeframe its placement is not witnessed on. */
@@ -1544,6 +1613,11 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
         continue
       }
       const tf = ctx.tf == null ? '' : String(ctx.tf)
+      // ⭐⭐ T4 B2 — a breadth spelling on an intraday chart: UCT holds one count per session, never intraday breadth
+      if (row.kind === 'breadth' && /^\d+$/.test(tf)) {
+        no(ticker, OTHER_SYMBOL_REFUSAL.BREADTH_INTRADAY, breadthIntradayReason(ticker, tf))
+        continue
+      }
       // ⭐⭐ RS RATING L11 — WHICH READ OF THE ROW THIS CHART IS (`witnessReadOf`): the row's own
       // timeframe as before, or a block's (a weekly chart: the series held at `D`, folded for a
       // `timeframe.period` read, sampled for a daily one). `ctx.requestCode` is the run's request
@@ -1554,11 +1628,19 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
         continue
       }
       const entry = secondary ? secondary.get(read.key) : null
+      // ⭐⭐ T4 B2 — the breadth door dark for this member (B1's stage) or refusing it (the licence): named, never a wait
+      if (row.kind === 'breadth' && entry && (entry.status === 'dark' || entry.status === 'refused')) {
+        no(ticker, OTHER_SYMBOL_REFUSAL.BREADTH_NOT_AVAILABLE, breadthNotAvailableReason(ticker, entry.said || ''))
+        continue
+      }
       const held = entry && Array.isArray(entry.bars) ? entry.bars : null
       if (!held || !held.length) {
         no(ticker, OTHER_SYMBOL_REFUSAL.NO_BARS, `\`${row.spelling}\`'s bars for this timeframe are not in hand`
           + (entry && entry.status ? ` (${entry.status})` : ''))
-        if (!entry || String(entry.status || '') === 'loading') refused[refused.length - 1].pending = true
+        // ⭐ T4 B2 — and a breadth door still gathering (202 `pending`) is a wait, as a load is
+        if (!entry || String(entry.status || '') === 'loading' || (row.kind === 'breadth' && entry.status === 'pending')) {
+          refused[refused.length - 1].pending = true
+        }
         continue
       }
       // ⭐ RS RATING L12 — a block held at a second timeframe too (an intraday chart's daily rows)
@@ -1597,6 +1679,8 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
       const page = !landed && read.fold === WITNESS_PERIOD_READS.AT_OR_BEFORE ? filledPageOf(entry, held) : null
       if (page) Object.defineProperty(symbols[ticker], SERIES_PAGE_FILLED, { value: page, enumerable: false })
       if (read.sample) samples[ticker] = read.sample
+      // ⭐⭐ T4 B2 — a breadth series carries its record: the bars before UCT's counts begin are withheld BY NAME, per bar
+      if (row.kind === 'breadth') markBreadthSeries(symbols[ticker], ticker, entry)
       served.push(ticker)
       continue
     }

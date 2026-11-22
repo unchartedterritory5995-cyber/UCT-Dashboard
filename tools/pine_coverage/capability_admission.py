@@ -104,6 +104,9 @@ def census_capabilities(src, inv):
                 caps.add("request-events")
         if (head == "barstate" and last != "isfirst") or i == "timenow":
             caps.add("realtime-state")
+    # T4 B2: a request beside a `USI:` string reads UCT breadth (`pine_capabilities.reads_breadth`)
+    if "request-other" in caps and pc.reads_breadth(pc.strip_code(src)[1]):
+        caps.add("request-breadth")
     return caps
 
 

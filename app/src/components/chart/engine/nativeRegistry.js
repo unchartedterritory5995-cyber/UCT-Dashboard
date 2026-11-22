@@ -106,6 +106,9 @@ import { bindConstsFor } from './ast/bind'
 // ⭐⭐ T4 E2 — `otherSymbolLabel`: an event read's own label; the words for a bar before UCT's record of an event family
 import { isPineOriginDoc, otherSymbolPending, staticOtherSymbolMessage, otherSymbolLabel } from './otherSymbols'
 import { eventBeforeRecordSentence, EVENT_BEFORE_RECORD_CODE } from './pineEvents'
+// ⭐⭐ T4 B2 — a breadth spelling's record names its own per-bar code and words
+import { recordCode, recordBeforeSentence } from './pineBreadth'
+import { BREADTH_BEFORE_RECORD_CODE } from './ast/interpret'
 // ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
 // are the SHARED EVALUABILITY GATE's (`evaluability.js`); this module applies them.
 import { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE } from './evaluability'
@@ -2374,13 +2377,16 @@ export function externalReadNotices(def, columns) {
     // ⭐⭐ T4 E2 — the bars before UCT's record of an event family are named per bar (`EVENT_BEFORE_RECORD_CODE`); where a
     // plot carries them, the member reads why, once per family
     const held = withheldBarsReport(columns) || {}
-    if (Object.values(held).some((codes) => codes && codes[EVENT_BEFORE_RECORD_CODE])) {
+    // ⭐⭐ T4 B2 — per code: an event family's record, and a breadth spelling's (`pineBreadth.js::recordCode`)
+    for (const code of [EVENT_BEFORE_RECORD_CODE, BREADTH_BEFORE_RECORD_CODE]) {
+      if (!Object.values(held).some((codes) => codes && codes[code])) continue
       const said = new Set()
       for (const e of (other && other.events) || []) {
-        const reason = e ? eventBeforeRecordSentence(e) : null
+        if (!e || recordCode(e) !== code) continue
+        const reason = code === EVENT_BEFORE_RECORD_CODE ? eventBeforeRecordSentence(e) : recordBeforeSentence(e)
         if (!reason || said.has(reason)) continue
         said.add(reason)
-        out.push({ code: EVENT_BEFORE_RECORD_CODE, reason })
+        out.push({ code, reason })
       }
     }
     // ⭐ review F1 — and every paint whose colour that refusal leaves undrawn, by its own name

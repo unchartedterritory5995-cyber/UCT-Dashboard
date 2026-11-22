@@ -349,7 +349,7 @@ CORE_ID = "core"
 #: runtime:conditional-history ...) and the graph/runtime differential are that net (EVIDENCE).
 COLLECTION_IDS = ("collections:array", "collections:matrix", "collections:map")
 #: What only the per-bar run can do, and no historical capture grades.
-RUNTIME_ONLY_IDS = ("varip", "calc-bars", "realtime-state", "request-other", "request-events")
+RUNTIME_ONLY_IDS = ("varip", "calc-bars", "realtime-state", "request-other", "request-events", "request-breadth")
 #: ⛔ THE CLOSED WORLD: every id `capabilities_of` may return except `UNREADABLE`.
 CAPABILITY_IDS = frozenset((CORE_ID,) + FEATURE_IDS + OBJ_IDS + COLLECTION_IDS + RUNTIME_ONLY_IDS)
 #: B1/e: the largest source the detector reads: the runtime document's own cap
@@ -397,6 +397,12 @@ _CALC_BARS_RX = re.compile(r"\bcalc_bars_count\b")
 #: `request-other` (the request prefix still names that one too: over-declared, never under).
 EVENT_CALLS = ("request.earnings", "request.dividends", "request.splits")
 _EVENTS_RX = re.compile(r"(?<![\w.])request\s*\.\s*(?:earnings|dividends|splits)\s*\(")
+#: ⭐⭐ T4 B2 (2026-11-22, NUMBER PENDING) -- TradingView's `USI:` breadth spellings, served from UCT's own breadth counts
+#: (B1, `GET /api/pine/breadth/<spelling>`) as `app/src/components/chart/engine/pineBreadth.js` names them: a request
+#: whose script carries a `USI:` string. Read off the STRING contents (`strip_code`), and only beside `request-other`
+#: (a title that merely says "USI:" is no read). Over-declares, never under. History-only
+#: (`rollout_gate.PINE_CAPABILITY_FORMING_UNGRADED`): a forming session's count is not witnessed.
+_BREADTH_STR_RX = re.compile(r"(?i)(?<![A-Za-z0-9_])USI\s*:")
 #: Every `barstate.*` but `isfirst` (each other one answers differently on a live or forming
 #: bar), and the wall clock.
 _REALTIME_RX = re.compile(r"(?<![\w.])barstate\s*\.\s*(?!isfirst\b)[A-Za-z_]\w*|(?<![\w.])timenow\b")
@@ -490,6 +496,9 @@ def capabilities_of(source):
                 found.add("varip")
             else:
                 found.add("realtime-state")
+    # ⭐⭐ T4 B2 -- a request beside a `USI:` string reads UCT breadth (`reads_breadth`)
+    if "request-other" in found and reads_breadth(_strings):
+        found.add("request-breadth")
     return frozenset(found)
 
 
@@ -501,12 +510,19 @@ def capabilities_of(source):
 # CHANGE, and record the new `detector_fingerprint()` beside it: the rail
 # (`tests/test_pine_capabilities.py`) goes red while the fingerprint and the version disagree, so a
 # changed regex can never be served from sets an older detector computed.
-DETECTOR_VERSION = 3
+DETECTOR_VERSION = 4
 DETECTOR_FINGERPRINTS = {1: "797670b04011de780dc26555ee667c87098abb697632e422988b96b5681a5bbf",
                          # U15: one `library:Author/Library/N` capability per imported version
                          2: "339c2da47bb157266da82837801cc1695ae7a00bcd38ad692d53aefa694039cf",
                          # T4 E2: `request-events`, the chart's own corporate events
-                         3: "1ca37384c2a209429d2d31144cdcdc41e6330c25b2560299e3793ab05abd4b1f"}
+                         3: "1ca37384c2a209429d2d31144cdcdc41e6330c25b2560299e3793ab05abd4b1f",
+                         # T4 B2: `request-breadth`, a request beside a `USI:` string (UCT breadth)
+                         4: "964450591cba7e977d265a9a9062a6afc44732eb86f213ed2f0f05cbeaef3db2"}
+
+
+def reads_breadth(strings) -> bool:
+    """⭐⭐ T4 B2 -- does a script's string contents (`strip_code`'s second answer) name a `USI:` spelling?"""
+    return any(_BREADTH_STR_RX.search(s) for s in strings or ())
 
 
 def detector_fingerprint():

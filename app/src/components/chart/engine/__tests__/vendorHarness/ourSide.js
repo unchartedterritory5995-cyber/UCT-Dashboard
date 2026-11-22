@@ -42,7 +42,8 @@ import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/run
 import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
 import { setRuntimeDoorClock, RUNTIME_REQUEST_WITHHELD_KEY } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
-import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY, isEventRequest } from '../../otherSymbols'
+import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY, isEventRequest,
+  breadthReadsOf } from '../../otherSymbols'
 import { EVENTS_KEY } from '../../pineEvents'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import { storeExchangeOfCapture } from './storeExchange.js'
@@ -2121,6 +2122,9 @@ function runOurSideOnTheParityClock(capture) {
       // (`substitutedInputsOf`); `[]` until a lane feeds one.
       // ⭐ RS RATING L3 — `syminfo.industry` / `sector`, fed the capture's value (`symbolOf`).
       substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol, capture)),
+      // ⭐⭐ T4 B2 — the `USI:` spellings this run read from UCT breadth (`otherSymbols.breadthReadsOf`): the grade never
+      // reads MATCH on them (`compare.mjs`, coordinator ruling 2026-11-22)
+      breadth: breadthReadsOf(def),
       // ⭐⭐ (2026-11-17) — a broker document's run: its record, or why it published none (`strategyRunOf`);
       // null for every other document. Graded by `strategyLane.js`.
       strategy,

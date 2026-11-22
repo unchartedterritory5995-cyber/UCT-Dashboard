@@ -546,7 +546,9 @@ function eventRecordsOf(symbols) {
     const r = Array.isArray(series) ? series[SERIES_EVENT_RECORD] : null
     if (r && typeof r === 'object' && r.fund !== true) {
       out.push({ ticker: r.ticker, family: r.family, symbol: r.symbol, knownFrom: r.knownFrom, from: r.from || null,
-        ...(r.window ? { window: r.window } : {}) })
+        ...(r.window ? { window: r.window } : {}),
+        // ⭐⭐ T4 B2 — a breadth spelling's record: its per-bar code and what the strip names it by
+        ...(typeof r.code === 'string' ? { code: r.code, spelling: r.spelling || null, exchange: r.exchange || null } : {}) })
     }
   }
   return out

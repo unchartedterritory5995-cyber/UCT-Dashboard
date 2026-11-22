@@ -15,6 +15,8 @@ import { lexPine } from './pine.js'
 import { CLASSIFICATION_FIELD_NAMES, symbolSubstitutions } from './bind.js'
 // ⭐⭐ T4 E2 — a corporate-events read is disclosed by its family, never by the engine's internal name
 import { EVENT_VENUE, eventReadOf } from '../pineEvents.js'
+// ⭐⭐ T4 B2 — a `USI:` breadth read is disclosed as UCT breadth data (our own counts), never as TradingView's series
+import { BREADTH_VENUE, isBreadthTicker, breadthSourceNote } from '../pineBreadth.js'
 
 const CLASSIFICATION_NAMES = CLASSIFICATION_FIELD_NAMES.map((f) => `syminfo.${f}`)
 
@@ -84,6 +86,11 @@ export function otherSymbolSourceNotesFor(otherSymbols) {
     const name = !spelled ? ticker : (spelled.includes(':') ? spelled.trim() : `${spelled.trim()}:${ticker}`)
     if (seen.has(name)) continue
     seen.add(name)
+    // ⭐⭐ T4 B2 — a breadth spelling: UCT breadth data (our own counts), not the exchange's official figures
+    if (spelled && spelled.trim().toUpperCase() === BREADTH_VENUE && isBreadthTicker(ticker)) {
+      out.push({ name, note: breadthSourceNote(ticker) })
+      continue
+    }
     out.push({ name, note: OTHER_SYMBOL_SOURCE_NOTE(name) })
   }
   return out

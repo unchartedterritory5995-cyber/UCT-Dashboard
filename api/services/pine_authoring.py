@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import re
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from api.services import indicator_support
@@ -493,6 +494,39 @@ def events_open_to_members() -> bool:
     return pine_events.stage() == "all"
 
 
+#: ⭐⭐ (T4 B2, NUMBER PENDING, train e95) TradingView's `USI:` breadth spellings the engine serves from UCT's own breadth
+#: counts are supplied by ONE door, `GET /api/pine/breadth/<spelling>` (B1), staged by `PINE_BREADTH_SUPPLY_ENABLED`
+#: (`pine_breadth.stage()`), and each spelling is served only once its capture witnesses it (`requestWitnesses.json`
+#: rows of kind `breadth`, the engine's one authority, read here as data). The assistant is handed a spelling only
+#: while BOTH hold (the E2 pattern): below `all` a member's chart answers "UCT breadth data is not available on this
+#: chart yet", so the gap stays a gap.
+BREADTH_DARK_GUARD = "other-symbol:breadth-not-available"
+WITNESSES_PATH = Path(__file__).resolve().parents[2] / "app" / "src" / "components" / "chart" / "engine" / "requestWitnesses.json"
+BREADTH_WORDS = "UCT breadth data (our own counts), not the exchange's official figures"
+_BREADTH_IN_SOURCE = re.compile(r"(?i)[\"']\s*USI\s*:")
+
+
+def breadth_open_to_members() -> bool:
+    """Does the breadth door answer every paid member (`PINE_BREADTH_SUPPLY_ENABLED=all`)? Read per call."""
+    from api.services import pine_breadth
+    return pine_breadth.stage() == "all"
+
+
+def breadth_spellings_served(path=None) -> List[str]:
+    """The `USI:` spellings the engine serves: the breadth witness rows whose capture is in (`witness` + `captured`)."""
+    try:
+        rows = json.loads((path or WITNESSES_PATH).read_text(encoding="utf-8")).get("rows") or {}
+    except (OSError, ValueError):
+        return []
+    return sorted(k for k, v in rows.items() if isinstance(v, Mapping) and v.get("kind") == "breadth"
+                  and str(v.get("witness") or "").strip() and str(v.get("captured") or "").strip())
+
+
+def breadth_handed(path=None) -> List[str]:
+    """The `USI:` spellings the assistant is handed: served by the engine AND its door open to members, else none."""
+    return breadth_spellings_served(path) if breadth_open_to_members() else []
+
+
 def _values(ref: Mapping[str, Any]) -> List[Mapping[str, Any]]:
     """`ref["values"]`, less the event reads while their door is dark for members."""
     rows = [v for v in ref.get("values") or [] if isinstance(v, Mapping) and isinstance(v.get("name"), str)]
@@ -578,6 +612,9 @@ def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[s
 
     out += _lines("VALUE FUNCTIONS AND VARIABLES (each with a call the engine accepts)",
                   [f"- `{v['name']}`  e.g. `{v['call']}`" for v in _values(ref)])
+    # ⭐⭐ T4 B2 -- only while the breadth door serves members, and only the spellings the engine serves
+    out += _lines(f"MARKET BREADTH ({BREADTH_WORDS}; read each as `request.security(<symbol>, \"D\", close)` on a daily, "
+                  "weekly or monthly chart)", [f"- `{s}`" for s in breadth_handed()])
 
     drawing = ref.get("drawing") or {}
     for family in ref.get("families") or []:
@@ -688,6 +725,11 @@ def gap_rows(doc: Optional[Mapping[str, Any]] = None, admitted: Optional[List[st
             # the engine reads it; the door that supplies it is dark for members (`EVENT_READS`)
             row["guard"] = EVENTS_DARK_GUARD
             row["says"] = "the engine reads it, and the data is not available on a member's chart yet"
+        elif _BREADTH_IN_SOURCE.search(p["source"]) and not breadth_handed():
+            # ⭐⭐ T4 B2 -- a `USI:` read: the engine reads it, and the breadth door is dark for members (or the
+            # spelling's capture has not landed)
+            row["guard"] = BREADTH_DARK_GUARD
+            row["says"] = "the engine reads it, and UCT breadth data is not available on a member's chart yet"
         elif p.get("lane") == "runtime":
             missing = sorted(set(pine_capabilities.capabilities_of(p["source"])) - allowed)
             if missing:

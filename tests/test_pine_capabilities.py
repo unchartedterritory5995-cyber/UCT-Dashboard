@@ -48,7 +48,8 @@ def test_the_vocabulary_is_core_plus_census_features_plus_objects_plus_runtime_o
     assert set(pc.COLLECTION_IDS) == {"collections:array", "collections:matrix", "collections:map"}
     assert set(pc.OBJ_IDS) == {"obj:line", "obj:label", "obj:box", "obj:table", "obj:linefill",
                                "obj:polyline", "obj:delete", "obj:getter", "obj:collection"}
-    assert set(pc.RUNTIME_ONLY_IDS) == {"varip", "calc-bars", "realtime-state", "request-other", "request-events"}
+    assert set(pc.RUNTIME_ONLY_IDS) == {"varip", "calc-bars", "realtime-state", "request-other", "request-events",
+                                        "request-breadth"}
     assert pc.UNREADABLE not in pc.CAPABILITY_IDS
 
 
@@ -108,6 +109,9 @@ def test_the_server_import_never_reads_the_front_end_order_set():
     ("x = request.earnings(syminfo.tickerid, earnings.actual)\n", {"request-events", "request-other"}),
     ("x = request . dividends(syminfo.tickerid)\n", {"request-events", "request-other"}),
     ("x = request.splits(syminfo.tickerid, splits.denominator)\n", {"request-events", "request-other"}),
+    # T4 B2: a request beside a `USI:` string reads UCT breadth (over-declared, never under)
+    ("x = request.security(\"USI:ADVN.NY\", \"D\", close)\n", {"request-breadth", "request-other"}),
+    ("s = input.symbol('usi:add', 'B')\nx = request.security(s, 'D', close)\n", {"request-breadth", "request-other"}),
     ("plot(barstate.isconfirmed ? close : na)\n", {"realtime-state"}),
     ("plot(timenow)\n", {"realtime-state"}),
     # C1: the collection namespaces, and generics through `<ns>.new<T>`

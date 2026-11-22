@@ -263,6 +263,490 @@
       "witness": "vw-data-splits-{aapl,ge,nvda,tsla}-1d-2026-11-20-preopen, vw-data-splits-nvda-1w-2026-11-20-preopen (s4-closed-retake-2026-11-20 batch, local; UCT probes)",
       "fields": "splits.numerator (the new shares) and splits.denominator (the old)",
       "how": "TradingView's request.splits on NASDAQ:AAPL, NYSE:GE, NASDAQ:NVDA, NASDAQ:TSLA 1D and NVDA 1W: each event stamped at its date's session close; lookahead_on reads it on the first bar closing at or after that instant (the event's own bar), lookahead_off on the first bar opening after it (the next session on 1D, the next week on 1W); an event dated on a non-session day lands both reads on the next session (R1, 1,603 of 1,606 events across the three families, the 3 others that named exception). gaps_on: the value on that bar, na on every other; gaps_off: carried from it, na before the first event (R2, 0 mismatching bars). Monthly is not captured (W-E2); intraday needs a report's time of day, which UCT does not hold."
+    },
+    "USI:ADVN.NY": {
+      "kind": "breadth",
+      "store": "USI~ADVN.NY",
+      "timeframes": [
+        "D",
+        "W",
+        "M"
+      ],
+      "alignment": "same-date",
+      "queue_row": "Q-T4-B1",
+      "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+      "fetch": "/api/pine/breadth/USI:ADVN.NY (api/routers/pine_breadth.py, B1)",
+      "witness": "",
+      "captured": "",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "same-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "same-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        }
+      },
+      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks."
+    },
+    "USI:DECL.NY": {
+      "kind": "breadth",
+      "store": "USI~DECL.NY",
+      "timeframes": [
+        "D",
+        "W",
+        "M"
+      ],
+      "alignment": "same-date",
+      "queue_row": "Q-T4-B1",
+      "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+      "fetch": "/api/pine/breadth/USI:DECL.NY (api/routers/pine_breadth.py, B1)",
+      "witness": "",
+      "captured": "",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "same-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "same-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        }
+      },
+      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks."
+    },
+    "USI:UNCH.NY": {
+      "kind": "breadth",
+      "store": "USI~UNCH.NY",
+      "timeframes": [
+        "D",
+        "W",
+        "M"
+      ],
+      "alignment": "same-date",
+      "queue_row": "Q-T4-B1",
+      "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+      "fetch": "/api/pine/breadth/USI:UNCH.NY (api/routers/pine_breadth.py, B1)",
+      "witness": "",
+      "captured": "",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "same-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "same-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        }
+      },
+      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks."
+    },
+    "USI:ADVN.NQ": {
+      "kind": "breadth",
+      "store": "USI~ADVN.NQ",
+      "timeframes": [
+        "D",
+        "W",
+        "M"
+      ],
+      "alignment": "same-date",
+      "queue_row": "Q-T4-B1",
+      "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+      "fetch": "/api/pine/breadth/USI:ADVN.NQ (api/routers/pine_breadth.py, B1)",
+      "witness": "",
+      "captured": "",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "same-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "same-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        }
+      },
+      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks."
+    },
+    "USI:DECL.NQ": {
+      "kind": "breadth",
+      "store": "USI~DECL.NQ",
+      "timeframes": [
+        "D",
+        "W",
+        "M"
+      ],
+      "alignment": "same-date",
+      "queue_row": "Q-T4-B1",
+      "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+      "fetch": "/api/pine/breadth/USI:DECL.NQ (api/routers/pine_breadth.py, B1)",
+      "witness": "",
+      "captured": "",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "same-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "same-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        }
+      },
+      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks."
+    },
+    "USI:UNCH.NQ": {
+      "kind": "breadth",
+      "store": "USI~UNCH.NQ",
+      "timeframes": [
+        "D",
+        "W",
+        "M"
+      ],
+      "alignment": "same-date",
+      "queue_row": "Q-T4-B1",
+      "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+      "fetch": "/api/pine/breadth/USI:UNCH.NQ (api/routers/pine_breadth.py, B1)",
+      "witness": "",
+      "captured": "",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "same-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "same-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        }
+      },
+      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks."
+    },
+    "USI:ADD": {
+      "kind": "breadth",
+      "store": "USI~ADD",
+      "timeframes": [
+        "D",
+        "W",
+        "M"
+      ],
+      "alignment": "same-date",
+      "queue_row": "Q-T4-B1",
+      "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+      "fetch": "/api/pine/breadth/USI:ADD (api/routers/pine_breadth.py, B1)",
+      "witness": "",
+      "captured": "",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "same-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "same-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        }
+      },
+      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks."
+    },
+    "USI:ADDQ": {
+      "kind": "breadth",
+      "store": "USI~ADDQ",
+      "timeframes": [
+        "D",
+        "W",
+        "M"
+      ],
+      "alignment": "same-date",
+      "queue_row": "Q-T4-B1",
+      "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+      "fetch": "/api/pine/breadth/USI:ADDQ (api/routers/pine_breadth.py, B1)",
+      "witness": "",
+      "captured": "",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "same-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "same-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        }
+      },
+      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks."
+    },
+    "USI:ADV": {
+      "kind": "breadth",
+      "store": "USI~ADVN.NY",
+      "aliasOf": "USI:ADVN.NY",
+      "timeframes": [
+        "D",
+        "W",
+        "M"
+      ],
+      "alignment": "same-date",
+      "queue_row": "Q-T4-B1",
+      "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+      "fetch": "/api/pine/breadth/USI:ADVN.NY (api/routers/pine_breadth.py, B1)",
+      "witness": "",
+      "captured": "",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "same-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "same-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        }
+      },
+      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks. An alias of `USI:ADVN.NY`: served only once the capture shows TradingView answers `USI:ADV` alike."
+    },
+    "USI:DECL": {
+      "kind": "breadth",
+      "store": "USI~DECL.NY",
+      "aliasOf": "USI:DECL.NY",
+      "timeframes": [
+        "D",
+        "W",
+        "M"
+      ],
+      "alignment": "same-date",
+      "queue_row": "Q-T4-B1",
+      "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+      "fetch": "/api/pine/breadth/USI:DECL.NY (api/routers/pine_breadth.py, B1)",
+      "witness": "",
+      "captured": "",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "same-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "same-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        }
+      },
+      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks. An alias of `USI:DECL.NY`: served only once the capture shows TradingView answers `USI:DECL` alike."
+    },
+    "USI:ADVQ": {
+      "kind": "breadth",
+      "store": "USI~ADVN.NQ",
+      "aliasOf": "USI:ADVN.NQ",
+      "timeframes": [
+        "D",
+        "W",
+        "M"
+      ],
+      "alignment": "same-date",
+      "queue_row": "Q-T4-B1",
+      "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+      "fetch": "/api/pine/breadth/USI:ADVN.NQ (api/routers/pine_breadth.py, B1)",
+      "witness": "",
+      "captured": "",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "same-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "same-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        }
+      },
+      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks. An alias of `USI:ADVN.NQ`: served only once the capture shows TradingView answers `USI:ADVQ` alike."
+    },
+    "USI:DECLQ": {
+      "kind": "breadth",
+      "store": "USI~DECL.NQ",
+      "aliasOf": "USI:DECL.NQ",
+      "timeframes": [
+        "D",
+        "W",
+        "M"
+      ],
+      "alignment": "same-date",
+      "queue_row": "Q-T4-B1",
+      "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+      "fetch": "/api/pine/breadth/USI:DECL.NQ (api/routers/pine_breadth.py, B1)",
+      "witness": "",
+      "captured": "",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "same-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "same-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-T4-B2",
+          "probe": "tools/visual_conformance/probes/vw-data-usi.pine",
+          "witness": "",
+          "captured": ""
+        }
+      },
+      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks. An alias of `USI:DECL.NQ`: served only once the capture shows TradingView answers `USI:DECLQ` alike."
     }
   }
 }

@@ -31,7 +31,9 @@ import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeri
 import { isTradingDay, covers } from '../../../../lib/marketClock/sessionCalendar.js'
 import { overnightTailFrom, overnightSentence, REQUEST_OVERNIGHT_GUARD } from './overnightTail.js'
 // ⭐⭐ T4 E2 — a corporate-events read's depth is UCT's record of the family (its own words, its own per-bar code)
-import { SERIES_EVENT_RECORD, EVENT_BEFORE_RECORD_CODE, eventBeforeRecordSentence, eventLabel, eventReadOf } from '../pineEvents.js'
+import { SERIES_EVENT_RECORD, eventReadOf } from '../pineEvents.js'
+// ⭐⭐ T4 B2 — a breadth series' record carries its own per-bar code and words (`pineBreadth.js::recordCode`)
+import { recordCode, recordBeforeSentence, recordLabel } from '../pineBreadth.js'
 /** `request.<family>` for an event read's ticker (the words a wait names), else the ticker itself. */
 const eventFamilyCall = (ticker) => { const r = eventReadOf(ticker); return r ? `request.${r.family}` : String(ticker) }
 
@@ -741,10 +743,11 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       // run starts there with its bars before it named per bar (`runtimeColumns.js::fromKnownDepth`)
       const record = Array.isArray(srcBars) ? srcBars[SERIES_EVENT_RECORD] : null
       if (record) {
+        // ⭐⭐ T4 B2 — the record's own code and words: an event family's, or a breadth spelling's (`recordCode`)
         out.refusal = { guard: REQUEST_GUARD, knownFrom: lastDepth + 1,
-          why: { code: EVENT_BEFORE_RECORD_CODE, reason: eventBeforeRecordSentence(record) },
-          message: `${eventLabel(record.ticker)}${at(site)} cannot be read on every bar of this chart (its history reaches `
-            + `${String(earlyT)}): ${eventBeforeRecordSentence(record)}${CARRIES}` }
+          why: { code: recordCode(record), reason: recordBeforeSentence(record) },
+          message: `${recordLabel(record)}${at(site)} cannot be read on every bar of this chart (its history reaches `
+            + `${String(earlyT)}): ${recordBeforeSentence(record)}${CARRIES}` }
         return out
       }
       return refuse(`a \`request.security\`${at(site)} cannot be read on every bar — this chart's history reaches `
