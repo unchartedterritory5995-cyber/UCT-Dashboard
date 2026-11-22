@@ -190,8 +190,8 @@ decide whether a formula can run at all.
 | `valuewhen(condition, source, period)` | a number | whatever `period` asks for | the value of `source` on the most recent of the last `period` bars where `condition` was true |
 | `valuewhenOccurrence(condition, source, occurrence)` | a number | series | the value of `source` the `occurrence`-from-the-end time `condition` was true, counting occurrences backward |
 | `vwap()` | a number | a session (960 bars) | the volume-weighted average price so far this session |
-| `vwapAnchor(source, condition, volume)` | a number | series | the volume-weighted average of `source` (weighted by `volume`) since the last bar where `condition` was true |
-| `vwapAnchorDev(source, condition, volume)` | a number | series | the volume-weighted standard deviation of `source` (weighted by `volume`) since the last bar where `condition` was true |
+| `vwapAnchor(source, condition, volume)` | a number | series | the volume-weighted average of `source`, weighted by `volume`, since the last bar where `condition` was true |
+| `vwapAnchorDev(source, condition, volume)` | a number | series | the volume-weighted standard deviation of `source`, weighted by `volume`, since the last bar where `condition` was true |
 | `vwapOf(source)` | a number | a session (960 bars) | the volume-weighted average of `source` so far this session |
 | `williamsR(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar Williams %R of `high`, `low` and `close` |
 | `wma(source, period)` | a number | whatever `period` asks for | the `period`-bar weighted average of `source` |

@@ -224,6 +224,13 @@ const FORMS = [
   // far this session*) and this one names it (*the volume-weighted average of
   // close …*), so the two cannot both read one sentence.
   { kind: 'call', name: 'vwapOf', parts: ['the volume-weighted average of ', 0, ' so far this session'] },
+  // ⭐⭐ e95 unit 2 (2026-11-22) — Pine's anchored `ta.vwap`, hand-typed from closedTable.json's own words: the
+  // average and the standard deviation its bands are drawn from, each since the last bar the anchor fired.
+  { kind: 'call', name: 'vwapAnchor',
+    parts: ['the volume-weighted average of ', 0, ', weighted by ', 2, ', since the last bar where ', 1, ' was true'] },
+  { kind: 'call', name: 'vwapAnchorDev',
+    parts: ['the volume-weighted standard deviation of ', 0, ', weighted by ', 2, ', since the last bar where ', 1,
+      ' was true'] },
   // ⭐ 2026-11-17 — the opening range, hand-typed from the manifest's words like every form here.
   // ⚠️ They cannot collide with `highest` / `lowest` ("the highest X of the last N bars"): those end
   // in ` bars`, these in ` minutes of the regular session`, and `the grammar is UNAMBIGUOUS` asserts it.
@@ -1332,10 +1339,10 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:valuewhen',
       'function:valuewhenOccurrence',
       'function:vwap',
-      'function:vwapOf',
       // ⭐⭐ e95 unit 2 (2026-11-22): Pine's anchored `ta.vwap`, the average and its band leg
       'function:vwapAnchor',
       'function:vwapAnchorDev',
+      'function:vwapOf',
       'function:williamsR',
       'function:wma',
     ])
@@ -2585,6 +2592,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'stoch_d_by_composition',
       // (2026-11-14, engine 57) Pine's `ta.stoch`, the last n finite values, the last answer kept.
       'stoch_pine_last_finite_values_held_answer',
+      // (2026-11-22, e95 unit 2) Pine's anchored `ta.vwap`, the average and its band leg.
+      'vwap_anchor_hlc3_at_sma_cross', 'vwap_anchor_dev_hlc3_at_sma_cross',
       'cci_20', 'williams_r', 'mfi_14',
       // (2026-09-28) Pine's `ta.mfi`, bar 0's flow on both sides.
       'mfi_pine_first_window_counts_bar_zero',

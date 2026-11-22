@@ -412,7 +412,8 @@ describe('⭐ W4 T10 — the table and the kernels', () => {
     for (const [name, k] of Object.entries(RUNTIME_STATE_KERNELS)) {
       expect(k.legacy, name).toBe(!name.startsWith('ta.'))
     }
-    expect(RUNTIME_STATE_KERNELS['ta.vwap'].arity).toEqual([1])
+    // e95 unit 2: and the anchored two-argument form (`CARRIED2.vwapAnchorPine`)
+    expect(RUNTIME_STATE_KERNELS['ta.vwap'].arity).toEqual([1, 2])
     expect(Object.keys(RUNTIME_STATE_KERNELS)).not.toContain('vwap')
   })
 

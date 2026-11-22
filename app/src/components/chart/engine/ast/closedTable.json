@@ -1671,7 +1671,7 @@
       ],
       "lookback": "series",
       "yields": "num",
-      "sentence": "the volume-weighted average of {0} (weighted by {2}) since the last bar where {1} was true"
+      "sentence": "the volume-weighted average of {0}, weighted by {2}, since the last bar where {1} was true"
     },
     "vwapAnchorDev": {
       "args": [
@@ -1686,7 +1686,7 @@
       ],
       "lookback": "series",
       "yields": "num",
-      "sentence": "the volume-weighted standard deviation of {0} (weighted by {2}) since the last bar where {1} was true"
+      "sentence": "the volume-weighted standard deviation of {0}, weighted by {2}, since the last bar where {1} was true"
     },
     "williamsR": {
       "args": [
