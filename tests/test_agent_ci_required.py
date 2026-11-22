@@ -427,6 +427,9 @@ def test_MQ_an_unreadable_diff_is_unknown_never_empty(tmp_path):
     read = lambda base, head, **kw: acr.merge_group_changed_paths(r.work, base, head, **kw)   # noqa: E731
     assert read(r.base, r.merge) == ["README.md"]                                # control: this repository can answer
     assert read(r.base, r.head) is None                                          # the PR head: one parent, not a merge group
+    # a ONE-parent commit sitting right on its base (what a squash or rebase queue would build) is not a merge group
+    # either: the rule is "a two-parent merge whose first parent is base_sha", not "whose parent is base_sha"
+    assert read(r.start, r.head) is None and read(r.start, r.base) is None
     assert read(r.head, r.merge) is None                                         # the SECOND parent given as the base
     assert read(r.merge, r.base) is None                                         # swapped
     assert read(r.base, "f" * 40) is None                                        # a commit origin does not have: the fetch fails
@@ -619,3 +622,19 @@ def test_MQ_the_pull_request_and_workflow_run_paths_are_the_ones_they_were(monke
     assert made[-1].posted == [("POST", f"statuses/{SHA}", {"state": "success", "context": "agent-ci-required",
                                                             "description": "agent ci run passed all 18 required jobs"})]
     assert acr.run_jobs(FakeApi(), 9) == [{"name": n, "conclusion": "success"} for n in JOBS]
+
+
+def test_MQ_run_jobs_reads_every_page():
+    """The job list both sides read (a PR head's run, and a merge group's own run): every page, name + conclusion only."""
+    class Paged:
+        pages: list = []
+
+        def get(self, path):
+            assert path.startswith("actions/runs/9/jobs?filter=latest&per_page=100&page="), path
+            page = int(path.rsplit("page=", 1)[1])
+            self.pages.append(page)
+            return {"jobs": [{"name": f"j{page}-{i}", "conclusion": "success", "id": i} for i in range({1: 100, 2: 100, 3: 5}[page])]}
+    api = Paged()
+    jobs = acr.run_jobs(api, 9)
+    assert len(jobs) == 205 and api.pages == [1, 2, 3] and jobs[0] == {"name": "j1-0", "conclusion": "success"}
+    assert jobs[-1] == {"name": "j3-4", "conclusion": "success"}
