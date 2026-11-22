@@ -6,7 +6,8 @@ import { request as httpRequest } from 'node:http'
 import { signHeader, SIGNATURE_HEADER } from '../auth.mjs'
 import { MAX_BODY_BYTES } from '../protocol.mjs'
 import {
-  ENV_ALLOWLIST, WIN32_ENV_ALLOWLIST, envAllowlistFor, createPineRuntimeServer, envRefusal, listenDualStack, portOf,
+  ENV_ALLOWLIST, ENV_ALLOWLIST_PATTERNS, WIN32_ENV_ALLOWLIST, envAllowlistFor, envNameAdmitted, createPineRuntimeServer,
+  envRefusal, listenDualStack, portOf,
 } from '../server.mjs'
 import { DOOR, IDENTITY, SECRET, SECRET_2, mutate, rng, validRequest } from './helpers.mjs'
 
@@ -205,6 +206,58 @@ test('env allowlist (L2): any variable outside it refuses boot, by name and neve
   }
   assert.ok(ENV_ALLOWLIST.includes('PINE_RUNTIME_SERVICE_SECRET') && ENV_ALLOWLIST.includes('PORT'))
   assert.equal(ENV_ALLOWLIST.some((k) => /TOKEN|KEY|PASSWORD|DATABASE|PUBLIC|STATIC_URL|PROXY|OPTIONS/.test(k)), false)
+})
+
+/** Track 6 (2026-11-22): the names Railway injects into the RUNNING process of a service that has no
+ *  public domain, measured from chart-renderer's /proc/1/environ (names only) the same day. Without these
+ *  the first deploy of this service would have refused to boot. */
+const RAILWAY_INJECTED_2026_11_22 = [
+  'RAILWAY_SERVICE_BARS_API_URL', 'RAILWAY_SERVICE_STREAM_EDGE_URL', 'RAILWAY_SERVICE_TRADE_EXCHANGE_NEWS_RECEIVER_URL',
+  'RAILWAY_SERVICE_TX_RECAP_URL', 'RAILWAY_SERVICE_WEB_FRONT_URL', 'RAILWAY_SERVICE_WEB_URL',
+  'RAILWAY_BETA_ENABLE_RUNTIME_V2',
+]
+
+test('env allowlist, track 6: the 7 names Railway injects into a domainless service boot, and every platform agrees', () => {
+  const base = { PORT: '8080', PINE_RUNTIME_SERVICE_SECRET: SECRET, PATH: '/usr/bin', RAILWAY_PRIVATE_DOMAIN: 'pine-runtime.railway.internal' }
+  const injected = Object.fromEntries(RAILWAY_INJECTED_2026_11_22.map((n) => [n, 'web-production-05cb6.up.railway.app']))
+  for (const platform of ['linux', 'win32']) {
+    assert.equal(envRefusal({ ...base, ...injected }, platform), null, platform)
+    for (const n of RAILWAY_INJECTED_2026_11_22) assert.equal(envNameAdmitted(n, platform), true, `${n} on ${platform}`)
+  }
+  // a NEW public service in the project (a name nobody listed) still boots: the reason for a pattern
+  assert.equal(envRefusal({ ...base, RAILWAY_SERVICE_PINE_RUNTIME_V2_URL: 'x.up.railway.app' }), null)
+})
+
+test('env allowlist, track 6: the pattern admits the URL family ONLY; tokens, secrets and look-alikes stay refused', () => {
+  const base = { PORT: '8080', PINE_RUNTIME_SERVICE_SECRET: SECRET, PATH: '/usr/bin' }
+  const refused = [
+    // the platform's own credential and public-exposure names
+    'RAILWAY_TOKEN', 'RAILWAY_API_TOKEN', 'RAILWAY_PROJECT_TOKEN', 'RAILWAY_PUBLIC_DOMAIN', 'RAILWAY_STATIC_URL',
+    'RAILWAY_TCP_PROXY_DOMAIN', 'RAILWAY_TCP_PROXY_PORT',
+    // the family's prefix without its suffix, and its suffix without its prefix
+    'RAILWAY_SERVICE_WEB_HOST', 'RAILWAY_SERVICE_WEB', 'RAILWAY_SERVICE_', 'RAILWAY_SERVICE__URL', 'SERVICE_WEB_URL',
+    'RAILWAY_WEB_URL', 'XRAILWAY_SERVICE_WEB_URL', 'RAILWAY_SERVICE_WEB_URLX', 'railway_service_web_url',
+    // the family's shape carrying a credential word: refused by ENV_PATTERN_DENY
+    'RAILWAY_SERVICE_X_TOKEN_URL', 'RAILWAY_SERVICE_X_SECRET_URL', 'RAILWAY_SERVICE_API_KEY_URL',
+    'RAILWAY_SERVICE_DB_PASSWORD_URL',
+    // any *_TOKEN / *_SECRET, Railway-prefixed or not
+    'RAILWAY_SERVICE_WEB_TOKEN', 'RAILWAY_SERVICE_WEB_SECRET', 'GITHUB_TOKEN', 'SESSION_SECRET', 'PUSH_SECRET',
+    'CHART_EDGE_SECRET', 'DATABASE_URL', 'NODE_OPTIONS', 'PINE_RUNTIME_SERVICE_URL',
+  ]
+  for (const platform of ['linux', 'win32']) {
+    for (const name of refused) {
+      assert.equal(envNameAdmitted(name, platform), false, `${name} on ${platform}`)
+      const s = envRefusal({ ...base, [name]: 'leak-value-xyz' }, platform)
+      assert.ok(s && s.includes(name), `${name} refuses the boot on ${platform}`)
+      assert.ok(!s.includes('leak-value-xyz') && !s.includes(SECRET), `names only: ${name}`)
+    }
+  }
+  // exactly one pattern, anchored at both ends
+  assert.equal(ENV_ALLOWLIST_PATTERNS.length, 1)
+  assert.equal(String(ENV_ALLOWLIST_PATTERNS[0]), String(/^RAILWAY_SERVICE_[A-Z0-9_]+_URL$/))
+  // the exact list still carries no credential-looking name beyond the one key, and the new exact name
+  assert.ok(ENV_ALLOWLIST.includes('RAILWAY_BETA_ENABLE_RUNTIME_V2'))
+  assert.equal(ENV_ALLOWLIST.filter((k) => /TOKEN|SECRET|KEY|PASSWORD|CREDENTIAL/.test(k)).join(','), 'PINE_RUNTIME_SERVICE_SECRET')
 })
 
 test('env allowlist, WINDOWS ONLY: SYSTEMROOT is admitted on win32 and nowhere else; nothing else is admitted', () => {

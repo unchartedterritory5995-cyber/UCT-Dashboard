@@ -1,0 +1,90 @@
+# promotion-gate: no — pull-request only. The master deploy gate's bars-rails job runs the same list on master and is
+#   the deploy blocker; this job only moves the same red from after the merge to before it.
+#
+# THE MASTER DEPLOY GATE'S BARS RAILS, ON THE PULL REQUEST.
+#
+# WHY (2026-11-22). Measured over 2026-11-14 -> 11-22: 1,002 gate runs, 48 red, 18 red episodes, master red for 19.6 h.
+# Every red episode whose cause could be traced was ONE pull request whose failing check had never run on that pull
+# request: the check ran only in the gate, after the merge. (None was traced to two pull requests breaking each other.)
+# gate-static-rails-pr.yml (11-20) closed that gap for the gate job's static steps and derived-inventories.yml (11-20)
+# for the derived inventories. The gate's bars-rails job was the last gate job with no pull-request run of its own:
+#   * #2365 changed tests/test_bars_since_index_scan.py, merged with every check green, and the gate went red on that
+#     very file (gate run 44898232124); #2369 reverted it.
+#   * 12 of the 48 red gate runs in the window were this job.
+#
+# WHAT RUNS. The gate job's own steps, byte for byte: the `bars-rails` job below is a copy of
+# master-deploy-gate.yml's, and tests/test_bars_deploy_gate.py fails when the two differ in any step or in the
+# timeout. The list of files is tools/bars_gate_rails.py's, so a new bars rail runs here the day it lands.
+#
+# CI COST. ~8 minutes, one job. Path-filtered to what the bars rails read (the gated files import api.* and walk
+# services/ and tools/), and a newer push to the pull request cancels its older run. Never a push trigger: the gate
+# owns master.
+# ⚠️ A pull_request run tests the MERGE with master: when master itself is red on a bars rail, this is red too.
+name: bars rails (PR)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'api/**'
+      - 'services/**'
+      - 'tools/**'
+      - 'tests/test_bars_*.py'
+      - 'tests/test_bar_*.py'
+      - 'tests/test_index_developing_bar.py'
+      - 'tests/test_intraday_tail_currentness.py'
+      - 'tests/test_canonical_address_book.py'
+      - 'tests/conftest.py'
+      - 'app/src/lib/todayPackClient.js'
+      - 'app/src/components/chart/engine/ast/closedTable.json'
+      - 'app/src/components/chart/engine/ast/timeframeLabels.json'
+      - 'requirements.txt'
+      - 'app/package-lock.json'
+      - '.github/workflows/bars-rails-pr.yml'
+      - '.github/workflows/master-deploy-gate.yml'
+
+permissions:
+  contents: read
+
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
+# workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
+# is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  bars-rails:
+    name: Bars rails (the critical path)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install the bars rails' dependencies
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet -r requirements.txt
+          (cd app && npm ci --no-audit --no-fund)
+
+      - name: Bars rails (tools/bars_gate_rails.py)
+        run: |
+          set -euo pipefail
+          files="$(python tools/bars_gate_rails.py)"
+          test -n "$files"
+          echo "bars rails: $(echo "$files" | wc -w) files"
+          python -m pytest $files -q -p no:cacheprovider
