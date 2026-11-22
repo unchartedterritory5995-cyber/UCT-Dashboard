@@ -170,6 +170,8 @@ export const PANEL_IMPORTERS = {
   Mergers: () => import('./panels/MergersPanel'),
   // IDXC (2026-11-21): S&P 500, Nasdaq 100 and Dow additions and removals, or one stock's own
   IndexChanges: () => import('./panels/IndexChangesPanel'),
+  // EEHSC (2026-11-21): estimate revisions by sector among the stocks UCT tracks: raised, cut, held, net breadth
+  RevisionBreadth: () => import('./panels/RevisionBreadthPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),

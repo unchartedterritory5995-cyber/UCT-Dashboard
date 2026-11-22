@@ -668,6 +668,16 @@ export const FUNCTIONS = [
   { code: 'IDXC', label: 'Index changes (additions and removals)', group: 'Market',
     ticker: { panel: 'IndexChanges', args: [{ kind: 'marketView', prop: 'view' }, { kind: 'idxcIndex', prop: 'index' }] },
     market: { panel: 'IndexChanges', args: [{ kind: 'marketView', prop: 'view' }, { kind: 'idxcIndex', prop: 'index' }] } },
+  // EEHSC (2026-11-21): estimate revisions by sector. Among the stocks UCT tracks (the S&P 500 list the estimate job
+  // follows and the stocks members opened EEH on; not the whole market), how many had the consensus for their next
+  // fiscal quarter raised, cut or held over 7 or 30 days, by sector, with net breadth and the largest raises and cuts
+  // (GET /api/research/estimate-history, the market read of EEH's own snapshot store, behind EEH's switch).
+  // `EEHSC 7D REVENUE`. Not a GRPS view: another population (at most 600 tracked stocks, not the universe) behind another
+  // switch. EEH for one stock, EEHSC for every sector. Not in the site's universe, and no word members type is within
+  // the command line's close-spelling reach of it (a four-letter EEHS came up before PEER for "peers").
+  { code: 'EEHSC', label: 'Estimate revisions by sector', group: 'Market',
+    market: { panel: 'RevisionBreadth', flag: 'estimateHistoryEnabled',
+      args: [{ kind: 'eehscWindow', prop: 'window' }, { kind: 'eehscMetric', prop: 'metric' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -1025,6 +1035,10 @@ const FUNCTION_WORDS = {
   IDXC: { example: 'IDXC', keywords: ['index changes', 'index additions', 'index removals', 'added to the s&p', 'removed from the index',
     'index rebalance', 'sp500 changes', 'index deletions', 'index history'],
     note: 'The provider\'s list of additions and removals with the stock replaced and the reason. One stock: NVDA IDXC. On a panel that follows a stock, IDXC MARKET is all three indexes.' },
+  // 'revisions' and 'estimate revisions' stay with EEH (one stock's history), 'breadth' with BRD.
+  EEHSC: { example: 'EEHSC', keywords: ['revision breadth', 'estimate revisions by sector', 'revisions by sector', 'sector revisions',
+    'earnings revisions by sector', 'estimate breadth'],
+    note: 'Among the stocks UCT tracks (the S&P 500 list and stocks members looked at), not the whole market. A change of more than 0.5% either way is a raise or a cut. One stock: NVDA EEH.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

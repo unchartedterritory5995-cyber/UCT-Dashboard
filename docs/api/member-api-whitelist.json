@@ -4371,6 +4371,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "metric=eps, window=30",
+      "path": "/api/research/estimate-history",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}",
       "path": "/api/research/estimate-history/{sym}",
       "rate_limit_family": "research",
