@@ -309,7 +309,7 @@ function StockView({ sym, code, h, onH, scope, inPanel }) {
     <>
       {read.error ? <p className={styles.note} role="status" data-testid="terminal-seth-stale-read">{failureText(read.error, SETH_WHAT)} Showing the last read.</p> : null}
       <p className={styles.lede} data-testid="terminal-seth-stock-summary">
-        <PanelSymbol sym={sym} className={styles.sym} />{` ${stockLine(view)}`}
+        <PanelSymbol sym={sym} className={styles.sym} /><span>{` ${stockLine(view)}`}</span>
       </p>
       {view.phases.hindsight ? <p className={own.caveat} data-testid="terminal-seth-hindsight">{view.phases.hindsight}</p> : null}
       {view.signals.length ? (

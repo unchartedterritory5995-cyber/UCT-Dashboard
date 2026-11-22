@@ -116,7 +116,9 @@ def test_a_build_may_start_only_inside_the_quiet_span_with_room_left():
     assert S.build_window_open(TUESDAY_NIGHT)
     assert not S.build_window_open(TUESDAY_NOON)
     assert not S.build_window_open(_et(2031, 6, 10, 6, 30))       # quiet now, busy within the margin
-    assert S.build_window_open(_et(2031, 6, 10, 5, 30))
+    assert not S.build_window_open(_et(2031, 6, 10, 5, 40))       # the 90-minute margin runs past 07:00
+    assert S.build_window_open(_et(2031, 6, 10, 5, 0))
+    assert S.BUILD_MARGIN_S == 90 * 60
 
 
 def test_the_window_and_the_bounded_read_cover_the_years_and_the_longest_warm_up():
