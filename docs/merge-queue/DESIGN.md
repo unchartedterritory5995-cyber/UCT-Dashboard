@@ -48,7 +48,7 @@ with the `merge_queue` rule (merge method MERGE, 5 builds at once, groups of 1 t
 | Queued while its checks were running | Auto-merge was armed and the pull request joined the queue by itself 54 s later, when they passed. |
 | A required COMMIT STATUS posted through the API | Honoured on the merge group's commit: a `success` status let two entries land; a `failure` status removed its entry about 70 s after it was queued, without waiting for the other checks, and the entry behind was rebuilt and landed. This is how `agent-ci-required` is posted today. |
 | Required checks split over two rulesets | Both enforced: with the queue rule in one ruleset and a required check in another, an entry failing that check was removed and the next one landed. |
-| The Agent draft itself (#2501), round 4 | `agent-ci-queue.yml` and the deciding tools ran byte for byte on real merge groups, with a generated 18-job stand-in for `agent-ci.yml`: an Agent-path entry landed ("all 18 Agent jobs passed on the merge group's commit"), two plain entries landed ("no Agent paths changed"), a failing-Agent entry and a self-protected entry were removed. The real Agent suite has not run inside a merge group. |
+| The Agent draft itself (#2501), round 4 | `agent-ci-queue.yml` and the deciding tools ran byte for byte on real merge groups, with a generated 18-job stand-in for `agent-ci.yml`: an Agent-path entry landed ("all 18 Agent jobs passed on the merge group's commit"), two plain entries landed ("no Agent paths changed"), a failing-Agent entry and a self-protected entry were removed. Round 5 repeated it at `998db51f39` with the corrected rule of 3.4: a self-protected entry with no Agent path landed ("no Agent paths changed (1 self-protected path(s) touched, no Agent evidence needed)"), and one with an Agent path was removed. The real Agent suite has not run inside a merge group. |
 
 ## 3. Design
 
@@ -111,8 +111,9 @@ copy. The design keeps today's rule, no weaker and no stricter:
 - A queued pull request that touches a self-protected path and NO Agent path needs no Agent evidence and is
   not held. The status description says how many self-protected paths it touched.
 - Measured on 2026-11-17 to 11-21 (718 merges): 47 touch a self-protected path, 35 of them touch no Agent
-  path, 12 touch both (about 2 to 3 a day, every one an edit to the Agent program's own CI machinery:
-  `agent-ci.yml`, `tools/agent_ci_*.py`, the shard timings, `app/scripts/chartLibraryPatch.mjs`).
+  path, 12 touch both (about 2 to 3 a day). Nine of the 12 edit the Agent program's own CI machinery
+  (`agent-ci.yml`, `tools/agent_ci_*.py`, the shard planner and its timings); three edit
+  `app/scripts/chartLibraryPatch.mjs`, a script the vite config imports, alongside Agent code.
   The first draft of this section failed all 47; that would have sent about 9 ordinary pull requests a day to
   an admin bypass.
 - `.github/workflows/agent-ci.yml` and `tools/agent_*` are in the Agent path list already, so editing them
