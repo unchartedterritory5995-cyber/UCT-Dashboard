@@ -333,8 +333,24 @@ def _new_high_dates():
     return strict
 
 
+def _run_counts():
+    """A run of closes each above the close 4 bars earlier, counted 1 to 9 and starting again at 1 after 9; 0 where
+    the run is broken (and on the first four bars, which have no close 4 bars earlier)."""
+    out, n = [], 0
+    for i in range(N):
+        up = i >= 4 and C[i] > C[i - 4]
+        n = (1 if n >= 9 else n + 1) if up else 0
+        out.append(n)
+    return out
+
+
 def drawn_rules(sid):
-    """{numbers: [(what, [values any of which is right])], words: [(what, must, must_not)], labels: (what, dates, text or None)}"""
+    """{numbers: [(what, [values any of which is right])], words: [(what, must, must_not)], labels: (what, dates, text or None),
+    numbers_on_bars: (what, {day: the whole number written on that bar})}"""
+    if sid == 'count-on-bars-01':
+        counts = _run_counts()
+        return {'numbers_on_bars': ('the count written on each bar of a run (1 to 9, starting again at 1 after 9)',
+                                    {T[i]: counts[i] for i in range(N) if counts[i] > 0})}
     if sid == 'i01':
         v = _atr_variants(14)
         return {'numbers': [('ATR 14 on the newest bar', [a[LAST] for _n, a in v if a[LAST] is not None]),
@@ -488,6 +504,35 @@ def check_drawn(sid, s):
         ok = bool(row) and any(word in (c or '').lower() for c in row) and not any(other in (c or '').lower() for c in row)
         _say(f"  {'RIGHT' if ok else 'CHECK'}  table row for {what}: expected {word.upper()}; row {row}")
         good = good and ok
+    if 'numbers_on_bars' in rules:
+        what, want = rules['numbers_on_bars']
+        days = sorted(want)
+        # (a) one LABEL per bar, each showing its own bar's number (the newest ones, when the chart keeps only those)
+        got = sorted(str(l['x'])[:10] for l in labels)
+        kept = days[-len(got):] if got else []
+        where = bool(got) and got in (days, kept)
+        off = [l for l in labels if not _shows([l['text'] or ''], float(want.get(str(l['x'])[:10], float('nan'))))]
+        by_labels = where and not off
+        # (b) one MARK per number: a fixed text that IS the number, on exactly the bars of that number
+        marks, cols = s.get('marks') or {}, s.get('columns') or {}
+        on = lambda key: {T[i] for i, v in enumerate(cols.get(key) or []) if v}  # noqa: E731
+        missing = [v for v in sorted(set(want.values()))
+                   if not any(str(m.get('text') or '').strip() == str(v) and on(k) == {d for d, x in want.items() if x == v} for k, m in marks.items())]
+        by_marks = bool(marks) and not missing
+        if by_labels:
+            note = f'a label on {"all " + str(len(days)) if got == days else "the newest " + str(len(got)) + " of " + str(len(days))} bars, each showing its number'
+        elif by_marks:
+            note = f'{len(set(want.values()))} marks, each a fixed number on exactly its bars'
+        elif labels:
+            note = (f'{len(got)} label(s) against {len(days)} bars by hand' + ('' if where else '; NOT on the bars of the run')
+                    + (f'; {len(off)} show another number, e.g. {off[0]}' if off else ''))
+        elif marks:
+            note = (f'no label; the marks write {sorted(set(str(m.get("text")) for m in marks.values()))}: '
+                    f'no mark is the number {missing[0]} on exactly its bars' + (f' ({len(missing)} of {len(set(want.values()))} numbers have none)' if len(missing) > 1 else ''))
+        else:
+            note = 'nothing is written on the bars: no label and no mark'
+        _say(f"  {'RIGHT' if by_labels or by_marks else 'CHECK'}  {what}: {note}")
+        good = good and (by_labels or by_marks)
     if 'labels' in rules:
         what, dates, text = rules['labels']
         got = sorted(str(l['x'])[:10] for l in labels)
@@ -521,6 +566,7 @@ ASKED = {'h03': {'plot'}, 'h05': {'plotshape'}, 'i01': {'plot', 'table'}, 'i02':
          'i04': {'plot', 'label'}, 'i05': {'plot', 'table'}, 'i06': {'plot', 'label'},
          'j01': {'plot'}, 'j02': {'plot'}, 'j03': {'plot'}, 'j04': {'plot'}, 'j05': {'plot'}, 'j06': {'table'},
          'l01': {'line', 'plot'}, 'l02': {'box'}, 'l03': {'line'}, 'l04': {'box'}, 'l05': {'line', 'plot'}, 'l06': {'label'},
+         'count-on-bars-01': {'label', 'plotchar', 'plotshape'},
          'k01': {'table'}, 'k02': {'plot'}, 'k03': {'plot', 'background'}, 'k04': {'plot', 'table'}, 'k05': {'plot'}, 'k06': {'plot'}}
 #: ids whose column rules are DIFFERENT columns that must all be there, not readings of one
 NEED_ALL = {'i05'}
@@ -531,7 +577,7 @@ def has_rule(case_id):
 
 
 def drawn_rules_known(case_id):
-    return case_id in {'i01', 'i02', 'i03', 'i04', 'i05', 'i06', 'j06', 'k01', 'k04', 'l01', 'l02', 'l03', 'l04', 'l05', 'l06'}
+    return case_id in {'i01', 'i02', 'i03', 'i04', 'i05', 'i06', 'j06', 'k01', 'k04', 'l01', 'l02', 'l03', 'l04', 'l05', 'l06', 'count-on-bars-01'}
 
 
 def code_of(source):

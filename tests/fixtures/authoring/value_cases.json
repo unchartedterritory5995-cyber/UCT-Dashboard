@@ -12011,6 +12011,33 @@
    }
   },
   {
+   "id": "count-on-bars-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Count runs of closes that are each above the close 4 bars earlier, and write the count above each bar of the run as a number from 1 to 9, starting again at 1 after 9 and stopping when the run breaks",
+   "rule": {
+    "digest": "a81f7fe966560a0c",
+    "history": [
+     {
+      "digest": "a81f7fe966560a0c",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "6783fe2c1a"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The script writes NO number: `plotchar(cnt > 0 ? cnt : na, \"Count\", \"\", location.abovebar)` draws one fixed mark on every bar of the run (an empty character is the engine's default mark), so every bar reads the same and none reads its count. The count itself is right. The script document now says a number that changes bar to bar is written with a label, and that plotchar and plotshape draw one fixed character per call.",
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"TD-style setup count\", overlay=true)\nlookback = input.int(4, \"Bars back to compare\", minval=1)\nmaxCount = input.int(9, \"Count resets after\", minval=1)\nup = close > close[lookback]\nvar int cnt = 0\nif up\n    cnt := cnt >= maxCount ? 1 : cnt + 1\nelse\n    cnt := 0\nplotchar(cnt > 0 ? cnt : na, \"Count\", \"\", location.abovebar, color=color.green, size=size.tiny)\nplot(cnt, \"Count value\", color=color.new(color.gray, 100))\n"
+    }
+   }
+  },
+  {
    "id": "wall-01",
    "lane": "wall",
    "words": "Plot the put/call ratio for this stock's options under the chart.",
