@@ -438,6 +438,34 @@ def coverage(def_hash: str, tf: Any, as_of: Any) -> Optional[dict]:
     return out
 
 
+def record_refusal(ref_key: str, tf: Any, as_of: Any, *, gate: str, detail: str,
+                   refused_at: Optional[float] = None) -> bool:
+    """TRACK 6 item 2b: the receipt of a definition the sweep refused AT RESOLUTION, by name. ``True`` when
+    it is the first for ``(ref_key, tf)`` (the session it was first refused for is kept)."""
+    if not isinstance(ref_key, str) or not ref_key:
+        raise ValueError(f"ref_key must be a non-empty str, got {ref_key!r}")
+    if not isinstance(gate, str) or not gate:
+        raise ValueError(f"gate must be a non-empty str, got {gate!r}")
+    code, day = _normalise_tf(tf), _normalise_as_of(as_of)
+    stamp = float(refused_at) if refused_at is not None else time.time()
+    _ensure()
+    with snapshot_db._WRITE_LOCK, contextlib.closing(snapshot_db.connect()) as conn:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO scan_refused (ref_key, tf, as_of, gate, detail, refused_at) "
+            "VALUES (?,?,?,?,?,?)", (ref_key, code, day, gate, str(detail or "")[:200], stamp))
+        conn.commit()
+        return cur.rowcount == 1
+
+
+def refusal(ref_key: str, tf: Any) -> Optional[dict]:
+    """The refusal receipt for ``(ref_key, tf)``, or ``None`` (never refused under this key)."""
+    code = _normalise_tf(tf)
+    _ensure()
+    with contextlib.closing(snapshot_db.connect()) as conn:
+        row = conn.execute("SELECT * FROM scan_refused WHERE ref_key=? AND tf=?", (ref_key, code)).fetchone()
+    return dict(row) if row is not None else None
+
+
 # --------------------------------------------------------------------------- #
 # the latest-coverage primitives (Wave 4 Task 1)
 # --------------------------------------------------------------------------- #

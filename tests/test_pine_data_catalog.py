@@ -37,11 +37,22 @@ def test_the_stale_rows_were_restated_in_their_own_unit():
     """⚰️ Was `test_s4_0_restates_no_stale_row` (coordinator ruling C1, 2026-11-19: the stale rows switch other
     consumers and are their own unit). That unit landed the same day: the register's 2026-09-19 note puts the DDLA /
     Bus column in force, so FMP earnings (T-35/T-36) and Massive reference (T-07) read LA. Massive derived analytics
-    stays R: ESC-03 (does the Business grant reach Derived Works) is an open owner question."""
+    was held at R until ESC-03 (does the Business grant reach Derived Works) was ANSWERED BY THE OWNER 2026-11-22: it
+    reads LA for member display since."""
     assert plc.licensing_class_for("fmp", "earnings") == "LA"
     assert plc.entry_for("fmp", "earnings").register_row == "T-35/T-36"
     assert plc.licensing_class_for("massive", "reference") == "LA"
-    assert plc.licensing_class_for("massive", "derived_analytics") == "R"
+    assert plc.licensing_class_for("massive", "derived_analytics") == "LA"
+
+
+def test_esc03_reaches_exactly_the_three_families_on_derived_analytics():
+    """ESC-03 ANSWERED BY THE OWNER 2026-11-22 moves one pair; the families resting on it are exactly these three
+    (test_today_by_name holds every family's decision by name, so a widened flip goes red there)."""
+    c = _cat()
+    assert {f for f, s in c["families"].items() if (s["vendor"], s["dataClass"]) == ("massive", "derived_analytics")}         == {"uct_breadth", "uct_rs_rating", "uct_rs_line"}
+    # the catalogue's own O2 rule is untouched: a value never leaves the member's chart (alerts, exports, shares,
+    # model prompts are their own rows)
+    assert c["rules"]["valuesLeaveProduct"] is False
 
 
 def test_every_generated_licence_block_equals_the_live_table():
@@ -119,12 +130,15 @@ def test_today_by_name():
     """What the catalogue serves and refuses today. If a register restatement moves a class, regenerate the blocks
     and update this list in that unit, on purpose. ⚰️ 2026-11-19 (ruling C1's own unit): earnings (T-35/T-36) and
     dividends / splits (T-07) moved from pine-data:licence to served when the table followed the register's 2026-09-19
-    note. Nothing reads the catalogue at runtime yet (S4-3 onward), so no member sees the change today."""
+    note. Nothing reads the catalogue at runtime yet (S4-3 onward), so no member sees the change today.
+    ⚰️ 2026-11-22: uct_rs_rating, uct_rs_line and uct_breadth (massive derived_analytics, T-11) moved from
+    pine-data:licence to served when ESC-03 was ANSWERED BY THE OWNER. The one runtime reader of uct_breadth is B1's
+    GET /api/pine/breadth/{spelling} (dark: admins unless PINE_BREADTH_SUPPLY_ENABLED=all)."""
     got = {fam: (cat.family_refusal(fam) or ("served",))[0] for fam in cat.families()}
     assert got == {
         "earnings": "served", "dividends": "served", "splits": "served",
         "financial": "served",
-        "uct_rs_rating": "pine-data:licence", "uct_rs_line": "pine-data:licence", "uct_breadth": "pine-data:licence",
+        "uct_rs_rating": "served", "uct_rs_line": "served", "uct_breadth": "served",
         "uct_cot": "pine-data:licence",
         "uct_short_interest": "pine-data:owner-hold", "uct_short_volume": "pine-data:owner-hold",
         "uct_sentiment": "pine-data:licence",

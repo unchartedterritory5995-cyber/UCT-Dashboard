@@ -31,6 +31,11 @@ import {
   saveDraft, showDraftPreview, renameDraft, discardDraft,
 } from '../../components/chart/builder/agentAuthoring'
 
+// (H-RDR-1) the "every chart less the exclusions" set reader (spatialCheck.everyExceptSet), handed in by useAgent: this module
+// cannot import spatialCheck at load (an import cycle through the NL lexicon). Unset, no set is read (F5 asks, as before).
+let exceptSetOf = () => null
+export function setExceptSetReader(fn) { exceptSetOf = typeof fn === 'function' ? fn : () => null }
+
 const NEW = 'draft:new'
 const refOf = (key) => `draft:${key}`
 
@@ -285,6 +290,13 @@ export function multiChartAmbiguity(host, adds, text) {
   if (both && targets.length !== 2) return ask
   // "all charts" = every chart here; "both" on a two-chart board is those two
   if (targets.length === charts.length) return null
+  // (H-RDR-1) "all charts, but leave the top-left one alone" / "every chart except SPY": the words name the SET — every chart
+  // less the exclusions they place (spatialCheck.everyExceptSet; an exclusion it cannot place is no set: asked below / later)
+  if (!both) {
+    let set = null
+    try { set = exceptSetOf(text, charts, host?.charts?.selected?.() || null) } catch { set = null }
+    if (set?.refs?.length === targets.length && targets.every(t => set.refs.includes(t))) return null
+  }
   // otherwise the member must have named each one (its symbol or its position)
   const named = (c) => [c.symbol, c.position].filter(Boolean).some(w => new RegExp(`\\b${String(w).replace(/[^A-Za-z0-9]/g, '')}\\b`, 'i').test(text))
   return targets.every(t => named(charts.find(c => c.ref === t))) ? null : ask

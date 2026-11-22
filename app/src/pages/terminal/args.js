@@ -171,6 +171,11 @@ export const IDXC_INDEX_WORDS = Object.freeze({ 'S&P500': 'sp500', NASDAQ100: 'n
 // EEHSC (2026-11-21): copies of the panel model's words (functions.revisionBreadth.test.js pins each to its owner)
 export const EEHSC_WINDOW_WORDS = Object.freeze({ '7D': 7, '1W': 7, '30D': 30, '1M': 30 })
 export const EEHSC_METRIC_WORDS = Object.freeze({ EPS: 'eps', REVENUE: 'revenue', REV: 'revenue', SALES: 'revenue' })
+// PUBR: a copy of the panel model's section words (functions.publicRecords.test.js pins it to its owner). ALL is a stock
+// (Allstate), so the all-sections view is the bare command.
+export const PUBR_VIEW_WORDS = Object.freeze({
+  CONTRACTS: 'contracts', AWARDS: 'contracts', TRIALS: 'trials', FDA: 'fda', APPROVALS: 'fda', LOBBYING: 'lobbying',
+})
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -201,11 +206,11 @@ export const FUND_MAX_PEERS = 3
 // GRPS (2026-11-21): copies of the panel model's words (functions.groupStats.test.js pins each to its owner)
 export const GROUPS_KIND_WORDS = Object.freeze({ SECTOR: 'sector', SECTORS: 'sector', INDUSTRY: 'industry', INDUSTRIES: 'industry' })
 export const GROUPS_VIEW_WORDS = Object.freeze({
-  OVERVIEW: 'overview', GROWTH: 'growth', MARGINS: 'margins', MARGIN: 'margins', VALUATION: 'valuation', BREADTH: 'breadth', ALL: 'all',
+  OVERVIEW: 'overview', GROWTH: 'growth', MARGINS: 'margins', MARGIN: 'margins', VALUATION: 'valuation', BREADTH: 'breadth', RANK: 'rank', ALL: 'all',
 })
 const GROUPS_VIEW_DESCRIBE = Object.freeze({
   overview: 'the overview columns', growth: 'the growth columns', margins: 'the margin and return columns', valuation: 'the valuation columns',
-  breadth: 'the breadth columns', all: 'every column',
+  breadth: 'the breadth columns', rank: 'the weekly rank columns', all: 'every column',
 })
 const FUND_WORD_OF = Object.freeze(Object.fromEntries(Object.entries(FUND_METRIC_WORDS).map(([w, id]) => [id, w])))
 const fundMetricOf = (tok) => {
@@ -727,6 +732,16 @@ export const ARG_KINDS = {
     },
     describe: (v) => ({ sp500: 'the S&P 500', nasdaq100: 'the Nasdaq 100', dow: 'the Dow 30' })[v] || v,
   },
+  // ── PUBR (2026-11-22): the panel model's words (panels/publicRecordsModel.js; pinned by functions.publicRecords.test.js) ──
+  /** PUBR's section: one of the four in full; bare `PUBR` is all four. */
+  pubrView: {
+    takes: 'CONTRACTS, TRIALS, FDA or LOBBYING',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(PUBR_VIEW_WORDS, key) ? PUBR_VIEW_WORDS[key] : null
+    },
+    describe: (v) => ({ contracts: 'federal contracts', trials: 'clinical trials', fda: 'FDA approvals', lobbying: 'lobbying' })[v] || v,
+  },
   // ── FUND (2026-11-21): the panel model's words (panels/fundMetricsModel.js; pinned by functions.fundMetrics.test.js) ──
   /** FUND's line: ONE metric word draws that metric as a line (parseFundMetric). */
   fundMetric: {
@@ -788,7 +803,7 @@ export const ARG_KINDS = {
   },
   /** GRPS's column set. */
   groupsView: {
-    takes: 'a column set (OVERVIEW, GROWTH, MARGINS, VALUATION, BREADTH, ALL)',
+    takes: 'a column set (OVERVIEW, GROWTH, MARGINS, VALUATION, BREADTH, RANK, ALL)',
     parse: (tok) => {
       const key = String(tok ?? '').trim().toUpperCase()
       return Object.prototype.hasOwnProperty.call(GROUPS_VIEW_WORDS, key) ? GROUPS_VIEW_WORDS[key] : null

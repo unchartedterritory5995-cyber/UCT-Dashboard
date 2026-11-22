@@ -29,13 +29,29 @@ BREADTH (from stored daily closes, split-adjusted, price only):
     `NEAR_HIGH` of the highest of the last `HIGH_SESSIONS` closes. All on CLOSING prices;
   * advance / decline: that day's close against the stock's previous stored close;
   * a stock counts on a day only when it has a close dated that session and enough closes for the measure.
+
+RANK HISTORY (2026-11-22; from the same stored closes, in the same pass):
+  * the points: the last session of each of the `RANK_WEEKS` calendar weeks before the newest session's week (the
+    Friday close, or the Thursday's when the Friday is a holiday), then the newest session itself; a week with no
+    session has no point;
+  * a stock's 6-month (3-month) change at a point: its close dated that session against its own close 126 (63)
+    stored sessions earlier, the RS rating's own lookbacks and formula (`rs_weighted_return.RS_TERMS` and
+    `period_return`), on the closes up to that day only (no look-ahead); none when it has no close that day, fewer
+    closes, or a base that is not a positive price;
+  * a group's figure at a point: the median of its members' changes, given only when at least `MIN_MEMBERS` members
+    have one; its rank: `rank` over the groups of its kind with a figure that week (highest first, ties share a
+    place), out of that many groups;
+  * the members are today's map at every point: the site keeps no history of group membership (survivorship).
 """
 from __future__ import annotations
 
 import math
 from array import array
+from bisect import bisect_right
 from datetime import date
 from typing import Iterable, Optional
+
+from api.services.rs_weighted_return import RS_TERMS
 
 MIN_MEMBERS = 5                 # a median or a share needs at least this many members with a value
 MAX_PERIOD_AGE_DAYS = 200       # asof.MAX_PERIOD_AGE: a point stops being in force once its period is older
@@ -372,3 +388,122 @@ class BreadthTally:
 def change_points(now: Optional[float], then: Optional[float]) -> Optional[float]:
     """The change between two shares, in percentage points; None when either is missing."""
     return None if now is None or then is None else round(now - then, 1)
+
+
+# ── rank history (2026-11-22) ────────────────────────────────────────────────────────────────
+
+#: bars back on a stock's own stored closes, from the RS rating's one table of them (never typed here a second time)
+_RS_BARS = {label: bars for label, bars, _w in RS_TERMS}
+#: the two measures a group is ranked by: the median 6-month change (the rank) and the median 3-month change
+RANK_MEASURES = (("m6", _RS_BARS["6m"]), ("m3", _RS_BARS["3m"]))
+RANK_PRIMARY = "m6"
+RANK_WEEKS = 52                 # the weekly points before the newest session's week
+RANK_BACK = (("w4", 4), ("w13", 13), ("w52", 52))   # the rank this many weekly points back, and the places moved since
+#: closes kept per stock for the rank: 52 weeks of sessions, the longest lookback before the oldest point, a margin
+RANK_TAIL = RANK_WEEKS * 5 + max(bars for _mid, bars in RANK_MEASURES) + 14
+NAN = float("nan")
+
+
+def _monday(o: int) -> int:
+    return o - date.fromordinal(o).weekday()
+
+
+def week_points(sessions) -> tuple:
+    """The rank's points as day ordinals, oldest first: the last session of each of the `RANK_WEEKS` calendar weeks
+    before the newest session's week (None for a week that holds no session), then the newest session. () when there
+    are no sessions."""
+    if not sessions:
+        return ()
+    newest = sessions[-1]
+    this_week = _monday(newest)
+    last_of: dict = {}
+    for o in sessions:                    # ascending: the week's last session wins
+        w = _monday(o)
+        if w < this_week:
+            last_of[w] = o
+    return tuple(last_of.get(this_week - 7 * k) for k in range(RANK_WEEKS, 0, -1)) + (newest,)
+
+
+def stock_changes(days, vals, points) -> array:
+    """One stock's change at each point, in percent: `[each measure's value at every point]`, measure by measure in
+    `RANK_MEASURES` order, NaN where there is none. At a point the stock needs a close dated that session; the change
+    is that close against its own close `bars` stored sessions earlier, `rs_weighted_return.period_return` on the
+    closes up to that day (nothing after the point is read). None with fewer closes or a base that is not positive."""
+    p_n = len(points)
+    out = array("d", [NAN]) * (len(RANK_MEASURES) * p_n)
+    if not len(days):
+        return out
+    for j, p in enumerate(points):
+        if p is None:
+            continue
+        i = bisect_right(days, p) - 1
+        if i < 0 or days[i] != p:
+            continue
+        current = vals[i]
+        for m, (_mid, bars) in enumerate(RANK_MEASURES):
+            k = i - bars
+            if k < 0:
+                continue
+            ref = vals[k]
+            if ref > 0:
+                out[m * p_n + j] = (current - ref) / ref * 100.0
+    return out
+
+
+def group_rank_history(members: dict, n_points: int) -> tuple:
+    """Every group's median change and rank at each point, per measure. `members`: {group name: [each member's
+    `stock_changes`]}. Returns ({name: {measure: {"rank": [...], "median": [...], "n": [...]}}}, {measure: [groups
+    ranked at each point]}). A median needs `MIN_MEMBERS` members with a change at that point; the rank is `rank`
+    over the unrounded medians of that point (highest first, ties share a place); the stored median is rounded."""
+    out: dict = {name: {} for name in members}
+    ofs: dict = {}
+    for m, (mid, _bars) in enumerate(RANK_MEASURES):
+        base = m * n_points
+        exact: dict = {}
+        for name, arrs in members.items():
+            ns = [0] * n_points
+            med: list = [None] * n_points
+            for j in range(n_points):
+                col = sorted(v for v in (a[base + j] for a in arrs) if v == v)       # NaN is not equal to itself
+                ns[j] = len(col)
+                if len(col) >= MIN_MEMBERS:
+                    med[j] = quantile(col, 0.5)
+            exact[name] = med
+            out[name][mid] = {"rank": [None] * n_points, "median": [_r(v, 1) for v in med], "n": ns}
+        of_line = [0] * n_points
+        for j in range(n_points):
+            for name, r in rank({name: exact[name][j] for name in members}).items():
+                out[name][mid]["rank"][j] = r["position"]
+                of_line[j] = r["of"]
+        ofs[mid] = of_line
+    return out, ofs
+
+
+def rank_summary(ranks, ofs, ns, medians, dates) -> dict:
+    """One group's rank on one measure: now (the last point), `RANK_BACK` points back with the change in places to now
+    (positive = climbed), and its best and worst point (the most recent one on a tie). A point: {position (None when
+    fewer than `MIN_MEMBERS` members have a change), of (groups ranked that week), n (members with a change), median,
+    date}; a week with no session, or before the history, is None."""
+    last = len(dates) - 1
+    out: dict = {"now": None, **{label: None for label, _b in RANK_BACK}, "best": None, "worst": None, "weeks_ranked": 0}
+    if last < 0:
+        return out
+
+    def point(i: int) -> dict:
+        return {"position": ranks[i], "of": ofs[i], "n": ns[i], "median": medians[i], "date": dates[i]}
+
+    now = out["now"] = point(last)
+    for label, back in RANK_BACK:
+        i = last - back
+        if i < 0 or dates[i] is None:
+            continue
+        then = point(i)
+        then["change"] = (then["position"] - now["position"]
+                          if then["position"] is not None and now["position"] is not None else None)
+        out[label] = then
+    have = [i for i in range(last + 1) if ranks[i] is not None]
+    if have:
+        out["best"] = point(min(have, key=lambda i: (ranks[i], -i)))
+        out["worst"] = point(max(have, key=lambda i: (ranks[i], i)))
+    out["weeks_ranked"] = len(have)
+    return out
