@@ -11,14 +11,21 @@ What is pinned:
     packed; after the pass the pack holds the provider's whole session and the forming values are gone;
     a write after the proof voids it;
   * the pass asks the provider for 5m and 15m only, derives 30m / 60m from the STORED 15m with the serve
-    path's own derivation, never runs before the extended session has ended, stops at its deadline,
+    path's own derivation over exactly the days it refetched, runs only in the quiet gap between its
+    session's extended close and the next session's open, stops at its deadline and at the gap's end,
     leaves a series it cannot join alone, and costs nothing the second time;
+  * an answer is WHOLE only when it holds bars of the as-of day and no other record of that day (the
+    stored 1m, 5m, 15m, the other timeframe's answer) shows a trade in a later bucket; an empty answer
+    never proves anything; a wholesale store change voids every proof;
+  * a refused gated timeframe is retried on later ticks, bounded, also after a forced rebuild;
   * the measure (symbols whose last bar is the session's last regular bucket) on full, short and
     early-close fixtures;
   * the refusal: a gated timeframe under either floor is not published and not named, the others are;
   * D and 1m are not gated and not refused with them.
 """
 import json
+import logging
+import threading
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -30,6 +37,7 @@ from api.services import ffseed_onemin as onemin
 
 ET = ZoneInfo("America/New_York")
 WED, THU, FRI = date(2026, 11, 18), date(2026, 11, 19), date(2026, 11, 20)
+SAT, SUN, MON = date(2026, 11, 21), date(2026, 11, 22), date(2026, 11, 23)
 HALF = date(2026, 11, 27)                      # the day after Thanksgiving: the regular session ends 13:00
 RTH_BARS = {"5": 78, "15": 26, "30": 13, "60": 7}
 
@@ -71,8 +79,11 @@ def day_bars(d: date, step: int, first: int = 4 * 60, last: int = 20 * 60, v: in
     return [bar(et(d, m // 60, m % 60), 100 + m / 1000, v) for m in range(first, last, step)]
 
 
-def provider(calls: list, fail=(), empty=()):
-    """The vendor's aggregates at a timespan for whole ET days: every bucket of 04:00-20:00."""
+def provider(calls: list, fail=(), empty=(), cut=None):
+    """The vendor's aggregates at a timespan for whole ET days: every bucket of 04:00-20:00. `cut` =
+    {(symbol, tf): ET minute}: that answer's last day stops BEFORE that minute (a truncated answer)."""
+    cut = cut or {}
+
     def fetch(sym, tf, frm, to):
         calls.append((sym, tf, frm, to))
         if sym in fail:
@@ -82,25 +93,27 @@ def provider(calls: list, fail=(), empty=()):
         out, d = [], frm
         while d <= to:
             if ffseed.is_trading_day(d):
-                out += day_bars(d, int(tf))
+                out += day_bars(d, int(tf), last=cut.get((sym, tf), 20 * 60) if d == to else 20 * 60)
             d += timedelta(days=1)
         return out
     return fetch
 
 
 class FakeStore:
-    """An in-memory series store with the three facts the pass reads: rows, tails and a revision that
-    changes on every write."""
+    """An in-memory series store with the facts the pass reads: rows, tails and a revision that changes
+    on every write."""
 
     def __init__(self):
         self.rows, self.revs, self.writes = {}, {}, 0
+        self._lock = threading.Lock()
 
     def put(self, sym, tf, rows, checked_at=0.0):
-        held = self.rows.setdefault((sym, tf), {})
-        for b in rows:
-            held[int(b["t"])] = dict(b)
-        self.writes += 1
-        self.revs[(sym, tf)] = self.writes
+        with self._lock:
+            held = self.rows.setdefault((sym, tf), {})
+            for b in rows:
+                held[int(b["t"])] = dict(b)
+            self.writes += 1
+            self.revs[(sym, tf)] = self.writes
         return len(rows)
 
     def rev(self, sym, tf):
@@ -110,13 +123,16 @@ class FakeStore:
         held = self.rows.get((sym, tf))
         return max(held) if held else None
 
-    def first_ts(self, sym, tf):
-        held = self.rows.get((sym, tf))
-        return min(held) if held else None
+    def day_tail(self, sym, tf, d):
+        lo, hi = intraday.day_bounds(d)
+        ts = [t for t in self.rows.get((sym, tf), {}) if lo <= t < hi]
+        return max(ts) if ts else None
 
     def derive(self, sym, tf, from_ts):
-        base = [b for t, b in sorted(self.rows.get((sym, "15"), {}).items()) if t >= from_ts]
-        return bars_fetch._resample_derived(tf, base)      # the serve path's resampler
+        """`bars_fetch._derive_from_stored_base` over this store: its bucket start, resampler and filter."""
+        fb = bars_fetch._derived_bucket_start(tf, from_ts)
+        base = [b for t, b in sorted(self.rows.get((sym, "15"), {}).items()) if t > fb - 1]
+        return [b for b in bars_fetch._resample_derived(tf, base) if b["t"] >= fb]
 
     def read(self, sym, tf, count):
         rows = [b for _, b in sorted(self.rows.get((sym, tf), {}).items())][-count:]
@@ -124,7 +140,7 @@ class FakeStore:
 
     def kw(self, fetch, **more):
         return dict(fetch=fetch, derive=self.derive, store=self.put, rev=self.rev, last_ts=self.last_ts,
-                    first_ts=self.first_ts, n_workers=1, now=AFTER, **more)
+                    day_tail=self.day_tail, n_workers=1, now=AFTER, **more)
 
 
 def forming(d: date, at_h: int, at_m: int) -> dict:
@@ -180,46 +196,163 @@ def test_first_day_keeps_a_series_contiguous_or_leaves_it_alone():
 
 def test_the_pass_fetches_5m_and_15m_and_derives_30m_and_60m_from_the_stored_15m():
     st, calls = FakeStore(), []
+    month_back = [bar(et(date(2026, 10, 20), 10, 0))]
     for tf, rows in forming(FRI, 10, 16).items():
         st.put("CUR", tf, rows)                      # holds part of the session, a forming bucket last
+        st.put("BAD", tf, rows)
+        st.put("GONE", tf, rows)                     # held rows, then an EMPTY answer
+        st.put("LAG", tf, forming(THU, 10, 16)[tf] if tf == "30" else rows)   # its 30m stopped a day earlier
+        st.put("FAR30", tf, month_back if tf == "30" else rows)                # its 30m is beyond every reach
     for tf, rows in forming(THU, 10, 16).items():
         st.put("YDAY", tf, rows)                     # stopped yesterday
-    for tf in ("5", "15", "30", "60"):
-        st.put("OLD", tf, [bar(et(date(2026, 10, 20), 10, 0))])      # a month back: beyond every reach
-        st.put("BAD", tf, forming(FRI, 10, 16)[tf])
-        st.put("GONE", tf, forming(FRI, 10, 16)[tf])                 # held rows, then an EMPTY answer
-    st.put("HOLE", "30", forming(THU, 10, 16)["30"])                 # a 30m tail its (absent) 15m cannot join
-    stats = intraday.complete_session(FRI, ["CUR", "YDAY", "OLD", "BAD", "EMPTY", "NEW", "HOLE", "GONE"],
-                                      **st.kw(provider(calls, fail={"BAD"}, empty={"EMPTY", "GONE"})))
-    # the provider is asked at 5m and at 15m, never for a derived timeframe, and from the stored tail's day
+        st.put("OLD", tf, month_back)                # a month back: beyond every reach
+    syms = ["CUR", "YDAY", "OLD", "BAD", "EMPTY", "NEW", "GONE", "LAG", "FAR30"]
+    stats = intraday.complete_session(FRI, syms, **st.kw(provider(calls, fail={"BAD"}, empty={"EMPTY", "GONE"})))
+    # the provider is asked at 5m and at 15m, never for a derived timeframe; from the stored tail's day;
+    # and the 15m from the OLDEST of the 15m / 30m / 60m tails, because those days are re-derived
     assert sorted(calls) == sorted(
-        [(s, tf, FRI, FRI) for s in ("CUR", "BAD", "EMPTY", "NEW", "HOLE", "GONE") for tf in ("5", "15")]
-        + [("YDAY", tf, THU, FRI) for tf in ("5", "15")])
-    assert stats["requests"] == 14
+        [(s, tf, FRI, FRI) for s in ("CUR", "BAD", "EMPTY", "NEW", "GONE", "FAR30") for tf in ("5", "15")]
+        + [("YDAY", tf, THU, FRI) for tf in ("5", "15")] + [("LAG", "5", FRI, FRI), ("LAG", "15", THU, FRI)])
+    assert stats["requests"] == 16
     for tf in ("5", "15"):
         t = stats["tfs"][tf]
-        got = (t["done"], t["failed"], t["short_answer"], t["behind"], t["empty"], t["current"])
-        assert got == (5, 1, 1, 1, 1, 0), tf
+        got = (t["done"], t["failed"], t["empty"], t["behind"], t["short_answer"], t["current"])
+        assert got == (5, 1, 2, 1, 0, 0), tf
     t30, t60 = stats["tfs"]["30"], stats["tfs"]["60"]
-    assert (t30["done"], t30["no_base"], t30["behind"], t30["empty"]) == (4, 3, 1, 1)      # HOLE: behind
-    assert (t60["done"], t60["no_base"], t60["behind"], t60["empty"]) == (5, 3, 0, 1)
+    assert (t30["done"], t30["no_base"], t30["behind"], t30["empty"]) == (4, 4, 1, 0)      # FAR30: behind
+    assert (t60["done"], t60["no_base"], t60["behind"], t60["empty"]) == (5, 4, 0, 0)
     proven = intraday.known_complete(FRI, rev=st.rev)
-    assert all(proven(s, tf) for s in ("CUR", "YDAY", "NEW", "EMPTY") for tf in ffseed.GATED_TFS)
-    # nothing stored and an empty answer: complete (and nothing to pack). Rows held and an answer that
-    # does not reach them: NOT complete, the held rows may be the forming ones
-    assert not any(proven(s, tf) for s in ("OLD", "BAD", "GONE") for tf in ffseed.GATED_TFS)
+    assert all(proven(s, tf) for s in ("CUR", "YDAY", "NEW", "LAG") for tf in ffseed.GATED_TFS)
+    # an EMPTY answer never proves anything: not with nothing stored, not with rows held
+    assert not any(proven(s, tf) for s in ("OLD", "BAD", "EMPTY", "GONE") for tf in ffseed.GATED_TFS)
     assert st.rows[("GONE", "15")] == {b["t"]: b for b in forming(FRI, 10, 16)["15"]}
-    assert proven("HOLE", "15") and proven("HOLE", "60") and not proven("HOLE", "30")
-    assert st.rows[("HOLE", "30")] == {b["t"]: b for b in forming(THU, 10, 16)["30"]}      # left alone
-    # the stored derived buckets ARE the resample of the stored 15m, forming buckets replaced, both days
-    for sym, days in (("CUR", (FRI,)), ("YDAY", (THU, FRI)), ("NEW", (FRI,))):
+    assert ("EMPTY", "5") not in st.rows
+    assert proven("FAR30", "15") and proven("FAR30", "60") and not proven("FAR30", "30")
+    assert st.rows[("FAR30", "30")] == {b["t"]: b for b in month_back}                     # left alone
+    # the stored derived buckets ARE the resample of the stored 15m over the refetched days, forming
+    # buckets replaced: LAG's 30m from THURSDAY, the day its own tail was on
+    for sym, days in (("CUR", (FRI,)), ("YDAY", (THU, FRI)), ("NEW", (FRI,)), ("LAG", (THU, FRI))):
         whole15 = [b for d in days for b in day_bars(d, 15)]
+        assert [b for _, b in sorted(st.rows[(sym, "15")].items())] == whole15, sym
         for tf in ("30", "60"):
             want = {b["t"]: b for b in bars_fetch._resample_derived(tf, whole15)}
             got = {t: b for t, b in st.rows[(sym, tf)].items() if t >= et(days[0], 4, 0)}
             assert got == want, (sym, tf)
         assert st.rows[(sym, "30")][et(FRI, 10, 0)]["v"] == 2000        # two whole 15m bars, not 1000 + 7
         assert st.last_ts(sym, "5") == et(FRI, 19, 55)
+
+
+def test_an_answer_is_whole_only_when_no_other_record_of_the_day_shows_a_later_trade():
+    st, calls = FakeStore(), []
+    for tf, rows in forming(FRI, 10, 16).items():
+        st.put("BEHIND", tf, rows)                    # held to 10:15
+    st.put("MIN", "1", day_bars(FRI, 1, last=16 * 60))   # its stored minutes run to 15:59
+    stops = {("BEHIND", "5"): 9 * 60 + 50,            # NOT empty, and stops before the held 10:15
+             ("FIVE", "5"): 13 * 60,                  # nothing held: the 5m answer stops at 12:55, the 15m is whole
+             ("FIFT", "15"): 13 * 60,                 # the 15m answer stops at 12:45, the 5m is whole
+             ("MIN", "5"): 13 * 60, ("MIN", "15"): 13 * 60,     # both stop together; the stored 1m says 15:59
+             ("THIN", "5"): 13 * 60, ("THIN", "15"): 13 * 60}   # both stop together and nothing says otherwise
+    stats = intraday.complete_session(FRI, ["BEHIND", "FIVE", "FIFT", "MIN", "THIN"],
+                                      **st.kw(provider(calls, cut=stops)))
+    t5, t15, t30 = stats["tfs"]["5"], stats["tfs"]["15"], stats["tfs"]["30"]
+    assert (t5["done"], t5["short_answer"]) == (2, 3)         # FIFT, THIN | BEHIND, FIVE, MIN
+    assert (t15["done"], t15["short_answer"]) == (3, 2)       # BEHIND, FIVE, THIN | FIFT, MIN
+    assert (t30["done"], t30["no_base"]) == (3, 2) and stats["tfs"]["60"]["done"] == 3
+    proven = intraday.known_complete(FRI, rev=st.rev)
+    assert [tf for tf in ffseed.GATED_TFS if proven("BEHIND", tf)] == ["15", "30", "60"]
+    assert [tf for tf in ffseed.GATED_TFS if proven("FIVE", tf)] == ["15", "30", "60"]
+    assert [tf for tf in ffseed.GATED_TFS if proven("FIFT", tf)] == ["5"]
+    assert [tf for tf in ffseed.GATED_TFS if proven("MIN", tf)] == []
+    # a symbol that simply stopped trading at 12:55 is complete: every record agrees on where it ended
+    assert [tf for tf in ffseed.GATED_TFS if proven("THIN", tf)] == ["5", "15", "30", "60"]
+    assert st.last_ts("THIN", "5") == et(FRI, 12, 55) and st.last_ts("THIN", "60") == et(FRI, 12, 30)
+    # a short answer writes nothing: the held rows stay, a new series is not started
+    assert st.rows[("BEHIND", "5")] == {b["t"]: b for b in forming(FRI, 10, 16)["5"]}
+    assert ("FIVE", "5") not in st.rows and ("FIFT", "15") not in st.rows and ("MIN", "5") not in st.rows
+    # the rule itself, on each grid (60m: the 09:30-anchored session hour)
+    assert intraday.later_trade("5", et(FRI, 15, 55), [("a", et(FRI, 15, 59))]) is None
+    assert intraday.later_trade("5", et(FRI, 15, 50), [("a", et(FRI, 15, 59))]) == ("a", et(FRI, 15, 59))
+    assert intraday.later_trade("15", et(FRI, 15, 45), [("a", et(FRI, 15, 55)), ("b", et(FRI, 16, 0))]) == \
+        ("b", et(FRI, 16, 0))
+    assert intraday.later_trade("60", et(FRI, 15, 30), [("a", et(FRI, 15, 59))]) is None
+    assert intraday.later_trade("60", et(FRI, 14, 30), [("a", et(FRI, 15, 30))]) == ("a", et(FRI, 15, 30))
+    assert intraday.last_bar_of_day(day_bars(THU, 5) + day_bars(FRI, 5, last=600), FRI) == et(FRI, 9, 55)
+    assert intraday.last_bar_of_day(day_bars(THU, 5), FRI) is None and intraday.last_bar_of_day([], FRI) is None
+
+
+def test_a_late_run_is_held_to_the_as_of_days_own_rows_and_an_empty_answer_never_proves():
+    """The store already holds a LATER day (the pass ran late): the stored tail is not of the as-of day,
+    and the answer is still held to the as-of day's own stored rows."""
+    st, calls = FakeStore(), []
+    for sym in ("LATE0", "LATE1", "LATE2"):
+        for tf, rows in forming(FRI, 10, 16).items():
+            st.put(sym, tf, rows)
+        for tf in ("5", "15"):
+            st.put(sym, tf, day_bars(MON, int(tf), last=9 * 60 + 45))
+    assert st.last_ts("LATE0", "5") == et(MON, 9, 40) and st.day_tail("LATE0", "5", FRI) == et(FRI, 10, 15)
+    stops = {("LATE1", "5"): 9 * 60 + 50, ("LATE1", "15"): 9 * 60 + 45}      # non-empty, short of 10:15
+    stats = intraday.complete_session(FRI, ["LATE0", "LATE1", "LATE2"],
+                                      **st.kw(provider(calls, empty={"LATE0"}, cut=stops)))
+    assert sorted(calls) == [(s, tf, FRI, FRI) for s in ("LATE0", "LATE1", "LATE2") for tf in ("15", "5")]
+    for tf in ("5", "15"):
+        t = stats["tfs"][tf]
+        assert (t["done"], t["empty"], t["short_answer"]) == (1, 1, 1), tf
+    proven = intraday.known_complete(FRI, rev=st.rev)
+    assert not any(proven(s, tf) for s in ("LATE0", "LATE1") for tf in ffseed.GATED_TFS)
+    assert all(proven("LATE2", tf) for tf in ffseed.GATED_TFS)
+    assert st.day_tail("LATE2", "5", FRI) == et(FRI, 19, 55) and st.day_tail("LATE2", "30", FRI) == et(FRI, 19, 30)
+    # nothing after the as-of day was resampled from 15m rows the pass did not read
+    assert st.day_tail("LATE2", "30", MON) is None and st.day_tail("LATE2", "60", MON) is None
+    assert st.day_tail("LATE2", "15", MON) == et(MON, 9, 30)
+
+
+def test_the_pass_runs_only_in_the_quiet_gap_between_its_session_and_the_next():
+    assert intraday.cannot_run(FRI, et(FRI, 16, 30)) == "session not settled"
+    assert intraday.cannot_run(FRI, et(FRI, 20, 0) + intraday.SETTLE_S - 1) == "session not settled"
+    for ok in (et(FRI, 20, 1), et(SAT, 12, 0), et(SUN, 23, 0), et(MON, 3, 59)):
+        assert intraday.cannot_run(FRI, ok) is None
+    for late in (et(MON, 4, 0), et(MON, 10, 0), et(MON, 21, 0), et(date(2026, 11, 24), 2, 0)):
+        assert intraday.cannot_run(FRI, late) == "a later session has begun (2026-11-23)"
+    # a holiday is not a session: Wednesday's gap runs through Thanksgiving to Friday 04:00
+    wed = date(2026, 11, 25)
+    assert intraday.cannot_run(wed, et(date(2026, 11, 26), 12, 0)) is None
+    assert intraday.cannot_run(wed, et(HALF, 4, 0)) == "a later session has begun (2026-11-27)"
+    st, calls = FakeStore(), []
+    stats = intraday.complete_session(FRI, ["AAA"], **{**st.kw(provider(calls)), "now": float(et(MON, 10, 0))})
+    assert stats["skipped"] == "a later session has begun (2026-11-23)" and calls == [] and stats["requests"] == 0
+    assert not intraday.known_complete(FRI, rev=st.rev)("AAA", "5")
+
+
+def test_a_pass_still_running_when_the_gap_closes_stops_there():
+    st, calls, t = FakeStore(), [], [0.0]
+    inner = provider(calls)
+
+    def slow(sym, tf, frm, to):
+        t[0] += 10.0                               # every provider call takes 10 s
+        return inner(sym, tf, frm, to)
+
+    # 15 s before Monday's extended open, the default 90-minute deadline
+    stats = intraday.complete_session(FRI, ["AAA", "BBB"], **{**st.kw(slow, clock=lambda: t[0]),
+                                                              "now": float(et(MON, 4, 0) - 15)})
+    assert [c[:2] for c in calls] == [("AAA", "5"), ("AAA", "15")]
+    assert stats["tfs"]["5"]["not_reached"] == 1 and stats["tfs"]["15"]["not_reached"] == 1
+    assert not intraday.known_complete(FRI, rev=st.rev)("BBB", "5")
+
+
+def test_two_workers_prove_every_symbol_once(monkeypatch):
+    monkeypatch.setattr(intraday, "_SAVE_EVERY", 7)             # the ledger is saved while both threads mark
+    st, calls = FakeStore(), []
+    syms = [f"S{i:02d}" for i in range(40)]
+    for sym in syms[::2]:
+        for tf, rows in forming(FRI, 10, 16).items():
+            st.put(sym, tf, rows)
+    stats = intraday.complete_session(FRI, syms, **{**st.kw(provider(calls)), "n_workers": 2})
+    assert stats["requests"] == 80 and len(calls) == 80 and len(set(calls)) == 80
+    assert [stats["tfs"][tf]["done"] for tf in ffseed.GATED_TFS] == [40, 40, 40, 40]
+    assert sum(sum(v for k, v in t.items() if k not in ("done", "rows")) for t in stats["tfs"].values()) == 0
+    proven = intraday.known_complete(FRI, rev=st.rev)             # read back from the file on disk
+    assert all(proven(s, tf) for s in syms for tf in ffseed.GATED_TFS)
+    assert all(st.last_ts(s, "30") == et(FRI, 19, 30) for s in syms)
 
 
 def test_the_pass_never_runs_before_the_extended_session_has_ended():
@@ -367,6 +500,72 @@ def test_a_store_holding_a_forming_bucket_is_never_packed_as_complete(store):
     assert (st["symbols"], st["incomplete"]) == (0, 1)
     data, st = ffseed.build_tf("60", [sym], FRI, "B2")
     assert (st["symbols"], st["incomplete"]) == (1, 0)
+
+
+def test_the_real_derivation_rebuilds_exactly_the_refetched_days(store):
+    """`bars_fetch._derive_from_stored_base` over more than one day, on the real store: Wednesday (not
+    refetched) is untouched, Thursday and Friday are the resample of the provider's whole 15m."""
+    w15 = day_bars(WED, 15)
+    for sym in ("ZZYDAY", "ZZLAG"):
+        bs.put_bars(sym, "5", day_bars(WED, 5))
+        bs.put_bars(sym, "15", w15)
+        for tf in ("30", "60"):
+            bs.put_bars(sym, tf, bars_fetch._resample_derived(tf, w15))
+    for tf, rows in forming(THU, 10, 16).items():
+        bs.put_bars("ZZYDAY", tf, rows)              # every series stopped Thursday mid-morning
+    t15 = day_bars(THU, 15)
+    bs.put_bars("ZZLAG", "5", day_bars(THU, 5))      # Thursday whole at 5m, 15m and 60m ...
+    bs.put_bars("ZZLAG", "15", t15)
+    bs.put_bars("ZZLAG", "60", bars_fetch._resample_derived("60", t15))
+    bs.put_bars("ZZLAG", "30", forming(THU, 10, 16)["30"])          # ... but its 30m stopped mid-morning
+    for tf in ("5", "15", "60"):
+        bs.put_bars("ZZLAG", tf, forming(FRI, 10, 16)[tf])          # and Friday as one fetch left it
+    wed_before = {(s, tf): bs.get_bars_before(s, tf, 1000, et(THU, 0, 0) - 1)
+                  for s in ("ZZYDAY", "ZZLAG") for tf in ("30", "60")}
+    calls = []
+    stats = intraday.complete_session(FRI, ["ZZYDAY", "ZZLAG"], fetch=provider(calls), n_workers=2, now=AFTER)
+    assert sorted(calls) == [("ZZLAG", "15", THU, FRI), ("ZZLAG", "5", FRI, FRI),
+                             ("ZZYDAY", "15", THU, FRI), ("ZZYDAY", "5", THU, FRI)]
+    assert [stats["tfs"][tf]["done"] for tf in ffseed.GATED_TFS] == [2, 2, 2, 2]
+    whole15 = day_bars(THU, 15) + day_bars(FRI, 15)
+    for sym in ("ZZYDAY", "ZZLAG"):
+        for tf in ("30", "60"):
+            got = [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
+                   for r in bs.get_bars_since(sym, tf, et(THU, 0, 0) - 1)]
+            assert got == bars_fetch._resample_derived(tf, whole15), (sym, tf)
+            assert bs.get_bars_before(sym, tf, 1000, et(THU, 0, 0) - 1) == wed_before[(sym, tf)], (sym, tf)
+            data, st = ffseed.build_tf(tf, [sym], FRI, "B")
+            assert (st["symbols"], st["incomplete"], st["reach_last"]) == (1, 0, 1), (sym, tf)
+            seed = fmt.read_served(data, sym)
+            assert len([b for b in seed if b["t"] >= et(THU, 0, 0)]) == 2 * RTH_BARS[tf]
+
+
+def test_the_stored_tail_of_a_day_is_read_under_a_later_day(store):
+    sym = "ZZLATE"
+    bs.put_bars(sym, "5", forming(FRI, 10, 16)["5"])
+    assert intraday._stored_day_tail(sym, "5", FRI) == et(FRI, 10, 15)
+    bs.put_bars(sym, "5", day_bars(MON, 5, last=9 * 60 + 45))       # a later session is stored too
+    assert bs.get_last_ts(sym, "5") == et(MON, 9, 40)
+    assert intraday._stored_day_tail(sym, "5", FRI) == et(FRI, 10, 15)
+    assert intraday._stored_day_tail(sym, "5", MON) == et(MON, 9, 40)
+    assert intraday._stored_day_tail(sym, "5", THU) is None and intraday._stored_day_tail(sym, "5", SAT) is None
+    assert intraday._stored_day_tail("ZZNONE", "5", FRI) is None
+
+
+def test_a_store_replaced_wholesale_voids_every_proof(store):
+    sym = "ZZFLOOR"
+    _seed_the_defect(sym)
+    intraday.complete_session(FRI, [sym], fetch=provider([]), n_workers=1, now=AFTER)
+    assert all(intraday.known_complete(FRI)(sym, tf) for tf in ffseed.GATED_TFS)
+    bs.bump_store_floor("test: a snapshot was installed")
+    assert not any(intraday.known_complete(FRI)(sym, tf) for tf in ffseed.GATED_TFS)
+    for tf in ffseed.GATED_TFS:
+        data, st = ffseed.build_tf(tf, [sym], FRI, "B")
+        assert (st["symbols"], st["incomplete"]) == (0, 1), tf
+    # and the next pass asks again
+    calls = []
+    intraday.complete_session(FRI, [sym], fetch=provider(calls), n_workers=1, now=AFTER)
+    assert len(calls) == 2 and all(intraday.known_complete(FRI)(sym, tf) for tf in ffseed.GATED_TFS)
 
 
 # ---- the measure: full, short and early-close fixtures -------------------------------------------
@@ -589,3 +788,129 @@ def test_a_failed_intraday_pass_never_stops_the_publish(seq, monkeypatch):
     monkeypatch.setattr(intraday, "complete_session", boom)
     assert ffseed.nightly(FRI)["asof"] == "2026-11-20"
     assert seq == [("1m", FRI), ("publish", FRI), ("retention", FRI)]
+
+
+# ---- a refused gated timeframe is not final for the night ----------------------------------------
+
+@pytest.fixture
+def night(monkeypatch):
+    """The builder loop with the provider-facing parts stubbed. `script["passes"]` is what each intraday
+    pass returns and `script["refusals"]` the timeframes each build refuses, in order (the last repeats)."""
+    from api.services import data_sync
+    monkeypatch.setattr(data_sync, "credentials_ok", lambda: True)
+    monkeypatch.setattr(ffseed, "_force_spent_said", "")
+    monkeypatch.delenv("FFSEED_GATED_RETRIES", raising=False)
+    monkeypatch.delenv("FFSEED_FORCE_ASOF", raising=False)
+    log, script, builds = [], {"passes": [], "refusals": []}, [0]
+
+    def take(key, default):
+        q = script[key]
+        return q.pop(0) if len(q) > 1 else (q[0] if q else default)
+
+    def the_pass(asof, **kw):
+        log.append(("pass", asof))
+        return take("passes", {"tfs": {"5": {"done": 0}}})
+
+    def bp(asof):
+        builds[0] += 1
+        refused = list(take("refusals", []))
+        log.append(("publish", asof, tuple(refused)))
+        m = {"build": f"B{builds[0]}", "asof": asof.isoformat(),
+             "tfs": {tf: {"symbols": 1, "bytes": 1} for tf in ffseed.SEED_TFS if tf not in refused}}
+        if refused:
+            m["refused"] = {tf: {"reason": "x"} for tf in refused}
+        return m
+
+    monkeypatch.setattr(onemin, "backfill", lambda asof, **kw: {"not_reached": 0})
+    monkeypatch.setattr(onemin, "retention", lambda asof: None)
+    monkeypatch.setattr(intraday, "complete_session", the_pass)
+    monkeypatch.setattr(ffseed, "build_and_publish", bp)
+    return log, script
+
+
+def at(d: date, h: int, m: int) -> datetime:
+    return datetime(d.year, d.month, d.day, h, m, tzinfo=ET)
+
+
+def test_a_refused_gated_timeframe_is_retried_on_a_later_tick_until_it_is_published(night):
+    log, script = night
+    script["passes"] = [{"tfs": {"30": {"done": 0}}}, {"tfs": {"30": {"done": 12}, "60": {"done": 12}}}]
+    script["refusals"] = [["30", "60"], []]
+    ffseed._write_marker(20261119)
+    m1 = ffseed.tick(at(FRI, 20, 20))
+    assert sorted(m1["refused"]) == ["30", "60"] and ffseed._read_marker() == 20261120
+    assert ffseed._read_retry() == {"asof": "2026-11-20", "tries": 0, "tfs": ["30", "60"]}
+    assert ffseed.gated_retry_due(at(FRI, 20, 50)) == FRI
+    m2 = ffseed.tick(at(FRI, 20, 50))                       # the next tick: the pass again, then the build
+    assert m2["build"] == "B2" and "refused" not in m2 and set(m2["tfs"]) == set(ffseed.SEED_TFS)
+    assert log == [("pass", FRI), ("publish", FRI, ("30", "60")), ("pass", FRI), ("publish", FRI, ())]
+    assert ffseed._read_retry() == {} and ffseed.gated_retry_due(at(FRI, 21, 20)) is None
+    assert ffseed.tick(at(FRI, 21, 20)) is None and len(log) == 4
+
+
+def test_the_gated_retry_is_bounded_and_does_not_republish_when_the_pass_proved_nothing_new(night, monkeypatch):
+    log, script = night
+    script["passes"] = [{"tfs": {"30": {"done": 0}}}, {"tfs": {"30": {"done": 0, "current": 9}}},
+                        {"tfs": {"30": {"done": 5}}}]
+    script["refusals"] = [["30"]]                           # every build refuses it
+    ffseed._write_marker(20261119)
+    ffseed.tick(at(FRI, 20, 20))
+    assert ffseed.tick(at(FRI, 20, 50)) is None            # retry 1: nothing new proved, nothing published
+    assert log == [("pass", FRI), ("publish", FRI, ("30",)), ("pass", FRI)]
+    assert ffseed._read_retry()["tries"] == 1
+    m = ffseed.tick(at(FRI, 21, 20))                        # retry 2: 5 more series, a rebuild, still refused
+    assert m["build"] == "B2" and sorted(m["refused"]) == ["30"]
+    assert ffseed._read_retry() == {"asof": "2026-11-20", "tries": 2, "tfs": ["30"]}
+    for later in (at(FRI, 21, 50), at(SAT, 9, 0), at(SUN, 9, 0)):
+        assert ffseed.gated_retry_due(later) is None and ffseed.tick(later) is None     # the bound: 2
+    assert log == [("pass", FRI), ("publish", FRI, ("30",)), ("pass", FRI), ("pass", FRI), ("publish", FRI, ("30",))]
+    monkeypatch.setenv("FFSEED_GATED_RETRIES", "3")         # read at tick time
+    assert ffseed.gated_retry_due(at(SAT, 9, 30)) == FRI
+    monkeypatch.setenv("FFSEED_INTRADAY_BACKFILL", "0")     # no pass, no retry
+    assert ffseed.gated_retry_due(at(SAT, 9, 30)) is None
+
+
+def test_the_retry_waits_for_the_quiet_gap_and_never_runs_in_a_later_session(night, monkeypatch):
+    log, script = night
+    # FFSEED_BUILD_AFTER_MIN below the extended close: the build runs at 16:35, the pass cannot yet
+    monkeypatch.setattr(ffseed, "BUILD_AFTER_MIN", 16 * 60 + 30)
+    script["passes"] = [{"skipped": "session not settled", "tfs": {}}, {"tfs": {"5": {"done": 9}}}]
+    script["refusals"] = [list(ffseed.GATED_TFS), []]
+    ffseed._write_marker(20261119)
+    m1 = ffseed.tick(at(FRI, 16, 35))
+    assert sorted(m1["tfs"]) == ["1", "D"] and ffseed._read_marker() == 20261120     # D and 1m are out
+    for early in (at(FRI, 17, 5), at(FRI, 19, 35), at(FRI, 20, 0)):
+        assert ffseed.tick(early) is None                  # not settled: no pass, no try spent
+    assert len(log) == 2 and ffseed._read_retry()["tries"] == 0
+    m2 = ffseed.tick(at(FRI, 20, 5))
+    assert "refused" not in m2 and set(m2["tfs"]) == set(ffseed.SEED_TFS) and ffseed._read_retry() == {}
+    # a refusal still pending when the next session opens is left to that session's own build
+    monkeypatch.setattr(ffseed, "BUILD_AFTER_MIN", 20 * 60 + 15)
+    ffseed._write_retry({"asof": "2026-11-20", "tries": 0, "tfs": ["30"]})
+    n = len(log)
+    assert ffseed.gated_retry_due(at(SUN, 12, 0)) == FRI   # the weekend is the gap
+    for later in (at(MON, 4, 0), at(MON, 10, 0), at(MON, 16, 30), at(MON, 20, 5)):
+        assert ffseed.gated_retry_due(later) is None, later
+        assert ffseed.tick(later) is None and len(log) == n and ffseed._read_retry()["tries"] == 0
+    script["passes"], script["refusals"] = [{"tfs": {"5": {"done": 1}}}], [[]]
+    m3 = ffseed.tick(at(MON, 20, 20))                       # Monday's own build
+    assert m3["asof"] == "2026-11-23" and ffseed._read_retry() == {}
+
+
+def test_a_forced_rebuild_that_refused_is_retried_without_touching_the_forced_marker(night, monkeypatch, caplog):
+    log, script = night
+    script["passes"] = [{"tfs": {"60": {"done": 0}}}, {"tfs": {"60": {"done": 3}}}]
+    script["refusals"] = [["60"], []]
+    ffseed._write_marker(20261120)                          # Friday is already published
+    monkeypatch.setenv("FFSEED_FORCE_ASOF", "2026-11-20")
+    caplog.set_level(logging.WARNING, logger="api.services.ffseed")
+    m1 = ffseed.tick(at(SAT, 10, 0))
+    assert sorted(m1["refused"]) == ["60"] and ffseed._read_forced() == "2026-11-20"
+    assert any("forced rebuild of 2026-11-20 REFUSED" in r.getMessage() for r in caplog.records)
+    m2 = ffseed.tick(at(SAT, 10, 30))                       # not the force again: the gated retry
+    assert m2["build"] == "B2" and "refused" not in m2 and ffseed._read_forced() == "2026-11-20"
+    assert log == [("pass", FRI), ("publish", FRI, ("60",)), ("pass", FRI), ("publish", FRI, ())]
+    assert ffseed.tick(at(SAT, 11, 0)) is None and ffseed.tick(at(SAT, 11, 30)) is None and len(log) == 4
+    # the spent force says so, once per process, and names the file
+    spent = [r.getMessage() for r in caplog.records if "already force-built" in r.getMessage()]
+    assert len(spent) == 1 and ".last_ffseed_forced" in spent[0]
