@@ -189,7 +189,7 @@ def _this_repo(fallback: str) -> str:
 def main(argv=None, get=_get, run=subprocess.run) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--pr", type=int, action="append", required=True, help="the ONE PR to re-arm (given once)")
-    ap.add_argument("--repo", default=_this_repo("unchartedterritory5995-cyber/UCT-Dashboard"))
+    ap.add_argument("--repo", default=_this_repo("northstar-quarry/UCT-Dashboard"))
     ap.add_argument("--dry-run", action="store_true", help="build the merge locally; push and dispatch nothing")
     a = ap.parse_args(argv)
     if len(a.pr) != 1 or not PR_RE.match(str(a.pr[0])):

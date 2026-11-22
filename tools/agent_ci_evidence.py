@@ -571,7 +571,7 @@ def main(argv=None) -> int:
     v = sub.add_parser("verify", help="PASS/FAIL the merge-tree evidence of one PR")
     v.add_argument("--pr", type=int, required=True)
     v.add_argument("--tree", required=True, help="the expected merge tree (git rev-parse <merge>^{tree})")
-    v.add_argument("--repo", default=_this_repo("unchartedterritory5995-cyber/UCT-Dashboard"))
+    v.add_argument("--repo", default=_this_repo("northstar-quarry/UCT-Dashboard"))
     v.add_argument("--root", default=".", help="a MASTER checkout: its agent-ci.yml names the required jobs")
     v.add_argument("--accept-dispatch", action="store_true",
                    help="also accept a repository_dispatch rearm run of this PR (tools/agent_ci_rearm.py); off by default")
