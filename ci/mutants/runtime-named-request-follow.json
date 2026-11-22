@@ -1,0 +1,33 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "NUMBER PENDING (train e95): on the runtime lane a name bound to a request that reads ANOTHER series' bars (another symbol, an event read) and read inside a call's arguments (`nz(e, -1)`, `na(e)`) reaches the run's supply instead of the columnar lane's supply-less `na`; a name bound to the chart's own request keeps the columnar lane. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "NF1",
+   "mutant": "a name inside a call's arguments is never followed (the defect: the columnar lane's silent na)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      return readsOtherSeriesRequest(bound.node, depth + 1)",
+   "to": "      return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestNamedFollow.test.js",
+   "expectRed": "named, inside"
+  },
+  {
+   "id": "NF2",
+   "mutant": "a name bound to the chart's OWN request is sent to the run too",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      return !t || t.other !== null",
+   "to": "      return true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestNamedFollow.test.js",
+   "expectRed": "never refused"
+  },
+  {
+   "id": "NF3",
+   "mutant": "a name bound through another name is not followed",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      return !!(bound && bound.kind === 'expr' && readsOtherSeriesRequest(bound.node, depth + 1))",
+   "to": "      return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestNamedFollow.test.js",
+   "expectRed": "another name"
+  }
+ ]
+}
