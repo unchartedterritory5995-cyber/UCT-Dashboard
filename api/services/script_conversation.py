@@ -230,6 +230,7 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
     messages = _messages(message, chart, refused)
     tokens = {"input": 0, "output": 0}
     cost_usd, attempts = 0.0, 0
+    other_read_repaired = False
     extra = lambda: {"tokens": dict(tokens), "cost_usd": round(cost_usd, 6), "attempts": attempts, "model": dc.MODEL}  # noqa: E731
     while attempts < MAX_SCRIPT_CALLS:
         if cancelled is not None and cancelled.is_set():
@@ -277,7 +278,35 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
             return _refused(DECLINED_GATE, reply or None, disposition="unsupported", **extra())
         pine = answer.get("pine") if isinstance(answer, dict) and answer.get("disposition") == "script" else None
         problem = pine_authoring.script_problem(pine)
+        # ⭐ A READ OF ANOTHER SYMBOL OR TIMEFRAME NOBODY ASKED FOR GETS ONE REPAIR (2026-11-22, the rule and its
+        # reasons at `pine_authoring.other_read_asked`). Decided by reading THIS script's own requests against the
+        # member's words and the chart. ONE repair, inside this turn's own call limit; a second answer that still
+        # reads it is KEPT (the window says what the limit is), and "unsure" is never repaired.
+        if problem is None and not other_read_repaired and attempts < MAX_SCRIPT_CALLS and tool_use_id:
+            asked, unasked = pine_authoring.other_read_asked(message, pine, chart)
+            # ⛔ NEVER AWAY FROM A CHECKED RECIPE'S OWN READ. A script backed by one of UCT's recipes for these
+            # words whose requests are EXACTLY the recipe's (`recipe_whose_requests_these_are`: identity, not
+            # resemblance) was checked with those requests in it, on every timeframe it is for: its daily read
+            # on a daily chart is yesterday's bar and right. Sending it back would trade a checked script for an
+            # unchecked rewrite. One request more, or one changed, and it is sent back like any other.
+            if (asked == pine_authoring.OTHER_READ_NOT_ASKED
+                    and pine_authoring.recipe_whose_requests_these_are(message, pine) is not None):
+                trace["script"]["other_read"] = {"repaired": False, "recipe": True}
+                asked = pine_authoring.OTHER_READ_ASKED
+            if asked == pine_authoring.OTHER_READ_NOT_ASKED:
+                other_read_repaired = True
+                trace["script"]["other_read"] = {"repaired": True, "unasked": list(unasked)}
+                messages = messages + [
+                    {"role": "assistant", "content": [{"type": "tool_use", "id": tool_use_id, "name": TOOL_NAME,
+                                                       "input": answer or {}}]},
+                    {"role": "user", "content": [{"type": "tool_result", "tool_use_id": tool_use_id, "is_error": True,
+                                                  "content": pine_authoring.other_read_repair(unasked, chart)}]},
+                ]
+                continue
         if problem is None:
+            if other_read_repaired:
+                trace["script"]["other_read"]["still_reads"] = (
+                    pine_authoring.other_read_asked(message, pine, chart)[0] == pine_authoring.OTHER_READ_NOT_ASKED)
             name = answer.get("name")
             name = re.sub(r"\s+", " ", name).strip()[:pine_authoring.NAME_MAX_CHARS] if isinstance(name, str) else ""
             said = reply or "Here is a script for that. The chart's own check decides whether it runs."
