@@ -288,7 +288,7 @@ def test_the_command_names_each_answer_it_did_not_adopt_for_coverage():
 def test_the_real_detector_is_the_one_an_adoption_reads_and_formula_cases_are_not_asked():
     from api.services import pine_capabilities
     src = next(c for c in DATA["cases"] if c["lane"] == "script")["answer"]["script"]["pine"]
-    assert value_eval._capabilities_of(src) == pine_capabilities.capabilities_of(src)
+    assert G.capabilities_of(src) == pine_capabilities.capabilities_of(src)
     assert value_eval.held_by([{"id": "f", "lane": "formula", "answer": {"script": {"pine": "x"}}}, {"id": "w", "lane": "wall", "answer": {}}], _caps) == {}
     held = value_eval.held_by(DATA["cases"], pine_capabilities.capabilities_of)
     assert not set(DATA["capabilities_without_a_case"]) & set(held)                 # the list and the record agree today
