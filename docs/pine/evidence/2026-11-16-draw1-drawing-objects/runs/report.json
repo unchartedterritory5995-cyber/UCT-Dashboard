@@ -2,34 +2,34 @@
  "populations": {
   "capture": {
    "scripts": 1012,
-   "admitted": 815,
+   "admitted": 813,
    "runtimeLane": 226,
    "hostLane": 308,
-   "refused": 281,
+   "refused": 279,
    "coreOnly": 47
   },
   "committed": {
    "scripts": 266,
-   "admitted": 196,
+   "admitted": 195,
    "runtimeLane": 50,
    "hostLane": 62,
-   "refused": 84,
+   "refused": 83,
    "coreOnly": 4
   },
   "reference": {
    "scripts": 271,
-   "admitted": 241,
+   "admitted": 240,
    "runtimeLane": 46,
    "hostLane": 112,
-   "refused": 83,
+   "refused": 82,
    "coreOnly": 7
   },
   "builtin": {
    "scripts": 142,
-   "admitted": 119,
+   "admitted": 116,
    "runtimeLane": 29,
    "hostLane": 70,
-   "refused": 20,
+   "refused": 17,
    "coreOnly": 30
   }
  },
@@ -86,36 +86,6 @@
     "request-other",
     "switch",
     "ternary"
-   ]
-  },
-  {
-   "capture": "4c-nyse-market-breadth-ratio-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "4c-nyse-market-breadth-ratio-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "request-other",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -14144,18 +14114,6 @@
    ]
   },
   {
-   "key": "reference:chases-buysell-indicator-advance-decline__37714ef0a5",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:check-head-and-shouldersmask-man__INWKFwOBpV",
    "lane": "runtime",
    "guard": null,
@@ -17469,19 +17427,6 @@
    ]
   },
   {
-   "key": "builtin:advance-decline-line__Advance1Decl",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-single",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "builtin:advance-decline-ratio-bars__Advance_Decl",
    "lane": "host",
    "guard": null,
@@ -17489,17 +17434,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "key": "builtin:advance-decline-ratio__Advance1Decl",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "core",
-    "fn-single",
-    "request-other"
    ]
   },
   {
@@ -18806,26 +18740,6 @@
    ]
   },
   {
-   "key": "builtin:volume-weighted-average-price__VWAP",
-   "lane": null,
-   "guard": "pine:reassign",
-   "declined": "runtime:call-windowed-state",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "builtin:volume-weighted-moving-average__VWMA",
    "lane": "host",
    "guard": null,
@@ -18913,19 +18827,6 @@
     "request-other",
     "switch",
     "ternary"
-   ]
-  },
-  {
-   "key": "committed:4c-nyse-market-breadth-ratio__722410befd",
-   "lane": null,
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "request-other",
-    "ternary",
-    "var"
    ]
   },
   {

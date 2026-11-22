@@ -1262,9 +1262,13 @@ def test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_kill
 REQUEST_OTHER_KILLED_SLUGS = {"artemis-oscillator-pro", "average-day-range-adr-pivots",
                               "dual-view-htf-candlestick-patterns-theultimator5", "ema-ribbon-trend-filter-strixedge",
                               "htf-liquidity-dashboard-tfo", "pmax-explorer", "position-size-calc",
-                              "request-realtime-alignment", "rs-seed-rsrating", "vold-market-breadth", "vw-other-symbol",
+                              "request-realtime-alignment", "rs-seed-rsrating", "vw-other-symbol",
                               # engine 92 follow-up (coordinator ruling 2026-11-21, C)
                               "vw-req-w-closure-day"}
+#: ⭐ T4 B2 (NUMBER PENDING, e95): `vold-market-breadth` left this set, not the kill list. It reads a `USI:` spelling, so the
+#: detector (v4) declares `request-breadth` beside `request-other`, and `request-breadth` is pending: `request-other` alone no
+#: longer admits it, so the scan above cannot name it. Its kill stays (api/data/pine_runtime_killlist.json): the day
+#: `request-breadth` is admitted, the same DIVERGE capture needs it again, and this set takes it back.
 
 
 def _request_other_unkilled_diverging(kills: dict) -> list:
