@@ -11,7 +11,7 @@
 //
 // ⛔ PINS: the committed ledger pins nothing, so a run that should SERVE mocks the ledger reader
 // here, in the test, and only here (as w9T11Record.test.js does). No product code takes a pin set.
-// ⛔ The broker gate is registered ON here only; the service never registers it (strategy.test.mjs).
+// ⭐ TRACK 6, G-BROKER (2026-11-22): the service registers the gate itself, for a '#strategy' job only (job.mjs).
 //
 // Regenerate the fixture (only when the record's shape or the engine legitimately changes):
 //   W9T14_WRITE_FIXTURE=1 npx vitest run src/components/chart/engine/runtime/__tests__/w9T14ServerRecord.test.js
