@@ -823,6 +823,32 @@ SEAM_MAX_DIFF_FRAC = 0.05
 #: The junction is the first Yahoo session holding at least this share of its expected bars.
 SEAM_MIN_BARS_FRAC = 0.5
 DEEP_ENABLED_ENV = "INDEX_INTRADAY_DEEP_ENABLED"
+# ⭐⭐ THE ETF FILL (OWNER RULING 2026-11-22: "you can use spy or whatever else is needed fully"). FMP's 5-minute
+# history has slots it never answers: measured on the 3-year store (748 of 752 sessions complete), 2026-08-14 13:15,
+# 2024-05-03 10:30, 2024-05-06 10:30 and 2024-05-30 10:45-11:45 ET are absent from its 5min AND 1min answers, asked
+# three times. A run that stops at the first one served Fred RS 9 sessions of history (5 / 15 / 30), against years of
+# the stock's own bars. So a session FMP still answers PARTIAL after DEEP_PARTIAL_RETRIES is completed from its ETF
+# (`DEEP_FILL_PROXY`, the stock store's own 5m bars), scaled to the index by the MEDIAN ratio of the up to
+# DEEP_FILL_EDGE_BARS slots on each side of the hole (`_edge_ratio`):
+#   - measured on the pod 2026-11-22 against 40 COMPLETE sessions (2,508 interior slots, the edge ratio predicting the
+#     index): close median 2.7e-5 of the level, p99 1.9e-4, worst 4.6e-4; a 13-slot (65 min) hole: close worst 2.3e-4.
+#     Inside the seam's own noise bound (SEAM_MAX_REL). NDX's holes (2025-05-07, 2024-07-01 46 slots, 2024-05-06,
+#     2024-03-27) are filled from QQQ the same way;
+#   - only the slots FMP lacks, never a bar FMP answered; the fill lives BESIDE FMP's bars in the store (`fill`), so
+#     FMP answering later wins, and INDEX_INTRADAY_DEEP_FILL_ENABLED=0 serves exactly the unfilled run;
+#   - refused (never guessed) when the two edges' ratios disagree beyond DEEP_FILL_RATIO_DRIFT, when the ETF lacks a
+#     slot, or when the hole is longer than DEEP_FILL_MAX_SLOTS; a filled high / low more than DEEP_FILL_WICK_MAX
+#     beyond its body is held at the body (one ETF low print measured 1.1% off); a filled slot's volume is 0;
+#   - NAMED in the answer: the `deep` record's `filled` lists every filled session and its slot count.
+DEEP_FILL_PROXY = {"^GSPC": "SPY", "^NDX": "QQQ"}
+DEEP_FILL_MAX_SLOTS = 60
+#: Held slots on each side of a hole whose median ratio scales the ETF (a single edge bar can be a bad print).
+DEEP_FILL_EDGE_BARS = 6
+DEEP_FILL_RATIO_DRIFT = 1e-3
+DEEP_FILL_WICK_MAX = 5e-3
+#: ETF reads one pass may make (the stock store's own bars: no vendor call).
+DEEP_FILL_MAX_PER_PASS = 8
+DEEP_FILL_ENV = "INDEX_INTRADAY_DEEP_FILL_ENABLED"
 _DEEP_T0 = time.monotonic()
 _deep_prefix: Dict[tuple, tuple] = {}
 _deep_prefix_lock = threading.Lock()
@@ -837,6 +863,14 @@ def deep_enabled(environ=None) -> bool:
     # ⛔ The literal name: the flag ledger's rail finds a gate by reading the code (feature_flag_index.py).
     raw = (os.environ.get("INDEX_INTRADAY_DEEP_ENABLED", "") if environ is None
            else environ.get("INDEX_INTRADAY_DEEP_ENABLED", ""))
+    return str(raw).strip().lower() not in ("0", "false", "no", "off")
+
+
+def deep_fill_enabled(environ=None) -> bool:
+    """On unless INDEX_INTRADAY_DEEP_FILL_ENABLED is 0/false/no/off (read per call)."""
+    # ⛔ The literal name: the flag ledger's rail finds a gate by reading the code (feature_flag_index.py).
+    raw = (os.environ.get("INDEX_INTRADAY_DEEP_FILL_ENABLED", "") if environ is None
+           else environ.get("INDEX_INTRADAY_DEEP_FILL_ENABLED", ""))
     return str(raw).strip().lower() not in ("0", "false", "no", "off")
 
 
@@ -1005,6 +1039,139 @@ def deep_step(yahoo_sym: str, now: Optional[float] = None, max_fetches: int = DE
     return stats
 
 
+def _proxy_session_bars(proxy: str, d) -> Dict[int, dict]:
+    """The ETF's own 5m bars of session `d`, from the stock store (`serve_bars`, a `to=` read, warm: it may be shed,
+    then it is asked at the next pass). Never on a request thread."""
+    import json as _json
+    import datetime as _dt
+    from api.routers import bars as _bars
+    r = _bars.serve_bars(proxy, "5", bars=400, to=(d + _dt.timedelta(days=1)).isoformat(), warm=1)
+    body = getattr(r, "body", None)
+    data = _json.loads(body) if body else (r if isinstance(r, dict) else {})
+    out: Dict[int, dict] = {}
+    for b in (data or {}).get("bars") or []:
+        try:
+            t = int(b["t"])
+            if _et_date(t) == d:
+                out[t] = {k: float(b[k]) for k in ("o", "h", "l", "c")}
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+def _edge_ratio(exp: List[int], i: int, step: int, have: Dict[int, dict], proxy_bars: Dict[int, dict]):
+    """The index / ETF ratio on one side of a hole: the MEDIAN of the open and close ratios of the up to
+    DEEP_FILL_EDGE_BARS nearest slots both hold, walking away from the hole (measured 2024-05-03: FMP's two bars
+    bordering the 10:30 hole read 10.021 and 10.0375 against a steady 10.029 around them). None when no slot is held."""
+    import statistics
+    vals: List[float] = []
+    n = 0
+    while 0 <= i < len(exp) and n < DEEP_FILL_EDGE_BARS:
+        t = exp[i]
+        h, p = have.get(t), proxy_bars.get(t)
+        if h is not None and p is not None and p["o"] > 0 and p["c"] > 0:
+            vals += [float(h["o"]) / p["o"], float(h["c"]) / p["c"]]
+            n += 1
+        i += step
+    return statistics.median(vals) if vals else None
+
+
+def _fill_session(d, have: Dict[int, dict], proxy_bars: Dict[int, dict]) -> dict:
+    """The ETF fill of session `d`'s missing 5m slots: `{"state": "filled", "bars": [...], "slots", "worst_drift"}`
+    or `{"state": "refused", "reason"}`. Pure: `have` = FMP's bars, `proxy_bars` = the ETF's."""
+    exp = _expected("5", d)
+    missing = [i for i, t in enumerate(exp) if t not in have]
+    if not exp or not missing:
+        return {"state": "refused", "reason": "nothing to fill"}
+    if len(missing) > DEEP_FILL_MAX_SLOTS:
+        return {"state": "refused", "reason": f"{len(missing)} slots missing (fill at most {DEEP_FILL_MAX_SLOTS})"}
+    runs, cur = [], [missing[0]]
+    for i in missing[1:]:
+        if i == cur[-1] + 1:
+            cur.append(i)
+        else:
+            runs.append(cur)
+            cur = [i]
+    runs.append(cur)
+    out, worst = [], 0.0
+    for run in runs:
+        ratios = [r for r in (_edge_ratio(exp, run[0] - 1, -1, have, proxy_bars),
+                              _edge_ratio(exp, run[-1] + 1, 1, have, proxy_bars)) if r is not None]
+        if not ratios:
+            return {"state": "refused", "reason": "no edge bar held by both the index and the ETF"}
+        drift = abs(ratios[0] - ratios[-1]) / ratios[0]
+        if drift > DEEP_FILL_RATIO_DRIFT:
+            return {"state": "refused",
+                    "reason": f"the edge ratios differ by {drift:.2e} (fill at most {DEEP_FILL_RATIO_DRIFT:g})"}
+        worst = max(worst, drift)
+        ratio = sum(ratios) / len(ratios)
+        for i in run:
+            t = exp[i]
+            pb = proxy_bars.get(t)
+            if pb is None:
+                return {"state": "refused", "reason": f"the ETF has no bar at {t}"}
+            o, h, l, c = (_quote(pb[k] * ratio) for k in ("o", "h", "l", "c"))
+            hi, lo = max(o, c), min(o, c)
+            if h < hi or h > hi * (1 + DEEP_FILL_WICK_MAX):
+                h = hi
+            if l > lo or l < lo * (1 - DEEP_FILL_WICK_MAX):
+                l = lo
+            out.append({"t": t, "o": o, "h": h, "l": l, "c": c, "v": 0})
+    return {"state": "filled", "bars": out, "slots": len(out), "worst_drift": round(worst, 8)}
+
+
+def deep_fill_step(yahoo_sym: str, now: Optional[float] = None, max_reads: int = DEEP_FILL_MAX_PER_PASS,
+                   turn=None) -> dict:
+    """Complete from the ETF every session FMP still answers partial after its retries (see THE ETF FILL). Returns
+    the pass's counts. NEVER call this on a request thread."""
+    import contextlib
+    import datetime as _dt
+    now = float(now if now is not None else time.time())
+    stats = {"sym": yahoo_sym, "read": 0, "filled": 0, "refused": 0}
+    proxy = DEEP_FILL_PROXY.get(yahoo_sym)
+    if not proxy or not deep_fill_enabled():
+        return stats
+    path = _deep_path(yahoo_sym)
+    with _deep_lock(path):
+        held = _load_deep(path)
+        days = dict(held["days"])
+        changed = False
+        for iso in sorted(days, reverse=True):
+            if stats["read"] >= max_reads:
+                break
+            e = days[iso] or {}
+            if e.get("state") != "partial" or int(e.get("tries") or 0) < DEEP_PARTIAL_RETRIES:
+                continue
+            f = e.get("fill") or {}
+            if f.get("state") == "filled":
+                continue
+            if f.get("state") == "refused" and now - float(f.get("at") or 0) < DEEP_NEGATIVE_TTL_S:
+                continue
+            d = _dt.date.fromisoformat(iso)
+            have = {int(b["t"]): b for b in e.get("bars") or [] if isinstance(b, dict)}
+            stats["read"] += 1
+            try:
+                with (turn() if turn is not None else contextlib.nullcontext()):
+                    pb = _proxy_session_bars(proxy, d)
+            except Exception as x:  # noqa: BLE001 - fail-soft: asked again at the next pass
+                logger.warning(f"[index_bars] deep fill {yahoo_sym} {iso}: the {proxy} read FAILED: "
+                               f"{type(x).__name__}: {x}")
+                continue
+            if not pb:
+                continue                               # shed or not yet stored: the next pass asks again
+            fill = dict(_fill_session(d, have, pb), src=proxy, at=now)
+            stats["filled" if fill["state"] == "filled" else "refused"] += 1
+            (logger.info if fill["state"] == "filled" else logger.warning)(
+                f"[index_bars] deep fill {yahoo_sym} {iso} from {proxy}: {fill['state']} "
+                f"{fill.get('slots', '')} {fill.get('reason') or ''}".rstrip())
+            days[iso] = dict(e, fill=fill)
+            changed = True
+        if changed:
+            _save_deep(path, {"days": days,
+                              "changed_at": max(int(held.get("changed_at") or 0) + 1, int(now * 1000))})
+    return stats
+
+
 def _seam_parity(rtf: str, d, deep_day: Optional[dict], yf_bars: list, divisor: float) -> dict:
     """FMP's copy of the junction session `d` against Yahoo's, bar by bar at the served grid: `{"d", "compared",
     "equal" (to the cent), "worst_rel", "ok", "reason"}`."""
@@ -1074,12 +1241,14 @@ def _overlap_parity(rtf: str, days: dict, by_day: Dict[Any, list], divisor: floa
 
 
 def _build_deep_prefix(sym: str, rtf: str, data: dict, first_day, divisor: float) -> tuple:
-    """The contiguous run of complete settled sessions before `first_day`, rolled to `rtf` and divided: (bars, the
-    number of sessions, the oldest session's ISO date or None)."""
+    """The contiguous run of complete settled sessions before `first_day` (a partial one completed by THE ETF FILL
+    counts), rolled to `rtf` and divided: (bars, the number of sessions, the oldest session's ISO date or None, the
+    filled sessions `[{"d", "slots", "src"}]`)."""
     import datetime as _dt
     start = _et_date(_now()) - _dt.timedelta(days=DEEP_DAYS)
     days = data.get("days") or {}
     run: List[list] = []
+    fills: List[dict] = []
     oldest = None
     d = first_day - _dt.timedelta(days=1)
     while d >= start:
@@ -1087,9 +1256,15 @@ def _build_deep_prefix(sym: str, rtf: str, data: dict, first_day, divisor: float
             d -= _dt.timedelta(days=1)
             continue
         e = days.get(d.isoformat())
-        if not e or e.get("state") != "complete":
+        if not e:
             break                                  # never a hole: the run stops at the first session not held
         src = {int(b["t"]): b for b in e.get("bars") or [] if isinstance(b, dict)}
+        if e.get("state") != "complete":
+            f = e.get("fill") or {}
+            if e.get("state") != "partial" or f.get("state") != "filled" or not deep_fill_enabled():
+                break
+            src = {**{int(b["t"]): b for b in f.get("bars") or [] if isinstance(b, dict)}, **src}   # FMP's bar wins
+            fills.append({"d": d.isoformat(), "slots": int(f.get("slots") or 0), "src": f.get("src")})
         rolled = _roll_into_buckets(rtf, d, src, DEEP_SRC_STEP)
         exp = _expected(rtf, d)
         if not exp or any(t not in rolled for t in exp):
@@ -1099,7 +1274,7 @@ def _build_deep_prefix(sym: str, rtf: str, data: dict, first_day, divisor: float
                     for t in exp])
         oldest = d.isoformat()
         d -= _dt.timedelta(days=1)
-    return [b for day in reversed(run) for b in day], len(run), oldest
+    return [b for day in reversed(run) for b in day], len(run), oldest, fills
 
 
 def _merge_deep(sym: str, tf: str, out: list) -> tuple:
@@ -1151,9 +1326,9 @@ def _merge_deep(sym: str, tf: str, out: list) -> tuple:
                 f"; overlap {overlap['sessions']} settled session(s): {overlap['equal']} of {overlap['compared']} equal, "
                 f"worst {overlap['worst_rel']}")
         if seam["ok"]:
-            prefix, n, oldest = _build_deep_prefix(sym, rtf, data, first_day, divisor)
+            prefix, n, oldest, fills = _build_deep_prefix(sym, rtf, data, first_day, divisor)
             rec = {"src": DEEP_SOURCE, "joined": True, "sessions": n, "from": oldest, "reason": None,
-                   "seam": seam, "overlap": overlap, "rev": data.get("changed_at")}
+                   "seam": seam, "overlap": overlap, "rev": data.get("changed_at"), "filled": fills}
         else:
             prefix = []
             rec = {"src": DEEP_SOURCE, "joined": False, "sessions": 0, "from": None, "reason": seam["reason"],
@@ -1204,6 +1379,9 @@ def deep_backfill_pass(now: Optional[float] = None) -> List[dict]:
             break
         st = deep_step(ysym, now=now, max_fetches=budget, turn=_deep_turn)
         budget -= st["asked"]
+        fill = deep_fill_step(ysym, now=now, turn=_deep_turn)
+        if fill["read"]:
+            st["fill"] = fill
         passes.append(st)
     # A served series whose prefix was not built for the store as it stands (the store changed, or this process
     # never built it: after a restart a tf refreshed only by member reads would otherwise wait for the next change)
@@ -1217,7 +1395,7 @@ def deep_backfill_pass(now: Optional[float] = None) -> List[dict]:
                 hit = _deep_prefix.get((sym, tf))
             if not hit or hit[0][0] != sig:
                 _kick_bg_refresh(sym, tf)
-    if any(p["asked"] for p in passes):
+    if any(p["asked"] or p.get("fill") for p in passes):
         logger.info(f"[index_bars] deep pass: {passes}")
     return passes
 
