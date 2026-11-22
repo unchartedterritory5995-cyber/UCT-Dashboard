@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (793)
+## Member session reads (795)
 
 ### Limits
 
@@ -654,6 +654,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/patterns/catalog` | paid | screener |  |
 | GET | `/api/patterns/confirmed/{sym}` | paid | screener | {sym}, tf=D |
 | GET | `/api/patterns/{sym}` | paid | screener | {sym}, tf=D, types, min_conf=50.0, confirmed_only=True, include_structures=False |
+| GET | `/api/pine/breadth/{spelling}` | paid | screener | {spelling} |
 | GET | `/api/pine/events/{ticker}` | paid | screener | {ticker} |
 | GET | `/api/pine/history-window` | member | screener |  |
 | GET | `/api/pine/libraries` | member | screener |  |

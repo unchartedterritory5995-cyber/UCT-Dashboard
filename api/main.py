@@ -12283,6 +12283,8 @@ from api.routers import corporate_actions as corporate_actions_router  # noqa: E
 app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
 from api.routers import pine_events as pine_events_router  # noqa: E402  (track 4 E1: a chart symbol's earnings, dividends and splits for Pine, paid, DARK: admins unless PINE_EVENTS_SUPPLY_ENABLED=all)
 app.include_router(pine_events_router.router)  # /api/pine/events/{ticker}
+from api.routers import pine_breadth as pine_breadth_router  # noqa: E402  (track 4 B1: UCT breadth under USI: spellings for Pine, paid, DARK: admins unless PINE_BREADTH_SUPPLY_ENABLED=all; members refused by the licence until ESC-03)
+app.include_router(pine_breadth_router.router)  # /api/pine/breadth/{spelling}
 from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
 app.include_router(fed_watch_router.router)  # /api/research/fed-watch
 from api.routers import market_history as market_history_router  # noqa: E402  (MKTH: corrections, bear markets, the rallies and their leaders, paid)
