@@ -138,6 +138,9 @@ const makeView = (sym, over = {}) => ({
   reactRepaint: () => log.push('react:repaint'),
   metaFor: (s) => ({ watermarkMeta: { name: `${s} Inc` }, mergedMarkers: [] }),
   drawMeta: () => { layers += 1; log.push('meta:drawn') },
+  // the session tags (the Pre/Post chip, the RTH close): built for the next symbol, applied after its pass
+  sessionTags: (b, s) => [{ price: 1, of: s }],
+  applySessionTags: (tags) => log.push(`tags:${tags ? tags.map((t) => t.of).join(',') : 'none'}`),
   ...over,
 })
 /** A controller whose chart has painted `sym` through React once. */
@@ -156,7 +159,7 @@ describe('apply: the new symbol\'s frame, whole', () => {
   it('paints in today\'s order: the lane hears the symbol, the old channel closes, the pass runs (the new symbol\'s metadata drawn in it), the old readout is emptied', () => {
     const { c } = painted()
     expect(c.apply('BBB')).toBe('applied')
-    expect(log).toEqual(['lane:BBB', 'channel:closed', 'pass:BBB', 'meta:drawn', 'readout:cleared'])
+    expect(log.filter((l) => !/^tags:/.test(l))).toEqual(['lane:BBB', 'channel:closed', 'pass:BBB', 'meta:drawn', 'readout:cleared'])
   })
 
   it('hands the pass a frame of the new symbol: BUILT from its bars, CLEARED layers, a closed channel, the rest carried', () => {
@@ -391,6 +394,19 @@ describe('review finding 1: going back to the symbol React still shows', () => {
     c.reconcile('CCC')
     expect(log).toEqual([])
     expect(c.pendingSym()).toBe('BBB')
+  })
+})
+
+describe('the session tags are a layer the controller BUILDS (the browser A/B: `session-tags` refused every switch)', () => {
+  it('the new symbol\'s tags are applied in the paint, after the pass', () => {
+    const { c } = painted()
+    c.apply('BBB')
+    expect(log).toEqual(['lane:BBB', 'channel:closed', 'pass:BBB', 'meta:drawn', 'tags:BBB', 'readout:cleared'])
+  })
+  it('a symbol with no tag (inside the session) clears the old symbol\'s', () => {
+    const { c } = painted('AAA', { sessionTags: () => null })
+    c.apply('BBB')
+    expect(log).toContain('tags:none')
   })
 })
 

@@ -25,7 +25,7 @@ import { pinWallClock } from '../testing/pinnedWallClock'
 import { loadWithBarStore } from '../testing/barStoreModes'
 
 const FLAG = 'uct.imperativeSwitch'
-const S = vi.hoisted(() => ({ log: [], n: 0, commits: 0, range: null, stateful: false, crosshairs: [] }))
+const S = vi.hoisted(() => ({ log: [], n: 0, commits: 0, range: null, stateful: false, crosshairs: [], prices: {}, rows: null }))
 const digest = (v) => {
   const json = JSON.stringify(v, (k, x) => (typeof x === 'function' ? 'ƒ' : x && typeof x === 'object' && typeof x.nodeType === 'number' ? '‹node›' : x))
   if (json === undefined) return 'undefined'
@@ -59,7 +59,11 @@ vi.mock('lightweight-charts', async (importOriginal) => {
       update: (p) => put(who, 'update', p && (p.close ?? p.value)),
       data: () => held,
       applyOptions: () => {}, priceScale: () => scale(),
-      createPriceLine: (o) => { put(who, 'createPriceLine', o.price); return { applyOptions: () => {}, options: () => o } },
+      createPriceLine: (o) => {
+        put(who, 'createPriceLine', o.price)
+        let cur = o
+        return { applyOptions: (x) => { cur = { ...cur, ...x }; if (x && x.price !== undefined) put(who, 'priceLine.price', x.price) }, options: () => cur }
+      },
       removePriceLine: () => put(who, 'removePriceLine'),
       setMarkers: () => {}, attachPrimitive: () => {}, detachPrimitive: () => {}, priceToCoordinate: () => 0, coordinateToPrice: () => 0,
       options: () => ({}), getPane: () => pane(0), priceFormatter: () => ({ format: (x) => String(x) }), moveToPane: () => {},
@@ -125,6 +129,12 @@ vi.mock('./chart/engine/binder', async (importOriginal) => {
     },
   }
 })
+// the REST poll's quote store: what the app holds of a symbol's live and extended-hours price (empty unless a
+// case fills it; the chart reads it through its quiet live-price hook, and so does the switch controller)
+vi.mock('../hooks/livePriceStore', () => ({
+  registerTickers: () => () => {}, subscribe: () => () => {}, getSnapshot: () => S.prices,
+  pollNow: () => {}, setUnauthorizedHandler: () => {}, __resetForTest: () => {},
+}))
 vi.mock('../utils/barsIDB', async (orig) => ({ ...(await orig()), idbGet: async () => null, idbPut: async () => {}, idbPutMonotonic: async () => {} }))
 vi.mock('../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {}, status: 'idle' }) }))
 vi.mock('../hooks/useRealtimeBars', () => ({ default: () => ({}) }))
@@ -167,7 +177,9 @@ const stubBars = () => vi.stubGlobal('fetch', vi.fn((url) => {
   const meta = /\/api\/ticker-meta\/([A-Z]+)/.exec(u)
   if (meta && NAMES[meta[1]]) return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, clone() { return this }, json: async () => NAMES[meta[1]] })
   const k = m ? K[m[1]] : 0
-  const body = !k ? {} : /^\d+$/.test(tf) ? { ticker: m[1], tf, bars: fiveRows(k) } : { ticker: m[1], tf, bars: dailyRows(k), newest_bar_is_forming: false }
+  // a case may serve its own bars (`S.rows(sym, tf)`); otherwise 5-minute bars of the pinned session, or dailies
+  const own = k && S.rows ? S.rows(m[1], tf) : null
+  const body = !k ? {} : own ? { ticker: m[1], tf, bars: own } : /^\d+$/.test(tf) ? { ticker: m[1], tf, bars: fiveRows(k) } : { ticker: m[1], tf, bars: dailyRows(k), newest_bar_is_forming: false }
   return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, clone() { return this }, json: async () => body })
 }))
 
@@ -499,6 +511,93 @@ describe('(g) framing, as far as jsdom shows it: the member\'s zoom is kept and 
     expect(want).toBeTruthy()
     expect(Math.abs((want.to - want.from) - ZOOM)).toBeLessThan(1e-6)   // the React path keeps the zoom too (non-vacuity)
     expect(on.end).toEqual(off.end)
+  })
+})
+
+// ⭐⭐ COVERAGE: A DEFAULT CHART IS PAINTED BY THE CONTROLLER, IN AND OUT OF THE SESSION.
+// The browser A/B of 1aba532a17 (2026-11-21, a Saturday) painted ZERO switches: every ask on a default D + 30m
+// board was refused `session-tags`, because the Pre/Post chip and the RTH close tag are on every chart outside
+// regular hours. A refusal that fires on a default chart is a coverage bug, and nothing here saw it: every
+// case above ran with no session view. These four are the /charts pane's own props (its session view, its
+// keep-the-view prop), DEFAULT settings, with the quotes the app holds outside the session.
+describe('coverage: a default-settings chart is applied by the controller', () => {
+  const SAT = '2026-11-14T16:00:00Z'       // Saturday: outside the session (the feed says "post")
+  const TUE = '2026-09-22T17:17:00Z'       // Tuesday 13:17 ET: the regular session in progress
+  const PX = { AAA: 10.5, BBB: 21 }
+  /** `step`-minute bars of the regular session (ET), for the sessions up to `lastDay`; `untilMin`: the last one's length. */
+  const intraday = (sym, step, lastDay, utcOpenHour, untilMin = 390) => {
+    const out = []
+    const days = []
+    const d = new Date(`${lastDay}T12:00:00Z`)
+    while (days.length < 6) { const w = d.getUTCDay(); if (w !== 0 && w !== 6) days.unshift(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() - 1) }
+    days.forEach((day, di) => {
+      const open = Date.parse(`${day}T${String(utcOpenHour).padStart(2, '0')}:30:00Z`) / 1000
+      const len = di === days.length - 1 ? untilMin : 390
+      for (let m = 0, i = 0; m < len; m += step, i++) out.push({ t: open + m * 60, o: PX[sym], h: PX[sym] * 1.01, l: PX[sym] * 0.99, c: PX[sym] + (i % 4) * 0.01, v: 1000 + i })
+    })
+    return out
+  }
+  const daily = (sym, lastDay) => {
+    const out = []
+    const d = new Date(`${lastDay}T12:00:00Z`)
+    while (out.length < 300) { const w = d.getUTCDay(); if (w !== 0 && w !== 6) out.unshift({ t: d.toISOString().slice(0, 10), o: PX[sym], h: PX[sym] * 1.02, l: PX[sym] * 0.98, c: PX[sym] + (out.length % 5) * 0.01, v: 1e6 }); d.setUTCDate(d.getUTCDate() - 1) }
+    return out
+  }
+  // what the REST poll holds outside the session: the close, and an extended-hours print
+  const EXT = {
+    AAA: { price: 10.5, day_open: 10.4, day_high: 10.7, day_low: 10.3, ext_session: true, ext_price: 10.83, observed_at: Date.now() },
+    BBB: { price: 21, day_open: 20.8, day_high: 21.4, day_low: 20.6, ext_session: true, ext_price: 21.47, observed_at: Date.now() },
+  }
+  const CASES = [
+    { name: 'D, outside the session', tf: 'D', clock: SAT, prices: EXT, rows: (sym) => daily(sym, '2026-11-13'), tags: true },
+    { name: '30m, outside the session', tf: '30', clock: SAT, prices: EXT, rows: (sym) => intraday(sym, 30, '2026-11-13', 14), tags: true },
+    { name: 'D, inside the session', tf: 'D', clock: TUE, prices: {}, rows: (sym) => daily(sym, '2026-09-22'), tags: false },
+    { name: '30m, inside the session', tf: '30', clock: TUE, prices: {}, rows: (sym) => intraday(sym, 30, '2026-09-22', 13, 210), tags: false },
+  ]
+  const got = {}
+  beforeAll(async () => {
+    for (const c of CASES) {
+      const clock = pinWallClock(c.clock)
+      S.prices = c.prices
+      S.rows = (sym, tf) => (tf === c.tf ? c.rows(sym) : null)
+      try {
+        // the pane's own props; NO settings override: the member's defaults
+        const t = await mounted(true, c.tf, {}, { settingsOverride: undefined, sessionView: 'regular', keepPresentOnSymbolChange: true })
+        const ctl = t.port.current
+        const mountLog = S.log.slice()
+        S.log.length = 0
+        let result = null
+        act(() => { result = ctl ? ctl.apply('BBB') : null })
+        const paintLog = S.log.slice()
+        S.log.length = 0
+        t.view.rerender(t.el('BBB'))
+        await wait(500)
+        got[c.name] = {
+          result, last: ctl ? JSON.stringify(ctl.diag.last) : 'no controller', refused: ctl ? { ...ctl.diag.refused } : null,
+          mountLog, paintLog, commitLog: S.log.slice(), pending: ctl ? ctl.pendingSym() : null,
+        }
+        t.done()
+      } finally { clock.restore(); S.prices = {}; S.rows = null }
+    }
+  }, 240_000)
+
+  it.each(CASES.map((c) => c.name))('%s: APPLIED (a refusal here is a coverage bug, named in the message)', (name) => {
+    expect(got[name].result, `refused: ${got[name].last}`).toBe('applied')
+    expect(got[name].refused).toEqual({})
+    expect(got[name].paintLog.some((l) => /^candle#\d+ setData /.test(l))).toBe(true)
+    expect(got[name].pending).toBe(null)   // …and the body's render ended the switch
+  })
+
+  it.each(CASES.filter((c) => c.tags).map((c) => c.name))('%s: the case is the one the browser met (AAA carries a session tag at its extended-hours price)', (name) => {
+    expect(got[name].mountLog.some((l) => / (createPriceLine|priceLine\.price) 10\.83$/.test(l)), 'the Pre/Post tag of AAA').toBe(true)
+  })
+
+  it.each(CASES.filter((c) => c.tags).map((c) => c.name))('%s: the session tags are BBB\'s in the frame of the paint, and none of AAA\'s is left', (name) => {
+    const tagLines = (log) => log.filter((l) => / (createPriceLine|priceLine\.price) /.test(l))
+    expect(tagLines(got[name].paintLog).some((l) => / 21\.47$/.test(l)), 'the Pre/Post tag at BBB\'s extended-hours price').toBe(true)
+    expect(tagLines(got[name].paintLog).some((l) => / 10\.83$/.test(l)), 'no tag at AAA\'s price').toBe(false)
+    // the body's render then finds them right: it sets no tag to another price
+    expect(tagLines(got[name].commitLog).filter((l) => !/ (21\.47|21(\.\d+)?)$/.test(l))).toEqual([])
   })
 })
 
