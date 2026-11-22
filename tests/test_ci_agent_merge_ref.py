@@ -1283,40 +1283,37 @@ def _all_workflow_docs():
 
 #: the two workflows that post `agent-ci-required`: on a merge group's commit, and on a pull request's head
 POSTERS = (acr.FOLLOWER_WORKFLOW.name, "agent-ci-required.yml")
-#: a workflow FILE name that contains the context's name is not the context
-_CONTEXT_AS_FILE = re.compile(r"agent-ci-required\.yml")
+
+
+def _dump(doc) -> str:
+    """A parsed workflow back to YAML text, for the controls below (the predicate reads TEXT, as it does from git)."""
+    return yaml.safe_dump(doc, sort_keys=False)
 
 
 def environment_and_status_problems(docs: dict) -> list[str]:
-    """Who can post the Agent's required status. `docs`: {file name: (text, parsed)}. Statuses under one context are
-    last-writer-wins, so ONLY the App may post `agent-ci-required`, anywhere (rehearsed 2026-11-22):
-      * only the two posters may name the verdict environment, the App's variable, its secret, its token, or the
-        context itself (outside a comment; a workflow FILE name is not the context);
+    """Who can post the Agent's required status. `docs`: {file name: (text, parsed)}.
+    ONE AUTHORITY (AUDIT review 2 of #2501, finding 1): who may reach the App is decided by
+    tools/agent_ci_required.workflow_problems, the same function the follower applies to every merge group entry and the
+    pull-request side to every head, from master's copy. This rail CALLS it over the tree it runs in; it restates none of
+    its rules. What it adds are three facts that predicate does not judge:
       * every job of a poster that is handed the App's token runs in the environment;
       * NO workflow token is granted statuses: write (the posters' own tokens included);
       * only the follower follows the queue workflow.
     ⚠️ A job left on the repository's DEFAULT token is not provably unable to write a status: it is the ruleset's pin to
     the App that makes such a status worthless, and this rail that keeps one from being written by accident."""
-    bad = []
-    names = (VERDICT_ENVIRONMENT, APP_ID_VAR, APP_KEY_SECRET, acr.VERDICT_TOKEN_ENV, acr.CONTEXT)
+    bad = list(acr.workflow_problems({f"{acr.WORKFLOW_DIR}/{name}": text for name, (text, doc) in docs.items()}))
     for name, (text, doc) in docs.items():
-        code = "\n".join(_CONTEXT_AS_FILE.sub("", ln.split(" # ")[0]) for ln in text.splitlines() if not ln.lstrip().startswith("#"))
+        jobs = (doc.get("jobs") or {}) if isinstance(doc, dict) else {}
         if name in POSTERS:
-            for jid, job in (doc.get("jobs") or {}).items():
-                env = job.get("environment")
-                if acr.VERDICT_TOKEN_ENV in repr(job) and (env.get("name") if isinstance(env, dict) else env) != VERDICT_ENVIRONMENT:
-                    bad.append(f"{name}: job {jid} is handed the App's token outside the environment {VERDICT_ENVIRONMENT}")
-        if name not in POSTERS:
-            bad += [f"{name} names {n} outside a comment: only {acr.FOLLOWER_WORKFLOW.name} may" for n in names if re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(n), code)]
-            for jid, job in (doc.get("jobs") or {}).items():
-                env = job.get("environment")
-                if (env.get("name") if isinstance(env, dict) else env) == VERDICT_ENVIRONMENT:
-                    bad.append(f"{name}: job {jid} runs in the environment {VERDICT_ENVIRONMENT}")
-            on = doc.get("on", doc.get(True))
+            for jid, job in jobs.items():
+                if acr.VERDICT_TOKEN_ENV in repr(job) and job.get("environment") != acr.VERDICT_ENVIRONMENT:
+                    bad.append(f"{name}: job {jid} is handed the App's token outside the environment {acr.VERDICT_ENVIRONMENT}")
+        else:
+            on = doc.get("on", doc.get(True)) if isinstance(doc, dict) else None
             wr = on.get("workflow_run") if isinstance(on, dict) else None
             if wr and QDOC["name"] in (wr.get("workflows") or []):
                 bad.append(f"{name} also follows {QDOC['name']!r}")
-        perms = [doc.get("permissions"), *(j.get("permissions") for j in (doc.get("jobs") or {}).values())]
+        perms = [doc.get("permissions") if isinstance(doc, dict) else None, *(j.get("permissions") for j in jobs.values() if isinstance(j, dict))]
         if any(p == "write-all" or (isinstance(p, dict) and p.get("statuses") == "write") for p in perms):
             bad.append(f"{name} gives a workflow token statuses: write")
     return bad
@@ -1325,38 +1322,51 @@ def environment_and_status_problems(docs: dict) -> list[str]:
 def test_MQ_no_other_workflow_can_reach_the_app_or_write_a_status():
     docs = _all_workflow_docs()
     assert environment_and_status_problems(docs) == []
-    # control: each kind of intruder is named
+    assert acr.VERDICT_ENVIRONMENT == VERDICT_ENVIRONMENT and set(acr.POSTER_JOBS) == {f".github/workflows/{p}" for p in POSTERS}
+    assert acr.POSTER_JOBS[acr.FOLLOWER_WORKFLOW.as_posix()] == list(VDOC["jobs"]) [0] == "verdict"
+    assert acr.POSTER_JOBS[".github/workflows/agent-ci-required.yml"] == list(RDOC["jobs"])[0] == "status"
+    # control: each kind of intruder is named, in a workflow that is clean as it stands
     text, doc = docs["web-start.yml"]
-    for label, mutate, more in (
-        ("environment", lambda d: next(iter(d["jobs"].values())).update(environment=VERDICT_ENVIRONMENT), ""),
-        ("environment-object", lambda d: next(iter(d["jobs"].values())).update(environment={"name": VERDICT_ENVIRONMENT, "url": "x"}), ""),
-        ("variable", lambda d: None, "\n      APP: ${{ vars.%s }}\n" % APP_ID_VAR),
-        ("secret", lambda d: None, "\n      KEY: ${{ secrets.%s }}\n" % APP_KEY_SECRET),
-        ("token", lambda d: None, "\n      T: $%s\n" % acr.VERDICT_TOKEN_ENV),
-        ("statuses", lambda d: next(iter(d["jobs"].values())).update(permissions={"statuses": "write"}), ""),
-        ("write-all", lambda d: d.update(permissions="write-all"), ""),
-        ("follows", lambda d: d[True if True in d else "on"].update(workflow_run={"workflows": [QDOC["name"]], "types": ["completed"]}), ""),
-        ("context", lambda d: None, "\n      - run: gh api repos/o/r/statuses/$SHA -f context=agent-ci-required -f state=success\n"),
-        ("context-in-a-name", lambda d: None, "\n      - name: post agent-ci-required\n"),
+    assert acr.workflow_problems({".github/workflows/web-start.yml": text}) == []
+    first = lambda d: next(iter(d["jobs"].values()))                                    # noqa: E731
+    for label, mutate in (
+        # AUDIT's three: the literal name, a name an expression computes, a name read from a variable
+        ("environment", lambda d: first(d).update(environment=VERDICT_ENVIRONMENT)),
+        ("environment-format", lambda d: first(d).update(environment="${{ format('agent-ci-{0}', 'verdict') }}")),
+        ("environment-vars", lambda d: first(d).update(environment="${{ vars.ENV_NAME }}")),
+        ("environment-object", lambda d: first(d).update(environment={"name": "${{ vars.ENV_NAME }}", "url": "x"})),
+        ("environment-of-another-name", lambda d: first(d).update(environment="production")),
+        ("variable", lambda d: first(d).update(env={"APP": "${{ vars.%s }}" % APP_ID_VAR})),
+        ("secret", lambda d: first(d).update(env={"KEY": "${{ secrets.%s }}" % APP_KEY_SECRET})),
+        ("token", lambda d: first(d)["steps"].append({"run": "echo $%s" % acr.VERDICT_TOKEN_ENV})),
+        ("context", lambda d: first(d)["steps"].append({"run": "gh api repos/o/r/statuses/$SHA -f context=agent-ci-required -f state=success"})),
+        ("context-in-a-name", lambda d: first(d)["steps"].append({"name": "post agent-ci-required", "run": "true"})),
+        ("remote-reusable", lambda d: d["jobs"].update(call={"uses": "someone/repo/.github/workflows/x.yml@main"})),
+        ("statuses", lambda d: first(d).update(permissions={"statuses": "write"})),
+        ("write-all", lambda d: d.update(permissions="write-all")),
+        ("follows", lambda d: d[True if True in d else "on"].update(workflow_run={"workflows": [QDOC["name"]], "types": ["completed"]})),
     ):
         d = copy.deepcopy(doc)
         mutate(d)
-        assert environment_and_status_problems({**docs, "web-start.yml": (text + more, d)}), f"{label} went unnoticed"
+        assert environment_and_status_problems({**docs, "web-start.yml": (_dump(d), d)}), f"{label} went unnoticed"
+    assert environment_and_status_problems({**docs, "web-start.yml": (_dump(doc), doc)}) == []      # control: the round trip itself is clean
+    assert environment_and_status_problems({**docs, "new.yml": ("jobs: {a: [}\n", {})}) == ["new.yml: does not parse as YAML (ParserError)"]
     # the posters themselves: their own token may not write a status either, and the App's token stays in the environment
     for poster in POSTERS:
         ptext, pdoc = docs[poster]
         d = copy.deepcopy(pdoc)
-        next(iter(d["jobs"].values()))["permissions"]["statuses"] = "write"
-        assert environment_and_status_problems({**docs, poster: (ptext, d)}), f"{poster}: its own token may post again"
+        first(d)["permissions"]["statuses"] = "write"
+        assert environment_and_status_problems({**docs, poster: (_dump(d), d)}), f"{poster}: its own token may post again"
         d = copy.deepcopy(pdoc)
-        del next(iter(d["jobs"].values()))["environment"]
-        assert environment_and_status_problems({**docs, poster: (ptext, d)}), f"{poster}: the App's token outside the environment"
-    # a workflow FILE name is not the context, and neither is a comment
-    assert environment_and_status_problems({**docs, "web-start.yml": (text + "\n      # agent-ci-required\n    paths: ['.github/workflows/agent-ci-required.yml']\n", doc)}) == []
-    assert environment_and_status_problems({**docs, "web-start.yml": (text + "\n      - run: true   # pinned, as agent-ci-required.yml pins it\n", doc)}) == []
-    # a comment that only names the environment is not a use; a longer word that contains the name is not the name
-    assert environment_and_status_problems({**docs, "web-start.yml": (text + "\n# see agent-ci-verdict\n# x-agent-ci-verdict-y: 1\n", doc)}) == []
-    assert environment_and_status_problems({**docs, "web-start.yml": (text + "\nenv:\n  X: my-agent-ci-verdict-2\n", doc)}) == []
+        del first(d)["environment"]
+        assert environment_and_status_problems({**docs, poster: (_dump(d), d)}), f"{poster}: the App's token outside the environment"
+        d = copy.deepcopy(pdoc)
+        d["jobs"]["second"] = {"runs-on": "ubuntu-latest", "environment": VERDICT_ENVIRONMENT, "steps": [{"run": "true"}]}
+        assert environment_and_status_problems({**docs, poster: (_dump(d), d)}), f"{poster}: a second job in the environment"
+    # a workflow FILE name is not the context, and neither is a YAML comment
+    d = copy.deepcopy(doc)
+    first(d)["steps"].append({"run": "true   # pinned, as agent-ci-required.yml pins it", "name": "see .github/workflows/agent-ci-required.yml"})
+    assert environment_and_status_problems({**docs, "web-start.yml": (_dump(d) + "\n# agent-ci-required\n# AGENT_CI_VERDICT_TOKEN\n# environment: agent-ci-verdict\n", d)}) == []
 
 
 def _sparse(job: dict) -> list[str]:

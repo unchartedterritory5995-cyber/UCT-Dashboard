@@ -10,6 +10,9 @@
 # The status (context `agent-ci-required`) is success ONLY when the PR's diff vs its base touches no Agent path (the
 # list is read from agent-ci.yml's push trigger at run time), OR the agent ci PUSH run for the exact head SHA completed
 # with every Agent job (names read from agent-ci.yml) = success. Anything else is pending or failure (fail closed).
+# And it is FAILURE, whatever the diff, when the head's workflow tree could reach the App (a file other than the two
+# posters with an `environment` key, a reusable workflow from another repository, the App's names, an unparsable
+# workflow file): such a pull request cannot enter the merge queue.
 #   pull_request_target (opened/synchronize/reopened): evaluates the new head SHA -> success / pending
 #   workflow_run (agent ci completed):                 re-evaluates that run's head SHA -> success / failure
 # Logic + tests: tools/agent_ci_required.py, tests/test_agent_ci_required.py; rails on this file:
@@ -33,6 +36,9 @@
 # these reasons, and a rail holds each one (tests/test_ci_agent_merge_ref.py, pr_stage_violations):
 #   1. NOTHING of the pull request is checked out or executed. The one checkout is the default branch, sparse, two
 #      files; there is no `ref:` taken from the event, no second checkout, no `git checkout` in a step.
+#      (2026-11-22, AUDIT review 2: master's tool also FETCHES the head commit as git objects and reads its
+#      .github/workflows files as data, with a safe YAML parser, to refuse a head that could reach the App. A fetch
+#      puts objects in .git; it writes no file of the pull request to the work tree and runs none.)
 #   2. The event reaches the shell only as environment variables (the head SHA and the PR number); no expression is
 #      written into a `run:` line. The tool treats them as data: an argparse integer and a commit id in an API path.
 #   3. What the tool reads about the pull request comes through the API as data (its changed file names, its head

@@ -238,6 +238,13 @@ def required_keys(doc: dict) -> dict[str, str]:
 #: (`self-protected-diff`); such a PR falls back to AUDIT's local evidence. Glob semantics: tools/agent_ci_required.matches.
 SELF_PROTECTED = (
     ".github/workflows/**",
+    # AUDIT review 2 of #2501, finding 4: a local action is code a job executes. No Agent job uses one today; the day
+    # one does, it must already be protected (the queue's follower trusts the Agent jobs' conclusions only because
+    # every file they execute is self-protected).
+    ".github/actions/**",
+    # finding 2: the rails that hold the Agent CI workflows, the verdict and these tools. They are Agent paths too
+    # (agent-ci.yml `paths:`), so an edit to one is Agent + self-protected: AUDIT decides.
+    "tests/test_ci_agent_merge_ref.py", "tests/test_agent_ci_required.py", "tests/test_agent_ci_evidence.py",
     "tools/agent_ci_*.py", "tools/agent_suite_lock.py",
     # F4: the browser job executes the shard planner and reads its committed timings
     "tools/agent_vitest_shards.py", "tools/agent_vitest_shard_timings.json",

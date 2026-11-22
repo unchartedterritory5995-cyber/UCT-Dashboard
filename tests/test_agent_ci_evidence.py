@@ -1516,3 +1516,22 @@ def test_MG_on_first_parent_reads_masters_chain_from_a_real_repository(tmp_path,
     assert api.on_first_parent(work, landed, limit=1) is False and api.on_first_parent(work, landed, limit=2) is True
     with pytest.raises(ev.ApiError):
         api.on_first_parent(tmp_path / "nowhere", landed)
+
+
+# ---- AUDIT review 2 of #2501, findings 2 and 4: more of what a run executes is self-protected -----------------------------
+@pytest.mark.parametrize("path", [
+    "tests/test_ci_agent_merge_ref.py", "tests/test_agent_ci_required.py", "tests/test_agent_ci_evidence.py",
+    ".github/actions/pine-heavy-setup/action.yml", ".github/actions/new/dist/index.js",
+])
+def test_AR2_the_rails_and_local_actions_are_self_protected(path):
+    assert ev.self_protected_hits([path], ev.SELF_PROTECTED) == [path]
+    fx = _fx()
+    fx["changed_paths"] = fx["changed_paths"] + [path]
+    verdict, reason, _ = _decide(fx)
+    assert _code((verdict, reason, None)) == "self-protected-diff" and path in reason
+
+
+def test_AR2_their_neighbours_are_not():
+    ok = ["tests/test_ci_cost_rails.py", "tests/test_uct_agent_deploy_gate.py", "tests/test_agent_ci_required_helper.py", ".github/CODEOWNERS",
+          "docs/.github/actions/x.yml", "tests/fixtures/agent_ci_evidence/pass_run.json"]
+    assert ev.self_protected_hits(ok, PROTECTED) == []

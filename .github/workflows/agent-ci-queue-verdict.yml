@@ -30,6 +30,14 @@
 #        - refuses, posting NOTHING, a run that is not agent-ci-queue.yml's own merge-group run for that commit
 #          (the event, the workflow file's path read from the API, the commit and the branch must all agree). Any
 #          workflow can NAME itself "agent ci queue"; only that file's run is judged;
+#        - for EVERY entry, an entry that touches no Agent path included, reads the WHOLE .github/workflows tree
+#          of the commit from git objects (never checked out, never executed) and posts failure, naming the file
+#          and the job, when a file other than this one and agent-ci-required.yml has an `environment` key at all
+#          (the key, never its value: an expression can compute a name), when a job calls a reusable workflow from
+#          outside this repository, when such a file names AGENT_CI_VERDICT_* or the context outside a comment, or
+#          when a workflow file does not parse (tools/agent_ci_required.py workflow_problems; AUDIT review 2,
+#          finding 1). This is what stops a pull request from LANDING a workflow that could use the environment;
+#          it also fails an entry queued behind one;
 #        - fetches the commit and RECOMPUTES the scope with master's code (a two-parent merge; the diff against
 #          its first parent; master's Agent path list and protected list). The run's own `scope` job is not read;
 #        - for an entry that needs Agent evidence, requires every self-protected path to be byte-identical between
@@ -53,12 +61,11 @@
 # that POSTs. The four event values reach bash only as environment variables, and the tool validates each one.
 #
 # ⚠️ LIMITS, stated on purpose:
-#   * Whatever is ON MASTER can use the environment. A workflow that lands on master and names
-#     `environment: agent-ci-verdict` could mint the same token. This file, agent-ci-queue.yml, agent-ci.yml and
-#     agent-ci-required.yml are Agent paths (AUDIT F2), so an edit to one lands only through AUDIT; a rail in
-#     tests/test_ci_agent_merge_ref.py refuses any workflow but this one and agent-ci-required.yml that names the
-#     environment, the variable, the secret or the context. That rail is a test file a pull request can edit: it
-#     holds against an accident.
+#   * Whatever is ON MASTER can use the environment, so nothing that could use it may LAND: the workflow-tree scan
+#     above, decided by master's tool for every entry and every pull-request head. This file, agent-ci-queue.yml,
+#     agent-ci.yml, agent-ci-required.yml and their three rail files are Agent paths AND self-protected, so an edit
+#     to one lands only through AUDIT. What the scan cannot see: a workflow landed OUTSIDE the queue (an admin
+#     merge), and an environment whose own settings admit another branch or let an admin bypass its policy.
 #   * Sound only with merge method MERGE and grouping ALLGREEN (see agent-ci-queue.yml).
 #   * Each run of this job is recorded by GitHub as a deployment to the environment `agent-ci-verdict`.
 #

@@ -17,6 +17,12 @@ job, or a changed-file list too long to read whole.
     python tools/agent_ci_required.py --event workflow_run   --sha <head>
     (env: GITHUB_TOKEN, GITHUB_REPOSITORY; optional GITHUB_API_URL, TARGET_URL; --dry-run prints, posts nothing)
 
+WHO MAY REACH THE APP (2026-11-22, AUDIT review 2 of #2501): workflow_problems() below is the ONE judge of a commit's
+.github/workflows tree: no file but the two posters may declare an `environment` (the key, whatever its value), call a
+reusable workflow from outside this repository, or name the App's variables or the context. It runs from master's copy of
+this file over git objects, for every merge group entry (the follower) and every pull-request head (this side); a
+finding is a failure, an unreadable or unparsable file included.
+
 WHO POSTS (2026-11-22): every status under this context, on a pull request's head or on a merge group's commit, is
 POSTed with a GitHub App's installation token (env AGENT_CI_VERDICT_TOKEN), never with GITHUB_TOKEN, which only reads.
 At the merge-queue cutover the ruleset pins the required check to that App; a status under the same context from any
@@ -340,6 +346,7 @@ VERDICT_TOKEN_ENV = "AGENT_CI_VERDICT_TOKEN"
 FREEZE_TZ = "America/New_York"
 FREEZE_WINDOWS = (((9, 20), (9, 45)), ((15, 30), (16, 15)))
 MACHINERY_EDITED = "; an entry ahead edits the Agent CI machinery: AUDIT decides"
+APP_REACH = ": only the two posters may reach the verdict App"
 #: that workflow's job that CALLS agent-ci.yml. The Actions API reports a called workflow's jobs as
 #: "<calling job's name> / <job name>" (and the calling job alone, by its bare name, when it was skipped), so the
 #: required jobs are matched under exactly this prefix; the calling job carries no `name:` (a rail holds that).
@@ -373,9 +380,10 @@ def _job_log(message: str) -> None:
 def _git_reader(root, run=subprocess.run, log=_job_log):
     """`git(what, *args)` -> stdout bytes, or None when git could not answer. A failure is logged with WHICH step it
     was and git's stderr, so a red verdict that says "could not be read" can be diagnosed from the job log."""
-    def git(what: str, *args):
+    def git(what: str, *args, stdin=None):
         try:
-            p = run(["git", "-C", str(root), *args], capture_output=True, timeout=300)
+            more = {} if stdin is None else {"input": stdin}
+            p = run(["git", "-C", str(root), *args], capture_output=True, timeout=300, **more)
         except (OSError, subprocess.SubprocessError) as e:
             log(f"{what}: git {args[0]} could not run: {type(e).__name__}: {e}"[:400])
             return None
@@ -385,6 +393,180 @@ def _git_reader(root, run=subprocess.run, log=_job_log):
             return None
         return p.stdout
     return git
+
+
+# ---------------------------------------------------------------------------------------------- who can reach the App
+# AUDIT review 2 of #2501, finding 1 (2026-11-22). The environment `agent-ci-verdict` admits every workflow file ON
+# master, so a pull request that ADDS a workflow able to use it could, once landed, mint the App's token and post the
+# required status itself. The rule against that is decided HERE, in master's copy of this tool (self-protected, never the
+# pull request's), over the WHOLE .github/workflows tree of the commit being judged, read from git objects as data:
+# nothing of that commit is checked out, and no workflow in it is executed. The follower applies it to EVERY merge group
+# entry and the pull-request side to every head, so such a pull request cannot enter the queue, let alone land.
+WORKFLOW_DIR = ".github/workflows"
+VERDICT_ENVIRONMENT = "agent-ci-verdict"
+#: the two workflow files that post agent-ci-required, and in each the ONE job that may name the environment
+POSTER_JOBS = {FOLLOWER_WORKFLOW.as_posix(): "verdict", f"{WORKFLOW_DIR}/agent-ci-required.yml": "status"}
+#: where a job may take a reusable workflow from: this repository's own tree, which this same scan reads
+LOCAL_REUSABLE = "./" + WORKFLOW_DIR + "/"
+#: (c) the backstop's two needles, compared case-insensitively (GitHub reads vars / secrets names that way)
+APP_NAMES = "agent_ci_verdict_"
+MAX_WORKFLOW_FILES, MAX_WORKFLOW_BYTES = 400, 1_000_000
+
+
+class _StrictLoader(yaml.SafeLoader):
+    """yaml.safe_load, except that a mapping with the same key twice is an ERROR. PyYAML keeps the last of two equal
+    keys; a reader that kept the first would see another workflow than this scan did."""
+    def construct_mapping(self, node, deep=False):
+        seen = set()
+        for key_node, _ in node.value:
+            if key_node.tag == "tag:yaml.org,2002:merge":
+                continue
+            key = self.construct_object(key_node, deep=True)
+            if key in seen:
+                raise yaml.constructor.ConstructorError(None, None, f"duplicate key {key!r}", key_node.start_mark)
+            seen.add(key)
+        return super().construct_mapping(node, deep)
+
+
+def _walk(value, path=(), seen=None):
+    """(path, key, value) for every mapping entry at any depth, and (path, None, scalar) for every scalar. A node YAML
+    aliases a hundred times is walked once (an alias is the same object), so a nest of anchors cannot blow this up."""
+    seen = set() if seen is None else seen
+    if isinstance(value, (dict, list)):
+        if id(value) in seen:
+            return
+        seen.add(id(value))
+    if isinstance(value, dict):
+        for k, v in value.items():
+            yield path, k, v
+            yield from _walk(v, (*path, k), seen)
+    elif isinstance(value, list):
+        for i, v in enumerate(value):
+            yield from _walk(v, (*path, i), seen)
+    else:
+        yield path, None, value
+
+
+def _is(key, name: str) -> bool:
+    return isinstance(key, str) and key.strip().casefold() == name
+
+
+def workflow_problems(files: dict) -> list[str]:
+    """Every way the workflow tree `files` ({repo path under .github/workflows: its bytes / text, or None when it could
+    not be read}) could reach the App that posts agent-ci-required, or post that context by accident. [] = none.
+    One line per finding, naming the file and the job. The judge for a merge group entry, for a pull request's head,
+    and for the test rail (tests/test_ci_agent_merge_ref.py calls this same function over the tree it runs in).
+
+    (a) THE ENVIRONMENT. An environment's secrets and variables reach a job ONLY when that job declares the
+        environment (GitHub's rule; `secrets[format(...)]` or `toJSON(secrets)` in a job that declares none read
+        repository and organization secrets, and the App's key is neither). So the KEY is what is refused, never its
+        value, which an expression could compute (`${{ format('agent-ci-{0}', 'verdict') }}`, `${{ vars.X }}`):
+          - in any file but the two posters, a mapping key `environment` at ANY depth is a finding (a job's, and also
+            a step's `with:` input of that name: refused rather than told apart);
+          - in a poster, exactly one such key is allowed: jobs.<poster job>.environment, the literal agent-ci-verdict.
+    (b) REUSABLE WORKFLOWS. A job may `uses:` a workflow only from ./.github/workflows/ of this repository. One taken
+        from another repository runs here, with what this repository grants it, and no scan of these files sees it.
+        Refused: a `uses` directly under a job that does not start with ./.github/workflows/, and a `uses` at any
+        depth that names a .github/workflows/ path any other way (owner/repo/.github/workflows/x.yml@ref).
+    (c) BACKSTOP, the names. In any file but the posters, a YAML string (a key or a value, at any depth) that contains
+        AGENT_CI_VERDICT_ (any case), or the context agent-ci-required other than inside the file name
+        agent-ci-required.yml, is a finding. "Outside a comment" means exactly this: a YAML comment is not a string
+        of the document and never counts; a `#` line INSIDE a run: script is part of that string and does.
+        Not relied on for (a): an expression can spell either name without writing it.
+    FAIL CLOSED: a file that could not be read, is not a regular file, is too large, or does not parse as ONE YAML
+    document with unique keys, is a finding that names it. The three rules read the WHOLE document, whatever its shape
+    (they do not depend on finding `jobs` where it is expected)."""
+    bad = []
+    if len(files) > MAX_WORKFLOW_FILES:
+        return [f"{len(files)} workflow files: more than this scan reads ({MAX_WORKFLOW_FILES})"]
+    for path in sorted(files):
+        name, raw = path.rsplit("/", 1)[-1], files[path]
+        if raw is None:
+            bad.append(f"{name}: could not be read as a regular file")
+            continue
+        if len(raw) > MAX_WORKFLOW_BYTES:
+            bad.append(f"{name}: larger than this scan reads")
+            continue
+        try:
+            text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else str(raw)
+            doc = yaml.load(text, Loader=_StrictLoader)   # noqa: S506  (a SafeLoader subclass)
+        except Exception as e:  # noqa: BLE001  whatever the parser says, the file is not one this scan can vouch for
+            bad.append(f"{name}: does not parse as YAML ({type(e).__name__})")
+            continue
+        poster_job = POSTER_JOBS.get(path)
+        for where, key, value in _walk(doc):
+            if _is(key, "environment"):                                                        # (a)
+                job = where[1] if len(where) >= 2 and where[0] == "jobs" else None
+                if poster_job is None:
+                    bad.append(f"{name}: job {job} declares an environment" if len(where) == 2 and job is not None
+                               else f"{name}: an `environment` key at {'.'.join(map(str, where)) or 'the top'}")
+                elif where != ("jobs", poster_job):
+                    bad.append(f"{name}: an `environment` key outside the poster job {poster_job} (at {'.'.join(map(str, where)) or 'the top'})")
+                elif value != VERDICT_ENVIRONMENT or key != "environment":
+                    bad.append(f"{name}: job {poster_job}'s environment is not the literal {VERDICT_ENVIRONMENT}")
+            if _is(key, "uses"):                                                               # (b)
+                local = isinstance(value, str) and value.startswith(LOCAL_REUSABLE)
+                job_level = len(where) == 2 and where[0] == "jobs"
+                if (job_level or (WORKFLOW_DIR + "/") in str(value).casefold()) and not local:
+                    job = where[1] if len(where) >= 2 and where[0] == "jobs" else "?"
+                    bad.append(f"{name}: job {job} calls a reusable workflow outside this repository's tree ({str(value)[:50]})")
+            if poster_job is None:                                                             # (c)
+                for s in (key, value):
+                    if not isinstance(s, str):
+                        continue
+                    low = s.casefold()
+                    if APP_NAMES in low:
+                        bad.append(f"{name}: names AGENT_CI_VERDICT_* outside a comment")
+                    if CONTEXT in low.replace(f"{CONTEXT}.yml", ""):
+                        bad.append(f"{name}: names the context {CONTEXT} outside a comment")
+    return sorted(set(bad))
+
+
+def workflow_files_at(git, sha: str):
+    """{path: bytes | None} for every .yml / .yaml under .github/workflows at commit `sha`, read from git OBJECTS (the
+    commit is never checked out). None for an entry that is not a regular file or whose content could not be read.
+    The whole result is None when the tree could not be listed. In a blob-less clone (what a sparse actions/checkout
+    is) the contents are fetched first, in one batch, the way git's own on-demand fetch asks for them."""
+    listed = git("the workflow files, listing them", "ls-tree", "-r", "-z", sha, "--", WORKFLOW_DIR)
+    if listed is None:
+        return None
+    entries = []
+    for rec in listed.decode("utf-8", "surrogateescape").split("\0"):
+        meta, tab, path = rec.partition("\t")
+        if not tab or not path.casefold().endswith((".yml", ".yaml")) or len(meta.split()) != 3:
+            continue
+        mode, kind, oid = meta.split()
+        entries.append((path, kind == "blob" and mode in ("100644", "100755"), oid))
+    if len(entries) > MAX_WORKFLOW_FILES:
+        return {path: None for path, _, _ in entries}
+    wanted = sorted({oid for _, regular, oid in entries if regular and _SHA.match(oid)})
+    if wanted:   # the answer is not read: cat-file below is what decides whether each content is here
+        git("the workflow files, fetching their contents", "-c", "fetch.negotiationAlgorithm=noop", "fetch", "origin", "--no-tags",
+            "--quiet", "--no-write-fetch-head", "--recurse-submodules=no", "--filter=blob:none", "--stdin",
+            stdin=("\n".join(wanted) + "\n").encode("ascii"))
+    return {path: (git(f"the workflow file {path}", "cat-file", "blob", oid) if regular and _SHA.match(oid) else None)
+            for path, regular, oid in entries}
+
+
+def head_workflow_problems(root, sha, fetch: bool = True, run=subprocess.run, log=_job_log) -> list[str]:
+    """workflow_problems() for the tree of commit `sha`, read through the checkout at `root` (master's; `sha` itself is
+    only fetched as objects when `fetch`). Anything that cannot be read is a finding, never an empty list."""
+    if not (isinstance(sha, str) and _SHA.match(sha)):
+        return ["the commit to scan is not a 40-hex id"]
+    git = _git_reader(root, run, log)
+    if fetch and git("the commit whose workflow files are scanned, fetching", "fetch", "--no-tags", "--quiet", "--depth=1",
+                     "--filter=blob:none", "origin", sha) is None:
+        return [f"the workflow files of {sha[:12]} could not be fetched"]
+    files = workflow_files_at(git, sha)
+    if files is None:
+        return [f"the workflow files of {sha[:12]} could not be listed"]
+    return workflow_problems(files)
+
+
+def workflow_verdict(problems: list[str]) -> str:
+    """The status text for a commit whose workflow tree has findings (always a failure)."""
+    head = problems[0] if len(problems) == 1 else f"{len(problems)} workflow problems, e.g. {problems[0]}"
+    return (head[:140 - len(APP_REACH)] + APP_REACH)[:140]
 
 
 def commit_parents(git, what: str, sha: str):
@@ -600,7 +782,9 @@ def machinery_edits(git, base: str, head_sha: str, protected):
 def follow_verdict(root, api: Api, run_id, head_sha: str, head_ref: str, now, run=subprocess.run, log=_job_log) -> tuple[str, str]:
     """`agent-ci-required` for one merge group commit, decided by the trusted follower from MASTER's checkout at `root`.
     NOTHING the merge group's run says about itself is read: not its scope job's outputs, not its conclusion. The
-    follower fetches the commit, RECOMPUTES the scope with master's code (same rule: a two-parent merge, the diff
+    follower fetches the commit and, for EVERY entry, first scans the whole .github/workflows tree of that commit
+    (workflow_problems: nothing but the two posters may reach the App; it also fails an entry queued BEHIND one that
+    adds such a file). It then RECOMPUTES the scope with master's code (same rule: a two-parent merge, the diff
     against its first parent), and for an entry that needs Agent evidence it also requires, in this order:
       * every self-protected path byte-identical between the commit and the master commit the group is built on
         (machinery_edits: an entry AHEAD may have edited what this entry's jobs ran with);
@@ -616,6 +800,11 @@ def follow_verdict(root, api: Api, run_id, head_sha: str, head_ref: str, now, ru
     if parents is None or len(parents) != 2:
         log(f"{head_sha} has parents {parents}: not a two-parent merge (merge method MERGE is the only one judged)")
         return FAILURE, "fail closed: the merge group's commit is not a two-parent merge"
+    problems = head_workflow_problems(root, head_sha, fetch=False, run=run, log=log)
+    if problems:                                   # every entry, an entry that touches no Agent path included
+        for line in problems[:20]:
+            log("workflow tree: " + line)
+        return FAILURE, workflow_verdict(problems)
     doc = load_agent_ci(root)
     scope = queue_scope(root, doc, head_sha, parents[0], head_ref, head_sha, fetch=False)
     code, detail = scope["code"], scope["detail"]
@@ -733,6 +922,13 @@ def main(argv=None) -> int:
             prs = None
     if prs is not None:
         state, reason, link = evaluate(api, a.sha, prs, doc)
+    # AUDIT review 2 of #2501, finding 1: a head whose workflow tree could reach the App is never success (nor pending),
+    # whatever its diff touches. The head is fetched as git OBJECTS and its workflow files are parsed as data.
+    problems = head_workflow_problems(a.root, a.sha)
+    if problems:
+        for line in problems[:20]:
+            _job_log("workflow tree: " + line)
+        state, reason = FAILURE, workflow_verdict(problems)
     body = {"state": state, "context": CONTEXT, "description": reason[:140],
             "target_url": link or os.environ.get("TARGET_URL") or None}
     body = {k: v for k, v in body.items() if v is not None}

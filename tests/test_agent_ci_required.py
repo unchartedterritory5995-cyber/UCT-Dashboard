@@ -277,12 +277,15 @@ def test_MQ_the_scope_code_for_each_kind_of_diff():
 #: workflow that holds statuses: write or decides an Agent verdict belongs on that list").
 PROTECTED_AND_AGENT = [
     ".github/workflows/agent-ci.yml", ".github/workflows/agent-ci-queue.yml", ".github/workflows/agent-ci-required.yml",
+    ".github/workflows/agent-ci-queue-verdict.yml",
+    "tests/test_ci_agent_merge_ref.py", "tests/test_agent_ci_required.py", "tests/test_agent_ci_evidence.py",    # AUDIT review 2
     "tools/agent_ci_required.py", "tools/agent_ci_evidence.py", "tools/agent_ci_rearm.py",
     "tools/agent_suite_lock.py", "tools/agent_vitest_shards.py", "tools/agent_vitest_shard_timings.json",
 ]
 #: self-protected paths that are NOT Agent paths: alone they need no Agent evidence
 PROTECTED_NOT_AGENT = [
     WORKFLOW_FILE, ".github/workflows/new.yml", ".github/workflows/gate-static-rails-pr.yml",
+    ".github/actions/pine-heavy-setup/action.yml",
     "app/package.json", "app/package-lock.json", "app/vite.config.js", "app/scripts/chartLibraryPatch.mjs",
     "app/src/test-setup.js", "app/src/lib/marketClock/calendarCompact.js",
     "pytest.ini", "conftest.py", "tests/conftest.py", "requirements.txt", "api/requirements.txt",
@@ -1008,13 +1011,16 @@ def test_MQ_the_pull_request_and_workflow_run_paths_are_the_ones_they_were(monke
         def call(self, method, path, body=None):
             assert self.token == "app-token", "only the App's token posts agent-ci-required (2026-11-22)"
             self.posted.append((method, path, body))
-    made = []
+    made, scanned = [], []
     monkeypatch.setattr(acr, "Api", Api)
+    # the head's workflow tree is scanned in both legs (its own tests are further down); here it is clean
+    monkeypatch.setattr(acr, "head_workflow_problems", lambda root, sha, **kw: scanned.append((str(root), sha)) or [])
     monkeypatch.setenv("GITHUB_TOKEN", "read-token")
     monkeypatch.setenv(acr.VERDICT_TOKEN_ENV, "app-token")
     monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
     monkeypatch.delenv("TARGET_URL", raising=False)
     assert acr.main(["--event", "pull_request", "--sha", SHA, "--pr", "1", "--root", str(ROOT), "--stage", "follow", "--run-event", "merge_group", "--run-id", "5"]) == 0
+    assert scanned == [(str(ROOT), SHA)]
     want = [("POST", f"statuses/{SHA}", {"state": "success", "context": "agent-ci-required",
                                          "description": "agent ci run passed all 18 required jobs"})]
     assert [m.token for m in made] == ["read-token", "app-token"] and made[0].posted == [] and made[1].posted == want
@@ -1246,3 +1252,305 @@ def test_MQ_an_unparsable_answer_is_not_asked_again_and_one_attempt_is_one_attem
         api.get("pulls/1")
     assert len(calls) == 1 and slept == []
     assert acr.Api("t", "o/r", attempts=0).attempts == 1 and acr.Api("t", "o/r").attempts == 1      # the default: as before
+
+
+# ---- AUDIT review 2 of #2501, finding 1: who may reach the App is decided by the TOOL, over the whole workflow tree --------
+W = ".github/workflows/"
+CLEAN = "name: x\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: 'true'\n"
+
+
+def _wf(job_extra="", top_extra="", steps="      - run: 'true'\n"):
+    return f"name: x\non: push\n{top_extra}jobs:\n  build:\n    runs-on: ubuntu-latest\n{job_extra}    steps:\n{steps}"
+
+
+def _tree_now() -> dict:
+    """The workflow tree this test runs in, as the tool reads one: {path: bytes}."""
+    files = {p.relative_to(ROOT).as_posix(): p.read_bytes() for p in sorted((ROOT / ".github" / "workflows").iterdir()) if p.suffix in (".yml", ".yaml")}
+    assert len(files) > 20, "found too few workflows: this is not the repository's tree"
+    return files
+
+
+def test_MQ_todays_workflow_tree_has_zero_findings():
+    """The predicate must not cost today's tree anything: every workflow on master parses with unique keys, none but the
+    two posters has an `environment` key at any depth, none calls a reusable workflow from another repository, and none
+    names the App's variables or the context in a YAML string (a workflow FILE name is not the context)."""
+    files = _tree_now()
+    assert acr.workflow_problems(files) == []
+    assert set(acr.POSTER_JOBS) <= set(files)
+    # control: the same tree with one intruder is not clean, and the finding names the file and the job
+    assert acr.workflow_problems({**files, W + "new.yml": _wf("    environment: x\n")}) == ["new.yml: job build declares an environment"]
+    # the mentions that exist today outside comments, and are NOT findings: the Agent `paths:` entries that name the
+    # workflow FILE, and the tool invoked by path (underscores: not the context)
+    agent_ci = files[W + "agent-ci.yml"].decode("utf-8")
+    assert "- '.github/workflows/agent-ci-required.yml'" in agent_ci and "tools/agent_ci_required.py" in files[W + "agent-ci-queue.yml"].decode("utf-8")
+
+
+@pytest.mark.parametrize("label,text", [
+    # AUDIT's three evasions of the old string-matching rail: all of them are the KEY, whatever the value
+    ("the literal name", _wf("    environment: agent-ci-verdict\n")),
+    ("a name an expression computes", _wf("    environment: ${{ format('agent-ci-{0}', 'verdict') }}\n")),
+    ("a name read from a variable", _wf("    environment: ${{ vars.ENV_NAME }}\n")),
+    ("the object form", _wf("    environment:\n      name: ${{ vars.ENV_NAME }}\n      url: https://x\n")),
+    ("another environment altogether", _wf("    environment: production\n")),
+    ("an empty value", _wf("    environment:\n")),
+    ("a quoted key", _wf('    "environment": x\n')),
+    ("a key in another case", _wf("    Environment: x\n")),
+    ("flow style", "on: push\njobs: {build: {runs-on: ubuntu-latest, environment: x, steps: [{run: 'true'}]}}\n"),
+    ("through an anchor", "x: &e {environment: prod}\non: push\njobs:\n  build:\n    <<: *e\n    runs-on: ubuntu-latest\n    steps:\n      - run: 'true'\n"),
+])
+def test_MQ_an_environment_key_outside_the_posters_is_a_finding_whatever_its_value(label, text):
+    got = acr.workflow_problems({W + "new.yml": text})
+    assert got and all(g.startswith("new.yml: ") for g in got) and any("environment" in g for g in got), (label, got)
+    assert acr.workflow_problems({W + "new.yml": text.replace("nvironment", "nvironmental")}) == [], label     # control: another key is not that key
+
+
+def test_MQ_an_environment_key_at_any_depth_is_refused_not_told_apart():
+    """A step input or an env var NAMED environment is refused too: the scan does not try to tell it from a job's key."""
+    got = acr.workflow_problems({W + "new.yml": _wf(steps="      - uses: some/action@v1\n        with:\n          environment: staging\n")})
+    assert got == ["new.yml: an `environment` key at jobs.build.steps.0.with"]
+    assert acr.workflow_problems({W + "new.yml": _wf(top_extra="environment: x\n")}) == ["new.yml: an `environment` key at the top"]
+    # ... but a VALUE that is the word, or a key that merely contains it, is not the key
+    assert acr.workflow_problems({W + "new.yml": _wf("    env:\n      DEPLOY_ENVIRONMENT: environment\n")}) == []
+
+
+def test_MQ_a_secret_cannot_be_read_without_the_key_so_the_key_is_the_check():
+    """`secrets[format(...)]` and `toJSON(secrets)` in a non-poster file are NOT findings, on purpose: GitHub hands an
+    environment's secrets and variables only to a job that DECLARES the environment, and the App's key and id exist at
+    environment level only (AUDIT confirmed neither exists at repository level). So such a job reads nothing of the
+    App's, and the moment it declares an environment, under any spelling, rule (a) refuses it."""
+    sneaky = ("    env:\n      A: ${{ secrets[format('AGENT_CI_{0}_APP_PRIVATE_KEY', 'VERDICT')] }}\n      B: ${{ toJSON(secrets) }}\n"
+              "      C: ${{ vars[format('AGENT_CI_{0}_APP_ID', 'VERDICT')] }}\n")
+    assert acr.workflow_problems({W + "new.yml": _wf(sneaky)}) == []
+    got = acr.workflow_problems({W + "new.yml": _wf(sneaky + "    environment: ${{ format('agent-ci-{0}', 'verdict') }}\n")})
+    assert got == ["new.yml: job build declares an environment"]
+
+
+@pytest.mark.parametrize("uses,bad", [
+    ("someone/repo/.github/workflows/x.yml@main", True), ("northstar-quarry/other/.github/workflows/x.yml@" + "a" * 40, True),
+    ("northstar-quarry/UCT-Dashboard/.github/workflows/agent-ci.yml@master", True),      # this repository BY NAME: another ref's copy
+    ("./.github/workflows/../../elsewhere.yml", False), ("../.github/workflows/x.yml", True), (".github/workflows/x.yml", True),
+    ("${{ vars.WF }}", True), ("", True), ("./.github/actions/x", True),
+    ("./.github/workflows/agent-ci.yml", False), ("./.github/workflows/new.yml", False),
+])
+def test_MQ_a_job_may_call_a_reusable_workflow_only_from_this_repositorys_tree(uses, bad):
+    text = f"on: push\njobs:\n  call:\n    uses: '{uses}'\n"
+    got = acr.workflow_problems({W + "new.yml": text})
+    assert bool(got) is bad, (uses, got)
+    if bad:
+        assert got[0].startswith("new.yml: job call calls a reusable workflow outside this repository's tree"), got
+    # a STEP's `uses` is an action, not a workflow: free, unless it names a workflows path
+    step = "on: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: '%s'\n"
+    assert acr.workflow_problems({W + "new.yml": step % "actions/checkout@v4"}) == []
+    assert acr.workflow_problems({W + "new.yml": step % "./.github/actions/pine-heavy-setup"}) == []
+    assert acr.workflow_problems({W + "new.yml": step % "someone/repo/.github/workflows/x.yml@main"})
+
+
+@pytest.mark.parametrize("label,text,finding", [
+    ("the token's env name in a script", _wf(steps="      - run: echo $AGENT_CI_VERDICT_TOKEN\n"), "new.yml: names AGENT_CI_VERDICT_* outside a comment"),
+    ("the variable", _wf("    env:\n      X: ${{ vars.AGENT_CI_VERDICT_APP_ID }}\n"), "new.yml: names AGENT_CI_VERDICT_* outside a comment"),
+    ("the secret, in another case", _wf("    env:\n      X: ${{ secrets.agent_ci_verdict_app_private_key }}\n"), "new.yml: names AGENT_CI_VERDICT_* outside a comment"),
+    ("the name as a KEY", _wf("    env:\n      AGENT_CI_VERDICT_TOKEN: x\n"), "new.yml: names AGENT_CI_VERDICT_* outside a comment"),
+    ("the context in a script", _wf(steps="      - run: gh api repos/o/r/statuses/$SHA -f context=agent-ci-required\n"), "new.yml: names the context agent-ci-required outside a comment"),
+    ("the context as a job name", "on: push\njobs:\n  a:\n    name: agent-ci-required\n    runs-on: x\n    steps: []\n", "new.yml: names the context agent-ci-required outside a comment"),
+    ("the context in a shell comment inside a script", _wf(steps="      - run: |\n          true   # posts agent-ci-required\n"), "new.yml: names the context agent-ci-required outside a comment"),
+    ("the context next to the file name", _wf(steps="      - run: echo agent-ci-required.yml agent-ci-required\n"), "new.yml: names the context agent-ci-required outside a comment"),
+])
+def test_MQ_the_backstop_names(label, text, finding):
+    assert acr.workflow_problems({W + "new.yml": text}) == [finding], label
+    # the posters themselves say all of this, and may
+    for poster in acr.POSTER_JOBS:
+        assert finding.replace("new.yml", poster.rsplit("/", 1)[1]) not in acr.workflow_problems({**_tree_now(), W + "new.yml": CLEAN}), poster
+
+
+@pytest.mark.parametrize("label,text", [
+    ("a YAML comment", "# agent-ci-required AGENT_CI_VERDICT_TOKEN environment: agent-ci-verdict\n" + CLEAN),
+    ("an inline YAML comment", CLEAN.replace("runs-on: ubuntu-latest", "runs-on: ubuntu-latest   # agent-ci-required, AGENT_CI_VERDICT_APP_ID")),
+    ("the workflow FILE name in a paths list", "on:\n  push:\n    paths: ['.github/workflows/agent-ci-required.yml']\njobs:\n  a:\n    runs-on: x\n    steps: []\n"),
+    ("the file name in a script's own comment", _wf(steps="      - run: pip install pyyaml   # pinned, as agent-ci-required.yml pins it\n")),
+    ("the tool, invoked by path", _wf(steps="      - run: python tools/agent_ci_required.py --event merge_group --stage scope\n")),
+    ("a neighbour's name", _wf(steps="      - run: echo agent-ci-queue-verdict agent_ci_verdict agent-ci-require\n")),
+])
+def test_MQ_what_the_backstop_does_not_count(label, text):
+    assert acr.workflow_problems({W + "new.yml": text}) == [], label
+
+
+@pytest.mark.parametrize("label,raw,word", [
+    ("not YAML", "jobs: {a: [}\n", "does not parse as YAML"),
+    ("a tab for indentation", "on: push\njobs:\n\tbuild: {}\n", "does not parse as YAML"),
+    ("two documents", CLEAN + "---\n" + CLEAN, "does not parse as YAML"),
+    ("the same key twice", "on: push\njobs:\n  a: {runs-on: x, environment: prod, steps: []}\njobs:\n  a: {runs-on: x, steps: []}\n", "does not parse as YAML"),
+    ("the same key twice, nested", "on: push\njobs:\n  a:\n    runs-on: x\n    runs-on: y\n    steps: []\n", "does not parse as YAML"),
+    ("a python object tag", "on: push\njobs: !!python/object/apply:os.system ['true']\n", "does not parse as YAML"),
+    ("not text", b"\xff\xfe\x00\x01", "does not parse as YAML"),
+    ("unreadable", None, "could not be read as a regular file"),
+    ("too large", "TOO-LARGE", "larger than this scan reads"),
+])
+def test_MQ_a_workflow_file_the_scan_cannot_read_is_a_finding_that_names_it(label, raw, word):
+    if raw == "TOO-LARGE":                      # (built here: a megabyte is no test id)
+        raw = "#" + " " * acr.MAX_WORKFLOW_BYTES + "\n" + CLEAN
+    got = acr.workflow_problems({W + "ok.yml": CLEAN, W + "broken.yml": raw})
+    assert len(got) == 1 and got[0].startswith("broken.yml: ") and word in got[0], (label, got)
+    assert acr.workflow_problems({W + "ok.yml": CLEAN}) == []                               # control
+
+
+def test_MQ_a_file_with_no_jobs_is_inert_and_a_nest_of_anchors_is_walked_once():
+    for inert in ("", "name: x\n", "- a\n- b\n", "just a string\n", "on: push\njobs: []\n"):
+        assert acr.workflow_problems({W + "new.yml": inert}) == [], inert
+    bomb = "a: &a [x, x]\n" + "".join(f"{chr(98 + i)}: &{chr(98 + i)} [*{chr(97 + i)}, *{chr(97 + i)}]\n" for i in range(24)) + "jobs: {}\n"
+    assert acr.workflow_problems({W + "new.yml": bomb}) == []           # 2**25 leaves if every alias were walked again
+    assert acr.workflow_problems({W + f"w{i}.yml": CLEAN for i in range(acr.MAX_WORKFLOW_FILES + 1)}) == [
+        f"{acr.MAX_WORKFLOW_FILES + 1} workflow files: more than this scan reads ({acr.MAX_WORKFLOW_FILES})"]
+
+
+def test_MQ_in_a_poster_only_the_poster_job_may_name_the_environment_and_only_literally():
+    files = _tree_now()
+    for path, job in acr.POSTER_JOBS.items():
+        name, text = path.rsplit("/", 1)[1], files[path].decode("utf-8")
+        assert f"    environment: {acr.VERDICT_ENVIRONMENT}\n" in text
+        cases = {
+            "an expression": (text.replace("    environment: agent-ci-verdict\n", "    environment: ${{ vars.E }}\n"), f"{name}: job {job}'s environment is not the literal agent-ci-verdict"),
+            "the object form": (text.replace("    environment: agent-ci-verdict\n", "    environment:\n      name: agent-ci-verdict\n"), f"{name}: job {job}'s environment is not the literal agent-ci-verdict"),
+            "a second job": (text + "  second:\n    runs-on: ubuntu-latest\n    environment: agent-ci-verdict\n    steps:\n      - run: 'true'\n",
+                             f"{name}: an `environment` key outside the poster job {job} (at jobs.second)"),
+            "a step input": (text.replace("          python-version: '3.12'\n", "          python-version: '3.12'\n          environment: x\n"),
+                             f"{name}: an `environment` key outside the poster job {job} (at jobs.{job}.steps.1.with)"),
+            "a remote reusable workflow": (text + "  call:\n    uses: someone/repo/.github/workflows/x.yml@main\n",
+                                           f"{name}: job call calls a reusable workflow outside this repository's tree (someone/repo/.github/workflows/x.yml@main)"),
+        }
+        for label, (mutated, finding) in cases.items():
+            assert mutated != text, (name, label)
+            assert acr.workflow_problems({**files, path: mutated}) == [finding], (name, label)
+    # a file with a poster's NAME in another folder is not a poster
+    assert acr.workflow_problems({W + "sub/agent-ci-required.yml": _wf("    environment: agent-ci-verdict\n")})
+
+
+def test_MQ_the_status_text_names_the_file_and_the_job_and_keeps_its_last_sentence():
+    one = acr.workflow_verdict(["new.yml: job build declares an environment"])
+    assert one == "new.yml: job build declares an environment: only the two posters may reach the verdict App"
+    many = acr.workflow_verdict(["a.yml: job x declares an environment", "b.yml: does not parse as YAML (ScannerError)"])
+    assert many == "2 workflow problems, e.g. a.yml: job x declares an environment: only the two posters may reach the verdict App"
+    long = acr.workflow_verdict(["w" * 300 + ".yml: job build declares an environment"])
+    assert len(long) == 140 and long.endswith(": only the two posters may reach the verdict App")
+
+
+# ---- the same judge, reading a commit's tree from git objects ------------------------------------------------------------------
+FORMAT_ENV = "name: sneaky\non: push\njobs:\n  mint:\n    runs-on: ubuntu-latest\n    environment: ${{ format('agent-ci-{0}', 'verdict') }}\n    steps:\n      - run: 'true'\n"
+REMOTE_CALL = "name: far\non: push\njobs:\n  far:\n    uses: someone/repo/.github/workflows/x.yml@main\n"
+
+
+def test_MQ_a_commits_workflow_tree_is_read_from_git_objects_and_nothing_is_checked_out(tmp_path):
+    r = _queue_repo(tmp_path, {"README.md": "r2\n", ".github/workflows/sneaky.yml": FORMAT_ENV, ".github/workflows/sub/deep.yaml": CLEAN,
+                               ".github/workflows/notes.txt": "environment: x\n"})
+    lines = []
+    assert acr.head_workflow_problems(r.work, r.merge, log=lines.append) == ["sneaky.yml: job mint declares an environment"]
+    assert acr.head_workflow_problems(r.work, r.head) == ["sneaky.yml: job mint declares an environment"]       # the PR head itself
+    assert acr.head_workflow_problems(r.work, r.base) == []                                                    # control: master's tree
+    assert not (r.work / ".github" / "workflows" / "sneaky.yml").exists() and _git(r.work, "rev-parse", "HEAD") == r.base
+    git = acr._git_reader(r.work, log=lines.append)
+    files = acr.workflow_files_at(git, r.merge)
+    assert sorted(files) == [".github/workflows/agent-ci.yml", ".github/workflows/ahead.yml", ".github/workflows/sneaky.yml", ".github/workflows/sub/deep.yaml"]
+    assert files[".github/workflows/sneaky.yml"] == FORMAT_ENV.encode() and files[".github/workflows/agent-ci.yml"] == AGENT_CI_TEXT.encode("utf-8")
+    # unreadable is a finding, never an empty list
+    assert acr.head_workflow_problems(r.work, "f" * 40) == ["the workflow files of ffffffffffff could not be fetched"]
+    assert acr.head_workflow_problems(r.work, "f" * 40, fetch=False) == ["the workflow files of ffffffffffff could not be listed"]
+    for bad in ("", None, "HEAD", r.merge[:39], "--upload-pack=x"):
+        assert acr.head_workflow_problems(r.work, bad) == ["the commit to scan is not a 40-hex id"], bad
+    assert acr.workflow_files_at(git, "f" * 40) is None
+
+    def no_blobs(argv, **kw):                      # the tree lists, but no content can be read
+        p = subprocess.run(argv, **kw)
+        return types.SimpleNamespace(returncode=1, stdout=b"", stderr=b"fatal: no blob") if "cat-file" in argv and "blob" in argv else p
+    got = acr.head_workflow_problems(r.work, r.merge, fetch=False, run=no_blobs, log=lines.append)
+    assert got == [f"{n}: could not be read as a regular file" for n in ("agent-ci.yml", "ahead.yml", "deep.yaml", "sneaky.yml")]
+
+
+def test_MQ_a_symlink_among_the_workflows_is_not_a_regular_file(tmp_path):
+    origin = tmp_path / "o"
+    origin.mkdir()
+    _git(origin, "init", "-q", "-b", "master")
+    blob = subprocess.run(["git", "-C", str(origin), "hash-object", "-w", "--stdin"], input=b"../../elsewhere.yml", check=True, capture_output=True).stdout.decode().strip()
+    _git(origin, "update-index", "--add", "--cacheinfo", f"120000,{blob},.github/workflows/link.yml")
+    _git(origin, "commit", "-q", "-m", "a link")
+    sha = _git(origin, "rev-parse", "HEAD")
+    assert acr.head_workflow_problems(origin, sha, fetch=False) == ["link.yml: could not be read as a regular file"]
+
+
+@pytest.mark.parametrize("pr_files,finding", [
+    ({"README.md": "r2\n", ".github/workflows/sneaky.yml": FORMAT_ENV}, "sneaky.yml: job mint declares an environment"),
+    ({"docs/x.md": "x\n", ".github/workflows/far.yml": REMOTE_CALL}, "far.yml: job far calls a reusable workflow outside this repository's tree (someone/repo/.github/workflows/x.yml@main)"),
+    ({".github/workflows/broken.yml": "jobs: {a: [}\n"}, "broken.yml: does not parse as YAML (ParserError)"),
+])
+def test_MQ_the_follower_fails_every_entry_whose_tree_could_reach_the_app_a_plain_one_included(tmp_path, pr_files, finding):
+    """AUDIT's two new rows: an expression-named environment, and a remote reusable workflow, each in an entry that
+    touches NO Agent path. Under the old rule both landed as no-agent-paths."""
+    r = _queue_repo(tmp_path / "plain", pr_files)
+    assert acr.queue_scope(r.work, acr.load_agent_ci(r.work), r.merge, r.base, r.ref, r.merge)["code"] == "no-agent-paths"     # still what the scope says
+    api = _RunApi(fail="actions/")
+    assert _follow(r, api) == ("failure", acr.workflow_verdict([finding])) and api.calls == []
+    # an entry queued BEHIND that one (it has not landed) carries the file in its tree, and is failed too
+    behind = _queue_repo(tmp_path / "behind", {"docs/y.md": "y\n"}, ahead_files={k: v for k, v in pr_files.items() if k.startswith(".github/")}, landed=False)
+    assert _follow(behind) == ("failure", acr.workflow_verdict([finding]))
+    # ... an Agent entry behind it as well, before any job is read
+    agent = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"}, ahead_files={k: v for k, v in pr_files.items() if k.startswith(".github/")}, landed=False)
+    api = _RunApi()
+    assert _follow(agent, api) == ("failure", acr.workflow_verdict([finding])) and api.calls == []
+    # control: the same plain entry without the file is a success
+    clean = _queue_repo(tmp_path / "clean", {k: v for k, v in pr_files.items() if not k.startswith(".github/")} or {"docs/z.md": "z\n"})
+    assert _follow(clean)[0] == "success"
+
+
+def test_MQ_the_pull_request_side_fails_a_head_whose_tree_could_reach_the_app(tmp_path, monkeypatch, capsys):
+    """The same judge on a pull request's head, so such a pull request cannot even enter the queue: failure whatever its
+    diff touches, in both legs (the pull-request event and the re-evaluation after an agent ci run)."""
+    r = _queue_repo(tmp_path, {"README.md": "r2\n", ".github/workflows/sneaky.yml": FORMAT_ENV})
+    made = []
+
+    class Api(FakeApi):
+        def __init__(self, token, repo, base=None, **more):
+            super().__init__(files=[OTHER_FILE], runs=[])          # the API's view: a diff with no Agent path -> success by itself
+            self.token, self.posted = token, []
+            made.append(self)
+
+        def get(self, path):
+            return [{"number": 1, "state": "open", "head": {"sha": path.split("/")[1]}}] if path.startswith("commits/") else super().get(path)
+
+        def call(self, method, path, body=None):
+            assert self.token == "app-token"
+            self.posted.append((path, body))
+    monkeypatch.setattr(acr, "Api", Api)
+    monkeypatch.setenv("GITHUB_TOKEN", "read-token")
+    monkeypatch.setenv(acr.VERDICT_TOKEN_ENV, "app-token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
+    monkeypatch.delenv("TARGET_URL", raising=False)
+    want = {"state": "failure", "context": "agent-ci-required",
+            "description": "sneaky.yml: job mint declares an environment: only the two posters may reach the verdict App"}
+    assert acr.main(["--event", "pull_request", "--sha", r.head, "--pr", "1", "--root", str(r.work)]) == 0
+    assert made[-1].posted == [(f"statuses/{r.head}", want)]
+    assert "[agent-ci-queue] workflow tree: sneaky.yml: job mint declares an environment" in capsys.readouterr().err
+    assert acr.main(["--event", "workflow_run", "--sha", r.head, "--root", str(r.work)]) == 0
+    assert made[-1].posted == [(f"statuses/{r.head}", want)]
+    # control: master's own head, same API answers, is the success the diff earns
+    assert acr.main(["--event", "pull_request", "--sha", r.base, "--pr", "1", "--root", str(r.work)]) == 0
+    assert made[-1].posted == [(f"statuses/{r.base}", {"state": "success", "context": "agent-ci-required", "description": "no Agent paths changed"})]
+    # a head that cannot be fetched is a failure too, never the diff's success
+    assert acr.main(["--event", "pull_request", "--sha", "f" * 40, "--pr", "1", "--root", str(r.work)]) == 0
+    assert made[-1].posted[0][1]["state"] == "failure" and "could not be fetched" in made[-1].posted[0][1]["description"]
+    assert not (r.work / ".github" / "workflows" / "sneaky.yml").exists()                       # nothing of the PR was checked out
+
+
+def test_MQ_the_rail_files_and_local_actions_are_self_protected_and_the_rails_are_agent_paths():
+    """AUDIT review 2, findings 2 and 4. The three rail files: Agent paths AND self-protected, so an edit is
+    `self-protected` (only self-protected it would land freely; only an Agent path it would be judged by Agent jobs that
+    never run these files). `.github/actions/**`: self-protected now, before any Agent job uses a local action."""
+    for rail in ("tests/test_ci_agent_merge_ref.py", "tests/test_agent_ci_required.py", "tests/test_agent_ci_evidence.py"):
+        assert acr.matches(rail, PATHS) and acr.matches(rail, list(ev.SELF_PROTECTED)) and (ROOT / rail).is_file(), rail
+        assert acr.decide_scope([rail], PATHS, PROTECTED) == (acr.SCOPE_PROTECTED, "1 self-protected path(s), e.g. " + rail)
+        assert acr.decide_scope([OTHER_FILE, rail], PATHS, PROTECTED)[0] == acr.SCOPE_PROTECTED
+    for action in (".github/actions/pine-heavy-setup/action.yml", ".github/actions/new/run.sh"):
+        assert acr.matches(action, list(ev.SELF_PROTECTED)) and not acr.matches(action, PATHS), action
+        assert acr.decide_scope([action], PATHS, PROTECTED)[0] == acr.SCOPE_CLEAR
+        assert acr.decide_scope([action, AGENT_FILE], PATHS, PROTECTED)[0] == acr.SCOPE_PROTECTED
+    # control: a neighbour is neither, and `.github/workflows/**` as a whole is NOT an Agent path (AUDIT: no)
+    for other in ("tests/test_ci_cost_rails.py", "tests/test_gate_static_rails_pr.py", ".github/CODEOWNERS"):
+        assert not acr.matches(other, list(ev.SELF_PROTECTED)) and not acr.matches(other, PATHS), other
+    assert not acr.matches(".github/workflows/web-start.yml", PATHS) and not [p for p in PATHS if p in (".github/workflows/**", ".github/**")]

@@ -58,6 +58,11 @@
 #     any other tools/agent_* file is a plain Agent change: `agent-paths`, judged by its Agent jobs.
 #   - Any OTHER workflow file is self-protected and not an Agent path: `no-agent-paths` for the pull request that
 #     edits it. An Agent entry queued BEHIND it is failed by the follower until that edit has landed on master.
+#     And EVERY entry is failed by the follower when a workflow file in its commit, other than the two posters, has
+#     an `environment` key, calls a reusable workflow from another repository, names the App's variables or the
+#     context, or does not parse (tools/agent_ci_required.py workflow_problems).
+#   - The three rail files (tests/test_ci_agent_merge_ref.py, test_agent_ci_required.py, test_agent_ci_evidence.py)
+#     are Agent paths and self-protected: `self-protected`.
 # ⚠️ Sound only with merge method MERGE and grouping ALLGREEN. With HEADGREEN a failed entry can land behind a green
 #   one. With SQUASH or REBASE the merge group's commit is not a two-parent merge whose first parent is base_sha:
 #   `scope` answers `unknown` and the follower posts failure for every entry (fail closed).

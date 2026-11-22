@@ -88,6 +88,13 @@ on:
       - '.github/workflows/agent-ci-queue.yml'
       - '.github/workflows/agent-ci-queue-verdict.yml'
       - '.github/workflows/agent-ci-required.yml'
+      # THEIR RAILS (2026-11-22, AUDIT review 2 of #2501, finding 2): Agent paths AND self-protected
+      # (agent_ci_evidence.SELF_PROTECTED), so an edit to one is `self-protected` and goes to AUDIT. Only self-protected,
+      # an edit would be `no-agent-paths` and land freely; only an Agent path, it would be judged by Agent jobs that
+      # never run these files.
+      - 'tests/test_ci_agent_merge_ref.py'
+      - 'tests/test_agent_ci_required.py'
+      - 'tests/test_agent_ci_evidence.py'
   pull_request:
     branches: [agent/int, master]
     paths:
@@ -130,6 +137,13 @@ on:
       - '.github/workflows/agent-ci-queue.yml'
       - '.github/workflows/agent-ci-queue-verdict.yml'
       - '.github/workflows/agent-ci-required.yml'
+      # THEIR RAILS (2026-11-22, AUDIT review 2 of #2501, finding 2): Agent paths AND self-protected
+      # (agent_ci_evidence.SELF_PROTECTED), so an edit to one is `self-protected` and goes to AUDIT. Only self-protected,
+      # an edit would be `no-agent-paths` and land freely; only an Agent path, it would be judged by Agent jobs that
+      # never run these files.
+      - 'tests/test_ci_agent_merge_ref.py'
+      - 'tests/test_agent_ci_required.py'
+      - 'tests/test_agent_ci_evidence.py'
   # RE-ARM (P2b; P2c 2026-11-18: repository_dispatch, the ONE re-arm path): ONE named PR's evidence run on its current
   # merge commit. Start it only through tools/agent_ci_rearm.py (it refuses a merge conflict, a closed / non-agent /
   # non-master PR). client_payload {pr, merge_sha} is attacker-controlled data: every job's FIRST step validates it and
