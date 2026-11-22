@@ -1,4 +1,4 @@
-"""INTERIM: `str.tostring`'s format is written as a string literal (rule 14 of the script document).
+"""INTERIM: `str.tostring`'s format is written as a string literal (rule 13 of the script document).
 
 Found by a live re-check, 2026-11-22. Asked for "a table with yesterday's high and yesterday's low", the assistant
 added a "Decimal places" setting and BUILT the number format from text
@@ -7,7 +7,7 @@ The engine withholds a text whose format is not a string literal: the table drew
 no error and no word to the member. A blank where a value belongs.
 
 Until the engine serves a computed format (and names what it withholds), the assistant must not write the shape:
-  * rule 14 says to write the format as a string literal and to choose among literal formats for a decimals setting;
+  * rule 13 says to write the format as a string literal and to choose among literal formats for a decimals setting;
   * the recorded answer is a SCRIPT case recorded WRONG (`table-format-01`);
   * ⛔ THE SENTENCE IS INTERIM, AND THIS FILE SAYS WHEN IT GOES: `test_THE_SENTENCE_STAYS_EXACTLY_AS_LONG_AS_...` runs
     the shape through the shipped engine on every run. The day a format held in a variable DRAWS, that test goes red
@@ -45,7 +45,7 @@ LADDER = ('digits = input.int(2, "Decimal places", minval=0, maxval=2)\n'
 #: every form here draws its numbers
 SERVED = {
     "a literal format": table_of('str.tostring(high[1], "#.##")', 'str.tostring(low[1], "#.##")'),
-    "the literal ladder on a decimals setting (what rule 14 teaches)": table_of("hi", "lo", LADDER),
+    "the literal ladder on a decimals setting (what rule 13 teaches)": table_of("hi", "lo", LADDER),
     "format.mintick": table_of("str.tostring(high[1], format.mintick)", "str.tostring(low[1], format.mintick)"),
     "the value in a variable, the format a literal": table_of('str.tostring(pdh, "#.##")', 'str.tostring(pdl, "#.##")', "pdh = high[1]\npdl = low[1]\n"),
 }
@@ -64,7 +64,7 @@ FORMS = {**SERVED, **WITHHELD}
 
 def test_the_document_carries_the_rule_once_after_rule_13():
     doc = pa.document()
-    rule = doc.split("\n14. ")[1].split("\n")[0]
+    rule = doc.split("\n13. ")[1].split("\n")[0]
     assert rule == pa.FORMAT_LITERAL_RULE and doc.count(pa.FORMAT_LITERAL_RULE) == 1 and "{format_literal}" not in doc
     for piece in ('Write `str.tostring`\'s format as a string literal ("#.##")',
                   'For a decimals setting, choose among literal formats',
@@ -72,7 +72,7 @@ def test_the_document_carries_the_rule_once_after_rule_13():
                   "never build a format from text or hold one in a variable",
                   "`format.mintick` and `format.volume` are served", 'for a percent write the number and add "%" yourself'):
         assert piece in rule, piece
-    assert doc.index("\n13. ") < doc.index("\n14. ") < doc.index("## ")
+    assert doc.index("\n12. ") < doc.index("\n13. ") < doc.index("## ")
 
 
 # ── by value ──
@@ -138,12 +138,12 @@ def test_the_values_by_hand_are_the_bar_before_the_newest(ran):
 def test_THE_SENTENCE_STAYS_EXACTLY_AS_LONG_AS_THE_ENGINE_WITHHOLDS_A_FORMAT_HELD_IN_A_VARIABLE(ran):
     """⛔ THE REMOVAL RULE. Rule 14 exists only because the engine draws nothing for a computed format. The day
     `fmt = "#.##"; str.tostring(x, fmt)` draws its number, this fails: REMOVE `pine_authoring.FORMAT_LITERAL_RULE`
-    (and rule 14 from the contract) in that same commit, and turn this file's WITHHELD forms into SERVED ones."""
+    (and rule 13 from the contract) in that same commit, and turn this file's WITHHELD forms into SERVED ones."""
     cells = _cells(ran, "a format held in a variable")
     withheld_today = sum(1 for c in cells if c) == 2                                 # the two labels and nothing else
-    assert withheld_today, ("the engine now DRAWS a format held in a variable: rule 14 (pine_authoring.FORMAT_LITERAL_RULE) is "
+    assert withheld_today, ("the engine now DRAWS a format held in a variable: rule 13 (pine_authoring.FORMAT_LITERAL_RULE) is "
                             "no longer needed; remove it in this commit", cells)
-    assert "\n14. " + pa.FORMAT_LITERAL_RULE in pa.document()
+    assert "\n13. " + pa.FORMAT_LITERAL_RULE in pa.document()
 
 
 def test_the_recorded_answer_is_a_case_recorded_WRONG():
