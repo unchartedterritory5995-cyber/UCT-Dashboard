@@ -190,6 +190,49 @@ def test_every_specimen_in_the_fixture_is_whole_and_names_what_fixed_it():
         assert len(G.specimens(case)) == len(case.get("found") or []) + (case.get("recorded_verdict") == "wrong"), case["id"]
 
 
+# ── ⭐ e95 unit 1 — `engine_fixed`, the studio's conditions (DEEPVUE via the coordinator, 2026-11-22) ──
+
+def test_engine_fixed_is_HAND_MARKED_only_adopt_never_writes_it():
+    """Condition 1: like `fixed_by`, `engine_fixed` is written by hand, never by `--adopt`. Adopting a fixed defect
+    appends exactly {answer, defect, recorded, fixed_by}, and a second adoption leaves a hand-marked one as it was."""
+    case = wrong_case()
+    value_eval.adopt({"cases": [case]}, report_right(case), STAMPS, {case["id"]: FIX})
+    assert [set(k) for k in case["found"]] == [KEYS]
+    case["found"][0][ENGINE_FIXED] = {"by": "#0000 0123456789", "since_engine": 1}
+    marked = copy.deepcopy(case["found"][0])
+    again = copy.deepcopy(WRONG_ANSWER)
+    case.update({"answer": again, "recorded_verdict": "wrong", "defect": DEFECT})
+    value_eval.adopt({"cases": [case]}, report_right(case), STAMPS, {case["id"]: FIX})
+    assert case["found"][0] == marked and set(case["found"][1]) == KEYS
+
+
+def test_engine_fixed_is_never_claimed_AHEAD_of_the_engine_that_earns_it():
+    """Condition 1: `since_engine` is not above the engine version the lane runs (`scriptEngineVersion.js`, read by
+    `user_definitions.read_script_engine_version`, the one reader). ⚠️ ONE ALLOWANCE, NAMED: while the fixing train
+    is not numbered yet (the version file carries its `NUMBER PENDING` lines, `train e<n>`), its own number `n` may be
+    claimed; the day the coordinator numbers it, the version is `n` and the plain rule holds."""
+    import re
+    from api.services import user_definitions as ud
+    engine = ud.read_script_engine_version()
+    assert isinstance(engine, int) and engine > 0
+    text = (ROOT / "app" / "src" / "components" / "chart" / "engine" / "scriptEngineVersion.js").read_text(encoding="utf-8")
+    pending = {int(n) for n in re.findall(r"NUMBER PENDING = \([^)]*\btrain e(\d+)\b", text)}
+    marked = [(c["id"], k[ENGINE_FIXED]) for c in WITH_FOUND for k in c["found"] if ENGINE_FIXED in k]
+    assert marked, "no specimen carries engine_fixed: this rail would read nothing"
+    for cid, ef in marked:
+        n = ef["since_engine"]
+        assert n <= engine or (n in pending and n > engine), (cid, ef, "claimed ahead of the engine", engine, sorted(pending))
+
+
+def test_an_engine_fixed_specimen_keeps_its_defect_and_its_fixed_by():
+    """Condition 2: `engine_fixed` is ADDED beside what the specimen already says, never in place of it: #2433 fixed
+    what the assistant writes, e95 fixes what the engine draws, and both stay true."""
+    case = next(c for c in WITH_FOUND if c["id"] == "table-format-01")
+    kept = next(k for k in case["found"] if ENGINE_FIXED in k)
+    assert "NO VALUES" in kept["defect"] and kept["fixed_by"]["pr"] == "#2433"
+    assert kept[ENGINE_FIXED] == {"by": "e95 unit 1 (#2483)", "since_engine": 95}
+
+
 def test_THE_INVARIANT_each_specimen_is_WRONG_and_its_record_RIGHT_by_the_same_rule():
     for case in WITH_FOUND:
         if case["lane"] == "script":
