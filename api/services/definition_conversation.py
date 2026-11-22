@@ -705,6 +705,10 @@ CONVERSE_SYSTEM_PROMPT = (
     "that cannot be written (one side of it only, a fixed length where a computed one was "
     "asked), before naming any other indicator. Offer it, do not build it. Never substitute "
     "something different.\n"
+    "    ANOTHER PUBLISHER'S OWN NUMBER (IBD's RS Rating or Composite Rating, a Zacks Rank, a Morningstar rating, a "
+    "TipRanks score): FIRST say plainly that it is that publisher's own and is not available here. Only then may "
+    "you offer UCT's own indicator, or a formula of the member's, named as UCT's or the member's and as NOT that "
+    "publisher's. Never imply the two are the same number.\n"
     "    ANOTHER SYMBOL: a request that reads a symbol other than the chart's own "
     "(\"only when SPY's RSI is above 50\", \"use QQQ's close\") is a change written "
     "with a `sym` node around exactly the part read from that symbol (see TREES). "
@@ -2287,11 +2291,12 @@ def vwap_bands_ask(message: Any) -> Optional[str]:
 
 
 def _door_offer(pointer: Mapping[str, Any], revision: Any, view: Any, trace: Dict[str, Any],
-                read: Mapping[str, Any], value: Any = None) -> Optional[Dict[str, Any]]:
+                read: Mapping[str, Any], value: Any = None, message: Any = None) -> Optional[Dict[str, Any]]:
     """⭐ THE DOOR ANSWERS, with no model call, and OFFERS THE ACTION: this browser said it can add that
     built-in now. Nothing is built and nothing is changed by the answer itself. None when the door's own
     answer does not pass the door (never: if it ever is, the turn goes on as if nothing was offered)."""
-    said = named_indicators.built_in_answer(pointer)
+    # (another publisher's own number is refused by name FIRST, in place of the usual sentence: `their_number`)
+    said = named_indicators.their_number(message, pointer, True) or named_indicators.built_in_answer(pointer)
     answer = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "answer",
               "reply": said}
     try:
@@ -5311,7 +5316,7 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
             first = unchecked[0]["entry"]
             is_built_in = named_indicators.built_in(first) is not None
             return {"refusal": {"ok": False, "gate": NAMED_BUILT_IN_GATE if is_built_in else NAMED_UNCHECKED_GATE,
-                                "reason": named_indicators.way_forward(first),
+                                "reason": named_indicators.their_number(message, first, False) or named_indicators.way_forward(first),
                                 "not_understood": not_understood, "unavailable": unavailable},
                     "held": [u["entry"]["id"] for u in unchecked],
                     # ⭐ one of UCT's own built-in indicators: the turn may be ANSWERED with an offer
@@ -5460,14 +5465,14 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     if bands is not None:
         pointer = named_indicators.entry(VWAP_BANDS_ENTRY)
         if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in can_add:
-            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"] or understood_turn, bands)
+            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"] or understood_turn, bands, message)
             if offered is not None:
                 return offered
     if understood_turn["refusal"] is not None:
         trace["named_held"] = understood_turn.get("held") or []
         pointer = understood_turn.get("built_in")
         if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in can_add:
-            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"])
+            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"], None, message)
             if offered is not None:
                 return offered
         if understood_turn["refusal"].get("preflight"):
