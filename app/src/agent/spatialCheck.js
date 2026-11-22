@@ -659,11 +659,17 @@ export function negActionRefs(text, charts = []) {
     const end = at + body.length
     const seen = []
     for (const r of body.matchAll(ACT_NP)) {
-      const phrase = ordinalDigits(r[0].trim())
+      let phrase = ordinalDigits(r[0].trim())
       if (ACT_COMPLEMENT.test(phrase)) continue
-      seen.push([r.index, r.index + r[0].length])
-      const tok = syms.find(t => new RegExp(String.raw`(?:^|[^A-Za-z0-9.])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, t.length <= 2 ? '' : 'i').test(phrase)) || null
-      out.push({ phrase, tok, shaped: REF_SHAPE.test(phrase), index: m.index, end })
+      // a RELATION after the noun ("the one below it", "the chart next to NVDA"): the whole relation is the reference (it names
+      // ANOTHER chart than its anchor) — placed only as a relation from the click, else UNPLACED
+      const after = body.slice(r.index + r[0].length)
+      const relTail = /^\s+(?:next\s+to|beside|alongside|above|below|beneath|under(?:neath)?|over|near(?:est)?|around|surrounding|across|opposite|diagonal(?:ly)?|adjacent|left\s+of|right\s+of|to\s+the\s+(?:left|right)\s+of|on\s+either\s+side)\b/i.test(after)
+      if (relTail) phrase = `${phrase}${after}`.trim()
+      seen.push([r.index, relTail ? body.length : r.index + r[0].length])
+      const tok = relTail ? null : syms.find(t => new RegExp(String.raw`(?:^|[^A-Za-z0-9.])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, t.length <= 2 ? '' : 'i').test(phrase)) || null
+      out.push({ phrase, tok, shaped: !relTail && REF_SHAPE.test(phrase), relation: relTail, index: m.index, end })
+      if (relTail) break
     }
     // a bare board ticker in the clause ("don't add RSI to SPY", "never switch NVDA to weekly")
     for (const t of syms) {
@@ -784,6 +790,12 @@ export function excludedCharts(text, charts = [], sel = null) {
       const list = charts.filter(c => String(c?.symbol || '').toUpperCase() === r.tok)
       if (list.length === 1) out.add(list[0].ref)
       else { out.add(UNPLACED); for (const c of list) unoffered.add(c.ref) }
+    } else if (r.relation) {
+      // a relation from the click ("don't touch the one below it"): its charts (the relation readers', as negChartRefs reads it)
+      if (sel && !negatedRelations(text).some(p => normPhrase(p) === normPhrase(r.phrase))) {
+        const rel = relativeChart(r.phrase, charts, sel)
+        for (const c of rel?.hits || []) if (c.ref !== sel) out.add(c.ref)
+      } else if (sel) adds++                                       // placed by spatialConstraints' negated-relation reader
     } else if (r.shaped && !GEN_RELATION.test(r.phrase)) readException({ 0: r.phrase, 1: r.phrase, index: r.end, input: String(text || '') })
     if (adds === a0) out.add(UNPLACED)
     for (const x of out) if (!before.has(x) && x !== UNPLACED) forbidden.add(x)

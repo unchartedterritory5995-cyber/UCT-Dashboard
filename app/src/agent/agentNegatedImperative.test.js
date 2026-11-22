@@ -101,6 +101,12 @@ describe('the reader: the charts a negated imperative names are excluded (or unp
     expect(read(t)).toEqual(refs)
   })
   it.each([
+    ["switch this one to weekly but don't touch the chart under it", 'c0', ['c2']], ["make this one weekly but don't touch the one below it", 'c1', ['c3']],
+    ["put this chart on log, and don't change the one to the right of it", 'c0', ['c1']],
+  ])('a relation from the click: "%s" (clicked %s) → %j, the click never', (t, sel, refs) => {
+    expect(read(t, sel)).toEqual(refs)
+  })
+  it.each([
     ["don't change the big chart to weekly"], ['do not add RSI to the one beside NVDA'], ["don't change it to weekly"],
   ])('unplaceable: "%s" → UNPLACED (asked)', (t) => {
     expect(read(t)).toContain('UNPLACED')
