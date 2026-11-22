@@ -13,7 +13,7 @@ import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker, isReservedWord, PRONOUNS } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
 import { CLICK_ACT_NP } from './clickRef'
-import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts, everyExceptSet } from './spatialCheck'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts, everyExceptSet, withoutAnchorRel } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -1521,7 +1521,9 @@ export function planIsExceptSet({ host, ops, text, getTargetKind, getCapability 
     // (#988 option-2 ruling, kept) an exclusion read through a RELATION ("except the one diagonally across from this one") is
     // still put to the member as the one-set question; only plain references (a ticker, a place, an order, a line, the click) are settled here
     // ("as it is" / "where it is" is a keep tail, never a relation from the click)
-    const s = String(text || '').replace(/\b(?:as|where)\s+(?:it|they)\s+(?:is|are|was)\b/gi, ' ')
+    // (H-RDR-1 follow-up) …but an ANCHOR-RELATIVE exclusion ("except the one left of AAPL") is a plain reference here: placed
+    // exactly by everyExceptSet below, or the set is null (asked)
+    const s = withoutAnchorRel(String(text || '')).replace(/\b(?:as|where)\s+(?:it|they)\s+(?:is|are|was)\b/gi, ' ')
     if (relationMatch(s) || refPointAny(s)) return false
     const ev = everyExceptSet(text, live, selectedChart(host))
     if (!ev?.refs?.length) return false
