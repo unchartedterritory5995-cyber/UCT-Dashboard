@@ -117,6 +117,27 @@ still carry the old reason text (snapshots, not compared in CI).
 - **B1's stage** goes to `all` (and `PINE_BREADTH_SUPPLY_ENABLED=all` on web) only when B2 ships.
 - **The spread unit** (next section), ranked first among the breadth follow-ups.
 
+## The next breadth unit: the spread (an expression over several breadth spellings in one request)
+
+**Ranked first among the follow-ups** (coordinator 2026-11-22): TradingView's built-in Advance Decline Line is the most-used
+breadth script, and it reads exactly one spread string, `"(USI:ADVN.NY - USI:DECL.NY) / (USI:UNCH.NY + 1)"`, which B2
+refuses by name (`other-symbol:breadth-spread`).
+
+What it needs:
+- **Parse** the string into an expression over served breadth spellings: `+ - * /`, parentheses, numeric constants, every
+  operand a served `USI:` spelling (anything else keeps the refusal, by name). One new parse rule beside
+  `pine.js::otherSymbolOf` (a marked node, as E2's event read is), so both lanes read it as one other-symbol series.
+- **Supply** each operand from the breadth door (the B2 keys, already isolated), and **combine** per session date: a
+  session missing any operand is withheld by name, never computed from a partial row; the first combined session is the
+  series' coverage start (the per-bar words already exist). Which OHLC fields the combination carries is the capture's to
+  say (close at least; "close only" as ADD otherwise).
+- **Witness**: the probe's U19 already captures the spread on SPY / RDDT 1D (Q-T4-B1), and the built-in ADL captures
+  (W-B2) grade it end to end.
+
+**Estimate: about one engine day** (the parse rule and its static refusals, about 150 lines; the per-date combination and
+its record, about 100; rails on both lanes and 6-8 mutants), plus one grade pass once W-B1 / W-B2 land. Nothing in B2
+needs to change for it.
+
 ## B3 (up / down volume as a new derived series): NOT in this unit
 
 What it would need: a per-session up-volume and down-volume total per exchange (the volume of operating equity that
