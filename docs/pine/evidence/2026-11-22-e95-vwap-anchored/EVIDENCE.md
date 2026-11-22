@@ -118,9 +118,14 @@ under the heavy lock.
   scattered bars on each symbol (AAPL: TradingView 1 / ours 0; JPM: TradingView 0 / ours 1), consistent with a report
   placed on the neighbouring daily bar. Those 12 anchors carry into 473 (AAPL) and 368 (JPM) VWAP bars. This is the
   E2 event engine's daily placement (#2465), seen now because the probe translates: named for the coordinator.
-- Runtime-on lane: PENDING. Its first run stopped on the harness's own guard ("STRATEGY BROKER NEVER RAN": 4 of the
-  25 captures are strategies, graded on their trades, and the broker is not armed in this run), on both trains; it is
-  re-queued over the 21 non-strategy captures and filled here when it lands.
+- **Runtime-on lane** (the 21 non-strategy VWAP captures, train before vs after, local under the heavy lock; the 4
+  strategy captures stop this harness on its own guard, "STRATEGY BROKER NEVER RAN", and are graded on the
+  production lane above): 21 INCONCLUSIVE -> **4 MATCH, 2 DIVERGE, 15 INCONCLUSIVE**, row for row the production
+  lane's moves. **0 MATCH lost.** The same 4 built-in captures MATCH (all 8 items each); the JPM built-in row compares
+  every compared bar equal (14,544) with 1 bar per plot withheld by name; the 2 DIVERGE rows are UCT's own probe and
+  diverge on the EARNINGS anchor only (AAPL: 473 VWAP bars from 12 earnings-anchor bars placed on a neighbouring
+  daily bar; the Splits VWAP MATCHES, the Dividends one agrees on every compared bar), E2's named placement, not the
+  VWAP. The 60m probe is refused by name intraday (`other-symbol:event-timeframe`).
 
 **The 7 event-anchor rows of the built-in** (Anchor Period = Earnings, Dividends, Splits) stay INCONCLUSIVE on a named
 wall: the anchor is a `switch` on a text input, reduced at translate time to its default arm, so it is no member
