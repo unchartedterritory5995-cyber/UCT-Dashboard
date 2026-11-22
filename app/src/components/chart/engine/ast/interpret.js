@@ -7976,7 +7976,11 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
     const isRci = node.name === 'rci'
     let codeAt
     if (isVwap) {
-      const first = nested || readsRecurrenceBinding(node) ? n : firstAnchorBar(colOf(args[1]), n)
+      // ⛔⛔ THE ANCHOR AS THIS CHART CAN KNOW IT: every mask applied (`interpret`), so a bar whose anchor reads before
+      // the chart's first bar (the built-in's `na(src[1])` restart, true on this chart's bar 0 and false on
+      // TradingView's) or any other withheld read is NO KNOWN RESET, and the bars until the first known one are withheld
+      const known = (tree) => toColumn(interpret(tree, bars, inputs, budget, scalars, { ...inner, withheldBarsSink: undefined }), n)
+      const first = nested || readsRecurrenceBinding(node) ? n : firstAnchorBar(known(args[1]), n)
       codeAt = (i) => (i < first ? VWAP_BEFORE_FIRST_ANCHOR : null)
       if (!vwapBars) vwapBars = new Float64Array(n)
     } else {

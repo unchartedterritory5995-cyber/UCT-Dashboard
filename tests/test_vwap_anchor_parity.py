@@ -156,7 +156,7 @@ def test_off_the_listing_served_from_the_first_in_window_anchor_and_withheld_by_
     want = _by_hand(bars, anchor, dev=dev)
     sink: dict = {}
     got = ast_interpret.interpret(C(name, HLC3, LOW_ANCHOR, S("volume")), bars,
-                                  opts={"historyFromListing": False, "barIndexAbsolute": True, "chartClockSink": sink})
+                                  opts={"historyFromListing": False, "barIndexAbsolute": True, "varOriginAbsolute": True, "chartClockSink": sink})
     assert got[:first] == [None] * first
     _same([math.nan if v is None else v for v in got[first:]], want[first:])
     assert sorted(sink) == [ast_interpret.VWAP_BEFORE_FIRST_ANCHOR]
@@ -169,7 +169,7 @@ def test_nz_of_the_vwap_and_its_own_history_are_withheld_until_the_read_reaches_
     v = C("vwapAnchor", HLC3, LOW_ANCHOR, S("volume"))
     tree = O("-", C("nz", v, N(0)), C("nz", {"type": "offset", "value": 5, "args": [v]}, N(0)))
     sink: dict = {}
-    got = ast_interpret.interpret(tree, bars, opts={"historyFromListing": False, "barIndexAbsolute": True,
+    got = ast_interpret.interpret(tree, bars, opts={"historyFromListing": False, "barIndexAbsolute": True, "varOriginAbsolute": True,
                                                     "chartClockSink": sink})
     assert got[:14] == [None] * 14
     assert all(g is not None for g in got[14:])
@@ -180,6 +180,21 @@ def test_from_the_listing_nothing_is_named():
     bars = _synthetic()
     sink: dict = {}
     got = ast_interpret.interpret(C("vwapAnchor", HLC3, LOW_ANCHOR, S("volume")), bars,
-                                  opts={"historyFromListing": True, "barIndexAbsolute": True, "chartClockSink": sink})
+                                  opts={"historyFromListing": True, "barIndexAbsolute": True, "varOriginAbsolute": True, "chartClockSink": sink})
     assert sink == {}
     assert got[:9] == [None] * 9 and got[9] is not None
+
+
+def test_an_anchor_this_chart_cannot_read_on_its_first_bar_is_no_reset():
+    """The built-in's ``na(src[1])`` restart: true on this chart's bar 0 off the listing, false on TradingView's, so
+    the bars until the first KNOWN anchor are withheld by name rather than summed from bar 0."""
+    bars = _synthetic()
+    anchor_tree = O("||", LOW_ANCHOR, C("na", {"type": "offset", "value": 1, "args": [HLC3]}))
+    sink: dict = {}
+    got = ast_interpret.interpret(C("vwapAnchor", HLC3, anchor_tree, S("volume")), bars,
+                                  opts={"historyFromListing": False, "barIndexAbsolute": True,
+                                        "varOriginAbsolute": True, "chartClockSink": sink})
+    assert got[:9] == [None] * 9
+    want = _by_hand(bars, [1.0 if b["c"] < 95 else 0.0 for b in bars])
+    _same([math.nan if v is None else v for v in got[9:]], want[9:])
+    assert ast_interpret.VWAP_BEFORE_FIRST_ANCHOR in sink

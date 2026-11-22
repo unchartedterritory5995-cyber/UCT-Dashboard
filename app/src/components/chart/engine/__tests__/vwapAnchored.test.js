@@ -126,8 +126,9 @@ describe('⭐⭐ the anchored VWAP off the listing: served from the first anchor
   // `close < 95` first fires on bar 9, and again from bar 30: an anchor no bar index and no clock decides
   const FIRST = 9
   const ANCH = (i) => BARS[i].c < 95
-  const OFF = { historyFromListing: false, barIndexAbsolute: true }
-  const FROM = { historyFromListing: true, barIndexAbsolute: true }
+  // a Pine document's own flags (`nativeRegistry.barIndexAbsoluteFor` / `varOriginAbsoluteFor`)
+  const OFF = { historyFromListing: false, barIndexAbsolute: true, varOriginAbsolute: true }
+  const FROM = { historyFromListing: true, barIndexAbsolute: true, varOriginAbsolute: true }
   /** every plot of a translated script, through the columnar lane under `opts`, with the codes it named */
   function run(body, opts) {
     const t = translatePine(`${HEAD}${body}`, { strict: true })
@@ -190,7 +191,23 @@ describe('⭐⭐ the anchored VWAP off the listing: served from the first anchor
     expect(barIndexVerdict(ast).cls).toBe('inv')
     for (let i = 0; i < FIRST + 5; i += 1) expect(Number.isNaN(col[i]), `bar ${i}: ${col[i]}`).toBe(true)
     for (let i = FIRST + 5; i < N; i += 1) expect(col[i], `bar ${i}`).toBe(want[i] - want[i - 5])
-    expect(codes).toEqual([VWAP_BEFORE_FIRST_ANCHOR])
+    // `v[5]` on the first five bars also reads before the chart (`history:before-chart`): both names, never the total's
+    expect(codes).toContain(VWAP_BEFORE_FIRST_ANCHOR)
+    expect(codes.filter((c) => c.startsWith('running-total'))).toEqual([])
+  })
+
+  it('⛔⛔ an anchor this chart cannot read on its first bar is no reset: the built-in `na(src[1])` restart', () => {
+    // TradingView's built-in VWAP restarts where `na(src[1])` (the listing's first bar). Off the listing this chart's
+    // bar 0 reads `src[1]` before its first bar: true here, false on TradingView, so a reset there is NOT known, and
+    // the bars until the first KNOWN anchor are withheld by name rather than summed from bar 0.
+    const [{ col, codes }] = run('a = close < 95 or na(hlc3[1])\nplot(ta.vwap(hlc3, a))\n', OFF)
+    for (let i = 0; i < FIRST; i += 1) expect(Number.isNaN(col[i]), `bar ${i}: ${col[i]}`).toBe(true)
+    for (let i = FIRST; i < N; i += 1) expect(col[i], `bar ${i}`).toBe(want[i])
+    expect(codes).toContain(VWAP_BEFORE_FIRST_ANCHOR)
+    // from the listing the first bar IS TradingView's restart: summed from bar 0
+    const [{ col: fromListing }] = run('a = close < 95 or na(hlc3[1])\nplot(ta.vwap(hlc3, a))\n', FROM)
+    const restart = byHand((i) => i === 0 || ANCH(i)).map((r) => r.vwap)
+    for (let i = 0; i < N; i += 1) expect(fromListing[i], `listing bar ${i}`).toBe(restart[i])
   })
 
   it('from the listing nothing is withheld or named: TradingView is `na` before the first anchor too', () => {
