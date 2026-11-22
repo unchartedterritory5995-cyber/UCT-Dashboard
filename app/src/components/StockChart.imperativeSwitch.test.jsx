@@ -26,7 +26,17 @@ import { pinWallClock } from '../testing/pinnedWallClock'
 import { loadWithBarStore } from '../testing/barStoreModes'
 
 const FLAG = 'uct.imperativeSwitch'
-const S = vi.hoisted(() => ({ log: [], n: 0, commits: 0, range: null, stateful: false, crosshairs: [], prices: {}, rows: null, alerts: null }))
+const S = vi.hoisted(() => ({ log: [], n: 0, commits: 0, range: null, stateful: false, crosshairs: [], prices: {}, rows: null, alerts: null, data: {}, markers: null }))
+// (review round 2, H1) every call of a `derive*` function of chart/useNeighborFrames, by name, in order
+const NF = vi.hoisted(() => ({ calls: [] }))
+vi.mock('./chart/useNeighborFrames', async (importOriginal) => {
+  const real = await importOriginal()
+  const out = { ...real }
+  for (const [name, fn] of Object.entries(real)) {
+    if (/^derive/.test(name) && typeof fn === 'function') out[name] = (...a) => { NF.calls.push(name); return fn(...a) }
+  }
+  return out
+})
 const digest = (v) => {
   const json = JSON.stringify(v, (k, x) => (typeof x === 'function' ? 'ƒ' : x && typeof x === 'object' && typeof x.nodeType === 'number' ? '‹node›' : x))
   if (json === undefined) return 'undefined'
@@ -53,6 +63,7 @@ vi.mock('lightweight-charts', async (importOriginal) => {
       // the commit, never the pass) is logged apart: it draws nothing
       setData: (d) => {
         held = Array.isArray(d) ? d : []
+        S.data[who] = held
         const blank = held.length > 0 && held.every((x) => x && x.value === undefined && x.close === undefined)
         if (blank) put(who, 'setWhitespace', held.length)
         else put(who, 'setData', d)
@@ -179,6 +190,9 @@ const stubBars = () => vi.stubGlobal('fetch', vi.fn((url) => {
   if (meta && NAMES[meta[1]]) return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, clone() { return this }, json: async () => NAMES[meta[1]] })
   // the member's alerts: ONE list for every symbol (Chart Settings -> Price alerts draws the chart symbol's)
   if (/\/api\/watchlist-alerts/.test(u)) return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, clone() { return this }, json: async () => S.alerts || [] })
+  // the chart's event markers (earnings rows: an upcoming one extends the future axis to its day), when a case sets them
+  const mk = /\/api\/chart\/markers\/([A-Z]+)/.exec(u)
+  if (mk) return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, clone() { return this }, json: async () => (S.markers && S.markers[mk[1]]) || {} })
   const k = m ? K[m[1]] : 0
   // a case may serve its own bars (`S.rows(sym, tf)`); otherwise 5-minute bars of the pinned session, or dailies
   const own = k && S.rows ? S.rows(m[1], tf) : null
@@ -722,6 +736,113 @@ describe('coverage: a default-settings chart is applied by the controller', () =
 
   it('the volume pane marks its highest-volume bar on the pane (the case is the pane\'s look, which the frame builder must build)', () => {
     expect(paneProps().markVolumeExtremes).toBe(true)
+  })
+
+  // ⭐⭐ M1 (review round 2): A RENDER OF THE HELD BODY WRITES NOTHING OF THE OLD SYMBOL. Between the paint and the
+  // body's render the body is still AAA's, and it re-renders whenever something of AAA changes (its quote, an answer
+  // landing for it, a host prop). The pass, the developing-bar paint, the live tick, the metadata listener and the
+  // alert lines were guarded; three effects were not, and each put AAA's layer on BBB's candles:
+  //   • the session tags (AAA's Pre/Post chip at AAA's new extended-hours price, on BBB's axis);
+  //   • the my-trades markers effect, which hands the marker layer the WHOLE list (AAA's markers on BBB's candles):
+  //     the paint left `lastMyTradesSrcRef` at its own empty list, so the identity check let any other array through;
+  //   • the future axis (AAA's upcoming earnings day written to the hidden whitespace series).
+  // One held-body render below triggers all three; each rail reads only its own layer's writes.
+  describe('M1: a render of the held body writes nothing of the old symbol (D, outside the session)', () => {
+    let r
+    beforeAll(async () => {
+      const clock = pinWallClock(SAT)
+      S.prices = EXT
+      S.rows = (sym, tf) => (tf === 'D' ? daily(sym, '2026-11-13') : null)
+      S.markers = { AAA: { earnings: [{ date: '2026-12-03', estimate: true }] } }
+      try {
+        const props = { ...paneProps(), settingsOverride: { ...SETTINGS, markers: { earnings: true } } }
+        const t = await mounted(true, 'D', { markers: MARKERS_A }, props)
+        const ctl = t.port.current
+        let result = null
+        act(() => { result = ctl ? ctl.apply('BBB') : null })
+        const paintLog = S.log.slice()
+        S.log.length = 0
+        const views0 = ctl ? ctl.diag.views : -1
+        // AAA moves while BBB is painted: its extended-hours print, its upcoming earnings day, and the host hands it
+        // a new markers array (a late journal / flow answer looks the same to the chart)
+        S.prices = { ...EXT, AAA: { ...EXT.AAA, ext_price: 10.95 } }
+        await act(async () => { await swrMutate('/api/chart/markers/AAA?days=36500', { earnings: [{ date: '2026-12-10', estimate: true }] }, false) })
+        t.view.rerender(t.el('AAA', { markers: [...MARKERS_A] }))
+        await wait(200)
+        r = {
+          result, refusedAs: ctl ? JSON.stringify(ctl.diag.last) : null, mountLog: t.mountLog, paintLog,
+          between: S.log.slice(), views: ctl ? ctl.diag.views - views0 : -1, pending: ctl ? ctl.pendingSym() : null,
+        }
+        t.done()
+      } finally { clock.restore(); S.prices = {}; S.rows = null; S.markers = null }
+    }, 120_000)
+
+    it('the case: BBB was painted, and AAA\'s held body rendered while it was (views moved, BBB still pending)', () => {
+      expect(r.result, `refused as ${r.refusedAs}`).toBe('applied')
+      expect(r.pending).toBe('BBB')
+      expect(r.views).toBeGreaterThan(0)
+      // non-vacuity: the mount drew each of AAA's three layers
+      expect(r.mountLog.some((l) => / (createPriceLine|priceLine\.price) 10\.83$/.test(l)), 'AAA\'s Pre/Post tag').toBe(true)
+      expect(r.mountLog.some((l) => /^markers set [1-9]/.test(l)), 'AAA\'s marker').toBe(true)
+      expect(r.mountLog.some((l) => / setWhitespace /.test(l)), 'AAA\'s future axis').toBe(true)
+    })
+    it('the session tags: no tag at AAA\'s new extended-hours price is written onto BBB', () => {
+      expect(r.between.filter((l) => / (createPriceLine|priceLine\.price) 10\.95$/.test(l))).toEqual([])
+    })
+    it('the my-trades markers effect: AAA\'s markers are not handed to the marker layer over BBB\'s candles', () => {
+      expect(r.between.filter((l) => /^markers set [1-9]/.test(l))).toEqual([])
+    })
+    it('the future axis: AAA\'s upcoming earnings day is not written to the axis BBB is drawn on', () => {
+      expect(r.between.filter((l) => / setWhitespace /.test(l))).toEqual([])
+    })
+  })
+})
+
+// ⭐⭐ H1 (review round 2): WITH THE SWITCH OFF, NOTHING THE SWITCH ADDED RUNS ON THE PRODUCTION DEFAULT.
+// Neighbour frames are ON by default (chart/neighborFrames.js) and every /charts pane marks its volume extremes, and
+// 1b08f89a76 routed StockChart's `volExtremes` memo through `deriveVolExtremes` whenever neighbour frames were on:
+// every member, switch OFF. ⛔ The flag-OFF golden (StockChart.applyFrameParity.test.jsx) FORCES NEIGHBOUR FRAMES OFF,
+// so it never ran that branch and could not see it; this is the rail for that path. Every `derive*` call of
+// chart/useNeighborFrames is counted (the module mock at the top) through a mount and a React switch of a pane-look
+// chart: with the switch OFF, only the derive functions master's StockChart calls may appear. The switch ON is the
+// control: the same mount reaches `deriveVolExtremes`, so the count can see it.
+describe('H1: switch OFF, neighbour frames ON (the default): StockChart calls only the derive functions master calls', () => {
+  // what master 82ab4c233a's StockChart imports from chart/useNeighborFrames (its memos' shared derive steps)
+  const MASTER_DERIVES = new Set(['deriveSession', 'deriveDisplay', 'deriveHvc', 'deriveOhlcBase', 'deriveClose', 'deriveVol', 'deriveVolMa'])
+  let clock
+  beforeAll(() => { clock = pinWallClock('2026-11-14T16:00:00Z') })
+  afterAll(() => clock.restore())
+  const runs = {}
+  beforeAll(async () => {
+    for (const on of [false, true]) {
+      NF.calls.length = 0   // the mount and the switch both count
+      S.data = {}
+      const t = await mounted(on, 'D', {}, { ...paneLookProps({ cs: undefined, theme: undefined, prefs: undefined }) })
+      t.view.rerender(t.el('BBB'))
+      await wait(500)
+      runs[on ? 'on' : 'off'] = { calls: [...new Set(NF.calls)], data: { ...S.data }, flag: t.M.flag, nf: t.M.nf.neighborFramesOn() }
+      t.done()
+    }
+  }, 120_000)
+
+  it('the case is the default one: neighbour frames ON, the switch as asked, a pane look that marks its volume extremes', () => {
+    expect(runs.off.nf).toBe(true)
+    expect(runs.off.flag).toBe(false)
+    expect(runs.on.flag).toBe(true)
+    expect(paneLookProps({ cs: undefined, theme: undefined, prefs: undefined }).markVolumeExtremes).toBe(true)
+    expect(runs.off.calls.length, 'the memos did call the shared derive steps').toBeGreaterThan(0)
+  })
+  it('OFF: no derive function master does not call (1b08f89a76 added `deriveVolExtremes` to every member\'s path)', () => {
+    expect(runs.off.calls.filter((n) => !MASTER_DERIVES.has(n))).toEqual([])
+  })
+  it('OFF: the volume pane still marks its highest bar, by master\'s own loop (the memo ran: not vacuous)', () => {
+    const vol = Object.entries(runs.off.data).filter(([w, d]) => /^histogram#/.test(w) && d.length > 100).map(([, d]) => d).at(-1)
+    expect(vol, 'the volume series was set').toBeTruthy()
+    const top = vol.reduce((a, b) => (b.value > a.value ? b : a))
+    expect(vol.filter((b) => b !== top).some((b) => b.color === top.color), 'the highest bar has a colour of its own').toBe(false)
+  })
+  it('ON (control): the same chart reaches `deriveVolExtremes`, so this count can see it', () => {
+    expect(runs.on.calls).toContain('deriveVolExtremes')
   })
 })
 

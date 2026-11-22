@@ -5,7 +5,9 @@
 // the header, the badge) moves in that task too; the chart BODY's symbol (`painter.bodySym`) is held and follows
 // after the paint. Each commit below is logged as `host:body/host:body` for the two charts.
 //   (b) a linked group: every member's paint is in ONE task, through the key handler's decision (all members
-//       asked before the first one paints) and through the round (the fallback);
+//       asked before the first one paints); the round (the fallback) never paints, it shows every member through
+//       React in one commit (review round 2, H2: a paint from the round lands a task before its label);
+//   • H2, outside act(): nothing writes a chart's canvas in a task before the commit of its label;
 //   • the body's hold is released after the paint to whatever is displayed then: it never overwrites a switch
 //     React committed meanwhile, and it never renders a symbol that was already replaced;
 //   • a controller that refuses, or an empty ref, is today's path, unchanged;
@@ -20,7 +22,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 vi.mock('../components/chart/barStoreSwitch', () => ({ BARSTORE: true }))
-const st = { ready: true, columns: true }
+// `columnsGate`: a promise the panes' late server columns resolve with (the round's wait), when a case needs one
+const st = { ready: true, columns: true, columnsGate: null }
 vi.mock('../data/barStore/prefetch', () => ({
   peekDisplayable: (sym) => sym === 'AAA' || st.ready,
   lakePending: () => false,
@@ -35,7 +38,7 @@ vi.mock('../utils/prefetchBars', () => ({ prefetchBarsToIDB: () => {}, prepareFo
 vi.mock('../utils/barsMemCache', () => ({ memPeek: () => null }))
 vi.mock('../components/chart/engine/serverCompute', () => ({
   columnsReadyFor: () => st.columns,
-  whenColumnsReady: () => new Promise(() => {}),
+  whenColumnsReady: () => st.columnsGate || new Promise(() => {}),
   warmColumnsFor: () => {},
 }))
 
@@ -48,18 +51,34 @@ let events    // `${who}:${what}:${sym}@${tick}`
 let notes     // what the hook tells a controller besides painting: `${who}:reconcile:${sym}`, `${who}:released`
 let tick      // moves once per fake millisecond: two events with the same tick ran in the same task
 let ticker
+// (review round 2, H2) what each chart's host had COMMITTED as its label, and the ordering probe a case may install:
+// called at each paint and each reconcile, it checks once every microtask of the calling task has run (React's own
+// synchronous work included) whether the label committed for that symbol. A label that commits in a LATER task can
+// be a presented frame behind the canvas, which the paint wrote now.
+let labels
+let probe
+let order
+// the real ones, captured at import, before a case's fake timers replace them
+const realSetTimeout = globalThis.setTimeout
+const realTurn = (ms = 0) => new Promise((r) => realSetTimeout(r, ms))
+/** Run `fn` after every microtask queued so far, and every one those queue, up to `n` hops. */
+const afterMicrotasks = (fn, n = 60) => { let p = Promise.resolve(); for (let i = 0; i < n; i++) p = p.then(() => {}); p.then(fn) }
 beforeEach(() => {
   vi.useFakeTimers()
   // a frame, then a task: the deferred commit's own schedule, on the fake clock
   vi.stubGlobal('requestAnimationFrame', (cb) => setTimeout(cb, 16))
   st.ready = true
   st.columns = true
+  st.columnsGate = null
   __resetHandoffGroupsForTests()
   scope = { board: 1 }
   events = []
   notes = []
   tick = 0
   ticker = setInterval(() => { tick += 1 }, 1)
+  labels = {}
+  probe = null
+  order = []
 })
 afterEach(() => { clearInterval(ticker); __resetScopeForTests(scope); vi.unstubAllGlobals(); vi.useRealTimers() })
 
@@ -73,14 +92,18 @@ function fakePainter(who, can = true) {
       events.push(`${who}:apply:${sym}@${tick}:${token ? 'token' : 'built'}`)
       if (!yes(sym)) return false
       pending = sym
+      if (probe) probe(who, 'paint', sym)
       return 'applied'
     },
     pendingSym: () => pending,
     reactCaughtUp() { pending = null },
-    reconcile(sym) { notes.push(`${who}:reconcile:${sym}`) },
+    reconcile(sym) { notes.push(`${who}:reconcile:${sym}`); if (probe) probe(who, 'reconcile', sym) },
     noteReleased() { notes.push(`${who}:released`) },
+    noteRound(sym) { notes.push(`${who}:round:${sym}`) },
   }
 }
+/** The ordering probe: `${who}:${kind}:${sym}:${did its label commit in the same task}`. */
+const sameTaskProbe = (who, kind, sym) => afterMicrotasks(() => order.push(`${who}:${kind}:${sym}:${labels[who] === sym}`))
 // Two charts of one linked group in one tree (30m + 60m), each with its own painter ref.
 function twoCharts({ a = null, b = null, withScope = true } = {}) {
   const commits = []
@@ -89,7 +112,7 @@ function twoCharts({ a = null, b = null, withScope = true } = {}) {
   const h = renderHook(({ s }) => {
     const x = useSymbolHandoff(s, '30', { group: G, scope: withScope ? scope : null, painter: pa })
     const y = useSymbolHandoff(s, '60', { group: G, scope: withScope ? scope : null, painter: pb })
-    useLayoutEffect(() => { commits.push(`${x}:${pa.bodySym}/${y}:${pb.bodySym}`) })
+    useLayoutEffect(() => { commits.push(`${x}:${pa.bodySym}/${y}:${pb.bodySym}`); labels.a = x; labels.b = y })
     return [x, y]
   }, { initialProps: { s: 'AAA' } })
   commits.length = 0
@@ -102,7 +125,6 @@ function press(h, sym) {
   return decided
 }
 const afterPaint = () => act(() => { vi.advanceTimersByTime(40) })
-const ticksOf = (re) => events.filter((e) => re.test(e)).map((e) => Number(/@(\d+)/.exec(e)[1]))
 const applies = () => events.filter((e) => /:apply:/.test(e))
 /** Was a chart BODY ever rendered with `sym`, in any commit so far? */
 const bodyEver = (commits, sym) => commits.some((c) => c.split('/').some((one) => one.split(':')[1] === sym))
@@ -149,25 +171,83 @@ describe('(b) the key handler\'s decision: every member of the group paints in o
   })
 })
 
-describe('(b) the round (no decision): every ready member paints in the round\'s one task', () => {
-  it('both charts are painted in the same task, and the React state follows after the paint', () => {
+// ⛔ (review round 2, H2) THE ROUND NEVER PAINTS. It runs from a timer, a promise or a passive effect, where React
+// renders the label (and every React-path sibling) in a LATER task than the one the paint writes the canvas in: the
+// new candles could be presented under the old label, or beside a sibling still on the old symbol. Only the key
+// handler's decision paints: its React work is synchronous in the same task (`useSyncExternalStore`), so the label
+// and the candles are one frame by construction. The round takes today's React path: every member in one commit.
+describe('(b) the round (no decision): no member is painted; every ready member is shown in ONE commit', () => {
+  it('both charts take the symbol through React in the same commit, hosts and bodies; no controller is asked to paint', () => {
     const { h, commits } = twoCharts({ a: fakePainter('a'), b: fakePainter('b'), withScope: false })
     expect(press(h, 'BBB')).toBe(false)             // no scope: never decided
-    const t = ticksOf(/:apply:BBB/)
-    expect(applies()).toEqual([`a:apply:BBB@${t[0]}:built`, `b:apply:BBB@${t[0]}:built`])
-    expect(t[0]).toBe(t[1])
-    expect(commits.at(-1)).toBe('BBB:AAA/BBB:AAA')   // both hosts show it; both bodies held
-    expect(bodyEver(commits, 'BBB')).toBe(false)
+    expect(applies()).toEqual([])
+    // the first commit that carries the label carries both bodies too: one frame, both charts
+    expect(commits.find((c) => c.startsWith('BBB:'))).toBe('BBB:BBB/BBB:BBB')
+    // …and each controller hears the switch went by the round (`diag.refused.round`)
+    expect(notes).toEqual(expect.arrayContaining(['a:round:BBB', 'b:round:BBB']))
     afterPaint()
-    expect(commits.at(-1)).toBe('BBB:BBB/BBB:BBB')
-    expect(applies()).toHaveLength(2)
+    expect(applies()).toEqual([])
   })
 
-  it('a controller that refuses in the round: the state is set there, as before', () => {
+  it('a controller that refuses: the round is the same React show (it asks nothing)', () => {
     const { h, commits } = twoCharts({ a: fakePainter('a', false), b: fakePainter('b', false), withScope: false })
     press(h, 'BBB')
-    expect(applies()).toHaveLength(2)                // asked once each, both refused
+    expect(applies()).toEqual([])
     expect(commits.at(-1)).toBe('BBB:BBB/BBB:BBB')   // shown through React in the round's task, no timer needed
+  })
+})
+
+// ⭐⭐ (review round 2, H2) THE ORDER, OUTSIDE act(). act() renders React's updates synchronously, so every rail above
+// would pass a paint that lands a task ahead of its label. Here the round runs from a PROMISE (the panes' server
+// columns landing late), outside act(), and React schedules its render as it does in the browser. The probe asks,
+// at every paint and every reconcile (a replay writes the canvas too), once the calling task's microtasks have all
+// run: did the label of that symbol commit in this same task? A later task can be a presented frame later.
+// ⛔ What only a browser proves: that a frame is actually presented with both (the canary's pixels stamp). This rail
+// proves the precondition jsdom can see: nothing writes the canvas in a task before its label's commit.
+describe('H2: nothing writes a chart in a task before the commit of its label (outside act)', () => {
+  it('the round, columns landing late (no decision): no chart is painted before its label commits; one commit carries both', async () => {
+    st.columns = false
+    let land
+    st.columnsGate = new Promise((r) => { land = r })
+    probe = sameTaskProbe
+    const { h, commits } = twoCharts({ a: fakePainter('a'), b: fakePainter('b'), withScope: false })
+    press(h, 'BBB')                                  // the request; the round waits on the columns
+    expect(applies()).toEqual([])
+    land(true)                                       // OUTSIDE act: the columns land, the round shows both
+    for (let i = 0; i < 10 && labels.a !== 'BBB'; i++) await realTurn(5)
+    await realTurn(5)
+    expect(labels).toEqual({ a: 'BBB', b: 'BBB' })
+    expect(order.filter((o) => o.endsWith(':false')), 'a canvas written a task before its label').toEqual([])
+    expect(commits.find((c) => c.startsWith('BBB:'))).toBe('BBB:BBB/BBB:BBB')
+  })
+
+  it('the way back by the round (BBB painted, AAA refused by the controller): the replay is told in the commit of AAA\'s label', async () => {
+    const can = (sym) => sym === 'BBB'
+    probe = sameTaskProbe
+    const { h } = twoCharts({ a: fakePainter('a', can), b: fakePainter('b', can) })
+    expect(press(h, 'BBB')).toBe(true)              // the decision paints BBB; the bodies are held on AAA
+    await realTurn(5)
+    order.length = 0
+    notes.length = 0
+    st.columns = false                               // AAA's columns are late: no decision, the round
+    let land
+    st.columnsGate = new Promise((r) => { land = r })
+    expect(press(h, 'AAA')).toBe(false)
+    land(true)                                       // OUTSIDE act
+    for (let i = 0; i < 10 && labels.a !== 'AAA'; i++) await realTurn(5)
+    await realTurn(5)
+    expect(labels).toEqual({ a: 'AAA', b: 'AAA' })
+    expect(notes).toEqual(expect.arrayContaining(['a:reconcile:AAA', 'b:reconcile:AAA']))   // non-vacuity: told
+    expect(order.filter((o) => /:reconcile:AAA:/.test(o)).length).toBeGreaterThanOrEqual(2)
+    expect(order.filter((o) => o.endsWith(':false')), 'a replay a task before its label').toEqual([])
+  })
+
+  it('control: the key handler\'s decision paints, and the probe sees each label committed in the same task', async () => {
+    probe = sameTaskProbe
+    const { h } = twoCharts({ a: fakePainter('a'), b: fakePainter('b') })
+    expect(press(h, 'BBB')).toBe(true)
+    await realTurn(5)
+    expect(order.filter((o) => /:paint:BBB:/.test(o))).toEqual(['a:paint:BBB:true', 'b:paint:BBB:true'])
   })
 })
 
@@ -208,6 +288,16 @@ describe('review of #2400: the release, and what the controller is told', () => 
     act(() => { vi.advanceTimersByTime(20) })        // 40 ms: the newer paint's own release
     expect(commits.at(-1)).toBe('CCC:CCC/CCC:CCC')
     expect(notes.filter((n) => /released/.test(n))).toEqual(['a:released', 'b:released'])   // one release per chart
+  })
+  it('L3 (review round 2): a release whose hold a React show already cleared frees nothing and is not counted', () => {
+    const can = (sym) => sym === 'BBB'
+    const { h, commits } = twoCharts({ a: fakePainter('a', can), b: fakePainter('b', can) })
+    expect(press(h, 'BBB')).toBe(true)              // painted; the bodies held on AAA
+    expect(press(h, 'CCC')).toBe(true)              // refused by the controllers: React shows CCC, the hold cleared in render 1
+    expect(commits.at(-1)).toBe('CCC:CCC/CCC:CCC')
+    notes.length = 0
+    afterPaint()                                     // BBB's release fires now: there is nothing left to release
+    expect(notes.filter((n) => /released/.test(n))).toEqual([])
   })
   it('finding 1: a symbol the controller did not paint is shown through React, and the controller is told (reconcile)', () => {
     // BBB painted; AAA (back to the symbol the body is held on) refused by the controller

@@ -361,7 +361,9 @@ describe('review finding 1: going back to the symbol React still shows', () => {
     log.length = 0
     passes.length = 0
     expect(c.apply('AAA')).toBe('applied')
-    expect(log).toEqual(['react:repaint'])     // not a built frame: React's frame of AAA, by the chart's own pass
+    // not a built frame: React's frame of AAA, by the chart's own pass; and (review round 2, L1) the server-compute
+    // lane hears AAA again first, as on any switch (the paint told it BBB, and the body's `sym` never changes back)
+    expect(log).toEqual(['lane:AAA', 'react:repaint'])
     expect(passes).toHaveLength(0)
     expect(c.pendingSym()).toBe(null)
     expect(c.staleFor('AAA')).toBe(false)
@@ -386,7 +388,7 @@ describe('review finding 1: going back to the symbol React still shows', () => {
     c.apply('BBB')
     log.length = 0
     c.reconcile('AAA')
-    expect(log).toEqual(['react:repaint'])
+    expect(log).toEqual(['lane:AAA', 'react:repaint'])
     expect(c.pendingSym()).toBe(null)
   })
   it('reconcile does nothing when the host shows the painted symbol, a third one, or nothing is pending', () => {
@@ -431,6 +433,23 @@ describe('review finding 5: the numbers add up', () => {
     c.canApply('BBB')
     c.apply('BBB')               // the round: no token
     expect(c.diag).toMatchObject({ asked: 1, applied: 1, refused: {} })
+  })
+  // (review round 2, H2) the round never paints; its switches are still questions this chart answered no to
+  it('a switch shown by the round is counted a refusal, `round` (one question per press)', () => {
+    const { c } = painted()
+    c.noteRound('BBB')
+    expect(c.diag).toMatchObject({ asked: 1, applied: 0, refused: { round: 1 } })
+    expect(c.diag.last).toEqual({ sym: 'BBB', ok: false, why: 'round' })
+    expect(passes).toHaveLength(0)
+  })
+  it('…and a frame the decision built for that same press (a sibling said no) is that press\'s `group-veto`, once', () => {
+    const { c } = painted()
+    c.canApply('BBB')            // the decision built it; a sibling said no
+    c.noteRound('BBB')           // the round shows the same press
+    expect(c.diag).toMatchObject({ asked: 1, applied: 0, refused: { 'group-veto': 1 } })
+    c.canApply('CCC')            // the next press: nothing left open to count again
+    expect(c.diag.refused).toEqual({ 'group-veto': 1 })
+    expect(c.diag.asked).toBe(sum(c.diag))
   })
   it('`released` counts the body\'s releases', () => {
     const { c } = painted()
