@@ -76,6 +76,35 @@ export const OBJECT_STATUS = Object.freeze({
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
+/** ⭐⭐ e95 (computed number formats) — the key the member's sentence for a text withheld for its FORMAT rides
+ *  under in the drawing note's `why` (`withheldWhy`, carried by the binder to `objectLoss.withRenderDrops`). */
+export const FORMAT_WITHHELD_KEY = '~format-withheld'
+const NAMED_FORMAT_RE = /^tostring:(format\.[a-z]+)$/
+/** The member's words for `[family, fmtUnread reason]` pairs: one sentence per family and kind (a format the
+ *  script computes, or a Pine format UCT does not print yet), in a fixed order; null for none. */
+export function formatWithheldSentence(pairs) {
+  const seen = new Set()
+  const out = []
+  const rank = (f) => (f === 'table' ? 0 : f === 'label' ? 1 : 2)
+  const list = [...(pairs || [])].map(([fam, why]) => {
+    const named = typeof why === 'string' ? (why.match(NAMED_FORMAT_RE) || [])[1] : null
+    return { fam, named: named || null }
+  }).sort((a, b) => rank(a.fam) - rank(b.fam) || String(a.named || '').localeCompare(String(b.named || '')))
+  for (const { fam, named } of list) {
+    const key = `${rank(fam)}|${named || ''}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    const head = fam === 'table' ? 'A value in this table is not shown'
+      : fam === 'label' ? 'A label is not drawn' : "A text in this script's drawings is not shown"
+    if (named) out.push(`${head}: it is written with ${named}, which UCT does not print yet.`)
+    else {
+      out.push(`${head}: its number format is computed by the script. UCT ${fam === 'label' ? 'draws' : 'shows'} it `
+        + 'when the format is written out.')
+    }
+  }
+  return out.length ? out.join(' ') : null
+}
+
 /** ⭐⭐ C43 — `str.tostring(x)` with NO format: ten decimals, trailing zeros
  *  trimmed (see `formatNumber`). Exported for the rails that replay a vendor
  *  text, so they ask the formatter instead of restating it.
@@ -555,6 +584,20 @@ export function beginObjects(program, ctx) {
     const why = messageNumberWhy(n, fmt) || 'format:withheld'
     textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1
   }
+  /** ⭐⭐ e95 (computed number formats) — A TEXT WITHHELD FOR ITS FORMAT (`fmtUnread`) IS SAID TO THE MEMBER.
+   *  `fmtWhyNow` is the reason of the last text `textOf` withheld for its format; `resolveProps` reads it for
+   *  the `text` property it writes (`lastTextWrite`), and each write records or clears its mark where the text
+   *  landed: `fmtMarks`, object id or `id|col,row` → reason. At the end, a mark on a live object or cell whose
+   *  text is still withheld names its family in the note (`FORMAT_WITHHELD_KEY`). A later clean write clears
+   *  it, so a text that was withheld on some earlier bar and is drawn now is not named. */
+  const fmtMarks = new Map()
+  let fmtWhyNow = null
+  let lastTextWrite = { written: false, fmt: null }
+  const markFmt = (key, tw) => {
+    if (!tw.written) return
+    if (tw.fmt) fmtMarks.set(key, tw.fmt)
+    else fmtMarks.delete(key)
+  }
   // ⭐ C29 — history reads past the measured automatic buffer, withheld (not read).
   let atBeyondAuto = 0
   /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
@@ -930,7 +973,7 @@ export function beginObjects(program, ctx) {
           // `na` prints `NaN` under any format (witnessed under a computed one,
           // position-size-calculator RDDT); a finite value is WITHHELD.
           if (typeof t.fmtUnread === 'string') {
-            if (Number.isFinite(n)) { textsWithheld += 1; return null }
+            if (Number.isFinite(n)) { textsWithheld += 1; fmtWhyNow = t.fmtUnread; return null }
             return 'NaN'
           }
           // ⭐⭐ H5 — `format.volume`: the witnessed M / B rendering or nothing.
@@ -1305,12 +1348,16 @@ export function beginObjects(program, ctx) {
     }
 
     const resolveProps = (props, out) => {
+      lastTextWrite = { written: false, fmt: null }
       for (const [k, v] of Object.entries(props || {})) {
         if (isObj(v) && v.r) {
           const inst = resolveRef(v)
           out[k] = inst === null ? null : { __ref: inst }
         } else {
+          if (k === 'text') fmtWhyNow = null
           const x = value(v)
+          // ⭐ e95 — the text this write lands, and whether its format withheld it
+          if (k === 'text') lastTextWrite = { written: true, fmt: x === null && fmtWhyNow ? fmtWhyNow : null }
           // ⭐⭐ C48 — A BAR COORDINATE IS A WHOLE NUMBER: a float handed to an
           // `int` x has its fraction dropped, toward zero. Capture
           // `vw-int-array-avg-neg-spy-1d-2026-10-01`, rows Y01–Y03:
@@ -1791,6 +1838,7 @@ export function beginObjects(program, ctx) {
           // ⭐ Resolved BEFORE the capacity test, because for a table the new
           // object's own position decides whether an old one leaves first.
           const props = resolveProps(op.props, {})
+          const createdText = lastTextWrite
           if (op.family === 'table') replaceTableAt(tablePosition(props), bar)
           if (op.family === 'linefill' && fillBetween(props, bar).skip) {
             // ⭐ `linefill.new` with a line that is not there returns `na`: the
@@ -1840,6 +1888,7 @@ export function beginObjects(program, ctx) {
           }
           familySeq[op.family] += 1
           live.set(id, inst)
+          markFmt(id, createdText)
           // ⭐ C17 — Pine made this object here; a property whose VALUE read
           // something tainted is what stays unknown on it (C22: or read an
           // unmeasured reduction on this bar).
@@ -1875,6 +1924,7 @@ export function beginObjects(program, ctx) {
           const inst = target === null ? null : live.get(target)
           if (!inst) { writesToDeleted += 1; break }
           resolveProps(op.props, inst.props)
+          markFmt(inst.id, lastTextWrite)
           // ⭐ C17 — a clean write clears its property; a tainted value marks it.
           const um = unmeasuredProps(op)
           // ⭐ C43 — a getter in arithmetic this bar could not say marks its coordinate.
@@ -1928,6 +1978,8 @@ export function beginObjects(program, ctx) {
           if (!map) { map = new Map(); cells.set(inst.id, map) }
           const key = `${col},${row}`
           const wrote = writeCell(map.get(key), op.k, (base) => resolveProps(op.props, base))
+          // ⭐ e95 — a `table.cell` replaces the whole cell: a write without text clears the mark too
+          markFmt(`${inst.id}|${key}`, op.k === 'cell' && !lastTextWrite.written ? { written: true, fmt: null } : lastTextWrite)
           if (wrote.withhold) cellGuards.add(wrote.withhold)
           map.set(key, wrote.cell)
           // ⭐ C17 — a cell written from a tainted value is unknown; a whole
@@ -2422,8 +2474,24 @@ export function beginObjects(program, ctx) {
   // reason, which until now reached only the layer's meta, in the member's note.
   const stoppedWhy = stopped ? stoppedRunSentence(reason,
     status === OBJECT_STATUS.RUNTIME_ERROR ? 'error' : 'unmeasured', { fromListing: ctx.offListing === false }) : null
+  // ⭐⭐ e95 — a text withheld for its FORMAT on what this run still holds, said once (`formatWithheldSentence`)
+  const fmtHeld = []
+  if (!stopped && fmtMarks.size) {
+    for (const o of live.values()) {
+      const why = fmtMarks.get(o.id)
+      if (why && o.props && o.props.text === null) fmtHeld.push([o.family, why])
+      if (o.family !== 'table') continue
+      const map = cells.get(o.id)
+      for (const [key, cell] of (map ? map.entries() : [])) {
+        const cw = fmtMarks.get(`${o.id}|${key}`)
+        if (cw && cell && cell.text === null) fmtHeld.push(['table', cw])
+      }
+    }
+  }
+  const fmtWhy = formatWithheldSentence(fmtHeld)
   const whyOut = {
     ...(stoppedWhy ? { [STOPPED_KEY]: stoppedWhy } : {}),
+    ...(fmtWhy ? { [FORMAT_WITHHELD_KEY]: fmtWhy } : {}),
     ...notShownWhy,
     ...(runtimeWhy ? { [RUNTIME_UNKNOWN_KEY]: runtimeWhy } : {}),
     ...(cellGuards.has(MERGED_HEAD_REWRITE) && !stopped ? { table: MERGED_HEAD_REWRITE_SENTENCE } : {}),

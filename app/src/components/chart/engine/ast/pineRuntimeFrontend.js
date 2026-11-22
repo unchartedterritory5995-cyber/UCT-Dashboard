@@ -43,6 +43,7 @@ import {
   isLegacyPineVersion,
   chartOffsetFunctions, callsInBlocks, callsInConditionalArms, legacyCarryStatements, FN_HISTORY_IN_BLOCK, CARRY_VERSIONS,
   carryShapeVersion, beginPaletteScope, endPaletteScope, v6BoolHistoryServed,
+  PINE_NAMED_FORMATS, formatTextCall,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { clockColumnsOf } from '../clockMemo.js'
@@ -11012,7 +11013,16 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
               locate(node.tok))
           }
           if (given.length === 2) {
-            const f = given[1]
+            let f = given[1]
+            // ⭐⭐ e95 (computed number formats) — a format the script FIXES before bar 0 (an alias, a join,
+            // `str.substring` / `str.replace_all` / `str.repeat` of literals, a ternary on an input, an alias of
+            // `format.mintick`) is read as the text it folds to (`fixedFormatOf`), and goes through every rule
+            // below as if written there: a pattern this lane does not print exactly keeps its refusal.
+            if (f && f.type !== 'string' && !(f.type === 'name' && f.name === 'format.mintick')) {
+              const folded = fixedFormatOf(f, scope)
+              if (folded && typeof folded.text === 'string') f = { type: 'string', value: folded.text, tok: f.tok }
+              else if (folded && typeof folded.named === 'string') f = { type: 'name', name: folded.named, tok: f.tok }
+            }
             // ⭐⭐ TC (text-colour unit) — `format.mintick`: the symbol's tick, as the binding's own
             // decimal TEXT (`bindConsts['syminfo.mintick']`, the witnessed `SYMBOL_TICK_SIZE` entry
             // the host lane's object binding reads too), printed by the host lane's ONE tick
@@ -17300,6 +17310,49 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       return r === null ? null : l + r
     }
     return null
+  }
+
+  /** ⭐⭐ e95 (computed number formats) — A `str.tostring` FORMAT FIXED BEFORE BAR 0, on this lane: `{text}`,
+   *  `{named}` (one of Pine's `format.*` constants, reached through a name), or null. The columnar lane's twin
+   *  is `pine.js::Resolver.formatTextOf`; the text calls are read by the ONE `formatTextCall` both lanes ask.
+   *  What is fixed here is what this lane already fixes: a text by `fixedTextOf` (a text input at the value in
+   *  force), a whole number by `constValueOf`, a test by `fixedTestOf`. ⛔ A slot (a `var`, a frame's own name,
+   *  a loop counter) and anything per bar or per symbol is not fixed: the call keeps its refusal by name. */
+  const fixedFormatOf = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return null
+    if (node.type === 'string') return typeof node.value === 'string' ? { text: node.value } : null
+    if (node.type === 'name' && typeof node.name === 'string') {
+      if (scope && scope.lookup(node.name) !== null) return null
+      if (Object.prototype.hasOwnProperty.call(PINE_NAMED_FORMATS, node.name) && !env.has(node.name)) return { named: node.name }
+      const bound = env.get(node.name)
+      if (bound) return bound.kind === 'expr' ? fixedFormatOf(bound.node, scope, depth + 1) : null
+      const t = fixedTextOf(node, scope, depth + 1)
+      return t === null ? null : { text: t }
+    }
+    const textOf = (n) => {
+      const f = fixedFormatOf(n, scope, depth + 1)
+      return f && typeof f.text === 'string' ? f.text : null
+    }
+    if (node.type === 'binary' && node.op === '+') {
+      const l = textOf(node.left)
+      if (l === null) return null
+      const r = textOf(node.right)
+      return r === null ? null : { text: l + r }
+    }
+    if (node.type === 'ternary') {
+      const v = fixedTestOf(node.test, scope)
+      return v === null ? null : fixedFormatOf(v ? node.yes : node.no, scope, depth + 1)
+    }
+    if (node.type === 'call') {
+      const intOf = (n) => {
+        const c = constValueOf(n, scope)
+        return c && Number.isInteger(c.value) && c.value >= 0 ? c.value : null
+      }
+      const viaCall = formatTextCall(node, textOf, intOf)
+      if (viaCall !== null) return { text: viaCall }
+    }
+    const t = fixedTextOf(node, scope, depth + 1)
+    return t === null ? null : { text: t }
   }
 
   /** ⭐⭐ W4 T3 — IS THIS ARGUMENT THE CHART'S OWN TIMEFRAME? → its spelling
