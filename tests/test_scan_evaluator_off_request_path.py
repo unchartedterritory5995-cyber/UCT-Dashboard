@@ -76,7 +76,7 @@ _API = _ROOT / "api"
 #: The module whose entry points must be unreachable, and the entry points.
 _SUBJECT = "api.services.screener.scan_evaluator"
 _ENTRY_POINTS = ("evaluate_one", "run_sweep", "sweep_job", "definitions_to_sweep",
-                 "live_sweep_job")
+                 "live_sweep_job", "sweep_catch_up")
 
 #: The subject's OTHER public functions — the ones a request may name, because
 #: none of them touches the universe, the bars store or the screener snapshot.
@@ -611,6 +611,12 @@ _SCHEDULER_SITE = "api/main.py::_run_scan_sweep"
 #: deploy. `SCAN_LIVE_SWEEP_ENABLED` is read INSIDE `live_sweep_job` instead.
 _LIVE_SCHEDULER_SITE = "api/main.py::_run_live_scan_sweep"
 
+#: The boot catch-up of a nightly sweep a restart skipped or cut short (#2475, 2026-11-22): a one-shot
+#: `date` job SWEEP_CATCHUP_BOOT_DELAY_S after boot, never inline, under the same lock as the nightly job.
+#: ⛔ `sweep_catch_up` IS AN ENTRY POINT (it reads `definitions_to_sweep` and calls `run_sweep`), so it is
+#: classified as one, and its one production caller is named here.
+_CATCHUP_SCHEDULER_SITE = "api/main.py::_run_scan_sweep_catchup"
+
 
 def _sweep_call_sites(overlay=None) -> set:
     """Every `api/**` call of an `_ENTRY_POINTS` function, as ``path::function``.
@@ -667,7 +673,7 @@ def _expected_sweep_call_sites() -> set:
     `main.py` would make the expectation equal the measurement and this whole
     census would assert nothing. A named door is the point.
     """
-    out = {_SCHEDULER_SITE, _LIVE_SCHEDULER_SITE}
+    out = {_SCHEDULER_SITE, _LIVE_SCHEDULER_SITE, _CATCHUP_SCHEDULER_SITE}
     for module, func in _BOUNDED_CALLERS:
         path = _MODULES.get(module)
         assert path is not None, f"{module} is not a module under api/"

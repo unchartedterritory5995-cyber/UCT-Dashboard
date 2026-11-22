@@ -1,4 +1,6 @@
-// GRP's two sections, "Fundamentals" and "Breadth": one sector's or industry's medians from SEC filings
+// GRP's sections, "Rank" (2026-11-22), "Fundamentals" and "Breadth". Rank: one sector's or industry's place among its
+// peers by the median 6-month (and 3-month) price change of its stocks, now, 4, 13 and 52 weeks ago with the places
+// moved, its best and worst week, and the year's weekly line. Fundamentals and breadth: its medians from SEC filings
 // (point in time) with a year and three years ago and its rank among its peers, and its breadth (the shares
 // above each average and near the 52-week high, with the 1-week and 1-month change, the day's highs, lows and
 // advance / decline, and a year's line of the share above the 50-day). GRP's ranked list is untouched: the
@@ -13,8 +15,8 @@ import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureText, useMarketRead } from './marketRead'
 import {
   GROUP_STATS_COMPUTING_POLL_MS, GROUP_STATS_KINDS, GROUP_STATS_POLL_MS, breadthCounts, breadthRows, breadthSummary, builtWords,
-  dayWords, fundRows, fundStateWords, fundSummary, groupStatsUrl, pointsText, readGroupDetail, shareLine, shareLineWords, shareText,
-  signedCount,
+  dayWords, fundRows, fundStateWords, fundSummary, groupStatsUrl, placeText, pointsText, rankLine, rankLineWords, rankRows,
+  rankStateWords, rankSummary, rankText, rankWindowWords, readGroupDetail, shareLine, shareLineWords, shareText, signedCount,
 } from './groupStatsModel'
 import styles from './marketPanels.module.css'
 import local from './groupStats.module.css'
@@ -55,6 +57,92 @@ function Figure({ fig, min, phone = false }) {
       <span className={local.main}>{fig.text}</span>
       <span className={local.sub}>of {count(fig.n)}</span>
     </td>
+  )
+}
+
+/** A rank with the stocks it rests on, or the count alone when there are too few for a rank. */
+function RankFigure({ cell }) {
+  if (!cell.text) return <td><span className="sr-only">{cell.words}</span></td>
+  return (
+    <td className={`${styles.snugWrap} ${styles.phoneWrap}`}>
+      <span className={cell.few ? local.few : local.main}>{keepOf(cell.text)}</span>
+      {cell.sub ? <span className={local.sub}>{cell.sub}</span> : null}
+    </td>
+  )
+}
+
+function RankSection({ detail, kindWords }) {
+  const down = rankStateWords(detail.rankState)
+  const rows = useMemo(() => rankRows(detail), [detail])
+  const m6 = detail.rank?.m6
+  const geo = useMemo(() => (m6 ? rankLine(detail.rankDates, m6.line, m6.ofLine) : null), [detail, m6])
+  const lastOf = geo ? rankText({ position: geo.last.position, of: geo.last.of }) || placeText(geo.last.position) : null
+  return (
+    <Section testId="terminal-grp-rank" title="Rank" line={rankSummary(detail)} lineTestId="terminal-grp-rank-line">
+      {down || !rows.length ? (
+        <p className={styles.note} role="status" data-testid="terminal-grp-rank-state">
+          {down || `${detail.name} has no weekly rank in the last evening build.`}
+        </p>
+      ) : (
+        <>
+          <div className={styles.tableBox}>
+            <table className={`${styles.table} ${local.stats}`} data-testid="terminal-grp-rank-table"
+              aria-label={`${detail.name}: its place among the ${kindWords.many} by the median 6-month and 3-month price change of its stocks, now, 4, 13 and 52 weeks ago, and its best and worst week`}>
+              <thead>
+                <tr>
+                  <th scope="col" className={local.metric}>Week</th>
+                  <th scope="col" className={`${styles.snugWrap} ${styles.phoneWrap}`} title={`Its place among the ${kindWords.many} by the median 6-month price change of their stocks`}>By 6-month change</th>
+                  <th scope="col" className={`${styles.snugWrap} ${styles.phoneWrap}`} title={`Its place among the ${kindWords.many} by the median 3-month price change of their stocks`}>By 3-month change</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.key} data-testid={`terminal-grp-rank-row-${r.key}`}>
+                    <td className={local.metric}>
+                      <span className={local.main}>{r.label}</span>
+                      {r.date ? <span className={local.sub}>{dayWords(r.date)}</span> : null}
+                    </td>
+                    {r.cells.map((c, i) => <RankFigure key={i === 0 ? 'm6' : 'm3'} cell={c} />)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {geo ? (
+            <div className={local.lineBox} data-testid="terminal-grp-rank-chart">
+              <svg className={local.line} viewBox={`0 0 ${geo.w} ${geo.h}`} preserveAspectRatio="none" role="img" aria-label={rankLineWords(geo)}>
+                <line className={local.mid} x1="0" x2={geo.w} y1={geo.mid} y2={geo.mid} />
+                <path className={local.trace} d={geo.path} />
+              </svg>
+              <div className={local.lineScale} aria-hidden="true">
+                <span>{dayWords(geo.first.date)}</span>
+                <span>{dayWords(geo.last.date)}</span>
+              </div>
+              <p className={styles.muted}>
+                Its 6-month rank each week for a year, 1st at the top and {placeText(geo.top)} at the bottom; the dashed line is
+                the middle. Best {placeText(geo.best.position)} ({dayWords(geo.best.date)}), worst {placeText(geo.worst.position)}{' '}
+                ({dayWords(geo.worst.date)}), latest {lastOf}. A week with fewer than {count(detail.minMembers)} stocks priced breaks
+                the line.
+              </p>
+            </div>
+          ) : (
+            <p className={styles.muted} data-testid="terminal-grp-rank-no-chart">
+              Fewer than two ranked weeks in the last year, so there is no line to draw.
+            </p>
+          )}
+          <p className={styles.muted} data-testid="terminal-grp-rank-method">
+            {detail.name}&apos;s place each week among the {kindWords.many} with at least {count(detail.minMembers)} stocks priced
+            that week, by the median 6-month price change of their stocks, highest first (equal medians share a place); the 3-month
+            column is the same with the 3-month change. A stock&apos;s 6-month change is its close against its own close{' '}
+            {rankWindowWords(detail.rankSessions.m6, 'm6')} earlier, and the 3-month change the same over{' '}
+            {rankWindowWords(detail.rankSessions.m3, 'm3')}: the windows of UCT&apos;s RS rating, on closing prices (split-adjusted,
+            price only). A week&apos;s point is its last close, and Now is the last session; each week uses only the closes up to
+            that day (no look-ahead). The members are today&apos;s: UCT keeps no history of which stocks were in a {kindWords.one},
+            so a stock that has since left it, or stopped trading, is not counted in earlier weeks (survivorship).
+          </p>
+        </>
+      )}
+    </Section>
   )
 }
 
@@ -208,8 +296,8 @@ export default function GroupStatsSections({ kind, name }) {
   if (!asks) {
     return (
       <p className={styles.muted} data-testid="terminal-grp-stats-theme">
-        Fundamentals and breadth are worked out for sectors and industries, not for UCT themes. GRPS lists every sector and
-        industry with them.
+        The weekly rank, fundamentals and breadth are worked out for sectors and industries, not for UCT themes. GRPS lists
+        every sector and industry with them.
       </p>
     )
   }
@@ -244,7 +332,7 @@ export default function GroupStatsSections({ kind, name }) {
   if (detail.state === 'not_found') {
     return (
       <p className={styles.muted} role="status" data-testid="terminal-grp-stats-not-found">
-        {name} was not in the last evening build of {kindWords.many}, so it has no fundamentals or breadth yet.
+        {name} was not in the last evening build of {kindWords.many}, so it has no rank, fundamentals or breadth yet.
       </p>
     )
   }
@@ -259,6 +347,7 @@ export default function GroupStatsSections({ kind, name }) {
   const when = builtWords(detail)
   return (
     <div className={local.sections} data-testid="terminal-grp-stats">
+      <RankSection detail={detail} kindWords={kindWords} />
       <FundSection detail={detail} kindWords={kindWords} />
       <BreadthSection detail={detail} kindWords={kindWords} />
       {when ? (

@@ -20,6 +20,8 @@ import { holdersByOwnership, institutionalNote, quarterLabel, shortMissingWords 
 import { SOURCE as SHORT_SOURCE, dayText, floatWords } from '../../terminal/panels/shortInterestModel'
 import { FUNDS_TITLE, LEG_13F_WORDS } from '../../terminal/panels/fundHoldersModel'
 import FundHoldersBlock from './FundHoldersBlock'
+import FundsNportBlock from './FundsNportBlock'
+import { NPORT_TITLE, quarterWords } from '../../terminal/panels/fundNportModel'
 import { themeInk } from '../themeInk'
 import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
@@ -257,6 +259,9 @@ export default function OwnershipTab({ sym }) {
   const edgarSrc = o.insider_source || null
   const tf = o.thirteen_f || null
   const tfs = tf?.summary || {}
+  // Funds (N-PORT): the SEC's Form N-PORT holders, from the index the server builds out of the quarterly data sets.
+  const nport = o.funds_nport && typeof o.funds_nport === 'object' ? o.funds_nport : null
+  const nportQuarter = quarterWords(nport?.data_set?.quarter)
   const sessionContext = sessionModel(session)
   const s = o.sym || sym
   // The short card draws figures only from a HELD report (`state: 'ok'`, with its settlement date).
@@ -268,7 +273,7 @@ export default function OwnershipTab({ sym }) {
   const instQuarter = quarterLabel(tf?.quarter) || tf?.quarter || null
   const shortFloatWords = shortOk ? floatWords({ pct: finite(sh.short_pct_float), withheld: sh.pct_float_withheld === true }) : null
   const empty = !insider.length && !shortOk
-    && instPct == null && !tf && sc.float_shares == null && !edgarSrc
+    && instPct == null && !tf && sc.float_shares == null && !edgarSrc && nport?.state !== 'ok'
 
   // tq-panels: one leg failing (the 13F read, the share counts, or the insider read) used to
   // leave its cards reading as dashes -- indistinguishable from "nothing reported". Say which.
@@ -392,6 +397,15 @@ export default function OwnershipTab({ sym }) {
         <section className={styles.card}>
           <div className={styles.ct}>Form 13F</div>
           <ThirteenFListLine block={o.thirteen_f_list} sym={o.sym || sym} />
+        </section>
+      )}
+
+      {/* Below the 13F block: the registered funds (mutual funds and ETFs) from their own N-PORT reports. Keyed on
+          the symbol so a new stock starts on the default sort with the list folded. */}
+      {nport && (
+        <section className={styles.card} data-testid="ownership-funds-nport" data-state={nport.state || 'none'}>
+          <div className={styles.ct}>{NPORT_TITLE}{nportQuarter ? <span className={styles.muted}> · {nportQuarter} data set</span> : null}</div>
+          <FundsNportBlock key={s} block={nport} sym={s} />
         </section>
       )}
 

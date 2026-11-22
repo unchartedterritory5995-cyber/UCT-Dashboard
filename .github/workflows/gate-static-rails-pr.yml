@@ -35,6 +35,12 @@ name: gate static rails (PR)
 on:
   pull_request:
     branches: [master]
+  # 2026-11-22, merge-queue prep. `master gate static checks` is the required check on master; a merge queue
+  # asks every required check for a verdict on its merge group, and a workflow without this trigger never
+  # reports one (the queued pull request then times out). INERT until a queue exists: nothing fires it.
+  # A merge group's commit is a merge too (first parent = master plus the entries ahead), so HEAD^..HEAD is
+  # still exactly the queued pull request's change and fetch-depth 2 still holds.
+  merge_group:
 
 permissions:
   contents: read

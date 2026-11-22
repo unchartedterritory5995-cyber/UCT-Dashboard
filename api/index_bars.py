@@ -757,7 +757,7 @@ def _repair_fields(rep: dict, out: list) -> dict:
         fields["holes_total"] = len(holes_all)
     deep = rep.get("deep")
     if isinstance(deep, dict):
-        fields["deep"] = {k: deep.get(k) for k in ("src", "joined", "sessions", "from", "reason")}
+        fields["deep"] = {k: deep.get(k) for k in ("src", "joined", "sessions", "from", "through", "reason")}
         seam = deep.get("seam")
         if isinstance(seam, dict):
             fields["deep"]["seam"] = {k: seam.get(k) for k in ("d", "compared", "equal", "worst_rel")}
@@ -886,6 +886,9 @@ DEEP_FILL_WICK_MAX = 5e-3
 #: ETF reads one pass may make (the stock store's own bars: no vendor call).
 DEEP_FILL_MAX_PER_PASS = 8
 DEEP_FILL_ENV = "INDEX_INTRADAY_DEEP_FILL_ENABLED"
+#: The fill's rule version, kept on every fill record: a REFUSAL recorded under an older version is asked again at once
+#: (2: the ETF read's window ends on the session itself; version 1's 1m refusals were the window's, not the data's).
+DEEP_FILL_VERSION = 2
 _DEEP_T0 = time.monotonic()
 _deep_prefix: Dict[tuple, tuple] = {}
 _deep_prefix_lock = threading.Lock()
@@ -1083,8 +1086,10 @@ def _proxy_session_bars(proxy: str, d, lane: str = "5") -> Dict[int, dict]:
     import json as _json
     import datetime as _dt
     from api.routers import bars as _bars
-    r = _bars.serve_bars(proxy, lane, bars=400 if lane == "5" else 1000, to=(d + _dt.timedelta(days=1)).isoformat(),
-                         warm=1)
+    # ⛔ (2026-11-22) `to=` INCLUDES its whole day: asked with the NEXT day, the 1m answer's 1,000 rows were that day's
+    # 960 extended-hours bars plus d's evening, none of d's regular session (production: SPX 1m 2026-08-13 refused
+    # "no edge bar held by both", the run cut there). Asked with d itself, the window ends at d's last bar.
+    r = _bars.serve_bars(proxy, lane, bars=400 if lane == "5" else 1000, to=d.isoformat(), warm=1)
     body = getattr(r, "body", None)
     data = _json.loads(body) if body else (r if isinstance(r, dict) else {})
     out: Dict[int, dict] = {}
@@ -1185,7 +1190,8 @@ def deep_fill_step(yahoo_sym: str, now: Optional[float] = None, max_reads: int =
             f = e.get("fill") or {}
             if f.get("state") == "filled":
                 continue
-            if f.get("state") == "refused" and now - float(f.get("at") or 0) < DEEP_NEGATIVE_TTL_S:
+            if (f.get("state") == "refused" and int(f.get("v") or 1) >= DEEP_FILL_VERSION
+                    and now - float(f.get("at") or 0) < DEEP_NEGATIVE_TTL_S):
                 continue
             d = _dt.date.fromisoformat(iso)
             have = {int(b["t"]): b for b in e.get("bars") or [] if isinstance(b, dict)}
@@ -1199,7 +1205,7 @@ def deep_fill_step(yahoo_sym: str, now: Optional[float] = None, max_reads: int =
                 continue
             if not pb:
                 continue                               # shed or not yet stored: the next pass asks again
-            fill = dict(_fill_session(d, have, pb, lane), src=proxy, at=now)
+            fill = dict(_fill_session(d, have, pb, lane), src=proxy, at=now, v=DEEP_FILL_VERSION)
             stats["filled" if fill["state"] == "filled" else "refused"] += 1
             (logger.info if fill["state"] == "filled" else logger.warning)(
                 f"[index_bars] deep fill {yahoo_sym} {iso} from {proxy}: {fill['state']} "
@@ -1370,7 +1376,10 @@ def _merge_deep(sym: str, tf: str, out: list) -> tuple:
                 f"worst {overlap['worst_rel']}")
         if seam["ok"]:
             prefix, n, oldest, fills = _build_deep_prefix(sym, rtf, data, first_day, divisor)
-            rec = {"src": DEEP_SOURCE, "joined": True, "sessions": n, "from": oldest, "reason": None,
+            # ⭐ (2026-11-22) `through`: the prefix's newest session (Yahoo's own bars begin the session after), so a
+            # recorder knows each served bar's source: FMP (or its roll-up) through it, Yahoo after (index provenance)
+            through = _et_date(prefix[-1]["t"]).isoformat() if prefix else None
+            rec = {"src": DEEP_SOURCE, "joined": True, "sessions": n, "from": oldest, "through": through, "reason": None,
                    "seam": seam, "overlap": overlap, "rev": data.get("changed_at"), "filled": fills}
         else:
             prefix = []

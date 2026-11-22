@@ -24,11 +24,12 @@ SUSPECT_JUMP = 0.40
 _SYMBOL = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 
 
-def _load_bars(symbol: str) -> list[dict]:
-    """The canonical sealed-history read (see module docstring). Indirected for tests."""
+def _load_bars(symbol: str, max_bars: int = MAX_BARS) -> list[dict]:
+    """The canonical sealed-history read (see module docstring): the newest `max_bars` stored daily
+    rows (all of them by default). Indirected for tests."""
     from api.services import bars_fetch, bars_sanitize, bars_sqlite
     with bars_sanitize.suppress_meta_warm():
-        rows = bars_sqlite.get_bars(symbol, "D", MAX_BARS)
+        rows = bars_sqlite.get_bars(symbol, "D", max_bars)
         return bars_fetch._fmt_sqlite_bars(rows, "D", symbol) if rows else []
 
 
@@ -87,17 +88,19 @@ def daily_closes(symbol) -> dict:
     return _closes_answer(sym, bars)
 
 
-def daily_bars(symbol) -> dict:
+def daily_bars(symbol, max_bars: Optional[int] = None) -> dict:
     """`daily_closes`' answer for the SAME single read, plus `"bars": [(YYYY-MM-DD, open, high, low,
     close, volume)…]` ascending (STAT: the ATR, the ranges and the volumes need the whole bar).
     `closes`, `first`, `last` and `suspect_jumps` are exactly what `daily_closes` answers. A bar
     without a positive, finite open, high, low and close is left out of `bars` (never out of
-    `closes`); a volume that is not a finite number of 0 or more is None, never 0. Never raises."""
+    `closes`); a volume that is not a finite number of 0 or more is None, never 0. Never raises.
+    `max_bars` reads only the newest that many stored rows (SETH's weekly study, which needs a
+    window, not the whole history); None reads them all."""
     sym = normalize_symbol(symbol)
     if not sym:
         return {"status": "refused", "reason": "bad_symbol", "detail": "That isn't a valid ticker symbol."}
     try:
-        bars = _load_bars(sym)
+        bars = _load_bars(sym) if max_bars is None else _load_bars(sym, max(1, min(int(max_bars), MAX_BARS)))
     except Exception:
         return {"status": "unavailable", "reason": "read_failed", "symbol": sym,
                 "detail": f"{sym} price history could not be read."}
