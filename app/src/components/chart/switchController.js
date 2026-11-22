@@ -241,6 +241,8 @@ export function createSwitchController({ applyFrame, buildFrame }) {
       symbolMeta: view.symbolMeta(sym),
       // what the app already holds of the new symbol's metadata (its name, its event markers), or nothing
       meta: view.metaFor(sym, built),
+      // its session tags (the Pre/Post chip, the RTH close), from its bars, the clock and the quote the app holds
+      sessionTags: view.sessionTags(built, sym),
     }
     // the box the pass reads its bars from: the same field names as the render box's committed copy.
     // ⛔ It is a throwaway: it never updates. A closure the pass installed that kept it would read these bars for
@@ -264,7 +266,8 @@ export function createSwitchController({ applyFrame, buildFrame }) {
       else next[name] = rule.value()
     }
     return {
-      ok: true, sym, tf: view.tf, fromSym: frame.sym, frame: next, tail: tail.kind, tailData: tail, meta: b.meta, view,
+      ok: true, sym, tf: view.tf, fromSym: frame.sym, frame: next, tail: tail.kind, tailData: tail, meta: b.meta,
+      sessionTags: b.sessionTags, view,
       seal: () => { sealed = true },
     }
   }
@@ -339,6 +342,7 @@ export function createSwitchController({ applyFrame, buildFrame }) {
       pending = { sym, tf: t.tf, fromSym: t.fromSym }
       applyFrame(passCtx, t.frame)
       t.seal()
+      v.applySessionTags(t.sessionTags, sym)   // the new symbol's Pre/Post and close tags (none clears the old ones)
       v.clearReadout()                 // the old symbol's numbers are not left over the new candles
       diag.asked += 1
       diag.applied += 1

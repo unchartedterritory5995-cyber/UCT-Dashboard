@@ -10769,12 +10769,13 @@ function StockChartBody({
   // regular-session bars) + orange Pre/Post tag at the live ext price. Merged
   // into the price-line applier via allPriceLines below.
   // (a function of the ext price, so `_onLiveTick` places a new one between renders exactly as this memo would)
-  const _sessionTagLinesFor = (extPrice) => {
-    if (!sessionTagsActive || !__heavy.filteredBars?.length) return null
+  // (`bars`: the switch controller builds the NEXT symbol's tags over that symbol's bars; a render passes none)
+  const _sessionTagLinesFor = (extPrice, bars = __heavy.filteredBars) => {
+    if (!sessionTagsActive || !bars?.length) return null
     const effUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor
     const effDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor
     return computeSessionTagLines({
-      rthBars: __heavy.filteredBars, session: marketSession, extPrice,
+      rthBars: bars, session: marketSession, extPrice,
       upColor: effUp, downColor: effDown, extColor: SESSION_EXT_COLOR,
     })
   }
@@ -10814,8 +10815,8 @@ function StockChartBody({
   const intradaySessionTagLines = useMemo(() => _intradaySessionTagLinesFor(sessionExtPrice),
     [sessionTagsIntraday, sessionExtPrice, marketSession])  // eslint-disable-line react-hooks/exhaustive-deps
   /** The session tags this chart shows for an ext price (daily OR intraday — mutually exclusive by timeframe). */
-  const _activeSessionTagsFor = (extPrice) => {
-    const d = _sessionTagLinesFor(extPrice)
+  const _activeSessionTagsFor = (extPrice, bars) => {
+    const d = _sessionTagLinesFor(extPrice, bars)
     if (d?.length) return d
     const i = _intradaySessionTagLinesFor(extPrice)
     return i?.length ? i : null
@@ -12122,7 +12123,6 @@ function StockChartBody({
           : cs.indicators?.volumeProfile?.enabled ? 'volume-profile'
           : deskCallLevels ? 'desk-call'
           : archiveRefLines ? 'archive-lines'
-          : activeSessionTags ? 'session-tags'
           : (positionTool.entry || positionTool.stop || positionTool.target) ? 'position-tool'
           // a definition the engine does not compute natively (a member's, a Pine one) may read the symbol's facts
           // (exchange, sector, first trade date), which only the metadata feed of a render holds
@@ -12164,8 +12164,24 @@ function StockChartBody({
           }
           _drawMeta(m, fresh, false, { myTradeMarkers: SWITCH_NO_MARKERS, ohlcData: tail.ohlcData })
         },
-        // the chart's own pass of the symbol React shows, in full (`switchController.replay`)
-        reactRepaint: () => { updateChart(); if (chartReady) refreshOffCursorReadout() },
+        // ⭐ THE SESSION TAGS (the Pre/Post chip at the extended-hours price, the RTH close chip) ARE BUILT, NOT
+        // REFUSED. They are on every chart outside the regular session, so refusing them refused every switch
+        // there (the browser A/B of 2026-11-21: applied 0 of 31). They are a function of the symbol's bars, the
+        // clock and the quote the app already holds (`readLiveQuote`, what the live tick itself reads): the
+        // render's own builders make them over the next symbol's bars, and the render's own applier sets the
+        // price lines in the paint's task. The chip that follows the tag reads the line, so it moves with it.
+        sessionTags: (built, s) => _activeSessionTagsFor(_extPriceOf(readLiveQuote(s)), built.filteredBars),
+        applySessionTags: (tags, s) => {
+          _liveExtAppliedRef.current = _extPriceOf(readLiveQuote(s))
+          _applySessionTags(tags)
+        },
+        // the chart's own pass of the symbol React shows, in full (`switchController.replay`), its tags included
+        reactRepaint: () => {
+          updateChart()
+          _liveExtAppliedRef.current = sessionExtPrice
+          _applySessionTags(activeSessionTags)
+          if (chartReady) refreshOffCursorReadout()
+        },
         laneShows: (s) => chartShows(laneSlotRef.current, s, resolvedTf),
         // the developing bar the readers of `devOnScreen` are handed is the old symbol's. (Its PAINT is stopped in
         // one place, the guard at the top of `_storeDevPaintRef.current`; the body's next pass re-arms it.)
@@ -12277,6 +12293,9 @@ function StockChartBody({
   const _activeSessionTagsForRef = useRef(null)
   _activeSessionTagsForRef.current = _activeSessionTagsFor
   _onLiveTickRef.current = () => {
+    // ⛔ (imperative switch) this is the symbol React shows. While another one is painted, its quote must not move
+    // the session tags (they are the painted symbol's now) or the last price.
+    if (switchCtl && switchCtl.pendingSym()) return
     const s = _liveSymRef.current
     const q = s ? readLiveQuote(s) : null
     livePricesRef.current = q ? { [s]: q } : EMPTY_LIVE_PRICES
