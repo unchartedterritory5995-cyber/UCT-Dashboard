@@ -12245,6 +12245,8 @@ from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed s
 app.include_router(fed_watch_router.router)  # /api/research/fed-watch
 from api.routers import market_history as market_history_router  # noqa: E402  (MKTH: corrections, bear markets, the rallies and their leaders, paid)
 app.include_router(market_history_router.router)  # /api/research/market-history
+from api.routers import stock_stats as stock_stats_router  # noqa: E402  (STAT: one stock's volatility, beta, returns, drawdowns, corrections, paid)
+app.include_router(stock_stats_router.router)  # /api/research/stock-stats/{ticker}
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)

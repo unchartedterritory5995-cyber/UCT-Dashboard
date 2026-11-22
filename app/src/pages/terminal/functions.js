@@ -634,6 +634,14 @@ export const FUNCTIONS = [
   // `MKTH NDX` for the Nasdaq-100. MKTH is not in the site's stock universe.
   { code: 'MKTH', label: 'Market history (every correction and bear market, the rallies and their leaders)', group: 'Market',
     market: { panel: 'MarketHistory', args: [{ kind: 'mkthIndex', prop: 'index' }] } },
+  // STAT (2026-11-21): one stock's statistics, worked out by the server from the daily prices it
+  // already stores (GET /api/research/stock-stats/{ticker}, held for the session): ATR, realized
+  // volatility, average daily range, the 52-week range, volume; beta and correlation against SPY and
+  // its sector fund, up and down capture; returns 1W to 5Y, the best and worst day and week; its own
+  // declines of 20% or more; and how it acted in every S&P 500 correction MKTH finds inside its
+  // history. No arguments. STAT is not in the site's stock universe.
+  { code: 'STAT', label: 'Stock statistics (volatility, beta, returns, drawdowns, how it acted in every market correction)', group: 'Security',
+    ticker: { panel: 'StockStats' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -977,6 +985,10 @@ const FUNCTION_WORDS = {
   MKTH: { example: 'MKTH', keywords: ['market history', 'corrections', 'bear market', 'drawdowns', 'rallies', 'past corrections',
     'rally leaders'],
     note: 'Every decline of 10% or more on closing prices, the rally after each low and its leaders. A record, not a forecast.' },
+  // STAT: "volatility" stays IVH's and VOL's, "correlation" CORR's, "drawdowns" MKTH's (each answers it first today)
+  STAT: { example: 'NVDA STAT', keywords: ['stock statistics', 'statistics', 'stock stats', 'atr', 'beta', 'max drawdown',
+    'up capture', 'down capture'],
+    note: "From UCT's stored daily prices (split-adjusted, price only). A record, not a forecast." },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
