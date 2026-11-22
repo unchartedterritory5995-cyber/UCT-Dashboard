@@ -82,6 +82,25 @@ describe('the switch records whether the device painted it', () => {
     expect(window.__uctDeviceDiag.log()).toHaveLength(1)
   })
 
+  it('a switch that WAITED keeps what the device rule answered before the server did (pre)', async () => {
+    // D, its deep history due, the device not painting: the daily hold waits. At the commit the server's answer
+    // holds the key, so the commit's own verdict can only say 'held:rest'; `pre` is the rule that refused the
+    // device copy while the switch was still waiting.
+    st.deep = true
+    st.device = false
+    st.verdict = { paints: false, reason: 'held:idb', held: 'idb' }
+    vi.useFakeTimers()
+    await load()
+    const { result } = switchTo('D')
+    await act(async () => { await vi.advanceTimersByTimeAsync(60) })
+    expect(result.current).toBe('A')                                       // still holding the previous chart
+    st.verdict = { paints: false, reason: 'held:rest', held: 'rest' }      // the server's answer took the key
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })      // past DAILY_HOLD_MAX_MS: the hold lets go
+    expect(result.current).toBe('B')
+    const [rec] = window.__uctDeviceDiag.log()
+    expect(rec).toMatchObject({ sym: 'B', tf: 'D', painted: 'rest', reason: 'held:rest', pre: 'held:idb' })
+  })
+
   it('switch off: nothing is recorded and nothing is exposed', async () => {
     sw.on = false
     await load()
