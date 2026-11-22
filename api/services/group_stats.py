@@ -1,6 +1,6 @@
-"""Group fundamentals and breadth for every sector and industry, built once each evening and held.
+"""Group fundamentals, breadth and weekly rank for every sector and industry, built once each evening and held.
 
-The Terminal's group views (GRP's "Fundamentals" and "Breadth" sections, and the GRPS table of every
+The Terminal's group views (GRP's "Rank", "Fundamentals" and "Breadth" sections, and the GRPS table of every
 sector or industry) read this through one paid route (`api/routers/group_stats.py`).
 
 WHERE THE NUMBERS COME FROM (all already held by UCT; NOTHING HERE ASKS A VENDOR):
@@ -20,6 +20,11 @@ WHERE THE NUMBERS COME FROM (all already held by UCT; NOTHING HERE ASKS A VENDOR
 
 THE DEFINITIONS are in `group_stats_calc` (pure, tested on invented numbers).
 
+THE WEEKLY RANK (2026-11-22) rides the same single read of each stock's closes: the tail kept per stock is
+`RANK_TAIL` closes instead of `TAIL_SESSIONS` (breadth still reads only its last `TAIL_SESSIONS`, so its figures
+are unchanged), and after the pass each stock's change at every weekly point is worked out from that tail (an array
+of 106 numbers) and grouped. Nothing is read a second time.
+
 HOW OFTEN: a request NEVER builds. It answers from what this module holds, in memory and on disk
 (`<DATA_DIR>/group_stats/`), so a restart serves the last answer at once. The ONE build runs on a
 background thread started by the scheduler's evening ticks (`scheduled_refresh`, registered in api/main.py)
@@ -36,6 +41,10 @@ MEASURED (2026-11-21, a bounded invented sample through the real read paths on t
 see the unit's report): about 80 ms of CPU per stock for the price read of ~6,000 daily rows (the same read
 MKTH measured), a few ms per artifact parse, and well under a second for the grouping, so a universe of
 about 3,500 stocks is several minutes of one core once each evening.
+THE WEEKLY RANK, MEASURED (2026-11-22, the build before and after on the same invented closes, 3,500 stocks, 11
+sectors and 145 industries, filings off, best of three, dev PC): +1.4 s of CPU per build (1.0 s for the changes, the
+medians and the ranks; 0.4 s for the longer tail), +5.9 MB at the build's peak, +1.5 MB held with the answer, and
++341 KB in the answer's JSON (disk and the industries table).
 """
 from __future__ import annotations
 
@@ -274,7 +283,7 @@ def build(now: Optional[datetime] = None, *, read_closes: Optional[Callable[[str
             at = {label: None for label in C.REFS}
             if closes:
                 counts["priced"] += 1
-                days, vals = C.tail(closes)
+                days, vals = C.tail(closes, max(C.TAIL_SESSIONS, C.RANK_TAIL))
                 if len(days):
                     tails[sym] = (days, vals)
                     day_counts.update(days)
@@ -332,20 +341,34 @@ def build(now: Optional[datetime] = None, *, read_closes: Optional[Callable[[str
             if i - back >= 0:
                 targets[label] = sessions[i - back]
         line_days = sessions[-C.LINE_SESSIONS:]
+    points = C.week_points(sessions) if session is not None else ()
     tallies = {k: {} for k in KINDS}
+    rank_members = {k: defaultdict(list) for k in KINDS}
+    t_rank = 0.0
     if targets:
         for sym, (days, vals) in tails.items():
-            b = C.stock_breadth(days, vals, targets, line_days)
+            # breadth reads the same last TAIL_SESSIONS closes it always did; the longer tail is the rank's
+            b = C.stock_breadth(days[-C.TAIL_SESSIONS:], vals[-C.TAIL_SESSIONS:], targets, line_days)
+            t3 = time.process_time()
+            chg = C.stock_changes(days, vals, points)
+            t_rank += time.process_time() - t3
             for k, name in sym_groups.get(sym, ()):
                 if name:
                     t = tallies[k].get(name)
                     if t is None:
                         t = tallies[k][name] = C.BreadthTally(len(line_days))
                     t.add(b)
+                    rank_members[k][name].append(chg)
     tails.clear()
-    t_breadth = time.process_time() - t2
+    t3 = time.process_time()
+    rank_hist = {k: C.group_rank_history(rank_members[k], len(points)) for k in KINDS} if points else {}
+    rank_members.clear()
+    t_rank += time.process_time() - t3
+    t_breadth = time.process_time() - t2 - t_rank
 
     iso = lambda o: date.fromordinal(o).isoformat()
+    rank_dates = [iso(p) if p is not None else None for p in points]
+    ranked = {k: Counter() for k in KINDS}
     kinds_out = {}
     for k in KINDS:
         blocks = {}
@@ -359,8 +382,13 @@ def build(now: Optional[datetime] = None, *, read_closes: Optional[Callable[[str
                 else:
                     fund[mid] = {label: C.summarize(per.get(label) or ()) for label in C.REFS}
             tally = tallies[k].get(name)
+            rk = None
+            if points:
+                hist, ofs = rank_hist[k]
+                rk = _rank_of(hist.get(name), ofs, rank_dates)
+                ranked[k]["ranked" if rk[C.RANK_PRIMARY]["now"]["position"] is not None else "unranked"] += 1
             blocks[name] = {"name": name, "members": members[k][name], "fund_members": fund_members[k][name],
-                            "fund": fund, "breadth": tally.result() if tally is not None else None}
+                            "fund": fund, "breadth": tally.result() if tally is not None else None, "rank": rk}
         _rank_blocks(blocks)
         kinds_out[k] = blocks
 
@@ -381,16 +409,32 @@ def build(now: Optional[datetime] = None, *, read_closes: Optional[Callable[[str
                          "source": SOURCE_FILINGS, "with_data": counts["with_filings"]},
         "breadth": {"state": "ok" if session is not None else "unavailable", "source": SOURCE_PRICES,
                     "priced": counts["priced"]},
+        "rank": {"state": "ok" if points else "unavailable", "source": SOURCE_PRICES, "dates": rank_dates,
+                 "weeks": C.RANK_WEEKS, "measures": [{"id": mid, "sessions": bars} for mid, bars in C.RANK_MEASURES],
+                 "of": {k: rank_hist[k][1] for k in KINDS} if points else {},
+                 "counted": {k: {"groups": len(members[k]), "ranked": ranked[k]["ranked"],
+                                 "unranked": ranked[k]["unranked"]} for k in KINDS}},
         "universe": {"name": UNIVERSE_NAME, "map": MAP_NAME, "symbols": len(symbols), "mapped": counts["mapped"],
                      "not_mapped": counts["not_mapped"]},
         "lagging": lag,
         "kinds": kinds_out,
         "build": {"seconds": round(time.time() - started, 1), "cpu_seconds": round(time.process_time() - cpu0, 1),
                   "prices_cpu_s": round(t_prices, 1), "filings_cpu_s": round(t_filings, 1),
-                  "groups_cpu_s": round(t_breadth, 1), "counts": dict(counts)},
+                  "groups_cpu_s": round(t_breadth, 1), "rank_cpu_s": round(t_rank, 2), "counts": dict(counts)},
         "metrics": _metric_meta(),
     }
     return answer
+
+
+def _rank_of(hist: Optional[dict], ofs: dict, dates: list) -> dict:
+    """One group's weekly rank on each measure: its lines (rank, median, members with a change) and the summary
+    (`group_stats_calc.rank_summary`). A group none of whose members has a change is every point with no rank."""
+    n = len(dates)
+    out = {}
+    for mid, _bars in C.RANK_MEASURES:
+        m = (hist or {}).get(mid) or {"rank": [None] * n, "median": [None] * n, "n": [0] * n}
+        out[mid] = {**m, **C.rank_summary(m["rank"], ofs.get(mid) or [0] * n, m["n"], m["median"], dates)}
+    return out
 
 
 def _rank_blocks(blocks: dict) -> None:
@@ -434,7 +478,8 @@ def _run_build(done: threading.Event) -> None:
         b = answer["build"]
         said = (f"session={answer['session']} for={answer['built_for']} lagging={answer['lagging'] or 'no'} "
                 f"cpu={b['cpu_seconds']}s prices={b['prices_cpu_s']}s filings={b['filings_cpu_s']}s "
-                f"groups={b['groups_cpu_s']}s counts={b['counts']}")
+                f"groups={b['groups_cpu_s']}s rank={b.get('rank_cpu_s')}s counts={b['counts']} "
+                f"ranked={(answer.get('rank') or {}).get('counted')}")
         level = logging.INFO
     except Exception as exc:  # noqa: BLE001 -- a failed build is said and tried again later, never "computing" for ever
         said = f"failed ({type(exc).__name__})"
@@ -468,6 +513,8 @@ def refresh_due(now: Optional[datetime] = None, at: Optional[float] = None) -> b
         if _state["inflight"] is not None or at < _state["retry_at"]:
             return False
         if _state["answer"] is None:
+            return True
+        if "rank" not in _state["answer"]:       # held from before the weekly rank: the next quiet tick builds it
             return True
         built_for, lag = _state["built_for"], _state["lag"]
     key = evening_key(now)
@@ -589,12 +636,48 @@ def _fund_part(ans: dict, on: bool) -> dict:
     return part
 
 
+def _rank_part(ans: dict) -> dict:
+    """The weekly rank's build-wide state: 'pending' when the held answer was built before the rank existed."""
+    rk = ans.get("rank")
+    if not isinstance(rk, dict):
+        return {"state": "pending", "source": SOURCE_PRICES, "dates": []}
+    return {"state": rk.get("state"), "source": rk.get("source"), "weeks": rk.get("weeks"),
+            "measures": rk.get("measures") or [], "dates": rk.get("dates") or [], "min_members": C.MIN_MEMBERS}
+
+
+_RANK_BRIEF = ("now", *(label for label, _b in C.RANK_BACK), "best", "worst", "weeks_ranked")
+
+
+def _brief_rank(r: Optional[dict]) -> Optional[dict]:
+    """The table's rank: each measure's points (now, 4, 13 and 52 weeks back with the places moved, the best and the
+    worst), and the weekly line of the 6-month rank."""
+    if not isinstance(r, dict):
+        return None
+    out = {}
+    for mid, _bars in C.RANK_MEASURES:
+        m = r.get(mid) or {}
+        part = {key: m.get(key) for key in _RANK_BRIEF}
+        if mid == C.RANK_PRIMARY:
+            part["line"] = m.get("rank") or []
+        out[mid] = part
+    return out
+
+
+def _full_rank(r: Optional[dict], ans: dict, kind: str) -> Optional[dict]:
+    """One group's rank in full: each measure's points and its weekly lines, with how many groups were ranked each
+    week (`of_line`)."""
+    if not isinstance(r, dict):
+        return None
+    ofs = (((ans.get("rank") or {}).get("of") or {}).get(kind)) or {}
+    return {mid: {**(r.get(mid) or {}), "of_line": ofs.get(mid) or []} for mid, _bars in C.RANK_MEASURES}
+
+
 def _common(ans: dict, kind: str, on: bool, running: bool) -> dict:
     return {
         "status": "ok", "kind": kind, "built_at": ans.get("built_at"), "built_for": ans.get("built_for"),
         "session": ans.get("session"), "sessions": ans.get("sessions") or {}, "fund_refs": ans.get("fund_refs") or {},
-        # the build-wide state of each source; a group's own figures ride under `fund` and `breadth`
-        "sources": {"fundamentals": _fund_part(ans, on), "breadth": ans.get("breadth") or {}},
+        # the build-wide state of each source; a group's own figures ride under `fund`, `breadth` and `rank`
+        "sources": {"fundamentals": _fund_part(ans, on), "breadth": ans.get("breadth") or {}, "rank": _rank_part(ans)},
         "universe": ans.get("universe") or {},
         "lagging": ans.get("lagging") or [], "metrics": ans.get("metrics") or [], "min_members": C.MIN_MEMBERS,
         "refreshing": running,
@@ -648,7 +731,8 @@ def get_group_stats(kind: str = "sector", name: Optional[str] = None) -> dict:
     out = _common(ans, kind, on, running)
     if name is None:
         out["groups"] = [{"name": b["name"], "members": b["members"], "fund_members": b["fund_members"] if on else None,
-                          "fund": _brief_fund(b.get("fund"), on), "breadth": _brief_breadth(b.get("breadth"))}
+                          "fund": _brief_fund(b.get("fund"), on), "breadth": _brief_breadth(b.get("breadth")),
+                          "rank": _brief_rank(b.get("rank"))}
                          for b in blocks.values()]
         out["count"] = len(out["groups"])
         return out
@@ -661,6 +745,7 @@ def get_group_stats(kind: str = "sector", name: Optional[str] = None) -> dict:
     out.update({"found": True, "name": hit["name"], "members": hit["members"],
                 "fund_members": hit["fund_members"] if on else None,
                 "fund": hit.get("fund") if on else None, "breadth": hit.get("breadth"),
+                "rank": _full_rank(hit.get("rank"), ans, kind),
                 "line_dates": ans.get("line_dates") or []})
     return out
 

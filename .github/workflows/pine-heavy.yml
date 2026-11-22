@@ -99,6 +99,7 @@ on:
       - 'api/services/runtime_*.py'
       - 'api/services/screener/backtest.py'
       - 'api/services/script_conversation.py'
+      - 'api/services/setup_history_calc.py'
       - 'api/services/starter_library.py'
       - 'api/routers/bars.py'
       - 'tools/pine_test_census.py'

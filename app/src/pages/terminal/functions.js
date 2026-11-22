@@ -645,7 +645,9 @@ export const FUNCTIONS = [
   // out once each evening (GET /api/research/group-stats, paid). GRP shows one sector's or industry's in full above
   // its ranked stocks. `GRPS INDUSTRIES`, `GRPS VALUATION`. A new code, not a view of SCTR: SCTR ranks the 11 sector
   // FUNDS by their price over a window. GRPS is not in the site's universe.
-  { code: 'GRPS', label: 'Every sector or industry: median growth, margins, valuation and breadth', group: 'Market',
+  // GRPS RANK (2026-11-22): each group's weekly rank for a year by the median 6-month price change of its stocks (and
+  // the 3-month), the places it moved over 4, 13 and 52 weeks, its best and worst week, and the movers; GRP's "Rank".
+  { code: 'GRPS', label: 'Every sector or industry: weekly rank, median growth, margins, valuation and breadth', group: 'Market',
     market: { panel: 'GroupTable', args: [{ kind: 'groupsKind', prop: 'kind' }, { kind: 'groupsView', prop: 'view' }] } },
   // SEG (2026-11-21): one stock's revenue by product (or business line) and by region, the newest period ranked with
   // each segment's share and the last four side by side (GET /api/research/revenue-segments/{ticker}, read from
@@ -1066,9 +1068,11 @@ const FUNCTION_WORDS = {
     'rally leaders'],
     note: 'Every decline of 10% or more on closing prices, the rally after each low and its leaders. A record, not a forecast.' },
   // 'breadth' stays with BRD, 'sectors' with RRG and 'sector performance' with SCTR: each still finds its own first.
+  // 'sector rank' stays with SCTR and 'rank' with RSL: no word here starts with "rank" (2026-11-22, GRPS RANK).
   GRPS: { example: 'GRPS INDUSTRIES', keywords: ['sector fundamentals', 'industry fundamentals', 'sector breadth', 'industry breadth',
-    'sector valuation', 'sector margins', 'group fundamentals', 'sector table', 'industry table'],
-    note: "Medians of each group's stocks from their SEC filings as known that day, and its breadth from stored closes; worked out each evening." },
+    'sector valuation', 'sector margins', 'group fundamentals', 'sector table', 'industry table', 'industry rank', 'group rank',
+    'industry group rank', 'industry ranking', 'group rank history', 'leading industries'],
+    note: "Medians of each group's stocks from their SEC filings as known that day, its breadth from stored closes, and its weekly rank by the median 6-month change; worked out each evening." },
   // 'revenue' stays with FA and 'geographic'/'regions' had no owner.
   SEG: { example: 'NVDA SEG', keywords: ['revenue by segment', 'segments', 'segment revenue', 'product revenue', 'revenue by product',
     'revenue by region', 'geographic revenue', 'business segments', 'revenue mix'],

@@ -154,6 +154,45 @@ def compute_sma(closes, period):
 '''
 
 
+#: ⛔ SITES THE SHAPE MATCHES THAT ARE NOT THE HAZARD, keyed `path::function` (never a file, never a pattern),
+#: each with the one sentence that makes it not a window. An entry is honoured only while EVERY match inside its
+#: function is a same-slot complement (`_is_slot_complement`), so a positional window written into the same
+#: function is still reported; and an entry the scan no longer finds fails (an exemption must stay live).
+#: ⚰️ 2026-11-22: master was red on this rail from 178738e60a (#2491, SETH) until this entry.
+ROLLING_SHAPE_EXEMPT: dict = {
+    # ⚰️ 2026-11-22: "api/services/setup_history_calc.py::_baseline" was exempt here (#2508) while the terminal
+    # lane renamed its fields in f93d3e1805 (#2509); it no longer matches the shape at all, so the entry went stale and
+    # this rail correctly failed it. Empty is the normal state.
+}
+
+
+def _is_slot_complement(node) -> bool:
+    """``x += a[K] - b[K]``: the SAME constant slot of two records (a fixed-shape tally's field by position),
+    never ``s[i] - s[i - period]``, two positions of one series."""
+    if not _is_rolling_accumulator(node):
+        return False
+    left, right = node.value.left.slice, node.value.right.slice
+    return (isinstance(left, ast.Constant) and isinstance(right, ast.Constant)
+            and type(left.value) is int and left.value == right.value)
+
+
+def _exemption_holds(key: str, source: str | None = None) -> bool:
+    """``key`` is in ROLLING_SHAPE_EXEMPT and every rolling-shape match in its function(s) is a slot complement.
+    ``source`` stands in for the file's text (the controls); None reads the product file."""
+    if key not in ROLLING_SHAPE_EXEMPT:
+        return False
+    path, _, name = key.partition("::")
+    tree = ast.parse(source if source is not None else (ROOT / path).read_text(encoding="utf-8"))
+    hits = [n for fn in _functions(tree) if fn.name == name for n in ast.walk(fn) if _is_rolling_accumulator(n)]
+    return bool(hits) and all(_is_slot_complement(n) for n in hits)
+
+
+def _unexempt(found: dict, source_for=None) -> dict:
+    """``found`` minus the exempt keys whose exemption holds (``source_for(key)``: a control's stand-in text)."""
+    return {k: v for k, v in found.items()
+            if not _exemption_holds(k, source_for(k) if source_for else None)}
+
+
 def test_the_rolling_subtract_moving_average_detector_fires():
     """CONTROL. The retired implementation, fed to the detector, must be found."""
     assert _scan_source(_RETIRED_SMA_SOURCE, _is_rolling_accumulator), (
@@ -181,7 +220,7 @@ def test_no_rolling_subtract_moving_average_survives_in_the_backend():
     the `remount` detector. All of them disagreed with the re-summing lane the
     chart draws, `interpret.js` computes and the frozen conformance digests pin.
     """
-    found = _scan(_is_rolling_accumulator)
+    found = _unexempt(_scan(_is_rolling_accumulator))
     assert found == {}, (
         "a rolling subtract-and-add moving average is back in the product:\n  "
         + "\n  ".join(f"{k} (line {v})" for k, v in sorted(found.items()))
@@ -190,6 +229,41 @@ def test_no_rolling_subtract_moving_average_survives_in_the_backend():
           "bars disagreeing with the re-sum, and at a flipped price-vs-MA "
           "verdict on CAN 2025-12-09. Re-sum the window."
     )
+
+
+def test_every_rolling_shape_exemption_is_live_and_one_sentence():
+    """Each entry (none today) is still matched by the scan (a stale entry fails), every match in it is a slot
+    complement, and its reason is one sentence."""
+    found = _scan(_is_rolling_accumulator)
+    for k, why in ROLLING_SHAPE_EXEMPT.items():
+        assert why.strip().endswith(".") and why.count(". ") == 0, f"{k}: the reason is one sentence"
+        assert k in found, f"{k} no longer matches the shape: delete its exemption"
+        assert _exemption_holds(k), f"{k} matches the shape with something other than a slot complement"
+
+
+def test_the_former_setup_history_exemption_is_gone_and_baseline_does_not_match():
+    """setup_history_calc._baseline names its record fields since f93d3e1805, so the scan does not match it and it
+    needs no entry; were it to match again, the backend scan above would name it."""
+    key = "api/services/setup_history_calc.py::_baseline"
+    assert key not in ROLLING_SHAPE_EXEMPT
+    assert key not in _scan(_is_rolling_accumulator)
+
+
+def test_CONTROL_the_exemption_never_hides_a_real_rolling_window(monkeypatch):
+    """The mechanism, proven with a stand-in entry: a slot complement is dropped; the retired SMA is still reported
+    in another file, in the exempt file under another name, and written INTO the exempt function."""
+    key = "api/services/_stand_in.py::_baseline"
+    monkeypatch.setitem(ROLLING_SHAPE_EXEMPT, key, "A stand-in for the control, not a product file.")
+    complement = "def _baseline(rows, out):\n    n = 0\n    for a, o in zip(rows, out):\n        n += a[0] - o[0]\n    return n\n"
+    in_baseline = _RETIRED_SMA_SOURCE.replace("def compute_sma(", "def _baseline(")
+    elsewhere = {"api/services/indicator_compute.py::compute_sma": 7,
+                 "api/services/_stand_in.py::compute_sma": 7}
+    assert _unexempt(elsewhere, source_for=lambda k: _RETIRED_SMA_SOURCE) == elsewhere
+    assert _unexempt({key: 4}, source_for=lambda k: complement) == {}
+    assert _unexempt({key: 4}, source_for=lambda k: in_baseline) == {key: 4}
+    assert _is_slot_complement(ast.parse("x += a[1] - b[1]").body[0])
+    for src in ("x += s[i] - s[i - 3]", "x += a[1] - b[2]", "x += a['n'] - b['n']", "x += a[1] + b[1]"):
+        assert not _is_slot_complement(ast.parse(src).body[0]), src
 
 
 def test_compute_sma_does_no_arithmetic_of_its_own():
