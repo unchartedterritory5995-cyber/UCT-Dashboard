@@ -288,6 +288,19 @@ export function createPrefetch(o = {}) {
   /** `p`, or undefined when it has not settled within `ms` (the read goes on; nothing waits on it). */
   const _raced = (p, ms) => Promise.race([p, new Promise((resolve) => setTimer(() => resolve(undefined), ms))])
 
+  /**
+   * ⭐ THE SWITCH'S OWN DEVICE READ, for a key that already holds rows (review of #2438, M2). `_hydrate` returns an
+   * entry that holds anything without reading the device, and the commonest such entry is the universe pack's rows
+   * (no claim: a fresh device copy joins them, persist `_joinRefused`). On /charts the key press has already asked
+   * (deviceWarm, from handoffGroups.primeGroup). A host with no linked group never primes (the screener's focus
+   * chart, the breadth drill), so its switch's read was whatever a warm had queued on the background lane, behind
+   * every other warm, through the whole D/W/M hold. The two prepares ask here, urgently, exactly as deviceWarm
+   * does. Nothing with the device store off (persist.refreshDevice: no source).
+   */
+  function _deviceNow(key) {
+    try { S().persist?.refreshDevice?.(key, URGENT) } catch { /* a device copy is optional */ }
+  }
+
   /** Hydrate a key nothing has loaded yet (mem part synchronous, IDB part async).
    *  ⭐ `URGENT` (2026-11-22): the member's own ask, whose device read goes ahead of every warm's (deviceStore/
    *  client.js, TWO LANES). Passed only by the switch itself (deviceWarm at the key press, the two prepares, the
@@ -571,6 +584,7 @@ export function createPrefetch(o = {}) {
       // before the answer.
       const t0 = now()
       const hyd = _hydrate(key, URGENT)
+      _deviceNow(key)
       // The lake's whole depth loads from here, in parallel with the server (after the saved-copy
       // read: a saved copy is never overtaken). See _lakeAlone / _joined.
       const lake = date ? Promise.resolve(false) : _lakeLoad(key, hyd)
@@ -833,6 +847,7 @@ export function createPrefetch(o = {}) {
       const t0 = now()
       if (S().peek(key)?.bars?.length && S().deepPending?.(key)) S().deepPrime?.(key, { priority: 'visible', want: true })
       const hyd = _hydrate(key, URGENT)
+      _deviceNow(key)
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
       if (!S().deepPending?.(key)) {
         const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null })

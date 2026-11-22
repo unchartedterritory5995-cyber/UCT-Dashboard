@@ -27,12 +27,17 @@
 // around the selection and the rows on screen, each on every linked timeframe), and the chart the member then
 // clicked waited behind all of them: measured on a D + 30m board, its copy landed 100 to 830 ms after the click
 // (18 ms with nothing else asked), the D/W/M hold ran out, and the switch was slower than with the store off.
-//   urgent      the member's own ask (a key press, the chart on screen): sent at once, always
-//   background  everything else (the default): at most BACKGROUND_READS_MAX in the worker at a time, oldest
-//               first, the next one sent when an answer comes back. A key that is still waiting when an urgent
-//               ask for it arrives is sent at that moment (both askers get the one answer).
-// Past WAITING_READS_MAX waiting, the OLDEST is dropped (it answers null: the list it belonged to is off screen,
-// and a row is read again the moment it is asked for).
+//   urgent      the member's own ask (a key press, the chart on screen): sent at once, always, and never counted
+//   background  everything else (the default): at most BACKGROUND_READS_MAX in the worker at a time, the next
+//               one sent when an answer comes back. A key that is still waiting when an urgent ask for it
+//               arrives is sent at that moment (both askers get the one answer).
+// ⭐ WHICH BACKGROUND READ IS NEXT (review of #2438). The reads asked in one task are one ASK (a list warm, the
+// rows around a selection). Asks are served NEWEST FIRST, each in its own order: the rows around the row the
+// member just selected are asked after the list warm and must not wait behind all of it, and a list scrolled on
+// has left its older windows behind. Past WAITING_READS_MAX waiting, the least wanted read is dropped: the LAST
+// one of the OLDEST ask (it answers null, and is read again the moment it is asked for). One ask larger than the
+// bound (a screener result list, a watchlist in scan mode: about 1,000 keys) so keeps the rows it asked first,
+// the ones on screen; a head drop threw exactly those away.
 //
 // Loaded only by source.js's dynamic import, and only when the switch is on; the worker is a separate
 // chunk. Nothing here is in first-open bytes. Never throws at a caller: every failure reads as null.
@@ -85,6 +90,7 @@ export function createDeviceClient({
   storage = (typeof navigator !== 'undefined' && navigator.storage) || null,
   backgroundMax = BACKGROUND_READS_MAX,
   waitingMax = WAITING_READS_MAX,
+  setTimer = (fn, ms) => setTimeout(fn, ms),
 } = {}) {
   let worker = null
   let dead = false
@@ -93,7 +99,11 @@ export function createDeviceClient({
   const pending = new Map()      // id → resolve
   const cache = new Map()        // `${tf}|${SYM}` → {cols, at} (LRU: Map order)
   const reads = new Map()        // `${tf}|${SYM}` → in-flight read
-  const waiting = new Map()      // `${tf}|${SYM}` → {send, drop}: background reads not sent yet (Map order: oldest first)
+  // background reads not sent yet: one Map per ASK (the reads of one task), oldest ask first; each Map
+  // `${tf}|${SYM}` → {send, drop} in the order asked
+  const asks = []
+  const askOf = new Map()        // `${tf}|${SYM}` → the ask it waits in
+  let openAsk = null             // the ask this task's reads join (closed by a timer: the task is over)
   let backgroundOut = 0          // background reads the worker has not answered
   let status = null
   /** navigator.storage persistence: asked at most once per page. */
@@ -157,17 +167,52 @@ export function createDeviceClient({
     })
   }
 
-  /** Send waiting background reads while the worker holds fewer than `backgroundMax` of them. */
-  function _pump() {
-    while (backgroundOut < backgroundMax && waiting.size) {
-      const [k, w] = waiting.entries().next().value
-      waiting.delete(k)
-      w.send(true)
+  /** Take `k` out of the ask it waits in: its {send, drop}, or null when it is not waiting. */
+  function _take(k) {
+    const ask = askOf.get(k)
+    if (!ask) return null
+    const w = ask.get(k)
+    ask.delete(k)
+    askOf.delete(k)
+    return w
+  }
+
+  /** Put a background read in this task's ask; past the bound, drop the last read of the oldest ask. */
+  function _wait(k, w) {
+    if (!openAsk) {
+      const mine = new Map()
+      openAsk = mine
+      setTimer(() => { if (openAsk === mine) openAsk = null }, 0)
+    }
+    if (!asks.includes(openAsk)) asks.push(openAsk)
+    openAsk.set(k, w)
+    askOf.set(k, openAsk)
+    if (askOf.size <= waitingMax) return
+    for (const ask of asks) {
+      if (!ask.size) continue
+      let last
+      for (const key of ask.keys()) last = key
+      _take(last).drop()
+      return
     }
   }
 
-  /** One read of `k`, on its lane: the worker's answer (columns or null), or null when it was dropped. */
-  function _read(k, sym, tf, urgent) {
+  /** Send waiting background reads while the worker holds fewer than `backgroundMax` of them: the newest ask
+   *  first, each ask in the order it was asked. */
+  function _pump() {
+    while (backgroundOut < backgroundMax && askOf.size) {
+      let ask = null
+      for (let i = asks.length - 1; i >= 0 && !ask; i--) {
+        if (asks[i].size) ask = asks[i]
+        else asks.splice(i, 1)               // an ask all sent (or dropped); a task still adding to it puts it back
+      }
+      if (!ask) break
+      _take(ask.keys().next().value).send(true)
+    }
+  }
+
+  /** One read of `k`, on its lane: the worker's answer (columns or null), or null when it was dropped (`st.dropped`). */
+  function _read(k, sym, tf, urgent, st) {
     let settle
     const raw = new Promise((resolve) => { settle = resolve })
     const send = (background) => {
@@ -178,16 +223,11 @@ export function createDeviceClient({
         _pump()
       })
     }
+    // a dropped read is forgotten at once, so the key's next ask in this same task is a read of its own
+    const drop = () => { st.dropped = true; if (st.p && reads.get(k) === st.p) reads.delete(k); settle(null) }
     if (urgent) send(false)
     else if (backgroundOut < backgroundMax) send(true)
-    else {
-      waiting.set(k, { send, drop: () => settle(null) })
-      if (waiting.size > waitingMax) {
-        const [k0, w0] = waiting.entries().next().value
-        waiting.delete(k0)
-        w0.drop()
-      }
-    }
+    else _wait(k, { send, drop })
     return raw
   }
 
@@ -234,14 +274,16 @@ export function createDeviceClient({
       const running = reads.get(k)
       if (running) {
         // asked for in earnest while it waits its turn: it goes now (already sent: the answer is on its way)
-        if (urgent === true) { const w = waiting.get(k); if (w) { waiting.delete(k); w.send(false) } }
+        if (urgent === true) { const w = _take(k); if (w) w.send(false) }
         return running
       }
-      const p = _read(k, String(sym).toUpperCase(), tf, urgent === true).then((res) => {
+      const st = { dropped: false, p: null }
+      const p = _read(k, String(sym).toUpperCase(), tf, urgent === true, st).then((res) => {
         if (res && res.t?.length) { const cols = Object.freeze(res); _put(k, cols); return cols }
         return null
-      }).finally(() => { reads.delete(k) })
-      reads.set(k, p)
+      }).finally(() => { if (reads.get(k) === p) reads.delete(k) })
+      st.p = p
+      if (!st.dropped) reads.set(k, p)
       return p
     },
     async warm(syms, tf) {
@@ -256,14 +298,17 @@ export function createDeviceClient({
     },
     info() { return _call({ op: 'info' }) },
     /** Diagnostics: this page's requests still unanswered, sent or waiting their turn (a held arrow's backlog). */
-    inFlight() { return pending.size + waiting.size },
+    inFlight() { return pending.size + askOf.size },
     /** Diagnostics: the worker's rule behind what getBars answers (engine.why), or null with no engine yet. */
     why(sym, tf) { return sym ? _call({ op: 'why', sym: String(sym).toUpperCase(), tf: String(tf) }) : Promise.resolve(null) },
     status: () => ({ ...(status || {}), storage: { ...persist } }),
     cacheSize: () => cache.size,
     dispose() {
-      const left = [...waiting.values()]
-      waiting.clear()
+      const left = []
+      for (const ask of asks) for (const w of ask.values()) left.push(w)
+      asks.length = 0
+      askOf.clear()
+      openAsk = null
       for (const w of left) w.drop()
       for (const r of pending.values()) r(null)
       pending.clear()
