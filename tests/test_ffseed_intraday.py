@@ -917,20 +917,40 @@ def test_the_retry_waits_for_the_quiet_gap_and_never_runs_in_a_later_session(nig
     assert m3["asof"] == "2026-11-23" and ffseed._read_retry() == {}
 
 
-def test_a_forced_rebuild_that_refused_is_retried_without_touching_the_forced_marker(night, monkeypatch, caplog):
-    log, script = night
+def _force_friday(script, monkeypatch):
     script["passes"] = [{"tfs": {"60": {"done": 0}}}, {"tfs": {"60": {"done": 3}}}]
     script["refusals"] = [["60"], []]
     ffseed._write_marker(20261120)                          # Friday is already published
     monkeypatch.setenv("FFSEED_FORCE_ASOF", "2026-11-20")
-    caplog.set_level(logging.WARNING, logger="api.services.ffseed")
+
+
+def test_a_forced_rebuild_that_refused_is_retried_without_touching_the_forced_marker(night, monkeypatch):
+    log, script = night
+    _force_friday(script, monkeypatch)
     m1 = ffseed.tick(at(SAT, 10, 0))
     assert sorted(m1["refused"]) == ["60"] and ffseed._read_forced() == "2026-11-20"
-    assert any("forced rebuild of 2026-11-20 REFUSED" in r.getMessage() for r in caplog.records)
     m2 = ffseed.tick(at(SAT, 10, 30))                       # not the force again: the gated retry
     assert m2["build"] == "B2" and "refused" not in m2 and ffseed._read_forced() == "2026-11-20"
     assert log == [("pass", FRI), ("publish", FRI, ("60",)), ("pass", FRI), ("publish", FRI, ())]
     assert ffseed.tick(at(SAT, 11, 0)) is None and ffseed.tick(at(SAT, 11, 30)) is None and len(log) == 4
-    # the spent force says so, once per process, and names the file
+
+
+def test_a_forced_rebuild_that_refuses_says_so(night, monkeypatch, caplog):
+    log, script = night
+    _force_friday(script, monkeypatch)
+    caplog.set_level(logging.WARNING, logger="api.services.ffseed")
+    ffseed.tick(at(SAT, 10, 0))
+    said = [r.getMessage() for r in caplog.records if "forced rebuild of 2026-11-20 REFUSED" in r.getMessage()]
+    assert len(said) == 1 and "['60']" in said[0] and ".last_ffseed_forced" in said[0]
+
+
+def test_a_spent_force_says_so_once_and_names_the_file(night, monkeypatch, caplog):
+    log, script = night
+    _force_friday(script, monkeypatch)
+    caplog.set_level(logging.WARNING, logger="api.services.ffseed")
+    for minute in (0, 30):
+        ffseed.tick(at(SAT, 10, minute))
+    ffseed.tick(at(SAT, 11, 0))
+    ffseed.tick(at(SAT, 11, 30))
     spent = [r.getMessage() for r in caplog.records if "already force-built" in r.getMessage()]
-    assert len(spent) == 1 and ".last_ffseed_forced" in spent[0]
+    assert len(spent) == 1 and ".last_ffseed_forced" in spent[0] and "FFSEED_FORCE_ASOF=2026-11-20" in spent[0]
