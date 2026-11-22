@@ -172,6 +172,9 @@ export const PANEL_IMPORTERS = {
   IndexChanges: () => import('./panels/IndexChangesPanel'),
   // STAT (2026-11-21): one stock's volatility, beta, returns, drawdowns and how it acted in every market correction
   StockStats: () => import('./panels/StockStatsPanel'),
+  // EEHSC (2026-11-21): estimate revisions by sector among the stocks UCT tracks: raised, cut, held, net breadth
+  RevisionBreadth: () => import('./panels/RevisionBreadthPanel'),
+  PublicRecords: () => import('./panels/PublicRecordsPanel'),
   // EVST (2026-11-22): a member's own historical study: every time a condition held, what a symbol did next
   EventStudy: () => import('./panels/EventStudyPanel'),
   // the earnings season screen (owner pick, 2026-11-17)

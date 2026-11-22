@@ -14,6 +14,11 @@ Mutation proof (run before calling these done):
     2. drop IPV6_V6ONLY                       -> test_ipv6_socket_is_v6only RED
     3. let an IPv6 failure propagate          -> test_ipv6_failure_leaves_ipv4_serving RED
     4. change timeout_graceful_shutdown to 6  -> test_config_matches_the_command_line_flags RED
+    5. no hard exit after run() returns       -> test_main_exits_after_the_lifespan_shutdown_and_the_join RED
+    6. os._exit before the thread join        -> test_main_exits_after_the_lifespan_shutdown_and_the_join RED
+    7. an unbounded join (no timeout)         -> test_the_join_is_bounded_names_what_is_left_and_flushes RED
+    8. the hard exit before server.run()      -> test_main_exits_after_the_lifespan_shutdown_and_the_join RED
+    9. no stdio flush before os._exit         -> test_the_join_is_bounded_names_what_is_left_and_flushes RED
 """
 from __future__ import annotations
 
@@ -293,6 +298,10 @@ def test_main_serves_on_both_sockets(monkeypatch):
             created.append(self)
 
     monkeypatch.setattr(uvicorn, "Server", Capturing)
+    exits = []
+    # main() ends the process once the server is down: record the call instead of making it
+    # here (the exit itself is railed in a child process below).
+    monkeypatch.setattr(serve_dual, "exit_after_shutdown", exits.append)
     t = threading.Thread(target=serve_dual.main, daemon=True)
     t.start()
     try:
@@ -312,3 +321,140 @@ def test_main_serves_on_both_sockets(monkeypatch):
         if created:
             created[0].should_exit = True
         t.join(timeout=15)
+    assert not t.is_alive() and exits == [0]
+
+
+# ── the process ends once the server is down ─────────────────────────────────
+# Measured 2026-11-22: after SIGTERM, uvicorn finished (the lifespan saved the snapshot and
+# stopped the scheduler) and main() returned, then the interpreter waited on a non-daemon
+# scheduler-job thread until Railway killed the pod at drainingSeconds=30. web has a volume,
+# so the new pod could not start meanwhile. main() now joins leftovers against ONE bounded
+# deadline, flushes stdio, and calls os._exit.
+#
+# These run main() in a CHILD process: the exit is real, the leftover thread is a real
+# non-daemon thread made by the main thread (as the scheduler's are), and a stuck main()
+# can never outlive its test and end the test runner with exit 0.
+
+_DRIVER = r'''
+import os, sys, threading, time
+sys.path.insert(0, sys.argv[1])
+mode = sys.argv[2]
+import uvicorn
+from api import serve_dual
+
+def say(x):
+    sys.stdout.write("EVENT " + x + "\n")
+    sys.stdout.flush()
+
+lifespan_done = threading.Event()
+never = threading.Event()
+
+async def app(scope, receive, send):
+    import asyncio
+    if scope["type"] != "lifespan":
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"ok"})
+        return
+    while True:
+        msg = await receive()
+        if msg["type"] == "lifespan.startup":
+            if mode == "fail-start":
+                await send({"type": "lifespan.startup.failed", "message": "boom"})
+                return
+            await send({"type": "lifespan.startup.complete"})
+        elif msg["type"] == "lifespan.shutdown":
+            def job():  # a scheduler job still running after scheduler.shutdown(wait=False)
+                if mode == "forever":
+                    never.wait()
+                lifespan_done.wait()
+                time.sleep(0.4)
+                say("straggler-done")
+            app.straggler = threading.Thread(target=job, name="scheduler-job-straggler")
+            app.straggler.start()
+            await asyncio.sleep(0.3)  # the snapshot save and the scheduler stop
+            say("lifespan-shutdown-done")
+            lifespan_done.set()
+            await send({"type": "lifespan.shutdown.complete"})
+            return
+
+app.straggler = None
+
+class Driven(uvicorn.Server):
+    def run(self, *a, **kw):
+        if mode == "run-raises":
+            raise RuntimeError("serve failed")
+        def stop_once_started():
+            while not (self.started or self.should_exit):
+                time.sleep(0.05)
+            self.should_exit = True
+        threading.Thread(target=stop_once_started, daemon=True).start()
+        super().run(*a, **kw)
+        st = app.straggler
+        say(f"run-returned started={self.started} straggler_alive={bool(st and st.is_alive())}")
+        sys.stdout.write("EVENT unflushed-tail\n")  # left in the pipe's buffer on purpose
+
+uvicorn.Server = Driven
+serve_dual.APP = app
+serve_dual.THREAD_JOIN_SECONDS = float(os.environ.get("JOIN_S", "5"))
+try:
+    serve_dual.main()
+except RuntimeError as exc:
+    say("main-raised " + str(exc))
+    sys.exit(7)
+say("main-returned")
+'''
+
+
+def _run_main_in_child(tmp_path, mode, *, join_s=5.0, timeout=30):
+    import subprocess
+    import sys
+
+    driver = tmp_path / "drive_serve_dual.py"
+    driver.write_text(_DRIVER, encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONUNBUFFERED", "WEB_PRIVATE_LISTEN_ENABLED")}
+    env.update(PORT=str(_free_port()), WEB_PRIVATE_LISTEN_ENABLED="1", JOIN_S=str(join_s))
+    t0 = time.monotonic()
+    try:
+        r = subprocess.run([sys.executable, str(driver), ROOT, mode], capture_output=True, text=True,
+                           env=env, cwd=str(tmp_path), timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        pytest.fail(f"main() did not end the process within {timeout}s (mode {mode}); stdout: {exc.stdout!r}")
+    events = [ln[len("EVENT "):] for ln in r.stdout.splitlines() if ln.startswith("EVENT ")]
+    return r.returncode, events, r.stderr, time.monotonic() - t0
+
+
+def test_main_exits_after_the_lifespan_shutdown_and_the_join(tmp_path):
+    """The order is the contract: the lifespan shutdown finishes, run() returns with the
+    leftover thread still running, the thread is joined, and only then does the process
+    exit, with code 0, without returning from main()."""
+    rc, events, err, _ = _run_main_in_child(tmp_path, "linger")
+    assert rc == 0, err
+    # straggler_alive=True: the thread was still running when run() returned, so this test
+    # can tell a join from no join.
+    assert [e for e in events if e != "unflushed-tail"] == [
+        "lifespan-shutdown-done", "run-returned started=True straggler_alive=True", "straggler-done"], (events, err)
+
+
+def test_the_join_is_bounded_names_what_is_left_and_flushes(tmp_path):
+    """A thread that never finishes cannot hold the process: the join gives up at the
+    budget, names the thread it left, flushes stdio and exits 0 anyway."""
+    rc, events, err, took = _run_main_in_child(tmp_path, "forever", join_s=0.5, timeout=25)
+    assert rc == 0, err
+    assert "[serve-dual] exiting with 1 non-daemon thread(s) still running after 0.5s: scheduler-job-straggler" in err, err
+    assert events == ["lifespan-shutdown-done", "run-returned started=True straggler_alive=True",
+                      "unflushed-tail"], (events, err)
+
+
+def test_a_failed_start_exits_with_uvicorns_startup_failure_code(tmp_path):
+    """The plain command line (`uvicorn ...`) exits 3 when the app cannot start; so does this."""
+    rc, events, err, _ = _run_main_in_child(tmp_path, "fail-start")
+    assert serve_dual.STARTUP_FAILURE == 3
+    assert rc == 3, err
+    assert events == ["run-returned started=False straggler_alive=False", "unflushed-tail"], (events, err)
+
+
+def test_an_exception_from_run_is_never_turned_into_an_exit(tmp_path):
+    """If run() raises, the shutdown may not have finished: the error propagates out of
+    main() as before, and the process is NOT hard-exited."""
+    rc, events, err, _ = _run_main_in_child(tmp_path, "run-raises")
+    assert (rc, events) == (7, ["main-raised serve failed"]), err

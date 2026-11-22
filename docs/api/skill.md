@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (797)
+## Member session reads (799)
 
 ### Limits
 
@@ -678,6 +678,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/corporate-actions/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/dilution-watch/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/earnings-reaction/{sym}` | paid | research | {sym} |
+| GET | `/api/research/estimate-history` | paid | research | metric=eps, window=30 |
 | GET | `/api/research/estimate-history/{sym}` | paid | research | {sym} |
 | GET | `/api/research/estimates/{sym}` | paid | research | {sym}, consensus=0, revisions=0 |
 | GET | `/api/research/event-study` | paid | research-studies | kind, universe, metric, series, indicator, period, market, group, op, threshold, symbol, horizons, episodes=first, entry=event_close |
@@ -724,6 +725,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/options/{sym}/surface` | paid | research | {sym}, expiration |
 | GET | `/api/research/ownership/{sym}` | paid | research | {sym} |
 | GET | `/api/research/people/{sym}` | paid | research | {sym} |
+| GET | `/api/research/public-records/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/quote/{sym}` | paid | research | {sym} |
 | GET | `/api/research/ratings/{sym}` | paid | research | {sym} |
 | GET | `/api/research/rename-notice/{sym}` | paid | research | {sym} |

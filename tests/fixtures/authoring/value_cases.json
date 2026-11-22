@@ -11231,11 +11231,16 @@
    "lane": "formula",
    "words": "On a 5 minute chart, plot two lines: today's low so far plus the 14 day ATR, and today's high so far minus the 14 day ATR",
    "rule": {
-    "digest": "b40b1d880b428031",
+    "digest": "9db8c9c3aa51af6a",
     "history": [
      {
       "digest": "b40b1d880b428031",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "9db8c9c3aa51af6a",
+      "quote": "On a 5 minute chart",
+      "reason": "The rule was written on the DAILY built market while no 5 minute one existed (it said so: each bar its own day). The words name a 5 minute chart, and the built 5 minute chart now exists, so the rule is the words' own: today's low so far (of today's 5 minute bars) plus the 14 DAY ATR, read of the days finished before today or as it stands with today so far. The recorded answer is WRONG by it as it was by the stand-in."
      }
     ]
    },
@@ -11244,7 +11249,7 @@
     "front": "c7f99ed2c3"
    },
    "recorded_verdict": "wrong",
-   "defect": "The door accepted, on the first attempt, a patch whose reply is the word \"Placeholder\" and whose two lines add a weekly read of the constant 0 where the 14 day ATR should be (`sessionLow() + tf(0, W)`): labelled \"Session low + ATR\", it draws the session low. The door now refuses a scope read of nothing and a placeholder reply, so the assistant gets its repair. Graded on the daily market until the intraday one exists.",
+   "defect": "The door accepted, on the first attempt, a patch whose reply is the word \"Placeholder\" and whose two lines add a weekly read of the constant 0 where the 14 day ATR should be (`sessionLow() + tf(0, W)`): labelled \"Session low + ATR\", it draws the session low. The door now refuses a scope read of nothing and a placeholder reply, so the assistant gets its repair. THE WALL BEHIND IT: the words mix today's 5 minute bars with a DAILY measure in one formula, and a formula cannot read a daily value beside today's own bars below a day (a calculation timeframe of a day makes the WHOLE indicator daily, and holds no marker). It stays wrong on the record until the door can build that read.",
    "answer": {
     "contract": "uct.authoring.patch/1",
     "ops": [
@@ -11308,6 +11313,133 @@
      }
     ],
     "reply": "Placeholder"
+   },
+   "chart": "intraday"
+  },
+  {
+   "id": "intraday-03",
+   "lane": "formula",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, plot yesterday's close plus the average daily range of the last 20 days, and yesterday's close minus that range, where a day's range is its high minus its low",
+   "rule": {
+    "digest": "3f1c8c8ba81d4224",
+    "history": [
+     {
+      "digest": "3f1c8c8ba81d4224",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "c7f99ed2c3"
+   },
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Prior Close ± Average Daily Range",
+      "placement": "price",
+      "primary": "upper",
+      "outputs": [
+       {
+        "key": "upper",
+        "label": "Prior close + 20-day ADR",
+        "tree": {
+         "type": "op",
+         "name": "+",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "lower",
+        "label": "Prior close - 20-day ADR",
+        "tree": {
+         "type": "op",
+         "name": "-",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_calculation_timeframe",
+      "timeframe": "D"
+     },
+     {
+      "op": "set_style",
+      "output": "upper",
+      "style": "stepline",
+      "color": "#089981",
+      "width": 2
+     },
+     {
+      "op": "set_style",
+      "output": "lower",
+      "style": "stepline",
+      "color": "#F23645",
+      "width": 2
+     }
+    ]
    }
   },
   {
@@ -11562,6 +11694,131 @@
    }
   },
   {
+   "id": "wall-18",
+   "lane": "formula",
+   "words": "Plot the number of shares I own and my average cost.",
+   "provenance": "corrected on review 11-22: the words ask for the member's own numbers, not an account read. It was a wall case (refuse); the honest answer builds two settings the member fills in and says it cannot read the account.",
+   "rule": {
+    "digest": "1925140a1086b448",
+    "history": [
+     {
+      "digest": "1925140a1086b448",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "says": [
+    [
+     "can't",
+     "cannot",
+     "can not",
+     "no way to"
+    ],
+    [
+     "account",
+     "holdings",
+     "brokerage",
+     "position"
+    ]
+   ],
+   "recorded": {
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The two settings are right (the member's own figures, defaulting to 0, and the reply says the holdings cannot be known). But the average cost is drawn as the BARE setting: until the member fills it in it is a line at price 0, and the price chart is squeezed to fit it; the table shows 0 shares and 0.00. A setting the member must fill in draws nothing until it is filled.",
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "My Position",
+      "placement": "price",
+      "primary": "avgCost",
+      "inputs": [
+       {
+        "key": "shares",
+        "label": "Shares owned",
+        "default": 0,
+        "min": 0,
+        "step": 1
+       },
+       {
+        "key": "avgPrice",
+        "label": "Average cost per share",
+        "default": 0,
+        "min": 0,
+        "step": 0.01
+       }
+      ],
+      "outputs": [
+       {
+        "key": "avgCost",
+        "label": "Average cost",
+        "tree": {
+         "type": "series",
+         "name": "avgPrice"
+        }
+       },
+       {
+        "key": "sharesOwned",
+        "label": "Shares owned",
+        "hidden": true,
+        "tree": {
+         "type": "series",
+         "name": "shares"
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_style",
+      "output": "avgCost",
+      "style": "line",
+      "color": "#2962FF",
+      "width": 2
+     },
+     {
+      "op": "set_table",
+      "position": "top_right",
+      "cells": [
+       {
+        "row": 0,
+        "col": 0,
+        "text": "My Position",
+        "bold": true,
+        "span": 2
+       },
+       {
+        "row": 1,
+        "col": 0,
+        "text": "Shares"
+       },
+       {
+        "row": 1,
+        "col": 1,
+        "output": "sharesOwned",
+        "format": "auto"
+       },
+       {
+        "row": 2,
+        "col": 0,
+        "text": "Avg cost"
+       },
+       {
+        "row": 2,
+        "col": 1,
+        "output": "avgCost",
+        "format": "decimal2"
+       }
+      ]
+     }
+    ],
+    "reply": "I built a position indicator with two settings you fill in yourself — shares owned and average cost per share — both starting at 0 until you set them in the indicator's settings. Your average cost is drawn as a blue line across the price chart, and a small table in the top right shows the share count and the average cost. I can't know your actual holdings, so please enter them there."
+   }
+  },
+  {
    "id": "h03",
    "lane": "script",
    "chart": "daily",
@@ -11617,11 +11874,16 @@
    "chart": "daily",
    "words": "Plot the 14 day ATR as a percent of the close, and show its latest value in a table in the top right corner",
    "rule": {
-    "digest": "6f20c7a98b3eb080",
+    "digest": "9e5a737d047f3985",
     "history": [
      {
       "digest": "6f20c7a98b3eb080",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "9e5a737d047f3985",
+      "quote": "show its latest value",
+      "reason": "corrected on review 11-22: the words ask for the latest value of the percent only. The rule also required the ATR in dollars in the table, because the first recorded answer happened to show both (the rule learning from the door). The live answer of 2026-11-22 plots the percent (0 of 1,986 bars differ) and its table reads \"ATR 14 %\" | \"2.2%\": what was asked."
      }
     ]
    },
@@ -11785,7 +12047,7 @@
     "front": "104db22eb5"
    },
    "recorded_verdict": "wrong",
-   "defect": "The script reads the weekly and the monthly average one DAILY bar back (`wMA[1]` outside `request.security`). On a bar that completes its week or month it shows the average one whole period stale (113.56 where the 10 week average is 114.05; 120.29 where the 10 month average is 118.72, on the engine's built bars). Mid-period it equals the last finished period's. Open: the script door has no wording for reading another timeframe, so nothing tells the assistant where a look-back goes.",
+   "defect": "The table shows each average one whole period stale on a bar that completes its week or month (113.56 where the 10 week average is 114.05; 120.29 where the 10 month average is 118.72, on the engine's built bars, whose newest bar is a Friday and a month end). The script reads each average one bar back (`wMA[1]` outside `request.security`); the live answer of 2026-11-22 put the look-back inside the request instead and shows the same two numbers. THE ENGINE SERVES NO \"AS IT STANDS\" VALUE OF A FORMING HIGHER-TIMEFRAME BAR (G6): written as it stands, a last-bar table is right once the newest bar has finished and EMPTY all session; written one bar back it has a value all session (the last finished period) and is one period stale on the bar that completes one. No wording makes a last-bar table right in both states (a rule that tried was served for nine hours on 2026-11-22 and removed: it changed the form and not the value). This is an acceptance case of the engine unit that serves the forming higher-timeframe value, and becomes RIGHT that day.",
    "answer": {
     "turn": "script",
     "script": {
@@ -12061,6 +12323,31 @@
     "turn": "script",
     "script": {
      "pine": "//@version=5\nindicator(\"Yesterday's High & Low Table\", overlay=true)\n\ndigits = input.int(2, \"Decimal places\", minval=0, maxval=8)\nfmt = digits == 0 ? \"#\" : \"#.\" + str.replace_all(str.substring(\"00000000\", 0, digits), \"0\", \"#\")\n\npdh = high[1]\npdl = low[1]\n\nvar table t = table.new(position.top_right, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Yesterday High\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(pdh, fmt), text_color=color.white)\ntable.cell(t, 0, 1, \"Yesterday Low\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(pdl, fmt), text_color=color.white)\n\nplot(pdh, \"Yesterday high\", color=color.new(color.gray, 100))\nplot(pdl, \"Yesterday low\", color=color.new(color.gray, 100))"
+    }
+   }
+  },
+  {
+   "id": "intraday-04",
+   "lane": "script",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, show a table with today's low and how many dollars I would lose on 100 shares bought at the latest price with my stop at today's low",
+   "rule": {
+    "digest": "1fbe694062ef29ae",
+    "history": [
+     {
+      "digest": "1fbe694062ef29ae",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "c7f99ed2c3"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Stop risk vs today's low\", overlay=true)\n\nshares = input.int(100, \"Shares\", minval=1)\n\n// Today's low: resets on each new day, updates through the session\nnewDay = ta.change(time(\"D\")) != 0\nvar float dayLow = na\nif newDay\n    dayLow := low\nelse\n    dayLow := na(dayLow) ? low : math.min(dayLow, low)\n\nriskPerShare = close - dayLow\nriskTotal = riskPerShare * shares\n\nvar table t = table.new(position.top_right, 2, 4, border_width=1)\ntable.cell(t, 0, 0, \"Today's low\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(dayLow, \"#.##\"), text_color=color.white)\ntable.cell(t, 0, 1, \"Latest price\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(close, \"#.##\"), text_color=color.white)\ntable.cell(t, 0, 2, \"Risk / share\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 2, str.tostring(riskPerShare, \"#.##\"), text_color=color.white)\ntable.cell(t, 0, 3, \"Risk on \" + str.tostring(shares) + \" shares\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 3, str.tostring(riskTotal, \"#.##\"), text_color=color.white, bgcolor=riskPerShare > 0 ? color.new(color.red, 70) : color.new(color.green, 70))\n\nplot(riskTotal, \"Dollar risk\", color=color.new(color.gray, 100))\n"
     }
    }
   },
@@ -12375,25 +12662,6 @@
    }
   },
   {
-   "id": "wall-18",
-   "lane": "wall",
-   "words": "Plot the number of shares I own and my average cost.",
-   "wall": {
-    "names": [
-     "average cost",
-     "shares"
-    ]
-   },
-   "recorded": {
-    "on": "2026-11-14",
-    "front": null
-   },
-   "answer": {
-    "disposition": "unsupported",
-    "reply": "I can't read your brokerage account — position size and average cost aren't data I have access to here. What I can do is let you type them in yourself: I'd add two settings (shares owned and average cost) that you fill in, then draw your average cost as a line on the price chart and show the share count in a corner table. Want me to build that?"
-   }
-  },
-  {
    "id": "wall-19",
    "lane": "wall",
    "words": "Use one-second bars to compute intrabar volume delta.",
@@ -12578,6 +12846,162 @@
     "disposition": "unsupported",
     "reply": "I can't send emails or chart images — I only build indicators and their on-chart alerts here. What I can do is build a condition and attach an alert to it, which your charting platform can then deliver however you have alert notifications set up. Tell me what condition should fire at the daily close and I'll set it up."
    }
+  },
+  {
+   "id": "intraday-02",
+   "lane": "wall",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, plot a line at today's low so far plus 60 percent of the 14 day ATR, and put a dot on each bar that closes above that line",
+   "wall": {
+    "names": [
+     "daily measure",
+     "14 day ATR"
+    ],
+    "offers": [
+     {
+      "what": "the daily measure as a line on its own, on daily bars",
+      "words": [
+       "daily bars"
+      ]
+     },
+     {
+      "what": "the same idea on this chart's own bars, named for what they span",
+      "words": [
+       "five-minute bars"
+      ]
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "c7f99ed2c3"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "A STAND-IN WAS BUILT where the member should have been asked: the line uses the ATR of fourteen 5 MINUTE bars where the words ask for the 14 DAY ATR, under a note that says so. By value it is not what was asked on any bar, and a member reads the chart, not the note. The words add today's own low to a DAILY measure in one line, which cannot be built below a day yet. The right answer builds nothing, says that plainly, and offers what can be drawn: the 14 day ATR as a line on daily bars, and the same line with the ATR of this chart's own bars, named for what they span. When a daily read below a day can be built, this becomes a formula case again and must build right.",
+   "answer": {
+    "disposition": "change",
+    "reply": "I've put a line on the price chart at today's session low so far plus 0.6 times the 14-bar ATR, with a dot above each bar that closes above it. One thing to confirm: the ATR is measured on the chart's 5-minute bars — if you meant a true 14-day ATR, say so and I'll change it.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Session Low + 0.6 ATR",
+      "placement": "price",
+      "primary": "trigger",
+      "outputs": [
+       {
+        "key": "trigger",
+        "label": "Low + 0.6 ATR",
+        "tree": {
+         "type": "op",
+         "name": "+",
+         "args": [
+          {
+           "type": "call",
+           "name": "sessionLow",
+           "args": []
+          },
+          {
+           "type": "op",
+           "name": "*",
+           "args": [
+            {
+             "type": "num",
+             "value": 0.6
+            },
+            {
+             "type": "call",
+             "name": "atr",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              },
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "above",
+        "label": "Close above line",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "call",
+             "name": "sessionLow",
+             "args": []
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 0.6
+              },
+              {
+               "type": "call",
+               "name": "atr",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "series",
+                 "name": "low"
+                },
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 14
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_marker",
+      "output": "above",
+      "shape": "circle",
+      "position": "aboveBar"
+     }
+    ]
+   }
   }
  ],
  "thresholds": {
@@ -12608,6 +13032,568 @@
     ],
     "theirs": "IBD"
    }
+  },
+  {
+   "id": "weekly-plot-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the 10 week simple moving average of the weekly close on my daily chart, and put a label with the text Cross on each bar where the close crosses above it",
+   "rule": {
+    "digest": "7ff9bf10ef31cbee",
+    "history": [
+     {
+      "digest": "7ff9bf10ef31cbee",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "why": "No recorded script PLOTS a weekly or monthly value: the measurement that removed the other-timeframe rule (2026-11-22) could not see whether a script plot of another timeframe comes out right. This case asks it. The line is held by value to every honest reading of a weekly average on a daily bar; the labels to the line the script itself plots."
+  },
+  {
+   "id": "udaily-01",
+   "lane": "wall",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, plot this stock's 20 day percent change minus SPY's 20 day percent change",
+   "wall": {
+    "names": [
+     "daily measure",
+     "20 day"
+    ],
+    "offers": [
+     {
+      "what": "the same idea on this chart's own bars, named for what they span",
+      "words": [
+       "five-minute bars"
+      ]
+     }
+    ]
+   },
+   "becomes": {
+    "lane": "formula",
+    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
+    "rule": {
+     "digest": "9b2b205faada844a",
+     "history": [
+      {
+       "digest": "9b2b205faada844a",
+       "reason": "written from the request's words before the answer was read"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "udaily-02",
+   "lane": "wall",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, show the bars where the close crossed above its 50 day simple moving average",
+   "wall": {
+    "names": [
+     "daily measure",
+     "50 day"
+    ],
+    "offers": [
+     {
+      "what": "the daily measure as a line on its own, on daily bars",
+      "words": [
+       "daily bars"
+      ]
+     },
+     {
+      "what": "the same idea on this chart's own bars, named for what they span",
+      "words": [
+       "five-minute bars"
+      ]
+     }
+    ]
+   },
+   "becomes": {
+    "lane": "formula",
+    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
+    "rule": {
+     "digest": "4780b46944be3122",
+     "history": [
+      {
+       "digest": "4780b46944be3122",
+       "reason": "written from the request's words before the answer was read"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "udaily-03",
+   "lane": "wall",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, show when the 10 day simple moving average is above the 20 day simple moving average, the 20 day is above the 50 day, and all three are higher than they were 5 bars ago",
+   "wall": {
+    "names": [
+     "daily measure",
+     "10 day"
+    ],
+    "offers": [
+     {
+      "what": "the daily measure as a line on its own, on daily bars",
+      "words": [
+       "daily bars"
+      ]
+     },
+     {
+      "what": "the same idea on this chart's own bars, named for what they span",
+      "words": [
+       "five-minute bars"
+      ]
+     }
+    ]
+   },
+   "becomes": {
+    "lane": "formula",
+    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
+    "rule": {
+     "digest": "1f23f06ebee0c192",
+     "history": [
+      {
+       "digest": "1f23f06ebee0c192",
+       "reason": "written from the request's words before the answer was read"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "udaily-04",
+   "lane": "wall",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, plot the 14 day simple average of the high minus the low as a percent of the close, and show the bars where it is more than 2 standard deviations above its own 100 bar average",
+   "wall": {
+    "names": [
+     "daily measure",
+     "14 day"
+    ],
+    "offers": [
+     {
+      "what": "the daily measure as a line on its own, on daily bars",
+      "words": [
+       "daily bars"
+      ]
+     },
+     {
+      "what": "the same idea on this chart's own bars, named for what they span",
+      "words": [
+       "five-minute bars"
+      ]
+     }
+    ]
+   },
+   "becomes": {
+    "lane": "formula",
+    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
+    "rule": {
+     "digest": "8954df59694be367",
+     "history": [
+      {
+       "digest": "8954df59694be367",
+       "reason": "written from the request's words before the answer was read"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "udaily-05",
+   "lane": "wall",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, show when the close is above the 10 day exponential moving average and the 10 day is above the 21 day exponential moving average",
+   "wall": {
+    "names": [
+     "daily measure",
+     "10 day"
+    ],
+    "offers": [
+     {
+      "what": "the daily measure as a line on its own, on daily bars",
+      "words": [
+       "daily bars"
+      ]
+     },
+     {
+      "what": "the same idea on this chart's own bars, named for what they span",
+      "words": [
+       "five-minute bars"
+      ]
+     }
+    ]
+   },
+   "becomes": {
+    "lane": "formula",
+    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
+    "rule": {
+     "digest": "7dc0488693a970c6",
+     "history": [
+      {
+       "digest": "7dc0488693a970c6",
+       "reason": "written from the request's words before the answer was read"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "udaily-06",
+   "lane": "wall",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, plot this stock's close divided by SPY's close with a 21 day exponential moving average of that ratio, and colour the background green when the ratio is above its average",
+   "wall": {
+    "names": [
+     "daily measure",
+     "21 day"
+    ],
+    "offers": [
+     {
+      "what": "the same idea on this chart's own bars, named for what they span",
+      "words": [
+       "five-minute bars"
+      ]
+     }
+    ]
+   },
+   "becomes": {
+    "lane": "formula",
+    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
+    "rule": {
+     "digest": "24e61c13b7f3c883",
+     "history": [
+      {
+       "digest": "24e61c13b7f3c883",
+       "reason": "written from the request's words before the answer was read"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "udaily-07",
+   "lane": "wall",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, plot the number of the last 20 days on which this stock's percent change for the day was greater than SPY's",
+   "wall": {
+    "names": [
+     "daily measure",
+     "20 day"
+    ],
+    "offers": [
+     {
+      "what": "the same idea on this chart's own bars, named for what they span",
+      "words": [
+       "five-minute bars"
+      ]
+     }
+    ]
+   },
+   "becomes": {
+    "lane": "formula",
+    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
+    "rule": {
+     "digest": "9c552dfb6d75bf89",
+     "history": [
+      {
+       "digest": "9c552dfb6d75bf89",
+       "reason": "written from the request's words before the answer was read"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "udaily-08",
+   "lane": "wall",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, plot this stock's 63 day percent change minus SPY's 63 day percent change",
+   "wall": {
+    "names": [
+     "daily measure",
+     "63 day"
+    ],
+    "offers": [
+     {
+      "what": "the same idea on this chart's own bars, named for what they span",
+      "words": [
+       "five-minute bars"
+      ]
+     }
+    ]
+   },
+   "becomes": {
+    "lane": "formula",
+    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
+    "rule": {
+     "digest": "ddaac587c542fe08",
+     "history": [
+      {
+       "digest": "ddaac587c542fe08",
+       "reason": "written from the request's words before the answer was read"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "udaily-09",
+   "lane": "wall",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, plot the 50 day correlation between this stock's daily percent change and SPY's daily percent change",
+   "wall": {
+    "names": [
+     "daily measure",
+     "50 day"
+    ],
+    "offers": [
+     {
+      "what": "the same idea on this chart's own bars, named for what they span",
+      "words": [
+       "five-minute bars"
+      ]
+     }
+    ]
+   },
+   "becomes": {
+    "lane": "formula",
+    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
+    "rule": {
+     "digest": "7e2eff48107166b6",
+     "history": [
+      {
+       "digest": "7e2eff48107166b6",
+       "reason": "written from the request's words before the answer was read"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "udaily-10",
+   "lane": "wall",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, plot this stock's beta to SPY over the last 60 days, calculated from daily percent changes",
+   "wall": {
+    "names": [
+     "daily measure",
+     "60 day"
+    ],
+    "offers": [
+     {
+      "what": "the same idea on this chart's own bars, named for what they span",
+      "words": [
+       "five-minute bars"
+      ]
+     }
+    ]
+   },
+   "becomes": {
+    "lane": "formula",
+    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
+    "rule": {
+     "digest": "cee2dcea6b7f67fa",
+     "history": [
+      {
+       "digest": "cee2dcea6b7f67fa",
+       "reason": "written from the request's words before the answer was read"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "udaily-11",
+   "lane": "wall",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, show the bars where the close is more than 60 percent of the 14 day ATR above the bar's low",
+   "wall": {
+    "names": [
+     "daily measure",
+     "14 day"
+    ],
+    "offers": [
+     {
+      "what": "the daily measure as a line on its own, on daily bars",
+      "words": [
+       "daily bars"
+      ]
+     },
+     {
+      "what": "the same idea on this chart's own bars, named for what they span",
+      "words": [
+       "five-minute bars"
+      ]
+     }
+    ]
+   },
+   "held": "Not an acceptance case by value yet: on the built 5 minute chart this condition is true on NO bar under any reading of the 14 day ATR, so a rule could not tell a right answer from a formula that is never true. Re-admit if the fixture gains a session where it can be true. The member's words are not changed to make it one."
+  },
+  {
+   "id": "wall-33",
+   "lane": "wall",
+   "words": "Show my live P&L from my brokerage account on the chart, updating as I trade.",
+   "wall": {
+    "names": [
+     "brokerage account",
+     "account",
+     "P&L"
+    ]
+   }
+  },
+  {
+   "id": "cap-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "In a pane under the chart, plot how many bars back the most recent close above today's close was, looking back at most 250 bars, and plot nothing when there is none",
+   "rule": {
+    "digest": "1f8bf4cc3ed7ce66",
+    "history": [
+     {
+      "digest": "1f8bf4cc3ed7ce66",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a loop that stops when it finds the bar (`while`, or `for` with a break)",
+   "distinguishes": "a value on 1,951 of 2,000 bars, 140 distinct counts, the largest 248; nothing on 49 bars, of which 19 have a higher close further back than 250 bars (those are the bars a look-back with no limit would get wrong)"
+  },
+  {
+   "id": "cap-02",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Let me choose the type of moving average in the settings, SMA, EMA or WMA, with SMA as the default and a length of 20, and plot that average on the price chart",
+   "rule": {
+    "digest": "e1878a6c3c77f435",
+    "history": [
+     {
+      "digest": "e1878a6c3c77f435",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a choice among three calculations by a setting (`switch`)",
+   "distinguishes": "the default line has a value on 1,981 of 2,000 bars; only the DEFAULT choice is held (the script runs with its defaults)"
+  },
+  {
+   "id": "cap-03",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the average of the last 5 swing highs as a line, where a swing high is a bar whose high is above the highs of the 3 bars before it and the 3 bars after it",
+   "rule": {
+    "digest": "57253976d21d0b9d",
+    "history": [
+     {
+      "digest": "57253976d21d0b9d",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a list that keeps the last five values (`array.*`)",
+   "distinguishes": "203 swing highs; the average has a value on 1,960 bars and changes on 199 of them"
+  },
+  {
+   "id": "cap-04",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Draw a horizontal line at each of the last 3 swing lows, where a swing low is a bar whose low is below the lows of the 3 bars before it and the 3 bars after it, from the swing bar to the right edge, and remove the oldest line when a new swing low makes a fourth",
+   "rule": {
+    "digest": "c1f87cf94b2fa095",
+    "history": [
+     {
+      "digest": "c1f87cf94b2fa095",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a list of drawings, the oldest deleted (`array<line>`, `line.delete`)",
+   "distinguishes": "189 swing lows over the chart; on the newest bar the three lines are at [113.4, 112.19, 108.65]"
+  },
+  {
+   "id": "cap-05",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Draw a line from the lowest low of the last 60 bars to the latest close, and put a label at the end of the line showing how many dollars the line rises",
+   "rule": {
+    "digest": "250f99befbb6c5f3",
+    "history": [
+     {
+      "digest": "250f99befbb6c5f3",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a drawing read back, or the same two numbers kept (`line.get_*`)",
+   "distinguishes": "the line runs from 2026-11-17 (105.03) to 2027-01-29 (113.09); the rise is 8.06"
+  },
+  {
+   "id": "cap-06",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Put one label on the latest bar only, showing how far the close is above or below its 50 day simple moving average, in percent with two decimals",
+   "rule": {
+    "digest": "56f7b3baac9d8eea",
+    "history": [
+     {
+      "digest": "56f7b3baac9d8eea",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "the newest bar known as such (`barstate.islast`)",
+   "distinguishes": "one label, on 2027-01-29, reading -0.76 percent"
+  },
+  {
+   "id": "cap-07",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the 10 day simple moving average only while the close is above the 50 day simple moving average, and nothing on the other bars",
+   "rule": {
+    "digest": "59a2c04eaf0d9e69",
+    "history": [
+     {
+      "digest": "59a2c04eaf0d9e69",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a moving average under a condition",
+   "distinguishes": "the line is shown on 922 bars and must be empty on 1,078"
+  },
+  {
+   "id": "cap-08",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Whenever a bar's low is above the prior bar's high, draw a box from the prior bar's high up to that bar's low, starting at that bar and extended to the right until a later bar's low drops below the top of the box, then end the box at that bar. Keep the 10 newest boxes",
+   "rule": {
+    "digest": "6572457c3b35e2d8",
+    "history": [
+     {
+      "digest": "6572457c3b35e2d8",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a record per zone that lives until it is filled (your own type or parallel arrays, `box.delete`)",
+   "distinguishes": "30 gap bars over the chart; of the 10 newest boxes 2 end on the newest bar"
+  },
+  {
+   "id": "cap-09",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the average volume of the last 10 up days, where an up day closes above the prior close, skipping the down days in between",
+   "rule": {
+    "digest": "ae2ab8087fd8fb4e",
+    "history": [
+     {
+      "digest": "ae2ab8087fd8fb4e",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a list filled only on some bars, averaged (`array.*`, `for ... in`)",
+   "distinguishes": "differs from the plain 10 bar average volume on 1,974 of 2,000 bars"
   }
  ]
 }

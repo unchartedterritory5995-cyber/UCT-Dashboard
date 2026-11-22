@@ -42,12 +42,16 @@ def _say(line):
     _LINES.append(line)
 
 
-def best(cols, want, label, flag=False):
+def best(cols, want, label, flag=False, exact=False):
+    """`exact`: a bar where the rule holds NOTHING must hold nothing in the column too (the words said "plot nothing",
+    "only while"); without it only the bars where the rule has a value are compared."""
     rows = []
     for k, col in cols.items():
-        cmp = [i for i in range(N) if want[i] is not None]
+        cmp = list(range(N)) if exact else [i for i in range(N) if want[i] is not None]
         if flag:
             diff = sum(1 for i in cmp if bool(col[i]) != bool(want[i]))
+        elif exact:
+            diff = sum(1 for i in cmp if (col[i] is None) != (want[i] is None) or (want[i] is not None and abs(col[i] - want[i]) > 1e-9))
         else:
             diff = sum(1 for i in cmp if col[i] is None or abs(col[i] - want[i]) > 1e-9)
         rows.append((diff, len(cmp), k))
@@ -344,19 +348,102 @@ def _run_counts():
     return out
 
 
+# ── ROUND 17: what a script must show for nine requests whose honest answer needs an array, a loop over one, a
+#    `while`, a `switch`, a drawing deleted or read back, or `barstate`. Written from the WORDS, before any answer. ──
+
+def _swings(x, k, high):
+    """The bars whose value is strictly beyond the k bars before it AND the k bars after it. Such a bar is only KNOWN
+    k bars later (the bars after it have to exist)."""
+    out = []
+    for i in range(k, N - k):
+        around = [x[j] for j in range(i - k, i + k + 1) if j != i]
+        if all(x[i] > v for v in around) if high else all(x[i] < v for v in around):
+            out.append(i)
+    return out
+
+
+def rule_cap01():
+    """How many bars back the most recent close ABOVE this bar's close was (1 = the bar before), looking back at most
+    250 bars; NOTHING when no close in reach is higher."""
+    col = []
+    for i in range(N):
+        k = next((k for k in range(1, min(250, i) + 1) if C[i - k] > C[i]), None)
+        col.append(None if k is None else float(k))
+    return [('bars back to the most recent higher close, nothing when there is none in 250', col, None, 'exact')]
+
+
+def rule_cap02():
+    """A choice of SMA, EMA or WMA with SMA the default: what is drawn before the member touches the setting is the
+    plain 20 bar average of the close."""
+    return [('the 20 bar simple average of the close (the default choice)', _sma(C, 20))]
+
+
+def rule_cap03():
+    """The average of the last 5 swing highs KNOWN on each bar (a swing high at bar p is known at p + 3). Before five
+    are known the words ask for nothing in particular, so those bars are not compared."""
+    known_at = [(p + 3, H[p]) for p in _swings(H, 3, True)]
+    col, seen, j = [], [], 0
+    for i in range(N):
+        while j < len(known_at) and known_at[j][0] <= i:
+            seen.append(known_at[j][1])
+            j += 1
+        col.append(sum(seen[-5:]) / 5 if len(seen) >= 5 else None)
+    return [('the average of the last 5 swing highs known on each bar', col)]
+
+
+def rule_cap07():
+    """The 10 bar average ONLY while the close is above the 50 bar average; nothing on every other bar (the bars
+    before the 50 bar average exists included)."""
+    fast, slow = _sma(C, 10), _sma(C, 50)
+    col = [fast[i] if (slow[i] is not None and fast[i] is not None and C[i] > slow[i]) else None for i in range(N)]
+    return [('the 10 bar average while the close is above the 50 bar average, nothing otherwise', col, None, 'exact')]
+
+
+def rule_cap09():
+    """The average volume of the last 10 UP days (a close above the prior close) up to and including each bar; the down
+    days in between are skipped. Before ten up days exist those bars are not compared."""
+    ups, col = [], []
+    for i in range(N):
+        if i > 0 and C[i] > C[i - 1]:
+            ups.append(V[i])
+        col.append(sum(ups[-10:]) / 10 if len(ups) >= 10 else None)
+    return [('the average volume of the last 10 up days', col)]
+
+
+def _gap_boxes(keep):
+    """A gap bar g: its low is above the prior bar's high. The box runs from the prior high (bottom) to that low (top),
+    from g to the first later bar whose low drops below the top (the newest bar while none has). The `keep` newest."""
+    out = []
+    for g in range(1, N):
+        if L[g] > H[g - 1]:
+            end = next((j for j in range(g + 1, N) if L[j] < L[g]), LAST)
+            out.append((T[g], T[end], L[g], H[g - 1]))
+    return out[-keep:]
+
+
 def drawn_rules(sid):
     """{numbers: [(what, [values any of which is right])], words: [(what, must, must_not)], labels: (what, dates, text or None),
     numbers_on_bars: (what, {day: the whole number written on that bar})}"""
     if sid == 'table-format-01':                             # a table with yesterday's high and yesterday's low (a daily chart)
         return {'numbers': [("yesterday's high", [H[LAST - 1]]), ("yesterday's low", [L[LAST - 1]])]}
+    if sid == 'intraday-04':
+        # today's bars: the newest bar and every bar before it back to the last overnight gap (the stamps are unix
+        # seconds on a 5 minute chart; two bars of one session are minutes apart, two sessions are hours apart)
+        first = LAST
+        while first > 0 and B[first]['t'] - B[first - 1]['t'] < 6 * 3600:
+            first -= 1
+        low = min(b['l'] for b in B[first:LAST + 1])
+        return {'numbers': [("today's low so far, on the newest bar", [low]),
+                            ('the dollars lost on 100 shares bought at the latest price with the stop at that low', [(C[LAST] - low) * 100])]}
     if sid == 'count-on-bars-01':
         counts = _run_counts()
         return {'numbers_on_bars': ('the count written on each bar of a run (1 to 9, starting again at 1 after 9)',
                                     {T[i]: counts[i] for i in range(N) if counts[i] > 0})}
     if sid == 'i01':
         v = _atr_variants(14)
-        return {'numbers': [('ATR 14 on the newest bar', [a[LAST] for _n, a in v if a[LAST] is not None]),
-                            ('ATR as a percent of the close on the newest bar', [a[LAST] / C[LAST] * 100 for _n, a in v if a[LAST] is not None])]}
+        # corrected on review 11-22: "show its latest value" asks for the latest value of the PERCENT only. The ATR in
+        # dollars beside it was learned from the first answer (the rule learning from the door), and is not asked.
+        return {'numbers': [('ATR as a percent of the close on the newest bar', [a[LAST] / C[LAST] * 100 for _n, a in v if a[LAST] is not None])]}
     if sid == 'i02':
         return {'numbers': [('volume over its 50 bar average on the newest bar', [V[LAST] / (sum(V[LAST - 49:LAST + 1]) / 50)])]}
     if sid == 'i03':
@@ -366,6 +453,24 @@ def drawn_rules(sid):
                 'words': [('the status for that count', 'under pressure' if n >= 5 else 'normal', 'normal' if n >= 5 else 'under pressure')]}
     if sid == 'i04':
         return {'labels': ('a label on each bar whose close crosses above the 50 bar average', _cross_up_dates(), 'Cross')}
+    if sid == 'cap-04':                                          # a line at each of the last 3 swing lows, the oldest removed
+        known = [p for p in _swings(L, 3, False) if p + 3 <= LAST]
+        return {'level_lines_exact': ('a horizontal line at each of the last 3 swing lows, from its swing bar to the right edge, and no other line',
+                                      [(T[p], L[p]) for p in known[-3:]])}
+    if sid == 'cap-05':                                          # a line from the lowest low of 60 bars to the close, and its rise
+        k = min(range(LAST - 59, LAST + 1), key=lambda i: (L[i], -i))
+        return {'segments': [('from the lowest low of the last 60 bars to the newest close', T[k], L[k], T[LAST], C[LAST])],
+                'labels_at': [('the end of the line, showing how many dollars it rises', T[LAST], C[LAST] - L[k])]}
+    if sid == 'cap-06':                                          # ONE label, on the latest bar, with the percent from the 50 bar average
+        return {'labels_at': [('the latest bar, showing the percent the close is from its 50 bar average', T[LAST], (C[LAST] / _sma(C, 50)[LAST] - 1) * 100)],
+                'only_labels': 1}
+    if sid == 'cap-08':                                          # a box on each gap up until a later low drops into it; the 10 newest
+        return {'boxes_exact': [(f'the gap up of {left}', left, right, top, bottom) for left, right, top, bottom in _gap_boxes(10)],
+                'only_boxes': 10}
+    if sid == 'weekly-plot-01':
+        # the line is held by value in RULES (every honest reading of a weekly average on a daily bar); the labels are
+        # held to the line the script itself plots: on exactly the bars where the close crosses above THAT line
+        return {'labels_cross_own': ('a label on each bar where the close crosses above the plotted 10 week average', 'Cross')}
     if sid == 'i05':
         out = []
         for n in (10, 21, 50):
@@ -482,6 +587,21 @@ def check_drawn(sid, s):
         hit = [l for l in lines if {(day(l['x1']), round(l['y1'], 6)), (day(l['x2']), round(l['y2'], 6))} == {(x1, round(y1, 6)), (x2, round(y2, 6))}]
         _say(f"  {'RIGHT' if hit else 'CHECK'}  a line {what}: by hand ({x1}, {y1:.4f}) to ({x2}, {y2:.4f})" + ('' if hit else f'; drawn {[(day(l["x1"]), round(l["y1"], 4), day(l["x2"]), round(l["y2"], 4)) for l in lines[-3:]]}'))
         good = good and bool(hit)
+    if 'level_lines_exact' in rules:
+        what, want = rules['level_lines_exact']
+        flat = [l for l in lines if near(l['y1'], l['y2'])]
+        got = sorted((day(l['x1']), round(l['y1'], 6)) for l in flat)
+        exp = sorted((d, round(v, 6)) for d, v in want)
+        reach = bool(flat) and all(day(l['x2']) == T[LAST] or l.get('extend') in ('right', 'both') for l in flat)
+        ok = got == exp and len(flat) == len(lines) and reach
+        _say(f"  {'RIGHT' if ok else 'CHECK'}  {what}: by hand {[(d, round(v, 4)) for d, v in exp]}" + ('' if ok else
+             f'; drawn {len(lines)} line(s), level ones {[(d, round(v, 4)) for d, v in got][-5:]}' + ('' if reach else '; not all reach the right edge')))
+        good = good and ok
+    for kind, drawn_list, name in (('only_labels', labels, 'label'), ('only_boxes', boxes, 'box')):
+        if kind in rules:
+            ok = len(drawn_list) == rules[kind]
+            _say(f"  {'RIGHT' if ok else 'CHECK'}  {rules[kind]} {name}(s) on the chart and no more: {len(drawn_list)} drawn")
+            good = good and ok
     if 'boxes_on' in rules:
         what, want = rules['boxes_on']
         got = sorted((day(b['left']), round(b['top'], 6), round(b['bottom'], 6)) for b in boxes)
@@ -535,6 +655,20 @@ def check_drawn(sid, s):
             note = 'nothing is written on the bars: no label and no mark'
         _say(f"  {'RIGHT' if by_labels or by_marks else 'CHECK'}  {what}: {note}")
         good = good and (by_labels or by_marks)
+    if 'labels_cross_own' in rules:
+        what, text = rules['labels_cross_own']
+        got = sorted(str(l['x'])[:10] for l in labels)
+        hit = None
+        for key, col in cols.items():
+            crosses = [T[i] for i in range(1, N) if col[i] is not None and col[i - 1] is not None and C[i] > col[i] and C[i - 1] <= col[i - 1]]
+            if len(crosses) >= 5 and got and got in (crosses, crosses[-len(got):]):
+                hit = (key, len(crosses))
+                break
+        words_ok = bool(labels) and all((l['text'] or '').strip() == text for l in labels)
+        _say(f"  {'RIGHT' if hit else 'CHECK'}  {what}: " + (f'{len(got)} label(s), the crosses of column {hit[0]!r} ({hit[1]} by hand from that column)' if hit else
+             f'{len(got)} label(s) that are the crosses of NO plotted column; columns {sorted(cols)}'))
+        _say(f"  {'RIGHT' if words_ok else 'CHECK'}  every label reads {text!r}")
+        good = good and bool(hit) and words_ok
     if 'labels' in rules:
         what, dates, text = rules['labels']
         got = sorted(str(l['x'])[:10] for l in labels)
@@ -562,16 +696,20 @@ def check_drawn(sid, s):
 
 RULES = {'h03': rule_h03, 'h05': rule_h05, 'i01': rule_i01, 'i02': rule_i02, 'i03': rule_i03, 'i04': rule_i04, 'i05': rule_i05, 'i06': rule_i06,
          'j01': rule_j01, 'j02': rule_j02, 'j03': rule_j03, 'j06': rule_j06,
-         'k02': rule_k02, 'k03': rule_k03, 'k04': rule_k04, 'k05': rule_k05, 'k06': rule_k06}
+         'k02': rule_k02, 'k03': rule_k03, 'k04': rule_k04, 'k05': rule_k05, 'k06': rule_k06,
+         'weekly-plot-01': rule_j02,
+         'cap-01': rule_cap01, 'cap-02': rule_cap02, 'cap-03': rule_cap03, 'cap-07': rule_cap07, 'cap-09': rule_cap09}                     # a script that PLOTS the 10 week average of the weekly close: the same readings
 #: what each request ASKED to see; anything else the script draws is listed as not asked for
 ASKED = {'h03': {'plot'}, 'h05': {'plotshape'}, 'i01': {'plot', 'table'}, 'i02': {'plot', 'table'}, 'i03': {'plot', 'table'},
-         'i04': {'plot', 'label'}, 'i05': {'plot', 'table'}, 'i06': {'plot', 'label'},
+         'i04': {'plot', 'label'}, 'i05': {'plot', 'table'}, 'i06': {'plot', 'label'}, 'weekly-plot-01': {'plot', 'label'},
          'j01': {'plot'}, 'j02': {'plot'}, 'j03': {'plot'}, 'j04': {'plot'}, 'j05': {'plot'}, 'j06': {'table'},
          'l01': {'line', 'plot'}, 'l02': {'box'}, 'l03': {'line'}, 'l04': {'box'}, 'l05': {'line', 'plot'}, 'l06': {'label'},
          'table-format-01': {'table'},
-         'count-on-bars-01': {'label', 'plotchar', 'plotshape'},
+         'count-on-bars-01': {'label', 'plotchar', 'plotshape'}, 'intraday-04': {'table'},
          'k01': {'table'}, 'k02': {'plot'}, 'k03': {'plot', 'background'}, 'k04': {'plot', 'table'}, 'k05': {'plot'}, 'k06': {'plot'}}
 #: ids whose column rules are DIFFERENT columns that must all be there, not readings of one
+ASKED.update({'cap-01': {'plot'}, 'cap-02': {'plot'}, 'cap-03': {'plot'}, 'cap-04': {'line'}, 'cap-05': {'line', 'label'},
+              'cap-06': {'label'}, 'cap-07': {'plot'}, 'cap-08': {'box'}, 'cap-09': {'plot'}})
 NEED_ALL = {'i05'}
 
 
@@ -580,7 +718,7 @@ def has_rule(case_id):
 
 
 def drawn_rules_known(case_id):
-    return case_id in {'table-format-01', 'i01', 'i02', 'i03', 'i04', 'i05', 'i06', 'j06', 'k01', 'k04', 'l01', 'l02', 'l03', 'l04', 'l05', 'l06', 'count-on-bars-01'}
+    return case_id in {'table-format-01', 'weekly-plot-01', 'cap-04', 'cap-05', 'cap-06', 'cap-08', 'i01', 'i02', 'i03', 'i04', 'i05', 'i06', 'j06', 'k01', 'k04', 'l01', 'l02', 'l03', 'l04', 'l05', 'l06', 'count-on-bars-01', 'intraday-04'}
 
 
 def code_of(source):
@@ -621,7 +759,7 @@ def grade_script(case_id, source, run, chart):
     plots_any = bool(re.search(r'(?<![.\w])plot(shape|char)?\s*\(', code_of(source)))
     variants = RULES[case_id]() if case_id in RULES and plots_any else []
     groups = [v[2] if len(v) > 2 else None for v in variants]
-    right = [best(run['columns'], v[1], v[0], flag=(len(v) > 3 and v[3] == 'flag')) for v in variants]
+    right = [best(run['columns'], v[1], v[0], flag=(len(v) > 3 and v[3] == 'flag'), exact=(len(v) > 3 and v[3] == 'exact')) for v in variants]
     if any(g is not None for g in groups):                # grouped readings: every group needs one that is right
         if not all(any(r for r, g in zip(right, groups) if g == name) for name in set(groups)):
             right_all = False

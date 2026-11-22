@@ -127,7 +127,7 @@ def test_the_two_siblings_wait_for_their_live_answers_with_their_words_and_rule_
     rule and NO answer; the live re-check records the answers, and each then moves into `cases`."""
     waiting = {c["id"]: c for c in DATA["pending"]}
     assert not set(waiting) & {c["id"] for c in DATA["cases"]}                    # a case is pending or recorded, never both
-    pending = {cid: c for cid, c in waiting.items() if c["wall"].get("theirs")}   # (other units keep their own pending cases)
+    pending = {cid: c for cid, c in waiting.items() if (c.get("wall") or {}).get("theirs")}   # (other units keep their own, on any lane)
     assert set(pending) == {"wall-31", "wall-32"}
     for case in pending.values():
         assert case["lane"] == "wall" and "answer" not in case and "recorded" not in case
