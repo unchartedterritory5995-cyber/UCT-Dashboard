@@ -60,6 +60,9 @@ on:
       - 'api/services/ast_*.py'
       - 'services/pine_runtime/**'
       - 'tests/fixtures/vendor/**'
+      # e95 unit 2: the vendor harness pins a hand-added built-in's held source to the census population's sha256
+      # (`__tests__/vendorHarness/builtinSource.js`), so every harness reader reads this file
+      - 'docs/pine/census-full/population.json'
       - 'tools/vendor_harness/**'
       - 'tests/test_ast_*.py'
       - 'tests/test_pine_*.py'
