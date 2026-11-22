@@ -10526,10 +10526,13 @@ export class Resolver {
    *  refuses only when the knob picks it. Before this, the subject folded to its default here and the setting was
    *  no member setting at all ("not a setting of our document").
    *
+   *  ⭐ AN ARM THIS TRANSLATOR REFUSES (coordinator ruling (B), 2026-11-22) stands as the refusing leaf
+   *  `refusedArm(k)` (`refusedArmLeaf`): pruned away unless the knob picks it, and then THAT plot is refused by name.
+   *
    *  ⛔ NARROW, and null (today's fold to the default arm, unchanged) otherwise: the member door's knobs only
    *  (`enumInputs`, a declared name); every label a string the script fixes; a no-match covered (a default arm, or
-   *  every option labelled); and EVERY arm translates. An arm this translator refuses keeps the switch folded to its
-   *  default (what the script drew before), never a chart refused for a branch the member did not pick. A label
+   *  every option labelled); the arm the knob's DEFAULT picks translates (a knob is offered only on a chart that
+   *  draws); and a refused arm only where the translation keeps the list its leaves quote (`knobArmRefusals`). A label
    *  outside the options can never match (Pine's comparison would not) and is dropped, as is a repeated label
    *  (the first one wins). */
   enumSwitch(bound, tok, name) {
@@ -10557,7 +10560,7 @@ export class Resolver {
         return { node: this.resolveBinding(binding, tok, name) }
       } catch (err) {
         // ⛔ the step budget and the door's clock are the translation's, never an arm's: they propagate
-        if (!(err instanceof PineRefusal) || err.guard === 'pine:timeout' || !this.knobArmRefusals) throw err
+        if (!(err instanceof PineRefusal) || err.guard === 'pine:timeout') throw err
         return { refused: err }
       }
     }
@@ -10571,6 +10574,8 @@ export class Resolver {
     const defIdx = en.options.indexOf(en.def)
     const atDefault = built.find((a) => a.idx === defIdx) || end
     if (atDefault.refused) return null
+    // ⛔ a Resolver whose translation keeps no list for the leaves to quote folds as before
+    if (!this.knobArmRefusals && (end.refused || built.some((a) => a.refused))) return null
     const nodeOf = (a) => (a.refused ? this.refusedArmLeaf(en, a.label, a.refused) : a.node)
     let out = nodeOf(end)
     for (let k = built.length - 1; k >= 0; k -= 1) {

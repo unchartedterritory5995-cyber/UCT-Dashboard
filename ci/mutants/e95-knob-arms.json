@@ -15,8 +15,8 @@
    "id": "KA2",
    "mutant": "an arm the translator refuses aborts the knob instead of standing as a refusing leaf",
    "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "        if (!(err instanceof PineRefusal) || err.guard === 'pine:timeout' || !this.knobArmRefusals) throw err\n",
-   "to": "        if (err) throw err\n",
+   "from": "        if (!(err instanceof PineRefusal) || err.guard === 'pine:timeout') throw err\n        return { refused: err }",
+   "to": "        if (err) throw err\n        return { refused: err }",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/knobArms.test.js",
    "expectRed": "failed"
   },
