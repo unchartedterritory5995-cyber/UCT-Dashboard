@@ -257,6 +257,11 @@ const FITS_THE_BOTTOM = [
   // snugWrap); in the 640, 462 and 340px panels the panel's scroll width is its width, every column shows and none
   // scrolls in a 340px screen, so each needs at most 316 + 29. Nothing folds.
   ['VolumeFootprintPanel.jsx', 'VFP (its four tables)', 345],
+  // OSCR RICH / CHEAP and IPO LOCKUP, measured 2026-11-22 at 1536, 1180 and 340px (sample data): the IV rank table's least
+  // width with every column showing is 354px in a 640px panel (+ 29), the lockup table's 333px (+ 29); in 640, 462 and
+  // 340px panels the panel's scroll width is its width. On a phone the IV rank list's sessions and open interest fold
+  // (phoneHide); the lockup table's three columns of two- and three-line cells wrap between words and nothing folds.
+  ['IvRankPanel.jsx', 'OSCR RICH / OSCR CHEAP', 383], ['IpoLockupPanel.jsx', 'IPO LOCKUP', 362],
 ]
 /** Tables with no sample rows: never measured, so they must not fold on a desktop panel above the bottom of the ladder.
  *  (InsiderPanel.jsx left this list on 2026-11-21: see INS in MEASURED.) */

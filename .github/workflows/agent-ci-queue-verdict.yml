@@ -1,0 +1,137 @@
+# promotion-gate: no — it posts a merge-queue status on a merge group's temporary commit, never a deploy gate
+#   (tools/promotion_gate.py ignores it).
+#
+# agent ci queue verdict — the TRUSTED verdict of the Agent program's merge queue: the one place `agent-ci-required`
+# is posted on a merge group's commit. AUDIT F1 on #2501 / D1 on #2495 (2026-11-22).
+#
+# ⛔ INERT (2026-11-22). It runs only when a run of "agent ci queue" completes, and that workflow's only trigger is
+#   `merge_group`: no branch has a merge queue, so there is no such run. THIS FILE HAS NEVER RUN ON GITHUB.
+#   The App (northstar-agent-ci-verdict) and the environment `agent-ci-verdict` (master only) exist, and the
+#   mechanism was rehearsed in northstar-quarry/mq-rehearsal with a stand-in workflow (see #2501): a merge-group job
+#   that asks for the environment is refused, and a status any workflow token posts under the same context does not
+#   satisfy a check pinned to the App.
+#
+# WHY A SECOND WORKFLOW. In a merge queue the status IS the gate: there is no human step after it. Every workflow
+# token posts a status as the same source (GitHub Actions), and the workflows inside a merge group are the queued
+# pull request's own copies. So a queued pull request could add or edit any `merge_group` workflow with
+# `statuses: write`, or edit agent-ci-queue.yml, and post `success` on its own commit. The verdict therefore comes
+# from an identity the merge group's code cannot reach:
+#   1. TRIGGER. `workflow_run` always runs the DEFAULT BRANCH's copy of this file, on the default branch. Nothing a
+#      queued pull request contains can change what runs here.
+#   2. IDENTITY. The status is posted with a dedicated GitHub App's installation token. The App's private key is a
+#      secret of the environment `agent-ci-verdict`, whose deployment-branch policy allows `master` ONLY. A
+#      merge-group job runs on gh-readonly-queue/... and a pull-request job on refs/pull/..., so neither can use
+#      that environment. At cutover the ruleset pins the required check `agent-ci-required` to THAT App's id, not
+#      to GitHub Actions (15368): a status any workflow token posts no longer counts. Statuses under one context
+#      are last-writer-wins, so NOTHING but the App posts this context anywhere: agent-ci-required.yml posts it on
+#      a pull request's head with the same App, from the same environment.
+#   3. NOTHING THE MERGE GROUP'S RUN SAYS ABOUT ITSELF IS TRUSTED. From the event this job takes four values: the
+#      run's id, head_sha, head_branch and event. Master's tool (tools/agent_ci_required.py --stage follow) then:
+#        - refuses, posting NOTHING, a run that is not agent-ci-queue.yml's own merge-group run for that commit
+#          (the event, the workflow file's path read from the API, the commit and the branch must all agree). Any
+#          workflow can NAME itself "agent ci queue"; only that file's run is judged;
+#        - for EVERY entry, an entry that touches no Agent path included, reads the WHOLE .github/workflows tree
+#          of the commit from git objects (never checked out, never executed) and posts failure, naming the file
+#          and the job, when a file other than this one and agent-ci-required.yml has an `environment` key at all
+#          (the key, never its value: an expression can compute a name), when a job calls a reusable workflow from
+#          outside this repository, when such a file names AGENT_CI_VERDICT_* or the context outside a comment, or
+#          when a workflow file does not parse (tools/agent_ci_required.py workflow_problems; AUDIT review 2,
+#          finding 1). This is what stops a pull request from LANDING a workflow that could use the environment;
+#          it also fails an entry queued behind one;
+#        - fetches the commit and RECOMPUTES the scope with master's code (a two-parent merge; the diff against
+#          its first parent; master's Agent path list and protected list). The run's own `scope` job is not read;
+#        - for an entry that needs Agent evidence, requires every self-protected path to be byte-identical between
+#          the commit and the master commit the group is built on. A difference means this entry, or one AHEAD of
+#          it in the group, edited the Agent CI machinery, which the entry's own diff cannot show: failure;
+#        - for an entry that needs Agent evidence, refuses the weekday deploy freeze windows, 09:20-09:45 and
+#          15:30-16:15 America/New_York (AUDIT D2.1). It knows no market holiday: on one that falls on a weekday
+#          an Agent entry is refused in the window for nothing, which is the safe side. The clock is read when the
+#          verdict is decided, seconds before the entry lands;
+#        - re-reads that run's jobs through the API and requires every required Agent job (names from master's
+#          agent-ci.yml, matrix legs expanded) under the queue workflow's call, each success.
+#      An entry that touches no Agent path needs none of that: success, as on a pull request today.
+#
+# FAIL CLOSED. Anything unreadable is a POSTED failure, and so is any exception while deciding; every API call is
+# tried three times (transport errors, 5xx and 429 only). A judged commit is left without a status only when the
+# App's token cannot be minted or the status POST still fails: the job is red and the queue removes the entry at
+# its own check timeout.
+#
+# TOKENS. GITHUB_TOKEN here can only READ (contents, actions): it fetches the commit and lists the run's jobs. The
+# App's token is asked for `statuses: write` and nothing else, is scoped to this repository, and is the ONLY token
+# that POSTs. The four event values reach bash only as environment variables, and the tool validates each one.
+#
+# ⚠️ LIMITS, stated on purpose:
+#   * Whatever is ON MASTER can use the environment, so nothing that could use it may LAND: the workflow-tree scan
+#     above, decided by master's tool for every entry and every pull-request head. This file, agent-ci-queue.yml,
+#     agent-ci.yml, agent-ci-required.yml and their three rail files are Agent paths AND self-protected, so an edit
+#     to one lands only through AUDIT. What the scan cannot see: a workflow landed OUTSIDE the queue (an admin
+#     merge), and an environment whose own settings admit another branch or let an admin bypass its policy.
+#   * Sound only with merge method MERGE and grouping ALLGREEN (see agent-ci-queue.yml).
+#   * Each run of this job is recorded by GitHub as a deployment to the environment `agent-ci-verdict`.
+#
+# CI COST. One short job per queued pull request: a sparse default-branch checkout, PyYAML, one bounded fetch
+# (50 commits of master and of the merge group, no file contents), two or three API reads and one POST.
+# Logic + tests: tools/agent_ci_required.py (follow, follow_verdict, master_base, machinery_edits, freeze_window)
+# and tests/test_agent_ci_required.py; the rails on this file are in tests/test_ci_agent_merge_ref.py.
+name: agent ci queue verdict
+
+on:
+  workflow_run:
+    workflows: ["agent ci queue"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+# One verdict per merge group commit, and a verdict in flight is never cancelled.
+concurrency:
+  group: agent-ci-queue-verdict-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  verdict:
+    name: agent-ci-required (trusted verdict)
+    # a run of anything but a merge group never reaches the environment (the tool checks the same again)
+    if: github.event.workflow_run.event == 'merge_group'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: agent-ci-verdict
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # MASTER's copies. app/ is here because the protected list is derived from the vite / vitest configs and
+      # every file they import; nothing of the merge group is ever checked out (its commits are fetched as objects).
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: |
+            /tools/__init__.py
+            /tools/agent_ci_required.py
+            /tools/agent_ci_evidence.py
+            /.github/workflows/agent-ci.yml
+            /app/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Mint the App's token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.AGENT_CI_VERDICT_APP_ID }}
+          private-key: ${{ secrets.AGENT_CI_VERDICT_APP_PRIVATE_KEY }}
+          permission-statuses: write
+      - name: Recompute the verdict and post agent-ci-required on the merge group's commit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGENT_CI_VERDICT_TOKEN: ${{ steps.app-token.outputs.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml==6.0.2   # pinned: this job holds the App's token
+          python tools/agent_ci_required.py --event merge_group --stage follow --sha="$RUN_HEAD_SHA" --run-id="$RUN_ID" --head-ref="$RUN_HEAD_BRANCH" --run-event="$RUN_EVENT"

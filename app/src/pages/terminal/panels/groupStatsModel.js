@@ -20,6 +20,9 @@
 //            its stocks, each point {position (null: fewer than five stocks with a change), of, n, median, date,
 //            change (places climbed to now)} now, 4, 13 and 52 weeks back, its best and worst week, and the weekly line
 // Names are the ones GRP lists (the same sector and industry map), so GRP asks by the name it shows.
+// GRPS CROWDING (2026-11-22): the view reads the same route with `part=positioning` (a lean answer: each group's
+//            short interest, insider buying and fund holdings only); groupPositioningModel.js reads it and owns its
+//            columns, cells and words.
 //
 // ⛔ A MISSING NUMBER IS NEVER 0: a group with too few members says how many it has; a share with no answer
 //    is words; a fundamental switched off is said, never drawn as blank figures.
@@ -29,6 +32,9 @@ import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presenta
 import { sortRows } from '../../../lib/presentation/dataGrid/gridSort'
 import { valueText, dateText } from './fundMetricsModel'
 import { pathThrough } from './ratesModel'
+import {
+  POSITIONING_COLUMNS, POSITIONING_PART, positioningCell, positioningHead, readPositioning, readPositioningSources,
+} from './groupPositioningModel'
 
 export const GROUPS_TABLE_CODE = 'GRPS'
 export const GROUP_STATS_URL = '/api/research/group-stats'
@@ -52,7 +58,7 @@ export const GROUPS_KIND_ARG_WORDS = Object.freeze({
 })
 export const GROUPS_VIEW_ARG_WORDS = Object.freeze({
   OVERVIEW: 'overview', GROWTH: 'growth', MARGINS: 'margins', MARGIN: 'margins', VALUATION: 'valuation',
-  BREADTH: 'breadth', RANK: 'rank', ALL: 'all',
+  BREADTH: 'breadth', RANK: 'rank', ALL: 'all', CROWDING: 'crowding',
 })
 export const DEFAULT_GROUPS_VIEW = 'overview'
 
@@ -63,10 +69,10 @@ const int = (v) => (Number.isInteger(v) && v >= 0 ? v : null)
 const str = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null)
 const count = (n) => formatNumber(n, { decimals: 0 })
 
-export const groupStatsUrl = (kind = DEFAULT_GROUPS_KIND, name = null) => {
+export const groupStatsUrl = (kind = DEFAULT_GROUPS_KIND, name = null, part = null) => {
   const k = own(GROUP_STATS_KINDS, kind) ? kind : DEFAULT_GROUPS_KIND
   const n = str(name)
-  return `${GROUP_STATS_URL}?kind=${k}${n ? `&name=${encodeURIComponent(n)}` : ''}`
+  return `${GROUP_STATS_URL}?kind=${k}${n ? `&name=${encodeURIComponent(n)}` : ''}${part === POSITIONING_PART ? `&part=${POSITIONING_PART}` : ''}`
 }
 
 export const parseGroupsKind = (tok) => { const k = String(tok ?? '').trim().toUpperCase(); return own(GROUPS_KIND_ARG_WORDS, k) ? GROUPS_KIND_ARG_WORDS[k] : null }
@@ -154,11 +160,18 @@ export const GROUPS_VIEWS = Object.freeze({
   valuation: Object.freeze({ label: 'Valuation', columns: [fundCol('pe_ttm'), fundCol('pe_ttm', 'year_ago'), fundCol('ps_ttm'), fundCol('fcf_yield')] }),
   breadth: Object.freeze({ label: 'Breadth', columns: [shareCol('above20'), shareCol('above50'), shareCol('above50', 'week'), shareCol('above50', 'month'), shareCol('above200'), shareCol('near_high'), NET_HIGHS, ADV_DEC] }),
   rank: Object.freeze({ label: 'Weekly rank', columns: RANK_COLUMNS }),
+  // GRPS CROWDING (2026-11-22): positioning (short interest, insider buying, fund holdings), its own lean read (`part`),
+  // so the other views' answers stay as they were. The word is CROWDING: "positioning" is in POS's and COT's titles.
+  crowding: Object.freeze({ label: 'Crowding (shorts, insiders, funds)', columns: POSITIONING_COLUMNS, part: POSITIONING_PART }),
   all: Object.freeze({ label: 'Every column', columns: [...FUND_IDS.map((id) => fundCol(id)), ...Object.keys(BREADTH_SHARES).map((id) => shareCol(id)), NET_HIGHS, ADV_DEC] }),
 })
 
+/** The route's `part` a view reads (null: the default answer). */
+export const viewPart = (view) => GROUPS_VIEWS[normGroupsView(view)].part || null
+
 /** A column's header, its title (hover) and the direction its first click sorts. */
 export function columnHead(col, metaById) {
+  if (col.kind === 'pos') return positioningHead(col)
   if (col.kind === 'fund') {
     const meta = metaById?.get(col.id)
     const name = meta?.name || FUND_SHORT[col.id]
@@ -220,6 +233,9 @@ function readCommon(body) {
     rankState: ['ok', 'unavailable', 'pending'].includes(rank.state) ? rank.state : 'pending',
     rankDates: Array.isArray(rank.dates) ? rank.dates.map(str) : [],
     rankSessions: sessions,
+    // GRPS CROWDING: which part this answer is, and each positioning part's state, as-of and coverage
+    part: body.part === POSITIONING_PART ? POSITIONING_PART : null,
+    positioning: readPositioningSources(sources.positioning),
   }
 }
 
@@ -250,7 +266,7 @@ export function readGroupsTable(body) {
       fund[id] = { n: int(m.n) ?? 0, value: num(m.value), yearAgo: { n: int(m.year_ago?.n) ?? 0, value: num(m.year_ago?.value) } }
     }
     rows.push({ name: str(g.name), members: int(g.members) ?? 0, fundMembers: int(g.fund_members), fund: isObj(g.fund) ? fund : null,
-      breadth: isObj(g.breadth) ? g.breadth : null, rank: readRank(g.rank), order: rows.length })
+      breadth: isObj(g.breadth) ? g.breadth : null, rank: readRank(g.rank), positioning: readPositioning(g.positioning), order: rows.length })
   }
   return { state: rows.length ? 'ok' : 'empty', rows, ...common }
 }
@@ -265,8 +281,9 @@ export function viewColumns(view, fundState) {
  * One cell: `{ value (what it sorts by, null when blank), text, sub, words }`. A group with too few members
  * with a value gives the count and no figure.
  */
-export function tableCell(row, col, { metaById = new Map(), minMembers = MIN_MEMBERS, dates = [], scaleMax = null } = {}) {
+export function tableCell(row, col, { metaById = new Map(), minMembers = MIN_MEMBERS, dates = [], scaleMax = null, positioning = null } = {}) {
   const blank = (words) => ({ value: null, text: null, sub: null, words })
+  if (col.kind === 'pos') return positioningCell(row, col, { minMembers, sources: positioning })
   if (RANK_KINDS.has(col.kind)) return rankCell(row, col, { minMembers, dates, scaleMax })
   if (col.kind === 'fund') {
     const meta = metaById.get(col.id) || { agg: col.id === 'revenue_accelerating' ? 'share' : 'median', fmt: 'pct1' }

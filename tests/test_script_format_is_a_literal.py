@@ -26,12 +26,15 @@ from pathlib import Path
 import pytest
 
 from api.services import pine_authoring as pa
+from tools.value_cases import grade as G
 from tools.value_cases import script_rules
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json").read_text(encoding="utf-8"))["cases"]
 CASE = next(c for c in CASES if c["id"] == "table-format-01")
-RECORDED = CASE["answer"]["script"]["pine"]
+#: the script the finding rests on: the case's record while it is recorded WRONG, its `found` specimen after
+FOUND = G.specimen(CASE)
+RECORDED = FOUND["answer"]["script"]["pine"]
 
 HEAD = '//@version=5\nindicator("t", overlay=true)\n'
 TABLE = "var table t = table.new(position.top_right, 2, 2)\n"
@@ -162,9 +165,11 @@ def test_THE_PERCENT_SENTENCE_STAYS_EXACTLY_AS_LONG_AS_THE_ENGINE_WITHHOLDS_FORM
 
 def test_the_recorded_answer_is_no_longer_a_case_recorded_WRONG():
     """On 2026-11-22 that answer drew NO VALUES (its table showed two labels and no numbers: the engine withheld a text
-    whose format was not a string literal), and the case was recorded WRONG. Since e95 unit 1 the engine folds a
-    format that is fixed, the same recorded answer grades RIGHT on the script lane
-    (`tests/test_value_cases_scripts.py`), and the case left the WRONG list (`tests/test_value_cases.py`)."""
+    whose format was not a string literal), and the case was recorded WRONG. Its wrong answer stays as the case's
+    specimen (`found`, the live run's record: a fixed defect stays as a specimen), and since e95 unit 1 the engine folds
+    a format that is fixed, so that specimen's own script draws its values (the forms above); the case is not on the
+    WRONG list (`tests/test_value_cases.py`)."""
     assert CASE["lane"] == "script" and "recorded_verdict" not in CASE and "defect" not in CASE
+    assert "NO VALUES" in FOUND["defect"]
     assert "str.tostring(pdh, fmt)" in RECORDED and "request.security" not in RECORDED
     assert script_rules.has_rule("table-format-01")

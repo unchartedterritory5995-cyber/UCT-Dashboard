@@ -45,6 +45,14 @@ THE WEEKLY RANK, MEASURED (2026-11-22, the build before and after on the same in
 sectors and 145 industries, filings off, best of three, dev PC): +1.4 s of CPU per build (1.0 s for the changes, the
 medians and the ranks; 0.4 s for the longer tail), +5.9 MB at the build's peak, +1.5 MB held with the answer, and
 +341 KB in the answer's JSON (disk and the industries table).
+
+POSITIONING (2026-11-22, the GRPS CROWDING view): after the closes are let go, the same build reads three stores
+this server already holds, each ONCE (the short interest list SHRTS ranks, the INS CLUSTER store's open-market
+purchases, and the Funds (N-PORT) index), and rolls each stock's figure up by the same groups
+(`api/services/group_positioning.py` says where every number comes from, what is left out and why). Held with the
+answer; a part whose store cannot be read says so, and a failure there never costs the rest of the build. An answer
+held from before it is rebuilt on the next quiet tick, as the weekly rank was. The table and one group's members are
+read with `part=positioning` (`get_group_positioning`), so the other views' answers stay exactly as they were.
 """
 from __future__ import annotations
 
@@ -60,6 +68,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
+from api.services import group_positioning as GP
 from api.services import group_stats_calc as C
 
 _log = logging.getLogger(__name__)
@@ -233,9 +242,11 @@ def _metric_meta() -> list[dict]:
 def build(now: Optional[datetime] = None, *, read_closes: Optional[Callable[[str], dict]] = None,
           read_artifact: Optional[Callable[[str], Optional[dict]]] = None, symbols: Optional[list] = None,
           groups: Optional[dict] = None, pause: Callable[[float], None] = time.sleep,
-          yield_s: Optional[float] = None, fund_on: Optional[bool] = None) -> dict:
+          yield_s: Optional[float] = None, fund_on: Optional[bool] = None,
+          positioning: Optional[Callable[[dict], dict]] = None) -> dict:
     """The whole build on the calling (background) thread; returns the answer. Reads every stock ONCE (its
-    closes, then its filings), then works out every group's figures."""
+    closes, then its filings), then works out every group's figures, then each group's positioning from the three
+    held stores (`positioning(sym_groups)`, `group_positioning.build` unless a test gives one)."""
     started, cpu0 = time.time(), time.process_time()
     now = now or now_et()
     key = evening_key(now)
@@ -366,6 +377,15 @@ def build(now: Optional[datetime] = None, *, read_closes: Optional[Callable[[str
     t_rank += time.process_time() - t3
     t_breadth = time.process_time() - t2 - t_rank
 
+    # positioning runs after the closes are let go, so the build's peak is the larger of the two passes, not their sum
+    t4 = time.process_time()
+    try:
+        pos = (positioning or GP.build)(sym_groups)
+    except Exception as exc:  # noqa: BLE001 -- said as every part's state; the rest of the build stands
+        _log.warning("[group-stats] positioning could not be worked out (%s)", type(exc).__name__)
+        pos = GP.failed()
+    t_pos = time.process_time() - t4
+
     iso = lambda o: date.fromordinal(o).isoformat()
     rank_dates = [iso(p) if p is not None else None for p in points]
     ranked = {k: Counter() for k in KINDS}
@@ -418,9 +438,11 @@ def build(now: Optional[datetime] = None, *, read_closes: Optional[Callable[[str
                      "not_mapped": counts["not_mapped"]},
         "lagging": lag,
         "kinds": kinds_out,
+        "positioning": pos,
         "build": {"seconds": round(time.time() - started, 1), "cpu_seconds": round(time.process_time() - cpu0, 1),
                   "prices_cpu_s": round(t_prices, 1), "filings_cpu_s": round(t_filings, 1),
-                  "groups_cpu_s": round(t_breadth, 1), "rank_cpu_s": round(t_rank, 2), "counts": dict(counts)},
+                  "groups_cpu_s": round(t_breadth, 1), "rank_cpu_s": round(t_rank, 2),
+                  "positioning_cpu_s": round(t_pos, 2), "counts": dict(counts)},
         "metrics": _metric_meta(),
     }
     return answer
@@ -458,6 +480,13 @@ def _rank_blocks(blocks: dict) -> None:
 
 # ── the one background build ─────────────────────────────────────────────────────────────────
 
+def _positioning_said(pos: Optional[dict]) -> str:
+    """Each positioning part's state and how many stocks it covered, for the build's one log line."""
+    parts = (pos or {}).get("parts") or {}
+    return " ".join(f"{p}={(parts.get(p) or {}).get('state')}/{(parts.get(p) or {}).get('covered', '-')}"
+                    for p in ("short", "insider", "funds"))
+
+
 def _run_build(done: threading.Event) -> None:
     started = time.time()
     said, level = "failed", logging.WARNING
@@ -479,7 +508,8 @@ def _run_build(done: threading.Event) -> None:
         said = (f"session={answer['session']} for={answer['built_for']} lagging={answer['lagging'] or 'no'} "
                 f"cpu={b['cpu_seconds']}s prices={b['prices_cpu_s']}s filings={b['filings_cpu_s']}s "
                 f"groups={b['groups_cpu_s']}s rank={b.get('rank_cpu_s')}s counts={b['counts']} "
-                f"ranked={(answer.get('rank') or {}).get('counted')}")
+                f"ranked={(answer.get('rank') or {}).get('counted')} positioning={b.get('positioning_cpu_s')}s "
+                f"{_positioning_said(answer.get('positioning'))}")
         level = logging.INFO
     except Exception as exc:  # noqa: BLE001 -- a failed build is said and tried again later, never "computing" for ever
         said = f"failed ({type(exc).__name__})"
@@ -515,6 +545,8 @@ def refresh_due(now: Optional[datetime] = None, at: Optional[float] = None) -> b
         if _state["answer"] is None:
             return True
         if "rank" not in _state["answer"]:       # held from before the weekly rank: the next quiet tick builds it
+            return True
+        if "positioning" not in _state["answer"]:   # held from before positioning: likewise
             return True
         built_for, lag = _state["built_for"], _state["lag"]
     key = evening_key(now)
@@ -747,6 +779,45 @@ def get_group_stats(kind: str = "sector", name: Optional[str] = None) -> dict:
                 "fund": hit.get("fund") if on else None, "breadth": hit.get("breadth"),
                 "rank": _full_rank(hit.get("rank"), ans, kind),
                 "line_dates": ans.get("line_dates") or []})
+    return out
+
+
+def get_group_positioning(kind: str = "sector", name: Optional[str] = None) -> dict:
+    """GRPS CROWDING: every group of a kind with its positioning (the table), or one group's positioning with its
+    members and their own figures (`name`). NEVER builds and never reads a store: it reads what this module holds.
+    The other parts of the answer (fundamentals, breadth, rank) are left out, so this answer stays small."""
+    if kind not in KINDS:
+        return {"status": "error", "detail": "kind must be sector or industry"}
+    _ensure_loaded()
+    with _lock:
+        ans = _state["answer"]
+        running = _state["inflight"] is not None
+    if ans is None or ans.get("status") != "ok":
+        if running:
+            return {"status": "computing", "kind": kind, "part": "positioning"}
+        return {"status": "not_built", "kind": kind, "part": "positioning",
+                "detail": ("The group figures are worked out once each evening after the close (from 8:15 PM New "
+                           "York time), and the first one has not run on this server yet.")}
+    pos = ans.get("positioning")
+    names = (ans.get("kinds") or {}).get(kind) or {}
+    blocks = ((pos or {}).get("kinds") or {}).get(kind) or {}
+    out = _common(ans, kind, fundamentals_on(), running)
+    out["part"] = "positioning"
+    out["sources"]["positioning"] = GP.parts_view(pos)
+    if name is None:
+        out["groups"] = [{"name": b["name"], "members": b["members"], "positioning": GP.brief(blocks.get(b["name"]))}
+                         for b in names.values()]
+        out["count"] = len(out["groups"])
+        return out
+    asked = " ".join(str(name).split())[:MAX_NAME]
+    hit = _find(names, asked)
+    out.update({"name": asked, "peers": len(names)})
+    if hit is None:
+        out["found"] = False
+        return out
+    block = blocks.get(hit["name"])
+    out.update({"found": True, "name": hit["name"], "members": hit["members"], "positioning": GP.brief(block),
+                **GP.member_rows(pos, block)})
     return out
 
 

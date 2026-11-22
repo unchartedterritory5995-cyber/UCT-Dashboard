@@ -25,7 +25,8 @@ describe('GRPS in the registry', () => {
     expect(FUNCTIONS.filter((f) => f.code === 'GRPS')).toHaveLength(1)
     expect(FUNCTION_GROUPS).toContain(BY_CODE.GRPS.group)
     expect(BY_CODE.GRPS.group).toBe('Market')
-    expect(BY_CODE.GRPS.label).toBe('Every sector or industry: weekly rank, median growth, margins, valuation and breadth')
+    // GRPS CROWDING (2026-11-22) moved the label on purpose: it names the new column set
+    expect(BY_CODE.GRPS.label).toBe('Every sector or industry: weekly rank, median growth, margins, valuation, breadth and crowding')
     expect(BY_CODE.GRPS.market).toEqual({ panel: 'GroupTable', args: [{ kind: 'groupsKind', prop: 'kind' }, { kind: 'groupsView', prop: 'view' }] })
     expect(BY_CODE.GRPS.ticker).toBeUndefined()
     expect(BY_CODE.GRPS.market.flag).toBeUndefined()              // its route answers every paid member; states are in words
@@ -74,10 +75,13 @@ describe('the arguments match the panel that owns the words', () => {
     expect(run(['NVDA']).ignored).toEqual(['NVDA'])
     expect(run(['GROWTH', 'MARGINS']).ignored).toEqual(['MARGINS'])
     expect(applyArgs(BY_CODE.GRPS.market, []).takes).toEqual(['SECTORS or INDUSTRIES',
-      'a column set (OVERVIEW, GROWTH, MARGINS, VALUATION, BREADTH, RANK, ALL)'])
+      'a column set (OVERVIEW, GROWTH, MARGINS, VALUATION, BREADTH, RANK, CROWDING, ALL)'])
     // GRPS RANK (2026-11-22): the weekly rank's word, in either order with the kind
     expect(run(['RANK', 'INDUSTRIES']).props).toEqual({ view: 'rank', kind: 'industry' })
     expect(run(['INDUSTRIES', 'RANK']).applied).toEqual(['every industry', 'the weekly rank columns'])
+    // GRPS CROWDING (2026-11-22): positioning's word, in either order with the kind
+    expect(run(['CROWDING', 'INDUSTRIES']).props).toEqual({ view: 'crowding', kind: 'industry' })
+    expect(run(['SECTORS', 'CROWDING']).applied).toEqual(['every sector', 'the crowding columns (short interest, insider buying, fund holdings)'])
   })
 
   it('what the panel writes back is read as the same choice; the default is the bare command', () => {
@@ -121,11 +125,30 @@ describe('GRPS parses', () => {
   })
 })
 
+describe('CROWDING (2026-11-22), GRPS\'s positioning word', () => {
+  it('is GRPS\'s word after the code, is no code and no stock, no other dictionary takes it, and it is in no panel title', () => {
+    expect(parseCommand('GRPS CROWDING')).toMatchObject({ ok: true, code: 'GRPS', sym: null, args: ['CROWDING'] })
+    expect(parseCommand('grps industries crowding')).toMatchObject({ ok: true, code: 'GRPS', sym: null, args: ['INDUSTRIES', 'CROWDING'] })
+    expect(isCode('CROWDING')).toBe(false)
+    const universe = new Set(JSON.parse(fs.readFileSync(path.join(process.cwd(), '..', 'api', 'data', 'cap_universe.json'), 'utf8')))
+    expect(universe.has('CROWDING')).toBe(false)
+    const ctx = { today: '2026-11-22' }
+    const dictionaries = Object.entries(ARG_KINDS).filter(([kind, spec]) => kind !== 'groupsView' && spec.parse('QZXW', ctx) == null)
+    expect(dictionaries.length).toBeGreaterThan(40)
+    for (const [kind, spec] of dictionaries) expect([kind, spec.parse('CROWDING', ctx)]).toEqual([kind, null])
+    // "positioning" is in POS's and COT's titles, so it is not the word; CROWDING is in no other function's title
+    expect(BY_CODE.POS.label.toLowerCase()).toContain('positioning')
+    expect(Object.keys(GROUPS_VIEW_WORDS)).not.toContain('POSITIONING')
+    for (const f of FUNCTIONS) if (f.code !== 'GRPS') expect([f.code, /crowding/i.test(f.label || '')]).toEqual([f.code, false])
+  })
+})
+
 describe('a plain word finds the panel', () => {
   it('its words find it first', () => {
     const words = ['sector fundamentals', 'industry fundamentals', 'sector breadth', 'industry breadth', 'sector valuation', 'sector margins',
       'group fundamentals', 'sector table', 'industry table', 'industry rank', 'group rank', 'industry group rank', 'industry ranking',
-      'group rank history', 'leading industries']
+      'group rank history', 'leading industries', 'sector short interest', 'industry short interest', 'sector crowding',
+      'industry crowding']
     expect(BY_CODE.GRPS.keywords).toEqual(words)
     for (const w of words) expect([w, codesForWords(w)[0]]).toEqual([w, 'GRPS'])
   })
@@ -141,5 +164,13 @@ describe('a plain word finds the panel', () => {
     // GRPS RANK (2026-11-22): 'rank' stays with RSL and 'sector rank' with SCTR
     expect(codesForWords('rank')[0]).toBe('RSL')
     expect(codesForWords('sector rank')[0]).toBe('SCTR')
+    // GRPS CROWDING (2026-11-22): the stock-level positioning words stay with their panels
+    expect(codesForWords('positioning')[0]).toBe('POS')
+    expect(codesForWords('short interest')[0]).toBe('OWN')                        // as before GRPS CROWDING
+    expect(codesForWords('most shorted')[0]).toBe('SHRTS')
+    expect(codesForWords('insider buying')[0]).toBe('INS')
+    for (const w of ['short interest', 'insider', 'insider buying', 'buying', 'positioning', 'short', 'interest']) {
+      expect([w, codesForWords(w).includes('GRPS')]).toEqual([w, false])
+    }
   })
 })
