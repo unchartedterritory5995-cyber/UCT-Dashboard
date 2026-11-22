@@ -44,7 +44,7 @@ def etf(monkeypatch):
     another number, `drop[iso]` removes slots, `wick[iso][hhmm]` overrides fields; every read is recorded."""
     rec = {"reads": [], "scale": {}, "drop": {}, "wick": {}, "empty": set()}
 
-    def fake(proxy, d):
+    def fake(proxy, d, lane="5"):
         rec["reads"].append((proxy, d.isoformat()))
         if d.isoformat() in rec["empty"]:
             return {}
