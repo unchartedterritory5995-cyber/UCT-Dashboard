@@ -5,8 +5,8 @@
   and a background refresh is kicked).
 * Paid; DARK by stage (`PINE_BREADTH_SUPPLY_ENABLED`): unset or `admins` answers admins only, `all` paid members,
   `off` nobody. Any other caller gets 404.
-* A member is refused by the Pine data catalog's own licence sentence while `uct_breadth` is not servable (ESC-03);
-  an admin reads the values to grade them against the capture.
+* A member is refused by the Pine data catalog's own licence sentence whenever `uct_breadth` is not servable (it is
+  servable since ESC-03 was answered by the owner, 2026-11-22); an admin reads the values to grade them.
 * The paid gate is defined here, never imported from another router (the note in `api/routers/cot.py`).
 """
 from __future__ import annotations
