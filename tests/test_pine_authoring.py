@@ -674,8 +674,13 @@ def test_rule_eleven_a_script_draws_only_what_was_asked_and_offers_the_rest():
     for extra in ("a label on every event", "a summary table", "a background colour", "extra shapes", "`alertcondition`"):
         assert extra in rule, extra
     assert "OFFER it in `reply`" in rule and "leave it out of the script" in rule
-    # it is a rule of the contract (ahead of the reference sections), and the last one
-    assert doc.index("11. Draw ONLY") < doc.index("## ") and not any(line.startswith("12. ") for line in doc.split(chr(10)))
+    # it is a rule of the contract (ahead of the reference sections); the rules are numbered from 1 with no gap and no
+    # repeat, and none sits among the reference sections (this said "and the last one" until rule 12 was written)
+    assert doc.index("11. Draw ONLY") < doc.index("## ")
+    head, rest = doc[:doc.index("## ")], doc[doc.index("## "):]
+    numbers = [int(line.split(". ")[0]) for line in head.split(chr(10)) if line[:1].isdigit() and ". " in line[:4]]
+    assert numbers == list(range(1, len(numbers) + 1)) and len(numbers) >= 11
+    assert not any(line.startswith(f"{len(numbers) + 1}. ") for line in rest.split(chr(10)))
 
 
 def test_rule_eleven_the_plot_a_drawing_only_request_keeps_is_invisible():
