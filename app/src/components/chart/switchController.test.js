@@ -489,6 +489,39 @@ describe('review finding 2: the new symbol\'s metadata the app already holds is 
   })
 })
 
+// (browser A/B of 3cf50f94d5) the numbers that say whether the key's task got shorter
+describe('the key\'s task, as the controller sees it', () => {
+  it('`heldViews` counts the body\'s commits while a switch is pending with the body still on the old symbol', () => {
+    const { c } = painted()
+    c.noteView(makeView('AAA'))            // nothing pending: not counted
+    c.apply('BBB')
+    c.noteView(makeView('AAA'))            // the held body committed (the old symbol): counted
+    c.noteView(makeView('BBB'))            // the body's own render of the painted symbol: not counted
+    expect(c.diag.heldViews).toBe(1)
+  })
+  it('`keyTask`: from this chart\'s question to the end of its paint, and to the end of the task (after its microtasks: React\'s sync render)', async () => {
+    let t = 0
+    const c = createSwitchController({ applyFrame: fakeApply, buildFrame: fakeBuild, now: () => t })
+    c.noteView(makeView('AAA'))
+    c.reactPass(makeCtx(), reactFrame('AAA'))
+    t = 10
+    const token = c.canApply('BBB')
+    t = 14
+    expect(c.apply('BBB', token)).toBe('applied')
+    t = 23                                 // the rest of the key's task (the label's render) before its microtasks end
+    for (let i = 0; i < 6; i++) await Promise.resolve()
+    expect(c.diag.keyTask).toMatchObject({ n: 1, paint: [4], task: [13], paintMedian: 4, taskMedian: 13 })
+  })
+  it('`keyTask` times only a switch the decision asked first (a paint without its token is not one)', async () => {
+    const c = createSwitchController({ applyFrame: fakeApply, buildFrame: fakeBuild, now: () => 0 })
+    c.noteView(makeView('AAA'))
+    c.reactPass(makeCtx(), reactFrame('AAA'))
+    c.apply('BBB')
+    for (let i = 0; i < 6; i++) await Promise.resolve()
+    expect(c.diag.keyTask.n).toBe(0)
+  })
+})
+
 describe('switchControllerFor', () => {
   it('one controller per owner, for its life', () => {
     const a = {}

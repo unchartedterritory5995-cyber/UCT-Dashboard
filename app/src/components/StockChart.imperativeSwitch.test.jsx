@@ -284,6 +284,7 @@ describe('daily: the controller paints BBB over AAA', () => {
   let own   // (review) BBB with layers and a name of its own, and a hover in between
   let weekly
   let alerts // (review 2) the member's alert lines on
+  let periodSel
 
   beforeAll(async () => {
     // ── the imperative switch, then the React commit ──
@@ -331,7 +332,7 @@ describe('daily: the controller paints BBB over AAA', () => {
       // metadata answer landing for it (the feed publishes: its listener would redraw AAA's markers)
       t.view.rerender(t.el('AAA', { ...OF_AAA, watermarkOpacity: 0.5, nextEarningsHint: '2026-12-01' }))
       await wait(300)
-      stale = { log: S.log.slice(), stale: ctl ? ctl.diag.stale : -1, pending: ctl ? ctl.pendingSym() : null }
+      stale = { log: S.log.slice(), stale: ctl ? ctl.diag.stale : -1, pending: ctl ? ctl.pendingSym() : null, held: ctl ? ctl.diag.heldViews : -1 }
       t.done()
     }
     // ── (review) BBB has lines and markers of its own, a name the app holds, and the member hovers in between ──
@@ -403,6 +404,14 @@ describe('daily: the controller paints BBB over AAA', () => {
       const t = await mounted(true, 'W')
       const ctl = t.port.current
       weekly = { token: ctl ? ctl.canApply('BBB') : 'no controller', last: ctl ? ctl.diag.last : null }
+      t.done()
+    }
+    // ── a chart in the period-sort mode: its host's callback is new on every host render and closes over the HOST's
+    // symbol, so a held body would render in the key's task and report the new symbol for the old one's candles ──
+    {
+      const t = await mounted(true, 'D', {}, { periodSelect: true })
+      const ctl = t.port.current
+      periodSel = { token: ctl ? ctl.canApply('BBB') : 'no controller', last: ctl ? ctl.diag.last : null }
       t.done()
     }
   }, 180_000)
@@ -514,6 +523,21 @@ describe('daily: the controller paints BBB over AAA', () => {
 
   it('(review 4) nothing the pass installed kept its throwaway box: no read of it after the pass', () => {
     expect(own.lateBoxReads).toBe(0)
+  })
+
+  it('(A/B) the paint\'s switch: the held body never committed (`heldViews` 0) and the key\'s task was timed', () => {
+    expect(on.diag.heldViews).toBe(0)
+    expect(on.diag.keyTask.n).toBe(1)
+    expect(on.diag.keyTask.task[0]).toBeGreaterThanOrEqual(on.diag.keyTask.paint[0])
+  })
+
+  it('(A/B) a render of the old symbol while BBB is painted is counted (`heldViews`: the counter can see one)', () => {
+    expect(stale.held).toBeGreaterThanOrEqual(1)
+  })
+
+  it('a chart in the period-sort mode is refused by name', () => {
+    expect(periodSel.token).toBe(null)
+    expect(periodSel.last).toMatchObject({ ok: false, why: 'period-select' })
   })
 
   it('(review 4) a weekly chart is refused by name', () => {
