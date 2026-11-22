@@ -47,7 +47,10 @@ DOOR_PATHS = (
 def answer_of(body):
     """The door's answer in the case's own shape, from a recorded response body."""
     env = body.get("envelope") or {}
-    out = {"disposition": body.get("disposition"), "reply": body.get("reply") or env.get("reply") or ""}
+    # what the MEMBER was told: the reply, or, when the door declined by a gate (`ok` false: the script door's "I can't"
+    # carries no reply), the gate's own member sentence, `reason`
+    said = body.get("reply") or env.get("reply") or (body.get("reason") if body.get("ok") is False else None) or ""
+    out = {"disposition": body.get("disposition"), "reply": said}
     if env.get("ops"):
         out["ops"] = env["ops"]
     if env.get("questions"):
