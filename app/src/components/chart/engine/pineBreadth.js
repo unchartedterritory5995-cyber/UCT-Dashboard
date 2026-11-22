@@ -35,13 +35,36 @@ export const BREADTH_KEY_PREFIX = 'USI~'
 /** The words every read carries (the member's note, the grade's tag). */
 export const BREADTH_DATA_WORDS = "UCT breadth data (our own counts), not the exchange's official figures"
 
-/** ⭐⭐ THE ALIGNMENT, A NAMED CONSTANT WITH ITS WITNESS PENDING (coordinator 2026-11-22: W-B1 has not landed).
+/** ⭐⭐ THE ALIGNMENT, A NAMED CONSTANT, WITNESSED (W-B1, Q-T4-B1, 2026-11-22).
  *  How a session's count lands on a chart's daily bars: `same-date` (on the bar of its own session) or
  *  `previous-session` (on the next one, as TradingView's `SP:SPX` reads on a stock's daily chart, Q-RS3). Both are
- *  placements `otherSymbols.js::witnessedBarsOf` already knows; Q-T4-B1 (U01 vs U02 against our own session counts)
- *  decides which, and its landing is ONE data edit: this constant (if the capture says the other), and each row's
- *  `witness` + `captured` (`breadthWitnessRow` is railed equal to the rows). Until then no row serves. */
+ *  placements `otherSymbols.js::witnessedBarsOf` already knows. W-B1 (`vw-data-usi` on AMEX:SPY and NYSE:RDDT 1D,
+ *  against production's B1 counts, same-date vs previous-session): SAME-DATE on every witnessed spelling (median
+ *  |difference| ADVN.NY 549 vs 599, DECL.NY 438 vs 577, ADVN.NQ 448 vs 545, DECL.NQ 402 vs 552, ADD 241 vs 927);
+ *  U01 (`"D"`) and U02 (`timeframe.period`) agree on every bar, and the two charts read the same series. */
 export const BREADTH_DAILY_ALIGNMENT = 'same-date'
+/** ⭐⭐ THE DAILY WITNESS (W-B1): the capture that serves a spelling, and the spellings it witnessed. `USI:UNCH.NQ` and
+ *  `USI:ADDQ` are not in the probe (still pending, Q-T4-B1). ⛔ The four short spellings are NOT witnessed as aliases:
+ *  TradingView's `USI:ADV` / `DECL` / `ADVQ` / `DECLQ` equal its long spellings on 21 / 32 / 31 / 40 of ~8,000 sessions
+ *  (they are other series: TradingView's `USI:ADD` is `ADV` - `DECL` on 6,555 of 8,321 sessions, never
+ *  `ADVN.NY` - `DECL.NY`), so they stay refused by name until a unit serves what they are. */
+export const BREADTH_DAILY_WITNESS = Object.freeze({
+  witness: 'vw-data-usi-{spy,rddt}-1d-2026-11-22-preopen (t4-wb1-2026-11-22 batch, local; UCT probe)',
+  captured: '2026-11-22',
+  spellings: Object.freeze(['ADVN.NY', 'DECL.NY', 'UNCH.NY', 'ADVN.NQ', 'DECL.NQ', 'ADD']),
+})
+/** ⭐⭐ HOW FAR OUR COUNTS ARE FROM TRADINGVIEW'S, per witnessed spelling (W-B1, same-date, AMEX:SPY 1D, every session
+ *  both hold; derived counts only, the capture stays local): the median |difference| in issues and as a share of
+ *  TradingView's value, and the share of sessions ours is the lower. Our universe is operating equity (common stock and
+ *  ADRs); the exchange's count also holds preferreds, funds and other issues. Said in the member's note. */
+export const BREADTH_DIVERGENCE = Object.freeze({
+  'ADVN.NY': Object.freeze({ sessions: 4389, from: '2009-06-11', medianIssues: 549, medianPct: 36, oursLowerShare: 0.998 }),
+  'DECL.NY': Object.freeze({ sessions: 4389, from: '2009-06-11', medianIssues: 438, medianPct: 32, oursLowerShare: 0.997 }),
+  'UNCH.NY': Object.freeze({ sessions: 4389, from: '2009-06-11', medianIssues: 49, medianPct: 55, oursLowerShare: 0.998 }),
+  'ADVN.NQ': Object.freeze({ sessions: 4752, from: '2008-01-02', medianIssues: 448, medianPct: 31, oursLowerShare: 0.996 }),
+  'DECL.NQ': Object.freeze({ sessions: 4752, from: '2008-01-02', medianIssues: 402, medianPct: 27, oursLowerShare: 0.997 }),
+  ADD: Object.freeze({ sessions: 4389, from: '2009-06-11', medianIssues: 241, medianPct: 29, oursLowerShare: 0.61 }),
+})
 /** The weekly and monthly reads each daily alignment implies (`otherSymbols.js::WITNESS_PERIOD_READS`): the held daily
  *  rows folded by our resampler for a `timeframe.period` read, the period's last row for a `"D"` read. Pending their own
  *  capture (Q-T4-B2, the same probe on a weekly and a monthly chart). */
@@ -184,8 +207,12 @@ export function breadthSourceNote(ticker) {
   const spec = base ? BREADTH_SPELLINGS[base] : null
   const what = spec ? `the session's count of ${spec.exchange}-listed operating companies (common stock and ADRs) `
     + `${spec.metric === 'add' ? 'that closed up, less the count that closed down' : `that closed ${spec.metric === 'advancing' ? 'up' : spec.metric === 'declining' ? 'down' : 'unchanged'}`}` : 'UCT\'s own breadth count'
+  const gap = base && base === t ? BREADTH_DIVERGENCE[base] : null
+  const sized = gap ? ` Measured against TradingView's \`USI:${t}\` over ${gap.sessions.toLocaleString('en-US')} sessions from `
+    + `${gap.from}: ours ${gap.oursLowerShare >= 0.95 ? 'is lower on almost every session, by' : 'differs by'} a median of `
+    + `${gap.medianIssues.toLocaleString('en-US')} issues (${gap.medianPct}%).` : ''
   return `This script reads \`USI:${t}\`. It uses ${BREADTH_DATA_WORDS}: ${what}, where the exchange's count also holds `
-    + `preferreds, funds and other issues, so the values differ from TradingView's on every bar.`
+    + `preferreds, funds and other issues, so the values differ from TradingView's on every bar.${sized}`
     + `${spec && spec.closeOnly ? ` \`USI:${t}\` holds each session's close only; its open, high and low read \`na\`.` : ''}`
 }
 
@@ -201,10 +228,13 @@ export function breadthWitnessRow(ticker, alignment = BREADTH_DAILY_ALIGNMENT) {
   const reads = BREADTH_PERIOD_READS[alignment]
   const block = (code) => ({ held: 'D', reads: { ...reads[code] }, queue_row: BREADTH_QUEUE.period, probe: BREADTH_PROBE,
     witness: '', captured: '' })
+  // ⭐ W-B1: a spelling the daily capture witnessed carries it (an alias never: the capture shows another series)
+  const landed = base === t && BREADTH_DAILY_WITNESS.spellings.includes(t) && alignment === BREADTH_DAILY_ALIGNMENT
   return {
     kind: 'breadth', store: breadthKeyOf(t), ...(base !== t ? { aliasOf: `USI:${base}` } : {}),
     timeframes: ['D', 'W', 'M'], alignment, queue_row: BREADTH_QUEUE.daily, probe: BREADTH_PROBE,
-    fetch: `/api/pine/breadth/USI:${base} (api/routers/pine_breadth.py, B1)`, witness: '', captured: '',
+    fetch: `/api/pine/breadth/USI:${base} (api/routers/pine_breadth.py, B1)`,
+    witness: landed ? BREADTH_DAILY_WITNESS.witness : '', captured: landed ? BREADTH_DAILY_WITNESS.captured : '',
     periods: { W: block('W'), M: block('M') },
   }
 }

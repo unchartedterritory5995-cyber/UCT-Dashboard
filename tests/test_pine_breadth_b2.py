@@ -54,7 +54,9 @@ def test_the_breadth_rows_name_b1s_door_and_are_pending():
         base = pb.ALIASES.get(k, k)
         assert v["store"] == "USI~" + base[4:], k
         assert v["fetch"].startswith(f"/api/pine/breadth/{base} "), k
-        assert (v["witness"], v["captured"]) == ("", ""), k
+        # W-B1 (2026-11-22) witnessed six long spellings; UNCH.NQ, ADDQ and the four short spellings stay pending
+        landed = k in W_B1_WITNESSED
+        assert bool(v["witness"]) == landed and v["captured"] == ("2026-11-22" if landed else ""), k
         assert v["queue_row"] == "Q-T4-B1" and set(v["periods"]) == {"W", "M"}, k
 
 
@@ -80,9 +82,16 @@ def witnessed(tmp_path):
     return p
 
 
-def test_no_spelling_is_served_today_so_none_is_handed(monkeypatch):
+W_B1_WITNESSED = {"USI:ADVN.NY", "USI:DECL.NY", "USI:UNCH.NY", "USI:ADVN.NQ", "USI:DECL.NQ", "USI:ADD"}
+
+
+def test_the_six_w_b1_witnessed_are_served_and_handed_only_at_all(monkeypatch):
     monkeypatch.setenv("PINE_BREADTH_SUPPLY_ENABLED", "all")
-    assert pa.breadth_spellings_served() == []
+    assert pa.breadth_spellings_served() == sorted(W_B1_WITNESSED)
+    assert pa.breadth_handed() == sorted(W_B1_WITNESSED)
+    assert "MARKET BREADTH" in pa.document()
+    # below `all` (dark today): none handed, the gap stays a gap
+    monkeypatch.setenv("PINE_BREADTH_SUPPLY_ENABLED", "admins")
     assert pa.breadth_handed() == []
     assert "MARKET BREADTH" not in pa.document()
 
