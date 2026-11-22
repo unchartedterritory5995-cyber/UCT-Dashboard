@@ -12276,6 +12276,8 @@ from api.routers import mergers as mergers_router  # noqa: E402  (MNA: the lates
 app.include_router(mergers_router.router)  # /api/research/mergers
 from api.routers import index_changes as index_changes_router  # noqa: E402  (IDXC: S&P 500, Nasdaq 100 and Dow additions and removals, paid)
 app.include_router(index_changes_router.router)  # /api/research/index-changes
+from api.routers import stock_stats as stock_stats_router  # noqa: E402  (STAT: one stock's volatility, beta, returns, drawdowns, corrections, paid)
+app.include_router(stock_stats_router.router)  # /api/research/stock-stats/{ticker}
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
