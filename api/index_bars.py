@@ -792,11 +792,17 @@ def _repair_fields(rep: dict, out: list) -> dict:
 #     with the reason): a seam cliff on an RS line would be a new wrong picture.
 #   - ⛔ A REQUEST NEVER PARSES THE STORE: the prefix is built on a background refresh and cached per (symbol, tf,
 #     store version, Yahoo's first day); a request refresh that finds none serves Yahoo only.
-#   - SIZE: about 3 years of 5m is ~59,000 bars, about 4 MB of JSON per vendor symbol on disk.
+#   - SIZE: about 6 years of 5m is ~118,000 bars, about 8 MB of JSON per vendor symbol on disk (2026-11-22: 3 -> 6 years).
 # Kill switch: INDEX_INTRADAY_DEEP_ENABLED=0 (unset = on) serves exactly what this module served before.
 DEEP_SOURCE = "fmp"
-#: Calendar days of settled history the store holds (about 3 years).
-DEEP_DAYS = 1095
+#: Calendar days of settled history the store holds (about 6 years).
+DEEP_DAYS = 2190
+#: ⭐ (2026-11-22) 6 years, not 3: FMP's 5min answers ^GSPC from 2020 and ^NDX from 2021 (measured on the pod; 2019
+#: answers "no data"), and TradingView's own SPY 60m window in the Fred RS capture began 2021-01-04 while ours began
+#: 2023-11-24. A session before FMP's history is recorded "empty" and ends the run, as before. The 5-minute GRID itself
+#: is served at most DEEP_5M_SERVED_DAYS: `/api/bars` answers at most 60,000 bars (`bars: Query(le=60000)`), which 3
+#: years of 5m already fill; the deeper sessions serve 15 / 30 / 60.
+DEEP_5M_SERVED_DAYS = 1095
 #: The UI timeframes served with deep history, and the grid each rolls to.
 DEEP_TFS = {"1": "1", "5": "5", "15": "15", "30": "30", "60": "60", "1h": "60"}
 #: The indices served with deep history (SPX/NDX: what relative-strength scripts read). XSP/XND/RUT/DJX/VIX: as before.
@@ -1270,6 +1276,8 @@ def _build_deep_prefix(sym: str, rtf: str, data: dict, first_day, divisor: float
     filled sessions `[{"d", "slots", "src"}]`)."""
     import datetime as _dt
     _interval, step, days_held, _page = _lane_cfg(_lane(rtf))
+    if rtf == "5":
+        days_held = min(days_held, DEEP_5M_SERVED_DAYS)
     start = _et_date(_now()) - _dt.timedelta(days=days_held)
     days = data.get("days") or {}
     run: List[list] = []
