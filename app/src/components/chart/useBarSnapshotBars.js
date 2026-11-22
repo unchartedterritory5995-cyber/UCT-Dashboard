@@ -97,7 +97,7 @@ export function viewDevelopingOf(s, base, view = {}) {
 }
 
 /** Daily value sanity of a LOCAL copy's last bar (the legacy `_idbDailyLastInsane`). */
-function lastDailyBarInsane(arr) {
+export function lastDailyBarInsane(arr) {
   const b = arr?.length ? arr[arr.length - 1] : null
   if (!b) return false
   const o = +b.o, h = +b.h, l = +b.l, c = +b.c

@@ -71,6 +71,22 @@ export function deriveVol(sessionApplied, hvcSet, volExtremes, r) {
   const sig = `${r.vol.sig}|hvc${identitySig(hvcSet)}|vx${identitySig(volExtremes)}`
   return deriveFrom(sessionApplied, 'vol', sig, () => volDataOf(sessionApplied, r.vol.p, hvcSet, volExtremes, r.adjustTime, chartTimesFor(sessionApplied, r.adjustTime)))
 }
+/**
+ * The bar a chart marks in its volume pane: the highest volume of the loaded set, when it falls inside the framed
+ * year (`entryDate`..`exitDate`, both optional). Filed under the bars it was read from, so StockChart's
+ * `volExtremes` memo and the switch frame (chart/switchFrame.js) are handed the SAME object for the same bars,
+ * and `deriveVol` (which names it by identity) answers both with one array.
+ */
+export function deriveVolExtremes(filtered, entryDate, exitDate) {
+  if (!filtered?.length) return null
+  return deriveFrom(filtered, 'volExtremes', `${entryDate || ''}|${exitDate || ''}`, () => {
+    const inYear = (b) => (!entryDate || b.t >= entryDate) && (!exitDate || b.t <= exitDate)
+    let hve = null
+    for (const b of filtered) if (b.v != null && (!hve || b.v > hve.v)) hve = b
+    if (!hve || !inYear(hve)) return null
+    return { goldTimes: new Set([hve.t]) }
+  })
+}
 export function deriveVolMa(sessionApplied, r) {
   return deriveFrom(sessionApplied, 'volMa', r.volMa.sig, () => volMaDataOf(sessionApplied, r.volMa.period, r.adjustTime, chartTimesFor(sessionApplied, r.adjustTime)))
 }

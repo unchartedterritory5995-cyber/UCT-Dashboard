@@ -225,7 +225,7 @@ export function createSwitchController({ applyFrame, buildFrame }) {
     const built = buildFrame(snapshot, { sym, tf: view.tf, showExtended: view.showExtended }, view.recipes)
     if (!built.ok) return refuse(sym, `frame:${built.why}`)
     const tail = view.tail(built, sym, snapshot)
-    if (!tail.ok) return refuse(sym, 'tail')
+    if (!tail.ok) return refuse(sym, tail.why || 'tail')
     // ⛔ the chart's key for the new symbol is DERIVED from the chart's own key (its symbol swapped), never
     // spelled a second time here (rails/oneKey.census: one owner per key shape)
     if (typeof frame._exKey !== 'string' || !frame._exKey.startsWith(frame.sym)) return refuse(sym, 'key-shape')

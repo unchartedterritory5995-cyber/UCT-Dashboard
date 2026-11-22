@@ -1800,7 +1800,7 @@ import { createHistoryLoader, wantsOlder, PREFETCH_WINDOWS, HISTORY_PREFETCH_TAR
 import { memPeek } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
 import { makeLiveSane } from './chart/liveTickBaseline'
-import { isCurrentEnoughForPaint, dailyMissingSessionsForPaint, DAILY_PAINT_MAX_GAP, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { dailyCachePaintVerdict, isCurrentEnoughForPaint, dailyMissingSessionsForPaint, DAILY_PAINT_MAX_GAP, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { tradingSessionTodayET } from './chart/tradingTodayMemo'   // isTradingSessionTodayET, one answer per minute
 import { tailRetriesExhausted, liveBadgeState } from '../utils/intradayTailPoll'
 import { parseTf } from './chart/timeframes'
@@ -1890,14 +1890,14 @@ import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
 import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, computeHVC } from './chart/chartDerived'
 import { neighborFramesOn, stableSig, identitySig } from './chart/neighborFrames'
 import {
-  useNeighborFrames, deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa,
+  useNeighborFrames, deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa, deriveVolExtremes,
 } from './chart/useNeighborFrames'
 import { BARSTORE } from './chart/barStoreSwitch'
 // (imperative switch, stage 3; docs/charts/imperative-switch-design.md) the React-free symbol switch
 import { imperativeSwitchOn } from './chart/imperativeSwitch'
 import { switchControllerFor } from './chart/switchController'
 import { buildFrame } from './chart/switchFrame'
-import { chartKeyFor } from './chart/useBarSnapshotBars'
+import { chartKeyFor, lastDailyBarInsane } from './chart/useBarSnapshotBars'
 import { resolveDailyTodaySeed } from './chart/useLegacyChartBars'
 import { getBarStore } from '../data/barStore/index'
 // what the app already holds of a symbol's metadata, read outside a render (as lib/symbolResourceWarm.js reads it)
@@ -11110,6 +11110,8 @@ function StockChartBody({
   // only highlighted when it falls within the visible year.
   const volExtremes = useMemo(() => {
     if (!markVolumeExtremes || !__heavy.filteredBars?.length) return null
+    // (neighbour frames on) the shared rule, filed under the bars: the switch frame builds the next symbol's with it
+    if (_nfRecipes) return deriveVolExtremes(__heavy.filteredBars, entryDate, exitDate)
     const inYear = b => (!entryDate || b.t >= entryDate) && (!exitDate || b.t <= exitDate)
     let hve = null
     for (const b of __heavy.filteredBars) if (b.v != null && (!hve || b.v > hve.v)) hve = b
@@ -12174,12 +12176,14 @@ function StockChartBody({
         applySessionTags: (tags, s) => {
           _liveExtAppliedRef.current = _extPriceOf(readLiveQuote(s))
           _applySessionTags(tags)
+          _seatExtTag(tags, null)
         },
         // the chart's own pass of the symbol React shows, in full (`switchController.replay`), its tags included
         reactRepaint: () => {
           updateChart()
           _liveExtAppliedRef.current = sessionExtPrice
           _applySessionTags(activeSessionTags)
+          _seatExtTag(activeSessionTags, devOnScreen.dev()?.close)
           if (chartReady) refreshOffCursorReadout()
         },
         laneShows: (s) => chartShows(laneSlotRef.current, s, resolvedTf),
@@ -12280,6 +12284,18 @@ function StockChartBody({
       try { series.removePriceLine(pl) } catch { /* series gone */ }
     }
     sessionTagRefs.current = tags.map((t) => series.createPriceLine(opts(t)))
+  }
+  // (imperative switch) In Extended-hours intraday mode the applier above leaves the Pre/Post tag's PRICE to the
+  // loop that glues it to the developing candle. A paint of ANOTHER symbol has no developing candle yet (its
+  // channel opens at the body's render), so the tag would stay at the old symbol's price over the new candles.
+  // The paint seats it: at the developing close when one is on screen (`px`), else at the tag's own price (the
+  // symbol's extended-hours print, what a newly created tag starts at). The loop takes it from there.
+  const _seatExtTag = (tags, px) => {
+    if (!sessionTagsIntraday || !showExtended || !tags) return
+    const i = tags.findIndex((t) => t._sessionTag === 'ext')
+    const line = i >= 0 ? sessionTagRefs.current?.[i] : null
+    const p = (Number.isFinite(px) && px > 0) ? px : tags[i]?.price
+    if (line && Number.isFinite(p) && p > 0) { try { line.applyOptions({ price: p }) } catch { /* series gone */ } }
   }
   useEffect(() => { _applySessionTags(activeSessionTags) },
     [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels, lastBarOff, extTagInline])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -23323,6 +23339,17 @@ export function switchTailFor(built, sym, snapshot, resolvedTf, adjustTime) {
     dailySeed, repairToday: resolvedTf === 'D' && !!snapshot && !snapshot.restSeen, liveSane,
   })
   if (asked) return { ok: false }
+  // ⛔ A DAILY COPY THE SERVER HAS NOT ANSWERED IN THIS PAGE'S LIFE is painted only when the chart's own authority
+  // says so (useBarSnapshotBars `_dailyLocalRefused`: a copy cached while today's bar was forming, or one whose
+  // last bar is not plausible, is NOT drawn; the chart waits for the server). The same two questions, with no
+  // seed: a seed would have asked the live-price sanity above, and that already refused.
+  if (resolvedTf === 'D' && snapshot && !snapshot.restSeen) {
+    const all = built.bars
+    const savedAt = getBarStore().persist?.savedAtOf?.(snapshot.key) ?? null
+    if (dailyCachePaintVerdict(all[all.length - 1]?.t, savedAt, { hasSeed: false }) !== 'ok' || lastDailyBarInsane(all)) {
+      return { ok: false, why: 'daily-local' }
+    }
+  }
   const appended = arr.length - n0
   if (appended !== _intradayLoadReserve(built.filteredBars, resolvedTf)) return { ok: false }
   return { ok: true, ohlcData: arr, kind: appended ? 'whitespace' : 'none' }

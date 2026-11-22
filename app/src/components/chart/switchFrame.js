@@ -32,7 +32,7 @@
 import { legacyBars, newestBarIsFormingOf } from '../../data/barStore/adapter'
 import { STATUS } from '../../data/barStore/types'
 import {
-  deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa,
+  deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa, deriveVolExtremes,
 } from './useNeighborFrames'
 
 /** The statuses a chart paints its snapshot as it stands (useBarSnapshotBars `PAINTS`, useNeighborFrames `PAINTS`). */
@@ -47,7 +47,6 @@ export const NO_FRAME = Object.freeze({
   SNAPSHOT: 'snapshot',      // no snapshot for the key
   STATUS: 'status',          // a snapshot the chart would not paint as it stands (provisional, empty, unavailable)
   EMPTY: 'empty',            // no bars, or none in this session view
-  VOLUME: 'volume',          // the volume array needs an input the recipes do not carry (marked volume extremes)
 })
 const no = (why) => ({ ok: false, why })
 
@@ -67,9 +66,6 @@ export function buildFrame(snapshot, view, recipes) {
   if (!r.plain) return no(NO_FRAME.NOT_PLAIN)
   if (!snapshot) return no(NO_FRAME.SNAPSHOT)
   if (!PAINTS.has(snapshot.status)) return no(NO_FRAME.STATUS)
-  // the volume memo reads `volExtremes` (Model Book's marked highest-volume bar): not a recipe input, so a chart
-  // that marks them (`vol.on` false, as the preparer reads it) is not built here
-  if (!r.vol.on) return no(NO_FRAME.VOLUME)
   const bars = legacyBars(snapshot)
   if (!bars || !bars.length) return no(NO_FRAME.EMPTY)
   // the chart's own chain, in the chart's own order (StockChart: sessionBars → filteredBars → sessionAppliedBars
@@ -80,7 +76,12 @@ export function buildFrame(snapshot, view, recipes) {
   const ohlcBase = deriveOhlcBase(displayBars, r)
   const closeData = deriveClose(displayBars, r)
   const hvcSet = deriveHvc(sessionBars, r)
-  const volData = deriveVol(sessionBars, hvcSet, null, r)
+  // ⭐ A CHART THAT MARKS ITS VOLUME EXTREMES IS BUILT (`vol.on` false: the idle preparer skips it, this does not).
+  // Every /charts pane marks them (`PANE_LOOK.markVolumeExtremes`), so refusing them refused every pane chart.
+  // The mark is a function of the bars alone here: the framed year that could exclude it (`entryDate`,
+  // `exitDate`) is one the controller refuses to carry (FRAME_RULES). `deriveVolExtremes` is the chart's own rule.
+  const volExtremes = r.vol.on ? null : deriveVolExtremes(sessionBars, null, null)
+  const volData = deriveVol(sessionBars, hvcSet, volExtremes, r)
   const volMaData = r.volMa.on ? deriveVolMa(sessionBars, r) : NO_VOL_MA
   return {
     ok: true,
