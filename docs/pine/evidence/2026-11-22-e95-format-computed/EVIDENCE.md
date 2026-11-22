@@ -70,7 +70,31 @@ recorded WRONG on 2026-11-22 because its answer's table showed two labels and no
 str.replace_all(...)`, then `str.tostring(pdh, fmt)`), grades RIGHT on the script lane with this unit (the PR's
 `value cases` check found it). It leaves the WRONG list (`tests/test_value_cases.py`); the recorded answer is unchanged.
 
-CENSUS_AND_GRADE_PENDING
+## Census and grade (base `04949a82d7` vs this branch, both lanes, local, under the heavy lock)
+
+**Census** (the 169 corpus scripts that write a non-literal format, member door):
+
+| lane | served in full | attached | refused |
+|---|---|---|---|
+| production | 8 -> 8 | 28 -> 28 | 131 -> 132 (one row absent from the base run's output, refused after; refused on the runtime-on lane both sides) |
+| runtime-on | 8 -> 8 | 28 -> 28 | 133 -> 133 |
+
+- **0 served -> refused, 0 attached -> refused, on either lane.** One runtime-on row reaches an attached peel step earlier
+  (its wall `pine:reassign` no longer stops the peel); its row verdict is unchanged.
+- The census counts what attaches and what is served in full; the format fold changes what an attached script PRINTS,
+  which the grade and the value case measure.
+
+**Grade diff** (the 44 captures whose source writes a non-literal format, 2 lanes):
+
+| lane | base | after |
+|---|---|---|
+| production | 37 INCONCLUSIVE, 2 MATCH, 5 DIVERGE | identical, row for row |
+| runtime-on | 41 INCONCLUSIVE, 2 MATCH, 1 DIVERGE | identical, row for row |
+
+- **0 MATCH lost.** Every row's verdict is unchanged on both lanes.
+- One row moves inside its verdict: the built-format probe `vw-tf-tostring-built-fmt` (SPY 1D, production lane) agrees
+  with TradingView on 66 of 100 table-cell texts, from 38 (28 cells that were withheld or wrong now print TradingView's
+  text); the cells still differing are `format.percent` and patterns the formatter does not print yet, each named.
 
 ## Findings outside this unit
 
