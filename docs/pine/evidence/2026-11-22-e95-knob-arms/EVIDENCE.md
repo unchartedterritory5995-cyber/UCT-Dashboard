@@ -114,6 +114,15 @@ step earlier, at the field, and the presence-only follow-up below is what would 
 
 ## Findings and follow-ups
 
+- **Unit 4 (4b), `var int len = input(14)`, measured, not built.** The 5 corpus rows that declare a `var` numeric
+  input, through the member door on the train (production lane, local): 1 is served and draws at the input's default,
+  but its `var` input is NOT a member setting (the plain binding `len = input(14)` would be one); the other 4 are
+  refused on walls that have nothing to do with the `var` input (`pine:tuple`, `pine:objects-only`, `pine:no-output`,
+  `pine:state`). Making a never-reassigned `var` numeric input a knob is the numeric twin of #2474's text read
+  (`Resolver.fixedVarBinding`, today `input.string` only), and it changes how every such `var` is read for a value, so
+  it is not a trivial change: named here, for its own unit with its own census. (The runtime-on lane's numbers for these
+  5 rows are in the queued measurement.)
+
 - **The next unit for E2 (coordinator, 2026-11-22): presence-only reads of a field whose values UCT does not hold.**
   The built-in's Earnings arm only ever tests `not na(earnings.standardized)`, which is PLACEMENT only. A field whose
   VALUES UCT does not hold but whose report DATES it does could be served presence-only when every read of it is
