@@ -114,7 +114,19 @@ export function captureInstanceInputs(capture, def, ranSource = undefined) {
   const source = typeof ranSource === 'string' ? ranSource : (capture && capture.source && capture.source.text)
   const bindings = pineInputBindings(source)
   if (!bindings) return { ok: false, why: 'the script has an input that is not a `name = input(…)` binding, so TradingView\'s numbering cannot be read' }
-  const numbered = tv.map((i) => Number(i.id.match(IN_ID)[1]))
+  let numbered = tv.map((i) => Number(i.id.match(IN_ID)[1]))
+  // ⭐ e95 (unit 2) — A DECLARATION THAT TAKES `timeframe =` (`indicator(…, timeframe = "", timeframe_gaps = true)`,
+  // TradingView's built-in VWAP) gets TWO more inputs from TradingView, after the script's own: "Timeframe"
+  // (`resolution`) and "Wait for timeframe closes" (`bool`), as the VWAP captures record them (in_11, in_12). They are
+  // the declaration's, not a binding's: read at their defaults they are dropped; moved, our side cannot set them.
+  const tail = tv.slice(bindings.length)
+  if (tv.length === bindings.length + 2 && /(^|\n)\s*(indicator|study)\s*\([^\n]*\btimeframe\s*=/.test(String(source || ''))
+      && tail[0].type === 'resolution' && tail[1].type === 'bool') {
+    const movedTail = tail.filter((i) => !same(i.value, i.defval))
+    if (movedTail.length) return { ok: false, why: `"${movedTail[0].name}" (the declaration's timeframe setting) was moved` }
+    tv.splice(bindings.length, 2)
+    numbered = numbered.slice(0, bindings.length)
+  }
   if (bindings.length !== tv.length || numbered.some((k, j) => k !== j)) {
     return { ok: false, why: `the capture records ${tv.length} inputs and the script binds ${bindings.length}` }
   }
