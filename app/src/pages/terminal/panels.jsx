@@ -177,6 +177,8 @@ export const PANEL_IMPORTERS = {
   PublicRecords: () => import('./panels/PublicRecordsPanel'),
   // EVST (2026-11-22): a member's own historical study: every time a condition held, what a symbol did next
   EventStudy: () => import('./panels/EventStudyPanel'),
+  // VFP (2026-11-22): one stock's accumulation and distribution, biggest volume days, pocket pivots and gaps
+  VolumeFootprint: () => import('./panels/VolumeFootprintPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
