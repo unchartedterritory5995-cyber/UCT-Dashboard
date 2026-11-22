@@ -104,12 +104,14 @@ const same = (a, b) => {
  *   default (our side computes exactly as before); `moved` is `{pineName: TradingView value}`, the
  *   record a capture's evidence carries | `{ok: false, why}`.
  */
-export function captureInstanceInputs(capture, def) {
+export function captureInstanceInputs(capture, def, ranSource = undefined) {
   const list = capture && capture.study && Array.isArray(capture.study.inputs) ? capture.study.inputs : []
   const tv = list.filter((i) => i && typeof i.id === 'string' && IN_ID.test(i.id))
   const movedTv = tv.filter((i) => !same(i.value, i.defval))
   if (!movedTv.length) return { ok: true, inputs: undefined, moved: {} }
-  const source = capture && capture.source && capture.source.text
+  // ⭐ e95 (unit 2) — the script OUR side ran (a hand-added built-in's held published source, `builtinSource.js`),
+  // never the capture's batch label, numbers TradingView's inputs
+  const source = typeof ranSource === 'string' ? ranSource : (capture && capture.source && capture.source.text)
   const bindings = pineInputBindings(source)
   if (!bindings) return { ok: false, why: 'the script has an input that is not a `name = input(…)` binding, so TradingView\'s numbering cannot be read' }
   const numbered = tv.map((i) => Number(i.id.match(IN_ID)[1]))
