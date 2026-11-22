@@ -686,6 +686,14 @@ export const FUNCTIONS = [
   { code: 'EEHSC', label: 'Estimate revisions by sector', group: 'Market',
     market: { panel: 'RevisionBreadth', flag: 'estimateHistoryEnabled',
       args: [{ kind: 'eehscWindow', prop: 'window' }, { kind: 'eehscMetric', prop: 'metric' }] } },
+  // PUBR (2026-11-22): one company's public records from four government agencies: its federal contract awards
+  // (USAspending.gov), the clinical trials it leads (ClinicalTrials.gov), its FDA drug approvals (openFDA, Drugs@FDA)
+  // and its lobbying (LDA.gov), each matched to the ticker by the company's names, with the names shown
+  // (GET /api/research/public-records/{ticker}; the server reads each agency at most once a day per company).
+  // `NVDA PUBR TRIALS`. The brief named it RECS, which is a real fund (Columbia Research Enhanced Core ETF, NYSE Arca);
+  // PUBR is not in the site's universe and a web search on 2026-11-22 found no stock or fund trading under it.
+  { code: 'PUBR', label: 'Public records (government contracts, clinical trials, FDA approvals, lobbying)', group: 'Security',
+    ticker: { panel: 'PublicRecords', args: [{ kind: 'pubrView', prop: 'view' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -1051,6 +1059,12 @@ const FUNCTION_WORDS = {
   EEHSC: { example: 'EEHSC', keywords: ['revision breadth', 'estimate revisions by sector', 'revisions by sector', 'sector revisions',
     'earnings revisions by sector', 'estimate breadth'],
     note: 'Among the stocks UCT tracks (the S&P 500 list and stocks members looked at), not the whole market. A change of more than 0.5% either way is a raise or a cut. One stock: NVDA EEH.' },
+  // A word another panel owns keeps finding it: 'records' (in LEAD's title), 'contract' and 'contracts' (ACCUM), 'spend'
+  // (ECON), 'fed' and 'federal' (FED). So no keyword here holds 'records', 'contract' or 'spend'; the label carries
+  // "public records" for a one-word search on 'public'.
+  PUBR: { example: 'NVDA PUBR', keywords: ['government contracts', 'federal contracts', 'clinical trials', 'fda approvals',
+    'drug approvals', 'lobbying', 'usaspending'],
+    note: 'From the agencies\' own records, matched to the company by name, with the matched names shown. One section: NVDA PUBR TRIALS.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

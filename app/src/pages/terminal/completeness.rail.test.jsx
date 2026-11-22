@@ -148,6 +148,7 @@ const ARG_SAMPLE = {
   mkthIndex: 'NDX',
   groupsKind: 'INDUSTRIES', groupsView: 'VALUATION',
   eehscWindow: '7D', eehscMetric: 'REVENUE',
+  pubrView: 'TRIALS',
 }
 
 afterEach(cleanup)
