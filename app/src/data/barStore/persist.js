@@ -187,6 +187,9 @@ export function createPersist({
    *  barsIDB drops the envelope when another writer touches a record). Nothing here can tell those apart, so the
    *  join below is held to rules that are safe for all three (`_joinRefused`), not to a guess at which it is. */
   const _claimless = (s) => !s.restSeen && !s.developing && !_stamped(s)
+  /** One device read of `p`'s key. `urgent` (the member's own ask: a key press, the chart on screen) goes ahead of
+   *  every background read (deviceStore/client.js, TWO LANES); a warm passes nothing and waits its turn. */
+  const _devRead = (p, urgent) => (urgent === true ? DEV.read(p.sym, p.cacheTf, { urgent: true }) : DEV.read(p.sym, p.cacheTf))
   /** Is a device READ worth making for this entry? Nothing held, only a device copy (it moves its own copy
    *  FORWARD: review of #2189, a copy warmed at 09:35 must not paint its 09:35 bars at 15:55), or a copy with no
    *  claim, which a FRESH device copy may join (`_joinRefused` decides when the copy is in hand). */
@@ -267,13 +270,13 @@ export function createPersist({
    *  read the PACK's saved time for an entry the handoff had just committed as the device's, and refused it: a
    *  blank chart (review of #2407). A saved copy that REPLACED the device's rows (another price basis: reducer
    *  applyLocal) refuses the device copy again there, and the key stays the saved copy's. */
-  function _deviceAgain(key, p, gen, ownDev) {
+  function _deviceAgain(key, p, gen, ownDev, urgent = false) {
     const cur = registry.peek(key)
     if (!cur || cur.source === 'device' || !_devKey(p)) return
     let got = null
     try { got = DEV.peek(p.sym, p.cacheTf) } catch { got = null }
     if (got) { _deviceHit(key, p, gen, got, ownDev); return }
-    Promise.resolve().then(() => DEV.read(p.sym, p.cacheTf)).then((g) => _deviceHit(key, p, gen, g, ownDev)).catch(() => {})
+    Promise.resolve().then(() => _devRead(p, urgent)).then((g) => _deviceHit(key, p, gen, g, ownDev)).catch(() => {})
   }
   /** key → {first, last} of the deep-history segment last written / read (bounded). */
   const hist = new Map()
@@ -393,14 +396,14 @@ export function createPersist({
      * Bring a held DEVICE copy (no server answer yet) forward to the device's newest: synchronously
      * from the device's recent-read cache, else one worker read. The switch calls it on every peek of
      * such an entry (prefetch), so a copy warmed long ago is re-read before it is shown. Resolves true
-     * when the entry moved.
+     * when the entry moved. `urgent`: the member's own ask (`_devRead`).
      */
-    refreshDevice(key) {
+    refreshDevice(key, { urgent = false } = {}) {
       const p = parseKey(key)
       if (!p || p.window || !_devKey(p) || !_deviceMay(registry.peek(key))) return Promise.resolve(false)
       const gen = registry.getSnapshot(key).gen
       try { if (_deviceHit(key, p, gen, DEV.peek(p.sym, p.cacheTf))) return Promise.resolve(true) } catch { /* optional */ }
-      return Promise.resolve().then(() => DEV.read(p.sym, p.cacheTf)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
+      return Promise.resolve().then(() => _devRead(p, urgent)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
     },
     /** Write every pending key now (page hide / tests). */
     async flush() {
@@ -436,7 +439,7 @@ export function createPersist({
       }
       return m?.bars?.length ? m : null
     },
-    async hydrate(key) {
+    async hydrate(key, { urgent = false } = {}) {
       const p = parseKey(key)
       if (!p || p.window) return registry.getSnapshot(key)
       const gen = registry.getSnapshot(key).gen
@@ -446,7 +449,7 @@ export function createPersist({
       // holds no server answer and nothing but (at most) an older device copy.
       // (`_deviceMay` is the whole rule: a mem record that makes no claim is joined, any other shuts the read out)
       const dev = _devKey(p) && _deviceMay(registry.peek(key))
-        ? Promise.resolve().then(() => DEV.read(p.sym, p.cacheTf)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
+        ? Promise.resolve().then(() => _devRead(p, urgent)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
         : null
       let e = null
       try { e = await IO.idbGet(p.sym, p.cacheTf) } catch { e = null }
@@ -463,7 +466,7 @@ export function createPersist({
           _noteSaved(key, e.savedAt)
         }
         // the device copy held the key and this saved copy joined it: the key stays the device's (_deviceAgain)
-        if (deviceHeld) _deviceAgain(key, p, gen, held0.developing)
+        if (deviceHeld) _deviceAgain(key, p, gen, held0.developing, urgent)
       }
       // The deep-history segment, after the tail (prepend-only; the reducer judges reach,
       // identity — cache_key / history_rev / adj_basis from its stamp — and basis). An interior

@@ -116,6 +116,9 @@ const REPLAY_WARM_TFS = Object.freeze(['5', '15', '30', '60'])
 // The typed warm's re-ask window is the legacy module's TYPED_REASK_MS (imported above), never a
 // number of this module's: both warmers skip a re-ask on the same rule.
 const COOLDOWN_MAX_KEYS = 400
+/** The lane of the member's own ask (see `_hydrate`). */
+const URGENT = Object.freeze({ urgent: true })
+
 /** TERM-033: what a FAILED device-cache hydrate resolves to (`_hydrate`). "Nothing was hydrated",
  *  never an answer: the caller takes its verdict on the store as it stands, so the key is asked of
  *  the server like any key the cache does not hold. */
@@ -285,19 +288,22 @@ export function createPrefetch(o = {}) {
   /** `p`, or undefined when it has not settled within `ms` (the read goes on; nothing waits on it). */
   const _raced = (p, ms) => Promise.race([p, new Promise((resolve) => setTimer(() => resolve(undefined), ms))])
 
-  /** Hydrate a key nothing has loaded yet (mem part synchronous, IDB part async). */
-  function _hydrate(key) {
+  /** Hydrate a key nothing has loaded yet (mem part synchronous, IDB part async).
+   *  ⭐ `URGENT` (2026-11-22): the member's own ask, whose device read goes ahead of every warm's (deviceStore/
+   *  client.js, TWO LANES). Passed only by the switch itself (deviceWarm at the key press, the two prepares, the
+   *  device rule); every warm passes nothing, so the ~80 keys a scrolled list asks for wait their turn. */
+  function _hydrate(key, lane) {
     const st = S()
     const s = st.peek(key)
     // a held DEVICE copy (no server answer) is brought forward to the device's newest first
-    if (_deviceHeld(s)) return Promise.resolve(st.persist.refreshDevice?.(key)).catch(() => false).then(() => st.peek(key))
+    if (_deviceHeld(s)) return Promise.resolve(st.persist.refreshDevice?.(key, lane)).catch(() => false).then(() => st.peek(key))
     if (s && (s.depth || s.restSeen || s.developing)) return Promise.resolve(s)
     // Pinned while it reads, so a herd hydrating more keys than the LRU holds cannot evict
     // the entry between its cache read and the verdict taken on it.
     st.registry.acquire(key)
     // TERM-033: a FAILED device-cache read hydrates nothing (NOTHING_HYDRATED). It is never read as
     // an answer: the verdict below is taken on what the store holds, so the warm asks the server.
-    return st.persist.hydrate(key).catch(nothingHydrated)
+    return st.persist.hydrate(key, lane).catch(nothingHydrated)
       .then(() => st.peek(key))
       .finally(() => st.registry.release(key))
   }
@@ -564,7 +570,7 @@ export function createPrefetch(o = {}) {
       // otherwise the request leaves now and a local copy that paints still commits if it lands
       // before the answer.
       const t0 = now()
-      const hyd = _hydrate(key)
+      const hyd = _hydrate(key, URGENT)
       // The lake's whole depth loads from here, in parallel with the server (after the saved-copy
       // read: a saved copy is never overtaken). See _lakeAlone / _joined.
       const lake = date ? Promise.resolve(false) : _lakeLoad(key, hyd)
@@ -711,7 +717,7 @@ export function createPrefetch(o = {}) {
     if (!p) return { paints: false, reason: 'no-key', held: 'none' }
     // a held copy that is not fresh is brought forward first (its synchronous half lands now)
     if (_deviceHeld(S().peek(key)) && !deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())) {
-      try { S().persist.refreshDevice?.(key) } catch { /* optional */ }
+      try { S().persist.refreshDevice?.(key, URGENT) } catch { /* optional */ }
     }
     const s = S().peek(key)
     const held = !s ? 'none' : s.source === 'device' ? (s.restSeen ? 'server' : 'device') : String(s.source || 'unknown')
@@ -742,8 +748,8 @@ export function createPrefetch(o = {}) {
     const key = keyFor(sym, tf, { showExtended })
     if (!key) return Promise.resolve(false)
     const st = S()
-    try { if (!st.peek(key)) _hydrate(key) } catch { /* a store with no registry: the read below still leaves */ }
-    try { return Promise.resolve(st.persist?.refreshDevice?.(key)).catch(() => false) } catch { return Promise.resolve(false) }
+    try { if (!st.peek(key)) _hydrate(key, URGENT) } catch { /* a store with no registry: the read below still leaves */ }
+    try { return Promise.resolve(st.persist?.refreshDevice?.(key, URGENT)).catch(() => false) } catch { return Promise.resolve(false) }
   }
 
   /**
@@ -826,7 +832,7 @@ export function createPrefetch(o = {}) {
       // (its history joined on an earlier visit) is not due, and takes the old path.
       const t0 = now()
       if (S().peek(key)?.bars?.length && S().deepPending?.(key)) S().deepPrime?.(key, { priority: 'visible', want: true })
-      const hyd = _hydrate(key)
+      const hyd = _hydrate(key, URGENT)
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
       if (!S().deepPending?.(key)) {
         const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null })

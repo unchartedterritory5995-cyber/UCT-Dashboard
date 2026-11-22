@@ -22,6 +22,18 @@
 // answers null and the next read asks the worker again. Every copy carries `through`, which the handoff
 // checks before painting (prefetch.devicePaints).
 //
+// ⭐ TWO LANES (2026-11-22, the 70-row jump). Every read is one worker message, and its answer is one task on the
+// page that turns the columns into the store's rows. A list scrolled into view asks for ~80 keys at once (the rows
+// around the selection and the rows on screen, each on every linked timeframe), and the chart the member then
+// clicked waited behind all of them: measured on a D + 30m board, its copy landed 100 to 830 ms after the click
+// (18 ms with nothing else asked), the D/W/M hold ran out, and the switch was slower than with the store off.
+//   urgent      the member's own ask (a key press, the chart on screen): sent at once, always
+//   background  everything else (the default): at most BACKGROUND_READS_MAX in the worker at a time, oldest
+//               first, the next one sent when an answer comes back. A key that is still waiting when an urgent
+//               ask for it arrives is sent at that moment (both askers get the one answer).
+// Past WAITING_READS_MAX waiting, the OLDEST is dropped (it answers null: the list it belonged to is off screen,
+// and a row is read again the moment it is asked for).
+//
 // Loaded only by source.js's dynamic import, and only when the switch is on; the worker is a separate
 // chunk. Nothing here is in first-open bytes. Never throws at a caller: every failure reads as null.
 
@@ -36,6 +48,10 @@ export const DEVICE_SEED_MANIFEST_KEY = 'uct.deviceStore.manifest'
 export const SYNC_CACHE_MAX = 96
 export const SYNC_CACHE_TTL_MS = 20_000
 export const VISIBLE_HEARTBEAT_MS = 60_000
+/** Background reads in the worker at a time (the urgent lane is never counted and never waits). */
+export const BACKGROUND_READS_MAX = 2
+/** Background reads that may wait their turn; past it the oldest is dropped (answers null). */
+export const WAITING_READS_MAX = 256
 const SERVED = new Set(SERVED_TFS)
 
 const _whenIdle = (fn) => {
@@ -67,6 +83,8 @@ export function createDeviceClient({
   onVisibilityChange = _onVisibilityChange,
   setIntervalFn = (fn, ms) => setInterval(fn, ms),
   storage = (typeof navigator !== 'undefined' && navigator.storage) || null,
+  backgroundMax = BACKGROUND_READS_MAX,
+  waitingMax = WAITING_READS_MAX,
 } = {}) {
   let worker = null
   let dead = false
@@ -75,6 +93,8 @@ export function createDeviceClient({
   const pending = new Map()      // id → resolve
   const cache = new Map()        // `${tf}|${SYM}` → {cols, at} (LRU: Map order)
   const reads = new Map()        // `${tf}|${SYM}` → in-flight read
+  const waiting = new Map()      // `${tf}|${SYM}` → {send, drop}: background reads not sent yet (Map order: oldest first)
+  let backgroundOut = 0          // background reads the worker has not answered
   let status = null
   /** navigator.storage persistence: asked at most once per page. */
   const persist = { asked: false, persisted: null, granted: null, error: null }
@@ -137,6 +157,40 @@ export function createDeviceClient({
     })
   }
 
+  /** Send waiting background reads while the worker holds fewer than `backgroundMax` of them. */
+  function _pump() {
+    while (backgroundOut < backgroundMax && waiting.size) {
+      const [k, w] = waiting.entries().next().value
+      waiting.delete(k)
+      w.send(true)
+    }
+  }
+
+  /** One read of `k`, on its lane: the worker's answer (columns or null), or null when it was dropped. */
+  function _read(k, sym, tf, urgent) {
+    let settle
+    const raw = new Promise((resolve) => { settle = resolve })
+    const send = (background) => {
+      if (background) backgroundOut++
+      _call({ op: 'read', sym, tf }).then((res) => {
+        if (background) backgroundOut--
+        settle(res)
+        _pump()
+      })
+    }
+    if (urgent) send(false)
+    else if (backgroundOut < backgroundMax) send(true)
+    else {
+      waiting.set(k, { send, drop: () => settle(null) })
+      if (waiting.size > waitingMax) {
+        const [k0, w0] = waiting.entries().next().value
+        waiting.delete(k0)
+        w0.drop()
+      }
+    }
+    return raw
+  }
+
   function _put(k, cols) {
     cache.delete(k)
     cache.set(k, { cols, at: now() })
@@ -170,15 +224,20 @@ export function createDeviceClient({
       cache.set(k, c)
       return c.cols
     },
-    getBars(sym, tf) {
+    /** `urgent`: the member's own ask (see TWO LANES above); anything else takes the background lane. */
+    getBars(sym, tf, { urgent = false } = {}) {
       tf = String(tf)
       if (!sym || !SERVED.has(tf)) return Promise.resolve(null)
       const hit = api.peekBars(sym, tf)
       if (hit) return Promise.resolve(hit)
       const k = keyOf(sym, tf)
       const running = reads.get(k)
-      if (running) return running
-      const p = _call({ op: 'read', sym: String(sym).toUpperCase(), tf }).then((res) => {
+      if (running) {
+        // asked for in earnest while it waits its turn: it goes now (already sent: the answer is on its way)
+        if (urgent === true) { const w = waiting.get(k); if (w) { waiting.delete(k); w.send(false) } }
+        return running
+      }
+      const p = _read(k, String(sym).toUpperCase(), tf, urgent === true).then((res) => {
         if (res && res.t?.length) { const cols = Object.freeze(res); _put(k, cols); return cols }
         return null
       }).finally(() => { reads.delete(k) })
@@ -196,13 +255,16 @@ export function createDeviceClient({
       return n
     },
     info() { return _call({ op: 'info' }) },
-    /** Diagnostics: this page's requests to the worker still unanswered (a held arrow's backlog). */
-    inFlight() { return pending.size },
+    /** Diagnostics: this page's requests still unanswered, sent or waiting their turn (a held arrow's backlog). */
+    inFlight() { return pending.size + waiting.size },
     /** Diagnostics: the worker's rule behind what getBars answers (engine.why), or null with no engine yet. */
     why(sym, tf) { return sym ? _call({ op: 'why', sym: String(sym).toUpperCase(), tf: String(tf) }) : Promise.resolve(null) },
     status: () => ({ ...(status || {}), storage: { ...persist } }),
     cacheSize: () => cache.size,
     dispose() {
+      const left = [...waiting.values()]
+      waiting.clear()
+      for (const w of left) w.drop()
       for (const r of pending.values()) r(null)
       pending.clear()
       cache.clear()

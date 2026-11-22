@@ -3,7 +3,8 @@
 // persist.js holds one of these (null while the switch is off) and asks it, for a key whose mem record
 // is empty, for a LOCAL copy:
 //   peek(sym, cacheTf) → {rows, savedAt} | null   SYNCHRONOUS (the client's recently-read cache)
-//   read(sym, cacheTf) → Promise<{rows, savedAt} | null>   one worker round trip; never rejects
+//   read(sym, cacheTf, {urgent}?) → Promise<{rows, savedAt} | null>   one worker round trip; never rejects.
+//                       `urgent`: the member's own ask goes ahead of every background read (client.js, TWO LANES)
 // `rows` are the cache's row shape ({t,o,h,l,c,v}, t unix seconds), what the reducer's local-copy
 // action ingests. Only the keys the seed holds: 1/5/15/30/60 (the RTH session grid: '60e' is not in
 // the seed), D, and W/M derived from D.
@@ -60,10 +61,10 @@ export function createDeviceSource({ load = _load, current = () => _client } = {
       if (!c) { load(); return null }
       try { return _hit(c.peekBars(sym, String(tf))) } catch { return null }
     },
-    read(sym, tf) {
+    read(sym, tf, { urgent = false } = {}) {
       if (!sym || !_TFS.has(String(tf))) return Promise.resolve(null)
       return Promise.resolve(current() || load())
-        .then((c) => (c ? c.getBars(sym, String(tf)) : null))
+        .then((c) => (c ? (urgent === true ? c.getBars(sym, String(tf), { urgent: true }) : c.getBars(sym, String(tf))) : null))
         .then(_hit, () => null)
     },
     /** Diagnostics: the client's worker requests in flight (client.inFlight), 0 before it loaded. */
