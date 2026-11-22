@@ -210,11 +210,11 @@ export const FUND_MAX_PEERS = 3
 // GRPS (2026-11-21): copies of the panel model's words (functions.groupStats.test.js pins each to its owner)
 export const GROUPS_KIND_WORDS = Object.freeze({ SECTOR: 'sector', SECTORS: 'sector', INDUSTRY: 'industry', INDUSTRIES: 'industry' })
 export const GROUPS_VIEW_WORDS = Object.freeze({
-  OVERVIEW: 'overview', GROWTH: 'growth', MARGINS: 'margins', MARGIN: 'margins', VALUATION: 'valuation', BREADTH: 'breadth', ALL: 'all',
+  OVERVIEW: 'overview', GROWTH: 'growth', MARGINS: 'margins', MARGIN: 'margins', VALUATION: 'valuation', BREADTH: 'breadth', RANK: 'rank', ALL: 'all',
 })
 const GROUPS_VIEW_DESCRIBE = Object.freeze({
   overview: 'the overview columns', growth: 'the growth columns', margins: 'the margin and return columns', valuation: 'the valuation columns',
-  breadth: 'the breadth columns', all: 'every column',
+  breadth: 'the breadth columns', rank: 'the weekly rank columns', all: 'every column',
 })
 const FUND_WORD_OF = Object.freeze(Object.fromEntries(Object.entries(FUND_METRIC_WORDS).map(([w, id]) => [id, w])))
 const fundMetricOf = (tok) => {
@@ -827,7 +827,7 @@ export const ARG_KINDS = {
   },
   /** GRPS's column set. */
   groupsView: {
-    takes: 'a column set (OVERVIEW, GROWTH, MARGINS, VALUATION, BREADTH, ALL)',
+    takes: 'a column set (OVERVIEW, GROWTH, MARGINS, VALUATION, BREADTH, RANK, ALL)',
     parse: (tok) => {
       const key = String(tok ?? '').trim().toUpperCase()
       return Object.prototype.hasOwnProperty.call(GROUPS_VIEW_WORDS, key) ? GROUPS_VIEW_WORDS[key] : null

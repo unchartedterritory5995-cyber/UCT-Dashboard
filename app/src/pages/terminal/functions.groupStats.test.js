@@ -25,7 +25,7 @@ describe('GRPS in the registry', () => {
     expect(FUNCTIONS.filter((f) => f.code === 'GRPS')).toHaveLength(1)
     expect(FUNCTION_GROUPS).toContain(BY_CODE.GRPS.group)
     expect(BY_CODE.GRPS.group).toBe('Market')
-    expect(BY_CODE.GRPS.label).toBe('Every sector or industry: median growth, margins, valuation and breadth')
+    expect(BY_CODE.GRPS.label).toBe('Every sector or industry: weekly rank, median growth, margins, valuation and breadth')
     expect(BY_CODE.GRPS.market).toEqual({ panel: 'GroupTable', args: [{ kind: 'groupsKind', prop: 'kind' }, { kind: 'groupsView', prop: 'view' }] })
     expect(BY_CODE.GRPS.ticker).toBeUndefined()
     expect(BY_CODE.GRPS.market.flag).toBeUndefined()              // its route answers every paid member; states are in words
@@ -74,7 +74,10 @@ describe('the arguments match the panel that owns the words', () => {
     expect(run(['NVDA']).ignored).toEqual(['NVDA'])
     expect(run(['GROWTH', 'MARGINS']).ignored).toEqual(['MARGINS'])
     expect(applyArgs(BY_CODE.GRPS.market, []).takes).toEqual(['SECTORS or INDUSTRIES',
-      'a column set (OVERVIEW, GROWTH, MARGINS, VALUATION, BREADTH, ALL)'])
+      'a column set (OVERVIEW, GROWTH, MARGINS, VALUATION, BREADTH, RANK, ALL)'])
+    // GRPS RANK (2026-11-22): the weekly rank's word, in either order with the kind
+    expect(run(['RANK', 'INDUSTRIES']).props).toEqual({ view: 'rank', kind: 'industry' })
+    expect(run(['INDUSTRIES', 'RANK']).applied).toEqual(['every industry', 'the weekly rank columns'])
   })
 
   it('what the panel writes back is read as the same choice; the default is the bare command', () => {
@@ -102,12 +105,27 @@ describe('GRPS parses', () => {
     // GRP's phrase reading is untouched: every word after GRP is the group's name
     expect(parseCommand('GRP TECHNOLOGY')).toMatchObject({ ok: true, code: 'GRP', args: ['TECHNOLOGY'] })
   })
+
+  it('RANK (2026-11-22) is GRPS\'s word after the code, is no code and no stock, and no other argument kind takes it', () => {
+    expect(parseCommand('GRPS RANK')).toMatchObject({ ok: true, code: 'GRPS', sym: null, args: ['RANK'] })
+    expect(parseCommand('grps industries rank')).toMatchObject({ ok: true, code: 'GRPS', sym: null, args: ['INDUSTRIES', 'RANK'] })
+    expect(isCode('RANK')).toBe(false)
+    const universe = new Set(JSON.parse(fs.readFileSync(path.join(process.cwd(), '..', 'api', 'data', 'cap_universe.json'), 'utf8')))
+    expect(universe.has('RANK')).toBe(false)
+    // a kind that takes any word of a shape (a ticker, a name) takes an invented word too: it is not a dictionary
+    const ctx = { today: '2026-11-22' }
+    const dictionaries = Object.entries(ARG_KINDS).filter(([kind, spec]) => kind !== 'groupsView' && spec.parse('QZXW', ctx) == null)
+    expect(dictionaries.length).toBeGreaterThan(40)
+    expect(dictionaries.some(([kind]) => kind === 'groupsKind')).toBe(true)          // the control: a closed word list is checked
+    for (const [kind, spec] of dictionaries) expect([kind, spec.parse('RANK', ctx)]).toEqual([kind, null])
+  })
 })
 
 describe('a plain word finds the panel', () => {
   it('its words find it first', () => {
     const words = ['sector fundamentals', 'industry fundamentals', 'sector breadth', 'industry breadth', 'sector valuation', 'sector margins',
-      'group fundamentals', 'sector table', 'industry table']
+      'group fundamentals', 'sector table', 'industry table', 'industry rank', 'group rank', 'industry group rank', 'industry ranking',
+      'group rank history', 'leading industries']
     expect(BY_CODE.GRPS.keywords).toEqual(words)
     for (const w of words) expect([w, codesForWords(w)[0]]).toEqual([w, 'GRPS'])
   })
@@ -120,5 +138,8 @@ describe('a plain word finds the panel', () => {
     expect(codesForWords('valuation')[0]).toBe('PEER')
     expect(codesForWords('margins')[0]).toBe('FUND')
     expect(codesForWords('drill down')[0]).toBe('GRP')
+    // GRPS RANK (2026-11-22): 'rank' stays with RSL and 'sector rank' with SCTR
+    expect(codesForWords('rank')[0]).toBe('RSL')
+    expect(codesForWords('sector rank')[0]).toBe('SCTR')
   })
 })

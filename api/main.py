@@ -12393,6 +12393,8 @@ from api.routers import stock_stats as stock_stats_router  # noqa: E402  (STAT: 
 app.include_router(stock_stats_router.router)  # /api/research/stock-stats/{ticker}
 from api.routers import setup_history as setup_history_router  # noqa: E402  (SETH: how setups acted in every correction and rally, and one stock's own, paid)
 app.include_router(setup_history_router.router)  # /api/research/setup-history, /api/research/setup-history/{ticker}
+from api.routers import volume_footprint as volume_footprint_router  # noqa: E402  (VFP: one stock's accumulation and distribution, biggest volume days, pocket pivots, gaps, paid)
+app.include_router(volume_footprint_router.router)  # /api/research/volume-footprint/{ticker}
 from api.routers import public_records as public_records_router  # noqa: E402  (PUBR: one company's contracts, trials, FDA approvals and lobbying from government records, paid)
 app.include_router(public_records_router.router)  # /api/research/public-records/{ticker}
 from api.routers import event_study as event_study_router  # noqa: E402  (EVST: a member's own historical event study over stored series, paid)

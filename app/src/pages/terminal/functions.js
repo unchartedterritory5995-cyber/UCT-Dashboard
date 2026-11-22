@@ -650,7 +650,9 @@ export const FUNCTIONS = [
   // out once each evening (GET /api/research/group-stats, paid). GRP shows one sector's or industry's in full above
   // its ranked stocks. `GRPS INDUSTRIES`, `GRPS VALUATION`. A new code, not a view of SCTR: SCTR ranks the 11 sector
   // FUNDS by their price over a window. GRPS is not in the site's universe.
-  { code: 'GRPS', label: 'Every sector or industry: median growth, margins, valuation and breadth', group: 'Market',
+  // GRPS RANK (2026-11-22): each group's weekly rank for a year by the median 6-month price change of its stocks (and
+  // the 3-month), the places it moved over 4, 13 and 52 weeks, its best and worst week, and the movers; GRP's "Rank".
+  { code: 'GRPS', label: 'Every sector or industry: weekly rank, median growth, margins, valuation and breadth', group: 'Market',
     market: { panel: 'GroupTable', args: [{ kind: 'groupsKind', prop: 'kind' }, { kind: 'groupsView', prop: 'view' }] } },
   // SEG (2026-11-21): one stock's revenue by product (or business line) and by region, the newest period ranked with
   // each segment's share and the last four side by side (GET /api/research/revenue-segments/{ticker}, read from
@@ -719,6 +721,14 @@ export const FUNCTIONS = [
   { code: 'SETH', label: 'How setups acted (breakouts, pullbacks, gaps in every correction and rally)', group: 'Market',
     ticker: { panel: 'SetupHistory', args: [{ kind: 'marketView', prop: 'view' }] },
     market: { panel: 'SetupHistory', args: [{ kind: 'marketView', prop: 'view' }] } },
+  // VFP (2026-11-22): one stock's volume footprint, worked out by the server from the daily bars it already stores
+  // (GET /api/research/volume-footprint/{ticker}, held for the session): accumulation and distribution days over 25
+  // and 50 sessions and the up/down volume ratio, the 10 heaviest sessions of the last year, every pocket pivot of
+  // the last year, and every gap of 3% or more in the history held with when it filled; earnings marks from the
+  // report dates the site's earnings page already holds. No arguments. VFP is not in the site's universe, and a web
+  // search on 2026-11-22 found no stock or fund listed under it.
+  { code: 'VFP', label: 'Volume footprint and gaps (accumulation and distribution days, pocket pivots, every gap of 3% or more)', group: 'Security',
+    ticker: { panel: 'VolumeFootprint' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -1064,9 +1074,11 @@ const FUNCTION_WORDS = {
     'rally leaders'],
     note: 'Every decline of 10% or more on closing prices, the rally after each low and its leaders. A record, not a forecast.' },
   // 'breadth' stays with BRD, 'sectors' with RRG and 'sector performance' with SCTR: each still finds its own first.
+  // 'sector rank' stays with SCTR and 'rank' with RSL: no word here starts with "rank" (2026-11-22, GRPS RANK).
   GRPS: { example: 'GRPS INDUSTRIES', keywords: ['sector fundamentals', 'industry fundamentals', 'sector breadth', 'industry breadth',
-    'sector valuation', 'sector margins', 'group fundamentals', 'sector table', 'industry table'],
-    note: "Medians of each group's stocks from their SEC filings as known that day, and its breadth from stored closes; worked out each evening." },
+    'sector valuation', 'sector margins', 'group fundamentals', 'sector table', 'industry table', 'industry rank', 'group rank',
+    'industry group rank', 'industry ranking', 'group rank history', 'leading industries'],
+    note: "Medians of each group's stocks from their SEC filings as known that day, its breadth from stored closes, and its weekly rank by the median 6-month change; worked out each evening." },
   // 'revenue' stays with FA and 'geographic'/'regions' had no owner.
   SEG: { example: 'NVDA SEG', keywords: ['revenue by segment', 'segments', 'segment revenue', 'product revenue', 'revenue by product',
     'revenue by region', 'geographic revenue', 'business segments', 'revenue mix'],
@@ -1100,6 +1112,11 @@ const FUNCTION_WORDS = {
   SETH: { example: 'SETH', keywords: ['setup history', 'how setups acted', 'breakout history', 'setup backtest',
     'setups by market phase'],
     note: 'Each setup is a screen the Screener answers on every past bar; the market phase is assigned with hindsight. One stock: NVDA SETH. A record, not a forecast.' },
+  // VFP: "volume" stays LEAD's, UNVOL's and MOST's (MOST also takes VOLUME as a lens word), "accumulation" ACCUM's,
+  // "gap" MOST's (its gappers) and "pivot" BRKO's: each still finds its own function first.
+  VFP: { example: 'NVDA VFP', keywords: ['volume footprint', 'accumulation days', 'distribution days', 'pocket pivots',
+    'pocket pivot', 'gap history', 'gaps', 'unfilled gaps', 'up down volume'],
+    note: "From UCT's stored daily bars (settled sessions; prices and volumes split-adjusted). A record, not a forecast." },
   // OSCR RICH / OSCR CHEAP: no keyword. "iv" and "implied volatility" stay IVH's, and any keyword holding "rank" would
   // put OSCR ahead of RSL for a one-word search on "rank" (OSCR sits earlier in the registry).
   OSCR: { example: 'OSCR RICH',

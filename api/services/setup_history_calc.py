@@ -543,13 +543,16 @@ class Study:
         return sum(len(s) for s in self._sig)
 
     def _baseline(self, j: int, h: int, codes: Sequence[int], withheld: bool) -> Dict[str, Any]:
+        # Each cell is one record [count, sum, wins, clipped sum]: the whole universe's cell less this setup's
+        # own signals in it, summed over the phase codes asked for. Named fields of one record, never a window.
         n = s = w = cs = 0
         for c in codes:
-            a, o = self._all.base[h][c], self._out[j].base[h][c]
-            n += a[0] - o[0]
-            s += a[1] - o[1]
-            w += a[2] - o[2]
-            cs += a[3] - o[3]
+            a_n, a_s, a_w, a_cs = self._all.base[h][c]
+            o_n, o_s, o_w, o_cs = self._out[j].base[h][c]
+            n += a_n - o_n
+            s += a_s - o_s
+            w += a_w - o_w
+            cs += a_cs - o_cs
         if withheld or n <= 0:
             return {"n": max(n, 0), "win_rate": None, "avg_pct": None, "avg_pct_winsorised": None}
         return {"n": n, "win_rate": w / n * 100, "avg_pct": s / n, "avg_pct_winsorised": cs / n}

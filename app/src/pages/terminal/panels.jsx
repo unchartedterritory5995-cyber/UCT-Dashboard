@@ -179,6 +179,8 @@ export const PANEL_IMPORTERS = {
   EventStudy: () => import('./panels/EventStudyPanel'),
   // SETH (2026-11-22): how setups acted in every correction and rally, or every setup on one stock
   SetupHistory: () => import('./panels/SetupHistoryPanel'),
+  // VFP (2026-11-22): one stock's accumulation and distribution, biggest volume days, pocket pivots and gaps
+  VolumeFootprint: () => import('./panels/VolumeFootprintPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),

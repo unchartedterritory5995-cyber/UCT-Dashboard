@@ -25,6 +25,8 @@ DECLARED = {
     "api/services/screener/backtest.py": ("inherits", 1),
     "api/services/ast_interpret.py": ("inherits", 4),
     "api/services/definition_concierge.py": ("native", 1),
+    # SETH (#2491): the fixed LIBRARY's hand-built screen trees (the persisted native shape), never a Pine document
+    "api/services/setup_history_calc.py": ("native", 1),
 }
 LANE_NAMES = {"ast_interpret", "_lane", "_ai", "A"}
 
