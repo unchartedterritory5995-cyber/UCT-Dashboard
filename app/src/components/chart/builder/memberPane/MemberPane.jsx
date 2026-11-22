@@ -54,7 +54,10 @@ import {
   subscribeRuntimeLists, runtimeConsultPendingOf, awaitRuntimeAdmission,
 } from '../../engine/runtimeKill'
 import { requirementNote } from '../../engine/ast/parse'
-import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
+import { MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
+import { useMemberDoor } from './useMemberDoor'
+import { doorFailedAnswer } from './memberDoorAsync'
+import { CHECKING_TEXT } from '../PineEditorStatus'
 import { usePineLibraries } from '../usePineLibraries'
 import { logRefusalCodes } from '../../supportLoop/supportApi'
 import styles from './MemberPane.module.css'
@@ -173,38 +176,44 @@ export default function MemberPane({
       { delayMs: ADMISSION_ASK_DEBOUNCE_MS })
   }, [runtimeOn, admissionOn, source])
 
-  // ⭐ THE BUILD IS MEMOISED ON THE SOURCE, not run per render: `translatePine`
-  // on a real script is milliseconds, and milliseconds on every keystroke is a
-  // frame budget.
+  // ⭐⭐ THE PASTE WORKER (2026-11-20) — THE BUILD RUNS OFF THE MAIN THREAD, ONCE PER SCRIPT. `memberPaneDefinition`
+  // on a script the door serves takes milliseconds to minutes, and run here (a `useMemo`) every one of them was a
+  // frozen tab. It is the page's shared build now (`useMemberDoor` -> `memberDoorAsync.js`): the same function in
+  // a Web Worker, over this page's state, under the door's own deadline and a watchdog; the editor's status panel
+  // reads the SAME build of the same text, so a paste costs one door call, not two. While a build runs, the pane
+  // keeps the last one it drew and says the script is being checked; its Add waits for the build on screen.
   // ⭐ L1 — an `import`ed library arrives from the server's store; the build
-  // re-runs once it is in the registry (`revision`).
+  // re-runs once it is in the registry (`revision`), and when the kill list lands (`killVersion`).
   const libRevision = usePineLibraries(live ? source : '')
-  const built = useMemo(
-    () => (live ? memberPaneDefinition({ source, id: defId }) : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- libRevision: rebuild when a library lands; killVersion: rebuild when the kill list lands
-    [live, source, defId, libRevision, killVersion],
-  )
+  const door = useMemberDoor(live ? { source, id: defId } : null, `${libRevision}:${killVersion}`)
+  const building = door.pending
+  // the build on screen: of THIS pane's id (a stale build of another id never draws under this one)
+  const doorArgs = live && door.args && door.args.id === defId ? door.args : null
+  const doorSource = doorArgs ? doorArgs.source : null
+  const landed = doorArgs ? door.landed : null
+  const built = useMemo(() => {
+    if (!landed) return null
+    // ⛔ a door that threw is a refusal BY NAME here (a crash of the pane, before)
+    return landed.error ? doorFailedAnswer(landed.error.message) : landed.built
+  }, [landed])
   // ⭐⭐ (2026-11-18, THE FIRST-PASTE RACE) — A BUILD MINTED BEFORE ITS ADMISSION ANSWERED. The build above reads the
   // runtime admission SYNCHRONOUSLY (`runtimeNotGradedOf`): a script the server has not answered for yet fails closed
   // to the host lane ("still being checked"). ⚰️ the 2026-11-18 production check's fresh session: the first paste of
   // supertrend-strategy minted the host copy (5 settings, its backtest declined) while every later paste got the
   // run-lane copy (12 settings), because nothing re-minted this build when the answer landed by another path, and
   // the watcher above waited a full recheck after the server's busy answers.
-  // Read right after the build (same render, same state): whether a consult it made answered "still being checked".
-  const mintedPending = useMemo(
-    () => !!(runtimeOn && runtimeConsultPendingOf({ source })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- read beside `built`, on the build's own inputs
-    [runtimeOn, source, defId, libRevision, killVersion],
-  )
+  // Read right after the build (in the build's own state, where it ran): whether a consult it made answered "still
+  // being checked" (`landed.consultPending`).
+  const mintedPending = !!(runtimeOn && landed && landed.consultPending)
   // the answer, by WHATEVER path it lands (this pane's watcher, the build's own ask, another consult, the lists'
   // re-read): the build is re-minted on it
   useEffect(() => {
-    if (!mintedPending) return undefined
-    const settle = () => { if (!runtimeConsultPendingOf({ source })) setKillVersion((n) => n + 1) }
+    if (!mintedPending || doorSource === null) return undefined
+    const settle = () => { if (!runtimeConsultPendingOf({ source: doorSource })) setKillVersion((n) => n + 1) }
     const unsub = subscribeRuntimeLists(settle)
     settle()   // an answer that landed between the build and this effect
     return unsub
-  }, [mintedPending, source])
+  }, [mintedPending, doorSource])
   const aliveRef = useRef(true)
   useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false } }, [])
   const [installed, setInstalled] = useState(null)
@@ -325,7 +334,7 @@ export default function MemberPane({
   // the answer. When the wait runs out with no answer, the re-minted build is what the door mints then (the host
   // copy, as before): an Add is never refused for a server that has not answered.
   const [queuedAttach, setQueuedAttach] = useState(null)
-  const attachBuilt = useCallback(async (fn, b, ackGiven) => {
+  const attachBuilt = useCallback(async (fn, b, ackGiven, src) => {
     const ack = !!(b.definition && b.definition.meta && b.definition.meta.repaint === 'preview-repaints')
     setAttach({ state: 'busy', error: null })
     let res = null
@@ -333,8 +342,9 @@ export default function MemberPane({
       // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — the SCRIPT this document was built from rides
       // with it, so the store keeps it beside the document and a later engine can
       // translate it again (`savedScriptUpgrade.js`). The same `source` the
-      // memoised build above read: the document and its script are one pair.
-      res = await fn(b.definition, { ...(ack && ackGiven ? { previewAcked: true } : {}), source })
+      // build above read (`doorSource`, the build's OWN text: the box may already
+      // hold a newer one): the document and its script are one pair.
+      res = await fn(b.definition, { ...(ack && ackGiven ? { previewAcked: true } : {}), source: src })
     } catch {
       // ⚠️ A THROW IS A TRANSPORT FAILURE, NOT A REFUSAL. The store never
       // answered, so there is no sentence of its to render and inventing one that
@@ -348,51 +358,66 @@ export default function MemberPane({
       error: (res && typeof res.error === 'string' && res.error.trim())
         ? res.error : 'The store refused this definition.',
     })
-  }, [source])
+  }, [])
   const doAttachWith = useCallback(async (fn) => {
     if (!fn || !built || !built.ok || built.saveable === false) return
     if (!keptBuildOf(built)) return          // ITEM 2: refused up front, nothing is sent
+    // ⛔ THE PASTE WORKER — an Add while a newer build of the box runs would attach the picture of the OLD text:
+    // the button waits for the build on screen (it is disabled meanwhile; this is the second guard)
+    if (building || doorSource !== source) return
     if (needsAck && !acked) return
     if (mintedPending) {
       setAttach({ state: 'busy', error: null, checking: true })
-      await awaitRuntimeAdmission(source)
+      await awaitRuntimeAdmission(doorSource)
       if (!aliveRef.current) return
-      setQueuedAttach({ fn, source, acked: needsAck && acked })
+      // the re-minted build is the first one landed AFTER this one (`door.seq`)
+      setQueuedAttach({ fn, source: doorSource, acked: needsAck && acked, afterSeq: door.seq })
       setKillVersion((n) => n + 1)          // re-mint the preview on the answer
       return
     }
-    await attachBuilt(fn, keptBuildOf(built), needsAck && acked)
-  }, [built, needsAck, acked, source, mintedPending, attachBuilt])
+    await attachBuilt(fn, keptBuildOf(built), needsAck && acked, doorSource)
+  }, [built, building, doorSource, source, door.seq, needsAck, acked, mintedPending, attachBuilt])
   useEffect(() => {
     if (!queuedAttach) return
     const q = queuedAttach
+    // ⭐ THE PASTE WORKER — the re-mint runs off the main thread: the queued Add waits for ITS answer
+    if (q.source === source && door.seq <= q.afterSeq) return
     setQueuedAttach(null)
     // the member edited the script while it waited, or the re-minted build is not one this door saves: nothing attaches
-    if (q.source !== source || !built || !built.ok || built.saveable === false) { setAttach({ state: 'idle', error: null }); return }
+    if (q.source !== source || doorSource !== source || !built || !built.ok || built.saveable === false) { setAttach({ state: 'idle', error: null }); return }
     // ITEM 2: a re-minted build whose Add is refused up front sends nothing
     const kept = keptBuildOf(built)
     if (!kept) { setAttach({ state: 'idle', error: null }); return }
     // a re-minted build that asks for a repaint acknowledgement the member has not given waits for it, on screen
     const reNeedsAck = !!(kept.definition && kept.definition.meta && kept.definition.meta.repaint === 'preview-repaints')
     if (reNeedsAck && !q.acked) { setAttach({ state: 'idle', error: null }); return }
-    attachBuilt(q.fn, kept, q.acked)
-  }, [queuedAttach, built, source, attachBuilt])
+    attachBuilt(q.fn, kept, q.acked, doorSource)
+  }, [queuedAttach, built, building, door.seq, doorSource, source, attachBuilt])
   const doAttach = useCallback(() => doAttachWith(onAttach), [doAttachWith, onAttach])
   const doAttachCopy = useCallback(() => doAttachWith(onAttachCopy), [doAttachWith, onAttachCopy])
 
   if (!enabled) return null
   if (!live) return null
+  // ⭐ THE PASTE WORKER — a build of the box's text is running: said (the editor's own words), never a frozen tab
+  const checking = building ? (
+    <p data-testid="pine-member-pane-building" role="status" className={styles.building}>{CHECKING_TEXT}</p>
+  ) : null
   // ⭐ A REFUSAL IS A SENTENCE, NEVER A BLANK. `paneGate` already produced one;
   // this renders it verbatim rather than inventing a second wording.
   if (built && !built.ok) {
     return (
-      <div data-testid="pine-member-pane-refusal" role="status">{withoutGuardIds(built.reason)}</div>
+      <>
+        <div data-testid="pine-member-pane-refusal" role="status">{withoutGuardIds(built.reason)}</div>
+        {checking}
+      </>
     )
   }
-  if (!stored) return null
+  if (!stored) return checking
 
   return (
     <div data-testid="pine-member-pane" data-def-id={defId}>
+      {/* ⭐ THE PASTE WORKER — the picture below is the last build; a newer one of the box's text is running */}
+      {checking}
       {/* ⚰️ THE FRAME CARRIES THE HEIGHT, AND IT IS LOAD-BEARING. Unstyled, this
           pane drew at 248px and the chart's own chrome left the two panes 29px
           and 28px — four correct series, a correct quarter-height sub-pane, and
@@ -459,7 +484,7 @@ export default function MemberPane({
           <button
             type="button"
             className={styles.attach}
-            disabled={attach.state === 'busy' || (needsAck && !acked)}
+            disabled={attach.state === 'busy' || building || doorSource !== source || (needsAck && !acked)}
             onClick={doAttach}
           >
             {attach.state === 'busy' ? (onAttachCopy ? 'Saving…' : 'Adding…') : attachLabel}
@@ -469,7 +494,7 @@ export default function MemberPane({
               type="button"
               className={styles.attach}
               data-testid="pine-member-pane-attach-copy"
-              disabled={attach.state === 'busy' || (needsAck && !acked)}
+              disabled={attach.state === 'busy' || building || doorSource !== source || (needsAck && !acked)}
               onClick={doAttachCopy}
             >
               {copyLabel}

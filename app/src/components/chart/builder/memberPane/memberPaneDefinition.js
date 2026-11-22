@@ -42,7 +42,12 @@ import { requestTargetsUnservable } from '../../engine/runtime/requestSupply'
 import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { OHLC_DEF_STYLES } from '../../engine/defSchema'
-import { warmRuntimeLane } from '../../engine/runtime/runtimeAsync'
+import { warmRuntimeLane, runtimeLaneWarmAsks } from '../../engine/runtime/runtimeAsync'
+/** ⭐ THE PASTE WORKER: the runtime lane's warm, and the count of asks for it, reached THROUGH this door (which
+ *  consults the runtime pane's gate before it routes). The worker counts the door's asks and the page makes the warm
+ *  (`memberDoorWorkerCore.js`, `memberDoorAsync.js`), and neither may reach the lane by a path of its own
+ *  (`engine/__tests__/memberPaneGate.test.js`). */
+export { warmRuntimeLane, runtimeLaneWarmAsks }
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjectsDoor'
 import { runtimeFamilyLedger, FAMILY_WORDS } from './runtimeFamilyLedger'
@@ -71,6 +76,12 @@ import { applyParamEdit } from '../paramEdit'
 import { buildDefinition } from '../BuilderSheet'
 import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
 import { evaluateFormula } from '../FormulaField'
+// ⭐⭐ THE PASTE WORKER (2026-11-20) — THE TWO IMPORTS ABOVE ARE THE PAGE'S, AND THE WORKER RESOLVES THEM TO THE PURE
+// MODULES. `BuilderSheet.jsx` and `FormulaField.jsx` re-export `buildDefinition` and `evaluateFormula` from
+// `../buildDefinition.js` and `../evaluateFormula.js` (the SAME functions, railed: `memberDoorWorkerGraph.test.js`).
+// On the page this door imports them as it always did, so the page's chunk graph (what every route loads first) is
+// unchanged; inside a WORKER bundle `vite.config.js::memberDoorWorkerPure` resolves these two specifiers to the pure
+// modules, so the member door's worker holds no React and no sheet.
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
 import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'

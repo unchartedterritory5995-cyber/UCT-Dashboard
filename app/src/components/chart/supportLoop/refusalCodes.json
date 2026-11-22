@@ -150,6 +150,8 @@
   "pine:declaration-library",
   "pine:declaration-strategy",
   "pine:document-size",
+  "pine:door-failed",
+  "pine:door-worker",
   "pine:drawing",
   "pine:empty",
   "pine:enum-na",
