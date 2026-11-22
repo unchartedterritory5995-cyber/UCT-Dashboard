@@ -31,8 +31,8 @@ This design is about problem B.
 
 ## 2. What GitHub's queue does, as rehearsed
 
-Throwaway public repo `northstar-quarry/mq-rehearsal`, 2026-11-22, five pull requests (one queued twice), a ruleset with
-the `merge_queue` rule (merge method MERGE, 5 builds at once, groups of 1 to 5).
+Throwaway public repo `northstar-quarry/mq-rehearsal`, 2026-11-22, three rounds and eleven pull requests, a ruleset
+with the `merge_queue` rule (merge method MERGE, 5 builds at once, groups of 1 to 5).
 
 | Observed | Detail |
 |---|---|
@@ -45,18 +45,21 @@ the `merge_queue` rule (merge method MERGE, 5 builds at once, groups of 1 to 5).
 | The base branch still gets a normal push | One push per landed group. A push-triggered gate and a `workflow_run` follower both fired. |
 | Push triggers with no branch filter | They run on every temporary `gh-readonly-queue/**` branch. |
 | `gh pr merge` | Needs the repo setting "Allow auto-merge". Then it queues the pull request, or, if its checks are still running, arms auto-merge and the pull request queues itself when they pass. |
+| Queued while its checks were running | Auto-merge was armed and the pull request joined the queue by itself 54 s later, when they passed. |
+| A required COMMIT STATUS posted through the API | Honoured on the merge group's commit: a `success` status let two entries land; a `failure` status removed its entry about 70 s after it was queued, without waiting for the other checks, and the entry behind was rebuilt and landed. This is how `agent-ci-required` is posted today. |
+| Required checks split over two rulesets | Both enforced: with the queue rule in one ruleset and a required check in another, an entry failing that check was removed and the next one landed. |
 
 ## 3. Design
 
 ### 3.1 Rules on `master`
 
 Today: no deletion, no force push (ruleset 27828221); `master gate static checks` required (27829824).
-Added at cutover, in one ruleset so one switch turns it all off:
+Added at cutover, in ONE NEW ruleset, so one switch turns the queue off and the two rulesets above stay as they are:
 
 - pull request required (0 approvals), which ends direct pushes to `master`;
 - merge queue: method merge, 5 builds at once, groups of 1 to 5, check timeout 30 minutes;
-- required checks, both pinned to GitHub Actions as their source: `master gate static checks` (exists) and
-  `agent-ci-required` (exists as a commit status today; see 3.3).
+- required check `agent-ci-required`, pinned to GitHub Actions as its source (it exists as a commit status today;
+  see 3.3). `master gate static checks` stays required through ruleset 27829824.
 
 The repo setting "Allow auto-merge" is turned on.
 
@@ -150,6 +153,7 @@ are no longer needed to merge. They stay in the tree until AUDIT says the queue'
    nothing until a queue exists.
 3. Rehearse the Agent workflow itself on a branch of the throwaway repo.
 4. Cutover in a quiet hour, sessions and people told first: "Allow auto-merge" on, then the ruleset in 3.1.
+   The procedure, the message and the rollback are in `CUTOVER.md`.
 5. Watch one week: queue wait (median, p90), removals, Agent open-to-merge time, runner minutes.
 
 **Rollback:** an admin sets the queue ruleset to Disabled. Merging returns to today's behaviour at once;

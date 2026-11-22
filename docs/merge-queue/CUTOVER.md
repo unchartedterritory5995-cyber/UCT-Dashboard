@@ -1,0 +1,76 @@
+# Merge queue on `master`: cutover runbook
+
+**Status: NOT RUN.** This is the procedure for the day the queue is switched on. Read `DESIGN.md` first.
+Every step here is reversible with one switch (the last section).
+
+## Before the day: all of these are true
+
+- [ ] AUDIT has answered the questions in `DESIGN.md` section 8 and reviewed the Agent pull request.
+- [ ] The Agent part is merged: Agent jobs run on `merge_group` for a queued pull request that touches an Agent
+      path, and `agent-ci-required` is posted on the merge group's commit.
+- [ ] The Agent part was exercised by a real `merge_group` event in the rehearsal repo, including one entry that
+      fails and one that touches a self-protected path.
+- [ ] The owner has said go for the switch-on.
+- [ ] No required check is flaky. Check the last 7 days of `master gate static checks` and `agent-ci-required`
+      for a red that went green on a rerun with no change.
+- [ ] GitHub Actions is healthy and the organization is not at its job limit at the chosen hour.
+
+## The hour
+
+A weekend, or a weekday between 20:00 and 05:00 CT. Not while a worker or flow-worker deploy is in progress.
+
+## Steps
+
+1. **Tell everyone, 30 minutes ahead.** Sessions on this machine by cross-session message; Bracco and Ravi on
+   Discord. The message is in the next section.
+2. **Record the state:** `master` and `production` SHAs, the open pull request count, the rulesets on `master`
+   (`gh api repos/northstar-quarry/UCT-Dashboard/rules/branches/master`).
+3. **Turn on "Allow auto-merge"** (repo Settings, General, Pull Requests), or
+   `gh api -X PATCH repos/northstar-quarry/UCT-Dashboard -F allow_auto_merge=true`.
+   Without it `gh pr merge` answers "Auto merge is not allowed for this repository" (rehearsed).
+4. **Create ONE new ruleset** on `refs/heads/master`, enforcement active, no bypass list except the role named in
+   `DESIGN.md` 3.4, with these rules:
+   - `pull_request`: 0 approvals;
+   - `required_status_checks`: `agent-ci-required`, source GitHub Actions (integration 15368), not strict;
+   - `merge_queue`: merge method MERGE, `max_entries_to_build` 5, `min_entries_to_merge` 1,
+     `max_entries_to_merge` 5, `min_entries_to_merge_wait_minutes` 1, grouping ALLGREEN,
+     `check_response_timeout_minutes` 30.
+
+   Rulesets 27828221 (no deletion, no force push) and 27829824 (`master gate static checks` required) stay as
+   they are. Keeping the queue in its own ruleset is what makes rollback one switch.
+5. **Prove it on one small pull request** (a docs change): `gh pr merge <n> --merge`, then watch it.
+   Expect, in order: "The merge strategy for master is set by the merge queue"; a `merge_group` run of
+   `gate static rails (PR)` and of the Agent scope on `gh-readonly-queue/master/pr-<n>-<sha>`; state MERGED; one
+   push to `master`; the master deploy gate starts on that SHA; the SHA on `master` equals the SHA the
+   `merge_group` runs tested.
+6. **Prove the Agent path** on one pull request that touches an Agent path: the Agent jobs run on the merge
+   group's commit and the pull request lands only after `agent-ci-required` is success there.
+7. **Tell everyone it is live**, with the number of the first queued pull request as the example.
+
+## The message (step 1)
+
+> From (time), `master` takes changes through GitHub's merge queue.
+> 1. Merge as before with `gh pr merge <n> --merge`. It now QUEUES the pull request. If its checks are still
+>    running it waits and joins the queue by itself when they pass. Run the command once; do not poll and retry.
+> 2. It has landed only when `gh pr view <n> --json state` says MERGED. Do not report "merged" before that.
+> 3. If it was removed from the queue, a check failed on the queued commit: read it, fix, queue again.
+> 4. Nobody needs to hold or wait for a quiet `master` any more, the Agent releases included.
+> 5. No direct push to `master`. Never `--admin`.
+> 6. A pull request queued behind an Agent one lands with it, up to about 20 minutes later.
+> If the queue looks stuck for 30 minutes, tell the owner: it can be switched off in one step.
+
+## Watch, first week
+
+Daily, from the Actions and pull request APIs: queue wait (median, p90) from `added_to_merge_queue` to merged;
+`removed_from_merge_queue` events and their cause; Agent pull requests' open-to-merge time against the 13.4 hour
+median measured before; runner minutes; peak jobs against the organization's limit.
+
+## Abort and rollback
+
+**Abort rule:** queue wait p90 over 45 minutes, or the queue stuck for 30 minutes.
+
+**Rollback:** set the queue ruleset's enforcement to Disabled (Settings, Rules, Rulesets, or
+`gh api -X PUT repos/northstar-quarry/UCT-Dashboard/rulesets/<id>` with `"enforcement": "disabled"`).
+Pull requests then merge exactly as they did before the cutover. Pull requests that were in the queue stay
+open and are merged by hand. Nothing else needs undoing; "Allow auto-merge" can stay on.
+Say what happened in the owner's channel and in `docs/merge-queue/`.
