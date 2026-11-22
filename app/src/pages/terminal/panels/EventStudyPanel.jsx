@@ -352,7 +352,7 @@ function StudyAnswer({ url, code }) {
       {read.error ? <p className={styles.note} role="status" data-testid="terminal-evst-stale-read">{failureText(read.error, EVST_WHAT)} Showing the last read.</p> : null}
       <p className={styles.lede} data-testid="terminal-evst-lead">
         {view.counts.used ? lead.head : noEpisodesText(view)}
-        {view.counts.used && sym ? <>{' '}<PanelSymbol sym={sym} className={styles.sym} />{` ${lead.tail}`}</> : null}
+        {view.counts.used && sym ? <>{' '}<PanelSymbol sym={sym} className={styles.sym} /><span>{` ${lead.tail}`}</span></> : null}
       </p>
       {counted ? <p className={styles.muted} data-testid="terminal-evst-counted">{counted}</p> : null}
       {view.counts.used ? (
