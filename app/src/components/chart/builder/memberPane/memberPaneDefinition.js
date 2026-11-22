@@ -37,7 +37,7 @@ registerStrategyBrokerGate(strategyBrokerEnabled)
 import { PINE_RECURRENCE_ORIGIN, validateUserDefinitions } from '../../engine/nativeRegistry'
 import { checkBudget } from '../../engine/ast/budget'
 import { pineNaConditionIsFalse } from '../../engine/ast/interpret'
-import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads, libraryPinsOf } from '../../engine/runtime/runtimeColumns'
+import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads, libraryPinsOf, withMemberDoorClock } from '../../engine/runtime/runtimeColumns'
 import { requestTargetsUnservable } from '../../engine/runtime/requestSupply'
 import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
@@ -376,7 +376,11 @@ export function doorAnswer({ value, tripped }, budgetMs) {
 
 export function memberPaneDefinition(args = {}) {
   const budgetMs = doorBudgetForTests || MEMBER_DOOR_BUDGET_MS
-  return doorAnswer(withDoorDeadline(budgetMs, () => memberPaneDefinitionWithin(args), doorClockForTests), budgetMs)
+  // ⭐⭐ e93 (NUMBER PENDING) — inside the door's whole-call deadline (a by-name stop on the wall clock), the door decides
+  // its document on the instruction limits and the translator's step budget, never on how fast this machine is: every
+  // runtime clock inside the call stands still (`withMemberDoorClock`), and a translation whose own window tripped
+  // answers the whole script by name (`pine.js::tripWindow`).
+  return doorAnswer(withDoorDeadline(budgetMs, () => withMemberDoorClock(() => memberPaneDefinitionWithin(args)), doorClockForTests), budgetMs)
 }
 
 function memberPaneDefinitionWithin({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {

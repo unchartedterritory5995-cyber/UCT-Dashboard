@@ -62,6 +62,7 @@ import { rememberRuntimeBudgetStop, runtimeBudgetStopAt, runtimeBudgetGeneration
 import { calcBarsWindowOf, widenToChart, windowContext, withCalcBarsRecord,
   CALC_BARS_REQUEST_GUARD, CALC_BARS_REQUEST_SOURCE, calcBarsRequestSentence } from '../calcBarsWindow.js'
 import { strippedForScan, withTranslateClock } from '../ast/pine.js'
+import { withAmbientRunClock } from './vm.js'
 
 // ─── ⭐⭐ W5-T2 — EVERY WALL CLOCK A RUN READS IS THE HOST'S TO INJECT (design 2.2 H5) ──
 // `opts.now` reaches the pane budget, the VM's `WALL_TIME` and the translator's
@@ -69,7 +70,29 @@ import { strippedForScan, withTranslateClock } from '../ast/pine.js'
 // from this ONE default. ⛔ A clock is a safety stop and never a verdict (ruling R3):
 // what a script computes is decided by the instruction budgets (`limits.js`).
 const hostNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
-const clockOf = (opts) => (opts && typeof opts.now === 'function' ? opts.now : hostNow)
+const clockOf = (opts) => (opts && typeof opts.now === 'function' ? opts.now : (MEMBER_DOOR_CLOCK || hostNow))
+
+// ─── ⭐⭐ ENGINE e93 (NUMBER PENDING) — THE MEMBER DOOR'S OWN RUNS ARE BOUNDED BY INSTRUCTIONS, NOT BY TIME ─────────
+// The member door (`memberPaneDefinition`) compiles and runs the script to DECIDE its document: the object-runtime
+// check, the program probe, the colour-input probe. Their runs read the host's clock (the VM's `WALL_TIME`, a run's
+// budget), so a busier machine stopped a probe earlier and the door answered a different document
+// (measured, batchF 2026-11-21: slowing only `performance.now` 3x changed a served script's drawing). Inside the door's
+// call (`withMemberDoorClock`) every runtime clock is the door's: one that never moves, so the instruction limits
+// (`limits.js`) bound those runs, the same on every machine. Painting a chart is NOT the door: the pane's own budget
+// (`RUNTIME_PANE_TIME_BUDGET_MS`) and every run outside the door read the host's clock as before.
+let MEMBER_DOOR_CLOCK = null
+const STILL = () => 0
+/** Runs `fn` (the member door's call) with every runtime clock still (`STILL`); nesting-safe. ⛔ The translator's own
+ *  windows inside the call keep the host's clock: they are the last-resort stop, whole-call and by name. */
+export function withMemberDoorClock(fn) {
+  const prior = MEMBER_DOOR_CLOCK
+  MEMBER_DOOR_CLOCK = STILL
+  try {
+    return withAmbientRunClock(STILL, fn)
+  } finally {
+    MEMBER_DOOR_CLOCK = prior
+  }
+}
 const injectedNow = (opts) => (opts && typeof opts.now === 'function' ? { now: opts.now } : {})
 
 /** ⭐⭐ C23 — THE RUNTIME LANE SERVES A CHART PANE, NEVER A SCREEN, from every
