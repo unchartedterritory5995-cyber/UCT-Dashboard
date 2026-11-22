@@ -761,6 +761,16 @@ def _repair_fields(rep: dict, out: list) -> dict:
         seam = deep.get("seam")
         if isinstance(seam, dict):
             fields["deep"]["seam"] = {k: seam.get(k) for k in ("d", "compared", "equal", "worst_rel")}
+        # ⛔ (2026-11-22) THE ETF FILL's disclosure, cut to the answer's span like `repaired`: production served the
+        # filled run with no `filled` field because this projection named only the five keys above.
+        filled = []
+        for f in deep.get("filled") or []:
+            try:
+                if lo <= _dt.date.fromisoformat(f["d"]) <= hi:
+                    filled.append({k: f.get(k) for k in ("d", "slots", "src")})
+            except (KeyError, TypeError, ValueError):
+                continue
+        fields["deep"]["filled"] = filled
     return fields
 
 
