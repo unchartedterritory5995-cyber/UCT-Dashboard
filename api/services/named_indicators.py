@@ -213,6 +213,43 @@ def other_publisher(message: Any) -> Optional[str]:
     return None
 
 
+#: What the member is told for a publisher's own number UCT has NOTHING by the name of (`their_unknown_name`).
+THEIR_UNKNOWN_NAME = ('"{name}" is {publisher}\'s own number and is not available here. UCT has nothing by that name. '
+                      "To build something of your own, describe the rule (what it measures, over how many bars) and "
+                      "the assistant will build exactly that.")
+
+
+def publisher_of(message: Any, phrase: Any) -> Optional[str]:
+    """The publisher an unknown name BELONGS to in the member's words, or None. It belongs to a publisher when the
+    publisher's word is in the name itself ("Zacks Rank"), stands right before it ("IBD's Composite Rating", "the IBD
+    Composite Rating"), or right after it with "from", "by" or "of" ("the Composite Rating from IBD"). A publisher
+    named elsewhere in the sentence ("plot the Foo Line, I saw it on Barchart") does not claim the name."""
+    if not isinstance(message, str) or not isinstance(phrase, str) or not phrase.strip():
+        return None
+    import re
+    said = re.escape(phrase.strip()).replace(r"\ ", r"\s+")
+    for name, words in OTHER_PUBLISHERS:
+        if re.search(words, phrase, re.I):
+            return name
+        if re.search(rf"(?:{words})(?:'s|\u2019s)?\s+(?:own\s+|proprietary\s+)?{said}", message, re.I):
+            return name
+        if re.search(rf"{said}\s+(?:from|by|of)\s+(?:the\s+)?(?:{words})", message, re.I):
+            return name
+    return None
+
+
+def their_unknown_name(message: Any, phrase: Any) -> Optional[str]:
+    """The door's sentence for an unknown name that is a publisher's own number, or None (the usual sentence stands)."""
+    publisher = publisher_of(message, phrase)
+    return None if publisher is None else THEIR_UNKNOWN_NAME.format(name=str(phrase).strip(), publisher=publisher)
+
+
+def is_their_unknown_name(reason: Any, phrase: Any) -> bool:
+    """`reason` is that sentence for `phrase`, whichever publisher it names."""
+    return isinstance(reason, str) and isinstance(phrase, str) and any(
+        reason == THEIR_UNKNOWN_NAME.format(name=phrase.strip(), publisher=name) for name, _words in OTHER_PUBLISHERS)
+
+
 def their_number(message: Any, e: Mapping[str, Any], can_add: bool) -> Optional[str]:
     """What the door says, IN PLACE of its usual sentence, when the member asked for another publisher's own number
     and named something UCT holds by that name. None when the words name no other publisher (the usual sentence

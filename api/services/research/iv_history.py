@@ -216,6 +216,14 @@ def _num(v):
         return None
 
 
+def summary_rule(fieldnames) -> str:
+    """The ATM read rule a day's summary file was written under, from its header: a file
+    without the `atm_dte` column is the first run's 20-45 day rule (left out of any rank).
+    The ONE place this rule lives; the market-wide IV rank list (`iv_rank_leaders.py`)
+    reads it here too."""
+    return LEGACY_RULE if "atm_dte" not in (fieldnames or []) else CURRENT_RULE
+
+
 def _day_row(store: LocalStore, session: str, sym: str) -> Optional[dict]:
     """The summary row for `sym` on `session`, or None. The file is sorted by
     underlying, so the scan stops once it passes the symbol."""
@@ -233,12 +241,12 @@ def _day_row(store: LocalStore, session: str, sym: str) -> Optional[dict]:
     found = None
     with gzip.open(path, "rt", newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh)
-        legacy = "atm_dte" not in (reader.fieldnames or [])
+        rule = summary_rule(reader.fieldnames)
         for r in reader:
             u = r.get("underlying") or ""
             if u == sym:
                 found = dict(r)
-                found["_rule"] = LEGACY_RULE if legacy else CURRENT_RULE
+                found["_rule"] = rule
                 break
             if u > sym:
                 break

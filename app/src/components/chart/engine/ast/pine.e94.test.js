@@ -1,9 +1,9 @@
 // @vitest-environment node
-// app/src/components/chart/engine/ast/pine.e93.test.js
+// app/src/components/chart/engine/ast/pine.e94.test.js
 //
-// ─── ⭐⭐ ENGINE e93 (NUMBER PENDING) — NO ANSWER DEPENDS ON HOW FAST THE MACHINE IS ────────────────────────────────
+// ─── ⭐⭐ ENGINE e94 (NUMBER PENDING) — NO ANSWER DEPENDS ON HOW FAST THE MACHINE IS ────────────────────────────────
 //
-// docs/pine/evidence/2026-11-21-e93-deterministic-budgets/EVIDENCE.md. A served script drew on one run and refused its
+// docs/pine/evidence/2026-11-22-e94-deterministic-budgets/EVIDENCE.md. A served script drew on one run and refused its
 // drawing on the next: the translator's window THREW `pine:timeout` from a sampled clock check, a resolve site caught
 // the throw as "unknown" (`catch { return null }`), and the object pass dropped the step. These rails hold the fix:
 //   1. THE LATCH: a translation whose window trips at ANY clock read of the call answers the WHOLE script by name.
@@ -159,15 +159,15 @@ describe('3. ⭐⭐ the member door\'s runs: the host clock racing changes nothi
   }, 120000)
 })
 
-describe('⭐⭐ e93 — the shipped budgets are the census\'s, never a placeholder or a measurement\'s lift', () => {
+describe('⭐⭐ e94 — the shipped budgets are the census\'s, never a placeholder or a measurement\'s lift', () => {
   it('the step budget: 2x or more the most step-hungry served script, and not the 400M placeholder', () => {
-    // e93's census, both lanes: the most steps one served script spent in one translatePine call: 230,299,396
+    // e94's census, both lanes: the most steps one served script spent in one translatePine call: 230,299,396
     expect(PINE_TRANSLATE_CALL_MAX_STEPS).toBe(500000000)
     expect(PINE_TRANSLATE_CALL_MAX_STEPS).not.toBe(400000000)
     expect(PINE_TRANSLATE_CALL_MAX_STEPS / 230299396).toBeGreaterThanOrEqual(2)
   })
   it('the wall stop: the census\'s value (a measurement lifts it to 600 s in its own snapshot only)', () => {
-    expect(PINE_TRANSLATE_BUDGET_MS).toBe(400000)
+    expect(PINE_TRANSLATE_BUDGET_MS).toBe(1080000)
     expect(PINE_TRANSLATE_BUDGET_MS).not.toBe(600000)
   })
 })

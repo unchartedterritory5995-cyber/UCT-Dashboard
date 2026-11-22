@@ -115,27 +115,35 @@ def test_the_instructions_say_it_for_a_number_UCT_has_no_name_for(conv):
 # ── the record ──
 
 def test_the_live_answer_is_recorded_WRONG_and_says_why():
-    assert CASE["wall"] == {"names": ["IBD"], "theirs": "IBD"} and CASE["recorded_verdict"] == "wrong"
-    assert CASE["answer"]["disposition"] == "answer" and "IBD" not in CASE["answer"]["reply"]
-    assert "reads as a yes" in CASE["defect"]
-    got = G.grade_case(CASE)
+    # the wrong answer the finding rests on: the case's record while it is recorded WRONG, its `found` specimen after
+    found = G.specimen(CASE)
+    assert CASE["wall"] == {"names": ["IBD"], "theirs": "IBD"} and found is not None
+    assert found["answer"]["disposition"] == "answer" and "IBD" not in found["answer"]["reply"]
+    assert "reads as a yes" in found["defect"]
+    got = G.grade_case(CASE, found["answer"])
     assert got["verdict"] == "wrong" and any("cannot be given" in line for line in got["lines"])
 
 
-def test_the_two_siblings_wait_for_their_live_answers_with_their_words_and_rule_written_first():
-    """⛔ WRITTEN BEFORE ANY ANSWER EXISTS, so the rule cannot learn from the door. A pending case holds words and a
-    rule and NO answer; the live re-check records the answers, and each then moves into `cases`."""
-    waiting = {c["id"]: c for c in DATA["pending"]}
-    assert not set(waiting) & {c["id"] for c in DATA["cases"]}                    # a case is pending or recorded, never both
-    pending = {cid: c for cid, c in waiting.items() if (c.get("wall") or {}).get("theirs")}   # (other units keep their own, on any lane)
-    assert set(pending) == {"wall-31", "wall-32"}
-    for case in pending.values():
-        assert case["lane"] == "wall" and "answer" not in case and "recorded" not in case
-        assert case["wall"]["theirs"] in case["wall"]["names"] and ni.other_publisher(case["words"]) == case["wall"]["theirs"]
+def test_the_two_siblings_were_written_words_and_rule_first_and_are_held_wherever_they_now_are():
+    """⛔ WRITTEN BEFORE ANY ANSWER EXISTED, so the rule could not learn from the door. A pending case holds words and
+    a rule and NO answer; the live re-check recorded the answers, and each then moved into `cases` (2026-11-22: both
+    WRONG, a second gap of this family: a publisher's number UCT has nothing by the name of)."""
+    waiting = {c["id"]: c for c in DATA.get("pending") or []}
+    recorded = {c["id"]: c for c in DATA["cases"]}
+    assert not set(waiting) & set(recorded)                                       # a case is pending or recorded, never both
+    siblings = {cid: (waiting.get(cid) or recorded.get(cid)) for cid in ("wall-31", "wall-32")}
+    assert all(siblings.values())
+    for cid, case in siblings.items():
+        assert case["lane"] == "wall" and case["wall"]["theirs"] in case["wall"]["names"] and ni.other_publisher(case["words"]) == case["wall"]["theirs"]
         assert any(n.lower() in case["words"].lower() for n in case["wall"]["names"])
-        # the rule can pass and can fail before any answer is recorded
+        if cid in waiting:
+            assert "answer" not in case and "recorded" not in case
+        else:
+            assert case["recorded"]["front"] and G.grade_case(case)["verdict"] == case.get("recorded_verdict", "right")
+            assert ("defect" in case) == (case.get("recorded_verdict") == "wrong")
+        # the rule can pass and can fail, whatever the door has said so far
         P = case["wall"]["theirs"]
         assert G.grade_wall(case, {"disposition": "unsupported", "reply": f"That is {P}'s own number and is not available here."})["verdict"] == "right"
         assert G.grade_wall(case, {"disposition": "answer", "reply": "UCT has a rating of its own for that."})["verdict"] == "wrong"
-    assert pending["wall-31"]["wall"]["theirs"] == "Zacks"                        # a publisher UCT has no name for (the assistant's path)
-    assert pending["wall-32"]["wall"]["theirs"] == "IBD" and "RS Rating" not in pending["wall-32"]["words"]      # another IBD rating
+    assert siblings["wall-31"]["wall"]["theirs"] == "Zacks"                       # a publisher UCT has no name for
+    assert siblings["wall-32"]["wall"]["theirs"] == "IBD" and "RS Rating" not in siblings["wall-32"]["words"]      # another IBD rating

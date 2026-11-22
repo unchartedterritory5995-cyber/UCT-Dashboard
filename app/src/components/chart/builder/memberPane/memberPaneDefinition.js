@@ -337,8 +337,14 @@ export function __forceRuntimeLaneForTests(on = true) { runtimeLaneForced = on =
 // it refuses served scripts by name (the evidence lists them): that is a ruling, not a tuning. The main-thread time
 // itself is the job of taking this build off the main thread (evidence, section 6).
 
-/** The member door's whole-call deadline, in ms (see the evidence above for how it was chosen). */
-export const MEMBER_DOOR_BUDGET_MS = 300000
+/** The member door's whole-call deadline, in ms (see the evidence above for how it was chosen).
+ *  ⭐⭐ e94 (NUMBER PENDING), RULING (C) (coordinator 2026-11-21, amended 2026-11-22): #2225 measured its 5 minutes while every translation
+ *  inside the door was still cut at 10 s. Under e94 a translation runs uncut (or refuses whole), so the door's
+ *  last-resort stop is proportional to the UNCUT work at the shipped code, in whole minutes: >= 2.5x the slowest served script's single uncut door
+ *  call, 592,223 ms (a licence-held script, named in the private evidence; one run on the shipped code (the step budget as shipped, the door's runtime clocks held still), the two last-resort stops lifted in the measurement snapshot only, lane 1, nothing else running: a single run with a margin for run-to-run variance, by the amended ruling;
+ *  docs/pine/evidence/2026-11-22-e94-deterministic-budgets/EVIDENCE.md). 25 minutes = 2.53x. ⛔ Lowering it refuses served scripts by name: a ruling,
+ *  not a tuning. Off the main thread by the merge order (#2254, #2364, #2367 first). */
+export const MEMBER_DOOR_BUDGET_MS = 1500000
 
 /** What the member reads when the door's deadline ran out. */
 export function doorTimeoutSentence(budgetMs = MEMBER_DOOR_BUDGET_MS) {
@@ -376,7 +382,7 @@ export function doorAnswer({ value, tripped }, budgetMs) {
 
 export function memberPaneDefinition(args = {}) {
   const budgetMs = doorBudgetForTests || MEMBER_DOOR_BUDGET_MS
-  // ⭐⭐ e93 (NUMBER PENDING) — inside the door's whole-call deadline (a by-name stop on the wall clock), the door decides
+  // ⭐⭐ e94 (NUMBER PENDING) — inside the door's whole-call deadline (a by-name stop on the wall clock), the door decides
   // its document on the instruction limits and the translator's step budget, never on how fast this machine is: every
   // runtime clock inside the call stands still (`withMemberDoorClock`), and a translation whose own window tripped
   // answers the whole script by name (`pine.js::tripWindow`).

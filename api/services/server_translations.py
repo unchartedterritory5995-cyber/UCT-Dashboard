@@ -120,3 +120,55 @@ def current_for(row: Mapping[str, Any], engine: Optional[int] = None) -> Optiona
     except Exception:  # noqa: BLE001 -- an unreadable artifact is no artifact
         log.exception("[server-translations] unreadable artifact; ignored")
         return None
+
+
+#: RE-TRANSLATE (b) PR (3b), the design's bound: at most this many stored versions per run.
+RETRANSLATE_BATCH_MAX = 200
+
+
+def _artifact_exists(row: Mapping[str, Any], engine: int) -> bool:
+    """Whether ANY artifact (accepted or refused) holds the key, whatever the switch says."""
+    try:
+        with contextlib.closing(_conn()) as c:
+            return c.execute(
+                "SELECT 1 FROM definition_server_translations WHERE user_id=? AND def_id=? AND version=? AND engine=?",
+                (str(row["user_id"]), str(row["def_id"]), int(row["version"]), int(engine))).fetchone() is not None
+    except Exception:  # noqa: BLE001 -- unreadable: treated as present, so nothing is re-sent blind
+        log.exception("[server-translations] could not read whether an artifact exists; skipped")
+        return True
+
+
+def held_for_retranslation(rows: Any, current: Optional[int] = None, *,
+                           limit: int = RETRANSLATE_BATCH_MAX) -> list:
+    """RE-TRANSLATE (b) PR (3b), the ENUMERATOR: the stored versions the server's translator is asked about,
+    in the given order, at most ``limit``. Exactly the versions `user_definitions.engine_withheld_reason`
+    holds "until today's engine re-checks it, which happens the next time it is opened": a REFUSED verdict
+    from an OLDER engine, on a Pine script document that holds its script and is stamped below today's
+    engine (`user_definitions._awaits_retranslation`, the one authority), whose re-translation was not
+    already accepted-but-unsaved at today's engine (`write_failed_engine`), and that has no artifact at
+    today's engine yet. An unreadable engine number selects nothing (fail closed). Reads only."""
+    from api.services import user_definitions
+    cur = user_definitions.SCRIPT_ENGINE_VERSION if current is None else current
+    if cur is None or isinstance(cur, bool) or not isinstance(cur, int):
+        return []
+    out: list = []
+    for row in rows or []:
+        if len(out) >= limit:
+            break
+        if not isinstance(row, Mapping):
+            continue
+        st = row.get("engine_status")
+        if not isinstance(st, Mapping) or st.get("status") != "refused":
+            continue
+        eng = st.get("engine")
+        if not isinstance(eng, int) or isinstance(eng, bool) or eng >= cur:
+            continue
+        if not user_definitions._awaits_retranslation(row, cur):
+            continue
+        failed = st.get("write_failed_engine")
+        if isinstance(failed, int) and not isinstance(failed, bool) and failed >= cur:
+            continue
+        if _artifact_exists(row, cur):
+            continue
+        out.append(row)
+    return out

@@ -8311,19 +8311,20 @@ const MAX_CALL_DEPTH = 24
  * a budget is the only thing that holds when the NEXT unbounded shape arrives, and
  * that one will not be known in advance either.
  *
- * ⭐⭐ e93 (NUMBER PENDING) — IT IS NOW THE LAST-RESORT STOP, AND IT REFUSES THE WHOLE CALL BY NAME. The 10s above cut
+ * ⭐⭐ e94 (NUMBER PENDING) — IT IS NOW THE LAST-RESORT STOP, AND IT REFUSES THE WHOLE CALL BY NAME. The 10s above cut
  * served scripts: a call that ran past it had the rest of its work swallowed by the `catch`es a timeout passed through,
- * and the picture depended on the machine's speed (e93's census: 2-3 drawn documents and 3-4 reports per lane). The
+ * and the picture depended on the machine's speed (e94's census: 2-3 drawn documents and 3-4 reports per lane). The
  * deterministic bound is now `PINE_TRANSLATE_CALL_MAX_STEPS`; this clock is latched (`tripWindow`: once it trips, every
- * read says so and the call answers the whole script by name), and it sits at 3.4x the slowest served script's clean,
- * uncut translate call: 117,377 ms (a public ecosystem script, licence-held: named in the private evidence; the median of three runs on master's code with nothing else
- * running; docs/pine/evidence/e93). ⛔ Lowering it refuses served scripts whole: a ruling, not a tuning.
+ * read says so and the call answers the whole script by name). RULING (C) (coordinator 2026-11-21, amended 2026-11-22): a last-resort
+ * stop is proportional to the UNCUT work at the shipped code, in whole minutes: >= 3.5x the slowest served script's single uncut translate call,
+ * 294,832 ms (a licence-held script, named in the private evidence; one run on the shipped code (the step budget as shipped, the door's runtime clocks held still), the two last-resort stops lifted in the measurement snapshot only, lane 1, nothing else running: a single run with a margin for run-to-run variance, by the amended ruling;
+ * docs/pine/evidence/2026-11-22-e94-deterministic-budgets/EVIDENCE.md). 18 minutes = 3.66x. ⛔ Lowering it refuses served scripts whole: a ruling, not a tuning.
  */
-export const PINE_TRANSLATE_BUDGET_MS = 400000
+export const PINE_TRANSLATE_BUDGET_MS = 1080000
 
-/** ⭐⭐ e93 — THE DETERMINISTIC BOUND OF ONE `translatePine` CALL: every resolution step and printer tick of the call,
+/** ⭐⭐ e94 — THE DETERMINISTIC BOUND OF ONE `translatePine` CALL: every resolution step and printer tick of the call,
  *  on every machine the same. Past it the whole script refuses by name (`countCallStep`). CALIBRATED FROM THE CENSUS
- *  (docs/pine/evidence/e93): 2.17x the most step-hungry served script (230,299,396 steps in one call, both lanes), so no
+ *  (docs/pine/evidence/2026-11-22-e94-deterministic-budgets/EVIDENCE.md): 2.17x the most step-hungry served script (230,299,396 steps in one call, both lanes), so no
  *  served script reaches it. ⛔ Lowering it refuses served scripts whole: a ruling, not a tuning. */
 export const PINE_TRANSLATE_CALL_MAX_STEPS = 500000000
 
@@ -8439,7 +8440,7 @@ export function withTranslateClock(now, fn) {
   try { return fn() } finally { TRANSLATE_CLOCK = prior }
 }
 
-// ─── ⭐⭐ ENGINE e93 (NUMBER PENDING) — NO ANSWER DEPENDS ON HOW FAST THE MACHINE IS ─────────────────────────────
+// ─── ⭐⭐ ENGINE e94 (NUMBER PENDING) — NO ANSWER DEPENDS ON HOW FAST THE MACHINE IS ─────────────────────────────
 //
 // ⚰️ MEASURED (#2254's paste trace, then batchD/batchF, 2026-11-21): one served script drew on one run and refused its
 // drawing on the next (`pine:object-removal-lost`), and drew three DIFFERENT documents at normal speed. The cause was
@@ -8505,7 +8506,7 @@ export function endTranslateBudget() {
   TRANSLATE_WINDOW_CLOCK = wallNow
 }
 
-/** e93 — what the window that closed last recorded: the whole-call refusal it latched (or null) and the steps it
+/** e94 — what the window that closed last recorded: the whole-call refusal it latched (or null) and the steps it
  *  counted (`translatePine` reads the first; a census reads the second). */
 export function lastTranslateWindow() { return LAST_WINDOW }
 
@@ -8518,14 +8519,14 @@ function windowTimeoutRefusal() {
     null)
 }
 
-/** e93 — latch `refusal` as the open window's answer (the first one stands) and give back the one that stands. */
+/** e94 — latch `refusal` as the open window's answer (the first one stands) and give back the one that stands. */
 function tripWindow(refusal) {
   if (!WINDOW_OPEN) return refusal
   if (!WINDOW_TRIP) WINDOW_TRIP = refusal
   return WINDOW_TRIP
 }
 
-/** e93 — one step of the call: counted against the call's budget; a tripped window refuses at once. Asked by every
+/** e94 — one step of the call: counted against the call's budget; a tripped window refuses at once. Asked by every
  *  Resolver step and every printer tick while a window is open. */
 function countCallStep(tok) {
   if (!WINDOW_OPEN) return
@@ -8557,7 +8558,7 @@ function countCallStep(tok) {
 export function translateBudgetExpired() {
   // the door's whole-call deadline (`withDoorDeadline`): refused whole, by name, by the door itself
   if (doorWindowOpen() && doorDeadlinePassed()) return true
-  // ⭐ e93 — the translation's own window, latched: once it has tripped, every read says so (`tripWindow`)
+  // ⭐ e94 — the translation's own window, latched: once it has tripped, every read says so (`tripWindow`)
   if (WINDOW_TRIP) return true
   if (!(TRANSLATE_DEADLINE !== Infinity && TRANSLATE_WINDOW_CLOCK() > TRANSLATE_DEADLINE)) return false
   tripWindow(windowTimeoutRefusal())
@@ -10760,7 +10761,7 @@ export class Resolver {
     // around must not buy the script another 4,096 steps per retry. One property read when a window is open, and
     // ONE refusal per window, thrown again (a fresh one captured a stack per retry: measured, ~0.6 s of a 3 s trip).
     if (doorTripped()) throw trippedDoorRefusal()
-    // ⭐ e93 — the call's own step budget, and a tripped window refusing at once (`countCallStep`)
+    // ⭐ e94 — the call's own step budget, and a tripped window refusing at once (`countCallStep`)
     countCallStep(tok)
     // ⛔ THE STEP CAP IS CHECKED OUTSIDE THE MASK. Gating it behind the same
     // 4096-step gate as the clock made any cap below 4096 UNREACHABLE — a guard
@@ -10804,7 +10805,7 @@ export class Resolver {
       `${REFUSALS['pine:timeout']} — gave up after ${budget}ms for the whole script`
       + where + tail,
       tok ? locate(tok) : null)
-    // ⭐⭐ e93 — THE WINDOW'S stop is the whole call's answer, whatever a catch makes of this throw (`tripWindow`)
+    // ⭐⭐ e94 — THE WINDOW'S stop is the whole call's answer, whatever a catch makes of this throw (`tripWindow`)
     throw TRANSLATE_DEADLINE !== Infinity ? tripWindow(refusal) : refusal
   }
 
@@ -28355,7 +28356,7 @@ export function translatePine(source, opts = {}) {
     setLegacyTaCall(outerLegacyTa)
   }
   if (!t || typeof t !== 'object') return t
-  // ⭐⭐ e93 — A WINDOW THAT TRIPPED ANYWHERE IN THE CALL IS THE WHOLE CALL'S ANSWER, BY NAME: never the partial result a
+  // ⭐⭐ e94 — A WINDOW THAT TRIPPED ANYWHERE IN THE CALL IS THE WHOLE CALL'S ANSWER, BY NAME: never the partial result a
   // swallowed throw left behind (`tripWindow`). Same shape as every other whole-script refusal here.
   if (LAST_WINDOW.trip) {
     const r = fromError(LAST_WINDOW.trip)
