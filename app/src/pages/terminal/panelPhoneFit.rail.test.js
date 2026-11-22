@@ -252,6 +252,11 @@ const FITS_THE_BOTTOM = [
   // with every column showing is 399px in a 462px panel (+ 29); in 640 and 462px panels the panel's scroll width is its
   // width. On a phone the largest raise and cut fold (phoneHide) and stay in the opened sector.
   ['RevisionBreadthPanel.jsx', 'EEHSC', 428],
+  // VFP, measured 2026-11-22 at 1536, 1180 and 340px (sample data): its four tables (the biggest volume days, the pocket
+  // pivots, the gap fills, the gaps) are three or four columns of two-line cells that wrap between words (phoneWrap,
+  // snugWrap); in the 640, 462 and 340px panels the panel's scroll width is its width, every column shows and none
+  // scrolls in a 340px screen, so each needs at most 316 + 29. Nothing folds.
+  ['VolumeFootprintPanel.jsx', 'VFP (its four tables)', 345],
 ]
 /** Tables with no sample rows: never measured, so they must not fold on a desktop panel above the bottom of the ladder.
  *  (InsiderPanel.jsx left this list on 2026-11-21: see INS in MEASURED.) */
@@ -278,7 +283,10 @@ const NOT_MEASURED = ['CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', '
   'MarketDividendsPanel.jsx', 'RevenueSegmentsPanel.jsx', 'MergersPanel.jsx', 'IndexChangesPanel.jsx',
   // PUBR (2026-11-22): three- and four-column tables of two- and three-line cells that wrap between words; the trials'
   // enrollment and the lobbying issue areas fold on a phone through `phoneHide`
-  'PublicRecordsPanel.jsx']
+  'PublicRecordsPanel.jsx',
+  // EVST (2026-11-22): a four-column window table of two-line cells and an episode list of the date and up to four
+  // short return columns, all wrapping between words; nothing folds
+  'EventStudyPanel.jsx']
 const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
 const stepsIn = (src) => [...src.matchAll(/data-fold=(?:"([^"]*)"|\{paired \? undefined : '([^']*)'\})/g)].map((m) => m[1] ?? m[2])
 
