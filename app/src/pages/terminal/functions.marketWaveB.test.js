@@ -31,8 +31,8 @@ describe('the three codes', () => {
     }
   })
 
-  it('IPO is market-wide, in the Calendar group, and takes no argument', () => {
-    expect(BY_CODE.IPO.market).toEqual({ panel: 'IpoCalendar' })
+  it('IPO is market-wide, in the Calendar group, and takes only its view word (IPO LOCKUP, 2026-11-22)', () => {
+    expect(BY_CODE.IPO.market).toEqual({ panel: 'IpoCalendar', args: [{ kind: 'ipoView', prop: 'view' }] })
     expect(BY_CODE.IPO.ticker).toBeUndefined()
     expect(BY_CODE.IPO.group).toBe('Calendar')
     expect(BY_CODE.IPO.label).toBe('IPO calendar (upcoming and priced deals)')
@@ -42,8 +42,9 @@ describe('the three codes', () => {
   })
 
   it('DVD reads the member\'s own stocks alone and one stock with a ticker, in the Calendar group', () => {
-    expect(BY_CODE.DVD.market).toEqual({ panel: 'DividendCalendar' })
-    expect(BY_CODE.DVD.ticker).toEqual({ panel: 'DividendCalendar' })
+    // DVD MARKET (2026-11-21): both variants take the market view word (functions.marketView.test.js)
+    expect(BY_CODE.DVD.market).toEqual({ panel: 'DividendCalendar', args: [{ kind: 'marketView', prop: 'view' }] })
+    expect(BY_CODE.DVD.ticker).toEqual({ panel: 'DividendCalendar', args: [{ kind: 'marketView', prop: 'view' }] })
     expect(BY_CODE.DVD.group).toBe('Calendar')
     expect(BY_CODE.DVD.label).toBe('Dividend calendar (next ex-dates and splits ahead)')
     expect(exampleFor(BY_CODE.DVD)).toBe('DVD')

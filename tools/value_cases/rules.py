@@ -642,6 +642,44 @@ def rules(cid):
         from .stat_rules import stat_rules
         got = stat_rules(cid, C, V, [None if not ok(x) else x for x in SC])
         return {group: [(name, [NAN if v is None else v for v in col]) for name, col in readings] for group, readings in got.items()}
+    if cid == 'wall-18':                                    # the number of shares I own and my average cost: the member's OWN figures
+        # nothing here can be computed from bars: the rule is about the two settings (see `grade._grade_fill_in`)
+        return {'__fill_in__': [('the shares the member owns', 150.0), ('the average cost', 48.25)]}
+    if cid and cid.startswith('udaily-'):                  # a daily measure below a day: the acceptance rules of the 5 minute chart
+        from .udaily_rules import udaily_rules
+        return udaily_rules(cid)
+    if cid and cid.startswith('intraday-'):                 # a request on a 5 minute chart: the intraday chart's own rules
+        from .intraday_rules import intraday_rules
+        return intraday_rules(cid)
+    if cid and cid.startswith('date-start-'):               # a running value that starts on a date the member wrote out
+        def since(start, first, step):
+            """No value before the date; `first` on the first bar on or after it; `step` on every bar after."""
+            out, v = [], None
+            for i in range(N):
+                if day(BARS[i]) < start:
+                    out.append(NAN)
+                    continue
+                x = first(i) if v is None else step(v, i)
+                if not ok(x):
+                    out.append(NAN)
+                    continue
+                v = float(x)
+                out.append(v)
+            return out
+        if cid == 'date-start-01':                          # a stop 2 ATR(14) under the close from 2 June 2026 that only rises
+            v = []
+            for kind in ('rma', 'wilder', 'first', 'sma'):
+                a = atr(14, kind)
+                level = lambda i, a=a: C[i] - 2 * a[i] if ok(a[i]) else NAN  # noqa: E731
+                v.append((f'ATR by {kind}', since('2026-06-02', level, lambda was, i, level=level: max(was, level(i)) if ok(level(i)) else NAN)))
+            return {'the stop from 2 June 2026 that only rises': v}
+        if cid == 'date-start-02':                          # the highest high since 3 March 2026
+            return {'the highest high since 3 March 2026': [('from the date', since('2026-03-03', lambda i: H[i], lambda was, i: max(was, H[i])))]}
+        if cid == 'date-start-03':                          # the up closes since 1 September 2026
+            up = lambda i: 1.0 if i > 0 and C[i] > C[i - 1] else 0.0  # noqa: E731
+            return {'the up closes since 1 September 2026': [
+                ('the first day counted when it is one', since('2026-09-01', up, lambda was, i: was + up(i))),
+                ('counted from the day after', since('2026-09-01', lambda i: 0.0, lambda was, i: was + up(i)))]}
     if cid == 'm07':                                        # CONTROL: "Detect Inside Bars", the term alone -> the firm's formula (a touch counts, on a bar that traded)
         return {'an inside bar, the firm\'s meaning': [('a touch counts, on a bar that traded', [NAN if i == 0 else (1.0 if H[i] > L[i] and V[i] > 0 and H[i] <= H[i - 1] and L[i] >= L[i - 1] else 0.0) for i in range(N)])]}
     return None

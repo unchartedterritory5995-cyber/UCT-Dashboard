@@ -180,6 +180,22 @@ describe('⭐⭐ DIV-4 — with the runtime pane on, the colour is read from the
     }
   })
 
+  it('FA8 G6 — the run colour refused on a forming bar says the reason the SERVER named (another symbol), not barstate', () => {
+    const d = door(true)
+    const ctx = { tf: 'D', symbol: 'AMEX:SPY', historyFromListing: true, newestBarIsForming: true }
+    __resetRuntimeAllowList()
+    setRuntimeCapabilityAdmission(true)
+    try {
+      latchRuntimeAdmission(runtimeSourceHash(SRC), { admitted: true, historyOnly: true, historyOnlyIds: ['request-other'] })
+      const err = registry.columnErrors(registry.computeFor(d.definition, BARS, undefined, ctx)).rtcolour1
+      expect(err.code).toBe(RUNTIME_FORMING_GUARD)
+      expect(err.message).toContain('this script reads another symbol or timeframe, which has only been checked')
+      expect(err.message).not.toContain('barstate')
+    } finally {
+      __resetRuntimeAdmission()
+    }
+  })
+
   it('⛔ off the listing it is NOT served, by name', () => {
     const d = door(true)
     const off = registry.computeFor(d.definition, BARS, undefined, { tf: 'D', symbol: 'AMEX:SPY', newestBarIsForming: false })

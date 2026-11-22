@@ -15,7 +15,15 @@
 // A MISSING AMOUNT IS NEVER $0. It reads "Amount not given".
 //
 // WIDTH. Three short columns, which fit a 340px panel with nothing folded.
+//
+// `DVD MARKET` (2026-11-21, args.js `marketView`): every ex-dividend date and split this week and next for
+// every stock the site follows, its own panel body (MarketDividendsPanel.jsx). A panel that follows a group's
+// stock gets that stock from the shell even for bare `DVD`, so the word, not the missing ticker, asks for the
+// market. Both views carry two chips: the panel's stock (or the member's own stocks) and the whole market.
 import { useMemo, useState } from 'react'
+import MarketDividendsPanel from './MarketDividendsPanel'
+import { usePanelWriteBack } from './commandWriteBack'
+import { DVD_VIEWS, dvdViewCommandArgs, normDvdView } from './marketDividendsModel'
 import {
   PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness,
 } from '../../../components/terminal'
@@ -94,7 +102,25 @@ function Notes({ sym, receivedAt }) {
   )
 }
 
-function DividendCalendarBody({ sym, code }) {
+/** The two views: the panel's stock or the member's own stocks (pressed), and the whole market (`DVD MARKET`). */
+function ViewChips({ sym, onView }) {
+  const writeBack = usePanelWriteBack()
+  const toMarket = () => {
+    if (!writeBack(dvdViewCommandArgs({ view: 'market' }), sym) && onView) onView('market')
+  }
+  return (
+    <div className={styles.toolbar} role="toolbar" aria-label="Dividend calendar views">
+      <div className={styles.group} role="group" aria-label="Whose stocks">
+        <button type="button" className={styles.chip} aria-pressed="true" data-testid="terminal-dvd-view-mine"
+          title={sym ? `The declared dividends and splits ahead for ${sym} (${sym} DVD)` : DVD_VIEWS.mine.title}>{sym || DVD_VIEWS.mine.label}</button>
+        <button type="button" className={styles.chip} aria-pressed="false" onClick={toMarket} data-testid="terminal-dvd-view-market"
+          title={DVD_VIEWS.market.title}>{DVD_VIEWS.market.label}</button>
+      </div>
+    </div>
+  )
+}
+
+function DividendCalendarBody({ sym, code, onView }) {
   const inPanel = useInTerminalPanel()
   const [today] = useState(todayIso)
   const read = useCalendarEventsRead(dvdUrl(sym))
@@ -106,7 +132,10 @@ function DividendCalendarBody({ sym, code }) {
   const run = sym ? `${sym} ${code}` : code
 
   const wrap = (state, body) => (
-    <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-dvd" data-state={state} data-sym={sym || ''}>{body}</div>
+    <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-dvd" data-state={state} data-sym={sym || ''}>
+      <ViewChips sym={sym} onView={onView} />
+      {body}
+    </div>
   )
   if (read.loading) return <PanelSkeleton label={`Loading the dividend calendar for ${whose}`} testId="terminal-dvd-loading" />
   if (!answered) {
@@ -159,9 +188,12 @@ function DividendCalendarBody({ sym, code }) {
   ))
 }
 
-export default function DividendCalendarPanel({ sym }) {
+export default function DividendCalendarPanel({ sym, view: viewProp }) {
   const s = String(sym || '').trim().toUpperCase()
   const code = useInTerminalPanel()?.code || DVD_CODE
+  // Outside the shell (or when the registry cannot take the word) a view chip switches here, in state.
+  const [view, setView] = useState(() => normDvdView(viewProp))
+  if (view === 'market') return <MarketDividendsPanel sym={s || null} onView={setView} />
   // Keyed by what is asked: a new stock is a new read, so one stock's events are never drawn under another's name.
-  return <DividendCalendarBody key={s || 'mine'} sym={s || null} code={code} />
+  return <DividendCalendarBody key={s || 'mine'} sym={s || null} code={code} onView={setView} />
 }

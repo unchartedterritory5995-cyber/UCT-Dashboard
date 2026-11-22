@@ -35,7 +35,8 @@
 //   color.red/teal/yellow [Color changes] the values changed.
 //   label.new       [Color changes] its default text colour changed (refused
 //                   unless the call names `textcolor`); `box.new`'s fill and
-//                   text colour and `table.cell`'s text colour likewise.
+//                   text colour likewise. (`table.cell`'s text colour is
+//                   `color.black` in v5 AND v6, witnessed, e93: not a change.)
 //   for             [Dynamic for loop boundaries] refused when the end bound
 //                   calls anything but a size read of a collection the loop does
 //                   not resize, or names a variable the loop body reassigns.
@@ -396,14 +397,16 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
       }
       // ⭐ (libchain, 2026-11-20) the other object defaults a v5 script draws differently from this engine's v6 base
       // (`objectDefaults.js` VERSION_DEFAULTS[5], each from a v5 capture): a box's unset fill is opaque `color.blue` at
-      // v5 and 80% transparent at v6 (`box.new`'s reference default), its unset text and a table cell's are
-      // `color.black` at v5. ⚰️ Phase B held `label.new` alone, so a v5 library's `box.new` without `bgcolor` would
-      // have drawn v6's fill inside a v6 script. Held when the call does not NAME the argument (a positional one is
-      // not read here, so it is held too).
-      if ((v === 'box.new' || v === 'table.cell') && !t.member && isPunct(next, '(')) {
+      // v5 and 80% transparent at v6 (`box.new`'s reference default), its unset text `color.black` at v5. ⚰️ Phase B
+      // held `label.new` alone, so a v5 library's `box.new` without `bgcolor` would have drawn v6's fill inside a v6
+      // script. Held when the call does not NAME the argument (a positional one is not read here, so it is held too).
+      // ⚰️ `table.cell` without `text_color` was held here too until e93: its unset text is `color.black` in v4, v5
+      // AND v6 (witnessed; `objectDefaults.js` NAMED_OBJECT_DEFAULTS.cell), so a v5 library's cell draws the same in a
+      // v6 script and nothing changed between the versions to hold.
+      if (v === 'box.new' && !t.member && isPunct(next, '(')) {
         const args = toks.slice(i + 2, closeOf(toks, i + 1) - 1)
         const named = (w) => args.some((a, k) => isWord(a, w) && isPunct(args[k + 1], '='))
-        const missing = (v === 'box.new' ? ['bgcolor', 'text_color'] : ['text_color']).find((w) => !named(w))
+        const missing = ['bgcolor', 'text_color'].find((w) => !named(w))
         if (missing) {
           const r = hit(ISLAND_FAMILY.OBJECT_DEFAULTS, { what: `\`${v}\` without \`${missing}\``, why: missing === 'bgcolor'
             ? 'its default fill is opaque `color.blue` in v5 and 80% transparent in v6 (Color changes)'

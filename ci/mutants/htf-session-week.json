@@ -1,0 +1,114 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "Q-CLOSURE (fix/htf-closure-session-week, coordinator ruling 2026-11-21): a daily bar is keyed to its week or month by the session it belongs to (S0: the session it opens; S2: a closure's session carried to the next trading day when that day holds no bar of its own), never by the calendar date of its open, in both lanes; TradingView's week holds a closure-day bar; what the exchange's own calendar decides is withheld by name (request:htf-venue-calendar), only the closing bar of such a week. Every rule, broken once, must turn its rail red (the coordinator's list: drop S0; drop S2; key by calendar date; the withhold widened to the whole week; plus the include and the witnessed span).",
+ "mutants": [
+  {
+   "id": "QC1",
+   "mutant": "JS: drop S0 (each bar keyed by its open's date, not the session it opens)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  const s0 = raw.map((d) => (d ? isoDayPlus(d, 1) : d))",
+   "to": "  const s0 = raw.map((d) => d)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfSessionWeek.test.js",
+   "expectRed": "every bar is the session it opens"
+  },
+  {
+   "id": "QC2",
+   "mutant": "JS: drop S2 (a closure's session never carried to the next trading day)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    days[i] = to",
+   "to": "    void to",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfSessionWeek.test.js",
+   "expectRed": "S2 on exactly the holiday sessions"
+  },
+  {
+   "id": "QC3",
+   "mutant": "JS: key every daily bar by its calendar date (no session keying at all)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if (intraday || !eveningOpenShape(raw)) return { days: raw, evening: false, s0: raw, unwitnessed: [] }",
+   "to": "  return { days: raw, evening: false, s0: raw, unwitnessed: [] }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfSessionWeek.test.js",
+   "expectRed": "every bar is the session it opens"
+  },
+  {
+   "id": "QC4",
+   "mutant": "JS: the venue withhold widened to the whole week",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "        if (isoWeekday(d) <= 5 && !held.has(d)) { flag(i); break }",
+   "to": "        if (isoWeekday(d) <= 5 && !held.has(d)) { for (let j = 0; j <= i; j++) if (own[j] === own[i]) flag(j); break }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfSessionWeek.test.js",
+   "expectRed": "on Thursday 12-24"
+  },
+  {
+   "id": "QC5",
+   "mutant": "JS: drop the closure-day include (a bar dated on an NYSE closure left out of its week)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "function resampleTo(bars, isos, code) {",
+   "to": "function resampleTo(bars, isos0, code) {\n  const isos = isos0.map((d) => (d && NYSE_CLOSURE_DAYS.has(d) ? null : d))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfSessionWeek.test.js",
+   "expectRed": "closes on the Good Friday bar"
+  },
+  {
+   "id": "QC6",
+   "mutant": "JS: a carry after the witnessed span served (not withheld)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (d > SESSION_CARRY_WITNESSED_THROUGH) unwitnessed.push({ i, from: d, to })",
+   "to": "    void d",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfSessionWeek.test.js",
+   "expectRed": "a carry after 2026-11-20"
+  },
+  {
+   "id": "PQC1",
+   "mutant": "Python: drop S0",
+   "file": "api/services/ast_interpret.py",
+   "from": "    s0 = [_iso_plus(d, 1) if d else d for d in raw]",
+   "to": "    s0 = list(raw)",
+   "rail": "python -m pytest tests/test_pine_htf_session_week.py -q -p no:cacheprovider",
+   "expectRed": "test_s0_everywhere_on_the_fx_shape"
+  },
+  {
+   "id": "PQC2",
+   "mutant": "Python: drop S2",
+   "file": "api/services/ast_interpret.py",
+   "from": "        days[i] = to",
+   "to": "        pass",
+   "rail": "python -m pytest tests/test_pine_htf_session_week.py -q -p no:cacheprovider",
+   "expectRed": "test_s0_everywhere_on_the_fx_shape"
+  },
+  {
+   "id": "PQC3",
+   "mutant": "Python: key every daily bar by its calendar date",
+   "file": "api/services/ast_interpret.py",
+   "from": "    if intraday or not _evening_open_shape(raw):",
+   "to": "    if True:",
+   "rail": "python -m pytest tests/test_pine_htf_session_week.py -q -p no:cacheprovider",
+   "expectRed": "test_s0_everywhere_on_the_fx_shape"
+  },
+  {
+   "id": "PQC4",
+   "mutant": "Python: the venue withhold widened to the whole week",
+   "file": "api/services/ast_interpret.py",
+   "from": "                if datetime.date.fromisoformat(d).isoweekday() <= 5 and d not in held:",
+   "to": "                if datetime.date.fromisoformat(d).isoweekday() <= 5 and d not in held and not [flag(j) for j in range(i + 1) if own[j] == own[i]]:",
+   "rail": "python -m pytest tests/test_pine_htf_session_week.py -q -p no:cacheprovider",
+   "expectRed": "THE VENUE CLOSE"
+  },
+  {
+   "id": "PQC5",
+   "mutant": "Python: drop the closure-day include (the store's session-only resample)",
+   "file": "api/services/ast_interpret.py",
+   "from": "    htf = resample(rows) if code == \"3M\" else resample(rows, sessions_only=False)",
+   "to": "    htf = resample(rows) if code == \"3M\" else resample(rows)",
+   "rail": "python -m pytest tests/test_pine_htf_session_week.py -q -p no:cacheprovider",
+   "expectRed": "closes on the Good Friday bar"
+  },
+  {
+   "id": "PQC6",
+   "mutant": "Python: a carry after the witnessed span served",
+   "file": "api/services/ast_interpret.py",
+   "from": "        if d > SESSION_CARRY_WITNESSED_THROUGH:",
+   "to": "        if False:",
+   "rail": "python -m pytest tests/test_pine_htf_session_week.py -q -p no:cacheprovider",
+   "expectRed": "a carry after 2026-11-20"
+  }
+ ]
+}

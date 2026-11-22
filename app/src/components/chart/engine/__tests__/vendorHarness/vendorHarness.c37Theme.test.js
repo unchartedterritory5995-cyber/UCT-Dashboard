@@ -114,11 +114,16 @@ describe('C37 — a theme reference is drawn in the chart\'s OWN colours', () =>
     expect(fgCells(ours)).not.toContain('#0F0F0F')
   }, 120000)
 
-  it('⛔ with no theme handed in the slot has no colour of its own (the renderer\'s default), never a guess', () => {
+  // ⭐ RE-PIN (e93, 2026-11-21): was `text_color` undefined (the table renderer's fixed grey). An unresolved theme slot
+  // "takes its default, exactly as an uncarried colour does" (`toRenderState`), and a cell's default is now the
+  // witnessed `color.black` of every version (`objectDefaults.js` NAMED_OBJECT_DEFAULTS.cell): still never a guess at
+  // the member's theme, and never TradingView's foreground.
+  it('⛔ with no theme handed in the slot has no colour of its own: it takes the cell default, never a guess', () => {
     const state = toRenderState(held(), { bars: toProductBars(cap), tf: 'D' })
     const cells = state.tables[0].cells.filter((c) => c.col >= 1 && c.row >= 1 && c.row <= 10)
     expect(cells.length).toBe(20)
-    for (const c of cells) expect(c.text_color).toBeUndefined()
+    for (const c of cells) expect(c.text_color).toBe('#363A45')
+    expect(cells.map((c) => c.text_color)).not.toContain('#0F0F0F')
   }, 120000)
 
   it('⛔ a GRADIENT background is unresolved, by name — Pine\'s value for it is documented, not witnessed (Q-T1)', () => {

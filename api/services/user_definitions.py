@@ -354,6 +354,25 @@ CREATE TABLE IF NOT EXISTS definition_load_measurements (
 );
 CREATE INDEX IF NOT EXISTS idx_definition_load_measurements_owner
   ON definition_load_measurements(user_id, def_id, version, id DESC);
+-- TRACK 6, RE-TRANSLATE (b) PR (3a): what the pine-runtime SERVICE's translator answered for a member's
+-- held script document at one engine. A DERIVED artifact beside the member's versions: never a version,
+-- never written into `user_definitions`; one per (user_id, def_id, version, engine); superseded rows are
+-- ignored, never deleted (`server_translations.py`). Erased with the member (MEMBER_TABLES).
+CREATE TABLE IF NOT EXISTS definition_server_translations (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id        TEXT    NOT NULL,
+  def_id         TEXT    NOT NULL,
+  version        INTEGER NOT NULL,
+  engine         INTEGER NOT NULL,
+  status         TEXT    NOT NULL,
+  guard          TEXT,
+  reason         TEXT,
+  document_json  TEXT,
+  maths_identity TEXT,
+  digest         TEXT,
+  created_at     REAL    NOT NULL,
+  UNIQUE(user_id, def_id, version, engine)
+);
 """
 
 
@@ -3019,6 +3038,17 @@ def engine_withheld_reason(row: Any, current: Optional[int] = None) -> Optional[
         return (f"engine-refused: today's script engine (version {eng}) "
                 f"refuses this script — {st.get('reason')}. It stays withheld until it is "
                 "saved from its script (open it in the Builder's Pine tab and save).")
+    # ⭐ TRACK 6 (a) (coordinator ruling 2026-11-22) -- A RUNTIME DOCUMENT'S OLDER REFUSAL EXPIRES WITH
+    # ITS ENGINE. A runtime document is recompiled from its own source on EVERY run, on the chart and on
+    # the pine-runtime service alike, so the engine that refused it is not the engine that runs it today:
+    # today's engine answers on the next run, by name if it still refuses. Holding it on `same_maths`
+    # (the rule for a script-less `ast` copy, whose stored maths IS what runs) withheld a saved runtime
+    # script on every server lane forever once the engine moved. The browser
+    # (`savedScriptUpgrade.upgradeKindOf`) answers the same way, so the chart and the alerts agree.
+    # A refusal at TODAY's engine still binds (above).
+    from api.services import runtime_definitions
+    if runtime_definitions.is_runtime(row.get("definition")):
+        return None
     if _awaits_retranslation(row, cur):
         failed = st.get("write_failed_engine")
         if isinstance(failed, int) and not isinstance(failed, bool) and failed >= cur:

@@ -12,11 +12,17 @@ api/routers/group_stats.py). Every company, price, filing and figure here is INV
   * the held answer: never built on a request, built only in the quiet span when due, once an evening,
     an evening that fell short tried again a bounded number of times, a failure said, the disk copy;
   * the reads: the table, one group, a name compared loosely, a group not held, the switch read at serve time;
-  * the route: one paid GET, 401 / 402, its own gate, a plain def, mounted, and the evening job registered.
+  * the route: one paid GET, 401 / 402, its own gate, a plain def, mounted, and the evening job registered;
+  * the weekly rank (2026-11-22): the points (each week's last session, a holiday Friday, a week with no session,
+    the newest session), a stock's change as the RS rating's own period return on the closes up to that day (no
+    look-ahead, a day it did not trade, too few closes, a bad base), a group's median of five or more and its rank
+    (ties), the places moved and the best and worst week, the build adding it from the same single read with breadth
+    unchanged, the reads carrying it, an answer held from before it (pending, rebuilt), and no session (unavailable).
 """
 from __future__ import annotations
 
 import json
+import math
 import pathlib
 import threading
 import time
@@ -531,6 +537,193 @@ def test_the_route_is_one_paid_get_and_a_refused_caller_never_reaches_the_servic
     assert paid.get("/api/research/group-stats?kind=theme").status_code == 422
     assert paid.get("/api/research/group-stats?name=" + "x" * 81).status_code == 422
     assert len(asked) == 2
+
+
+# ── the weekly rank ──────────────────────────────────────────────────────────────────────────
+
+def test_the_rank_measures_are_the_rs_ratings_own_lookbacks():
+    from api.services.rs_weighted_return import RS_TERMS
+    bars = {label: n for label, n, _w in RS_TERMS}
+    assert dict(C.RANK_MEASURES) == {"m6": bars["6m"], "m3": bars["3m"]} and C.RANK_PRIMARY == "m6"
+    assert C.RANK_WEEKS == 52 and C.RANK_BACK == (("w4", 4), ("w13", 13), ("w52", 52))
+    assert C.RANK_TAIL >= C.RANK_WEEKS * 5 + max(bars.values()) + 1 and C.RANK_TAIL > C.TAIL_SESSIONS
+
+
+def _ords(days):
+    return [date.fromisoformat(d).toordinal() for d in days]
+
+
+def test_the_weekly_points_are_each_weeks_last_session_then_the_newest():
+    days = [d for d in weekdays_ending(date(2031, 6, 4), 300)                 # the newest session is a Wednesday
+            if d not in ("2031-04-18",)                                      # a holiday Friday: Thursday closes the week
+            and not ("2031-03-03" <= d <= "2031-03-07")]                     # a week with no session at all
+    pts = C.week_points(tuple(_ords(days)))
+    iso = [date.fromordinal(p).isoformat() if p is not None else None for p in pts]
+    assert len(pts) == C.RANK_WEEKS + 1
+    assert iso[-1] == "2031-06-04" and iso[-2] == "2031-05-30" and iso[-3] == "2031-05-23"
+    assert "2031-04-17" in iso and "2031-04-18" not in iso
+    assert iso[iso.index("2031-03-14") - 1] is None                          # the empty week has no point
+    assert iso[0] == "2030-06-07"                                            # 52 weeks before the newest week
+    friday = C.week_points(tuple(_ords(weekdays_ending(date(2031, 6, 6), 300))))
+    assert [date.fromordinal(p).isoformat() for p in friday[-2:]] == ["2031-05-30", "2031-06-06"]
+    short = C.week_points(tuple(_ords(weekdays_ending(date(2031, 6, 4), 30))))
+    assert short[0] is None and short[-1] is not None                         # weeks before the history have no point
+    assert C.week_points(()) == ()
+
+
+def test_a_stocks_change_is_the_rs_period_return_on_the_closes_up_to_that_day():
+    from api.services.rs_weighted_return import period_return
+    values = [20 + (i % 17) * 0.7 + i * 0.05 for i in range(420)]
+    closes = closes_of(values)
+    days, vals = C.tail(closes, C.RANK_TAIL)
+    assert len(days) == C.RANK_TAIL                                          # the rank keeps more than breadth's tail
+    pts = C.week_points(tuple(days))
+    out = C.stock_changes(days, vals, pts)
+    n_pts = len(pts)
+    full_days = [d for d, _ in closes]
+    checked = 0
+    for m, (_mid, bars) in enumerate(C.RANK_MEASURES):
+        for j, p in enumerate(pts):
+            upto = [c for d, c in closes if d <= date.fromordinal(p).isoformat()]
+            want = period_return(upto, bars)
+            assert out[m * n_pts + j] == pytest.approx(want), (m, j)
+            checked += 1
+    assert checked == 2 * n_pts and full_days[-1] == "2031-06-04"
+    # no look-ahead: a later close changes nothing at an earlier point
+    later = closes[:-10] + [(d, c * 3) for d, c in closes[-10:]]
+    again = C.stock_changes(*C.tail(later, C.RANK_TAIL), pts)
+    assert list(again[:n_pts - 3]) == list(out[:n_pts - 3])                 # the last three points hold a changed close
+    # a point the stock did not trade, too few closes, and a base that is not a positive price are no change
+    missing = [(d, c) for d, c in closes if d != date.fromordinal(pts[-1]).isoformat()]
+    assert math.isnan(C.stock_changes(*C.tail(missing, C.RANK_TAIL), pts)[n_pts - 1])
+    young = C.stock_changes(*C.tail(closes[-60:], C.RANK_TAIL), pts)
+    assert all(math.isnan(v) for v in young)
+    bars6 = dict(C.RANK_MEASURES)["m6"]
+    zero = closes[:-1 - bars6] + [(closes[-1 - bars6][0], 0.0)] + closes[-bars6:]
+    zd, zv = C.tail(zero, C.RANK_TAIL)
+    assert math.isnan(C.stock_changes(zd, zv, pts)[n_pts - 1])
+    assert not math.isnan(C.stock_changes(zd, zv, pts)[2 * n_pts - 1])        # the 3-month change still has its base
+
+
+def test_a_groups_rank_is_its_median_of_five_or_more_and_ties_share_a_place():
+    from array import array
+    nan = float("nan")
+    one = lambda m6, m3: array("d", [m6, m6, m3, m3])                         # two points, each measure
+    groups = {
+        "Alpha": [one(v, -v) for v in (10, 20, 30, 40, 50)],                 # median 30 / -30
+        "Beta": [one(v, -v) for v in (30, 30, 30, 10, 99)],                  # median 30 too: a tie
+        "Gamma": [one(v, v) for v in (1, 2, 3, 4)] + [one(nan, nan)],        # four with a change: no figure
+        "Delta": [one(v, v) for v in (-5, -4, -3, -2, -1, 0)],               # median -2.5 / -2.5
+    }
+    hist, ofs = C.group_rank_history(groups, 2)
+    assert hist["Alpha"]["m6"] == {"rank": [1, 1], "median": [30.0, 30.0], "n": [5, 5]}
+    assert hist["Beta"]["m6"]["rank"] == [1, 1] and hist["Delta"]["m6"]["rank"] == [3, 3]
+    assert hist["Gamma"]["m6"] == {"rank": [None, None], "median": [None, None], "n": [4, 4]}
+    assert ofs == {"m6": [3, 3], "m3": [3, 3]}
+    assert hist["Delta"]["m3"]["rank"] == [1, 1] and hist["Alpha"]["m3"]["rank"] == [2, 2]
+    assert hist["Delta"]["m3"]["median"] == [-2.5, -2.5]
+    assert C.group_rank_history({}, 3) == ({}, {"m6": [0, 0, 0], "m3": [0, 0, 0]})
+
+
+def test_the_rank_summary_says_the_places_moved_and_the_best_and_worst_week():
+    dates = [f"2031-01-{d:02d}" for d in range(1, 31)] + [f"2031-02-{d:02d}" for d in range(1, 24)]
+    assert len(dates) == C.RANK_WEEKS + 1
+    ranks = [10] * 53
+    ranks[0], ranks[39], ranks[48], ranks[52] = 30, 20, 8, 5                 # 52, 13 and 4 points back, and now
+    ranks[20], ranks[21], ranks[45] = 2, 2, 31                               # the best twice (the later one wins)
+    ofs, ns, med = [40] * 53, [12] * 53, [1.5] * 53
+    s = C.rank_summary(ranks, ofs, ns, med, dates)
+    assert s["now"] == {"position": 5, "of": 40, "n": 12, "median": 1.5, "date": "2031-02-23"}
+    assert (s["w4"]["position"], s["w4"]["change"]) == (8, 3)
+    assert (s["w13"]["position"], s["w13"]["change"]) == (20, 15)
+    assert (s["w52"]["position"], s["w52"]["change"], s["w52"]["date"]) == (30, 25, "2031-01-01")
+    assert (s["best"]["position"], s["best"]["date"]) == (2, dates[21])
+    assert (s["worst"]["position"], s["worst"]["date"]) == (31, dates[45]) and s["weeks_ranked"] == 53
+    unranked = list(ranks)
+    unranked[-1] = None
+    assert C.rank_summary(unranked, ofs, ns, med, dates)["w4"]["change"] is None
+    gap = list(dates)
+    gap[48] = None
+    assert C.rank_summary(ranks, ofs, ns, med, gap)["w4"] is None
+    assert C.rank_summary([], [], [], [], [])["now"] is None
+
+
+def test_the_build_adds_the_weekly_rank_from_the_same_single_read():
+    ans, reads, _arts, _p = _build()
+    assert reads == TECH + OIL                                              # one read each, no second pass
+    rk = ans["rank"]
+    assert rk["state"] == "ok" and len(rk["dates"]) == C.RANK_WEEKS + 1 and rk["dates"][-1] == ans["session"]
+    assert rk["measures"] == [{"id": mid, "sessions": bars} for mid, bars in C.RANK_MEASURES]
+    assert rk["counted"] == {"sector": {"groups": 2, "ranked": 1, "unranked": 1},
+                             "industry": {"groups": 3, "ranked": 1, "unranked": 2}}
+    tech = ans["kinds"]["sector"]["Technology"]["rank"]["m6"]
+    assert tech["now"]["position"] == 1 and tech["now"]["of"] == 1 and tech["now"]["n"] == 6
+    # the oldest point needs more closes than breadth keeps: it is there because the rank's tail is longer
+    assert tech["rank"][0] == 1 and tech["n"][0] == 6 and tech["weeks_ranked"] == C.RANK_WEEKS + 1
+    # three UP and three DOWN stocks: the median 6-month change is the middle of the two middle ones
+    up_last = [c for _d, c in UP]
+    down_last = [c for _d, c in DOWN]
+    bars = dict(C.RANK_MEASURES)["m6"]
+    want = ((up_last[-1] / up_last[-1 - bars] - 1) * 100 + (down_last[-1] / down_last[-1 - bars] - 1) * 100) / 2
+    assert tech["now"]["median"] == round(want, 1)
+    energy = ans["kinds"]["sector"]["Energy"]["rank"]["m6"]
+    assert energy["now"] == {"position": None, "of": 1, "n": 3, "median": None, "date": ans["session"]}
+    assert ans["build"]["rank_cpu_s"] >= 0
+
+
+def test_the_longer_tail_leaves_breadth_exactly_as_it_was(monkeypatch):
+    ans, *_ = _build()
+    monkeypatch.setattr(C, "RANK_TAIL", 0)                                  # the tail breadth alone kept
+    old, *_ = _build()
+    for k in gs.KINDS:
+        for name, block in ans["kinds"][k].items():
+            assert block["breadth"] == old["kinds"][k][name]["breadth"], (k, name)
+    assert ans["sessions"] == old["sessions"] and ans["line_dates"] == old["line_dates"]
+    # and breadth still reads its full tail: six stocks with 400 closes have a 50-day average on every line day and a
+    # 200-day average a month back
+    tech = ans["kinds"]["sector"]["Technology"]["breadth"]
+    assert None not in tech["line"] and tech["above200"]["month"]["n"] == 6 and tech["near_high"]["month"]["n"] == 6
+
+
+def test_with_no_session_the_rank_is_unavailable():
+    ans, *_ = _build(read_closes=lambda s: {"status": "unavailable"})
+    assert ans["rank"]["state"] == "unavailable" and ans["rank"]["dates"] == []
+    assert ans["kinds"]["sector"]["Technology"]["rank"] is None
+
+
+def test_the_table_and_one_group_carry_the_rank(monkeypatch):
+    _hold(monkeypatch)
+    t = gs.get_group_stats("industry")
+    assert t["sources"]["rank"]["state"] == "ok" and len(t["sources"]["rank"]["dates"]) == C.RANK_WEEKS + 1
+    soft = next(g for g in t["groups"] if g["name"] == "Software")
+    assert set(soft["rank"]) == {"m6", "m3"}
+    assert set(soft["rank"]["m6"]) == {"now", "w4", "w13", "w52", "best", "worst", "weeks_ranked", "line"}
+    assert "line" not in soft["rank"]["m3"] and len(soft["rank"]["m6"]["line"]) == C.RANK_WEEKS + 1
+    assert soft["rank"]["m6"]["now"]["position"] == 1
+    semis = next(g for g in t["groups"] if g["name"] == "Semiconductors")
+    assert semis["rank"]["m6"]["now"] == {"position": None, "of": 1, "n": 1, "median": None, "date": "2031-06-04"}
+    g = gs.get_group_stats("industry", "Software")
+    assert len(g["rank"]["m6"]["rank"]) == len(g["rank"]["m6"]["of_line"]) == C.RANK_WEEKS + 1
+    assert g["rank"]["m3"]["median"][-1] is not None and g["rank"]["m6"]["n"][-1] == 5
+    assert "rank" not in gs.get_group_stats("industry", "Shipping")
+
+
+def test_an_answer_held_from_before_the_rank_says_pending_and_is_rebuilt(monkeypatch):
+    old = _fake_answer()
+    old.pop("rank")
+    for blocks in old["kinds"].values():
+        for b in blocks.values():
+            b.pop("rank")
+    monkeypatch.setenv("FUNDAMENTALS_PIT_ENABLED", "1")
+    with gs._lock:
+        gs._state.update(answer=old, built_for="2031-06-04", loaded=True)
+    t = gs.get_group_stats("sector")
+    assert t["sources"]["rank"]["state"] == "pending" and all(g["rank"] is None for g in t["groups"])
+    assert gs.get_group_stats("sector", "Technology")["rank"] is None
+    assert gs.refresh_due(EVENING) is True                                  # built for this evening, but before the rank
+    with gs._lock:
+        gs._state.update(answer=_fake_answer())
+    assert gs.refresh_due(EVENING) is False
 
 
 def test_the_handler_is_a_plain_def_the_route_is_mounted_and_the_evening_job_registered():

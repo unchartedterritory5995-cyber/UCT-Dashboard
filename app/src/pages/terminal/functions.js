@@ -198,7 +198,10 @@ export const FUNCTIONS = [
   { code: 'OSCR', label: 'Options screener', group: 'Options',
     // `?tab=options` is Screener.jsx's own deep-link param (read once at mount as the
     // initial tab) — without it "Full page" always landed on the Stocks tab.
-    market: { panel: 'OptionsScreener', full: '/screener?tab=options', flag: 'optionsScreenerEnabled' } },
+    // OSCR RICH / OSCR CHEAP (2026-11-22): the highest and lowest IV rank across the options log (IvRankPanel,
+    // GET /api/options-screener/iv-rank, built each evening). The bare OSCR is the option screener, unchanged.
+    market: { panel: 'OptionsScreener', full: '/screener?tab=options', flag: 'optionsScreenerEnabled',
+      args: [{ kind: 'oscrView', prop: 'view' }] } },
   { code: 'FLOW', label: 'Options flow', group: 'Options',
     // No shell flag (audit 2026-10-08, FLOW P1): the `Flow` panel is FlowGate -- the flow tab while
     // researchFlowTabEnabled is on; with it off it says so and offers the page doors.
@@ -574,10 +577,17 @@ export const FUNCTIONS = [
   // whole market: bare `DVD` = the member's own stocks, `NVDA DVD` = one stock. It holds nothing past.
   // CACT: one stock's held splits and dividends (GET /api/research/corporate-actions/{ticker}, which
   // never asks a vendor) and its name or ticker changes. None of the three is in the stock universe.
+  // IPO LOCKUP (2026-11-22): the lockups ending in the next 30 days and the past 7, each an ESTIMATE (180 days after
+  // listing, the next session), from the last-year listings the server holds (GET /api/scans/ipo-lockups).
   { code: 'IPO', label: 'IPO calendar (upcoming and priced deals)', group: 'Calendar',
-    market: { panel: 'IpoCalendar' } },
+    market: { panel: 'IpoCalendar', args: [{ kind: 'ipoView', prop: 'view' }] } },
+  // DVD MARKET (2026-11-21): every ex-dividend date and split this week and next for every stock the site
+  // follows (GET /api/research/market-dividends, Massive's reference feed read by date range on the server).
+  // ALL is a stock (Allstate), so the view word is MARKET; bare `DVD` and `NVDA DVD` are unchanged. Both variants
+  // take the word: a panel that follows a group's stock resolves to the per-stock variant (args.js `marketView`).
   { code: 'DVD', label: 'Dividend calendar (next ex-dates and splits ahead)', group: 'Calendar',
-    ticker: { panel: 'DividendCalendar' }, market: { panel: 'DividendCalendar' } },
+    ticker: { panel: 'DividendCalendar', args: [{ kind: 'marketView', prop: 'view' }] },
+    market: { panel: 'DividendCalendar', args: [{ kind: 'marketView', prop: 'view' }] } },
   { code: 'CACT', label: 'Corporate actions (splits, dividends, name changes)', group: 'Security',
     ticker: { panel: 'CorporateActions' } },
   // AUCT (2026-11-21): the Treasury auctions coming up and the results of the recent ones
@@ -640,8 +650,97 @@ export const FUNCTIONS = [
   // out once each evening (GET /api/research/group-stats, paid). GRP shows one sector's or industry's in full above
   // its ranked stocks. `GRPS INDUSTRIES`, `GRPS VALUATION`. A new code, not a view of SCTR: SCTR ranks the 11 sector
   // FUNDS by their price over a window. GRPS is not in the site's universe.
-  { code: 'GRPS', label: 'Every sector or industry: median growth, margins, valuation and breadth', group: 'Market',
+  // GRPS RANK (2026-11-22): each group's weekly rank for a year by the median 6-month price change of its stocks (and
+  // the 3-month), the places it moved over 4, 13 and 52 weeks, its best and worst week, and the movers; GRP's "Rank".
+  // GRPS CROWDING (2026-11-22): positioning by group: each one's short interest (median % of float, days to cover, the
+  // change since the last report, the most shorted), open-market insider buying (buyers, dollars, the largest buys) and
+  // fund holdings (N-PORT: the share where more funds added than cut, the median net change), each with its own date;
+  // a group's stock count opens its stocks with their own figures. 13F is left out: no whole-market store of it is held.
+  { code: 'GRPS', label: 'Every sector or industry: weekly rank, median growth, margins, valuation, breadth and crowding', group: 'Market',
     market: { panel: 'GroupTable', args: [{ kind: 'groupsKind', prop: 'kind' }, { kind: 'groupsView', prop: 'view' }] } },
+  // SEG (2026-11-21): one stock's revenue by product (or business line) and by region, the newest period ranked with
+  // each segment's share and the last four side by side (GET /api/research/revenue-segments/{ticker}, read from
+  // Financial Modeling Prep on the server). `NVDA SEG REGION QUARTERLY`. SEG is not in the site's universe.
+  { code: 'SEG', label: 'Revenue by segment (product and region)', group: 'Security',
+    ticker: { panel: 'RevenueSegments', args: [{ kind: 'segView', prop: 'view' }, { kind: 'segPeriod', prop: 'period' }] } },
+  // MNA (2026-11-21): the latest announced mergers and acquisitions across the market, or (`NVDA MNA`) the deals
+  // naming one company, each with its SEC filing (GET /api/research/mergers, read from Financial Modeling Prep on
+  // the server). A dual code like DVD, and like DVD both variants take MARKET: a panel that follows a group's stock
+  // shows that stock's deals, and `MNA MARKET` (or the panel's chip) is the whole market there. MNA is not in the
+  // site's universe.
+  { code: 'MNA', label: 'Mergers and acquisitions (latest deals)', group: 'Market',
+    ticker: { panel: 'Mergers', args: [{ kind: 'marketView', prop: 'view' }] },
+    market: { panel: 'Mergers', args: [{ kind: 'marketView', prop: 'view' }] } },
+  // IDXC (2026-11-21): additions to and removals from the S&P 500, the Nasdaq 100 and the Dow 30, newest first, or
+  // (`NVDA IDXC`) one stock's own index history (GET /api/research/index-changes, read from Financial Modeling Prep on
+  // the server). `IDXC NASDAQ100`; SP500, SPX, NDX, DOW and DJIA are COT's market words, so IDXC's are S&P500,
+  // NASDAQ100 and DOW30. Both variants take MARKET (as DVD and MNA) and the index word. IDXC is not in the site's
+  // universe.
+  { code: 'IDXC', label: 'Index changes (additions and removals)', group: 'Market',
+    ticker: { panel: 'IndexChanges', args: [{ kind: 'marketView', prop: 'view' }, { kind: 'idxcIndex', prop: 'index' }] },
+    market: { panel: 'IndexChanges', args: [{ kind: 'marketView', prop: 'view' }, { kind: 'idxcIndex', prop: 'index' }] } },
+  // STAT (2026-11-21): one stock's statistics, worked out by the server from the daily prices it
+  // already stores (GET /api/research/stock-stats/{ticker}, held for the session): ATR, realized
+  // volatility, average daily range, the 52-week range, volume; beta and correlation against SPY and
+  // its sector fund, up and down capture; returns 1W to 5Y, the best and worst day and week; its own
+  // declines of 20% or more; and how it acted in every S&P 500 correction MKTH finds inside its
+  // history. No arguments. STAT is not in the site's stock universe.
+  { code: 'STAT', label: 'Stock statistics (volatility, beta, returns, drawdowns, how it acted in every market correction)', group: 'Security',
+    ticker: { panel: 'StockStats' } },
+  // EEHSC (2026-11-21): estimate revisions by sector. Among the stocks UCT tracks (the S&P 500 list the estimate job
+  // follows and the stocks members opened EEH on; not the whole market), how many had the consensus for their next
+  // fiscal quarter raised, cut or held over 7 or 30 days, by sector, with net breadth and the largest raises and cuts
+  // (GET /api/research/estimate-history, the market read of EEH's own snapshot store, behind EEH's switch).
+  // `EEHSC 7D REVENUE`. Not a GRPS view: another population (at most 600 tracked stocks, not the universe) behind another
+  // switch. EEH for one stock, EEHSC for every sector. Not in the site's universe, and no word members type is within
+  // the command line's close-spelling reach of it (a four-letter EEHS came up before PEER for "peers").
+  { code: 'EEHSC', label: 'Estimate revisions by sector', group: 'Market',
+    market: { panel: 'RevisionBreadth', flag: 'estimateHistoryEnabled',
+      args: [{ kind: 'eehscWindow', prop: 'window' }, { kind: 'eehscMetric', prop: 'metric' }] } },
+  // PUBR (2026-11-22): one company's public records from four government agencies: its federal contract awards
+  // (USAspending.gov), the clinical trials it leads (ClinicalTrials.gov), its FDA drug approvals (openFDA, Drugs@FDA)
+  // and its lobbying (LDA.gov), each matched to the ticker by the company's names, with the names shown
+  // (GET /api/research/public-records/{ticker}; the server reads each agency at most once a day per company).
+  // `NVDA PUBR TRIALS`. The brief named it RECS, which is a real fund (Columbia Research Enhanced Core ETF, NYSE Arca);
+  // PUBR is not in the site's universe and a web search on 2026-11-22 found no stock or fund trading under it.
+  { code: 'PUBR', label: 'Public records (government contracts, clinical trials, FDA approvals, lobbying)', group: 'Security',
+    ticker: { panel: 'PublicRecords', args: [{ kind: 'pubrView', prop: 'view' }] } },
+  // EVST (2026-11-22): "what happened next", a member's own historical study. Every time a condition held on
+  // a series (market breadth, a technical indicator over UCT's stored closes, CFTC futures positioning), what
+  // did a symbol do over up to four windows, against every session; every episode listed, the engine's method
+  // in words (GET /api/research/event-study and /series, worked out by the server's event-study engine from
+  // stored data only, held per spec per evening, paid). `EVST` measures SPY; `NVDA EVST` measures NVDA. The
+  // member's last study is kept in the browser. No arguments. EVST is not in the site's stock universe.
+  { code: 'EVST', label: 'What happened next (build your own historical study)', group: 'Market',
+    ticker: { panel: 'EventStudy' },
+    market: { panel: 'EventStudy' } },
+  // SETH (2026-11-22): how setups acted. A fixed library of seven chart setups (a breakout to a new 52-week high on
+  // volume, a pullback to the 21-day EMA, a gap up, a reclaim of the 50-day, an inside week near a high, three weeks
+  // tight, a pocket pivot), each a screen the Screener's own evaluator answers, and how each did 5, 20 and 60 sessions
+  // on in every S&P 500 correction, in the first 3 months after each low and later in each uptrend (GET
+  // /api/research/setup-history, worked out by the server once a week from the prices it stores, with the screen
+  // backtester's floor, same-day control and survivorship sentence). `NVDA SETH` is every time each setup fired on that
+  // stock (GET /api/research/setup-history/{ticker}); `SETH MARKET` the study on a panel that follows a stock.
+  // SETH is not in the site's universe.
+  { code: 'SETH', label: 'How setups acted (breakouts, pullbacks, gaps in every correction and rally)', group: 'Market',
+    ticker: { panel: 'SetupHistory', args: [{ kind: 'marketView', prop: 'view' }] },
+    market: { panel: 'SetupHistory', args: [{ kind: 'marketView', prop: 'view' }] } },
+  // VFP (2026-11-22): one stock's volume footprint, worked out by the server from the daily bars it already stores
+  // (GET /api/research/volume-footprint/{ticker}, held for the session): accumulation and distribution days over 25
+  // and 50 sessions and the up/down volume ratio, the 10 heaviest sessions of the last year, every pocket pivot of
+  // the last year, and every gap of 3% or more in the history held with when it filled; earnings marks from the
+  // report dates the site's earnings page already holds. No arguments. VFP is not in the site's universe, and a web
+  // search on 2026-11-22 found no stock or fund listed under it.
+  { code: 'VFP', label: 'Volume footprint and gaps (accumulation and distribution days, pocket pivots, every gap of 3% or more)', group: 'Security',
+    ticker: { panel: 'VolumeFootprint' } },
+  // FCTX (2026-11-22): how one stock trades, worked out by the server from the daily closes it already stores (GET
+  // /api/research/factor-exposure/{ticker}, held for the session): an ordinary least-squares regression of its daily
+  // return on six fund spreads (SPY; IWM, MTUM, QUAL and USMV less SPY; IWF less IWD) over the newest 252 common
+  // sessions and the 252 before them, each loading with its t-statistic, R-squared and the idiosyncratic share, and a
+  // plain line built only from loadings whose t is above 2. No arguments. FCTX is not in the site's universe, and a
+  // web search on 2026-11-22 found no stock or fund listed under it (FEX, the brief's first pick, is a First Trust fund).
+  { code: 'FCTX', label: 'Factor exposure (market, size, growth vs value, momentum, quality, low volatility)', group: 'Security',
+    ticker: { panel: 'FactorExposure' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -949,11 +1048,12 @@ const FUNCTION_WORDS = {
     note: 'Past sessions with similar breadth and what the S&P 500 did after each. A record, not a forecast.' },
   MKTS: { example: 'MKTS', keywords: ['markets', 'cross asset', 'indexes', 'vix', 'bitcoin', 'markets board'],
     note: 'Index funds, VIX, Treasury yields and Bitcoin, each with its own source and time. No futures or commodity prices.' },
-  IPO: { example: 'IPO', keywords: ['ipo', 'ipos', 'ipo calendar', 'new issues', 'upcoming ipos', 'priced ipos'],
-    note: 'Deals from last week to next week, day by day. Stocks listed in the last year are on LEAD IPO.' },
+  IPO: { example: 'IPO', keywords: ['ipo', 'ipos', 'ipo calendar', 'new issues', 'upcoming ipos', 'priced ipos', 'lockup', 'lockups',
+    'ipo lockup', 'ipo lockups'],
+    note: 'Deals from last week to next week, day by day. IPO LOCKUP: lockups ending in the next 30 days, each an estimate (180 days after listing). Stocks listed in the last year are on LEAD IPO.' },
   DVD: { example: 'DVD', keywords: ['dividend', 'dividends', 'dividend calendar', 'ex dividend', 'ex-date', 'upcoming dividends',
-    'upcoming splits'],
-    note: 'Declared dividends and splits ahead for your stocks, or for one stock (NVDA DVD). Nothing past.' },
+    'upcoming splits', 'market dividends', 'ex dividend this week', 'splits this week'],
+    note: 'Declared dividends and splits ahead for your stocks, for one stock (NVDA DVD), or the whole market this week and next (DVD MARKET). Nothing past.' },
   CACT: { example: 'NVDA CACT', keywords: ['corporate actions', 'splits', 'stock split', 'dividend history', 'name change',
     'ticker change', 'past dividends'],
     note: 'Only what the server already holds for the stock: splits, dividends by ex-date and ticker changes.' },
@@ -986,9 +1086,62 @@ const FUNCTION_WORDS = {
     'rally leaders'],
     note: 'Every decline of 10% or more on closing prices, the rally after each low and its leaders. A record, not a forecast.' },
   // 'breadth' stays with BRD, 'sectors' with RRG and 'sector performance' with SCTR: each still finds its own first.
+  // 'sector rank' stays with SCTR and 'rank' with RSL: no word here starts with "rank" (2026-11-22, GRPS RANK).
+  // GRPS CROWDING (2026-11-22): no keyword holds "insider", "buying" or "positioning": the command line orders equal
+  // word matches by code, so GRPS would come before INS and POS for those words (functionWords.test.js caught it).
   GRPS: { example: 'GRPS INDUSTRIES', keywords: ['sector fundamentals', 'industry fundamentals', 'sector breadth', 'industry breadth',
-    'sector valuation', 'sector margins', 'group fundamentals', 'sector table', 'industry table'],
-    note: "Medians of each group's stocks from their SEC filings as known that day, and its breadth from stored closes; worked out each evening." },
+    'sector valuation', 'sector margins', 'group fundamentals', 'sector table', 'industry table', 'industry rank', 'group rank',
+    'industry group rank', 'industry ranking', 'group rank history', 'leading industries', 'sector short interest',
+    'industry short interest', 'sector crowding', 'industry crowding'],
+    note: "Medians of each group's stocks from their SEC filings as known that day, its breadth from stored closes, its weekly rank by the median 6-month change, and its short interest, insider buying and fund holdings; worked out each evening." },
+  // 'revenue' stays with FA and 'geographic'/'regions' had no owner.
+  SEG: { example: 'NVDA SEG', keywords: ['revenue by segment', 'segments', 'segment revenue', 'product revenue', 'revenue by product',
+    'revenue by region', 'geographic revenue', 'business segments', 'revenue mix'],
+    note: 'As the company reports its segments, period by period. A share is of the segments listed, which may not add up to total revenue.' },
+  MNA: { example: 'MNA', keywords: ['mergers', 'acquisitions', 'mergers and acquisitions', 'm&a', 'merger', 'takeover', 'takeovers',
+    'buyout', 'acquired', 'deal filings'],
+    note: 'From SEC filings: the acquirer, the target as the filing names it, and the filing. One company: NVDA MNA. On a panel that follows a stock, MNA MARKET is the whole market.' },
+  IDXC: { example: 'IDXC', keywords: ['index changes', 'index additions', 'index removals', 'added to the s&p', 'removed from the index',
+    'index rebalance', 'sp500 changes', 'index deletions', 'index history'],
+    note: 'The provider\'s list of additions and removals with the stock replaced and the reason. One stock: NVDA IDXC. On a panel that follows a stock, IDXC MARKET is all three indexes.' },
+  // STAT: "volatility" stays IVH's and VOL's, "correlation" CORR's, "drawdowns" MKTH's (each answers it first today)
+  STAT: { example: 'NVDA STAT', keywords: ['stock statistics', 'statistics', 'stock stats', 'atr', 'beta', 'max drawdown',
+    'up capture', 'down capture'],
+    note: "From UCT's stored daily prices (split-adjusted, price only). A record, not a forecast." },
+  // 'revisions' and 'estimate revisions' stay with EEH (one stock's history), 'breadth' with BRD.
+  EEHSC: { example: 'EEHSC', keywords: ['revision breadth', 'estimate revisions by sector', 'revisions by sector', 'sector revisions',
+    'earnings revisions by sector', 'estimate breadth'],
+    note: 'Among the stocks UCT tracks (the S&P 500 list and stocks members looked at), not the whole market. A change of more than 0.5% either way is a raise or a cut. One stock: NVDA EEH.' },
+  // A word another panel owns keeps finding it: 'records' (in LEAD's title), 'contract' and 'contracts' (ACCUM), 'spend'
+  // (ECON), 'fed' and 'federal' (FED). So no keyword here holds 'records', 'contract' or 'spend'; the label carries
+  // "public records" for a one-word search on 'public'.
+  PUBR: { example: 'NVDA PUBR', keywords: ['government contracts', 'federal contracts', 'clinical trials', 'fda approvals',
+    'drug approvals', 'lobbying', 'usaspending'],
+    note: 'From the agencies\' own records, matched to the company by name, with the matched names shown. One section: NVDA PUBR TRIALS.' },
+  // EVST: "what happened next" stays ANLG's (days like today); "backtest" and "seasonality" stay where they are.
+  EVST: { example: 'EVST', keywords: ['event study', 'event studies', 'historical study', 'build a study', 'study builder',
+    'what happened after'],
+    note: "Pick a condition on market breadth, a technical indicator or COT positioning; see what a symbol did after every time it held. From stored data. A record, not a forecast." },
+  // 'setups' and 'breakout' stay BRKO's (today's breakout-ready list), 'correction' and 'rallies' MKTH's; no keyword
+  // holds 'study' or 'returns' (a one-word search on either found SETH first).
+  SETH: { example: 'SETH', keywords: ['setup history', 'how setups acted', 'breakout history', 'setup backtest',
+    'setups by market phase'],
+    note: 'Each setup is a screen the Screener answers on every past bar; the market phase is assigned with hindsight. One stock: NVDA SETH. A record, not a forecast.' },
+  // VFP: "volume" stays LEAD's, UNVOL's and MOST's (MOST also takes VOLUME as a lens word), "accumulation" ACCUM's,
+  // "gap" MOST's (its gappers) and "pivot" BRKO's: each still finds its own function first.
+  VFP: { example: 'NVDA VFP', keywords: ['volume footprint', 'accumulation days', 'distribution days', 'pocket pivots',
+    'pocket pivot', 'gap history', 'gaps', 'unfilled gaps', 'up down volume'],
+    note: "From UCT's stored daily bars (settled sessions; prices and volumes split-adjusted). A record, not a forecast." },
+  // FCTX: "exposure" stays REGM's (the market exposure call), "growth" GRPS's and "value" PEER's; no keyword starts with
+  // either word ("growth or value" would have taken "growth" from GRPS). "momentum" and "quality" find FCTX through
+  // its label: no other function answers them.
+  FCTX: { example: 'NVDA FCTX', keywords: ['factor exposure', 'factor exposures', 'factor loadings', 'factors', 'style',
+    'style factors', 'momentum exposure'],
+    note: "From UCT's stored daily closes of the stock and the factor funds (settled sessions, price returns). Descriptive, not a forecast." },
+  // OSCR RICH / OSCR CHEAP: no keyword. "iv" and "implied volatility" stay IVH's, and any keyword holding "rank" would
+  // put OSCR ahead of RSL for a one-word search on "rank" (OSCR sits earlier in the registry).
+  OSCR: { example: 'OSCR RICH',
+    note: 'The option screen, unusual option volume and IV percentile. OSCR RICH and OSCR CHEAP: the highest and lowest IV rank across the options log, built each evening.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
