@@ -18,9 +18,10 @@ describe('deviceWarm: the device read leaves in the key press', () => {
   it('asks the persistence layer for the device copy of the key the chart reads', async () => {
     const { pf, refreshDevice } = setup()
     expect(await pf.deviceWarm('AAA', 'D')).toBe(true)
-    expect(refreshDevice).toHaveBeenCalledWith(pf.keyFor('AAA', 'D'))
+    // (urgent: the key press is the member's own ask, ahead of every warm's device read; deviceStore/client.js)
+    expect(refreshDevice).toHaveBeenCalledWith(pf.keyFor('AAA', 'D'), { urgent: true })
     await pf.deviceWarm('AAA', '30', { showExtended: true })
-    expect(refreshDevice).toHaveBeenLastCalledWith(pf.keyFor('AAA', '30', { showExtended: true }))
+    expect(refreshDevice).toHaveBeenLastCalledWith(pf.keyFor('AAA', '30', { showExtended: true }), { urgent: true })
   })
   it('no key, or a failing read: false, never a throw', async () => {
     const { pf, refreshDevice } = setup()

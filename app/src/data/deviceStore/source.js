@@ -2,8 +2,9 @@
 //
 // persist.js holds one of these (null while the switch is off) and asks it, for a key whose mem record
 // is empty, for a LOCAL copy:
-//   peek(sym, cacheTf) → {rows, savedAt} | null   SYNCHRONOUS (the client's recently-read cache)
-//   read(sym, cacheTf) → Promise<{rows, savedAt} | null>   one worker round trip; never rejects
+//   peek(sym, cacheTf) → {n, rows, through, savedAt} | null   SYNCHRONOUS (the client's recently-read cache)
+//   read(sym, cacheTf, {urgent}?) → Promise<{rows, savedAt} | null>   one worker round trip; never rejects.
+//                       `urgent`: the member's own ask goes ahead of every background read (client.js, TWO LANES)
 // `rows` are the cache's row shape ({t,o,h,l,c,v}, t unix seconds), what the reducer's local-copy
 // action ingests. Only the keys the seed holds: 1/5/15/30/60 (the RTH session grid: '60e' is not in
 // the seed), D, and W/M derived from D.
@@ -45,10 +46,22 @@ export function buildTimeMs(build) {
 // A device copy's saved time is the moment it is COMPLETE up to (`through`, live.js / engine.js), the
 // age every local-copy rule reads (the daily paint gate in particular); the build time only when an older
 // worker sends no stamp.
+// ⭐ THE ROWS ARE BUILT WHEN THEY ARE READ, ONCE (2026-11-22). The bar store asks for a held key's copy on every
+// warm of that key (persist.refreshDevice: the rows around the selection and the rows on screen, on every linked
+// timeframe, on every press), and nearly every time it drops the copy after one look at `through`: no newer than
+// the one it holds. Building one object per bar first cost 20 ms of main-thread work around a next-row press and
+// made the press 4 ms slower with the store on (devgates4). `n` is the row count, for a caller that needs no row.
+// `rows` is READ-ONLY (a getter with no setter: assigning to it throws in a module) and is built once per hit;
+// every peek / read makes a new hit over the cached columns.
 const _hit = (cols) => {
-  if (!cols?.t?.length) return null
+  const n = cols?.t?.length || 0
+  if (!n) return null
   const through = Number.isFinite(cols.through) ? cols.through : null
-  return { rows: columnsToRows(cols), through, savedAt: through != null ? through * 1000 : buildTimeMs(cols.build) }
+  let rows = null
+  return {
+    n, through, savedAt: through != null ? through * 1000 : buildTimeMs(cols.build),
+    get rows() { return rows || (rows = columnsToRows(cols)) },
+  }
 }
 
 /** A source over any client-shaped object ({peekBars, getBars}); `load` resolves it. */
@@ -60,10 +73,10 @@ export function createDeviceSource({ load = _load, current = () => _client } = {
       if (!c) { load(); return null }
       try { return _hit(c.peekBars(sym, String(tf))) } catch { return null }
     },
-    read(sym, tf) {
+    read(sym, tf, { urgent = false } = {}) {
       if (!sym || !_TFS.has(String(tf))) return Promise.resolve(null)
       return Promise.resolve(current() || load())
-        .then((c) => (c ? c.getBars(sym, String(tf)) : null))
+        .then((c) => (c ? (urgent === true ? c.getBars(sym, String(tf), { urgent: true }) : c.getBars(sym, String(tf))) : null))
         .then(_hit, () => null)
     },
     /** Diagnostics: the client's worker requests in flight (client.inFlight), 0 before it loaded. */
