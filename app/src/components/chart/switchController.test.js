@@ -138,6 +138,8 @@ const makeView = (sym, over = {}) => ({
   reactRepaint: () => log.push('react:repaint'),
   metaFor: (s) => ({ watermarkMeta: { name: `${s} Inc` }, mergedMarkers: [] }),
   drawMeta: () => { layers += 1; log.push('meta:drawn') },
+  // the member's alert lines on a symbol (one alerts list for every symbol, held by the chart's last render)
+  alertLines: (s) => [{ price: 3, title: 'Alert', of: s }],
   // the session tags (the Pre/Post chip, the RTH close): built for the next symbol, applied after its pass
   sessionTags: (b, s) => [{ price: 1, of: s }],
   applySessionTags: (tags) => log.push(`tags:${tags ? tags.map((t) => t.of).join(',') : 'none'}`),
@@ -193,7 +195,9 @@ describe('apply: the new symbol\'s frame, whole', () => {
     const { c, ctx } = painted()
     c.apply('BBB')
     const pc = passes[0].ctx
-    expect(pc.alertLineOptsRef.current).toEqual([])
+    // (review 2) the alert lines are the NEW symbol's: the alerts list is one for every symbol, so they are
+    // readable outside a render and drawn in the frame of the paint (never the old symbol's)
+    expect(pc.alertLineOptsRef.current).toEqual([{ price: 3, title: 'Alert', of: 'BBB' }])
     expect(pc.wmLogoRef.current).toBe(null)
     expect(pc._metaNowRef.current()).toEqual({ watermarkMeta: { name: 'BBB Inc' }, mergedMarkers: [] })   // the NEW symbol's, as held
     expect(layers).toBe(1)
@@ -454,6 +458,15 @@ describe('review finding 2: the new symbol\'s metadata the app already holds is 
     expect(passes[0].ctx._metaNowRef.current().watermarkMeta).toEqual({ name: 'BBB Inc' })
     expect(log).toContain('meta:drawn')
     expect(log).not.toContain('drawMeta:react')   // never the old render's own draw of the old symbol
+  })
+  it('the alert lines are the new symbol\'s, and none when the chart draws none (the setting off, or no alert on it)', () => {
+    const { c } = painted()
+    c.apply('BBB')
+    expect(passes[0].ctx.alertLineOptsRef.current.map((l) => l.of)).toEqual(['BBB'])
+    const off = painted('AAA', { alertLines: () => [] }).c
+    passes.length = 0
+    off.apply('BBB')
+    expect(passes[0].ctx.alertLineOptsRef.current).toEqual([])
   })
 })
 

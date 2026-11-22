@@ -26,7 +26,7 @@ import { pinWallClock } from '../testing/pinnedWallClock'
 import { loadWithBarStore } from '../testing/barStoreModes'
 
 const FLAG = 'uct.imperativeSwitch'
-const S = vi.hoisted(() => ({ log: [], n: 0, commits: 0, range: null, stateful: false, crosshairs: [], prices: {}, rows: null }))
+const S = vi.hoisted(() => ({ log: [], n: 0, commits: 0, range: null, stateful: false, crosshairs: [], prices: {}, rows: null, alerts: null }))
 const digest = (v) => {
   const json = JSON.stringify(v, (k, x) => (typeof x === 'function' ? 'ƒ' : x && typeof x === 'object' && typeof x.nodeType === 'number' ? '‹node›' : x))
   if (json === undefined) return 'undefined'
@@ -177,6 +177,8 @@ const stubBars = () => vi.stubGlobal('fetch', vi.fn((url) => {
   const tf = decodeURIComponent((/[?&]tf=([^&]+)/.exec(u) || [])[1] || 'D')
   const meta = /\/api\/ticker-meta\/([A-Z]+)/.exec(u)
   if (meta && NAMES[meta[1]]) return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, clone() { return this }, json: async () => NAMES[meta[1]] })
+  // the member's alerts: ONE list for every symbol (Chart Settings -> Price alerts draws the chart symbol's)
+  if (/\/api\/watchlist-alerts/.test(u)) return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, clone() { return this }, json: async () => S.alerts || [] })
   const k = m ? K[m[1]] : 0
   // a case may serve its own bars (`S.rows(sym, tf)`); otherwise 5-minute bars of the pinned session, or dailies
   const own = k && S.rows ? S.rows(m[1], tf) : null
@@ -202,6 +204,12 @@ const NAMES = {
   BBB: { name: 'Bravo Corporation', sector: 'Technology', industry: 'Software', theme: null, exchange: 'NASDAQ', security_type: 'CS' },
 }
 const PLAIN = () => true
+// the member's active alerts (GET /api/watchlist-alerts), for both symbols; then AAA's moved while BBB is painted
+const ALERTS = [
+  { id: 1, sym: 'AAA', is_active: true, target_price: 39.25, alert_type: 'price' },
+  { id: 2, sym: 'BBB', is_active: true, target_price: 77.75, alert_type: 'price' },
+]
+const ALERTS_MOVED = [{ ...ALERTS[0], target_price: 38.5 }, ALERTS[1]]
 const until = async (pred, ms = 3000) => { for (let t = 0; t < ms && !pred(); t += 25) await wait(25) }
 
 /** A fresh module graph with the switch as asked (it is read once, at StockChart's module load). */
@@ -261,6 +269,7 @@ describe('daily: the controller paints BBB over AAA', () => {
   let stale // a second imperative run: a render of AAA between the paint and the commit
   let own   // (review) BBB with layers and a name of its own, and a hover in between
   let weekly
+  let alerts // (review 2) the member's alert lines on
 
   beforeAll(async () => {
     // ── the imperative switch, then the React commit ──
@@ -347,6 +356,34 @@ describe('daily: the controller paints BBB over AAA', () => {
       }
       t.done()
     }
+    // ── (review 2) the member's alert lines (Chart Settings -> Price alerts). The list is ONE for every symbol,
+    // held by the chart's last render, so the new symbol's lines are readable outside a render: drawn in the paint.
+    // Then the list revalidates (an alert of AAA moved) between the paint and the body's render: AAA's body
+    // re-renders while BBB is painted, and must not put AAA's lines back over BBB's candles. ──
+    {
+      S.alerts = ALERTS
+      const t = await mounted(true, 'D', {}, { settingsOverride: { ...SETTINGS, priceAlertLines: true } })
+      const ctl = t.port.current
+      S.log.length = 0
+      let result = null
+      act(() => { result = ctl ? ctl.apply('BBB') : null })
+      const paintLog = S.log.slice()
+      S.log.length = 0
+      const views0 = ctl ? ctl.diag.views : -1
+      await act(async () => { await swrMutate('/api/watchlist-alerts', ALERTS_MOVED, false) })
+      await wait(150)
+      const betweenLog = S.log.slice()
+      const between = { views: ctl ? ctl.diag.views - views0 : -1, pending: ctl ? ctl.pendingSym() : null }
+      S.log.length = 0
+      t.view.rerender(t.el('BBB'))
+      await wait(600)
+      alerts = {
+        result, refusedAs: ctl ? JSON.stringify(ctl.diag.last) : null, mountLog: t.mountLog, paintLog, betweenLog, between,
+        commitLog: S.log.slice(),
+      }
+      t.done()
+      S.alerts = null
+    }
     // ── (review) a weekly chart is refused by name until its tail has a rail ──
     {
       const t = await mounted(true, 'W')
@@ -432,6 +469,27 @@ describe('daily: the controller paints BBB over AAA', () => {
     expect(lines.some((l) => /Alpha Incorporated/.test(l))).toBe(false)
     // non-vacuity: the mount drew AAA's name the same way
     expect(on.mountLog.some((l) => /^watermark lines .*Alpha Incorporated/.test(l))).toBe(true)
+  })
+
+  it('(review 2) the member\'s alert lines are the new symbol\'s in the frame of the paint, and the body\'s render does not draw them again', () => {
+    expect(alerts.result, `refused as ${alerts.refusedAs}`).toBe('applied')
+    expect(alerts.mountLog.some((l) => /^candle#\d+ createPriceLine 39\.25$/.test(l)), 'non-vacuity: the mount drew AAA\'s alert line').toBe(true)
+    expect(alerts.paintLog.some((l) => /^candle#\d+ createPriceLine 77\.75$/.test(l)), 'BBB\'s alert line, in the paint').toBe(true)
+    expect(alerts.paintLog.some((l) => / createPriceLine 39\.25$/.test(l)), 'no line of AAA').toBe(false)
+    expect(alerts.commitLog.filter((l) => / createPriceLine 77\.75$/.test(l)), 'drawn once, not again at the render').toEqual([])
+  })
+
+  it('(review 2) the alerts list revalidating between the paint and the body\'s render puts none of the old symbol\'s lines back', () => {
+    expect(alerts.between.pending).toBe('BBB')
+    expect(alerts.between.views, 'non-vacuity: the old symbol\'s body rendered in between').toBeGreaterThan(0)
+    expect(alerts.betweenLog.filter((l) => / (createPriceLine|removePriceLine)/.test(l))).toEqual([])
+  })
+
+  it('(review 2) the watermark of the paint is the new symbol\'s even when the app holds nothing of it yet: never blank, never the old one', () => {
+    const lines = on.applyLog.filter((l) => /^watermark lines /.test(l))
+    expect(lines.length, 'the paint drew the watermark').toBeGreaterThan(0)
+    expect(lines.at(-1)).toMatch(/^watermark lines "BBB\b/)
+    expect(lines.at(-1)).not.toMatch(/AAA|Alpha/)
   })
 
   it('(review 3) a hover between the paint and the body\'s render reports nothing; before and after it reports', () => {
