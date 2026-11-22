@@ -15,7 +15,8 @@
 // ⛔ The SAVED document keeps every arm (its formula text, its trees): only the bound copy is pruned, and a document
 // with no knob ternary binds to ITSELF (the same object), so nothing else moves.
 
-import { pruneKnobArms, REFUSED_ARM_CALL } from './ast/bind.js'
+import { pruneKnobArms, REFUSED_ARM_CALL, bindConstsFor } from './ast/bind.js'
+import { resolveInputs, treeScalars } from './knobInputs.js'
 import { symTickersOf } from './otherSymbols.js'
 
 const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
@@ -93,6 +94,14 @@ export function boundDocument(def, consts) {
     if (moved) out.meta = narrowed
   }
   return out
+}
+
+/** `def` bound at an INSTANCE's knobs (its stored inputs over the declared defaults, a text option read as its index,
+ *  `knobInputs.js::treeScalars`): what that instance's chart draws, and therefore all it fetches
+ *  (`symbolInputs.js::instanceDocumentForFetch`). With `{}`, the defaults (`astColumns.js::defaultBoundDocument`). */
+export function boundAtInputs(def, inputs) {
+  if (!isPlainObject(def) || !isPlainObject(def.compute)) return def
+  return boundDocument(def, bindConstsFor({ inputs: treeScalars(def, resolveInputs(def, inputs || {})) }))
 }
 
 /** The refused knob arm a BOUND tree still holds (the member's setting picked it): `{guard, message}` quoting the

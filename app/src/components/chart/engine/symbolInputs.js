@@ -20,6 +20,7 @@
 
 import { pineSymbolSpelling } from './ast/pine.js'
 import { staticallyUnservable, staticOtherSymbolMessage } from './otherSymbols.js'
+import { boundAtInputs } from './knobBind.js'
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 
@@ -144,7 +145,11 @@ export function specializeSymbols(def, inputs) {
 /** The other symbols a chart fetches for ONE instance: the document as that instance's symbol choices make it
  *  (a choice no binding can serve fetches nothing new: the compute refuses it by name). */
 export function instanceDocumentForFetch(def, inst) {
-  if (!def || !symbolInputEntries(def).length) return def
-  const s = specializeSymbols(def, inst && inst.inputs)
-  return s.ok ? s.def : def
+  // ⭐⭐ e95 unit 2b — the document the instance's chart DRAWS: every knob ternary bound at the instance's own settings
+  // (`knobBind.js::boundAtInputs`), so an arm the member did not pick is never fetched for (an unpicked arm's event
+  // read or other symbol). The document itself when it holds no knob ternary.
+  const bound = boundAtInputs(def, inst && inst.inputs)
+  if (!bound || !symbolInputEntries(bound).length) return bound
+  const s = specializeSymbols(bound, inst && inst.inputs)
+  return s.ok ? s.def : bound
 }

@@ -69,7 +69,8 @@ settings too (the default-bound budget fits them).
   a PICKED refusing leaf does not refuse at bind (KA3); the leaf computes na in JS / Python (KA4, KA5); the bind never
   prunes, JS / Python (KA6, KA7); the Python interpreter does not bind at its entry (KA8); the chart lane decides on the
   saved document (KA9); the install / door / server budgets measure every arm (KA10, KA11, KA12); a script spells the
-  leaf (KA13). (KA11 survived its first run, which broke one of the door budget pass's two reads; it now breaks both.)
+  leaf (KA13). (KA11 survived its first run, which broke one of the door budget pass's two reads; it now breaks both.) KA14 (the
+  fetch plan reads the saved document) was added with the fetch-plan fix: PENDING its CI run.
 
 ## Rails that move by design (each says so where it stands)
 
@@ -96,6 +97,18 @@ settings too (the default-bound budget fits them).
 
 PENDING (queued under the heavy lock: 433 corpus rows with an input-driven switch or ternary, both lanes, base and after;
 the 25 VWAP captures on the production lane and the 21 non-strategy ones on the runtime-on lane).
+
+**The first grade run found a MATCH loss, and it is fixed (re-measure queued).** Train before vs this unit at
+ae083ebdd8, both lanes: 4 MATCH -> INCONCLUSIVE on each lane, the built-in at its Session default ("the supply this
+grade needs is not recorded: corporate events"). The fetch plan (`symbolInputs.js::instanceDocumentForFetch`, which the
+chart's secondary sources, the headless compute, the source references and the vendor harness all ask) read the SAVED
+document, every arm, so a Session instance asked for the corporate events only the Dividends / Splits / Earnings arms
+read; the harness, which grades only on supply recorded beside a capture, then refused rows recorded before the events
+supply existed. On a member's chart nothing was refused (the bound document at Session reads no event), but the chart
+FETCHED for an arm it would not draw. Fixed: the fetch plan binds the document at the instance's own settings
+(`knobBind.js::boundAtInputs`; the input resolution moved verbatim to the leaf `knobInputs.js` so this binds without an
+import cycle), rail in `knobArms.test.js`, mutant KA14. The census and grade are re-queued on the fixed build, after
+train e94's path jobs.
 
 **First look, production lane, this unit only (the 7 event-anchor captures of the built-in, its held source at the
 pinned sha256).** Before: all 7 INCONCLUSIVE, "Anchor Period" not a setting. After: "Anchor Period" is set from each
@@ -129,7 +142,7 @@ step earlier, at the field, and the presence-only follow-up below is what would 
   `na(x)` / `not na(x)`. That would unlock the Earnings anchor, with E2's named date divergences.
 - Unchanged by this unit (named, not built): the gates that read a SAVED document without a binding still see every
   arm: the alert lane's static gates (`evaluability.alertAnswer`), the requirement tags stamped at save (an unpicked
-  arm's tag refuses the five comparability consumers, never the pane), the builder's `evaluability` chart answer, and
-  the secondary-source fetch plan (it may ask for a symbol or the events of an unpicked arm). Each errs on the side of
-  refusing or fetching more, never of serving an arm the setting did not pick; this was already true of today's
+  arm's tag refuses the five comparability consumers, never the pane), the builder's `evaluability` chart answer (the
+  fetch plan was one of these until the first grade run caught it; it now binds at the instance's settings). Each
+  errs on the side of refusing more, never of serving an arm the setting did not pick; this was already true of today's
   live enum ternaries (`enumCompare`).

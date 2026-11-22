@@ -118,6 +118,15 @@
    "to": "    if (base === REFUSED_ARM_CALL && pineName === 'never') {\n",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/knobArms.test.js",
    "expectRed": "failed"
+  },
+  {
+   "id": "KA14",
+   "mutant": "the fetch plan reads the SAVED document (every arm): an instance at Session asks for the events of an arm it did not pick (and a grade wants a supply it does not read)",
+   "file": "app/src/components/chart/engine/symbolInputs.js",
+   "from": "  const bound = boundAtInputs(def, inst && inst.inputs)\n",
+   "to": "  const bound = def\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/knobArms.test.js",
+   "expectRed": "failed"
   }
  ]
 }

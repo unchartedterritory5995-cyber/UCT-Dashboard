@@ -22,6 +22,8 @@ import { computeFor, columnErrors, validateUserDefinitions } from '../nativeRegi
 import { EVENTS_KEY } from '../pineEvents'
 import { setRequestWitnessRows, OTHER_SYMBOL_REFUSAL as R } from '../otherSymbols'
 import { boundDocument } from '../knobBind.js'
+import { instanceDocumentForFetch } from '../symbolInputs.js'
+import { eventsNeeded } from '../otherSymbols.js'
 import { bindConstsFor } from '../ast/bind.js'
 
 afterEach(() => { setRequestWitnessRows(null) })
@@ -150,6 +152,16 @@ describe('the bind: the knob picks one arm, and only that arm is bound', () => {
     expect(JSON.stringify(bound.meta.otherSymbols || [])).not.toContain('EV-DG')
     const plain = door(plainScript('timeframe.change("W")'))
     expect(boundDocument(plain, bindConstsFor({ tf: 'D', inputs: {} }))).toBe(plain)
+  })
+})
+
+describe('the fetch plan is the instance’s: an unpicked arm is never fetched for', () => {
+  it('at Session the instance needs no corporate events; set to Dividends it does (`instanceDocumentForFetch`)', () => {
+    const def = door(anchorScript())
+    expect(eventsNeeded(def)).toBe(true)                                  // the saved document reads them (every arm)
+    expect(eventsNeeded(instanceDocumentForFetch(def, { inputs: {} }))).toBe(false)
+    expect(eventsNeeded(instanceDocumentForFetch(def, { inputs: { anchor: 'Week' } }))).toBe(false)
+    expect(eventsNeeded(instanceDocumentForFetch(def, { inputs: { anchor: 'Dividends' } }))).toBe(true)
   })
 })
 
