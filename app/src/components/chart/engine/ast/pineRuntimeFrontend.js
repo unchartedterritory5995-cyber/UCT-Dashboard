@@ -6887,6 +6887,15 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   const callArgReadsRequest = (node, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 64) return false
     if (node.type === 'call' && node.name === 'request.security') return true
+    // ⭐⭐ T4 E2 — A NAME BOUND TO THE CHART'S OWN CORPORATE EVENTS (`pine.js::eventAsSecurity`, an `event` request) is the
+    // request it names: `e = request.earnings(…)` then `not na(e)`, the corpus's own anchor idiom. ⚰️ Measured on this
+    // branch before this line: the call's argument `e` was not followed, the subtree went to the columnar lane, and the
+    // event read was evaluated there with no supply: `na` on every bar, drawn, nothing said. ⛔ SCOPED TO EVENT READS: the
+    // same shape over another symbol's `request.security` is a separate, pre-existing finding (reported, not changed here).
+    if (node.type === 'name') {
+      const bound = env.get(node.name)
+      return !!(bound && bound.kind === 'expr' && bound.node && bound.node.type === 'call' && bound.node.event === true)
+    }
     for (const v of Object.values(node)) {
       if (Array.isArray(v)) {
         if (v.some((x) => callArgReadsRequest(x && x.value !== undefined && x.type === undefined ? x.value : x, depth + 1))) return true

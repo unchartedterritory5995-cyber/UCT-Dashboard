@@ -168,13 +168,10 @@
    "kind": "data",
    "cannot": "Earnings dates or earnings numbers on the chart",
    "source": "//@version=5\nindicator(\"probe\")\ne = request.earnings(syminfo.tickerid, earnings.actual)\nplot(e, \"EPS\")\n",
-   "runs": false,
+   "runs": true,
    "lane": "host",
-   "state": "not-yet",
-   "headline": "Not yet: Data from another symbol or timeframe",
-   "guard": "pine:request",
-   "family": "request",
-   "why": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.earnings`"
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart, with 1 note"
   },
   {
    "id": "financial-data",
@@ -194,13 +191,10 @@
    "kind": "data",
    "cannot": "Dividends on the chart",
    "source": "//@version=5\nindicator(\"probe\")\nd = request.dividends(syminfo.tickerid)\nplot(d, \"Dividend\")\n",
-   "runs": false,
+   "runs": true,
    "lane": "host",
-   "state": "not-yet",
-   "headline": "Not yet: Data from another symbol or timeframe",
-   "guard": "pine:request",
-   "family": "request",
-   "why": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.dividends`"
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart, with 1 note"
   },
   {
    "id": "lower-timeframe",

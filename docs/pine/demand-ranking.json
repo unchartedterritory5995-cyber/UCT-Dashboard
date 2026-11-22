@@ -174,7 +174,7 @@
    "soleBoosts": 8211,
    "soleBoostsPerSize": 4106,
    "rankByBoosts": 12,
-   "rankByCount": 14
+   "rankByCount": 13
   },
   {
    "unit": "call-mapping",
@@ -216,7 +216,7 @@
    "soleBoosts": 4430,
    "soleBoostsPerSize": 4430,
    "rankByBoosts": 15,
-   "rankByCount": 15
+   "rankByCount": 14
   },
   {
    "unit": "loops",
@@ -261,20 +261,6 @@
    "rankByCount": 19
   },
   {
-   "unit": "libraries",
-   "kind": "engine",
-   "size": 4,
-   "soleScripts": 3,
-   "soleCommunity": 2,
-   "soleBuiltins": 1,
-   "soleOtherPopulation": 0,
-   "soleWithoutMetadata": 0,
-   "soleBoosts": 2948,
-   "soleBoostsPerSize": 737,
-   "rankByBoosts": 19,
-   "rankByCount": 13
-  },
-  {
    "unit": "admit:method-def",
    "kind": "evidence",
    "size": 1,
@@ -285,8 +271,22 @@
    "soleWithoutMetadata": 0,
    "soleBoosts": 2312,
    "soleBoostsPerSize": 2312,
-   "rankByBoosts": 20,
+   "rankByBoosts": 19,
    "rankByCount": 20
+  },
+  {
+   "unit": "libraries",
+   "kind": "engine",
+   "size": 4,
+   "soleScripts": 2,
+   "soleCommunity": 1,
+   "soleBuiltins": 1,
+   "soleOtherPopulation": 0,
+   "soleWithoutMetadata": 0,
+   "soleBoosts": 2201,
+   "soleBoostsPerSize": 550,
+   "rankByBoosts": 20,
+   "rankByCount": 15
   },
   {
    "unit": "admit:varip",
@@ -345,9 +345,9 @@
    "rankByCount": 24
   },
   {
-   "unit": "collections",
-   "kind": "engine",
-   "size": 2,
+   "unit": "admit:request-events",
+   "kind": "evidence",
+   "size": 1,
    "soleScripts": 0,
    "soleCommunity": 0,
    "soleBuiltins": 0,
@@ -359,9 +359,9 @@
    "rankByCount": 25
   },
   {
-   "unit": "colour",
+   "unit": "collections",
    "kind": "engine",
-   "size": 1,
+   "size": 2,
    "soleScripts": 0,
    "soleCommunity": 0,
    "soleBuiltins": 0,
@@ -373,7 +373,7 @@
    "rankByCount": 26
   },
   {
-   "unit": "detector",
+   "unit": "colour",
    "kind": "engine",
    "size": 1,
    "soleScripts": 0,
@@ -387,9 +387,9 @@
    "rankByCount": 27
   },
   {
-   "unit": "function-global-state",
+   "unit": "detector",
    "kind": "engine",
-   "size": 2,
+   "size": 1,
    "soleScripts": 0,
    "soleCommunity": 0,
    "soleBuiltins": 0,
@@ -401,7 +401,7 @@
    "rankByCount": 28
   },
   {
-   "unit": "functions",
+   "unit": "function-global-state",
    "kind": "engine",
    "size": 2,
    "soleScripts": 0,
@@ -415,6 +415,20 @@
    "rankByCount": 29
   },
   {
+   "unit": "functions",
+   "kind": "engine",
+   "size": 2,
+   "soleScripts": 0,
+   "soleCommunity": 0,
+   "soleBuiltins": 0,
+   "soleOtherPopulation": 0,
+   "soleWithoutMetadata": 0,
+   "soleBoosts": 0,
+   "soleBoostsPerSize": 0,
+   "rankByBoosts": 30,
+   "rankByCount": 30
+  },
+  {
    "unit": "imperative-host",
    "kind": "engine",
    "size": 1,
@@ -425,8 +439,8 @@
    "soleWithoutMetadata": 0,
    "soleBoosts": 0,
    "soleBoostsPerSize": 0,
-   "rankByBoosts": 30,
-   "rankByCount": 30
+   "rankByBoosts": 31,
+   "rankByCount": 31
   },
   {
    "unit": "realtime",
@@ -439,8 +453,8 @@
    "soleWithoutMetadata": 0,
    "soleBoosts": 0,
    "soleBoostsPerSize": 0,
-   "rankByBoosts": 31,
-   "rankByCount": 31
+   "rankByBoosts": 32,
+   "rankByCount": 32
   },
   {
    "unit": "robustness",
@@ -453,8 +467,8 @@
    "soleWithoutMetadata": 0,
    "soleBoosts": 0,
    "soleBoostsPerSize": 0,
-   "rankByBoosts": 32,
-   "rankByCount": 32
+   "rankByBoosts": 33,
+   "rankByCount": 33
   },
   {
    "unit": "types",
@@ -467,8 +481,8 @@
    "soleWithoutMetadata": 0,
    "soleBoosts": 0,
    "soleBoostsPerSize": 0,
-   "rankByBoosts": 33,
-   "rankByCount": 33
+   "rankByBoosts": 34,
+   "rankByCount": 34
   }
  ]
 }

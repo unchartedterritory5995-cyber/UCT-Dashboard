@@ -104,6 +104,8 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, sessionDayWindowNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
+// ⭐⭐ T4 E2 — `request.earnings` / `request.dividends` / `request.splits` (`eventAsSecurity`, `otherSymbolOf`)
+import { eventCallParts, eventOtherSymbolTicker, eventReadOf, EVENT_VENUE } from '../pineEvents.js'
 import { memberNumber } from './memberValue.js'
 // ⭐⭐ CBC-FMT — the request reads a `calc_bars_count` window refuses (pure, imports nothing).
 import { CALC_BARS_REQUEST_SOURCE } from '../calcBarsWindow.js'
@@ -6436,7 +6438,7 @@ function parsePostfix(cur) {
       if (node.type === 'name') {
         const joined = `${node.name}.${member}`
         node = isCall
-          ? seedAsSecurity({ type: 'call', name: joined, args, tok: node.tok, endTok })
+          ? requestRewrite({ type: 'call', name: joined, args, tok: node.tok, endTok })
           : { type: 'name', name: joined, tok: node.tok }
         continue
       }
@@ -6609,7 +6611,7 @@ function parsePrimary(cur) {
       // `endTok` is the whole of what would change this." This is that.
       // `parseArguments` consumes through the `)`, so the last token it ate IS
       // the closing paren — the same way `thinkscript.js::parseCall` gets it.
-      return seedAsSecurity({ type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null })
+      return requestRewrite({ type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null })
     }
     return { type: 'name', name: tok.value, tok }
   }
@@ -6674,6 +6676,37 @@ function seedAsSecurity(node) {
       { name: null, value: expr },
     ],
   }
+}
+
+/** ⭐⭐ T4 E2 — `request.earnings` / `request.dividends` / `request.splits` ARE OTHER-SYMBOL READS TOO, of the chart's
+ *  own corporate events (E1, `GET /api/pine/events/<symbol>`). Each call is rewritten here, once, beside the seed's, into
+ *  `request.security(<event read>, timeframe.period, close)`: both lanes parse with this module, so neither can read an
+ *  event differently. The event read is a STRING node marked `event` (`{family, symbol}`): its value is the read's ticker
+ *  (`pineEvents.js::eventCallParts`: the field and the gaps x lookahead pairing, which is the series' placement, never an
+ *  argument a `sym` read carries), and only this rewrite makes one, so the translator (`Resolver.otherSymbolOf`) names it
+ *  with `EVENT_VENUE` and checks its symbol argument is the chart's own. ⛔ A member's string spelling the same ticker
+ *  is no event read: it is refused by name (`otherSymbols.js::staticallyUnservable`), never fetched. */
+let _eventRewriteOff = false
+/** ⛔ TEST SEAM — the parse as it was before E2 (no event read): the grade diff's "before" and a mutant's control. */
+export function __eventRewriteOffForTests(off) { _eventRewriteOff = !!off }
+function eventAsSecurity(node) {
+  if (_eventRewriteOff) return node
+  const parts = eventCallParts(node)
+  if (!parts) return node
+  const tok = node.tok
+  return {
+    type: 'call', name: 'request.security', tok, endTok: node.endTok, event: true,
+    args: [
+      { name: null, value: { type: 'string', value: parts.ticker, tok, event: { family: parts.family, symbol: parts.symbol } } },
+      { name: null, value: { type: 'name', name: 'timeframe.period', tok } },
+      { name: null, value: { type: 'name', name: 'close', tok } },
+    ],
+  }
+}
+
+/** The parse's request rewrites, in one place: a seed, then a corporate-events read. */
+function requestRewrite(node) {
+  return eventAsSecurity(seedAsSecurity(node))
 }
 
 export function parseWholeExpression(toks) {
@@ -14903,6 +14936,9 @@ export class Resolver {
     // ⭐ REQ — `ticker.modify(<symbol>)` with nothing modified (`unmodifiedTickerArg`)
     const unmodified = this.unmodifiedTickerArg(node)
     if (unmodified) return this.otherSymbolOf(unmodified, depth + 1)
+    // ⭐⭐ T4 E2 — the parse rewrite's event read (`eventAsSecurity`): its ticker under `EVENT_VENUE`, or, when its
+    // symbol argument is not the chart's own, the read of ANOTHER symbol's events (refused by name, `pineEvents.js`)
+    if (node.type === 'string' && node.event) return this.eventSymbolOf(node)
     if (node.type === 'string') return pineSymbolSpelling(node.value)
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
@@ -14943,6 +14979,18 @@ export class Resolver {
       return folded
     }
     return null
+  }
+
+  /** ⭐⭐ T4 E2 — `{ticker, venue: EVENT_VENUE}` for the parse rewrite's event read: the chart's own symbol's events
+   *  (`syminfo.tickerid`, `''`, a binding to either: `ownSymbolNameOf`, the reader every request asks), else the
+   *  ticker of another symbol's events (`EV-<field>-XS`, refused by name on both lanes). */
+  eventSymbolOf(node) {
+    const ticker = String(node.value).trim().toUpperCase()
+    const read = eventReadOf(ticker)
+    if (!read || read.gaps === null) return { ticker, venue: EVENT_VENUE }
+    const symbol = node.event && node.event.symbol
+    const own = symbol ? this.ownSymbolNameOf(symbol) : null
+    return { ticker: own === null ? eventOtherSymbolTicker(ticker) : ticker, venue: EVENT_VENUE }
   }
 
   /** ⭐⭐ RS RATING L2 — THE DEFAULT AN INPUT HANDS A REQUEST'S SYMBOL ARGUMENT: the
