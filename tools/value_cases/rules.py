@@ -642,6 +642,9 @@ def rules(cid):
         from .stat_rules import stat_rules
         got = stat_rules(cid, C, V, [None if not ok(x) else x for x in SC])
         return {group: [(name, [NAN if v is None else v for v in col]) for name, col in readings] for group, readings in got.items()}
+    if cid and cid.startswith('udaily-'):                  # a daily measure below a day: the acceptance rules of the 5 minute chart
+        from .udaily_rules import udaily_rules
+        return udaily_rules(cid)
     if cid and cid.startswith('intraday-'):                 # a request on a 5 minute chart: the intraday chart's own rules
         from .intraday_rules import intraday_rules
         return intraday_rules(cid)

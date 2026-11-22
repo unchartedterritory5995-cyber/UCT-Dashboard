@@ -162,10 +162,13 @@ def test_the_daily_ATR_by_hand_is_the_products_daily_ATR():
 # ── the three cases ──
 
 def test_the_fixture_holds_the_three_cases_of_the_5_minute_chart():
-    assert [c["id"] for c in INTRADAY] == ["intraday-01", "intraday-02", "intraday-03"]
+    # (`intraday-02`, the disclosed stand-in, is a WALL case since the day-length guard: the right answer asks, by name)
+    assert [c["id"] for c in INTRADAY] == ["intraday-01", "intraday-03"] and BY_ID["intraday-02"]["lane"] == "wall"
     assert all("5 minute chart" in c["words"] for c in INTRADAY)
-    assert [c.get("recorded_verdict", "right") for c in INTRADAY] == ["wrong", "wrong", "right"]
-    assert "STAND-IN" in BY_ID["intraday-02"]["defect"] and "5 MINUTE bars" in BY_ID["intraday-02"]["defect"]
+    assert [c.get("recorded_verdict", "right") for c in INTRADAY] == ["wrong", "right"]
+    assert "STAND-IN WAS BUILT" in BY_ID["intraday-02"]["defect"] and "5 MINUTE bars" in BY_ID["intraday-02"]["defect"]
+    # its by-value rule stays (it is what the request must equal the day a daily read below a day can be built)
+    assert G.grade("intraday-02", {"ops": BY_ID["intraday-02"]["answer"]["ops"]}, "intraday")["verdict"] == "wrong"
     # the rule of intraday-01 moved from the daily stand-in to the chart the words name, and says so
     moved = BY_ID["intraday-01"]["rule"]["history"][-1]
     assert moved["quote"] == "On a 5 minute chart" and moved["digest"] == BY_ID["intraday-01"]["rule"]["digest"] == G.rule_digest("intraday-01")
