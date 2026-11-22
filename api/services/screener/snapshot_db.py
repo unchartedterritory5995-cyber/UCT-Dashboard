@@ -282,6 +282,20 @@ COLUMNS = [
     # sessions on the list counting today, NULL off it. Both NULL on a row the build
     # has rewritten until the pass runs, and when the pass could not compute the list.
     "rs_leaders_member", "rs_leaders_days",
+    # ⭐ FUNDAMENTAL TRENDS (2026-11-21), from SEC filings through the point-in-time
+    # fundamentals store, never a vendor. ONE writer, `fund_trends.read_fields`, a
+    # `_read_market_source` peer read ONCE per build from the `fund_trend_rows` side
+    # table the evening job (`fund_trends.run_evening`, after 20:15 ET) writes, as of
+    # that session's 16:00 ET close. `rev_accel_q` / `eps_streak_25` INTEGER counts of
+    # quarters; the three `eps_growth_min_*q` REAL percent (the weakest year-over-year
+    # EPS growth of the last 2 / 3 / 4 quarters); the two margin changes REAL
+    # percentage points; `shares_chg_1y` REAL percent. NULL when a company has too
+    # few quarters, a missing quarter in the chain, no quarter in force, or the store
+    # is switched off (FUNDAMENTALS_PIT_ENABLED), never a guessed 0. Definitions:
+    # `fund_trends`'s docstring. Additive: ALTER-added on init, NULL until the first
+    # build after the first evening run.
+    "rev_accel_q", "eps_streak_25", "eps_growth_min_2q", "eps_growth_min_3q",
+    "eps_growth_min_4q", "net_margin_chg_1y", "gross_margin_chg_1y", "shares_chg_1y",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -389,7 +403,9 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "rs_tight", "rs_near_buy", "rs_rating_prev20",
         # UCT RS screens (U12): the two weekly RS new high flags, 0/1, and UCT RS
         # Leaders' list: a 0/1 flag and a count of sessions.
-        "rs_nh_weekly", "rs_nhbp_weekly", "rs_leaders_member", "rs_leaders_days"}
+        "rs_nh_weekly", "rs_nhbp_weekly", "rs_leaders_member", "rs_leaders_days",
+        # Fundamental trends: two counts of quarters (the other six are REAL).
+        "rev_accel_q", "eps_streak_25"}
 
 
 # ---------------------------------------------------------------------------

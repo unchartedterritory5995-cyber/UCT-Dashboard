@@ -682,6 +682,14 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
         "read_at": "2026-11-18T00:00:00+00:00", "source": "stub", "float_source": "stub"},
         "held"))
 
+    # ── fund_trends (2026-11-21): the eight fundamental trend columns, read from the
+    # `fund_trend_rows` side table in the scratch screener.db above (stored through the
+    # module's own writer, with every column filled so the key set is the full eight),
+    # the store's switch ON and no `settled` session, so the lag rule cannot withhold. ──
+    from api.services.screener import fund_trends
+    monkeypatch.setenv("FUNDAMENTALS_PIT_ENABLED", "1")
+    fund_trends.store("2026-11-20", {"AAA": {c: 1 for c in fund_trends.COLUMNS}}, {}, stored=True)
+
     return {
         "fundamentals_bulk": set(fb.COLUMNS_WRITTEN),
         "rs_fields": set(b.rs_fields({"rs_rank": 90, "rs_score": 12.5})),
@@ -707,6 +715,7 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
         "archive_join": set(archive_join.read_archive_fields(
             ["AAA"], best_ids={"AAA": "bull_flag"})["AAA"]),
         "rs_history": set(b._read_rs_history_fields(["AAA"])["AAA"]),
+        "fund_trends": set(fund_trends.read_fields(["AAA"])["AAA"]),
     }
 
 
@@ -743,12 +752,17 @@ def test_no_two_screener_sources_write_the_same_column(monkeypatch, tmp_path):
     # 19 -> 20 (2026-11-18): short_columns, the one writer of `short_float_pct`
     # and `short_ratio`. finviz_universe gave the two up in the same change
     # (`finviz_universe.SHORT_EXPORT_COLUMNS`); no shared-column allowance.
-    assert len(sets) == 20, (
-        f"_source_key_sets returned {len(sets)} sources, expected 20 — a "
+    # 20 -> 21 (2026-11-21): fund_trends, the one writer of the eight fundamental
+    # trend columns (the evening job's side table); no shared-column allowance.
+    assert len(sets) == 21, (
+        f"_source_key_sets returned {len(sets)} sources, expected 21 — a "
         f"source was added or removed from the fixture; bump this pin "
         f"deliberately")
     assert "rs_history" in sets, "the 19th source is rs_history, by name"
     assert sets["short_columns"] == {"short_float_pct", "short_ratio"},         "the 20th source is short_columns, and it writes exactly its two columns"
+    from api.services.screener import fund_trends
+    assert sets["fund_trends"] == set(fund_trends.COLUMNS), \
+        "the 21st source is fund_trends, and it writes exactly its eight columns"
     assert not (sets["finviz_universe"] & sets["short_columns"]),         "finviz_universe must not hand build_row the two short-interest columns"
     # The derivation proves nothing if a source emitted nothing.
     for label, keys in sets.items():

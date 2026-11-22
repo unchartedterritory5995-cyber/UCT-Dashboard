@@ -143,7 +143,19 @@ def test_a_setting_the_tool_cannot_store_is_refused(config):
 
 def test_the_three_services_built_from_a_file_are_listed():
     assert rss.SERVICES == {"web": "railway.web.json", "worker": "railway.json", "flow-worker": "railway.json",
-                            "stream-ingest": "railway.ingest.json", "stream-edge": "railway.edge.json"}
+                            "stream-ingest": "railway.ingest.json", "stream-edge": "railway.edge.json",
+                            "pine-runtime": "services/pine_runtime/railway.json"}
+
+
+def test_the_pine_runtime_file_stores_its_dockerfile_health_check_and_watch_paths():
+    """Track 6: a new service reads no config file, so these three are what `--apply` must carry,
+    or the service builds with Railway's default builder and is never health-checked."""
+    update = rss.to_update(rss.load_config(rss.SERVICES["pine-runtime"], ROOT))
+    assert update["dockerfilePath"] == "services/pine_runtime/Dockerfile"
+    assert update["healthcheckPath"] == "/health", "liveness only: never /ready (the canary) and never /api/ready"
+    assert "services/pine_runtime/**" in update["watchPatterns"]
+    assert "app/src/components/chart/engine/**" in update["watchPatterns"]
+    assert "builder" not in update and "startCommand" not in update, "the Dockerfile's CMD starts it"
 
 
 @pytest.mark.parametrize("service,name", sorted(rss.SERVICES.items()))

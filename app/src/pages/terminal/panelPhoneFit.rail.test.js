@@ -244,6 +244,10 @@ const FITS_THE_BOTTOM = [
   // 462px one the stock and insider cells give back their floor and the money and close words wrap (snugTight,
   // snugWrap), 338px with every column showing + 29. On a phone the close column folds (phoneHide).
   ['InsiderClustersPanel.jsx', 'INS CLUSTER', 367],
+  // STAT, measured 2026-11-21 at 1536, 1440, 1180 and 340px (sample data): its four tables (returns, best and worst,
+  // drawdowns, corrections) are three or four columns of two-line cells that wrap between words (phoneWrap, snugWrap);
+  // every column shows and none scrolls in a 340px screen, so each needs at most 316 + 29. Nothing folds.
+  ['StockStatsPanel.jsx', 'STAT (its four tables)', 345],
   // EEHSC, measured 2026-11-21 at 1536, 1180 and 340px (sample data, a sector open and closed): the table's least width
   // with every column showing is 399px in a 462px panel (+ 29); in 640 and 462px panels the panel's scroll width is its
   // width. On a phone the largest raise and cut fold (phoneHide) and stay in the opened sector.

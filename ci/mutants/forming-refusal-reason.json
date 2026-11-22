@@ -5,7 +5,7 @@
   {
    "id": "FR-M1",
    "mutant": "realtime-state is said as another symbol or timeframe",
-   "file": "app/src/components/chart/engine/runtimeKill.js",
+   "file": "app/src/components/chart/engine/formingReason.js",
    "from": "  'realtime-state': 'reads the state of the bar as it forms (barstate or the clock)',",
    "to": "  'realtime-state': 'reads another symbol or timeframe',",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/runtimeFormingRefusal.test.js",
@@ -14,7 +14,7 @@
   {
    "id": "FR-M2",
    "mutant": "varip is said as barstate (the defect, for varip)",
-   "file": "app/src/components/chart/engine/runtimeKill.js",
+   "file": "app/src/components/chart/engine/formingReason.js",
    "from": "  varip: 'keeps a `varip` value that changes within a forming bar',",
    "to": "  varip: 'reads the state of the bar as it forms (barstate or the clock)',",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/runtimeFormingRefusal.test.js",
@@ -23,7 +23,7 @@
   {
    "id": "FR-M3",
    "mutant": "request-other is said as barstate (the defect Deepvue found)",
-   "file": "app/src/components/chart/engine/runtimeKill.js",
+   "file": "app/src/components/chart/engine/formingReason.js",
    "from": "  'request-other': 'reads another symbol or timeframe',",
    "to": "  'request-other': 'reads the state of the bar as it forms (barstate or the clock)',",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/runtimeFormingRefusal.test.js",
@@ -59,7 +59,7 @@
   {
    "id": "FR-M7",
    "mutant": "an id this tab does not know is said as barstate (fail closed, but naming a reason the server did not give)",
-   "file": "app/src/components/chart/engine/runtimeKill.js",
+   "file": "app/src/components/chart/engine/formingReason.js",
    "from": "    const phrase = Object.prototype.hasOwnProperty.call(FORMING_REASON_BY_ID, id) ? FORMING_REASON_BY_ID[id] : FORMING_REASON_UNKNOWN",
    "to": "    const phrase = Object.prototype.hasOwnProperty.call(FORMING_REASON_BY_ID, id) ? FORMING_REASON_BY_ID[id] : FORMING_REASON_BY_ID['realtime-state']",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/runtimeFormingRefusal.test.js",

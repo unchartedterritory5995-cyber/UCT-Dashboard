@@ -290,10 +290,25 @@ def test_a_stored_refused_verdict_binds_a_runtime_row_at_todays_engine():
     assert why and why.startswith("engine-refused:")
 
 
-def test_an_older_verdict_on_a_runtime_row_is_held_only_for_the_same_maths():
+def test_an_older_verdict_on_a_runtime_row_expires_with_its_engine_whatever_the_maths():
+    """TRACK 6 (a) (coordinator ruling 2026-11-22, replacing "held only for the same maths"): a runtime
+    document is recompiled from its own source on every run, so an older engine's refusal expires when
+    the engine moves, same maths or not; today's engine answers on the next run. Before this a saved
+    runtime script refused once stayed withheld on every server lane forever."""
     older = ud.SCRIPT_ENGINE_VERSION - 1
-    assert ud.engine_withheld_reason(row_of(engine_status=refused_verdict(older, True))) is not None
-    assert ud.engine_withheld_reason(row_of(engine_status=refused_verdict(older, False))) is None
+    for same in (True, False):
+        assert ud.engine_withheld_reason(row_of(engine_status=refused_verdict(older, same))) is None, same
+    # today's engine still binds, same maths or not
+    for same in (True, False):
+        assert ud.engine_withheld_reason(row_of(engine_status=refused_verdict(None, same))), same
+    # CONTROL: a script-less AST row carrying the refused maths is still held past its engine (F3)
+    ast_row = {"def_id": "u_00000000a5a5", "version": 2, "user_id": "u-1", "has_pine_source": False,
+               "definition": {"compute": {"kind": "ast"}, "meta": {}},
+               "engine_status": refused_verdict(older, True)}
+    assert ud.engine_withheld_reason(ast_row) is not None
+    # and the host's own holds still come first on a runtime row
+    held = row_of(engine_status=refused_verdict(older, True), held_divergence="pine:held-divergence: x")
+    assert ud.engine_withheld_reason(held) == "pine:held-divergence: x"
 
 
 def test_a_runtime_row_is_not_told_to_wait_for_a_chart_load():

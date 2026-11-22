@@ -184,6 +184,7 @@ jobs:
     # ⛔ only an explicit `false` skips: a latch that broke (no output) lets the suite run.
     if: "!cancelled() && needs.today.outputs.run != 'false'"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       plan_digest: ${{ steps.p.outputs.plan_digest }}
       shards: ${{ steps.p.outputs.shards }}
@@ -586,6 +587,7 @@ jobs:
     # Only an explicit `false` skips: a latch that broke left no output, and the suite ran.
     if: always() && needs.today.outputs.run != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     # ⛔ F-CI-8 — PUBLISHERS QUEUE, THEY DO NOT COLLIDE. Two runs reaching this job together
     # both did `git push origin ci-results` with no retry and no lock; one lost. This is the
     # PRIMARY defence. `cancel-in-progress: false` is load-bearing: cancelling a publisher
@@ -1141,6 +1143,7 @@ jobs:
     needs: [today, publish]
     if: always() && needs.today.outputs.run != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # ⭐⭐ E CP26 — PROMOTED. `continue-on-error: true` is GONE from this job, so the check's
     # colour is now the verdict's colour: NEW_FAILURES, INVALID or DID_NOT_RECONCILE turn it
     # red. E's criterion was met by the record itself — run #24 published NEW_FAILURES and
