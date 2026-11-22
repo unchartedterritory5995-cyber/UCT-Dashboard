@@ -1366,10 +1366,7 @@ export function eventsNeeded(def) {
 /** The sentences the bind says for an event read on a chart timeframe its placement is not witnessed on. */
 function eventTimeframeWhy(family, tf) {
   const s = String(tf == null ? '' : tf).trim().toUpperCase()
-  if (s === 'M' || s === '1M') {
-    return `\`request.${family}\` on a monthly chart: where TradingView places ${family === 'earnings' ? 'a report' : 'an event'} on a `
-      + 'monthly bar has not been captured yet (capture-queue row W-E2), so what this indicator draws from it is not computed'
-  }
+  // (a monthly chart is served since W-E2: `pineEvents.js::eventTimeframeCode`; the witness row gates it)
   return `\`request.${family}\` on a \`${s || '?'}\` chart: UCT holds the date of each ${family === 'earnings' ? 'report' : 'event'}, not `
     + 'its time of day, so the intraday bar it lands on is not known; it is served on daily and weekly charts'
 }

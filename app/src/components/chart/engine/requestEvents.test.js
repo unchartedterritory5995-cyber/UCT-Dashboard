@@ -197,17 +197,36 @@ describe('E2 — the placement (R1, R2) and our record (ruling (1)), on both lan
     expect(on).toEqual([1, NaN, 2, NaN])
     expect(off).toEqual([NaN, 1, 2, NaN])
   })
+
+  it("⭐ monthly (W-E2): lookahead_on in the event's month, lookahead_off the next month, over each month's sessions", () => {
+    // monthly bars keyed by their first session; 2026-03-31 is March's last session (a Tuesday)
+    const months = ['2026-02-02', '2026-03-02', '2026-04-01', '2026-05-01'].map((t) => ({ t, o: 1, h: 1, l: 1, c: 1, v: 1 }))
+    const rows = [{ date: '2026-02-09', actual: 1 }, { date: '2026-03-31', actual: 2 }]
+    const cover = { coverageStart: true }
+    const on = placeEvents(eventReadOf('EV-EA-11'), true, true, rows, '2026-02-02', months, 'M', cover).series.map((b) => b.c)
+    const off = placeEvents(eventReadOf('EV-EA-10'), true, false, rows, '2026-02-02', months, 'M', cover).series.map((b) => b.c)
+    expect(on).toEqual([1, 2, NaN, NaN])
+    expect(off).toEqual([NaN, 1, 2, NaN])
+    // ⛔ CONTROL: read as daily bars, the same rows land on no bar of their own (each is a month's first session)
+    const daily = placeEvents(eventReadOf('EV-EA-11'), true, true, rows, '2026-02-02', months, 'D', cover).series.map((b) => b.c)
+    expect(daily).not.toEqual(on)
+  })
 })
 
 describe('E2 — refused by name at the bind (both lanes ask `eventDecision`)', () => {
   const read = 'plot(request.earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_on, barmerge.lookahead_on))'
   const decide = (ctx) => resolveOtherSymbols(docOf(pine([read])).def, ctx).refused[0]
 
-  it('a monthly chart and an intraday chart', () => {
-    expect(decide({ ...CTX, tf: 'M' })).toMatchObject({ code: R.EVENT_TIMEFRAME })
-    expect(decide({ ...CTX, tf: 'M' }).reason).toMatch(/W-E2/)
+  it('an intraday chart; a monthly chart is served since its witness (W-E2) landed', () => {
     expect(decide({ ...CTX, tf: '5' })).toMatchObject({ code: R.EVENT_TIMEFRAME })
     expect(decide({ ...CTX, tf: '5' }).reason).toMatch(/time of day/)
+    const months = ['2025-12-01', '2026-01-02', '2026-02-02'].map((t) => ({ t, o: 1, h: 1, l: 1, c: 1, v: 1 }))
+    expect(decide({ ...CTX, tf: 'M', chartBars: months })).toBeUndefined()
+    expect(decide({ ...CTX, tf: '1M', chartBars: months })).toBeUndefined()
+    // ⛔ CONTROL: the monthly witness taken back, a monthly chart is refused by name again
+    const rows = { ...WITNESSES.rows, 'EVENTS:EARNINGS': { ...WITNESSES.rows['EVENTS:EARNINGS'], timeframes: ['D', 'W'] } }
+    setRequestWitnessRows(rows)
+    expect(decide({ ...CTX, tf: 'M' })).toMatchObject({ code: R.EVENT_TIMEFRAME })
   })
 
   it('the door dark for this member (404): a plain named refusal, never an error', () => {

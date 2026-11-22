@@ -45,8 +45,8 @@ ruling (1)) reads `na` from `knownFrom` to the first event, as TradingView print
 
 `earnings.standardized`, `dividends.net` (`other-symbol:event-field`); another symbol's events
 (`other-symbol:event-symbol`); a non-USD currency (`other-symbol:event-currency`); a `gaps`, `lookahead`, field or
-symbol argument not written as a constant (`other-symbol:event-argument`); a monthly chart (W-E2) or an intraday
-chart (no report time of day held) (`other-symbol:event-timeframe`); the door dark for the member: "earnings data is
+symbol argument not written as a constant (`other-symbol:event-argument`); an intraday chart (no report time of day
+held) (`other-symbol:event-timeframe`; a monthly chart is served since W-E2, below); the door dark for the member: "earnings data is
 not available on this chart yet" (`other-symbol:event-not-available`); a family UCT holds nothing of
 (`other-symbol:event-none`); the engine's internal event name written by a script (`other-symbol:event-spelling`).
 
@@ -70,6 +70,26 @@ Further named divergences (later units):
   does not list.
 - **SPY dividends:** the vendor rounds distributions to three decimals, and lacks two (2004-11-15, 2006-12-15).
 - **O dividends:** the vendor's amounts before the 2004 split are split-adjusted, where TradingView's are as declared.
+
+## W-E2: the monthly chart is served (2026-11-22)
+
+Six captures (`t4-we2-2026-11-22`, rig-clean): the three S4 probes (`vw-data-earnings`, `vw-data-dividends`,
+`vw-data-splits`) on NASDAQ:AAPL and NYSE:JPM, 1M. TradingView keys a monthly bar by its first session and places each
+event by E0's R1 and R2 unchanged, over the month's sessions: `lookahead_on` on the month whose last session closes at
+or after the event (its own month), `lookahead_off` on the first month opening after it (the next); the forming month
+carries an event already dated in it. So M is served with the same placement: `pineEvents.js::monthSessionsOf` (each
+month's first and last session by the exchange calendar), `eventTimeframeCode` 'M', and the three event witness rows'
+`timeframes` gain "M" (the gate the bind asks). Graded on production's E1 answer, both lanes (identical rows):
+
+| capture | verdict | plots |
+|---|---|---|
+| splits AAPL 1M | **MATCH** | all 8 items (473-474 bars each) |
+| dividends AAPL 1M, JPM 1M | INCONCLUSIVE | the four gross plots agree on every compared bar (172 / 275); TradingView's events before our record withheld by name; `dividends.net` refused by name |
+| earnings AAPL 1M, JPM 1M | DIVERGE | the named vendor-record classes (values), never MATCH as ruled; `earnings.standardized` refused by name |
+| splits JPM 1M | INCONCLUSIVE | UCT holds no JPM split: refused by name (`other-symbol:event-none`) |
+
+Rails: `requestEvents.test.js` monthly placement (own month / next month, with a daily-reading control) and the bind
+(M served once the row names it; the row taken back, refused by name). Mutants EV17 and EV18.
 
 ## W-E3: the coverage captures, and the earnings cut moved (ruling (c), 2026-11-22)
 

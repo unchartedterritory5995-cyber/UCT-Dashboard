@@ -196,13 +196,15 @@ export function eventSpellingReason(ticker) {
 const ISO = /^\d{4}-\d{2}-\d{2}$/
 const isDailyTf = (tf) => tf === 'D' || tf === '1D'
 const isWeeklyTf = (tf) => tf === 'W' || tf === '1W'
-/** The chart timeframes an event read is witnessed on (E0: D and W; monthly waits on W-E2, intraday on a report's
+const isMonthlyTf = (tf) => tf === 'M' || tf === '1M'
+/** The chart timeframes an event read is witnessed on (E0: D and W; W-E2: M, 2026-11-22; intraday waits on a report's
  *  time of day, which UCT does not hold). */
-export const EVENT_TIMEFRAMES = Object.freeze(['D', 'W'])
+export const EVENT_TIMEFRAMES = Object.freeze(['D', 'W', 'M'])
 export function eventTimeframeCode(tf) {
   const s = String(tf == null ? '' : tf).trim().toUpperCase()
   if (isDailyTf(s)) return 'D'
   if (isWeeklyTf(s)) return 'W'
+  if (isMonthlyTf(s)) return 'M'
   return null
 }
 
@@ -222,6 +224,28 @@ function weekSessionsOf(day) {
   return { open: open || monday, close: close || isoDayPlus(monday, 4) }
 }
 
+/** ⭐ (W-E2, 2026-11-22) The first and last session of a monthly bar's calendar month (by the exchange calendar; the
+ *  month's first / last calendar day when the calendar names no session in it). W-E2 witnessed TradingView placing each
+ *  event on a monthly bar by E0's R1 and R2 unchanged, over these: `lookahead_on` on the month whose last session closes
+ *  at or after the event (its own month), `lookahead_off` on the first month opening after it (the next). */
+function monthSessionsOf(day) {
+  const month = day.slice(0, 7)
+  const first = `${month}-01`
+  let open = null
+  let close = null
+  let last = first
+  for (let k = 0; k < 31; k += 1) {
+    const d = isoDayPlus(first, k)
+    if (!d || d.slice(0, 7) !== month) break
+    last = d
+    if (isTradingDay(d)) {
+      if (open === null) open = d
+      close = d
+    }
+  }
+  return { open: open || first, close: close || last }
+}
+
 /** For each chart bar, the session its period opens on and the session it closes on (ISO days), or null when a bar's
  *  day cannot be read (the read is then not placed: refused by the caller, never guessed). */
 export function chartBarSessions(bars, tfCode) {
@@ -229,7 +253,7 @@ export function chartBarSessions(bars, tfCode) {
   for (const b of Array.isArray(bars) ? bars : []) {
     const day = b && isoDay(b.t)
     if (!day) return null
-    out.push(tfCode === 'W' ? weekSessionsOf(day) : { open: day, close: day })
+    out.push(tfCode === 'W' ? weekSessionsOf(day) : tfCode === 'M' ? monthSessionsOf(day) : { open: day, close: day })
   }
   return out
 }

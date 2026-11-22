@@ -145,6 +145,24 @@
    "to": "    return True",
    "rail": "python -m pytest -q tests/test_pine_authoring.py",
    "expectRed": "request.earnings"
+  },
+  {
+   "id": "EV17",
+   "mutant": "a monthly bar is read as a daily one (its month's sessions ignored): W-E2's placement lost",
+   "file": "app/src/components/chart/engine/pineEvents.js",
+   "from": "tfCode === 'M' ? monthSessionsOf(day) : { open: day, close: day }",
+   "to": "tfCode === 'M' ? { open: day, close: day } : { open: day, close: day }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "monthly (W-E2)"
+  },
+  {
+   "id": "EV18",
+   "mutant": "a monthly chart has no event timeframe again (refused before its witness is asked)",
+   "file": "app/src/components/chart/engine/pineEvents.js",
+   "from": "  if (isMonthlyTf(s)) return 'M'",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "a monthly chart is served since its witness"
   }
  ]
 }
