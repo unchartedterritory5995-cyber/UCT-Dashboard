@@ -355,8 +355,9 @@ def drawn_rules(sid):
                                     {T[i]: counts[i] for i in range(N) if counts[i] > 0})}
     if sid == 'i01':
         v = _atr_variants(14)
-        return {'numbers': [('ATR 14 on the newest bar', [a[LAST] for _n, a in v if a[LAST] is not None]),
-                            ('ATR as a percent of the close on the newest bar', [a[LAST] / C[LAST] * 100 for _n, a in v if a[LAST] is not None])]}
+        # corrected on review 11-22: "show its latest value" asks for the latest value of the PERCENT only. The ATR in
+        # dollars beside it was learned from the first answer (the rule learning from the door), and is not asked.
+        return {'numbers': [('ATR as a percent of the close on the newest bar', [a[LAST] / C[LAST] * 100 for _n, a in v if a[LAST] is not None])]}
     if sid == 'i02':
         return {'numbers': [('volume over its 50 bar average on the newest bar', [V[LAST] / (sum(V[LAST - 49:LAST + 1]) / 50)])]}
     if sid == 'i03':
@@ -366,6 +367,10 @@ def drawn_rules(sid):
                 'words': [('the status for that count', 'under pressure' if n >= 5 else 'normal', 'normal' if n >= 5 else 'under pressure')]}
     if sid == 'i04':
         return {'labels': ('a label on each bar whose close crosses above the 50 bar average', _cross_up_dates(), 'Cross')}
+    if sid == 'weekly-plot-01':
+        # the line is held by value in RULES (every honest reading of a weekly average on a daily bar); the labels are
+        # held to the line the script itself plots: on exactly the bars where the close crosses above THAT line
+        return {'labels_cross_own': ('a label on each bar where the close crosses above the plotted 10 week average', 'Cross')}
     if sid == 'i05':
         out = []
         for n in (10, 21, 50):
@@ -535,6 +540,20 @@ def check_drawn(sid, s):
             note = 'nothing is written on the bars: no label and no mark'
         _say(f"  {'RIGHT' if by_labels or by_marks else 'CHECK'}  {what}: {note}")
         good = good and (by_labels or by_marks)
+    if 'labels_cross_own' in rules:
+        what, text = rules['labels_cross_own']
+        got = sorted(str(l['x'])[:10] for l in labels)
+        hit = None
+        for key, col in cols.items():
+            crosses = [T[i] for i in range(1, N) if col[i] is not None and col[i - 1] is not None and C[i] > col[i] and C[i - 1] <= col[i - 1]]
+            if len(crosses) >= 5 and got and got in (crosses, crosses[-len(got):]):
+                hit = (key, len(crosses))
+                break
+        words_ok = bool(labels) and all((l['text'] or '').strip() == text for l in labels)
+        _say(f"  {'RIGHT' if hit else 'CHECK'}  {what}: " + (f'{len(got)} label(s), the crosses of column {hit[0]!r} ({hit[1]} by hand from that column)' if hit else
+             f'{len(got)} label(s) that are the crosses of NO plotted column; columns {sorted(cols)}'))
+        _say(f"  {'RIGHT' if words_ok else 'CHECK'}  every label reads {text!r}")
+        good = good and bool(hit) and words_ok
     if 'labels' in rules:
         what, dates, text = rules['labels']
         got = sorted(str(l['x'])[:10] for l in labels)
@@ -562,10 +581,11 @@ def check_drawn(sid, s):
 
 RULES = {'h03': rule_h03, 'h05': rule_h05, 'i01': rule_i01, 'i02': rule_i02, 'i03': rule_i03, 'i04': rule_i04, 'i05': rule_i05, 'i06': rule_i06,
          'j01': rule_j01, 'j02': rule_j02, 'j03': rule_j03, 'j06': rule_j06,
-         'k02': rule_k02, 'k03': rule_k03, 'k04': rule_k04, 'k05': rule_k05, 'k06': rule_k06}
+         'k02': rule_k02, 'k03': rule_k03, 'k04': rule_k04, 'k05': rule_k05, 'k06': rule_k06,
+         'weekly-plot-01': rule_j02}                     # a script that PLOTS the 10 week average of the weekly close: the same readings
 #: what each request ASKED to see; anything else the script draws is listed as not asked for
 ASKED = {'h03': {'plot'}, 'h05': {'plotshape'}, 'i01': {'plot', 'table'}, 'i02': {'plot', 'table'}, 'i03': {'plot', 'table'},
-         'i04': {'plot', 'label'}, 'i05': {'plot', 'table'}, 'i06': {'plot', 'label'},
+         'i04': {'plot', 'label'}, 'i05': {'plot', 'table'}, 'i06': {'plot', 'label'}, 'weekly-plot-01': {'plot', 'label'},
          'j01': {'plot'}, 'j02': {'plot'}, 'j03': {'plot'}, 'j04': {'plot'}, 'j05': {'plot'}, 'j06': {'table'},
          'l01': {'line', 'plot'}, 'l02': {'box'}, 'l03': {'line'}, 'l04': {'box'}, 'l05': {'line', 'plot'}, 'l06': {'label'},
          'table-format-01': {'table'},
@@ -580,7 +600,7 @@ def has_rule(case_id):
 
 
 def drawn_rules_known(case_id):
-    return case_id in {'table-format-01', 'i01', 'i02', 'i03', 'i04', 'i05', 'i06', 'j06', 'k01', 'k04', 'l01', 'l02', 'l03', 'l04', 'l05', 'l06', 'count-on-bars-01'}
+    return case_id in {'table-format-01', 'weekly-plot-01', 'i01', 'i02', 'i03', 'i04', 'i05', 'i06', 'j06', 'k01', 'k04', 'l01', 'l02', 'l03', 'l04', 'l05', 'l06', 'count-on-bars-01'}
 
 
 def code_of(source):
