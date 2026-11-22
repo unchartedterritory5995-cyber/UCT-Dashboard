@@ -1,0 +1,60 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "A chart bar before another series' first held row (a SERIES_UNKNOWN_BEFORE_FIRST series: our store's intraday depth of SP:SPX) is withheld BY NAME on the per-bar channel (other-symbol:before-held), with the bars within the tree's reach of one; the strip says why; holes after the first row and unmarked or gaps-read-na series are never named. Coordinator ruling 2026-11-22 (NUMBER PENDING, rides train e94). Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "OB1",
+   "mutant": "the host lane never writes the before-held bars to the per-bar channel (graded na again: the defect)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if (beforeHeld) sinkPerBar(opts, OTHER_SYMBOL_BEFORE_HELD_CODE, beforeHeld)",
+   "to": "  void beforeHeld",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/otherSymbolBeforeHeld.test.js",
+   "expectRed": "main thread: exactly the bars before our first SPX row are named"
+  },
+  {
+   "id": "OB2",
+   "mutant": "every series is named before its first row, marked or not (a history not begun named unknown)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      const before = !unreadable && unknownBefore && key < first",
+   "to": "      const before = !unreadable && key < first",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/otherSymbolBeforeHeld.test.js",
+   "expectRed": "the same rows WITHOUT the mark"
+  },
+  {
+   "id": "OB3",
+   "mutant": "the bars within the tree's reach of one are not named (a window over a pre-supply bar graded na)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      if (i - lastBefore <= reach) (beforeHeld = beforeHeld || new Float64Array(n))[i] = 1",
+   "to": "      if (i === lastBefore) (beforeHeld = beforeHeld || new Float64Array(n))[i] = 1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/otherSymbolBeforeHeld.test.js",
+   "expectRed": "a read inside a window"
+  },
+  {
+   "id": "OB4",
+   "mutant": "a hole after the first row is named by this code too (the broad unit, not ruled)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      if (before) lastBefore = i",
+   "to": "      if (missing) lastBefore = i",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/otherSymbolBeforeHeld.test.js",
+   "expectRed": "a hole AFTER the first row"
+  },
+  {
+   "id": "OB5",
+   "mutant": "the strip never says why",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "        out.push({ code: OTHER_SYMBOL_BEFORE_HELD_CODE, reason: otherSymbolBeforeHeldSentence(b.ticker, b.from) })",
+   "to": "        void b",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/otherSymbolBeforeHeld.test.js",
+   "expectRed": "the member reads why on the strip"
+  },
+  {
+   "id": "OB6",
+   "mutant": "the other-symbol record drops the before-held facts (nothing for the strip, on either thread)",
+   "file": "app/src/components/chart/engine/astColumns.js",
+   "from": "      value: Object.freeze({ served: other.served, refused: other.refused, ...(beforeHeld.length ? { beforeHeld } : {}) }),",
+   "to": "      value: Object.freeze({ served: other.served, refused: other.refused }),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/otherSymbolBeforeHeld.test.js",
+   "expectRed": "through the host worker"
+  }
+ ]
+}
