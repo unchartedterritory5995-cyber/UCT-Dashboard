@@ -108,6 +108,10 @@ function runOne({ id, source, chart, edge }) {
     chart: key,
     errors: registry.columnErrors(cols) || {},
     columns: Object.fromEntries(Object.keys(cols).filter((k) => !k.startsWith('__')).map((k) => [k, Array.from(cols[k]).map(num)])),
+    // what each MARK plot writes on its bars (plotchar's character, plotshape's text): one fixed text per plot,
+    // as the pane itself holds it. A column says WHERE a mark is; only this says WHAT it reads.
+    marks: Object.fromEntries((pane.definition.plots || []).filter((p) => p && p.style === 'markers')
+      .map((p) => [p.key, { text: (p.marker && p.marker.text) ?? null, position: (p.marker && p.marker.position) ?? null }])),
   }
   const drawn = { via: null, tables: [], labels: [], lines: [], boxes: [] }
   try {

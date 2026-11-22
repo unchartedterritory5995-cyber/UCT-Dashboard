@@ -880,8 +880,17 @@ export function compareCapture(capture, ours, opts = {}) {
   const tookSettings = changed.length && ours && ours.ok && ours.capturedInputs
     && typeof ours.capturedInputs === 'object' && Object.keys(ours.capturedInputs).length === changed.length
   if (tookSettings) base.settings = { ...ours.capturedInputs }
-  if (changed.length && !tookSettings) return inconclusive(`the vendor study ran with non-default inputs (${changed.map((i) => `${i.name || i.id}=${JSON.stringify(i.value)} vs default ${JSON.stringify(i.defval)}`).join(', ')}); v1 compares at default inputs only — re-capture at defaults`)
-  if (!ours || !ours.ok) return inconclusive(`refused on our side: ${(ours && ours.refusal) || 'no result'}`)
+  const movedText = changed.map((i) => `${i.name || i.id}=${JSON.stringify(i.value)} vs default ${JSON.stringify(i.defval)}`).join(', ')
+  // ⭐ (track 4, 2026-11-22) OUR OWN REFUSAL IS NAMED FIRST. A capture taken at moved settings of a script our side
+  // refuses was reported as "v1 compares at default inputs only — re-capture at defaults": the seven built-in VWAP
+  // anchor rows (s4-vwap-anchors-retake3-2026-11-21) read so, though settings parity (2c) would have graded them and
+  // the wall is our side's (the built-in VWAP is refused on both lanes). A re-capture at defaults would not move them.
+  // The moved settings stay in the sentence, so neither cause is lost.
+  if (!ours || !ours.ok) {
+    return inconclusive(`refused on our side: ${(ours && ours.refusal) || 'no result'}`
+      + (changed.length ? ` (the vendor study also ran with non-default inputs: ${movedText})` : ''))
+  }
+  if (changed.length && !tookSettings) return inconclusive(`the vendor study ran with non-default inputs (${movedText}); v1 compares at default inputs only — re-capture at defaults`)
   // ⭐ L7 — a substituted input must have been FED the vendor's own value, or nothing below
   // proves the engine (`substitutionProblems`).
   const subProblems = substitutionProblems(capture, ours.substituted)

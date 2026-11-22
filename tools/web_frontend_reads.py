@@ -51,6 +51,7 @@ DECLARED_READS = {
     "app/src/components/chart/engine/ast/closedTable.json": "api/services/ast_lint.py, ast_table.py, conversation_preflight.py: the formula table",
     "app/src/components/chart/engine/ast/conceptVocabulary.json": "api/services/concept_vocabulary.py",
     "app/src/components/chart/engine/ast/symbolScope.json": "api/services/ast_bind.py",
+    "app/src/components/chart/engine/pineDataCatalog.json": "api/services/pine_data_catalog.py, read at runtime by api/services/pine_events.py (track 4 E1): which Pine data families may be fetched and served, and their disclosure sentences",
     "app/src/components/chart/builder/authoring/preflightRules.json": "api/services/conversation_preflight.py",
     "app/src/components/chart/builder/authoring/colourWords.json": "api/services/definition_conversation.py",
     "app/src/components/chart/builder/authoring/crossContext.json": "api/services/conversation_preflight.py, definition_conversation.py",
@@ -82,6 +83,11 @@ NODE_ENTRIES = {
     "app/src/components/chart/engine/ast/parse.js": "run from source by node (tools/ast_conformance.py)",
     "app/src/pages/cot/cotFactsEntry.js": "bundled into app/dist/cot-facts.cjs, which api/services/cot_prewarm.py runs",
     "app/src/pages/optionsFlow/flowFactsEntry.js": "bundled into app/dist/flow-facts.cjs; web runs it whenever FLOW_READS_PROXY_ENABLED is off",
+    # Track 6 (2026-11-22, coordinator ruling (a)): web builds the pine-runtime server bundle (Dockerfile.web) and its
+    # runtime client signs every run with the bundle's sha256 (pine_runtime_client.caller_identity). A change to any file
+    # of its closure rebuilds pine-runtime; unless web rebuilds too, every run is refused runtime:server-engine-mismatch
+    # until web's next deploy.
+    "app/src/components/chart/engine/runtime/serverEntry.js": "bundled into app/dist-server/pine-runtime.mjs, whose sha256 web's runtime client signs every run with",
 }
 
 #: What decides how those bundles are built and which packages node finds.
@@ -90,6 +96,7 @@ BUILD_FILES = {
     "app/package-lock.json": "the exact esbuild and jsep versions",
     "app/scripts/build-cot-facts.mjs": "builds app/dist/cot-facts.cjs",
     "app/scripts/build-flow-facts.mjs": "builds app/dist/flow-facts.cjs",
+    "app/scripts/build-pine-runtime.mjs": "builds app/dist-server/pine-runtime.mjs (track 6: web hashes it into its engine identity)",
 }
 
 #: Python files that mention a path under app/ and do NOT open it while `web` serves. Each needs a reason.
@@ -104,7 +111,6 @@ NOT_RUNTIME = {
     "api/services/journal_two/note_connectors/convert/enml_parity_fixtures_gen.py": "a generator, run by hand",
     "api/services/journal_two/note_connectors/convert/obsidian_parity_fixtures_gen.py": "a generator, run by hand",
     "tools/alert_replay.py": "its parity bars are reached only from a corpus helper, not from arming an alert",
-    "api/services/pine_data_catalog.py": "Pine data unit S4-0: imported only by tests and its own `--check` / `--write` CLI; the S4 request supply that reads it at runtime moves pineDataCatalog.json to DECLARED_READS (and the watch list) when it lands",
 }
 
 #: Single mentions that are not runtime reads, in files that may hold real ones. (file, path) -> reason.

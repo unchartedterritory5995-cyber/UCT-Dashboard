@@ -283,6 +283,14 @@ export function libraryRefusalOf(rt, doc, libraries) {
 export function runJob(rt, doc, job, clock = () => performance.now(), libraries = null) {
   const started = clock()
   let out
+  // ⭐ TRACK 6, G-BROKER (coordinator ruling D5, 2026-11-22): the strategy broker runs for a job that asks for the
+  // strategy record ('#strategy', which only profile `backtest` may ask: protocol.mjs) and for no other job. What
+  // may reach this lane at all is the web pod's admission (`server_lane_refusal`: capability admission decides
+  // whether a strategy is served; NO bypass here). The gate is module state in this worker, so it is set for
+  // THIS run and put back off in `finally`, whatever the run did. A bundle without the registry runs it dark.
+  const broker = Array.isArray(job.want) && job.want.includes(STRATEGY_WANT)
+    && typeof rt.registerStrategyBrokerGate === 'function'
+  if (broker) rt.registerStrategyBrokerGate(() => true)
   try {
     const held = libraryRefusalOf(rt, doc, libraries)
     if (held) {
@@ -298,6 +306,7 @@ export function runJob(rt, doc, job, clock = () => performance.now(), libraries 
   } finally {
     // ⭐⭐ U15: a job's libraries are registered for THAT run only (libraryRefusalOf), never kept
     if (typeof rt.clearPineLibraries === 'function') rt.clearPineLibraries()
+    if (broker) rt.registerStrategyBrokerGate(() => false)
     rt.resetRuntimeSessions()
     rt.resetRuntimeLedgers()
   }
