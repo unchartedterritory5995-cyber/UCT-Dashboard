@@ -117,6 +117,8 @@ READ_ONLY_OK = {
     "api/routers/bars.py": "a pure read for /api/bars-history",
     "api/services/bars_fetch.py": "serve reads; its D/W/M writes come from provider fetches, never from these reads",
     "api/services/intraday_gap_audit.py": "intraday only: the door passes intraday rows untouched",
+    "api/services/ffseed_intraday.py": "intraday only (the door passes intraday rows untouched): one stored bar's start "
+                                       "time, read as a record of the as-of day's tail; never written back",
 }
 
 
