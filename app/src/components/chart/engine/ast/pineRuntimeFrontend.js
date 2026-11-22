@@ -96,7 +96,7 @@ import {
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
-import { ARRAY_FNS, producesArray, producesMap, isVoid, argKind, DOOR_GATED_ARRAY, CALL_SITE_RUNS } from '../runtime/collections.js'
+import { ARRAY_FNS, producesArray, producesMap, isVoid, argKind, DOOR_GATED_ARRAY, CALL_SITE_RUNS, ALERT_EMIT } from '../runtime/collections.js'
 import { MAP_TYPE_SEP, MAP_ANSWER_READ } from '../runtime/maps.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
 // hands `array.push` / `table.cell` to the rosters this file already consults,
@@ -15960,6 +15960,26 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
             const slot = scope.declare(tmp, newSlot(tmp, false))
             setSlotTy(slot, initialiserTy(v, scope))
             out.push(declare(slot, lowerExpr(v, scope)))
+          }
+          // ⭐⭐ TRACK 6, AL1 (NUMBER PENDING, coordinator ruling 2026-11-22) -- THE CALL IS RECORDED WHERE IT
+          // STANDS: one `ALERT_EMIT` (collections.js) on the run's alert log, so the server lane can deliver it
+          // on the bars its branch runs. It reads `bar_index` and nothing else; no output, refusal or column the
+          // pane draws moves. ⛔ NEVER A NEW REFUSAL: only a STRING LITERAL message is carried; any other message
+          // (built from values) is recorded as withheld (the event, no text), lowering nothing the run did not
+          // lower before. Not in the object door's build (its drawings never fire alerts).
+          if (!atObjectDoor) {
+            const args = (call && call.args) || []
+            const byName = (n) => args.find((a) => a && a.name === n)
+            const positional = args.filter((a) => a && !a.name)
+            const valueOf = (a) => (a && a.value !== undefined ? a.value : a)
+            const msgNode = valueOf(byName('message') || positional[0])
+            const freqNode = valueOf(byName('freq') || positional[1])
+            const literal = !!msgNode && msgNode.type === 'string' && typeof msgNode.value === 'string'
+            const freq = freqNode && freqNode.type === 'name' && typeof freqNode.name === 'string'
+              && freqNode.name.startsWith('alert.freq_') ? freqNode.name : 'alert.freq_once_per_bar'
+            const barNow = column(columnOf({ type: 'name', name: 'bar_index', tok: first }, locate(first)))
+            out.push(exprStmt(arrayCall(ALERT_EMIT, [str(literal ? msgNode.value : ''), str(freq), barNow,
+              num(literal ? 0 : 1)]), 0))
           }
           continue
         }

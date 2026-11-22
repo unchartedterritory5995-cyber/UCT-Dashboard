@@ -20,6 +20,7 @@
 // ⛔ THE CLOCK IS THREADED, NEVER ASSUMED. `runtimeClockOpts` fills both halves
 // of the forming-bar tri-state from ONE value, the pair `pineRuntimeFrontendGate
 // .test.js` requires every live importer of the front end to reach.
+import { beginAlertLog, takeAlertLog } from './collections.js'
 import { buildRuntimeIr, RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION, columnSinkRefusal, columnBlankRefusal,
   buildBarCountClass } from '../ast/pineRuntimeFrontend.js'
 import { RUNTIME_IR_VERSION } from './ir.js'
@@ -1609,6 +1610,16 @@ function snapBytes(snap) {
 }
 /** ⭐ Where a run's realtime facts ride (non-enumerable): `{isNew, varip, ledgerBars}`. */
 export const RUNTIME_REALTIME_KEY = '__runtimeRealtime'
+/** ⭐⭐ TRACK 6, AL1 (NUMBER PENDING) -- THE RUN'S `alert()` CALLS (`collections.js::ALERT_EMIT`), plain data beside
+ *  the columns: `{fromBar: 0, events: [{bar, message, freq}], dropped}`. Present ONLY on a run that executed the
+ *  program over EVERY bar from the first (never on a resumed run, which ran only the newest bars): a partial log
+ *  would read as "no alert on the bars it did not run". Absent means "not recorded", never "no alert". */
+export const RUNTIME_ALERTS_KEY = '__runtimeAlerts'
+/** The run's alert record (`RUNTIME_ALERTS_KEY`), or null when this run did not record one. */
+export function runtimeAlertsOf(cols) {
+  const r = cols && typeof cols === 'object' ? cols[RUNTIME_ALERTS_KEY] : null
+  return r && typeof r === 'object' ? r : null
+}
 export const runtimeRealtimeOf = (cols) => (cols && typeof cols === 'object' ? cols[RUNTIME_REALTIME_KEY] || null : null)
 /** Drop every ledger (tests; a host that wants a cold start). */
 export function resetRuntimeLedgers() { _ledgers.clear(); _ledgerBytes = 0 }
@@ -2147,11 +2158,14 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     if (!Object.values(outputs).some((index) => Number.isInteger(index) && index < built && !held.has(index))) return null
     try {
       finished = -1
+      beginAlertLog()
       return execute(runProgram, runCtx, runLimits, { ...injectedNow(opts), brokerDisarmed: true, onBar })
     } catch {
       return null
     }
   }
+  // ⭐⭐ TRACK 6, AL1 -- the run's alert log starts empty here and is taken once the run is answered (below)
+  beginAlertLog()
   try {
     res = execute(runProgram, runCtx, runLimits, {
       ...injectedNow(opts),
@@ -2163,6 +2177,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       onBar,
     })
   } catch (err) {
+    takeAlertLog()   // AL1: a stopped run's partial log is never served (a stand-in begins its own)
     // ⭐⭐ (item 3) a run resumed across a supply that throws is run again in full: its stop is the full run's own
     // (a time stop is the box's, never the script's, and is said as it is)
     if (resumeFrom && reqSupply && !(err instanceof RuntimeLimitError && err.limit === 'WALL_TIME')) {
@@ -2278,6 +2293,13 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       why: resumeFrom ? null : resumable.why, ranBars: rows.length - (resumeFrom ? resumeFrom.bar + 1 : 0),
       rebuilt: !reused && !memo, columnsReused: reused ? reusedLast : 0, buildMemo: !!memo } })
   if (realtime) Object.defineProperty(out, RUNTIME_REALTIME_KEY, { enumerable: false, configurable: true, value: realtime.info })
+  // ⭐⭐ TRACK 6, AL1 -- the run's alert() calls, only for a run over every bar from the first
+  const alertLog = takeAlertLog()
+  if (alertLog && !resumeFrom) {
+    Object.defineProperty(out, RUNTIME_ALERTS_KEY, { enumerable: false, configurable: true,
+      value: Object.freeze({ fromBar: 0, events: Object.freeze(alertLog.events.map((e) => Object.freeze({ ...e }))),
+        dropped: alertLog.dropped }) })
+  }
   // ⭐⭐ W9-T11 — THE RUN'S `strategy` RECORD (design 3.2), plain data beside the columns
   if (res.broker) {
     withStrategyRecord(out, strategyRecordOf({ summary: res.broker, decl: runProgram.broker, barTimes: runTimes,

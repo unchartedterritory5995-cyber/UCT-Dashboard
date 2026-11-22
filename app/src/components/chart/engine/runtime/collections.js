@@ -88,6 +88,37 @@ export function callSiteRuns(lastRunBar, bar, why, where) {
     + 'so its calls have not run on every bar and nothing is drawn.', skipped, bar)
 }
 
+/** ⭐⭐ TRACK 6, AL1 (NUMBER PENDING, coordinator ruling 2026-11-22: alert() is delivered on the server lane) --
+ *  A SCRIPT'S `alert()` CALLS, RECORDED WHERE THEY RUN. The front end lowers `alert(message, freq)` to one void call
+ *  of this internal builtin exactly where the statement stands (inside its `if` arm, so only on the bars that arm
+ *  runs). Its only effect is one entry on the RUN's alert log; it reads nothing and draws nothing, so no column, no
+ *  refusal and no digest moves. Not a Pine name (it holds spaces): no script can spell it. Dispatched through this
+ *  table, like `runtime.error` and CALL_SITE_RUNS: one opcode, no VM change.
+ *  The log is module state of the run's host (the browser worker, or one service worker running one job at a time):
+ *  `beginAlertLog` at the start of a run, `takeAlertLog` at its end (runtimeColumns.js). Capped: the newest
+ *  ALERT_LOG_CAP entries are kept and `dropped` counts the rest, so a script that alerts every bar of a long chart
+ *  never grows without bound. */
+export const ALERT_EMIT = 'alert emit'
+export const ALERT_LOG_CAP = 500
+export const ALERT_MESSAGE_CAP = 512
+let _alertLog = null
+let _alertDropped = 0
+export function beginAlertLog() { _alertLog = []; _alertDropped = 0 }
+/** The run's log as plain data (`{events: [{bar, message, freq}], dropped}`), or null when no log was begun. */
+export function takeAlertLog() {
+  const out = _alertLog === null ? null : { events: _alertLog, dropped: _alertDropped }
+  _alertLog = null
+  _alertDropped = 0
+  return out
+}
+export function alertEmit(message, freq, bar, withheld) {
+  if (_alertLog === null) return
+  _alertLog.push({ bar: Number.isInteger(bar) ? bar : null,
+    message: withheld === 1 ? null : (typeof message === 'string' ? message.slice(0, ALERT_MESSAGE_CAP) : ''),
+    freq: typeof freq === 'string' ? freq : '' })
+  if (_alertLog.length > ALERT_LOG_CAP) { _alertLog.shift(); _alertDropped += 1 }
+}
+
 /** What kind is this runtime value? The VM checks declared operand kinds
  *  against this, so 'array' is a real kind rather than `typeof v === 'object'`
  *  spread across nine call sites.
@@ -1181,6 +1212,11 @@ const ARRAY_FNS_RAW = Object.freeze({
     args: ['number', 'number', 'string', 'string'], returns: 'number',
     fn: (a) => callSiteRuns(a[0], a[1], a[2], a[3]),
   },
+  // ⭐⭐ TRACK 6, AL1 -- see ALERT_EMIT: one entry on the run's alert log; nothing else.
+  [ALERT_EMIT]: {
+    args: ['string', 'string', 'number', 'number'], returns: 'void',
+    fn: (a) => { alertEmit(a[0], a[1], a[2], a[3]) },
+  },
 })
 
 export const ARRAY_NAMES = Object.freeze(Object.keys(ARRAY_FNS_RAW))
@@ -1245,6 +1281,8 @@ const ARRAY_WRITES = Object.freeze({
   'array.slice': 'none', 'array.median': 'none', 'array.stdev': 'none', 'runtime.error': 'none',
   // ⭐ HIST-S3 — the every-bar check reads two numbers and writes nothing
   [CALL_SITE_RUNS]: 'none',
+  // ⭐⭐ TRACK 6, AL1 -- the alert log is the run's, never a collection
+  [ALERT_EMIT]: 'none',
   // ⭐ W19-R2 / W6-T5
   'array.fill': 'elements', 'array.insert': 'size', 'array.reverse': 'elements', 'array.sort': 'elements',
   'array.lastindexof': 'none', 'array.range': 'none', 'array.abs': 'none', 'array.join': 'none',
