@@ -143,6 +143,12 @@ locally, never committed). Derived counts only below; the capture stays local.
 ## Open, by name
 
 - **Q-T4-B1 (W-B1)** LANDED 2026-11-22 (section above): six spellings witnessed and sized; the alignment stays same-date.
+  The member's note says the size in plain words (coordinator, 2026-11-22): "UCT counts operating companies only; the
+  exchange counts every listed issue, so these figures run about 36% lower (the median over 4,389 sessions since
+  2009-06-11, measured against TradingView's `USI:ADVN.NY`)."
+- **The four short spellings** (`USI:ADV`, `DECL`, `ADVQ`, `DECLQ`): NOT aliases (W-B1). Refused by name
+  (`witness-pending`) as ruled; serving what they are (TradingView's ADD is `ADV` - `DECL`, likely a common-stock
+  universe) is a unit of its own, LOW PRIORITY, logged here (coordinator, 2026-11-22).
 - **Q-T4-B2** (queued here): the weekly and monthly blocks.
 - **The capability** `request-breadth` is admitted by the coordinator once two scripts (one community) grade
   MATCH_SUBSTITUTED with the runtime pane on against our production supply.

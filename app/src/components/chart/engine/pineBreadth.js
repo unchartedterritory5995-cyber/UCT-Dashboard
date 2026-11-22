@@ -210,9 +210,14 @@ export function breadthSourceNote(ticker) {
   const what = spec ? `the session's count of ${spec.exchange}-listed operating companies (common stock and ADRs) `
     + `${spec.metric === 'add' ? 'that closed up, less the count that closed down' : `that closed ${spec.metric === 'advancing' ? 'up' : spec.metric === 'declining' ? 'down' : 'unchanged'}`}` : 'UCT\'s own breadth count'
   const gap = base && base === t ? BREADTH_DIVERGENCE[base] : null
-  const sized = gap ? ` Measured against TradingView's \`USI:${t}\` over ${gap.sessions.toLocaleString('en-US')} sessions from `
-    + `${gap.from}: ours ${gap.oursLowerShare >= 0.95 ? 'is lower on almost every session, by' : 'differs by'} a median of `
-    + `${gap.medianIssues.toLocaleString('en-US')} issues (${gap.medianPct}%).` : ''
+  // ⭐ (coordinator, 2026-11-22) the size in plain words: operating companies only, against every listed issue
+  const since = gap ? ` (the median over ${gap.sessions.toLocaleString('en-US')} sessions since ${gap.from}, measured against `
+    + `TradingView's \`USI:${t}\`)` : ''
+  const sized = !gap ? ''
+    : gap.oursLowerShare >= 0.95 ? ' UCT counts operating companies only; the exchange counts every listed issue, so these '
+      + `figures run about ${gap.medianPct}% lower${since}.`
+    : ' UCT counts operating companies only; the exchange counts every listed issue, so this figure differs by about '
+      + `${gap.medianIssues.toLocaleString('en-US')} issues (${gap.medianPct}%)${since}.`
   return `This script reads \`USI:${t}\`. It uses ${BREADTH_DATA_WORDS}: ${what}, where the exchange's count also holds `
     + `preferreds, funds and other issues, so the values differ from TradingView's on every bar.${sized}`
     + `${spec && spec.closeOnly ? ` \`USI:${t}\` holds each session's close only; its open, high and low read \`na\`.` : ''}`

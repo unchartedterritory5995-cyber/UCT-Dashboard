@@ -297,10 +297,12 @@ describe('B2 R6 — the member\'s words', () => {
     expect(notes[1].note).toMatch(/holds each session's close only/)
     expect(BREADTH_DATA_WORDS).toBe("UCT breadth data (our own counts), not the exchange's official figures")
     // ⭐ W-B1: each witnessed spelling says how far our counts are from TradingView's
-    expect(notes[0].note).toMatch(/Measured against TradingView's `USI:ADVN\.NY` over 4,389 sessions from 2009-06-11: ours is lower on almost every session, by a median of 549 issues \(36%\)\./)
-    expect(notes[1].note).toMatch(/over 4,389 sessions from 2009-06-11: ours differs by a median of 241 issues \(29%\)\./)
+    expect(notes[0].note).toContain('UCT counts operating companies only; the exchange counts every listed issue, so these '
+      + 'figures run about 36% lower (the median over 4,389 sessions since 2009-06-11, measured against TradingView\'s `USI:ADVN.NY`).')
+    expect(notes[1].note).toContain('so this figure differs by about 241 issues (29%) (the median over 4,389 sessions since '
+      + '2009-06-11, measured against TradingView\'s `USI:ADD`).')
     // CONTROL: a spelling W-B1 did not witness carries no size
-    expect(otherSymbolSourceNotesFor([{ ticker: 'ADDQ', spellings: ['USI'] }])[0].note).not.toMatch(/Measured against/)
+    expect(otherSymbolSourceNotesFor([{ ticker: 'ADDQ', spellings: ['USI'] }])[0].note).not.toMatch(/operating companies only/)
   })
 })
 
