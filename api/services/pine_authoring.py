@@ -355,7 +355,32 @@ THE RULES
 8. When the request comes with RECIPES, start from the closest one: each is a whole script this engine runs as written and whose numbers were checked. Keep its structure, change what the request needs (the numbers, the condition, the colours, the title), and never import a habit from another platform that the recipe does not use.
 9. Say what the script MEANS by a term that has more than one reading (which pivot rule, which window, which average) in `reply`, in plain words.
 10. For a well-known indicator, when this document lists Pine's OWN function for it, CALL that function: do not re-derive its maths by hand. {own_functions}When this document lists none, write the published calculation yourself and say in `reply` which definition you used.
-11. Draw ONLY what the member asked for. A request for a count or a signal is that one plot or mark: do not add a label on every event, a summary table, a background colour, extra shapes or an `alertcondition` the request did not name. Each extra clutters the chart and is one more claim that has to be right. If something more would help, OFFER it in `reply` in one short sentence ("I can also mark each day or add a table") and leave it out of the script. When the request is ONLY a drawing (a box, a line, labels, a table) and names no plotted line, still `plot` the value the drawing is made from, because a script with a plot can be used in alerts and one without cannot; but make that plot INVISIBLE with a fully transparent colour (`plot(level, "Level", color=color.new(color.gray, 100))`) and say in `reply` that a hidden plot is there for alerts. Never hide a plot the member asked to see."""
+11. Draw ONLY what the member asked for. A request for a count or a signal is that one plot or mark: do not add a label on every event, a summary table, a background colour, extra shapes or an `alertcondition` the request did not name. Each extra clutters the chart and is one more claim that has to be right. If something more would help, OFFER it in `reply` in one short sentence ("I can also mark each day or add a table") and leave it out of the script. When the request is ONLY a drawing (a box, a line, labels, a table) and names no plotted line, still `plot` the value the drawing is made from, because a script with a plot can be used in alerts and one without cannot; but make that plot INVISIBLE with a fully transparent colour (`plot(level, "Level", color=color.new(color.gray, 100))`) and say in `reply` that a hidden plot is there for alerts. Never hide a plot the member asked to see.
+12. {other_timeframe}"""
+
+#: ⭐ RULE 12: WHERE A LOOK-BACK GOES WHEN THE MEMBER ASKS FOR ANOTHER TIMEFRAME (found by the value cases'
+#: oracle check, 2026-11-22). Asked whether the close is above "the 10 week moving average", the assistant wrote
+#: `wMA = request.security(syminfo.tickerid, "W", ta.sma(close, 10))` and then read `wMA[1]`: one bar of the
+#: CHART back, not one week. On the bar that completes a week the table showed the average one whole week stale.
+#: `request-other` is NOT offered to the assistant (`NOT_FOR_THE_ASSISTANT`) and gains no wording by this: the rule
+#: only stops a request the member's words ASKED for (`other_read_asked` keeps those) being written wrongly.
+#: ⛔ EACH HALF TEACHES ONLY WHAT A COMMITTED CAPTURE GRADES. The capture is
+#: `vw-request-htf-alignment-spy-1d-2026-10-02` (AMEX:SPY 1D, 1,800 bars, the newest one finished; rail
+#: `vendorHarness.reqLookaheadAlignment.test.js`):
+#:   * AS IT STANDS (look-ahead off, nothing after the request): its rows A02 (`close`, "W") and A05 ("M") equal
+#:     TradingView on every bar but the newest, MATCH 7 of 7 on both lanes
+#:     (docs/pine/evidence/2026-11-18-htf-calendar-merge/EVIDENCE.md);
+#:   * THE LOOK-BACK INSIDE, look-ahead on: its row A06 (`close[1]`: last week's close) is exact on every graded
+#:     bar (docs/pine/evidence/2026-11-16-req-request-security/EVIDENCE.md). That form IS "last week's value", on
+#:     every bar of the week, its last bar included: taught for "the 10 week average" it would be a week stale on
+#:     the bar that completes the week, exactly as the look-back outside is (measured before this was written).
+#: Neither row grades a FORMING bar: the member's chart says what it does there, this rule does not.
+OTHER_TIMEFRAME_RULE = (
+    "A value on ANOTHER TIMEFRAME, only when the member's words ask for one (a 10 week average, the monthly close): "
+    "read it AS IT STANDS with `request.security(syminfo.tickerid, \"W\", expr)`, and put nothing after it. `x[1]` "
+    "after a request is one bar of THIS chart, not one week: on the bar that completes a week it shows the week "
+    "before. ONLY when the words say LAST week's or the PREVIOUS month's value, put the look-back INSIDE the request: "
+    "`request.security(syminfo.tickerid, \"W\", expr[1], lookahead = barmerge.lookahead_on)`.")
 
 #: ⭐⭐ ADMITTED FOR FINISHED BARS ONLY, SAID TO THE ASSISTANT (found live 2026-11-19). The engine admits some
 #: capabilities on CLOSED-BAR evidence only (G6, `historyOnly` in the generated reference, held equal to the
@@ -497,7 +522,8 @@ def _lines(title: str, rows: List[str]) -> List[str]:
 
 def contract(ref: Optional[Mapping[str, Any]] = None) -> str:
     """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference."""
-    return CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
+    return (CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
+            .replace("{other_timeframe}", OTHER_TIMEFRAME_RULE))
 
 
 def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:
