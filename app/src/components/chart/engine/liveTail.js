@@ -312,8 +312,10 @@ export function benchmarkTailUrl(sym, tf) {
   // ⭐ (e95, 2026-11-22) a CUSTOM timeframe (2h, 4h, 45m, 2D …) is not served by the route: ask its native base for one
   // bucket more than the tail (`baseBarsFor`), resampled on landing by the chart's own rule (`tailBarsFromWire`)
   const spec = resampleSpec(code)
-  if (spec) return `/api/bars/${encodeURIComponent(s)}?tf=${encodeURIComponent(spec.base)}&bars=${baseBarsFor(code, BENCHMARK_TAIL_BARS + 1)}`
-  return `/api/bars/${encodeURIComponent(s)}?tf=${encodeURIComponent(code)}&bars=${BENCHMARK_TAIL_BARS}`
+  const ask = spec ? spec.base : code
+  const count = spec ? baseBarsFor(code, BENCHMARK_TAIL_BARS + 1) : BENCHMARK_TAIL_BARS
+  // ⛔ ONE url literal, the site `rails/oneKey.baseline.json` already lists (a shrink-only allowlist: never a new one)
+  return `/api/bars/${encodeURIComponent(s)}?tf=${encodeURIComponent(String(ask))}&bars=${count}`
 }
 
 /** Notified with the entry key when a benchmark tail lands (or fails). @returns {() => void} */
