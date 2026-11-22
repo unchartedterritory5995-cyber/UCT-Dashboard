@@ -30,7 +30,7 @@ from pathlib import Path
 import pytest
 
 from api.services import named_indicators as ni
-from tests.test_named_built_ins import CHART
+from tests.test_named_built_ins import CHART, empty_view
 from tests.test_p2_truth_server import conv, model  # noqa: F401 -- fixtures by name
 from tests.test_p2x_truth_converse import clean_env  # noqa: F401 -- fixture by name
 from tools import value_eval
@@ -131,7 +131,7 @@ def test_THE_FINDING_the_old_sentence_is_WRONG_by_the_cases_own_rule_and_the_new
 @pytest.mark.parametrize("case,name,publisher", [(ZACKS, "Zacks Rank", "Zacks"), (COMPOSITE, "Composite Rating", "IBD")])
 def test_the_door_says_it_is_theirs_with_no_model_call(conv, clean_env, model, case, name, publisher):
     client = model([])
-    r = conv.converse(case["words"], user_id="u1", view=None, chart=CHART)
+    r = conv.converse(case["words"], user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is False and client.calls == []
     assert r["reason"] == NEW.format(name=name, publisher=publisher)
     assert G.grade_wall(case, value_eval.answer_of(r))["verdict"] == "right"
@@ -140,7 +140,7 @@ def test_the_door_says_it_is_theirs_with_no_model_call(conv, clean_env, model, c
 
 
 @pytest.mark.parametrize("words,name", [("Plot the Swing Line Thing under the chart", "Swing Line Thing"),
-                                         ("Plot the Foo Bar Line, I saw it on Barchart", "Foo Bar Line")])
+                                         ("I use Zacks for research. Plot the Swing Line Thing under the chart", "Swing Line Thing")])   # a publisher named in passing
 def test_CONTROL_an_unknown_name_that_is_nobodys_keeps_the_usual_sentence(conv, words, name):
     got = conv.understand_turn(words, CHART)
     assert got["refusal"] is not None and got["refusal"]["reason"] == OLD.format(name=name), got["refusal"]
