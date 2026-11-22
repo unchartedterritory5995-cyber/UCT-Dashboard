@@ -10,7 +10,8 @@ month, or a command edited in one file and not the other, would quietly reopen t
   * every gate-job step that runs a command is MIRRORED (a PR step with the same NAME running the same command, byte
     for byte) or is in GATE_ONLY with its reason;
   * every PR step that runs a command is a mirror or is in PR_ONLY with its reason; neither list may go stale;
-  * the PR workflow never runs on a push (the gate owns master) and is classified `promotion-gate: no`.
+  * the PR workflow never runs on a push (the gate owns master) and is classified `promotion-gate: no`. It also
+    answers a merge queue's `merge_group` event, because its job is the required check on master.
 The controls at the bottom plant each kind of drift and require the judge to name it.
 
 Run ONLY this file:  python -m pytest tests/test_gate_static_rails_pr.py -q
@@ -128,10 +129,14 @@ def test_the_mirror_is_not_vacuous_and_holds_the_checks_that_went_red():
         assert needle in pr.get(name, ""), f"the PR job no longer runs {needle} as {name!r}"
 
 
-def test_the_pr_workflow_runs_on_pull_requests_only_and_never_gates_promotion():
+def test_the_pr_workflow_never_runs_on_a_push_and_never_gates_promotion():
     doc = _doc(PR)
     on = doc.get("on", doc.get(True))
-    assert set(on) == {"pull_request"}, f"{PR} must run on pull requests only (the gate owns master): {sorted(on)}"
+    # merge_group (2026-11-22): the job is the required check on master, and a merge queue needs its verdict on
+    # the merge group. Still never a push: the gate owns master.
+    assert set(on) == {"pull_request", "merge_group"}, (
+        f"{PR} runs for pull requests and merge groups, never on a push (the gate owns master): {sorted(on)}")
+    assert on["pull_request"] == {"branches": ["master"]} and not on["merge_group"], on
     spec = importlib.util.spec_from_file_location("promotion_gate_for_the_pr_mirror", ROOT / "tools" / "promotion_gate.py")
     pg = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(pg)

@@ -2561,6 +2561,18 @@
       "owner_decision": "Owner decision 2026-10-30: approved, and turned on in production on web the same day.",
       "note": "Phase A (PR #539): the opt-in \"Doesn't match TradingView?\" report, the ONE place a member's pasted source is stored (api/services/indicator_support.py::reports_enabled, read per call; 1/true/on/yes). Requires the member's explicit consent per report; kept only to fix support; withdrawable; deleted 30 days after fixed/wontfix and in any case after 365 days (docs/pine/support-loop/PHASE-A.md). Phase B (docs/pine/support-loop/PHASE-B.md) triages these reports. Rollback: blank it on web and redeploy (verify a NEW boot); unset refuses every create with 404, stores nothing, and the client hides every report button."
     },
+    "PINE_SERVER_RETRANSLATE": {
+      "status": "dark",
+      "since": "2026-11-22",
+      "where": [],
+      "default": "off",
+      "values": [
+        "off",
+        "on"
+      ],
+      "owner": "pine parity programme (track 6)",
+      "note": "RE-TRANSLATE (b), design_retranslate_b.md. Mode flag, read PER CALL in api/services/server_translations.py::enabled(). SERVICE: web. Off (unset): server_translations.current_for answers None for everyone, so every reader behaves exactly as before and nothing is deleted. On: a stored script version held by an older engine's refusal is answered by the server's translation at TODAY's engine (the read path is PR (4), not yet shipped). Arm only on the coordinator's OK, after one measured night. Rollback: blank it (a variable, no deploy)."
+    },
     "PINE_RUNTIME_SAVE_ENABLED": {
       "status": "armed",
       "where": [

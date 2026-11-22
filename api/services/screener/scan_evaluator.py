@@ -1559,6 +1559,10 @@ class _RuntimeRun:
         self.withheld_listed: list = []
         self.guards: dict = {}
         self.evaluated = self.answered = self.dropped = self.not_computable = 0
+        #: TRACK 6 item 2b: withholds that BLOCK the receipt (transport, or the admission withdrawing the
+        #: document mid-run) vs the script's own named withholds on a symbol (counted in the receipt).
+        self.blocking = 0
+        self.named_listed: list = []
 
     def note(self, sym: str, reason: str, detail: Optional[str] = None) -> None:
         if len(self.unanswered) >= _DROPPED_LISTED_MAX:
@@ -1568,10 +1572,15 @@ class _RuntimeRun:
             entry["detail"] = detail
         self.unanswered.append(entry)
 
-    def withhold(self, sym: str, guard: str, sentence: str) -> None:
+    def withhold(self, sym: str, guard: str, sentence: str, *, blocks: bool) -> None:
         self.guards[guard] = self.guards.get(guard, 0) + 1
         if len(self.withheld_listed) < _DROPPED_LISTED_MAX:
             self.withheld_listed.append({"ticker": sym, "guard": guard, "sentence": sentence[:240]})
+        if blocks:
+            self.blocking += 1
+        elif len(self.named_listed) < _DROPPED_LISTED_MAX:
+            self.named_listed.append({"ticker": sym, "reason": NOT_COMPUTABLE_REASON,
+                                      "detail": f"withheld {guard}: {sentence}"[:160]})
 
     def unread(self, sym: str, reason: str, detail: Optional[str]) -> None:
         """A symbol the shared preparation could not send (no bars, stale bars, an unreadable time)."""
@@ -1588,9 +1597,11 @@ class _RuntimeRun:
             sym, bar_time = sent[job.job]
             run = res.run_refusal()
             if res.status != "ok" or run is not None:
-                # ⛔ WITHHELD IS WITHHELD: never looked at, never a non-hit.
-                self.withhold(sym, run.guard if run else pine_runtime_client.INTEGRITY,
-                              run.sentence if run else "the service answered with no reason")
+                # ⛔ WITHHELD IS WITHHELD: never looked at, never a non-hit. A TRANSPORT outcome blocks
+                # the receipt; the script's own named withhold is an answer (item 2b).
+                guard = run.guard if run else pine_runtime_client.INTEGRITY
+                self.withhold(sym, guard, run.sentence if run else "the service answered with no reason",
+                              blocks=pine_runtime_client.transport_guard(guard))
                 continue
             self.evaluated += 1
             why = res.refusal_for(plot)
@@ -1629,17 +1640,32 @@ class _RuntimeRun:
             dropped=self.dropped, not_computable=self.not_computable, withheld=withheld,
             guards=guards)
         persisted = False
-        if mode == NIGHTLY and not history_withheld and not runtime_withheld:
+        # ⭐⭐ TRACK 6 item 2b (coordinator ruling, 2026-11-22): A SYMBOL WITHHELD OR REFUSED BY NAME IS AN
+        # ANSWER. The receipt is filed when every symbol of the universe has one -- a value, or the
+        # script's own named withhold (e.g. `runtime:warmup-never-converges` on a young listing), counted
+        # in the receipt as not computable with its guard. Only a TRANSPORT outcome
+        # (`pine_runtime_client.transport_guard`) or the admission withdrawing the document mid-run blocks
+        # it. Before, ONE young listing kept a document from ever filing a receipt: it was re-swept every
+        # night and its hits were never receipted (every L-cohort document on 2026-11-22).
+        named = runtime_withheld - self.blocking
+        if mode == NIGHTLY and not history_withheld and not self.blocking:
             scan_store.record_hits(def_hash, tf_code, session, self.hits,
                                    values={r["symbol"]: r["value"] for r in self.hit_rows})
             scan_store.record_coverage(
-                def_hash, tf_code, session, evaluated=self.evaluated, answered=self.answered,
-                dropped=self.dropped, not_computable=self.not_computable,
-                dropped_symbols=self.unanswered, freshness=ast_freshness.UNKNOWN)
+                def_hash, tf_code, session, evaluated=self.evaluated + named, answered=self.answered,
+                dropped=self.dropped, not_computable=self.not_computable + named,
+                dropped_symbols=(self.unanswered + self.named_listed)[:_DROPPED_LISTED_MAX],
+                freshness=ast_freshness.UNKNOWN)
             persisted = True
         if runtime_withheld:
-            log.warning("[scan] %s -- %s", line,
-                        "NO receipt filed" if mode == NIGHTLY else "nothing is written in this mode")
+            if mode != NIGHTLY:
+                said = "nothing is written in this mode"
+            elif persisted:
+                said = (f"receipt filed: the {named} named withhold(s) are counted not computable "
+                        "(they are the script's own answer on those symbols)")
+            else:
+                said = f"NO receipt filed ({self.blocking} transport or admission withhold(s))"
+            log.warning("[scan] %s -- %s", line, said)
         return {
             "def_hash": def_hash,
             "rev": self.definition["compute"].get("rev"),
@@ -1800,7 +1826,8 @@ def _evaluate_runtime_group(definitions: Sequence[Any], tf: str, *,
             refused = scan_runtime.runtime_admission(run.row, run.profile, run.plot)
             if refused is not None:
                 for sym in chunk:
-                    run.withhold(sym, refused[0], refused[1])
+                    # the document withdrawn mid-run: its receipt is blocked
+                    run.withhold(sym, refused[0], refused[1], blocks=True)
             else:
                 admitted.append((i, run))
         if not admitted:
@@ -2554,6 +2581,63 @@ def _resume_order(entries: Sequence[tuple], tf_code: str, as_of: int, *,
     return sorted(entries, key=lambda item: (_sweep_tier(item), _swept_last_time(item)))
 
 
+#: TRACK 6 item 2b: how many definitions a run did not hand on because they were refused at resolution
+#: under the same key (content + engine number) on an earlier run. Counted and logged, never silent.
+RESOLUTION_REFUSED_GUARD = "sweep:refused-at-resolution"
+
+
+def _refusal_key(definition: Any) -> Optional[str]:
+    """The key a refusal at resolution is remembered under: the definition's CONTENT (sha256 of its
+    canonical JSON) and today's script-engine number. A new version with new content, or a new engine,
+    is a new key, so it is checked again; ``None`` (nothing is remembered) when either cannot be read."""
+    import hashlib
+    import json as _json
+    from api.services import user_definitions
+    engine = getattr(user_definitions, "SCRIPT_ENGINE_VERSION", None)
+    if engine is None or not isinstance(definition, dict):
+        return None
+    try:
+        text = _json.dumps(dict(definition), sort_keys=True, separators=(",", ":"), default=str,
+                           ensure_ascii=False)
+    except Exception:                                        # noqa: BLE001
+        return None
+    return f"refused:{hashlib.sha256(text.encode('utf-8')).hexdigest()[:40]}@e{engine}"
+
+
+def _remember_refusal(definition: Any, tf_code: str, session: int, gate: str, detail: str) -> None:
+    """Record one refusal at resolution (`scan_store.record_refusal`). Never raises into the sweep."""
+    key = _refusal_key(definition)
+    if key is None:
+        return
+    try:
+        scan_store.record_refusal(key, tf_code, session, gate=gate, detail=detail)
+    except Exception:                                        # noqa: BLE001
+        log.exception("[scan] could not remember a refusal at resolution (%s)", gate)
+
+
+def _without_known_refusals(definitions: Sequence[Any], tf_code: str) -> list:
+    """``definitions`` without those refused at resolution under the same key on an earlier run (item 2b,
+    coordinator ruling 2026-11-22: 37 of 66 definitions were re-handed on every boot). Counted in one
+    line under `RESOLUTION_REFUSED_GUARD`. A store that cannot answer keeps the definition (it is then
+    refused BY NAME again, never dropped silently)."""
+    kept: list = []
+    known = 0
+    for definition in definitions:
+        key = _refusal_key(definition)
+        try:
+            hit = scan_store.refusal(key, tf_code) if key is not None else None
+        except Exception:                                    # noqa: BLE001
+            hit = None
+        if hit is not None:
+            known += 1
+            continue
+        kept.append(definition)
+    if known:
+        log.info("[scan] %s x%d: refused at resolution on an earlier run, by name, and not handed again "
+                 "until its content or the engine number moves", RESOLUTION_REFUSED_GUARD, known)
+    return kept
+
+
 def _sweep_tier(item: tuple) -> int:
     """The FIRST key of the sweep's order: ``0`` for a member's tree definition, ``1``
     for a runtime document (`runtime_definitions.is_runtime`, the one authority on the
@@ -2561,7 +2645,7 @@ def _sweep_tier(item: tuple) -> int:
     return 1 if runtime_definitions.is_runtime(item[1]) else 0
 
 
-def _resolve_entries(definitions: Sequence[Any]) -> tuple:
+def _resolve_entries(definitions: Sequence[Any], on_refused: Any = None) -> tuple:
     """PHASE 1 -- resolve every definition to its maths, BEFORE sweeping any.
 
     Returns `(entries, refused, duplicate, refusals)`, where `entries` is
@@ -2592,10 +2676,14 @@ def _resolve_entries(definitions: Sequence[Any]) -> tuple:
         except scan_definition.ScanRefused as exc:
             refused += 1
             refusals.append({"gate": exc.gate, "detail": str(exc)[:200]})
+            if on_refused is not None:
+                on_refused(definition, exc.gate, str(exc)[:200])
             continue
         except Exception as exc:                             # noqa: BLE001
             refused += 1
             refusals.append({"gate": "not-scannable", "detail": str(exc)[:200]})
+            if on_refused is not None:
+                on_refused(definition, "not-scannable", str(exc)[:200])
             continue
         if handle in seen:
             duplicate += 1
@@ -2761,8 +2849,11 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
     if deadline is None:
         deadline = sweep_deadline(started)
 
-    # ⭐ PHASE 1 -- RESOLVE EVERY DEFINITION TO ITS MATHS, BEFORE SWEEPING ANY.
-    entries, refused, duplicate, refusals = _resolve_entries(definitions)
+    # ⭐ PHASE 1 -- RESOLVE EVERY DEFINITION TO ITS MATHS, BEFORE SWEEPING ANY. A definition refused
+    # here is REMEMBERED (item 2b, `_remember_refusal`), so the next night and the catch-up do not hand
+    # it again until its content or the engine number moves (`_without_known_refusals`).
+    entries, refused, duplicate, refusals = _resolve_entries(
+        definitions, on_refused=lambda d, gate, detail: _remember_refusal(d, tf_code, session, gate, detail))
     seen = {handle for handle, _ in entries}
 
     entries = _resume_order(entries, tf_code, session)
@@ -3360,7 +3451,7 @@ def sweep_job() -> None:
     (`lesson_health_check_reads_a_proxy_not_the_artifact`).
     """
     try:
-        definitions = definitions_to_sweep()
+        definitions = _without_known_refusals(definitions_to_sweep(), scan_store._normalise_tf(DEFAULT_TF))
     except Exception as exc:                                 # noqa: BLE001
         log.exception("[scan] could not read the definitions to sweep: %s", exc)
         return
@@ -3445,7 +3536,7 @@ def sweep_catch_up() -> Optional[dict]:
                  "up today", now.isoformat(), deadline.isoformat())
         return None
     try:
-        definitions = definitions_to_sweep()
+        definitions = _without_known_refusals(definitions_to_sweep(), scan_store._normalise_tf(DEFAULT_TF))
     except Exception as exc:                                 # noqa: BLE001
         log.exception("[scan] sweep catch-up could not read the definitions to sweep: %s", exc)
         return None

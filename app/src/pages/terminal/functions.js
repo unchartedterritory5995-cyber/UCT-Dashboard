@@ -703,6 +703,17 @@ export const FUNCTIONS = [
   { code: 'EVST', label: 'What happened next (build your own historical study)', group: 'Market',
     ticker: { panel: 'EventStudy' },
     market: { panel: 'EventStudy' } },
+  // SETH (2026-11-22): how setups acted. A fixed library of seven chart setups (a breakout to a new 52-week high on
+  // volume, a pullback to the 21-day EMA, a gap up, a reclaim of the 50-day, an inside week near a high, three weeks
+  // tight, a pocket pivot), each a screen the Screener's own evaluator answers, and how each did 5, 20 and 60 sessions
+  // on in every S&P 500 correction, in the first 3 months after each low and later in each uptrend (GET
+  // /api/research/setup-history, worked out by the server once a week from the prices it stores, with the screen
+  // backtester's floor, same-day control and survivorship sentence). `NVDA SETH` is every time each setup fired on that
+  // stock (GET /api/research/setup-history/{ticker}); `SETH MARKET` the study on a panel that follows a stock.
+  // SETH is not in the site's universe.
+  { code: 'SETH', label: 'How setups acted (breakouts, pullbacks, gaps in every correction and rally)', group: 'Market',
+    ticker: { panel: 'SetupHistory', args: [{ kind: 'marketView', prop: 'view' }] },
+    market: { panel: 'SetupHistory', args: [{ kind: 'marketView', prop: 'view' }] } },
   // VFP (2026-11-22): one stock's volume footprint, worked out by the server from the daily bars it already stores
   // (GET /api/research/volume-footprint/{ticker}, held for the session): accumulation and distribution days over 25
   // and 50 sessions and the up/down volume ratio, the 10 heaviest sessions of the last year, every pocket pivot of
@@ -1086,6 +1097,11 @@ const FUNCTION_WORDS = {
   EVST: { example: 'EVST', keywords: ['event study', 'event studies', 'historical study', 'build a study', 'study builder',
     'what happened after'],
     note: "Pick a condition on market breadth, a technical indicator or COT positioning; see what a symbol did after every time it held. From stored data. A record, not a forecast." },
+  // 'setups' and 'breakout' stay BRKO's (today's breakout-ready list), 'correction' and 'rallies' MKTH's; no keyword
+  // holds 'study' or 'returns' (a one-word search on either found SETH first).
+  SETH: { example: 'SETH', keywords: ['setup history', 'how setups acted', 'breakout history', 'setup backtest',
+    'setups by market phase'],
+    note: 'Each setup is a screen the Screener answers on every past bar; the market phase is assigned with hindsight. One stock: NVDA SETH. A record, not a forecast.' },
   // VFP: "volume" stays LEAD's, UNVOL's and MOST's (MOST also takes VOLUME as a lens word), "accumulation" ACCUM's,
   // "gap" MOST's (its gappers) and "pivot" BRKO's: each still finds its own function first.
   VFP: { example: 'NVDA VFP', keywords: ['volume footprint', 'accumulation days', 'distribution days', 'pocket pivots',

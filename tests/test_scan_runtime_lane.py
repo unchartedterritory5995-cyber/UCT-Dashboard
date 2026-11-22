@@ -1303,3 +1303,91 @@ def test_THROUGHPUT_run_sweep_hands_the_nights_runtime_documents_to_ONE_group(wo
     assert sorted(world.reads) == ["DN", "UP"], "each symbol read once for the four documents"
     assert len(world.cov_written) == 4
     # mutant T1 (run_sweep without the group) -> RED here
+
+
+# ═══ 8g. 2026-11-22 ITEM 2b: a named withhold is an ANSWER; a refusal at resolution is remembered ═══
+#
+# Coordinator ruling (2026-11-22). (1) A symbol withheld or refused BY NAME (e.g. `runtime:warmup-never-converges`
+# on a young listing) is an answer: the receipt is filed and counts it as not computable with its guard; only a
+# TRANSPORT outcome (`pine_runtime_client.transport_guard`) or the admission withdrawing the document blocks it.
+# (2) A definition refused at resolution is remembered under its content + the engine number and not handed again
+# by the nightly sweep or the boot catch-up until that key moves. No computed value changes.
+# Mutation proof: see each test's last line.
+
+def test_RECEIPT_a_named_withhold_is_an_answer_and_the_receipt_counts_it(world):
+    world.bars = {"UP": _bars(), "YOUNG": _bars(), "DN": _bars(up=False)}
+    world.fake.withhold["1:YOUNG"] = ("runtime:warmup-never-converges", "the script's warm-up never ends here")
+    out = _run(world, ["UP", "YOUNG", "DN"])
+    assert out["persisted"] is True
+    assert (out["withheld"], out["runtime_withheld"], out["evaluated"]) == (1, 1, 2), "the envelope is unchanged"
+    [(hargs, _hkw)] = world.hits_written
+    [(_cargs, ckw)] = world.cov_written
+    assert hargs[3] == ["UP"]
+    assert (ckw["evaluated"], ckw["answered"], ckw["dropped"], ckw["not_computable"]) == (3, 2, 0, 1), \
+        "every symbol of the universe has an answer in the receipt"
+    [young] = [d for d in ckw["dropped_symbols"] if d["ticker"] == "YOUNG"]
+    assert young["reason"] == ev.NOT_COMPUTABLE_REASON
+    assert young["detail"].startswith("withheld runtime:warmup-never-converges")
+    # mutants R1 (every withhold blocks) and R3 (the named withhold left out of the receipt) -> RED here
+
+
+@pytest.mark.parametrize("guard", ["runtime:server-busy", "runtime:server-unavailable", "runtime:server-failed",
+                                   "runtime:time-budget"])
+def test_RECEIPT_one_transport_outcome_blocks_it_even_beside_named_withholds(world, guard):
+    world.bars = {"UP": _bars(), "YOUNG": _bars(), "LOST": _bars()}
+    world.fake.withhold["1:YOUNG"] = ("runtime:warmup-never-converges", "the script's warm-up never ends here")
+    world.fake.withhold["2:LOST"] = (guard, "no answer this time")
+    out = _run(world, ["UP", "YOUNG", "LOST"])
+    assert out["persisted"] is False and world.cov_written == [] and world.hits_written == []
+    assert prc.transport_guard(guard) and not prc.transport_guard("runtime:warmup-never-converges")
+    # mutant R2 (no withhold blocks) -> RED here
+
+
+@pytest.fixture
+def refusal_store(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "screener.db"))
+    return tmp_path
+
+
+def test_REFUSED_AT_RESOLUTION_is_remembered_and_not_handed_again_until_its_key_moves(world, refusal_store,
+                                                                                      monkeypatch):
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    multi = _doc_of(_multi_plot_row(0))
+    good = _doc_of(_distinct_rows(1)[0])
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(2026, 11, 4, 5, 0, tzinfo=_ET))
+    deadline = datetime.datetime(2026, 11, 4, 9, 0, tzinfo=_ET)
+    first = ev.run_sweep([multi, good], universe=["UP", "DN"], as_of=SESSION, deadline=deadline)
+    assert (first["swept"], first["refused"]) == (1, 1), "the first night refuses it BY NAME"
+    key = ev._refusal_key(multi)
+    row = scan_store.refusal(key, "D")
+    assert row is not None and row["as_of"] == SESSION and row["gate"] == "tree"
+    # the next run does not hand it again
+    assert ev._without_known_refusals([multi, good], "D") == [good]
+    handed = []
+    monkeypatch.setattr(ev, "definitions_to_sweep", lambda: [multi, good])
+    monkeypatch.setattr(ev, "run_sweep", lambda defs, *a, **k: handed.append(list(defs)) and None)
+    ev.sweep_job()
+    assert handed == [[good]], "the nightly sweep does not re-hand it"
+    # a new version with new content, or a new engine number, is checked again
+    edited = _doc_of(_multi_plot_row(0, owner="admin-1") | {"definition": _doc(
+        outputs={"value": 0, "out2": 1, "out3": 2}, source=SOURCE + "\n// three plots 0, edited")})
+    assert ev._without_known_refusals([edited], "D") == [edited]
+    monkeypatch.setattr(user_definitions, "SCRIPT_ENGINE_VERSION", user_definitions.SCRIPT_ENGINE_VERSION + 1)
+    assert ev._without_known_refusals([multi], "D") == [multi]
+    # mutants R4 (sweep_job without the filter) and R5 (the key ignores the engine) -> RED here
+
+
+def test_REFUSED_AT_RESOLUTION_is_not_missing_for_the_boot_catch_up(world, refusal_store, monkeypatch):
+    multi = _doc_of(_multi_plot_row(0))
+    good = _doc_of(_distinct_rows(1)[0])
+    ev._remember_refusal(multi, "D", SESSION, "tree", "a scan reads ONE plot and this script maps 3")
+    now = datetime.datetime(2026, 11, 4, 6, 0, tzinfo=_ET)
+    monkeypatch.setattr(ev, "_now_et", lambda: now)
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "definitions_to_sweep", lambda: [multi, good])
+    swept = []
+    monkeypatch.setattr(ev, "run_sweep", lambda defs, *a, **k: swept.append(list(defs)) and None)
+    ev.sweep_catch_up()
+    assert swept == [[good]], "only the scannable definition is missing; the refused one is not re-handed"
+    # mutant R6 (the catch-up without the filter) -> RED here

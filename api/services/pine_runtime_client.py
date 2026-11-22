@@ -173,11 +173,19 @@ def _withheld(job_id: str, guard: str, sentence: str) -> JobResult:
     return JobResult(job=job_id, status="withheld", refusals=(Refusal("*", guard, sentence, None),))
 
 
+def transport_guard(guard: str) -> bool:
+    """Is ``guard`` a TRANSPORT outcome (non-deterministic, or a bug): every client-minted withhold and
+    every ``runtime:server-*`` (unavailable, auth, engine mismatch, integrity, busy after its retries,
+    failed, worker OOM), and ``runtime:time-budget``? Everything else a run refuses or withholds BY NAME
+    is the script's own answer on those bars (TRACK 6 item 2b: it is counted in a receipt, never blocks one)."""
+    return guard == TIME_BUDGET or guard.startswith("runtime:server-")
+
+
 def cacheable(result: JobResult) -> bool:
     """May a caller keep this result for the rest of its cycle? Only a deterministic answer:
     never a client-minted withhold, never ``runtime:server-*``, never ``runtime:time-budget``."""
     for r in result.refusals:
-        if r.guard == TIME_BUDGET or r.guard.startswith("runtime:server-"):
+        if transport_guard(r.guard):
             return False
     return True
 
