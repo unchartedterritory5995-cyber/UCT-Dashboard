@@ -382,7 +382,11 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # ⭐ (149, 146) → (149, 148) on 2026-11-14 (UCT RS screens, unit U12): UCT RS Leaders' two list
     # columns (`rs_leaders_member`, `rs_leaders_days`) from `rs_leaders_list.run` inside the
     # post-pass, DARK behind RS_SCREENS_ENABLED (R8). The declared half did not move.
-    assert (len(declared), len(excluded)) == (149, 148)
+    # ⭐ (149, 148) → (149, 156) on 2026-11-21 (fundamental trends): the eight trend columns
+    # (`rev_accel_q`, `eps_streak_25`, `eps_growth_min_2q`/`3q`/`4q`, `net_margin_chg_1y`,
+    # `gross_margin_chg_1y`, `shares_chg_1y`) from `fund_trends.read_fields`, NULL until the first
+    # build after the first evening run (R8). The declared half did not move.
+    assert (len(declared), len(excluded)) == (149, 156)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():

@@ -109,6 +109,15 @@ export const PLAIN_COLUMN_LABELS = {
   // UCT RS screens (unit U12): UCT RS Leaders' list.
   rs_leaders_member: 'On the UCT RS Leaders list',
   rs_leaders_days: 'Sessions on the UCT RS Leaders list',
+  // Fundamental trends (2026-11-21): from SEC filings, quarter by quarter.
+  rev_accel_q: 'Quarters of rising revenue growth',
+  eps_streak_25: 'Quarters of 25%+ EPS growth',
+  eps_growth_min_2q: 'Weakest EPS growth, last 2 quarters',
+  eps_growth_min_3q: 'Weakest EPS growth, last 3 quarters',
+  eps_growth_min_4q: 'Weakest EPS growth, last 4 quarters',
+  net_margin_chg_1y: 'Net margin change vs a year ago',
+  gross_margin_chg_1y: 'Gross margin change vs a year ago',
+  shares_chg_1y: 'Share count change vs a year ago',
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null

@@ -3104,6 +3104,25 @@ def register_screener_jobs(scheduler):
                       id="rs_history_stale_watchdog", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
 
+    # -- Fundamental trends: the evening run behind the eight trend columns ------------
+    #
+    # Hourly ticks from 20:35 to 02:35 ET (`fund_trends.TICK_HOURS_ET`), all inside the
+    # quiet span `scan_period` keeps whole-universe work to and all before the 03:00
+    # build that reads the answer. Each tick is a no-op once the evening is stored (one
+    # SELECT), so the later ticks only matter when a deploy or a failed read cost the
+    # first one; `fund_trends.run_evening` runs one build at a time, never more than
+    # `TRIES_PER_EVENING` an evening, and never on a member's request.
+    #
+    # REGISTERED UNCONDITIONALLY (depth 0 under `_add_job_gate_depth`): the switch is
+    # `FUNDAMENTALS_PIT_ENABLED` (the store's own, read per call inside the job), so the
+    # store's routes and this job go dark together with no deploy.
+    from api.services.screener import fund_trends as _fund_trends
+    scheduler.add_job(_fund_trends.scheduled_run,
+                      trigger=CronTrigger(hour=_fund_trends.TICK_HOURS_ET,
+                                          minute=_fund_trends.TICK_MINUTE_ET, timezone=_ET),
+                      id="screener_fund_trends_evening", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=1800)
+
     # -- UCT Relative Strength evidence: the web pull of the worker's artifact --
     #
     # 04:30 ET (unit 2b-03): after the worker's 21:30 ET evidence run has
