@@ -190,8 +190,8 @@ Catalog: **255** capabilities (every server-gated kind on; 207 with production's
 | playbook.explain | playbook | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | playbook.record | playbook | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | playbook.setup | playbook | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
-| recentlyDeleted.list | recentlyDeleted | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
-| recentlyDeleted.restore | recentlyDeleted | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
+| recentlyDeleted.list | layoutBar | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
+| recentlyDeleted.restore | layoutBar | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
 | research.ask | data | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | rs.compare | rs | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
 | screener.deleteSaved | screener | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |

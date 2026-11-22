@@ -8429,7 +8429,7 @@
   },
   "recentlyDeleted.list": {
    "domain": "recentlyDeleted",
-   "group": "recentlyDeleted",
+   "group": "layoutBar",
    "target": "recentlyDeleted",
    "risk": "local",
    "reversible": true,
@@ -8483,7 +8483,7 @@
   },
   "recentlyDeleted.restore": {
    "domain": "recentlyDeleted",
-   "group": "recentlyDeleted",
+   "group": "layoutBar",
    "target": "recentlyDeleted",
    "risk": "confirm",
    "reversible": true,

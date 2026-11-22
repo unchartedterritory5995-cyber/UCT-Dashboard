@@ -199,8 +199,8 @@
   "newsLibrary.collection": "newsLibrary",
   "newsLibrary.deleteCollection": "newsLibrary",
   "newsLibrary.place": "newsLibrary",
-  "recentlyDeleted.list": "recentlyDeleted",
-  "recentlyDeleted.restore": "recentlyDeleted",
+  "recentlyDeleted.list": "layoutBar",
+  "recentlyDeleted.restore": "layoutBar",
   "compare.openView": "comparePanel",
   "multiChart.set": "multiChart",
   "multiChart.cell": "multiChart"
@@ -221,10 +221,6 @@
   {
    "id": "newsLibrary",
    "title": "Your UCT News library: save or unsave a headline, its note, collections"
-  },
-  {
-   "id": "recentlyDeleted",
-   "title": "Recently deleted: bring back a deleted watchlist, layout or saved screen"
   },
   {
    "id": "chartMenu",
@@ -256,7 +252,7 @@
   },
   {
    "id": "layoutBar",
-   "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+   "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
   },
   {
    "id": "indicators",
@@ -434,10 +430,6 @@
       "title": "Your UCT News library: save or unsave a headline, its note, collections"
      },
      {
-      "id": "recentlyDeleted",
-      "title": "Recently deleted: bring back a deleted watchlist, layout or saved screen"
-     },
-     {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
@@ -467,7 +459,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -663,10 +655,6 @@
       "title": "Your UCT News library: save or unsave a headline, its note, collections"
      },
      {
-      "id": "recentlyDeleted",
-      "title": "Recently deleted: bring back a deleted watchlist, layout or saved screen"
-     },
-     {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
@@ -696,7 +684,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -906,10 +894,6 @@
       "title": "Your UCT News library: save or unsave a headline, its note, collections"
      },
      {
-      "id": "recentlyDeleted",
-      "title": "Recently deleted: bring back a deleted watchlist, layout or saved screen"
-     },
-     {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
@@ -939,7 +923,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -1159,10 +1143,6 @@
       "title": "Your UCT News library: save or unsave a headline, its note, collections"
      },
      {
-      "id": "recentlyDeleted",
-      "title": "Recently deleted: bring back a deleted watchlist, layout or saved screen"
-     },
-     {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
@@ -1192,7 +1172,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -1384,10 +1364,6 @@
       "title": "Your UCT News library: save or unsave a headline, its note, collections"
      },
      {
-      "id": "recentlyDeleted",
-      "title": "Recently deleted: bring back a deleted watchlist, layout or saved screen"
-     },
-     {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
@@ -1417,7 +1393,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -1544,7 +1520,6 @@
     "chartSetup",
     "compareGroups",
     "newsLibrary",
-    "recentlyDeleted",
     "chartMenu",
     "chartFeatures",
     "chartGrid",

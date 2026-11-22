@@ -11,7 +11,7 @@ import { decideMode } from './policy'
 import { commitPlan } from './runtime'
 import { fastParse } from './fastPath'
 import { buildWatchlistSource } from './host'
-import { wordsSelect } from './routing'
+import { wordsSelect, GROUPS, RECENTLY_DELETED_WORDS } from './routing'
 import { getCapability } from './capabilities'
 import { _resetRecentlyDeleted, resolveDeleted, loadDeleted } from './capabilities/recentlyDeleted'
 import { stateEffects } from './stateRail'
@@ -255,11 +255,14 @@ describe('recentlyDeleted.list and the words', () => {
     expect(fastParse('restore my deleted Momentum screen', { host }).ops[0].args).toEqual({ item: 'Momentum', kind: 'screen' })
   })
 
-  it('routing: its own words select the group; deleting, versions, tickers and panes never do', () => {
+  it('routing: it rides in the existing words-only layoutBar group (no group of its own); its words select layoutBar; deleting, versions, tickers and panes never match them', () => {
+    const own = (t) => RECENTLY_DELETED_WORDS.some(re => re.test(t.toLowerCase()))
+    expect(GROUPS.some(g => g.id === 'recentlyDeleted')).toBe(false)
+    expect(GROUPS.find(g => g.id === 'layoutBar').actions).toEqual(expect.arrayContaining(['recentlyDeleted.list', 'recentlyDeleted.restore']))
     for (const t of ['bring back my Momentum watchlist', 'undelete the Swing layout', 'show my recently deleted screens', 'what did I delete',
-      'restore the watchlist I deleted', 'can I get my deleted layout back', 'bring my Momentum watchlist back']) expect(wordsSelect('recentlyDeleted', t), t).toBe(true)
+      'restore the watchlist I deleted', 'can I get my deleted layout back', 'bring my Momentum watchlist back']) { expect(own(t), t).toBe(true); expect(wordsSelect('layoutBar', t), t).toBe(true) }
     for (const t of ['delete my Momentum watchlist', 'remove NVDA from my list', 'restore my layout to yesterday', 'bring back the volume pane',
-      'show my watchlists', 'undo that', 'put AAPL back in my watchlist', 'restore the default chart settings']) expect(wordsSelect('recentlyDeleted', t), t).toBe(false)
+      'show my watchlists', 'undo that', 'put AAPL back in my watchlist', 'restore the default chart settings']) expect(own(t), t).toBe(false)
   })
 
   it('resolveDeleted: an id, an exact name, words of ONE name; never similarity', () => {

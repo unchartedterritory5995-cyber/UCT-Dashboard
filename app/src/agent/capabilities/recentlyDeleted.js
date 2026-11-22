@@ -282,11 +282,12 @@ export function registerRecentlyDeletedCapabilities() {
   if (registered) return
   registered = true
   registerTargetKind(recentlyDeletedKind)
-  // The items are shown only when the member asks about deleted things (the group is words-only): the model names an
-  // item by its real id, never from memory. The lists are re-read before that turn (refreshGroup).
+  // The items are shown only when the member asks about deleted things (DELETED_WORDS): the model names an item by its real
+  // id, never from memory. The lists are re-read before a turn routed with `layoutBar`, the group recentlyDeleted.* rides in
+  // (refreshGroup; routing.js RECENTLY_DELETED_WORDS add that group).
   registerContextProvider({
     key: 'recentlyDeleted',
-    refreshGroup: 'recentlyDeleted',
+    refreshGroup: 'layoutBar',
     refresh: () => loadDeleted({ force: true }),
     compact: (list) => (list || []).slice(0, 1),
     build: (host, refFor, { message = '', nl1 = false } = {}) => {
