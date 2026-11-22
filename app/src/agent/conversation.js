@@ -77,6 +77,10 @@ const CHART_SETUP = new Set(['widget.add', 'widget.addCharts', 'chart.setSymbol'
 export function aboutIndicators(memory, epoch) {
   const last = memory?.lastTurn?.(epoch)
   if (!last || !last.ops.length) return false
+  // ⛔ STALE-REFERENT GUARD (11-18): "add a 20 ema" → "turn on the grid lines" (already on: nothing committed) → "make it
+  // thicker" thickened the EMA. A member message since that change which neither committed nor pointed back at the
+  // conversation's objects moved the conversation on: a bare pronoun no longer means its indicators (memory.pronounLive)
+  if (typeof memory.pronounLive === 'function' && !memory.pronounLive()) return false
   const isInd = (o) => getCapability(o.action)?.target === 'indicatorEdits'
   if (!last.ops.some(isInd)) return false
   const created = new Set(last.ops.filter(o => o.action === 'widget.add' || o.action === 'widget.addCharts').map(o => String(o.target)))
@@ -903,7 +907,27 @@ const CHART_POINTER = /\s(?:on|to|onto|in|from|off|off of)\s+(?:(this|that|my|th
  * A follow-up about what this conversation did. → null (not one this module reads: the fast path / the model
  * decide, exactly as before) | { kind: 'ops', ops, pick? } | { kind: 'say', text } | { kind: 'ask', text, choices, words }
  */
-export function resolveFollowUp(text, { host, memory, epoch = null, working = null } = {}) {
+export function resolveFollowUp(text, opts = {}) {
+  const r = readFollowUp(text, opts)
+  // ⭐ STALE-REFERENT GUARD (memory.pronounLive): the thread is still about the conversation's indicators when this message
+  // was read as a follow-up to them (its ops, a "which one?" / "which chart?" — even when its change turns out a no-op: "make it red" when
+  // it already is), when it only acknowledges ("thanks", "ok cool"), or when it names one of them ("what's the ema at?")
+  if (r || keepsThread(text, opts)) { try { opts.memory?.noteEngaged?.() } catch { /* a stand-in memory */ } }
+  return r
+}
+const ACK = /^(?:(?:ok|okay|k|kk|thanks|thank you|thank u|thx|ty|cool|great|nice|perfect|awesome|sweet|good|got it|looks good|love it|that works|lovely|neat|wow|yes|yep|yeah|appreciate it)(?: (?:so much|a lot|man|dude))?[\s,.!]*)+$/
+function keepsThread(text, { host, memory, epoch = null } = {}) {
+  const s = String(text || '').toLowerCase().replace(/[^a-z0-9\s,.!']/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!s) return false
+  if (ACK.test(s)) return true
+  let live = []
+  try { live = liveIndicators(host, memory, epoch) } catch { live = [] }
+  if (!live.length) return false
+  const words = new Set(s.replace(/[,.!']/g, ' ').split(' ').filter(Boolean))
+  return live.some(i => [i.type, String(i.defId || '').toLowerCase(), String(i.name || '').toLowerCase().split(/[\s(]/)[0]]
+    .some(w => w && w.length >= 2 && words.has(w)))
+}
+function readFollowUp(text, { host, memory, epoch = null, working = null } = {}) {
   if (!memory || !host) return null
   const raw = String(text || '')
   if (!raw.trim() || raw.length > 200) return null

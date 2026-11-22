@@ -458,6 +458,18 @@ CREATE TABLE IF NOT EXISTS scan_hits (
   PRIMARY KEY (def_hash, tf, as_of, ticker)
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS idx_scan_hits_ticker ON scan_hits(ticker, as_of DESC);
+-- TRACK 6 item 2b (2026-11-22): a definition the sweep REFUSED AT RESOLUTION (it is not scannable), by name,
+-- keyed by its content and the engine number (`scan_evaluator._refusal_key`), with the session it was first
+-- refused for. The nightly sweep and the boot catch-up do not hand it again until the key moves.
+CREATE TABLE IF NOT EXISTS scan_refused (
+  ref_key    TEXT    NOT NULL,
+  tf         TEXT    NOT NULL,
+  as_of      INTEGER NOT NULL,
+  gate       TEXT    NOT NULL,
+  detail     TEXT    NOT NULL,
+  refused_at REAL    NOT NULL,
+  PRIMARY KEY (ref_key, tf)
+) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS scan_coverage (
   def_hash        TEXT    NOT NULL,

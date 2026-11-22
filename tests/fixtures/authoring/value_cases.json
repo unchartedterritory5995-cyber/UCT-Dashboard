@@ -13439,6 +13439,159 @@
      "P&L"
     ]
    }
+  },
+  {
+   "id": "cap-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "In a pane under the chart, plot how many bars back the most recent close above today's close was, looking back at most 250 bars, and plot nothing when there is none",
+   "rule": {
+    "digest": "1f8bf4cc3ed7ce66",
+    "history": [
+     {
+      "digest": "1f8bf4cc3ed7ce66",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a loop that stops when it finds the bar (`while`, or `for` with a break)",
+   "distinguishes": "a value on 1,951 of 2,000 bars, 140 distinct counts, the largest 248; nothing on 49 bars, of which 19 have a higher close further back than 250 bars (those are the bars a look-back with no limit would get wrong)"
+  },
+  {
+   "id": "cap-02",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Let me choose the type of moving average in the settings, SMA, EMA or WMA, with SMA as the default and a length of 20, and plot that average on the price chart",
+   "rule": {
+    "digest": "e1878a6c3c77f435",
+    "history": [
+     {
+      "digest": "e1878a6c3c77f435",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a choice among three calculations by a setting (`switch`)",
+   "distinguishes": "the default line has a value on 1,981 of 2,000 bars; only the DEFAULT choice is held (the script runs with its defaults)"
+  },
+  {
+   "id": "cap-03",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the average of the last 5 swing highs as a line, where a swing high is a bar whose high is above the highs of the 3 bars before it and the 3 bars after it",
+   "rule": {
+    "digest": "57253976d21d0b9d",
+    "history": [
+     {
+      "digest": "57253976d21d0b9d",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a list that keeps the last five values (`array.*`)",
+   "distinguishes": "203 swing highs; the average has a value on 1,960 bars and changes on 199 of them"
+  },
+  {
+   "id": "cap-04",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Draw a horizontal line at each of the last 3 swing lows, where a swing low is a bar whose low is below the lows of the 3 bars before it and the 3 bars after it, from the swing bar to the right edge, and remove the oldest line when a new swing low makes a fourth",
+   "rule": {
+    "digest": "c1f87cf94b2fa095",
+    "history": [
+     {
+      "digest": "c1f87cf94b2fa095",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a list of drawings, the oldest deleted (`array<line>`, `line.delete`)",
+   "distinguishes": "189 swing lows over the chart; on the newest bar the three lines are at [113.4, 112.19, 108.65]"
+  },
+  {
+   "id": "cap-05",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Draw a line from the lowest low of the last 60 bars to the latest close, and put a label at the end of the line showing how many dollars the line rises",
+   "rule": {
+    "digest": "250f99befbb6c5f3",
+    "history": [
+     {
+      "digest": "250f99befbb6c5f3",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a drawing read back, or the same two numbers kept (`line.get_*`)",
+   "distinguishes": "the line runs from 2026-11-17 (105.03) to 2027-01-29 (113.09); the rise is 8.06"
+  },
+  {
+   "id": "cap-06",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Put one label on the latest bar only, showing how far the close is above or below its 50 day simple moving average, in percent with two decimals",
+   "rule": {
+    "digest": "56f7b3baac9d8eea",
+    "history": [
+     {
+      "digest": "56f7b3baac9d8eea",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "the newest bar known as such (`barstate.islast`)",
+   "distinguishes": "one label, on 2027-01-29, reading -0.76 percent"
+  },
+  {
+   "id": "cap-07",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the 10 day simple moving average only while the close is above the 50 day simple moving average, and nothing on the other bars",
+   "rule": {
+    "digest": "59a2c04eaf0d9e69",
+    "history": [
+     {
+      "digest": "59a2c04eaf0d9e69",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a moving average under a condition",
+   "distinguishes": "the line is shown on 922 bars and must be empty on 1,078"
+  },
+  {
+   "id": "cap-08",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Whenever a bar's low is above the prior bar's high, draw a box from the prior bar's high up to that bar's low, starting at that bar and extended to the right until a later bar's low drops below the top of the box, then end the box at that bar. Keep the 10 newest boxes",
+   "rule": {
+    "digest": "6572457c3b35e2d8",
+    "history": [
+     {
+      "digest": "6572457c3b35e2d8",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a record per zone that lives until it is filled (your own type or parallel arrays, `box.delete`)",
+   "distinguishes": "30 gap bars over the chart; of the 10 newest boxes 2 end on the newest bar"
+  },
+  {
+   "id": "cap-09",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the average volume of the last 10 up days, where an up day closes above the prior close, skipping the down days in between",
+   "rule": {
+    "digest": "ae2ab8087fd8fb4e",
+    "history": [
+     {
+      "digest": "ae2ab8087fd8fb4e",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a list filled only on some bars, averaged (`array.*`, `for ... in`)",
+   "distinguishes": "differs from the plain 10 bar average volume on 1,974 of 2,000 bars"
   }
  ]
 }
