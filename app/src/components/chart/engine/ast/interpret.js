@@ -9366,6 +9366,14 @@ export const SERIES_GAPS_READ_NA = '__gapsReadNa'
  *  begins, not the instrument's (an index's intraday bars: yfinance holds 60 days of 5m): a chart bar before that
  *  row is UNKNOWN to `symAlignmentMask` (withheld, by name), never `na`. */
 export const SERIES_UNKNOWN_BEFORE_FIRST = '__unknownBeforeFirst'
+/** ⭐⭐ T4 E2 — set (not enumerable) on a placed corporate-events series (`pineEvents.js::markEventSeries`): `{ticker,
+ *  family, symbol, knownFrom}`, the record it was placed from. Its bars before the series' first row are before UCT's
+ *  record of the family (`SERIES_UNKNOWN_BEFORE_FIRST` withholds them) and are NAMED per bar under
+ *  `EVENT_BEFORE_RECORD_CODE` (`eventBeforeRecordMask`, `withSymAlignment`). */
+export const SERIES_EVENT_RECORD = '__eventRecord'
+/** ⭐⭐ T4 E2 — the per-bar code for a bar withheld because it lies before UCT's record of an event family (the member's
+ *  words: `pineEvents.js::eventBeforeRecordSentence`, on the strip, `nativeRegistry.externalReadNotices`). */
+export const EVENT_BEFORE_RECORD_CODE = 'other-symbol:event-before-record'
 
 /** ⭐⭐ C26 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON AN OTHER-SYMBOL BAR WE
  *  DO NOT HOLD, as a 0/1 column (1 = withheld), or null when nothing is withheld.
@@ -9446,6 +9454,49 @@ export function symAlignmentMask(tree, bars, opts) {
     }
   }
   return any ? mask : null
+}
+
+/** ⭐⭐ T4 E2 — THE BARS A TREE WITHHOLDS BECAUSE THEY LIE BEFORE UCT'S RECORD OF AN EVENT FAMILY: the chart bars before
+ *  a placed event series' first row (`SERIES_EVENT_RECORD`), and every bar within the tree's reach of one, as a 0/1
+ *  column, or null. The same bars `symAlignmentMask` withholds for that series (`SERIES_UNKNOWN_BEFORE_FIRST`), named.
+ *  ⛔ A `sym` read nested in another read is not aligned on these bars (the mask withholds it whole, unnamed). */
+export function eventBeforeRecordMask(tree, bars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  const supplied = (opts && opts.symbols) || {}
+  const nodes = []
+  const stack = [[tree, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, under] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (node.type === 'sym' && !under) {
+      const series = supplied[String(node.value).trim().toUpperCase()]
+      if (Array.isArray(series) && series[SERIES_EVENT_RECORD]) nodes.push([node, series])
+    }
+    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === LTF
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
+  }
+  if (!nodes.length || !n) return null
+  const rootReach = maxLookback(tree)
+  let mask = null
+  for (const [a, series] of nodes) {
+    let reach = Math.max(0, rootReach - maxLookback(a))
+    if (!Number.isFinite(reach)) reach = n
+    let first
+    for (const b of series) {
+      const key = b && typeof b === 'object' ? b.t : undefined
+      if (key !== undefined && key !== null && (first === undefined || key < first)) first = key
+    }
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      const key = bars[i] && typeof bars[i] === 'object' ? bars[i].t : undefined
+      // an empty series (our record starts after the chart's newest bar): every bar is before it
+      if (first === undefined || (key !== undefined && key !== null && typeof key === typeof first && key < first)) last = i
+      if (i - last <= reach) (mask = mask || new Float64Array(n))[i] = 1
+    }
+  }
+  return mask
 }
 
 /** ⭐⭐ RS RATING L5 — THE MERGE PICK, ONE AUTHORITY: for each bar of an ISO-dated series,
@@ -9605,6 +9656,8 @@ function withSymAlignment(ast, bars, out, opts) {
   if (!opts || !opts.symbols || typeof opts.symbols !== 'object') return out
   if (typeof opts.prefixProbe === 'number') return out
   if (!isColumn(out) || !treeReadsSym(ast)) return out
+  // ⭐⭐ T4 E2 — the bars before UCT's record of an event family, BY NAME, per bar (every one is inside the mask below)
+  sinkPerBar(opts, EVENT_BEFORE_RECORD_CODE, eventBeforeRecordMask(ast, bars, opts))
   const mask = symAlignmentMask(ast, bars, opts)
   if (!mask) return out
   const copy = Float64Array.from(out)

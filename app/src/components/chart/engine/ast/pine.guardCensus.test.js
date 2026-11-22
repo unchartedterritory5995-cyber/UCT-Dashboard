@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { translatePine, REFUSALS as PINE_REFUSALS } from './pine.js'
+import { ENUM_DROPS } from '../enumNaRule.js'
 
 /**
  * WHICH OF THIS DOOR'S DECLARED GUARDS THE REAL CORPORA ACTUALLY FIRE — BY NAME.
@@ -51,6 +52,11 @@ describe('the Pine guard census, by name', () => {
   })()
 
   const DECLARED = Object.keys(PINE_REFUSALS).sort()
+  /** ⭐ (NUMBER PENDING, T4 E2) the drawing door's enum rule declares its own guards, each with its sentence
+   *  (`enumNaRule.js::ENUM_DROPS`). A corpus script reaches one once its drawings are reached: 14-earnings-gap-ups,
+   *  whose earnings reads E2 serves, is withheld at `pine:enum-unreadable` (an enum method's line style). They are
+   *  declared, so a fired one is no bare code; they are not this module's, so the unexercised roster stays REFUSALS'. */
+  const DECLARED_BY_DRAWING_RULE = Object.values(ENUM_DROPS).map((d) => d.guard)
 
   it('⛔ the census read a real corpus — not vacuous', () => {
     // A moved fixture directory would otherwise leave every set empty and every
@@ -63,7 +69,7 @@ describe('the Pine guard census, by name', () => {
   it('⭐ every guard the corpora fire is one this module DECLARES', () => {
     // The direction that catches a typo'd guard name at a throw site: a guard
     // fired but never declared has no sentence, so a member sees a bare code.
-    const undeclared = [...fired.seen].filter((g) => !DECLARED.includes(g)).sort()
+    const undeclared = [...fired.seen].filter((g) => !DECLARED.includes(g) && !DECLARED_BY_DRAWING_RULE.includes(g)).sort()
     expect(undeclared, 'a guard was thrown that this module never declared').toEqual([])
   })
 

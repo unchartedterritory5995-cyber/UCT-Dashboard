@@ -490,11 +490,31 @@ OWN_FUNCTION_CANDIDATES = ("ta.supertrend", "ta.sar", "ta.kc", "ta.kcw", "ta.bb"
                            "ta.dmi", "ta.wpr", "ta.hma", "ta.linreg")
 
 
+#: ⭐ (T4 E2, NUMBER PENDING, train e95) the event reads the engine serves (`request.earnings` / `.dividends` / `.splits`)
+#: are supplied by ONE door, `GET /api/pine/events/<symbol>`, staged by `PINE_EVENTS_SUPPLY_ENABLED`
+#: (`pine_events.stage()`). Until it is `all` a member's chart answers "earnings data is not available on this chart
+#: yet", so the assistant is never handed them and the gap stays a gap: the stage the door reads is the one authority.
+EVENT_READS = ("request.earnings", "request.dividends", "request.splits")
+EVENTS_DARK_GUARD = "other-symbol:event-not-available"
+
+
+def events_open_to_members() -> bool:
+    """Does the events door answer every paid member (`PINE_EVENTS_SUPPLY_ENABLED=all`)? Read per call."""
+    from api.services import pine_events
+    return pine_events.stage() == "all"
+
+
+def _values(ref: Mapping[str, Any]) -> List[Mapping[str, Any]]:
+    """`ref["values"]`, less the event reads while their door is dark for members."""
+    rows = [v for v in ref.get("values") or [] if isinstance(v, Mapping) and isinstance(v.get("name"), str)]
+    return rows if events_open_to_members() else [v for v in rows if v["name"] not in EVENT_READS]
+
+
 def served_names(ref: Optional[Mapping[str, Any]] = None) -> frozenset:
     """The value functions and variables the document lists as served: the SAME rows it prints under
-    "VALUE FUNCTIONS AND VARIABLES" (`ref["values"]`), so rule 10 can never name one the document does not."""
+    "VALUE FUNCTIONS AND VARIABLES" (`_values`), so rule 10 can never name one the document does not."""
     ref = reference() if ref is None else ref
-    return frozenset(v["name"] for v in ref.get("values") or [] if isinstance(v, Mapping) and isinstance(v.get("name"), str))
+    return frozenset(v["name"] for v in _values(ref))
 
 
 def _own_functions_said(ref: Optional[Mapping[str, Any]] = None) -> str:
@@ -568,7 +588,7 @@ def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[s
     out += _lines("WHAT A SCRIPT CAN SHOW", [f"- `{name}`" for name in served_outputs(ref)])
 
     out += _lines("VALUE FUNCTIONS AND VARIABLES (each with a call the engine accepts)",
-                  [f"- `{v['name']}`  e.g. `{v['call']}`" for v in ref.get("values") or []])
+                  [f"- `{v['name']}`  e.g. `{v['call']}`" for v in _values(ref)])
 
     drawing = ref.get("drawing") or {}
     for family in ref.get("families") or []:
@@ -675,6 +695,10 @@ def gap_rows(doc: Optional[Mapping[str, Any]] = None, admitted: Optional[List[st
         if p.get("runs") is not True:
             row["guard"] = p.get("guard")
             row["says"] = (p.get("why") or p.get("headline") or "").strip()
+        elif pine_capabilities._EVENTS_RX.search(p["source"]) and not events_open_to_members():
+            # the engine reads it; the door that supplies it is dark for members (`EVENT_READS`)
+            row["guard"] = EVENTS_DARK_GUARD
+            row["says"] = "the engine reads it, and the data is not available on a member's chart yet"
         elif p.get("lane") == "runtime":
             missing = sorted(set(pine_capabilities.capabilities_of(p["source"])) - allowed)
             if missing:

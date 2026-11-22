@@ -16,7 +16,7 @@
 // ⛔ ONE ADDITION, INERT ON THE CHART: `ctx.workSink` reaches every `interpret` here as
 // `opts.workSink`, where the evaluator counts its node evaluations (`interpret.js::evalNode`).
 // No chart sets it, so the chart's `interpret` options are the ones they were.
-import { interpret, listingSeedIsUnpinned } from './ast/interpret'
+import { interpret, listingSeedIsUnpinned, SERIES_EVENT_RECORD } from './ast/interpret'
 import { ENGINE_ERROR, isRefusal } from './ast/parse'
 import { foldBound, bindConstsFor } from './ast/bind'
 import {
@@ -528,9 +528,26 @@ const OTHER_SYMBOLS = '__otherSymbols'
 
 function withOtherSymbols(out, other) {
   if (other) {
+    const events = eventRecordsOf(other.symbols)
     Object.defineProperty(out, OTHER_SYMBOLS, {
-      value: Object.freeze({ served: other.served, refused: other.refused }), enumerable: false,
+      value: Object.freeze({ served: other.served, refused: other.refused, ...(events.length ? { events } : {}) }), enumerable: false,
     })
+  }
+  return out
+}
+
+/** ⭐⭐ T4 E2 — each served corporate-events series' record (`SERIES_EVENT_RECORD`: `{ticker, family, symbol, knownFrom}`)
+ *  as PLAIN DATA, so it rides the record across the host worker's `postMessage` and the strip can say why a bar before
+ *  UCT's record of the family is withheld (`nativeRegistry.externalReadNotices`). ⛔ Not frozen per entry: a worker's
+ *  answer is a structured clone, and the main thread's bytes must equal it. */
+function eventRecordsOf(symbols) {
+  const out = []
+  for (const series of Object.values(symbols || {})) {
+    const r = Array.isArray(series) ? series[SERIES_EVENT_RECORD] : null
+    if (r && typeof r === 'object' && r.fund !== true) {
+      out.push({ ticker: r.ticker, family: r.family, symbol: r.symbol, knownFrom: r.knownFrom, from: r.from || null,
+        ...(r.window ? { window: r.window } : {}) })
+    }
   }
   return out
 }

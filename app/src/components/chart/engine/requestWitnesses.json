@@ -1,5 +1,5 @@
 {
-  "_": "⭐⭐ RS RATING L1b / L6b (2026-11-14) — OTHER-SYMBOL SPELLINGS THAT ARE SERVED ONLY BEHIND A CAPTURE WITNESS. Each key is the spelling a script writes (`request.security(\"SP:SPX\", …)`; a seed as `request.seed(source, symbol, …)` spells `<SOURCE>:<SYMBOL>`, upper-cased). `store` is the key our bars route serves it under (`/api/bars/<store>`), `timeframes` the chart timeframes the witness covers, `queue_row` / `probe` the capture that settles it, `alignment` how the witness places the series' bars on a chart's bars (`otherSymbols.js::WITNESS_ALIGNMENTS`). ⛔ A ROW SERVES ONLY WHEN IT CARRIES `witness` (the capture) AND `captured` (its date) — the rule `symbolScope.json::confirmed` keeps: a row without a witness is an assertion wearing a data structure. Without them the spelling is refused BY NAME, citing its queue row (`otherSymbols.js::staticallyUnservable`, the one gate both lanes ask). Turning a row on is ONE data edit. ⭐ The `seed` rows are the frontend's manifest of `api/services/pine_seed_store.py::SEEDS`; `tests/test_pine_seed_manifest.py` rails that the two agree. ⭐⭐ RS RATING L11 (2026-11-17) — a chart timeframe with a block of its own (`periods.<tf>`) is served from the series HELD at another timeframe (`held`; fetched and cached under `<store>@<held>`, `otherSymbols.js::heldFetchOf`) and read per request timeframe as its capture witnessed (`reads`: `period` = the chart's own timeframe, a FOLD; `D` = a daily read below the chart, the row's daily read SAMPLED per chart bar; `otherSymbols.js::WITNESS_PERIOD_READS`). A block serves only with its own `witness` + `captured`; a timeframe listed in `timeframes` with no block is the row's own (`alignment`).",
+  "_": "⭐⭐ RS RATING L1b / L6b (2026-11-14) — OTHER-SYMBOL SPELLINGS THAT ARE SERVED ONLY BEHIND A CAPTURE WITNESS. Each key is the spelling a script writes (`request.security(\"SP:SPX\", …)`; a seed as `request.seed(source, symbol, …)` spells `<SOURCE>:<SYMBOL>`, upper-cased). `store` is the key our bars route serves it under (`/api/bars/<store>`), `timeframes` the chart timeframes the witness covers, `queue_row` / `probe` the capture that settles it, `alignment` how the witness places the series' bars on a chart's bars (`otherSymbols.js::WITNESS_ALIGNMENTS`). ⛔ A ROW SERVES ONLY WHEN IT CARRIES `witness` (the capture) AND `captured` (its date) — the rule `symbolScope.json::confirmed` keeps: a row without a witness is an assertion wearing a data structure. Without them the spelling is refused BY NAME, citing its queue row (`otherSymbols.js::staticallyUnservable`, the one gate both lanes ask). Turning a row on is ONE data edit. ⭐ The `seed` rows are the frontend's manifest of `api/services/pine_seed_store.py::SEEDS`; `tests/test_pine_seed_manifest.py` rails that the two agree. ⭐⭐ RS RATING L11 (2026-11-17) — a chart timeframe with a block of its own (`periods.<tf>`) is served from the series HELD at another timeframe (`held`; fetched and cached under `<store>@<held>`, `otherSymbols.js::heldFetchOf`) and read per request timeframe as its capture witnessed (`reads`: `period` = the chart's own timeframe, a FOLD; `D` = a daily read below the chart, the row's daily read SAMPLED per chart bar; `otherSymbols.js::WITNESS_PERIOD_READS`). A block serves only with its own `witness` + `captured`; a timeframe listed in `timeframes` with no block is the row's own (`alignment`). ⭐⭐ T4 E2 (2026-11-22) — rows of `kind: \"event\"` (one per family: earnings, dividends, splits) are NOT spellings: no symbol string reads them (`otherSymbols.js::witnessRowsOf` skips them). They witness where TradingView places the chart's OWN corporate events (`request.earnings` / `request.dividends` / `request.splits`, rewritten at parse, `pine.js::eventAsSecurity`), fetched from `/api/pine/events/<chart symbol>` and placed by `placement` (`pineEvents.js::placeEvents`) on the `timeframes` listed; a row serves only with `witness` + `captured`.",
   "rows": {
     "SP:SPX": {
       "kind": "index",
@@ -212,6 +212,57 @@
           "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 60m (extended-hours chart, captured 2026-11-18 after the close): each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00 bar, or the next bar where the chart has none at 19:00; in EDT the next session's 04:00 bar), several rows on one bar the NEWEST (a weekend's: the Monday row), every other bar na. 10,353 of 10,353 graded bars, values and na, against pine_seed_store's rows recorded beside the capture (`utc-midnight-at-or-after`); 'the oldest wins' is off on the 2 weekend bars, a bar that CONTAINS the instant and ET midnight are off on 17 to 27."
         }
       }
+    },
+    "EVENTS:EARNINGS": {
+      "kind": "event",
+      "fetch": "/api/pine/events/<the chart's own symbol> (api/routers/pine_events.py, E1)",
+      "timeframes": [
+        "D",
+        "W"
+      ],
+      "placement": "session-close-stamp",
+      "queue_row": "Q-S4-E / Q-S4-D / Q-S4-S (docs/pine/capture-queue-2026-11-19-s4-data.md)",
+      "evidence": "docs/pine/evidence/2026-11-22-t4-e0-event-placement/EVIDENCE.md (E0, #2439: rules R1 and R2)",
+      "captured": "2026-11-20",
+      "family": "earnings",
+      "probe": "tools/visual_conformance/probes/vw-data-earnings.pine",
+      "witness": "vw-data-earnings-{aapl,jpm,mu,nvda,spy}-1d-2026-11-20-preopen, vw-data-earnings-{aapl,jpm}-1w-2026-11-20-preopen (s4-closed-retake-2026-11-20 batch, local; UCT probes)",
+      "fields": "earnings.actual and earnings.estimate as UCT holds each reported quarter (E1); earnings.standardized and dividends.net are refused by name",
+      "how": "TradingView's request.earnings on NASDAQ:AAPL, NYSE:JPM, NASDAQ:MU, NASDAQ:NVDA 1D and AAPL, JPM 1W (AMEX:SPY 1D: na on every bar, the ETF control): each event stamped at its date's session close; lookahead_on reads it on the first bar closing at or after that instant (the event's own bar), lookahead_off on the first bar opening after it (the next session on 1D, the next week on 1W); an event dated on a non-session day lands both reads on the next session (R1, 1,603 of 1,606 events across the three families, the 3 others that named exception). gaps_on: the value on that bar, na on every other; gaps_off: carried from it, na before the first event (R2, 0 mismatching bars). Monthly is not captured (W-E2); intraday needs a report's time of day, which UCT does not hold."
+    },
+    "EVENTS:DIVIDENDS": {
+      "kind": "event",
+      "fetch": "/api/pine/events/<the chart's own symbol> (api/routers/pine_events.py, E1)",
+      "timeframes": [
+        "D",
+        "W"
+      ],
+      "placement": "session-close-stamp",
+      "queue_row": "Q-S4-E / Q-S4-D / Q-S4-S (docs/pine/capture-queue-2026-11-19-s4-data.md)",
+      "evidence": "docs/pine/evidence/2026-11-22-t4-e0-event-placement/EVIDENCE.md (E0, #2439: rules R1 and R2)",
+      "captured": "2026-11-20",
+      "family": "dividends",
+      "probe": "tools/visual_conformance/probes/vw-data-dividends.pine",
+      "witness": "vw-data-dividends-{aapl,jpm,nvda,o,spy}-1d-2026-11-20-preopen, vw-data-dividends-aapl-1w-2026-11-20-preopen (s4-closed-retake-2026-11-20 batch, local; UCT probes)",
+      "fields": "dividends.gross as declared (never split-adjusted), read at float32 as TradingView stores it",
+      "how": "TradingView's request.dividends on NASDAQ:AAPL, NYSE:JPM, NASDAQ:NVDA, NYSE:O, AMEX:SPY 1D and AAPL 1W: each event stamped at its date's session close; lookahead_on reads it on the first bar closing at or after that instant (the event's own bar), lookahead_off on the first bar opening after it (the next session on 1D, the next week on 1W); an event dated on a non-session day lands both reads on the next session (R1, 1,603 of 1,606 events across the three families, the 3 others that named exception). gaps_on: the value on that bar, na on every other; gaps_off: carried from it, na before the first event (R2, 0 mismatching bars). Monthly is not captured (W-E2); intraday needs a report's time of day, which UCT does not hold."
+    },
+    "EVENTS:SPLITS": {
+      "kind": "event",
+      "fetch": "/api/pine/events/<the chart's own symbol> (api/routers/pine_events.py, E1)",
+      "timeframes": [
+        "D",
+        "W"
+      ],
+      "placement": "session-close-stamp",
+      "queue_row": "Q-S4-E / Q-S4-D / Q-S4-S (docs/pine/capture-queue-2026-11-19-s4-data.md)",
+      "evidence": "docs/pine/evidence/2026-11-22-t4-e0-event-placement/EVIDENCE.md (E0, #2439: rules R1 and R2)",
+      "captured": "2026-11-20",
+      "family": "splits",
+      "probe": "tools/visual_conformance/probes/vw-data-splits.pine",
+      "witness": "vw-data-splits-{aapl,ge,nvda,tsla}-1d-2026-11-20-preopen, vw-data-splits-nvda-1w-2026-11-20-preopen (s4-closed-retake-2026-11-20 batch, local; UCT probes)",
+      "fields": "splits.numerator (the new shares) and splits.denominator (the old)",
+      "how": "TradingView's request.splits on NASDAQ:AAPL, NYSE:GE, NASDAQ:NVDA, NASDAQ:TSLA 1D and NVDA 1W: each event stamped at its date's session close; lookahead_on reads it on the first bar closing at or after that instant (the event's own bar), lookahead_off on the first bar opening after it (the next session on 1D, the next week on 1W); an event dated on a non-session day lands both reads on the next session (R1, 1,603 of 1,606 events across the three families, the 3 others that named exception). gaps_on: the value on that bar, na on every other; gaps_off: carried from it, na before the first event (R2, 0 mismatching bars). Monthly is not captured (W-E2); intraday needs a report's time of day, which UCT does not hold."
     }
   }
 }

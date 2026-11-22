@@ -21,7 +21,10 @@
 // network traffic for series that will never be bound.
 import { useEffect, useMemo, useState } from 'react'
 import { symbolsNeeded } from './sourceRef'
-import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf, OWN_DAILY_KEY, BARS_ASK_MAX } from './otherSymbols'
+import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf, OWN_DAILY_KEY, BARS_ASK_MAX, eventsNeeded } from './otherSymbols'
+// ⭐⭐ T4 E2 — the chart's own corporate events: one door (`/api/pine/events/<symbol>`), never `/api/bars`
+import { EVENTS_KEY } from './pineEvents'
+import { ensureEvents, subscribeEvents } from './eventSupply'
 import { runtimeReadsOwnDaily } from './runtime/runtimeColumns'
 import { runtimeReadsOwnDailyOffThread, ownDailyKeyOf, onOwnDailyAnswer } from './runtime/ownDailyAsync'
 import { instanceDocumentForFetch } from './symbolInputs'
@@ -54,8 +57,14 @@ export function heldSpanFor(loaded, requested) {
 
 export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = null, heldSessions = 0) {
   const list = Array.isArray(keys) ? keys : []
-  const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY), tf, barCount, fetcher)
+  const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY && k !== EVENTS_KEY), tf, barCount, fetcher)
   for (const k of list) {
+    // ⭐⭐ T4 E2 — this chart symbol's corporate events: its own door and cache (`eventSupply.js`), never a bars fetch
+    if (k === EVENTS_KEY) {
+      const ev = chartSymbol ? ensureEvents(chartSymbol, fetcher) : null
+      if (ev) out.set(k, ev)
+      continue
+    }
     // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows (`OWN_DAILY_KEY`), as deep as a held daily read
     if (k === OWN_DAILY_KEY) {
       if (!chartSymbol) continue
@@ -86,6 +95,8 @@ export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSym
   if (!isAppVisible()) return 0
   let started = 0
   for (const k of Array.isArray(keys) ? keys : []) {
+    // ⭐⭐ T4 E2 — the events entry has no tail (its own door, `eventSupply.js`, keeps its age)
+    if (k === EVENTS_KEY) continue
     // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows ride the tail as a held daily key does
     if (k === OWN_DAILY_KEY && !chartSymbol) continue
     const held = k === OWN_DAILY_KEY ? { symbol: String(chartSymbol).trim().toUpperCase(), tf: 'D' } : heldKeyParts(k)
@@ -98,6 +109,15 @@ export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSym
     if (refreshSecondaryTail(symbol, at, depth, fetcher)) started += 1
   }
   return started
+}
+
+/** ⭐⭐ T4 E2 — does any instance's document read this chart's corporate events (`otherSymbols.js::eventsNeeded`)? */
+export function eventsNeededBy(instances, defOf) {
+  for (const inst of Array.isArray(instances) ? instances : []) {
+    const def = inst && defOf ? defOf(inst.defId) : null
+    if (def && eventsNeeded(def)) return true
+  }
+  return false
 }
 
 /** Do two maps hold the same entry OBJECT for the same symbols? */
@@ -173,6 +193,8 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
       return a
     }
     if (chartSymbol && ownDailyNeeded(listed, defOf, tf, chartSymbolMeta, ask)) symbols.push(OWN_DAILY_KEY)
+    // ⭐⭐ T4 E2 — and this chart symbol's corporate events, for a Pine document that reads them (`eventsNeeded`)
+    if (chartSymbol && eventsNeededBy(listed, defOf)) symbols.push(EVENTS_KEY)
     const offAnswer = askedOff.size
       ? onOwnDailyAnswer((k, yes) => { if (alive && yes === false && askedOff.has(k)) setOwnDailyGen((n) => n + 1) })
       : null
@@ -198,13 +220,15 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
     // is what tells this chart a response landed, and re-reading the cache is
     // cheap because the fetch is already deduped per URL.
     const unsub = subscribe(apply)
+    // ⭐⭐ T4 E2 — and an events answer landing (or its retry coming due) binds again
+    const unsubEvents = symbols.includes(EVENTS_KEY) ? subscribeEvents(apply) : null
     // ⭐⭐ RS RATING L11 PR 2 — a forming series is re-read while this chart is up (`liveTailTick`); a
     // changed entry notifies, and `apply` above hands the chart the new one
     const timer = setInterval(() => {
       liveTailTick(symbols, tf, barCount, fetcher, typeof chartFormingOf === 'function' ? chartFormingOf() : null, chartSymbol,
         heldSessions)
     }, LIVE_TAIL_MS)
-    return () => { alive = false; unsub(); clearInterval(timer); if (offAnswer) offAnswer() }
+    return () => { alive = false; unsub(); if (unsubEvents) unsubEvents(); clearInterval(timer); if (offAnswer) offAnswer() }
   }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol, chartSymbolMeta, ownDailyGen, heldSessions])
 
   return state.map
