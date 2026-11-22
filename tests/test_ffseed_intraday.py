@@ -795,7 +795,8 @@ def test_a_failed_intraday_pass_never_stops_the_publish(seq, monkeypatch):
 @pytest.fixture
 def night(monkeypatch):
     """The builder loop with the provider-facing parts stubbed. `script["passes"]` is what each intraday
-    pass returns and `script["refusals"]` the timeframes each build refuses, in order (the last repeats)."""
+    pass returns and `script["refusals"]` the timeframes each build refuses, in order (the last repeats;
+    an exception in either list is raised)."""
     from api.services import data_sync
     monkeypatch.setattr(data_sync, "credentials_ok", lambda: True)
     monkeypatch.setattr(ffseed, "_force_spent_said", "")
@@ -805,15 +806,18 @@ def night(monkeypatch):
 
     def take(key, default):
         q = script[key]
-        return q.pop(0) if len(q) > 1 else (q[0] if q else default)
+        item = q.pop(0) if len(q) > 1 else (q[0] if q else default)
+        if isinstance(item, Exception):
+            raise item
+        return item
 
     def the_pass(asof, **kw):
         log.append(("pass", asof))
         return take("passes", {"tfs": {"5": {"done": 0}}})
 
     def bp(asof):
-        builds[0] += 1
         refused = list(take("refusals", []))
+        builds[0] += 1
         log.append(("publish", asof, tuple(refused)))
         m = {"build": f"B{builds[0]}", "asof": asof.isoformat(),
              "tfs": {tf: {"symbols": 1, "bytes": 1} for tf in ffseed.SEED_TFS if tf not in refused}}
@@ -868,6 +872,22 @@ def test_the_gated_retry_is_bounded_and_does_not_republish_when_the_pass_proved_
     assert ffseed.gated_retry_due(at(SAT, 9, 30)) == FRI
     monkeypatch.setenv("FFSEED_INTRADAY_BACKFILL", "0")     # no pass, no retry
     assert ffseed.gated_retry_due(at(SAT, 9, 30)) is None
+
+
+def test_a_retry_is_counted_before_its_work_so_a_failure_inside_it_cannot_loop(night):
+    log, script = night
+    script["passes"] = [{"tfs": {"30": {"done": 0}}}, RuntimeError("the provider client died"),
+                        {"tfs": {"30": {"done": 4}}}]
+    script["refusals"] = [["30"], ffseed.SeedBuildError("tf D: 3 symbols, floor 1500: refusing to publish")]
+    ffseed._write_marker(20261119)
+    ffseed.tick(at(FRI, 20, 20))
+    assert ffseed.tick(at(FRI, 20, 50)) is None            # retry 1: the pass raised
+    assert ffseed._read_retry()["tries"] == 1
+    with pytest.raises(ffseed.SeedBuildError):             # retry 2: the rebuild was unfit to publish
+        ffseed.tick(at(FRI, 21, 20))
+    assert ffseed._read_retry()["tries"] == 2
+    assert ffseed.tick(at(FRI, 21, 50)) is None and ffseed.gated_retry_due(at(FRI, 21, 50)) is None
+    assert log == [("pass", FRI), ("publish", FRI, ("30",)), ("pass", FRI), ("pass", FRI)]
 
 
 def test_the_retry_waits_for_the_quiet_gap_and_never_runs_in_a_later_session(night, monkeypatch):

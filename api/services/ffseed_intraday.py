@@ -13,8 +13,12 @@ V 84,444 from its own minutes). 6 of 3,541 symbols' 30m reached the session's la
 newest bar predates the session), so it holds the crawler's one visit of the day (symbol A: 11:19:32 ET,
 last row the 11:15 bucket).
 
-THE PASS (`complete_session`). Runs inside the nightly seed build (`ffseed.nightly`), after the as-of
-session's EXTENDED hours have ended, for every seed-universe symbol:
+THE PASS (`complete_session`). Runs inside the nightly seed build (`ffseed.nightly`), and only in the QUIET
+GAP of its session (`cannot_run`): after the as-of session's EXTENDED hours have ended and before the next
+trading day's extended session opens (04:00 ET). Before the gap a "whole session" is not whole; after it
+the store is being written by the day's own fetches (which void the proofs anyway) and ~7,300 requests and
+~14,400 series writes would land on a live session. A pass still running when the gap closes stops there
+(`not_reached`). For every seed-universe symbol:
 
   * 5m and 15m are PROVIDER series: the as-of session (and the days back to the stored tail, when the store
     stops before it) is fetched at that timespan with the same provider read the serve path's range repairs
@@ -22,8 +26,9 @@ session's EXTENDED hours have ended, for every seed-universe symbol:
     `provider_check`). 2 requests a symbol.
   * 30m and 60m are DERIVED series: the serve path's rule is that a stored 30m / 60m bucket is always the
     resample of the STORED 15m rows in it (`bars_fetch._derive_from_stored_base`, the one derivation path).
-    The pass re-derives them from the 15m it has just completed, from the first day that 15m changed. No
-    provider call.
+    The pass re-derives them from the 15m it has just completed, over exactly the days it refetched: the
+    15m request starts at the oldest of the three tails (15m, 30m, 60m), so no day is resampled from 15m
+    rows the pass did not just read whole. No provider call.
 
 ⛔ NOT DERIVED FROM 1m. Rolling a symbol's provider 1m up to 5m does not give the provider's 5m: measured
 on symbol A (2026-11-20, complete buckets only), all 21 comparable 5m buckets had equal prices and 19 had
@@ -32,14 +37,22 @@ fractional and the store keeps each bar's integer part, so a sum of truncated mi
 sum. `/api/bars` answers 5m and 15m with the provider's aggregates at that timespan, so the seed must hold
 those.
 
-THE PROOF (`known_complete`). A (symbol, timeframe) is COMPLETE for the as-of session when THIS pass, at an
-instant after that session's extended hours ended, asked the provider for the whole session (or derived it
-from a 15m that is complete), the rows reached the store, and the series has not been written since. The
+THE PROOF (`known_complete`). A (symbol, timeframe) is COMPLETE for the as-of session when THIS pass, in
+that session's quiet gap, asked the provider for the whole session (or derived it from a 15m that is
+complete), the answer was WHOLE, its rows reached the store, and the series has not been written since.
+
+WHOLE (`later_trade`) is a rule about the answer, not about what the store held: the answer has bars OF the
+as-of day (an empty answer, or one with other days only, proves nothing), and NO OTHER RECORD of that
+symbol's as-of day shows a trade in a later bucket. The records: the newest as-of-day bar the store holds
+at 1m (the 1m pass's own, separate provider read), at 5m and at 15m, and the newest as-of-day bar of the
+other timeframe's answer in this same pass (a separate request). A trade in any of them is a trade the
+provider's bar at this timeframe must hold, so an answer that ends before its bucket was cut short.
+Whichever record is missing is simply not consulted; the two answers always check each other. The
 ledger (<DATA_DIR>/ffseed_intraday_complete.json) records, per timeframe and symbol, the store's revision
 of the series right after the pass's write; a later write (or a store replaced wholesale) changes the
 revision and the entry no longer proves anything, so the next pass asks again. A symbol with no print in
-the session's last bucket is complete all the same: the provider was asked after the close and returned
-none. `ffseed.build_tf` packs an intraday symbol only on this proof; everything else is left out of that
+the session's last bucket is complete all the same: every record agrees its trading ended earlier.
+`ffseed.build_tf` packs an intraday symbol only on this proof; everything else is left out of that
 timeframe and counted (`incomplete`).
 
 Bounded like the 1m pass: `FFSEED_INTRADAY_WORKERS` threads (default 2), `FFSEED_INTRADAY_DEADLINE_S`
@@ -55,7 +68,7 @@ import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from api.services import ffseed
@@ -105,11 +118,54 @@ def tf_roles() -> Tuple[Tuple[str, ...], Tuple[str, ...], str]:
 def settled_at(asof: date) -> int:
     """The first instant the pass may ask for `asof`: its extended session's end plus `SETTLE_S`."""
     from api.services import bars_fetch
-    return int(bars_fetch._session_window(asof, "eth")[1]) + SETTLE_S
+    _open_ts, close_ts = bars_fetch._session_window(asof, "eth")
+    return int(close_ts) + SETTLE_S
+
+
+def gap_end(asof: date) -> int:
+    """The instant the quiet gap of `asof` closes: the next trading day's extended session opens."""
+    from api.services import bars_fetch
+    open_ts, _close_ts = bars_fetch._session_window(ffseed.next_session(asof), "eth")
+    return int(open_ts)
+
+
+def cannot_run(asof: date, now_ts: float) -> Optional[str]:
+    """Why the pass for `asof` must not run at `now_ts`, or None: it runs only in the quiet gap between
+    the end of `asof`'s extended session (+ `SETTLE_S`) and the next trading day's extended open."""
+    if now_ts < settled_at(asof):
+        return "session not settled"
+    if now_ts >= gap_end(asof):
+        return f"a later session has begun ({ffseed.next_session(asof).isoformat()})"
+    return None
 
 
 def _et_day(ts: int) -> date:
     return datetime.fromtimestamp(int(ts), ffseed.ET).date()
+
+
+def day_bounds(d: date) -> Tuple[int, int]:
+    """[start, end) of the ET calendar day `d`, unix seconds."""
+    n = d + timedelta(days=1)
+    return (int(datetime(d.year, d.month, d.day, tzinfo=ffseed.ET).timestamp()),
+            int(datetime(n.year, n.month, n.day, tzinfo=ffseed.ET).timestamp()))
+
+
+def last_bar_of_day(rows: list, d: date) -> Optional[int]:
+    """Start of the newest bar of `rows` that lies in the ET day `d`, or None."""
+    lo, hi = day_bounds(d)
+    ts = [int(b["t"]) for b in rows or () if lo <= int(b["t"]) < hi]
+    return max(ts) if ts else None
+
+
+def later_trade(tf: str, last_bar: int, records: Iterable[Tuple[str, int]]) -> Optional[Tuple[str, int]]:
+    """The first record (label, instant of a traded bar) whose bucket on `tf`'s grid lies AFTER `last_bar`,
+    or None. A traded bar at any timeframe is a trade, and the provider's `tf` bar for that bucket must
+    exist: an answer whose newest bar is before it does not cover the session's last traded bucket."""
+    from api.services import bars_fetch
+    for label, t in records:
+        if int(last_bar) < int(bars_fetch._derived_bucket_start(tf, int(t))):
+            return label, int(t)
+    return None
 
 
 def first_day(asof: date, last_ts: Optional[int], reach_days: int) -> Optional[date]:
@@ -204,11 +260,6 @@ def _stored_last_ts(sym: str, tf: str) -> Optional[int]:
     return bars_sqlite.get_last_ts(sym, tf)
 
 
-def _stored_first_ts(sym: str, tf: str) -> Optional[int]:
-    from api.services import bars_sqlite
-    return bars_sqlite.get_first_ts(sym, tf)
-
-
 def _fetch(sym: str, tf: str, frm: date, to: date) -> list:
     """The provider's split-adjusted aggregates AT `tf` for [frm, to] (whole ET days); raises on failure.
     Only ever called with a provider timeframe: `_fetch_intraday_range` resamples 30 / 60 in memory, which
@@ -239,17 +290,21 @@ def reach_days() -> int:
     return max(1, _int_env("FFSEED_INTRADAY_REACH_DAYS", 30))
 
 
-def _covers_tail(rows: list, last_ts: Optional[int], frm: date, asof: date) -> bool:
-    """The answer reaches the tail the store already held inside the window it was asked for. A stored
-    bucket traded, so a whole answer holds it; one that stops before it (or is empty) is not whole, and
-    the rows it failed to replace may be the forming ones."""
-    if last_ts is None:
-        return True
-    lo = onemin.session_start_ts(frm)
-    hi = onemin.session_start_ts(asof) + 86400
-    if not (lo <= int(last_ts) < hi):
-        return True                       # the tail is outside the asked window: nothing to compare
-    return bool(rows) and max(int(b["t"]) for b in rows) >= int(last_ts)
+def _stored_day_tail(sym: str, tf: str, d: date) -> Optional[int]:
+    """Start of the newest STORED bar of (sym, tf) that lies in the ET day `d`, or None. One tail read;
+    a second, bounded one only when the store already holds a later day (a late run)."""
+    from api.services import bars_sqlite
+    lt = bars_sqlite.get_last_ts(sym, tf)
+    if lt is None:
+        return None
+    lo, hi = day_bounds(d)
+    if int(lt) < lo:
+        return None
+    if int(lt) < hi:
+        return int(lt)
+    rows = bars_sqlite.get_bars_before(sym, tf, 1, hi - 1)
+    ts = int(rows[-1][0]) if rows else None
+    return ts if ts is not None and ts >= lo else None
 
 
 # --------------------------------------------------------------------------------------------
@@ -262,29 +317,32 @@ def complete_session(asof: date, symbols: Optional[Iterable[str]] = None, *,
                      store: Callable[[str, str, list, float], int] = None,
                      rev: Callable[[str, str], int] = None,
                      last_ts: Callable[[str, str], Optional[int]] = None,
-                     first_ts: Callable[[str, str], Optional[int]] = None,
+                     day_tail: Callable[[str, str, date], Optional[int]] = None,
                      n_workers: Optional[int] = None, deadline: Optional[float] = None,
                      clock: Callable[[], float] = time.monotonic,
                      now: Optional[float] = None) -> dict:
     """Bring every universe symbol's 5m / 15m / 30m / 60m for `asof` to completeness and record the proof.
-    Never raises for a symbol. Returns the pass's stats; `requests` is the provider calls made."""
+    Never raises for a symbol. Returns the pass's stats; `requests` is the provider calls made, and
+    `skipped` (with nothing fetched and nothing proved) says why the pass could not run now."""
     fetch, derive, store = fetch or _fetch, derive or _derive, store or _store
-    rev, last_ts, first_ts = rev or _store_rev, last_ts or _stored_last_ts, first_ts or _stored_first_ts
+    rev, last_ts, day_tail = rev or _store_rev, last_ts or _stored_last_ts, day_tail or _stored_day_tail
     syms = sorted({str(s).upper() for s in (symbols if symbols is not None else ffseed.universe()) if s})
     base_tfs, derived_tfs, derived_base = tf_roles()
     counters = ("current", "done", "rows", "empty", "failed", "short_answer", "behind", "no_base", "not_reached")
     stats: Dict[str, object] = {"asof": asof.isoformat(), "symbols": len(syms), "requests": 0, "secs": 0.0,
                                 "tfs": {tf: dict.fromkeys(counters, 0) for tf in base_tfs + derived_tfs}}
     now_ts = time.time() if now is None else float(now)
-    if now_ts < settled_at(asof):
-        # Before the extended session has ended a "whole session" answer is not whole (and the derived
-        # post-market buckets would be written while forming). Nothing is fetched, nothing is proved.
-        stats["skipped"] = "session not settled"
-        log.warning("[ffseed-intraday] %s is not settled yet (extended hours end + %ds): pass skipped",
-                    asof, SETTLE_S)
+    why = cannot_run(asof, now_ts)
+    if why is not None:
+        stats["skipped"] = why
+        log.warning("[ffseed-intraday] pass for %s skipped: %s (it runs only between that session's extended "
+                    "close + %ds and the next trading day's 04:00 ET)", asof, why, SETTLE_S)
         return stats
     t0 = clock()
-    stop_at = t0 + (deadline if deadline is not None else deadline_s())
+    # the deadline, and never past the end of the quiet gap: the next session's writes are not ours to race
+    stop_at = t0 + min(float(deadline if deadline is not None else deadline_s()), gap_end(asof) - now_ts)
+    reach = reach_days()
+    _day_start, day_end = day_bounds(asof)
     led = load_ledger(asof)
     lock = threading.Lock()
     unsaved = [0]
@@ -307,87 +365,125 @@ def complete_session(asof: date, symbols: Optional[Iterable[str]] = None, *,
             e = led["tfs"][tf].get(sym)
         return _holds(e, sym, tf, rev)
 
-    def base_one(sym: str, tf: str) -> Optional[str]:
-        """'current' (already proven), 'done' (fetched and stored now) or None (not complete)."""
-        if is_done(tf, sym):
-            bump(tf, "current")
-            return "current"
+    def ask(sym: str, tf: str) -> Optional[tuple]:
+        """(rows, first day asked, check instant) of one provider timeframe, or None (counted)."""
         if clock() > stop_at:
             bump(tf, "not_reached")
             return None
-        held = last_ts(sym, tf)
-        frm = first_day(asof, held, reach_days())
+        frm = first_day(asof, last_ts(sym, tf), reach)
         if frm is None:
             bump(tf, "behind")
             return None
+        if tf == derived_base:
+            # the derived series are rebuilt over the days asked for here and no others, so the request
+            # starts at the oldest of the three tails (one request either way)
+            for d_tf in derived_tfs:
+                own = first_day(asof, last_ts(sym, d_tf), reach)
+                if own is not None and own < frm:
+                    frm = own
         checked = time.time()
         with lock:
             stats["requests"] += 1
-        rows = fetch(sym, tf, frm, asof)
-        if not _covers_tail(rows, held, frm, asof):
-            bump(tf, "short_answer")      # stops before a bucket the store already holds: not whole
-            return None
-        n = int(store(sym, tf, rows, checked) or 0) if rows else 0
-        if rows and not n:
-            bump(tf, "failed")            # the provider answered and nothing reached the store
-            return None
-        mark(tf, sym, frm)
-        bump(tf, "done")
-        bump(tf, "rows", n)
-        if not rows:
-            bump(tf, "empty")
-        return "done"
+        return fetch(sym, tf, frm, asof), frm, checked
 
-    def derived_one(sym: str, tf: str, base_state: str) -> None:
-        # proven AND its base untouched since: nothing to do. A base fetched again in this run is
-        # derived again, so the stored bucket stays the resample of the stored base.
-        if base_state == "current" and is_done(tf, sym):
-            bump(tf, "current")
-            return
-        with lock:
-            base_e = led["tfs"][derived_base].get(sym)
-        # the first day whose base rows this pass rewrote: the derived rows are rebuilt from there, so a
-        # stored bucket is always the resample of the stored base (the serve path's invariant)
-        base_from = date.fromisoformat(base_e[1])
-        held = last_ts(sym, tf)
-        own_from = first_day(asof, held, reach_days())
-        if own_from is None:
-            bump(tf, "behind")
-            return
-        frm = min(own_from, base_from)
-        b0 = first_ts(sym, derived_base)
-        if b0 is not None and _et_day(b0) > frm:
-            bump(tf, "behind")            # the base does not reach back to the derived tail: a hole
-            return
-        rows = derive(sym, tf, onemin.session_start_ts(frm))
-        if not _covers_tail(rows, held, frm, asof):
-            bump(tf, "short_answer")
-            return
-        n = int(store(sym, tf, rows, time.time()) or 0) if rows else 0
-        if rows and not n:
-            bump(tf, "failed")
-            return
-        mark(tf, sym, frm)
-        bump(tf, "done")
-        bump(tf, "rows", n)
-        if not rows:
-            bump(tf, "empty")
+    def refuse_short(sym: str, tf: str, last: int, gap: Tuple[str, int]) -> None:
+        bump(tf, "short_answer")
+        log.info("[ffseed-intraday] %s tf=%s short answer: ends %s ET, but %s holds a bar at %s ET",
+                 sym, tf, datetime.fromtimestamp(last, ffseed.ET).strftime("%H:%M"), gap[0],
+                 datetime.fromtimestamp(gap[1], ffseed.ET).strftime("%m-%d %H:%M"))
 
     def one(sym: str) -> None:
-        state = {}
+        state: Dict[str, Optional[str]] = {}
+        answers: Dict[str, tuple] = {}
         for tf in base_tfs:
+            state[tf] = None
             try:
-                state[tf] = base_one(sym, tf)
+                if is_done(tf, sym):
+                    bump(tf, "current")
+                    state[tf] = "current"
+                    continue
+                got = ask(sym, tf)
+                if got is not None:
+                    answers[tf] = got
             except Exception as e:  # noqa: BLE001 - one symbol never stops the pass
                 log.info("[ffseed-intraday] %s tf=%s failed: %s", sym, tf, type(e).__name__)
                 bump(tf, "failed")
-                state[tf] = None
+        # every record of the symbol's as-of day: what the store holds at 1m and at the provider
+        # timeframes, and what each answer of this pass holds (see WHOLE in the module doc)
+        records: List[Tuple[str, int]] = []
+        try:
+            for r_tf in ("1",) + base_tfs:
+                t = day_tail(sym, r_tf, asof)
+                if t is not None:
+                    records.append((f"the stored {r_tf}m", t))
+        except Exception as e:  # noqa: BLE001 - records that cannot be read: nothing is proved
+            log.info("[ffseed-intraday] %s records unreadable: %s", sym, type(e).__name__)
+            for tf in answers:
+                bump(tf, "failed")
+            answers = {}
+        for tf, (rows, _frm, _checked) in answers.items():
+            t = last_bar_of_day(rows, asof)
+            if t is not None:
+                records.append((f"the {tf}m answer", t))
+        checked_base: Optional[float] = None
+        for tf, (rows, frm, checked) in answers.items():
+            try:
+                last = last_bar_of_day(rows, asof)
+                if last is None:
+                    bump(tf, "empty")             # no bar of the as-of day: never proof
+                    continue
+                gap = later_trade(tf, last, records)
+                if gap is not None:
+                    refuse_short(sym, tf, last, gap)
+                    continue
+                n = int(store(sym, tf, rows, checked) or 0)
+                if not n:
+                    bump(tf, "failed")            # the provider answered and nothing reached the store
+                    continue
+                mark(tf, sym, frm)
+                bump(tf, "done")
+                bump(tf, "rows", n)
+                state[tf] = "done"
+                if tf == derived_base:
+                    checked_base = checked
+            except Exception as e:  # noqa: BLE001
+                log.info("[ffseed-intraday] %s tf=%s failed: %s", sym, tf, type(e).__name__)
+                bump(tf, "failed")
         for tf in derived_tfs:
             if not state.get(derived_base):
-                bump(tf, "no_base")       # its 15m is not complete: nothing to derive from
+                bump(tf, "no_base")               # its 15m is not complete: nothing to derive from
                 continue
             try:
-                derived_one(sym, tf, state[derived_base])
+                # proven AND its base untouched since: nothing to do. A base fetched again in this run
+                # is derived again, so the stored bucket stays the resample of the stored base.
+                if state[derived_base] == "current" and is_done(tf, sym):
+                    bump(tf, "current")
+                    continue
+                with lock:
+                    base_e = led["tfs"][derived_base].get(sym)
+                base_from = date.fromisoformat(base_e[1])   # the first day whose 15m this pass refetched
+                own_from = first_day(asof, last_ts(sym, tf), reach)
+                if own_from is None or own_from < base_from:
+                    bump(tf, "behind")            # its tail is on a day whose 15m was not refetched
+                    continue
+                # the refetched days and no others: nothing after the as-of day is resampled either
+                rows = [r for r in derive(sym, tf, onemin.session_start_ts(base_from)) if int(r["t"]) < day_end]
+                last = last_bar_of_day(rows, asof)
+                if last is None:
+                    bump(tf, "empty")
+                    continue
+                gap = later_trade(tf, last, records)
+                if gap is not None:
+                    refuse_short(sym, tf, last, gap)
+                    continue
+                # the base's own check instant when it was fetched in this run: a newer check's seal wins
+                n = int(store(sym, tf, rows, checked_base if checked_base is not None else time.time()) or 0)
+                if not n:
+                    bump(tf, "failed")
+                    continue
+                mark(tf, sym, base_from)
+                bump(tf, "done")
+                bump(tf, "rows", n)
             except Exception as e:  # noqa: BLE001
                 log.info("[ffseed-intraday] %s tf=%s failed: %s", sym, tf, type(e).__name__)
                 bump(tf, "failed")
@@ -410,4 +506,5 @@ def status(asof: date) -> dict:
 
 
 __all__: List[str] = ["complete_session", "known_complete", "run_pass", "enabled", "tf_roles", "settled_at",
-                      "first_day", "load_ledger", "save_ledger", "status"]
+                      "gap_end", "cannot_run", "later_trade", "last_bar_of_day", "first_day", "load_ledger",
+                      "save_ledger", "status"]
