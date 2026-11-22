@@ -131,6 +131,10 @@ describe('⭐⭐ C40 — `for x in <drawing list>`: every slot, in index order',
     // runs twice. The body here does not touch the element, so a pass is visible.
     const t = tr([
       'var line[] ls = array.new_line()',
+      // ⭐ ONCE-EMPTY LIST (#2014): a write that never runs, standing BEFORE the loop, keeps the loop walked (a list
+      // nothing writes is proved empty and its loop is not emitted at all), so the RUNTIME's empty pass is what is tested
+      'if close < 0',
+      '    ls.push(line.new(bar_index, high, bar_index, low))',
       'if barstate.islast',
       '    for l in ls',
       `        label.new(bar_index, high, ${Q}pass${Q})`,
@@ -395,6 +399,7 @@ describe('C40 / C48 — a `for … in` whose body changes the list it walks: LIV
       'type P',
       '    float y',
       'var ps = array.new<P>()',
+      'ps.push(P.new(close))',   // ⭐ ONCE-EMPTY LIST (#2014): written, so not provably empty
       'for p in ps',
       `    label.new(bar_index, p.y, ${Q}x${Q})`,
     ])

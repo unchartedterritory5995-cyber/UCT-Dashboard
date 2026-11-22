@@ -628,7 +628,8 @@ describe('the manifest', () => {
     // and `openingRangeLow(minutes)` — the regular session's own values, bar readers beside
     // `vwap` (`reads: "bars"`, `lookback: "session"`, `cadence: "live"`), on the clock's
     // `regularfirst` / `regularhours` and nothing else.
-    expect(Object.keys(TABLE.functions)).toHaveLength(94)
+    // U-BUILTIN B3 (2026-11-19) 94 -> 95: `asin`, Pine's `math.asin` (pointwise, acos's twin).
+    expect(Object.keys(TABLE.functions)).toHaveLength(95)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -760,7 +761,8 @@ describe('the manifest', () => {
     // ⭐ 139 -> 140 IS `boolNaWithheld` (2026-11-14, engine 56 A3) -- see the functions-count note above.
     // ⭐ 140 -> 141 IS `tieNewest` (2026-11-14, engine 56 S1).
     // ⭐ 141 -> 148 (2026-11-17): the regular session's two clock leaves and five readers.
-    expect(bar.size).toBe(148)
+    // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`.
+    expect(bar.size).toBe(149)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
     // ⭐ 276 -> 287 (2026-11-06, UCT RS Phase 2a units 2a-01 and 2a-07): the bar half
     // is untouched at 138; the scalar half went 138 -> 139 (`base_pivot_px`) -> 149
@@ -769,7 +771,7 @@ describe('the manifest', () => {
     // ⭐ 288 -> 289 (2026-11-14, engine 56): the bar half 139 -> 140 (`boolNaWithheld`); 140 + 149 = 289.
     // ⭐ 289 -> 290 (2026-11-14, engine 56 S1): the bar half 140 -> 141 (`tieNewest`); 141 + 149 = 290.
     // ⭐ 290 -> 297 (2026-11-17): the bar half 141 -> 148 (the regular session's seven); 148 + 149 = 297.
-    expect(declared.size).toBe(297)
+    expect(declared.size).toBe(298)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS

@@ -39,6 +39,7 @@ import sys  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "tools" / "vendor_harness"))
 import licence_held  # noqa: E402 -- licence-held captures: read from the local store, skipped by name
+import store_held  # noqa: E402 -- rows graded with production's library store: the one authority over their pins
 FIXTURE = ROOT / "tests" / "fixtures" / "runtime_documents" / "documents.json"
 DOCS = {d["slug"]: d for d in json.loads(FIXTURE.read_text(encoding="utf-8"))["documents"]}
 ADX = DOCS["adx-and-di-for-v4"]["definition"]
@@ -164,7 +165,14 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "strategy-decl",
         # PARITY UNIT LF step 3 (2026-11-18): linefill.* on FVG Finder + AlgoAlpha Trend Targets, each drawn by its RUN
         # (LF step 1), with the count-at-cap carve-out (LF step 2): test_LF3_obj_linefill_is_admitted_on_run_drawn_captures
-        "obj:linefill"])
+        "obj:linefill",
+        # admit:request-other (coordinator ruling 2026-11-19): PA ZigZag at 1W / 1M (runtime lane) and SR-MTF (the
+        # forced runtime lane, #1985), both community, MATCH at engine 84; for closed-bar history only (G6)
+        "request-other",
+        # libraries chain (coordinator ruling 2026-11-19): THE FIRST LIBRARY ROW, TradingView/ta/7 pinned at its sha
+        # (the generic `import` is met by its libraries, never a row: `missing_capabilities`); KPSaR [BackQuant]
+        # (community) + vw-library-import, MATCH runtime-on at engine 85 graded WITH production's store (A8: store-held)
+        "library:TradingView/ta/7"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -602,7 +610,8 @@ def test_G6_realtime_state_without_the_closed_bar_scope_is_not_admitted():
 def test_G6_the_admitted_set_names_it_history_only(tmp_path, monkeypatch):
     _with_realtime_row(tmp_path, monkeypatch, scope="closed-bar-history")
     rep = rt.admitted_capabilities()
-    assert "realtime-state" in rep["admitted"] and rep["historyOnly"] == ["realtime-state"]
+    # (2026-11-19) request-other is admitted for closed-bar history too (admit:request-other, G6)
+    assert "realtime-state" in rep["admitted"] and rep["historyOnly"] == ["realtime-state", "request-other"]
 
 
 def test_G6_the_door_answers_history_only_for_a_script_that_reads_bar_state(tmp_path, monkeypatch, store, on):
@@ -708,6 +717,12 @@ def _phantoms(registry: dict) -> list:
                 bad.append((cap, cid, "names another script"))
             if e.get("community") is not community:
                 bad.append((cap, cid, "states the wrong community flag"))
+            # ⭐ STORE-HELD (libraries chain, 2026-11-19): a library row's evidence row must have been GRADED WITH that
+            # version at the sha the row pins (the snapshot row's `storeHeld`); a row graded without it drew nothing
+            if cap.startswith(rg.PINE_CAPABILITY_LIBRARY_PREFIX):
+                want = store_held.pin_of(cap[len(rg.PINE_CAPABILITY_LIBRARY_PREFIX):], row.get("sha256") or "")
+                if want not in store_held.pins_of(r):
+                    bad.append((cap, cid, "its snapshot row was not graded with that library version at the row's sha"))
             fixture = licence_held.fixture_path(r["file"])
             if fixture is None or not fixture.is_file():
                 bad.append((cap, cid, "no fixture"))
@@ -782,16 +797,114 @@ def _x_verdict(o: dict):
 KILL_DOC = ROOT / "api" / "data" / "pine_runtime_killlist.json"
 
 
-def _kill_entry_problems(s: dict, v: dict, today: datetime.date | None = None) -> list:
-    """Why one kill entry is not held to its graded evidence: a committed capture of THAT source whose
-    runtime-on grade is not MATCH, a reason in the member's words, and the condition that lifts it."""
-    out = []
+#: ⭐⭐ HELD-EVIDENCE KILLS (coordinator rulings 2026-11-19): a kill whose evidence is a LICENCE-HELD capture. Its text
+#: never enters git, so the entry names no `source` and no committed capture; what CI reads is the capture's LEDGER ROW
+#: (`docs/pine/vendor-harness/evidence-ledger.jsonl`), through the one reader `held_evidence.held_kills`.
+HELD_KILL_LANE = "runtime-on"
+
+
+def _held_kill_entry_problems(s: dict, kills: dict, floor: int) -> list:
+    """Why a held-evidence kill entry (`evidence.held: true`) is not held to CURRENT ledger evidence: `kills` is
+    `held_evidence.held_kills(lane, engine_floor=floor)` (a current-engine drawn DIVERGE no narrow withhold isolates);
+    the entry's sha256 must be there with the very capture it names, graded at or above the floor. A held kill names no
+    `source` (its text is licence-held), states its lane / verdict / engine, a reason and a liftWhen."""
+    slug = s.get("slug")
     ev = s.get("evidence") or {}
+    out = []
+    if ev.get("lane") != HELD_KILL_LANE:
+        out.append(f"{slug}: a held kill names the {HELD_KILL_LANE} lane, not {ev.get('lane')!r}")
+    if ev.get("verdict") != "DIVERGE":
+        out.append(f"{slug}: a held kill's evidence is a DIVERGE, not {ev.get('verdict')!r}")
+    if "source" in s:
+        out.append(f"{slug}: a held kill names no source file (its text is licence-held)")
+    if not (s.get("reason") and s.get("liftWhen")):
+        out.append(f"{slug}: no reason or no liftWhen")
+    eng = ev.get("engine")
+    if not isinstance(eng, int) or eng < floor:
+        out.append(f"{slug}: its evidence engine {eng!r} is below the current engine {floor}: a NEW kill needs current evidence")
+    k = kills.get(s.get("sha256"))
+    if not k:
+        out.append(f"{slug}: held_evidence.held_kills holds no current-engine kill for its sha256")
+    else:
+        rows = {r.get("captureId"): r for r in k.get("evidence") or []}
+        r = rows.get(ev.get("capture"))
+        if r is None:
+            out.append(f"{slug}: its capture {ev.get('capture')!r} is not one of the held kill's ({sorted(rows)})")
+        elif r.get("engine") != eng:
+            out.append(f"{slug}: it states engine {eng!r}; the ledger row is graded at {r.get('engine')!r}")
+    return out
+
+
+def _held_kills_unlisted(kills: dict, doc: dict) -> list:
+    """Every script `held_evidence.held_kills` returns that the committed kill list does not name (by sha256, any
+    status: a `pending` entry carries its own expiry rail). A drawn DIVERGE no withhold isolates is killed, by name."""
+    listed = {s.get("sha256") for s in (doc.get("scripts") or []) if isinstance(s, dict)}
+    return sorted(f"{k.get('scriptKey')} ({sha[:12]})" for sha, k in kills.items() if sha not in listed)
+
+
+#: ⭐ STANDING EVIDENCE (engine 92 follow-up, coordinator ruling 2026-11-21, B1). A kill entry whose named capture's
+#: runtime-on row reads MATCH still stands on ONE of two graded facts, declared in `evidence.standing` and re-proved
+#: from the committed rows on every run:
+#:   "objectsV2"            the row's v1 objects grade (which compares NO coordinates) reads MATCH while its
+#:                          field-by-field grade (objectsV2) DIVERGEs, first on the family and field the entry names in
+#:                          `evidence.objectsV2` (e.g. "labels y"): serving it would draw an object where TradingView
+#:                          does not (htf-candle-footprint-cartel-console, label #10 y 147.06 vs ours 144.41);
+#:   "partial-unpositioned" the capture's PRODUCTION row is DRAW-1's narrower grade (#2117: INCONCLUSIVE, objects
+#:                          withheld `objects:partial-unpositioned`), the grade `_draw1_justifies` already accepts.
+#: Anything else on a MATCH row is red, as before: it only ever keeps a kill, never lifts one.
+KILL_STANDING = ("objectsV2", "partial-unpositioned")
+
+
+def _prod_verdicts() -> dict:
+    return {r["id"]: r for r in json.loads(VERDICTS_PROD.read_text(encoding="utf-8"))["results"]}
+
+
+def _kill_standing_holds(ev: dict, r: dict, prod_row: dict | None) -> bool:
+    """Does this MATCH row still hold the kill on the standing evidence the entry declares (KILL_STANDING)?"""
+    if ev.get("standing") not in KILL_STANDING or r.get("verdict") != ev.get("verdict"):
+        return False
+    if ev["standing"] == "objectsV2":
+        o = r.get("objectsV2") or {}
+        first = o.get("first") or {}
+        return ((r.get("objects") or {}).get("verdict") == "MATCH" and o.get("verdict") == "DIVERGE"
+                and f"{first.get('family')} {first.get('field')}" == ev.get("objectsV2"))
+    withheld = str(((prod_row or {}).get("objects") or {}).get("withheld") or "").split(",")
+    return (prod_row is not None and prod_row.get("verdict") == ev.get("production") == "INCONCLUSIVE"
+            and DRAW1_UNPOSITIONED in withheld)
+
+
+def _kill_entry_problems(s: dict, v: dict, today: datetime.date | None = None, held: tuple | None = None,
+                         prod: dict | None = None) -> list:
+    """Why one kill entry is not held to its graded evidence: a committed capture of THAT source whose
+    runtime-on grade is not MATCH (or, on a MATCH row, the standing evidence it declares: KILL_STANDING), a reason
+    in the member's words, and the condition that lifts it.
+    ⭐⭐ A HELD-EVIDENCE entry (`evidence.held: true`) is held to the ledger instead (`_held_kill_entry_problems`);
+    `held` = (kills, floor), read from the committed ledger at the current engine when not given. `prod` = the
+    production rows by id, read from the committed snapshot when not given."""
+    ev = s.get("evidence") or {}
+    if ev.get("held") is True:
+        if held is None:
+            import held_evidence  # noqa: E402 -- the one reader of licence-held evidence (#2096)
+            floor = held_evidence.current_engine()
+            held = (held_evidence.held_kills(HELD_KILL_LANE, engine_floor=floor), floor)
+        out = _held_kill_entry_problems(s, *held)
+        if s.get("status") == rt.KILL_PENDING:
+            out.extend(_held_kill_expiry_problems(s, today))
+        elif s.get("status") is not None:
+            out.append(f"{s.get('slug')}: status {s.get('status')!r} is not a status this list knows")
+        return out
+    out = []
     r = v.get(ev.get("capture"))
     if r is None:
         return [f"{s.get('slug')}: names no committed capture"]
     if not (r["verdict"] == ev.get("verdict") != "MATCH"):
-        out.append(f"{s.get('slug')}: its capture grades {r['verdict']}, the entry says {ev.get('verdict')}")
+        if ev.get("standing") is None:
+            out.append(f"{s.get('slug')}: its capture grades {r['verdict']}, the entry says {ev.get('verdict')}")
+        elif not _kill_standing_holds(ev, r, (prod if prod is not None else _prod_verdicts()).get(ev.get("capture"))):
+            out.append(f"{s.get('slug')}: its capture grades {r['verdict']} and its standing evidence "
+                       f"{ev.get('standing')!r} does not hold")
+    elif ev.get("standing") is not None:
+        out.append(f"{s.get('slug')}: standing evidence is for a MATCH row only; its capture grades {r['verdict']}")
     text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
     if rt.source_hash(text) != s.get("sha256"):
         out.append(f"{s.get('slug')}: its capture is another source")
@@ -865,6 +978,101 @@ def test_RT1_every_committed_kill_is_held_to_its_graded_evidence():
     assert any("past its expiry" in p for p in _kill_entry_problems(held, moved, today=datetime.date(2026, 11, 22)))
     assert any("no readable `expires`" in p for p in _kill_entry_problems(dict(held, expires=None), moved))
     assert any("not a status" in p for p in _kill_entry_problems(dict(entry, status="paused"), moved))
+    # CONTROL (engine 92 follow-up, B1): STANDING evidence keeps a kill on a MATCH row only while the rows say so
+    htf = "htf-candle-footprint-cartel-console-rddt-1d-2026-09-28"
+    hsrc = "corpus/committed/htf-candle-footprint-cartel-console__ca3ff4e904.pine"
+    stand = {"slug": "synthetic-standing", "sha256": rt.source_hash((ROOT / hsrc).read_text(encoding="utf-8")),
+             "source": hsrc, "reason": "SYNTHETIC", "liftWhen": "SYNTHETIC",
+             "evidence": {"capture": htf, "verdict": "MATCH", "production": "INCONCLUSIVE", "standing": "objectsV2",
+                          "objectsV2": "labels y"}}
+    rows, prod_rows = copy.deepcopy(v), _prod_verdicts()
+    rows[htf].update(verdict="MATCH", objects={"verdict": "MATCH"},
+                     objectsV2={"verdict": "DIVERGE", "first": {"family": "labels", "field": "y"}})
+    assert _kill_entry_problems(stand, rows, prod=prod_rows) == []
+    agrees = copy.deepcopy(rows)
+    agrees[htf]["objectsV2"]["verdict"] = "MATCH"                       # the field-by-field grade agrees: red
+    assert any("does not hold" in p for p in _kill_entry_problems(stand, agrees, prod=prod_rows))
+    elsewhere = copy.deepcopy(rows)
+    elsewhere[htf]["objectsV2"]["first"]["field"] = "x"                 # it differs on a field the entry does not name
+    assert any("does not hold" in p for p in _kill_entry_problems(stand, elsewhere, prod=prod_rows))
+    undeclared = dict(stand, evidence={k: x for k, x in stand["evidence"].items() if k != "standing"})
+    assert any("grades MATCH" in p for p in _kill_entry_problems(undeclared, rows, prod=prod_rows))
+    # ...DRAW-1's partial-unpositioned grade on the PRODUCTION row, the same way
+    part = dict(stand, evidence={"capture": htf, "verdict": "MATCH", "production": "INCONCLUSIVE",
+                                 "standing": "partial-unpositioned"})
+    p_ok = {htf: {"verdict": "INCONCLUSIVE", "objects": {"withheld": "objects:not-carried," + DRAW1_UNPOSITIONED}}}
+    p_no = {htf: {"verdict": "INCONCLUSIVE", "objects": {"withheld": "objects:not-carried"}}}
+    assert _kill_entry_problems(part, rows, prod=p_ok) == []
+    assert any("does not hold" in p for p in _kill_entry_problems(part, rows, prod=p_no))
+    # ...and standing evidence on a row that does not read MATCH is refused (it only ever keeps a kill on a MATCH row)
+    dv = copy.deepcopy(rows)
+    dv[htf]["verdict"] = "DIVERGE"
+    on_diverge = dict(stand, evidence=dict(stand["evidence"], verdict="DIVERGE"))
+    assert any("MATCH row only" in p for p in _kill_entry_problems(on_diverge, dv, prod=prod_rows))
+
+
+def _synthetic_held_ledger(tmp_path, engine: int, *, kind: str = "drawn", withholds: list | None = None) -> tuple:
+    """A tmp evidence ledger holding ONE licence-held capture whose runtime-on grade is a DIVERGE (no source text: a
+    hash, ids, the verdict and its first diverging item, as `evidence_ledger.make_row` files them)."""
+    sha = "ab" * 32
+    row = {"licence": "held", "captureId": "synthetic-held-spy-1d-2026-11-20", "scriptKey": "synthetic-held",
+           "sourceSha256": sha, "symbol": "AMEX:SPY", "timeframe": "1D", "scriptEngineVersion": engine,
+           "graderVersion": 1, "gradedAtUTC": "2026-11-20T00:00:00Z",
+           "verdicts": {HELD_KILL_LANE: {"verdict": "DIVERGE", "reason": "SYNTHETIC: plot 1 differs",
+                                         "first": {"kind": kind, "item": "plot 1"}, "door": "runtime",
+                                         "withholds": withholds or []}}}
+    ledger = tmp_path / "evidence-ledger.jsonl"
+    ledger.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    entry = {"slug": "synthetic-held", "sha256": sha, "reason": "SYNTHETIC held kill", "liftWhen": "SYNTHETIC",
+             "addedBy": "SYNTHETIC", "evidence": {"capture": row["captureId"], "verdict": "DIVERGE", "held": True,
+                                                  "lane": HELD_KILL_LANE, "engine": engine}}
+    return ledger, sha, entry
+
+
+def test_HK1_a_held_evidence_kill_entry_is_accepted_only_on_current_ledger_evidence(tmp_path):
+    """(a) A kill entry whose evidence is a licence-held capture (`evidence.held: true`, no source, no committed
+    capture) is accepted only when `held_evidence.held_kills(lane, engine_floor=current_engine())` holds that sha256
+    with that capture. Shown both ways on a synthetic ledger row (the committed list holds no held-evidence kill)."""
+    import held_evidence  # noqa: E402
+    floor = held_evidence.current_engine()
+    ledger, sha, entry = _synthetic_held_ledger(tmp_path, floor)
+    kills = held_evidence.held_kills(HELD_KILL_LANE, ledger=ledger, engine_floor=floor)
+    assert sha in kills                                   # non-vacuous: the synthetic row IS a held kill
+    assert _kill_entry_problems(entry, {}, held=(kills, floor)) == []
+    # refused: no such kill on the ledger · another capture · a stale engine · a source named · not a DIVERGE
+    assert any("holds no current-engine kill" in p for p in _kill_entry_problems(entry, {}, held=({}, floor)))
+    other = dict(entry, evidence=dict(entry["evidence"], capture="synthetic-held-rddt-1d-2026-11-20"))
+    assert any("is not one of the held kill's" in p for p in _kill_entry_problems(other, {}, held=(kills, floor)))
+    assert any("names no source" in p for p in _kill_entry_problems(dict(entry, source="corpus/x.pine"), {}, held=(kills, floor)))
+    match = dict(entry, evidence=dict(entry["evidence"], verdict="MATCH"))
+    assert any("is a DIVERGE" in p for p in _kill_entry_problems(match, {}, held=(kills, floor)))
+    # a row graded below the current engine never CREATES a kill: it is not in the floored view
+    stale_ledger, _, stale = _synthetic_held_ledger(tmp_path, floor - 1)
+    stale_kills = held_evidence.held_kills(HELD_KILL_LANE, ledger=stale_ledger, engine_floor=floor)
+    assert sha not in stale_kills
+    probs = _kill_entry_problems(stale, {}, held=(stale_kills, floor))
+    assert any("below the current engine" in p for p in probs) and any("holds no current-engine kill" in p for p in probs)
+    # a difference a narrow withhold isolates is never a kill
+    w_ledger, _, _ = _synthetic_held_ledger(tmp_path, floor, withholds=[{"scope": "output", "title": "plot 1"}])
+    assert sha not in held_evidence.held_kills(HELD_KILL_LANE, ledger=w_ledger, engine_floor=floor)
+
+
+def test_HK2_every_held_kill_on_the_ledger_is_on_the_committed_kill_list(tmp_path):
+    """(b) Every script `held_evidence.held_kills('runtime-on')` returns (NO floor: a kill survives an engine bump until
+    a newer regrade lifts it) is named on the committed kill list. Holds today (the ledger holds no drawn DIVERGE a
+    withhold cannot isolate); (c) a synthetic held row shows the rail red while the list lacks it, green once it names it."""
+    import held_evidence  # noqa: E402
+    doc = json.loads(KILL_DOC.read_text(encoding="utf-8"))
+    assert _held_kills_unlisted(held_evidence.held_kills(HELD_KILL_LANE), doc) == []
+    ledger, sha, entry = _synthetic_held_ledger(tmp_path, held_evidence.current_engine())
+    kills = held_evidence.held_kills(HELD_KILL_LANE, ledger=ledger)
+    assert _held_kills_unlisted(kills, doc) == ["synthetic-held (" + sha[:12] + ")"]
+    named = dict(doc, scripts=list(doc.get("scripts") or []) + [entry])
+    assert _held_kills_unlisted(kills, named) == []
+    # every committed held-evidence entry passes (a) against the committed ledger (none today: the rule is on the shape)
+    held_entries = [s for s in doc.get("scripts") or [] if (s.get("evidence") or {}).get("held") is True]
+    for s in held_entries:
+        assert _kill_entry_problems(s, {}) == [], s.get("slug")
 
 
 #: The by-name rails need a killed script, and the committed kill list is empty since parabolic-sar's kill
@@ -959,7 +1167,11 @@ def test_RT1_the_trend_targets_kill_is_lifted_on_its_own_condition():
 DRAW1_NEW_OBJECT_FAMILIES = {"obj:box", "obj:table"}
 #: (contraction-box-doji-lines was the eighth: lifted on its own condition, below.)
 DRAW1_KILLED_SLUGS = {"heat-map-seasons", "htf-candle-footprint-cartel-console",
-                      "sonarlab-order-blocks", "vw-object-gc-a", "vw-object-gc-b", "vw-object-gc-c"}
+                      "sonarlab-order-blocks", "vw-object-gc-a", "vw-object-gc-b", "vw-object-gc-c",
+                      # engine 92 follow-up (coordinator ruling 2026-11-21, C): the probes the engine-92 regrade names
+                      "vw-lastbar-forming", "vw-tf-format-date-rare", "vw-tf-format-date-styles",
+                      "vw-tf-format-number-patterns", "vw-tf-tick-format-idiom", "vw-tf-tick-format-idiom-v4",
+                      "vw-tf-tostring-built-fmt"}
 
 
 #: The contraction-box-doji-lines kill (DRAW-1: SPY daily held one line more than TradingView, 205 vs 204 and 201 vs
@@ -991,9 +1203,25 @@ def test_RT1_the_contraction_box_kill_is_lifted_on_its_own_condition():
     assert hkd.refused(src) is None and rt.source_hash(src) not in hkd.committed()
 
 
+#: ⭐ (2026-11-20, #2117) the ONE narrower grade that still justifies a DRAW-1 kill: a disclosed partial whose drawn
+#: records agree on every graded field but whose PLACE no capture witnessed (`compare.mjs` `objects:partial-
+#: unpositioned`, #2109). It never lifts anything (the host listing keeps it: `host_divergence._unpositioned`), so
+#: a kill it holds stays justified. Held to EXACTLY that grade: an INCONCLUSIVE row for any other reason is not.
+DRAW1_UNPOSITIONED = "objects:partial-unpositioned"
+
+
+def _draw1_justifies(r: dict) -> bool:
+    """Does this committed verdict row hold a DRAW-1 kill? A DIVERGE, or an INCONCLUSIVE whose withheld families
+    name the unpositioned partial grade (and so were graded by that named rule), and nothing else."""
+    if r.get("verdict") == "DIVERGE":
+        return True
+    withheld = str((r.get("objects") or {}).get("withheld") or "").split(",")
+    return r.get("verdict") == "INCONCLUSIVE" and DRAW1_UNPOSITIONED in withheld
+
+
 def _draw1_unkilled_diverging(kills: dict) -> list:
     """Sources using obj:box / obj:table, admitted on capabilities, with a committed capture grading DIVERGE on
-    either lane, whose sha256 is not in `kills`."""
+    either lane (or the unpositioned partial grade, `_draw1_justifies`), whose sha256 is not in `kills`."""
     admitted = set(rt.admitted_capabilities()["admitted"])
     lanes = [json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"],
              json.loads((ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json")
@@ -1001,7 +1229,7 @@ def _draw1_unkilled_diverging(kills: dict) -> list:
     out = set()
     for results in lanes:
         for r in results:
-            if r.get("verdict") != "DIVERGE":
+            if not _draw1_justifies(r):
                 continue
             at = licence_held.fixture_path(r["file"])
             try:
@@ -1011,7 +1239,7 @@ def _draw1_unkilled_diverging(kills: dict) -> list:
             if not isinstance(text, str):
                 continue
             caps = pc.capabilities_of(text)
-            if caps & DRAW1_NEW_OBJECT_FAMILIES and caps <= admitted and rt.source_hash(text) not in kills:
+            if caps & DRAW1_NEW_OBJECT_FAMILIES and not rt.missing_capabilities(caps, admitted) and rt.source_hash(text) not in kills:
                 out.add((r["id"], rt.source_hash(text)))
     return sorted(out)
 
@@ -1025,6 +1253,95 @@ def test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_kill
     draw1 = {s["sha256"] for s in doc["scripts"] if s["slug"] in DRAW1_KILLED_SLUGS}
     named = {sha for _cid, sha in _draw1_unkilled_diverging({k: v for k, v in kills.items() if k not in draw1})}
     assert named == draw1, (named, draw1)
+
+
+#: ⭐⭐ admit:request-other (coordinator ruling 2026-11-19): admitting `request-other` admits every source whose only missing
+#: capability it was. Each one with a committed capture grading DIVERGE on either lane is on the committed kill list (the
+#: DRAW-1 rule), by its sha, except rs-rating-fred6724, which is served through its own sha allowlist entry and is NOT
+#: killed (SERVED_BY_OWN_SHA names any runtime-on difference of it; none at engine 92).
+REQUEST_OTHER_KILLED_SLUGS = {"artemis-oscillator-pro", "average-day-range-adr-pivots",
+                              "dual-view-htf-candlestick-patterns-theultimator5", "ema-ribbon-trend-filter-strixedge",
+                              "htf-liquidity-dashboard-tfo", "pmax-explorer", "position-size-calc",
+                              "request-realtime-alignment", "rs-seed-rsrating", "vold-market-breadth", "vw-other-symbol",
+                              # engine 92 follow-up (coordinator ruling 2026-11-21, C)
+                              "vw-req-w-closure-day"}
+
+
+def _request_other_unkilled_diverging(kills: dict) -> list:
+    """Sources using request-other, admitted on capabilities, with a committed capture grading DIVERGE on either lane,
+    whose sha256 is neither in `kills` nor served through its own sha allowlist entry."""
+    admitted = set(rt.admitted_capabilities()["admitted"])
+    own = _allowlisted_shas()
+    lanes = [json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"],
+             json.loads(VERDICTS_PROD.read_text(encoding="utf-8"))["results"]]
+    out = set()
+    for results in lanes:
+        for r in results:
+            if r.get("verdict") != "DIVERGE":
+                continue
+            at = licence_held.fixture_path(r["file"])
+            try:
+                text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+            except (OSError, ValueError):
+                continue
+            if not isinstance(text, str):
+                continue
+            caps = pc.capabilities_of(text)
+            sha = rt.source_hash(text)
+            if "request-other" in caps and not rt.missing_capabilities(caps, admitted) and sha not in kills and sha not in own:
+                out.add((r["id"], sha))
+    return sorted(out)
+
+
+def test_REQOTHER_every_newly_admitted_request_script_with_a_DIVERGE_capture_is_killed():
+    assert "request-other" in rt.admitted_capabilities()["admitted"]
+    kills = rt.committed_kills()
+    assert _request_other_unkilled_diverging(kills) == []
+    doc = json.loads(KILL_DOC.read_text(encoding="utf-8"))
+    assert {s["slug"] for s in doc["scripts"]} >= REQUEST_OTHER_KILLED_SLUGS
+    # CONTROL: without those entries the same scan names exactly their sources
+    mine = {s["sha256"] for s in doc["scripts"] if s["slug"] in REQUEST_OTHER_KILLED_SLUGS}
+    named = {sha for _cid, sha in _request_other_unkilled_diverging({k: v for k, v in kills.items() if k not in mine})}
+    assert named == mine, (named, mine)
+
+
+def _own_sha_unnamed_diverges(rtv: dict) -> list:
+    """(B2, 2026-11-21) THE PROTECTIVE DIRECTION: every runtime-on DIVERGE of a source served through its own sha
+    allowlist entry that SERVED_BY_OWN_SHA does not name in the shape it names (`served_by_own_sha`)."""
+    own = _allowlisted_shas()
+    out = []
+    for r in rtv.values():
+        if r.get("verdict") != "DIVERGE" or served_by_own_sha(r):
+            continue
+        at = licence_held.fixture_path(r["file"])
+        try:
+            text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+        except (OSError, ValueError):
+            continue
+        if isinstance(text, str) and rt.source_hash(text) in own:
+            out.append(r["id"])
+    return sorted(out)
+
+
+def test_REQOTHER_rs_rating_is_served_by_its_own_sha_and_its_differences_are_re_proved(monkeypatch):
+    rtv = {r["id"]: r for r in json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"]}
+    src = (ROOT / "docs" / "pine" / "rs-rating" / "rs-rating-fred6724__pziQwiT2.pine").read_text(encoding="utf-8")
+    assert rt.source_hash(src) in _allowlisted_shas() and rt.source_hash(src) not in rt.committed_kills()
+    for cid in SERVED_BY_OWN_SHA:
+        assert rtv[cid]["verdict"] == "DIVERGE" and served_by_own_sha(rtv[cid]), cid
+    assert _own_sha_unnamed_diverges(rtv) == []
+    # CONTROL: one capture of the allowlisted source doctored to DIVERGE is named, and ONLY it (the other sources'
+    # runtime-on DIVERGEs are not); named in SERVED_BY_OWN_SHA's shape it is served; with a PLOT diverging it is not
+    cid = "rs-rating-fred6724-pc-agl-1d-2026-11-17"
+    doctored = copy.deepcopy(rtv)
+    doctored[cid].update(verdict="DIVERGE", objects={"verdict": "DIVERGE"})
+    assert any(r["verdict"] == "DIVERGE" for k, r in doctored.items() if k != cid)
+    assert _own_sha_unnamed_diverges(doctored) == [cid]
+    monkeypatch.setitem(SERVED_BY_OWN_SHA, cid, ("objects", "SYNTHETIC"))
+    assert served_by_own_sha(doctored[cid]) and _own_sha_unnamed_diverges(doctored) == []
+    plot_diverges = copy.deepcopy(doctored[cid])
+    plot_diverges["plots"] = [dict(p, verdict="DIVERGE") for p in plot_diverges.get("plots") or [{"id": "plot_0"}]]
+    assert not served_by_own_sha(plot_diverges)
 
 
 def test_RT1_a_broken_committed_file_kills_nothing_extra(tmp_path, monkeypatch):
@@ -1075,6 +1392,45 @@ def test_A8_no_phantom_evidence():
         if row.get("admitted") is True:
             assert rg.pine_capability_admission(cap, row) == [], cap
             assert all(v[e["capture"]]["verdict"] == "MATCH" for e in row["evidence"])
+
+
+def test_the_import_rule_is_one_rule_for_the_server_and_the_census():
+    """(libraries chain, 2026-11-19) The generic `import` is met by its libraries (U15), and the census tools answer
+    with the server's own rule (`rt.missing_capabilities`), so the roadmap counts what the server serves."""
+    sys.path.insert(0, str(ROOT / "tools" / "pine_coverage"))
+    import capability_admission as ca
+    admitted = set(rt.admitted_capabilities()["admitted"])
+    assert "import" not in admitted and "library:TradingView/ta/7" in admitted
+    src = json.loads((ROOT / "tests/fixtures/vendor/harness/kalman-psar-backquant-rddt-1d-2026-11-15.json")
+                     .read_text(encoding="utf-8"))["source"]["text"]
+    assert rt.capability_admitted(src) == (True, [])
+    assert ca.admission_row(src, admitted)["admitted"] is True
+    # CONTROL: a version with no row of its own leaves `import` (and that version) missing on both
+    other = src.replace("import TradingView/ta/7", "import TradingView/ta/9")
+    assert rt.missing_capabilities(pc.capabilities_of(other), admitted) == ["import", "library:TradingView/ta/9"]
+    assert ca.admission_row(other, admitted)["missing"] == ["import", "library:TradingView/ta/9"]
+
+
+def test_A8_a_library_rows_evidence_was_graded_with_that_version(monkeypatch):
+    """(libraries chain, 2026-11-19) A `library:` row's evidence counts only where the snapshot row was GRADED WITH that
+    version at the row's sha (its `storeHeld`): a row graded without the store drew nothing of that library."""
+    v = copy.deepcopy(_verdicts())
+    cid = "kalman-psar-backquant-rddt-1d-2026-11-15"
+    sha = "c" * 64
+    v[cid]["verdict"] = "MATCH"
+    v[cid][store_held.FIELD] = [store_held.pin_of("TradingView/ta/7", sha)]
+    monkeypatch.setattr(sys.modules[__name__], "_verdicts", lambda: v)
+    fam, comm = rg.pine_evidence_script(v[cid]["script"], cid)
+    why_not = "its snapshot row was not graded with that library version at the row's sha"
+
+    def whys(row_sha):
+        row = {"admitted": True, "sha256": row_sha, "evidence": [{"capture": cid, "script": fam, "community": comm}]}
+        return {w for _c, _i, w in _phantoms({"library:TradingView/ta/7": row})}
+
+    assert why_not not in whys(sha)
+    assert why_not in whys("d" * 64)          # graded with other code under the same version
+    v[cid].pop(store_held.FIELD)
+    assert why_not in whys(sha)               # graded without the store at all
 
 
 def test_A8_the_rail_can_fail():
@@ -1240,7 +1596,7 @@ def test_A10_C7_the_snapshot_writer_stamps_the_engine_from_its_one_authority():
         encoding="utf-8")
     assert re.search(r"^import \{ SCRIPT_ENGINE_VERSION \} from '\.\./\.\./scriptEngineVersion\.js'", src, re.M)
     block = src[src.index("fs.writeFileSync(path.join(OUT, 'verdicts.json')"):]
-    block = block[:block.index("results: run.results")]
+    block = block[:block.index("results: ")]   # the rows follow (each marked store-held where it needed the store)
     assert "scriptEngineVersion: SCRIPT_ENGINE_VERSION," in block, "the writer no longer stamps the engine"
 
 
@@ -1399,6 +1755,44 @@ WITHHELD_WHOLE = {
 }
 
 
+#: ⭐⭐ admit:request-other (coordinator ruling 2026-11-19) — ONE SCRIPT IS SERVED THROUGH ITS OWN SHA ALLOWLIST ENTRY, NOT BY
+#: CAPABILITY, AND IS NOT KILLED: rs-rating-fred6724 (the owner's priority script; `api/data/pine_runtime_allowlist.json`
+#: `scripts`). Admitting `request-other` puts its captures in the reach run; four grade DIVERGE on the runtime-on lane (the
+#: door draws them on the HOST lane under admission, so they list as host-drawn DIVERGE, never a REACH stop). They are its
+#: known differences, named here with why and re-proved on every run (`served_by_own_sha`: its source is the allowlisted sha,
+#: no plot diverges, and the family named does), so the kill rail's exemption for it covers exactly these and nothing else.
+#: ⭐ (engine 92 follow-up, coordinator ruling 2026-11-21, B2) the rail asserts the PROTECTIVE direction: every runtime-on
+#: DIVERGE of an allowlisted sha is named here, in the shape named (`_own_sha_unnamed_diverges`). At engine 92 none is.
+#: ⚰️ Removed 2026-11-21, none DIVERGEs on the runtime-on lane at engine 92:
+#: ⚰️ rs-rating-fred6724-pc-agl-1d-2026-11-17 (objects, rating labels withheld): INCONCLUSIVE, by the Fred RS ruling (b).
+#: ⚰️ rs-rating-fred6724-pc-nvda-1d-2026-11-17 (the same, NASDAQ:NVDA 1D): INCONCLUSIVE, by the Fred RS ruling (b).
+#: ⚰️ rs-rating-fred6724-pc-rddt-1d-2026-11-17 (the same, NYSE:RDDT 1D): INCONCLUSIVE, by the Fred RS ruling (b).
+#: ⚰️ rs-rating-fred6724-pm-alab-1d-2026-11-16 (objectsV2, a label y after the close): INCONCLUSIVE, otherSymbolUnsettled.
+SERVED_BY_OWN_SHA: dict = {}
+
+
+def _allowlisted_shas() -> set:
+    doc = json.loads((ROOT / "api" / "data" / "pine_runtime_allowlist.json").read_text(encoding="utf-8"))
+    return {s.get("sha256") for s in doc.get("scripts") or [] if isinstance(s, dict)}
+
+
+def served_by_own_sha(record: dict) -> bool:
+    """Is this runtime-on verdict record one of SERVED_BY_OWN_SHA's, still in the shape named (above)?"""
+    if not isinstance(record, dict) or record.get("id") not in SERVED_BY_OWN_SHA:
+        return False
+    at = licence_held.fixture_path(record["file"])
+    try:
+        text = (json.loads((at or ROOT / record["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+    except (OSError, ValueError):
+        return False
+    if not isinstance(text, str) or rt.source_hash(text) not in _allowlisted_shas():
+        return False
+    if any(p.get("verdict") == "DIVERGE" for p in record.get("plots") or []):
+        return False
+    family = SERVED_BY_OWN_SHA[record["id"]][0]
+    return (record.get(family) or {}).get("verdict") == "DIVERGE"
+
+
 def withheld_whole(record: dict) -> bool:
     """Is this runtime-on verdict record a by-name withholding of the WHOLE run (see above)?"""
     if not isinstance(record, dict) or record.get("verdictWithoutPaints") != "INCONCLUSIVE":
@@ -1456,7 +1850,7 @@ def _admitted_capture_ids(held_absent: dict | None = None) -> set:
             text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
         except (OSError, ValueError):
             continue
-        if isinstance(text, str) and text.strip() and pc.capabilities_of(text) <= admitted \
+        if isinstance(text, str) and text.strip() and not rt.missing_capabilities(pc.capabilities_of(text), admitted) \
                 and not rt.killed(None, text):
             out.add(r["id"])
     return out
@@ -1488,6 +1882,27 @@ def test_REACH_no_runtime_lane_DIVERGE_and_no_MATCH_to_DIVERGE():
     problems = reach_rule_violations(report, json.loads(VERDICTS_RT.read_text(encoding="utf-8")),
                                      json.loads(VERDICTS_PROD.read_text(encoding="utf-8")))
     assert problems == [], problems
+
+
+def test_REACH_the_population_block_is_derived_from_its_rows():
+    """⭐⭐ (2026-11-19, the e84 train's finding) the report's `populations` block is DERIVED from its rows
+    (`capability_admission.py::populations_of`): git merged two units' identical hand-edits to it as one, and master's
+    block was 4 rows off its own rows. Recomputed here; `capture` and `committed` sizes held to what they count."""
+    sys.path.insert(0, str(ROOT / "tools" / "pine_coverage"))
+    import capability_admission as ca  # noqa: PLC0415
+    report = json.loads(REPORT.read_text(encoding="utf-8"))
+    assert report["populations"] == ca.populations_of(report)
+    sizes = report["populationSizes"]
+    assert sizes["capture"] == len(json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"])
+    assert sizes["committed"] == len(list((ROOT / "corpus" / "committed").glob("*.pine")))
+    # CONTROL: one row's lane moved, or one row dropped, and the block no longer derives
+    moved = copy.deepcopy(report)
+    row = next(c for c in moved["captures"] if c["lane"] == "runtime")
+    row["lane"] = "host"
+    assert moved["populations"] != ca.populations_of(moved)
+    dropped = copy.deepcopy(report)
+    dropped["admittedGraded"] = dropped["admittedGraded"][1:]
+    assert dropped["populations"] != ca.populations_of(dropped)
 
 
 def held_kills_or_synthetic(rtv: dict, tmp_path, monkeypatch) -> dict:
@@ -2070,12 +2485,17 @@ def test_F2_the_verdict_door_spends_from_the_members_own_budget(monkeypatch):
 
 
 def test_F2_a_verdict_run_yields_to_persisted_work(monkeypatch):
-    """A verdict run cools only the verdict door: a serve right after it may run; a second verdict may not."""
+    """A verdict run spends only the verdict door's bucket: a serve right after it may run. A second
+    verdict runs while the bucket has room (G2 re-shaped 2026-11-19: was an idle-after-every-run
+    cool-down, process-wide), and is held, `busy`, once the bucket is drained."""
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
     rt._reset_capability_cache(persisted=True)
     assert rt.runtime_admission(MEMBER_COPY + "// v1\n", member="u-a")["admitted"] is True
-    assert rt.runtime_admission(MEMBER_COPY + "// v2\n", member="u-b")["missing"] == [rt.PENDING]
+    assert rt.runtime_admission(MEMBER_COPY + "// v2\n", member="u-b")["admitted"] is True
     assert rt.capabilities_for(MEMBER_COPY + "// serve\n", budget=rt.DetectorBudget()) is not None
+    rt._VERDICT_BUCKET[:] = [0.0, time.monotonic() + 3600]          # drained, and not refilling yet
+    held = rt.runtime_admission(MEMBER_COPY + "// v3\n", member="u-c")
+    assert held["missing"] == [rt.PENDING] and held["pending_reason"] == rt.PENDING_BUSY
     rt._reset_capability_cache(persisted=True)
 
 

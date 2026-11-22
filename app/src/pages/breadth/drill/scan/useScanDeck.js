@@ -48,7 +48,23 @@ export default function useScanDeck(drill, { storage = safeStorage() } = {}) {
 
   // ONE fetch each for the whole cell. The list below is handed the same maps,
   // so a filter toggle never re-asks the server.
-  const groupMeta = useGroupMeta(tickers)
+  const fetchedMeta = useGroupMeta(tickers)
+  // An item may carry its own sector / industry / theme (the dev sample list does); the server's
+  // answer wins wherever it has one.
+  const groupMeta = useMemo(() => {
+    if (!items.some(i => i?.sector || i?.industry || i?.theme)) return fetchedMeta
+    const merge = (f, got) => {
+      const out = { ...(got || {}) }
+      for (const i of items) if (i?.[f] && !out[up(i.t)]) out[up(i.t)] = i[f]
+      return out
+    }
+    return {
+      ...fetchedMeta,
+      sectors: merge('sector', fetchedMeta.sectors),
+      industries: merge('industry', fetchedMeta.industries),
+      themes: merge('theme', fetchedMeta.themes),
+    }
+  }, [items, fetchedMeta])
   const { metaData } = useWatchlistMeta(tickers)
   const context = useDrillContext(drill)
   const dir = listDirection(drill?.drillKey)

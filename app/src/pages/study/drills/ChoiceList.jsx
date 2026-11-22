@@ -73,9 +73,9 @@ export default function ChoiceList({ choices, value, onChange, disabled = false,
         const state = sameAnswer(choice, rightLabel) ? 'right' : sameAnswer(choice, wrongLabel) ? 'wrong' : revealed ? 'quiet' : selected ? 'sel' : 'idle'
         return (
           <li key={`${i}-${choice}`}>
-            <Tile ref={(el) => { refs.current[i] = el }} n={showKeys ? i + 1 : null} i={i} label={choice} state={state}
+            <Tile ref={(el) => { refs.current[i] = el }} n={showKeys ? i + 1 : null} i={i} state={state}
               role="radio" checked={selected} disabled={disabled} tabIndex={selected || (value == null && i === 0) ? 0 : -1}
-              onClick={() => { if (!disabled) onChange(choice) }} onKeyDown={(e) => onKeyDown(e, i)} dataIndex={i + 1} />
+              onClick={() => { if (!disabled) onChange(choice) }} onKeyDown={(e) => onKeyDown(e, i)} dataIndex={i + 1}>{choice}</Tile>
           </li>
         )
       })}

@@ -35,6 +35,8 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import held_evidence  # noqa: E402 -- the one reader of licence-held evidence, and the one classifier
 VERDICTS = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json"
 LIST = ROOT / "app" / "src" / "components" / "chart" / "engine" / "hostKnownDivergence.json"
 #: the capture-queue doc that makes each listed script's gap visible as work (one engine-gap row per script)
@@ -79,26 +81,20 @@ def _committed_pine_files() -> dict:
 
 
 def _first_diverging(r: dict) -> tuple:
-    """(kind, sentence) of the first item a DIVERGE verdict grades DIVERGE. `kind` is `drawn` when our side
-    drew something that differs, `withheld` when every diverging item is a drawing our side withholds by name
-    (TradingView holds objects, ours carries none: the grade is DIVERGE, the member reads a refusal)."""
-    for p in r.get("plots") or []:
-        if p.get("verdict") == "DIVERGE":
-            return "drawn", f"plot `{p.get('title')}`: {p.get('reason')}"
-    o2 = r.get("objectsV2") or {}
-    o1 = r.get("objects") or {}
-    if o2.get("verdict") == "DIVERGE" or o1.get("verdict") == "DIVERGE":
-        first = o2.get("first") or {}
-        if o2.get("pairedNothing") is True or (not first and "withheld by name" in str(o1.get("reason"))):
-            return "withheld", str(o1.get("reason") or o2.get("reason") or "").split(" — ")[0]
-        if first:
-            return "drawn", (f"{first.get('family')} {first.get('field')} of {first.get('where')}: "
-                             f"TradingView {json.dumps(first.get('vendor'))}, ours {json.dumps(first.get('ours'))}")
-        return "drawn", str(o1.get("reason") or o2.get("reason"))
-    for k, v in r.items():
-        if isinstance(v, dict) and v.get("verdict") == "DIVERGE":
-            return "drawn", f"{k}: {v.get('reason')}"
-    return "drawn", str(r.get("reason"))
+    """(kind, sentence) of the first item a DIVERGE verdict grades DIVERGE: the ONE classifier,
+    `held_evidence.first_diverging`, which licence-held captures' ledger rows are filed with too."""
+    return held_evidence.first_diverging(r)
+
+
+#: ⭐⭐ (coordinator ruling 2026-11-19) the grade of a DISCLOSED PARTIAL whose drawn records agree on every field the
+#: capture holds, but whose PLACE (x) no capture witnessed (it predates the x table): `compare.mjs`
+#: `OBJECTS_PARTIAL_UNPOSITIONED_GUARD`. Never a lift: a withhold is never lifted on a field no capture witnessed.
+UNPOSITIONED = "objects:partial-unpositioned"
+
+
+def _unpositioned(r: dict) -> bool:
+    """Does this (non-DIVERGE) production verdict grade a disclosed partial whose drawn records' place is unwitnessed?"""
+    return UNPOSITIONED in str((r.get("objects") or {}).get("withheld") or "").split(",")
 
 
 def is_listed(entry: dict) -> bool:
@@ -106,13 +102,15 @@ def is_listed(entry: dict) -> bool:
     committed production DIVERGE captures shows a DRAWN difference (our side drew something that differs). A
     capture whose only difference is objects our side already withholds BY NAME is incompleteness that is
     already refused by name, not a wrong drawing, and its plots were not shown to differ: it keeps its
-    engine-gap queue row as work, marked "withheld by name, not listed", and the script is not listed for it."""
-    return any(c.get("kind") == "drawn" for c in (entry.get("evidence") or {}).get("diverge") or [])
+    engine-gap queue row as work, marked "withheld by name, not listed", and the script is not listed for it.
+    ⭐⭐ (2026-11-19) An `unpositioned` capture (a disclosed partial whose drawn records' x no capture witnessed,
+    `UNPOSITIONED`) KEEPS the script listed: only a capture with the x table can lift it."""
+    return any(c.get("kind") in ("drawn", "unpositioned") for c in (entry.get("evidence") or {}).get("diverge") or [])
 
 
-def derive(verdicts_path=VERDICTS, root=ROOT) -> dict:
+def derive(verdicts_path=VERDICTS, root=ROOT, ledger=None) -> dict:
     """{sha256: entry} for every LISTED script (`is_listed`): the committed list's derivation."""
-    return {sha: e for sha, e in derive_all(verdicts_path, root).items() if is_listed(e)}
+    return {sha: e for sha, e in derive_all(verdicts_path, root, ledger).items() if is_listed(e)}
 
 
 def _member_text(text) -> str:
@@ -120,8 +118,11 @@ def _member_text(text) -> str:
     return " ".join(str(text).replace(" — ", "; ").replace("—", "-").split())
 
 
-def derive_all(verdicts_path=VERDICTS, root=ROOT) -> dict:
-    """{sha256: entry} for every script with a committed production capture grading DIVERGE, listed or not."""
+def derive_all(verdicts_path=VERDICTS, root=ROOT, ledger=None) -> dict:
+    """{sha256: entry} for every script with a committed production capture grading DIVERGE, listed or not.
+    ⭐⭐ (coordinator rulings 2026-11-19) and every licence-held script the production lane's CURRENT-engine ledger rows
+    KILL (`held_evidence.held_kills`: a drawn difference no narrow withhold isolates). A held difference a narrow
+    withhold isolates is the door's (`heldWithholds.json`), never a whole-script listing here."""
     doc = json.loads(pathlib.Path(verdicts_path).read_text(encoding="utf-8"))
     if doc.get("lane") != "production":
         raise SystemExit(f"{verdicts_path}: lane {doc.get('lane')!r}, not the production lane")
@@ -143,8 +144,17 @@ def derive_all(verdicts_path=VERDICTS, root=ROOT) -> dict:
             e["diverge"].append({**cap, "kind": kind, "firstDiverging": first})
         elif r.get("verdict") == "MATCH":
             e["match"].append(cap)
+        elif _unpositioned(r):
+            e["diverge"].append({**cap, "kind": "unpositioned", "firstDiverging": (
+                "a disclosed partial whose drawn objects agree with TradingView's on every field this capture holds, "
+                "but where they sit on the chart (x) is not in this capture, so their place is not witnessed")})
         else:
             e["other"].append(cap)
+    for sha, kill in held_evidence.held_kills("production", ledger or held_evidence.LEDGER).items():
+        e = per.setdefault(sha, {"title": None, "diverge": [], "match": [], "other": []})
+        for x in kill["evidence"]:
+            e["diverge"].append({"capture": x["captureId"], "symbol": x["symbol"], "timeframe": x["timeframe"],
+                                 "held": True, "kind": x["kind"], "firstDiverging": x["item"] or x["reason"]})
     files = _committed_pine_files()
     out: dict = {}
     for sha, e in per.items():
@@ -154,26 +164,36 @@ def derive_all(verdicts_path=VERDICTS, root=ROOT) -> dict:
         slug = (pathlib.Path(src).stem.split("__")[0] if src else e["diverge"][0]["capture"].rsplit("-1d-", 1)[0])
         d0 = e["diverge"][0]
         drawn = [c for c in e["diverge"] if c["kind"] == "drawn"]
-        named = drawn[0] if drawn else d0
+        unpositioned = [c for c in e["diverge"] if c["kind"] == "unpositioned"]
+        named = drawn[0] if drawn else unpositioned[0] if unpositioned else d0
         what = named["firstDiverging"]
         caps = ", ".join(c["capture"] for c in e["diverge"])
+        if not drawn and unpositioned:
+            reason = (f"on a captured {named['symbol']} {named['timeframe']} chart (capture {named['capture']}) the "
+                      f"objects it draws agree with TradingView's, but no capture has yet shown where they sit on the chart")
+            lift = (f"a capture of {', '.join(sorted({c['symbol'] + ' ' + c['timeframe'] for c in unpositioned}))} WITH the x "
+                    f"table, whose production re-grade leaves none of {caps} DIVERGE or {UNPOSITIONED}")
+        else:
+            reason = (f"on a captured {named['symbol']} {named['timeframe']} chart (capture {named['capture']}) it draws "
+                      f"something that differs from TradingView: {_member_text(what)}"
+                      if drawn else
+                      f"on a captured {named['symbol']} {named['timeframe']} chart (capture {named['capture']}) TradingView "
+                      f"draws objects this lane already withholds by name ({_member_text(what)})")
+            lift = (f"an engine fix to the first diverging item, then a production re-grade that leaves none of "
+                    f"{caps} DIVERGE (MATCH, or INCONCLUSIVE by name)")
         out[sha] = {
             "slug": slug,
             "sha256": sha,
             "title": e["title"],
-            "source": src or (pathlib.Path(str(next(r["file"] for r in doc["results"] if r["id"] == d0["capture"]))).as_posix()),
-            "reason": (f"on a captured {named['symbol']} {named['timeframe']} chart (capture {named['capture']}) it draws "
-                       f"something that differs from TradingView: {_member_text(what)}"
-                       if drawn else
-                       f"on a captured {named['symbol']} {named['timeframe']} chart (capture {named['capture']}) TradingView "
-                       f"draws objects this lane already withholds by name ({_member_text(what)})"),
+            "source": src or ("licence-held capture (evidence ledger)" if d0.get("held") else
+                              pathlib.Path(str(next(r["file"] for r in doc["results"] if r["id"] == d0["capture"]))).as_posix()),
+            "reason": reason,
             "evidence": {
                 "diverge": e["diverge"],
                 "match": sorted(c["capture"] for c in e["match"]),
                 "inconclusive": sorted(c["capture"] for c in e["other"]),
             },
-            "liftWhen": (f"an engine fix to the first diverging item, then a production re-grade that leaves none of "
-                         f"{caps} DIVERGE (MATCH, or INCONCLUSIVE by name)"),
+            "liftWhen": lift,
         }
     return dict(sorted(out.items(), key=lambda kv: (kv[1]["slug"], kv[0])))
 
@@ -189,7 +209,7 @@ def disagreements(committed_list: dict, derived: dict) -> list:
     out = []
     for sha in sorted(set(derived) - set(committed_list)):
         out.append(f"NOT LISTED: {derived[sha]['slug']} ({sha[:12]}) has a committed DIVERGE capture with a drawn "
-                   f"difference ({', '.join(c['capture'] for c in derived[sha]['evidence']['diverge'] if c['kind'] == 'drawn')}) "
+                   f"difference ({', '.join(c['capture'] for c in derived[sha]['evidence']['diverge'] if c['kind'] in ('drawn', 'unpositioned'))}) "
                    "and is not on the list")
     for sha in sorted(set(committed_list) - set(derived)):
         out.append(f"STALE: {committed_list[sha].get('slug')} ({sha[:12]}) is listed but no committed capture of it "
@@ -223,8 +243,20 @@ def render_queue(derived_all: dict) -> str:
     for e in derived_all.values():
         listed = is_listed(e)
         drawn = [c for c in e["evidence"]["diverge"] if c["kind"] == "drawn"]
-        c = (drawn or e["evidence"]["diverge"])[0]
+        unpositioned = [c for c in e["evidence"]["diverge"] if c["kind"] == "unpositioned"]
         rid = queue_row_id(e["slug"])
+        if not drawn and unpositioned:
+            # ⭐⭐ (2026-11-19) listed on a place no capture witnessed: what settles it is a capture WITH the x table, its own row
+            c = unpositioned[0]
+            rows.append(f"| {rid} | none: a re-capture WITH the x table (the capture `{c['capture']}` predates it) "
+                        f"| `{c['symbol']} {c['timeframe']}` | `{GUARD}`: the whole script is refused by name on the host lane "
+                        f"| a capture with the x table whose production re-grade leaves none of its "
+                        f"{len(e['evidence']['diverge'])} capture(s) DIVERGE or {UNPOSITIONED} | capture |")
+            disp.append(f"| {rid} | withheld-ledger | listed: `{c['capture']}` is a disclosed partial whose drawn objects "
+                        f"agree with TradingView's on every field it holds, but not on their place (x), which no capture has "
+                        f"witnessed. The capture that settles it is its own row: a re-capture WITH the x table |")
+            continue
+        c = (drawn or e["evidence"]["diverge"])[0]
         kept = (f"`{GUARD}`: the whole script is refused by name on the host lane" if listed else
                 "withheld by name, not listed: only objects this lane already withholds by name differ; its plots are served")
         rows.append(f"| {rid} | none: engine gap (the capture `{c['capture']}` is in the harness) "

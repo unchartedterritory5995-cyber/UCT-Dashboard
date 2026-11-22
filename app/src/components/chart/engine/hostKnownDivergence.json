@@ -141,28 +141,28 @@
    "sha256": "e0db92075b2e1421b0c47c26b26de7ad5fe52fd6313971d6edbf6a28c9d4b538",
    "title": "HTF Candle Footprint [Cartel Console]",
    "source": "corpus/committed/htf-candle-footprint-cartel-console__ca3ff4e904.pine",
-   "reason": "on a captured NYSE:RDDT 1D chart (capture htf-candle-footprint-cartel-console-rddt-1d-2026-09-28) it draws something that differs from TradingView: boxes top of box #2: TradingView 156.35857142857142, ours 152.67",
+   "reason": "on a captured NYSE:RDDT 1D chart (capture htf-candle-footprint-cartel-console-rddt-1d-2026-09-28) the objects it draws agree with TradingView's, but no capture has yet shown where they sit on the chart",
    "evidence": {
     "diverge": [
      {
       "capture": "htf-candle-footprint-cartel-console-rddt-1d-2026-09-28",
       "symbol": "NYSE:RDDT",
       "timeframe": "1D",
-      "kind": "drawn",
-      "firstDiverging": "boxes top of box #2: TradingView 156.35857142857142, ours 152.67"
+      "kind": "unpositioned",
+      "firstDiverging": "a disclosed partial whose drawn objects agree with TradingView's on every field this capture holds, but where they sit on the chart (x) is not in this capture, so their place is not witnessed"
      },
      {
       "capture": "htf-candle-footprint-cartel-console-spy-1d-2026-10-03",
       "symbol": "AMEX:SPY",
       "timeframe": "1D",
-      "kind": "drawn",
-      "firstDiverging": "boxes top of box #2: TradingView 771.0525250000001, ours 769.64"
+      "kind": "unpositioned",
+      "firstDiverging": "a disclosed partial whose drawn objects agree with TradingView's on every field this capture holds, but where they sit on the chart (x) is not in this capture, so their place is not witnessed"
      }
     ],
     "match": [],
     "inconclusive": []
    },
-   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of htf-candle-footprint-cartel-console-rddt-1d-2026-09-28, htf-candle-footprint-cartel-console-spy-1d-2026-10-03 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+   "liftWhen": "a capture of AMEX:SPY 1D, NYSE:RDDT 1D WITH the x table, whose production re-grade leaves none of htf-candle-footprint-cartel-console-rddt-1d-2026-09-28, htf-candle-footprint-cartel-console-spy-1d-2026-10-03 DIVERGE or objects:partial-unpositioned"
   },
   {
    "slug": "htf-liquidity-dashboard-tfo",
@@ -302,6 +302,27 @@
    "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vold-market-breadth-rddt-1d-2026-09-28, vold-market-breadth-spy-1d-2026-10-03 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
+   "slug": "vw-bi-asin",
+   "sha256": "c0d0271e39bb0fbdee2885fbfbb2b6e6fa3a7710df92b2696f4009992e266519",
+   "title": "UCTPROBE_VW_BI_ASIN",
+   "source": "tools/visual_conformance/probes/vw-bi-asin.pine",
+   "reason": "on a captured AMEX:SPY 1D chart (capture vw-bi-asin-spy-1d-2026-11-19) it draws something that differs from TradingView: plot `A5_identity_residual_1e18`: 123 steady-state bars disagree; first at bar 113 (value: vendor 0 vs ours -111.02230246251565); scattered, last at bar 8451",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-bi-asin-spy-1d-2026-11-19",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `A5_identity_residual_1e18`: 123 steady-state bars disagree; first at bar 113 (value: vendor 0 vs ours -111.02230246251565) — scattered, last at bar 8451"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-bi-asin-spy-1d-2026-11-19 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
    "slug": "vw-bt-session-overnight-value",
    "sha256": "31bd3943a37dcdbd6f0cccb3ee3d89ed5d3f20908a2d917fb4b4a8586c66d58c",
    "title": "UCTPROBE_VW_BT_SESSION_OVERNIGHT_VALUE",
@@ -351,6 +372,55 @@
    "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
+   "slug": "vw-bt-toradians",
+   "sha256": "42501f8097cf7211ce429f367e2239188c52484a5d0ec3f4c62a9cf644611738",
+   "title": "UCTPROBE_VW_BT_TORADIANS",
+   "source": "tools/visual_conformance/probes/vw-bt-toradians.pine",
+   "reason": "on a captured AMEX:SPY 1D chart (capture vw-bt-toradians-spy-1d-2026-11-16) it draws something that differs from TradingView: plot `D3_minus_x_times_pi_180`: 8457 steady-state bars disagree; first at bar 0 (value: vendor -888.1784197001252 vs ours 0); persistent, last at bar 8507",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-bt-toradians-spy-1d-2026-11-16",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `D3_minus_x_times_pi_180`: 8457 steady-state bars disagree; first at bar 0 (value: vendor -888.1784197001252 vs ours 0) — persistent, last at bar 8507"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-bt-toradians-spy-1d-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-cf-const-fold",
+   "sha256": "a5f161ba1370586df40a999049e4ddaf0c8f5cb956f6636fc8817f4ec6f8c81e",
+   "title": "UCTPROBE_VW_CF_CONST_FOLD",
+   "source": "tools/visual_conformance/probes/vw-cf-const-fold.pine",
+   "reason": "on a captured NYSE:RDDT 1D chart (capture vw-cf-const-fold-rddt-1d-2026-11-20) it draws something that differs from TradingView: plot `D1_pi_over_180_minus_series_1e18`: 670 steady-state bars disagree; first at bar 0 (value: vendor 3.469446951953614 vs ours 0); persistent, last at bar 669",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-cf-const-fold-rddt-1d-2026-11-20",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `D1_pi_over_180_minus_series_1e18`: 670 steady-state bars disagree; first at bar 0 (value: vendor 3.469446951953614 vs ours 0) — persistent, last at bar 669"
+     },
+     {
+      "capture": "vw-cf-const-fold-spy-1d-2026-11-20",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `D1_pi_over_180_minus_series_1e18`: 8511 steady-state bars disagree; first at bar 0 (value: vendor 3.469446951953614 vs ours 0) — persistent, last at bar 8510"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-cf-const-fold-rddt-1d-2026-11-20, vw-cf-const-fold-spy-1d-2026-11-20 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
    "slug": "vw-fmt-tie-readings",
    "sha256": "aed6aa3bd544d3440c6310587e7c52e56ee691a3d0667fb497d1efa55374760c",
    "title": "UCTPROBE_VW_FMT_TIE_READINGS",
@@ -393,48 +463,53 @@
    "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-h5-format-volume-spy-1d-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
-   "slug": "vw-int-cast",
-   "sha256": "adfb9b3e36cee933596bf9b6102611ce474b85e951dcdfd5c9dbe9e33f8cb812",
-   "title": "UCTPROBE_VW_INT_CAST",
-   "source": "tools/visual_conformance/probes/vw-int-cast.pine",
-   "reason": "on a captured AMEX:SPY D chart (capture vw-int-cast-spy-1d-2026-09-27) it draws something that differs from TradingView: plot `I00_bar_index_CONTROL`: 300 steady-state bars disagree; first at bar 0 (value: vendor 8172 vs ours 0); persistent, last at bar 299",
+   "slug": "vw-lastbar-forming",
+   "sha256": "494cefde42fc27095f24caeaab11269223e12520634d674f5a5193f37b162f95",
+   "title": "UCTPROBE_VW_LASTBAR_FORMING",
+   "source": "tools/visual_conformance/probes/vw-lastbar-forming.pine",
+   "reason": "on a captured NYSE:RDDT 1D chart (capture vw-lastbar-forming-rddt-1d-2026-11-20-insession) it draws something that differs from TradingView: tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\"",
    "evidence": {
     "diverge": [
      {
-      "capture": "vw-int-cast-spy-1d-2026-09-27",
-      "symbol": "AMEX:SPY",
-      "timeframe": "D",
+      "capture": "vw-lastbar-forming-rddt-1d-2026-11-20-insession",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
       "kind": "drawn",
-      "firstDiverging": "plot `I00_bar_index_CONTROL`: 300 steady-state bars disagree; first at bar 0 (value: vendor 8172 vs ours 0) — persistent, last at bar 299"
+      "firstDiverging": "tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\""
+     },
+     {
+      "capture": "vw-lastbar-forming-rddt-1d-2026-11-20-preopen",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `F03 isconfirmed`: 1 steady-state bars disagree; first at bar 670 (value: vendor 0 vs ours 1) — persistent, last at bar 670"
+     },
+     {
+      "capture": "vw-lastbar-forming-spy-1d-2026-11-20-insession",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\""
+     },
+     {
+      "capture": "vw-lastbar-forming-spy-1d-2026-11-20-preopen",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `F02 isrealtime`: 1 steady-state bars disagree; first at bar 8511 (value: vendor 1 vs ours 0) — persistent, last at bar 8511"
+     },
+     {
+      "capture": "vw-lastbar-forming-spy-5-2026-11-20-insession",
+      "symbol": "AMEX:SPY",
+      "timeframe": "5",
+      "kind": "drawn",
+      "firstDiverging": "labels count of labels held: TradingView 2, ours 1"
      }
     ],
     "match": [],
     "inconclusive": []
    },
-   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-int-cast-spy-1d-2026-09-27 DIVERGE (MATCH, or INCONCLUSIVE by name)"
-  },
-  {
-   "slug": "vw-nvi-pvi",
-   "sha256": "aae643347742257de64e0828e0c15fd9610847185c41b044d9320b40640a81b7",
-   "title": "UCTPROBE_VW_NVI_PVI",
-   "source": "tools/visual_conformance/probes/vw-nvi-pvi.pine",
-   "reason": "on a captured AMEX:SPY D chart (capture vw-nvi-pvi-spy-1d-truncated-2026-09-27) it draws something that differs from TradingView: plot `P00_bar_index_CONTROL`: 1040 steady-state bars disagree; first at bar 0 (value: vendor 7432 vs ours 0); persistent, last at bar 1039",
-   "evidence": {
-    "diverge": [
-     {
-      "capture": "vw-nvi-pvi-spy-1d-truncated-2026-09-27",
-      "symbol": "AMEX:SPY",
-      "timeframe": "D",
-      "kind": "drawn",
-      "firstDiverging": "plot `P00_bar_index_CONTROL`: 1040 steady-state bars disagree; first at bar 0 (value: vendor 7432 vs ours 0) — persistent, last at bar 1039"
-     }
-    ],
-    "match": [
-     "vw-nvi-pvi-spy-1d-full-2026-09-27"
-    ],
-    "inconclusive": []
-   },
-   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-nvi-pvi-spy-1d-truncated-2026-09-27 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-lastbar-forming-rddt-1d-2026-11-20-insession, vw-lastbar-forming-rddt-1d-2026-11-20-preopen, vw-lastbar-forming-spy-1d-2026-11-20-insession, vw-lastbar-forming-spy-1d-2026-11-20-preopen, vw-lastbar-forming-spy-5-2026-11-20-insession DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
    "slug": "vw-object-gc-a",
@@ -525,6 +600,174 @@
     "inconclusive": []
    },
    "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-other-symbol-rddt-1d-2026-09-30 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-req-w-closure-day",
+   "sha256": "fec9dba6afb28f47372973a4f81f6f2a769bf5cad3004e6af7dff63ffb3d0dc6",
+   "title": "UCTPROBE_VW_REQ_W_CLOSURE_DAY",
+   "source": "tools/visual_conformance/probes/vw-req-w-closure-day.pine",
+   "reason": "on a captured CME_MINI:ES1! 1D chart (capture vw-req-w-closure-day-es1-1d-2026-11-20) it draws something that differs from TradingView: plot `W_open_off`: 7078 steady-state bars disagree; first at bar 5 (na: vendor 933.75 vs ours na); persistent, last at bar 7384",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-req-w-closure-day-es1-1d-2026-11-20",
+      "symbol": "CME_MINI:ES1!",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `W_open_off`: 7078 steady-state bars disagree; first at bar 5 (na: vendor 933.75 vs ours na) — persistent, last at bar 7384"
+     },
+     {
+      "capture": "vw-req-w-closure-day-eurusd-1d-2026-11-20",
+      "symbol": "FX:EURUSD",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `W_open_off`: 13834 steady-state bars disagree; first at bar 5 (value: vendor 0.5368 vs ours 0.5365) — persistent, last at bar 14363"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-req-w-closure-day-es1-1d-2026-11-20, vw-req-w-closure-day-eurusd-1d-2026-11-20 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-tf-format-date-rare",
+   "sha256": "2193a657191929f164cc070e4a56abfbfa809d078cfea7bfc1aa3d81479d0f16",
+   "title": "UCTPROBE_VW_TF_FORMAT_DATE_RARE",
+   "source": "tools/visual_conformance/probes/vw-tf-format-date-rare.pine",
+   "reason": "on a captured AMEX:SPY 1D chart (capture vw-tf-format-date-rare-spy-1d-2026-11-20) it draws something that differs from TradingView: tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\"",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-tf-format-date-rare-spy-1d-2026-11-20",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\""
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-tf-format-date-rare-spy-1d-2026-11-20 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-tf-format-date-styles",
+   "sha256": "b4ffafb7ac50f61fa18eae3c7130f23a6fce6ae6d556348241ca02ed36ea4c33",
+   "title": "UCTPROBE_VW_TF_FORMAT_DATE_STYLES",
+   "source": "tools/visual_conformance/probes/vw-tf-format-date-styles.pine",
+   "reason": "on a captured AMEX:SPY 1D chart (capture vw-tf-format-date-styles-spy-1d-2026-11-20) it draws something that differs from TradingView: tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\"",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-tf-format-date-styles-spy-1d-2026-11-20",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\""
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-tf-format-date-styles-spy-1d-2026-11-20 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-tf-format-number-patterns",
+   "sha256": "b1ec65396c8a7f41521533a7e2b48ced05d280aeedcb444412ed4ecda89ebc06",
+   "title": "UCTPROBE_VW_TF_FORMAT_NUMBER_PATTERNS",
+   "source": "tools/visual_conformance/probes/vw-tf-format-number-patterns.pine",
+   "reason": "on a captured AMEX:SPY 1D chart (capture vw-tf-format-number-patterns-spy-1d-2026-11-20) it draws something that differs from TradingView: tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\"",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-tf-format-number-patterns-spy-1d-2026-11-20",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\""
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-tf-format-number-patterns-spy-1d-2026-11-20 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-tf-tick-format-idiom",
+   "sha256": "54b9b25bba21f77a2a730f113fc9be3ca1d4761521426211303cfcf8d95543a7",
+   "title": "UCTPROBE_VW_TF_TICK_FORMAT_IDIOM",
+   "source": "tools/visual_conformance/probes/vw-tf-tick-format-idiom.pine",
+   "reason": "on a captured OANDA:EURUSD 1D chart (capture vw-tf-tick-format-idiom-eurusd-1d-2026-11-20) it draws something that differs from TradingView: object counts and texts agree; 1 object family differs in COLOUR (first: cell.text_color of cell (0,0) \"I01 tick\"; vendor #363a45ff, ours #d1d4dcff, notCarried); coordinates are NOT compared by v1",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-tf-tick-format-idiom-eurusd-1d-2026-11-20",
+      "symbol": "OANDA:EURUSD",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "object counts and texts agree; 1 object family differs in COLOUR (first: cell.text_color of cell (0,0) \"I01 tick\" — vendor #363a45ff, ours #d1d4dcff, notCarried); coordinates are NOT compared by v1"
+     },
+     {
+      "capture": "vw-tf-tick-format-idiom-spy-1d-2026-11-20",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\""
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-tf-tick-format-idiom-eurusd-1d-2026-11-20, vw-tf-tick-format-idiom-spy-1d-2026-11-20 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-tf-tick-format-idiom-v4",
+   "sha256": "d2e3a43eddbb4ac5329bb243455662943dc6db98a6d364a9604816f6100be10b",
+   "title": "UCTPROBE_VW_TF_TICK_FORMAT_IDIOM_V4",
+   "source": "tools/visual_conformance/probes/vw-tf-tick-format-idiom-v4.pine",
+   "reason": "on a captured OANDA:EURUSD 1D chart (capture vw-tf-tick-format-idiom-v4-eurusd-1d-2026-11-20) it draws something that differs from TradingView: object counts and texts agree; 1 object family differs in COLOUR (first: cell.text_color of cell (0,0) \"I01 tick\"; vendor #363a45ff, ours #d1d4dcff, notCarried); coordinates are NOT compared by v1",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-tf-tick-format-idiom-v4-eurusd-1d-2026-11-20",
+      "symbol": "OANDA:EURUSD",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "object counts and texts agree; 1 object family differs in COLOUR (first: cell.text_color of cell (0,0) \"I01 tick\" — vendor #363a45ff, ours #d1d4dcff, notCarried); coordinates are NOT compared by v1"
+     },
+     {
+      "capture": "vw-tf-tick-format-idiom-v4-spy-1d-2026-11-20",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\""
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-tf-tick-format-idiom-v4-eurusd-1d-2026-11-20, vw-tf-tick-format-idiom-v4-spy-1d-2026-11-20 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-tf-tostring-built-fmt",
+   "sha256": "5c3a537f7dca6aa8e459fe99afb5f15131772e11b871c73db2228906cafd5e86",
+   "title": "UCTPROBE_VW_TF_TOSTRING_BUILT",
+   "source": "tools/visual_conformance/probes/vw-tf-tostring-built-fmt.pine",
+   "reason": "on a captured AMEX:SPY 1D chart (capture vw-tf-tostring-built-fmt-spy-1d-2026-11-20) it draws something that differs from TradingView: tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\"",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-tf-tostring-built-fmt-spy-1d-2026-11-20",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_color of cell (0,0) of table #1: TradingView \"#363a45ff\", ours \"#d1d4dcff\""
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-tf-tostring-built-fmt-spy-1d-2026-11-20 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
    "slug": "vw-time-tf",

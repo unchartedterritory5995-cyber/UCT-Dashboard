@@ -4,7 +4,7 @@
   {
    "id": "table-summary",
    "title": "A summary table in a corner of the chart",
-   "shows": "table.new once with var, cells written on the last bar, numbers formatted with str.tostring",
+   "shows": "table.new once with var, its cells written on EVERY bar (nothing waits for the last bar), numbers formatted with str.tostring",
    "file": "table-summary.pine"
   },
   {
@@ -22,7 +22,7 @@
   {
    "id": "box-over-a-range",
    "title": "A shaded box over a range of bars",
-   "shows": "one box kept in a var, deleted and redrawn on the last bar",
+   "shows": "one box made once with var and MOVED on every bar with box.set_lefttop and box.set_rightbottom (never deleted and remade, never waiting for the last bar)",
    "file": "box-over-a-range.pine"
   },
   {
@@ -58,7 +58,7 @@
   {
    "id": "levels-from-a-list",
    "title": "Several levels drawn from a list, with a label on each",
-   "shows": "array.from, for ... in, each level's price kept in an array, lines and labels rebuilt from it on the last bar (kept in arrays, deleted before they are made again), and one value from that array PLOTTED so the run owns the drawings",
+   "shows": "array.from, for ... in, each level's price kept in an array, the lines and labels made once (kept in arrays) and MOVED on every bar with line.set_xy1, line.set_xy2 and label.set_xy, and one value from that array PLOTTED so the run owns the drawings",
    "file": "levels-from-a-list.pine"
   },
   {

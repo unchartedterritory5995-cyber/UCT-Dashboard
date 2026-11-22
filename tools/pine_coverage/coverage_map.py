@@ -625,6 +625,16 @@ LANE_PRODUCTION = "production"
 LANE_RUNTIME_ON = "runtime-on"
 
 
+SAMPLE_POPULATIONS = ("committed", "reference", "builtin")
+
+
+def populations_of(scripts):
+    """The populations a map counts: the 679 sample's three, always and in this order (a sample map is unchanged),
+    then any other a census measured (the full population's `ecosystem`, tools/pine_coverage/census_full.py), sorted."""
+    extra = sorted({s["population"] for s in scripts} - set(SAMPLE_POPULATIONS))
+    return list(SAMPLE_POPULATIONS) + extra
+
+
 def read_census(cache, lane, what):
     """census.jsonl as {key: row}, refusing rows of another lane."""
     census = {}
@@ -637,6 +647,44 @@ def read_census(cache, lane, what):
     if set(lanes) - {lane}:
         sys.exit("%s: census rows of lane %s, expected only %s" % (what, dict(lanes), lane))
     return census
+
+
+def read_library_store(cache, what):
+    """The library store a census was measured with: `<cache>/library_store.json` ([{path, sha256}], written by
+    run_census.py), or None for a census older than the file (2026-11-19), which measured an EMPTY store.
+    ⭐ The map records it (`libraryStore`): production's store serves the promoted versions, and a census measured
+    with another store is another product (libraries chain L1)."""
+    p = os.path.join(cache, "library_store.json")
+    if not os.path.exists(p):
+        return None
+    rows = json.load(open(p, encoding="utf-8"))
+    if not isinstance(rows, list) or any(not isinstance(r, dict) or set(r) != {"path", "sha256"} for r in rows):
+        sys.exit("%s: library_store.json is not a list of {path, sha256}" % what)
+    return sorted(rows, key=lambda r: r["path"])
+
+
+RENDER_GAPS_SCHEMA = "uct.pine-render-gaps/v1"
+
+
+def render_gaps_section(path, library_store, sample_keys):
+    """The map's `renderGaps` from a `render_gaps.py` output: refused unless it was swept on the runtime-on lane
+    with THIS census's library store and joined to THIS sample (keys and counts only, as written there)."""
+    if not os.path.exists(path):
+        sys.exit("--render-gaps %s does not exist: run renderGaps.measure.test.js, then render_gaps.py" % path)
+    rg = json.load(open(path, encoding="utf-8"))
+    if rg.get("schema") != RENDER_GAPS_SCHEMA:
+        sys.exit("--render-gaps %s: schema %r, expected %r" % (path, rg.get("schema"), RENDER_GAPS_SCHEMA))
+    if rg.get("lane") != "runtime-on":
+        sys.exit("--render-gaps %s: swept on lane %r, expected runtime-on (the lane members are on)" % (path, rg.get("lane")))
+    if (rg.get("libraryStore") or []) != (library_store or []):
+        sys.exit("--render-gaps %s: swept with another library store than this census (%d versions vs %d)"
+                 % (path, len(rg.get("libraryStore") or []), len(library_store or [])))
+    stray = sorted(set(rg.get("scripts") or {}) - set(sample_keys))
+    if stray:
+        sys.exit("--render-gaps %s: joined to scripts this sample does not hold (%s): another census"
+                 % (path, ", ".join(stray[:5])))
+    return {"schema": rg["schema"], "engine": rg.get("engine"), "lane": rg["lane"],
+            "captures": rg.get("captures"), "scripts": rg.get("scripts") or {}}
 
 
 def read_verdicts(path, lane, what):
@@ -735,19 +783,30 @@ def vendor_verdict_of(s):
     return LEDGER_STALE if v is None and stale else v
 
 
+#: A capture's grade where TradingView and our side disagree.
+DIVERGE = "DIVERGE"
+
+
 def script_verdict(verdicts):
-    """One script's vendor verdict over its captures' verdicts: MATCH if any capture MATCHes, else
-    MATCH_SUBSTITUTED if any capture is verified with substituted inputs (L7: its own bucket, never
-    MATCH and never DIVERGE), else DIVERGE if any DIVERGEs, else INCONCLUSIVE; None for a script
-    without a capture."""
+    """One script's vendor verdict over its captures' verdicts, which the caller takes from ONE lane graded at
+    one engine (the map: one verdicts run plus the FRESH ledger rows of the same lane).
+
+    ⛔ ANY DIVERGE DOMINATES (coordinator ruling 2026-11-19): DIVERGE if any capture DIVERGEs, whatever the others
+    grade. A script that draws the wrong picture on one chart is not a MATCH because it draws the right one on
+    three others. Else MATCH if any capture MATCHes, else MATCH_SUBSTITUTED if any capture is verified with
+    substituted inputs (L7: its own bucket, never MATCH), else INCONCLUSIVE; None for a script without a capture.
+    ⚰️ Until then MATCH won over everything, so sonarlab-order-blocks (AAPL 1D DIVERGE beside three MATCHes) read
+    MATCH, and a MATCH_SUBSTITUTED won over a DIVERGE."""
     v = set(verdicts)
     if not v:
         return None
+    if DIVERGE in v:
+        return DIVERGE
     if el.MATCH in v:
         return el.MATCH
     if el.MATCH_SUBSTITUTED in v:
         return el.MATCH_SUBSTITUTED
-    return "DIVERGE" if "DIVERGE" in v else "INCONCLUSIVE"
+    return "INCONCLUSIVE"
 
 
 def parity_counts(scripts, n):
@@ -952,7 +1011,7 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
         if r.get("reachedAfterPeel"):
             enumerated += 1
     by_pop = {}
-    for pop in ("committed", "reference", "builtin"):
+    for pop in populations_of(scripts):
         ks = [s["key"] for s in scripts if s["population"] == pop]
         by_pop[pop] = {"scripts": len(ks), "transfer": sum(1 for k in ks if k in on)}
     attached_rt = sorted(s["key"] for s in scripts if (rows[s["key"]].get("steps") or [{}])[0].get("lane") == "runtime"
@@ -1045,6 +1104,8 @@ def main():
     ap.add_argument("--master-sha", default=None)
     ap.add_argument("--runtime-cache", default=None, help="a census cache run with run_census.py --runtime-on")
     ap.add_argument("--runtime-verdicts", default=None, help="verdicts.json from VENDOR_HARNESS_RUNTIME_ON=1")
+    ap.add_argument("--render-gaps", default=None,
+                    help="tools/pine_coverage/render_gaps.py output: per sample script, the drawings left off the chart")
     a = ap.parse_args()
     engine_door = read_engine_door(a.engine_door)   # first: a named file that is not there stops here
     try:
@@ -1058,6 +1119,14 @@ def main():
     manifest = {r["key"]: r for r in json.load(open(os.path.join(cache, "sample_manifest.json"), encoding="utf-8"))["rows"]}
     census = read_census(cache, LANE_PRODUCTION, "--cache")
     inputs = {i["key"]: i for i in json.load(open(os.path.join(cache, "census_input.json"), encoding="utf-8"))}
+    library_store = read_library_store(cache, "--cache")
+    if a.runtime_cache:
+        rt_store = read_library_store(os.path.abspath(a.runtime_cache), "--runtime-cache")
+        if rt_store != library_store:
+            sys.exit("the two lanes were measured with different library stores (--cache %s, --runtime-cache %s): "
+                     "re-run both with the same --library-store" % (
+                         None if library_store is None else len(library_store),
+                         None if rt_store is None else len(rt_store)))
 
     # ── the sample: one row per script
     scripts = []
@@ -1290,7 +1359,7 @@ def main():
         return round(100.0 * n / d, 1) if d else None
 
     by_pop = {}
-    for pop in ("committed", "reference", "builtin"):
+    for pop in populations_of(scripts):
         ss = [s for s in scripts if s["population"] == pop]
         by_pop[pop] = {"scripts": len(ss), "transfer": sum(1 for s in ss if s["clean"]),
                        "attached": sum(1 for s in ss if s["attached"]),
@@ -1321,6 +1390,9 @@ def main():
         "schema": "uct.pine-coverage-map/v1",
         "generatedBy": "tools/pine_coverage/coverage_map.py",
         "measuredOn": a.measured_on, "masterSha": a.master_sha,
+        # ⭐ libraries chain L1 (2026-11-19): the library store both lanes linked from ([{path, sha256}]); [] an
+        # empty store; null a census older than the record (it measured an empty store)
+        "libraryStore": library_store,
         "headline": {
             "definition": ("A script TRANSFERS FULLY when the production member door "
                            "(memberPaneDefinition -> installUserDefinitions; objects-only pane armed, runtime pane dark) "
@@ -1374,6 +1446,10 @@ def main():
             None, lambda k: bool(orders_by_key[k]) and decl_by_key[k] == "strategy",
             norm_src, inputs, N, inv=inv) if a.runtime_cache else None,
         "engineTableThroughPineDoor": engine_door,
+        # ⭐ RENDER GAPS (census tools, 2026-11-19), only when measured (`--render-gaps`): per sample script, the
+        # captures the runtime-on render sweep measured and the drawings their charts leave off, by class
+        **({"renderGaps": render_gaps_section(a.render_gaps, library_store, {s["key"] for s in scripts})}
+           if a.render_gaps else {}),
         "scripts": [{k: v for k, v in s.items() if not k.startswith("_")} for s in scripts],
     }
     tmp = a.out + ".tmp"

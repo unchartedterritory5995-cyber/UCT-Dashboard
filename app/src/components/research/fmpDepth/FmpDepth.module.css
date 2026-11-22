@@ -33,6 +33,11 @@
 .segBtn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: -2px; }
 
 .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* The box is a Tab stop only while its table is wider than it (SidewaysScroll.jsx). The ring is
+   drawn OUTSIDE the box: drawn inside (a negative offset), the frozen first column paints over
+   its left side as soon as the table is scrolled (measured). No offset, so it stays clear of the
+   heading that sits 3px under a table. */
+.scroll:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 0; }
 .table { border-collapse: collapse; width: 100%; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
 .table th, .table td { padding: 4px 8px; text-align: right; white-space: nowrap; }
 .table th {

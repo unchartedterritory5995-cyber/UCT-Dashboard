@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
+import { createGroupTfRegistry } from '../../charts/groupTfRegistry'
 
 // The breadth drill's WorkspaceContext value — "one component, three hosts".
 // /charts, the journal note (frozenWorkspace.js) and now the breadth drill all
@@ -53,11 +54,19 @@ function inertWorkspaceMembers() {
     // Replay Mode is a whole-board mode driven by the workspace's Replay panel.
     replayCutoff: null,
     exitReplay: () => {},
+    // No "Exit Replay Mode" pill in the drill (owner 2026-11-20): the header's Replay chip is the
+    // one switch. ChartWidget shows the pill unless a host sets this false.
+    showReplayExit: false,
     replayArmPick: false,
     onReplayCutoffPicked: () => {},
     onReplayPickCancel: () => {},
     startMarker: null,
     startMarkerStyle: 'line',
+    // The scan day's "Mark day": BreadthDrillModal lays the drill date and its color over these.
+    markDay: null,
+    markDayColor: null,
+    // Scanning switches symbols every second: Replay warms no intraday timeframes per ticker.
+    replayWarmIntraday: false,
 
     // The chart's right-click "Add widget ▸" submenu floats a NEW widget onto
     // the board. The drill's board is exactly two widgets by construction.
@@ -98,6 +107,8 @@ export function drillWorkspaceValue({
   setGroupSym,
   groupTfs,
   setGroupTf,
+  groupTfSets = {},
+  registerGroupTf = () => () => {},
   chartsTheme = 'default',
   widgetCanvasByType = {},
   widgetCanvasById = {},
@@ -109,6 +120,9 @@ export function drillWorkspaceValue({
   return {
     // ── LIVE: the drill is an interactive host ──
     groupSyms,
+    // A plain `groupSyms` and no store (the /charts board's `groupSymsStore`, 2026-11-20): useWorkspace()
+    // hands this value to its readers as it is.
+    groupSymsStore: null,
     setGroupSym,
     // LIVE, not inert: the drill board pairs a Watchlists widget with a REAL
     // ChartWidget, which is exactly the pairing `groupTfs` exists for — the list
@@ -116,6 +130,8 @@ export function drillWorkspaceValue({
     // breadth drill-down is cold on every row (see ThemeTrackerPage's warmTf).
     groupTfs,
     setGroupTf,
+    groupTfSets,
+    registerGroupTf,
     chartsTheme,
     widgetCanvasByType,
     widgetCanvasById,
@@ -149,6 +165,11 @@ export default function useDrillWorkspace({ initialSym = null, chartsTheme = 'de
     if (!color || !tf) return
     setGroupTfs(prev => (prev[color] === tf ? prev : { ...prev, [color]: tf }))
   }, [])
+  // Every chart's timeframe on a colour (charts/groupTfRegistry.js): a drill list linked to two charts
+  // warms both. LIVE, like groupTfs.
+  const [groupTfSets, setGroupTfSets] = useState({})
+  const [tfRegistry] = useState(() => createGroupTfRegistry(setGroupTfSets))
+  const registerGroupTf = useCallback((color, id, tf) => tfRegistry.register(color, id, tf), [tfRegistry])
 
   // Per-instance registries and owner refs. Per-instance matters for the same
   // reason it does in the journal host: two boards must never share a chart-api
@@ -176,6 +197,8 @@ export default function useDrillWorkspace({ initialSym = null, chartsTheme = 'de
     setGroupSym,
     groupTfs,
     setGroupTf,
+    groupTfSets,
+    registerGroupTf,
     chartsTheme,
     widgetCanvasByType,
     widgetCanvasById,
@@ -183,5 +206,5 @@ export default function useDrillWorkspace({ initialSym = null, chartsTheme = 'de
     activeChartRef,
     chartApiById,
     activeWatchlistRef,
-  }), [groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus, chartApiById])
+  }), [groupSyms, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus, chartApiById])
 }

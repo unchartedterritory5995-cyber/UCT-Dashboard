@@ -26,7 +26,15 @@
 #
 # Runs in pine heavy's environment (its setup action: Node 20, cached node_modules, EMPTY licence-held stores,
 # the no-network wrapper), so a rail answers here exactly as it does there.
-# No secrets, no pull_request_target, read-only token. tests/test_ci_whole_app_rails.py rails this file.
+#
+# ⚰️ THE SAME HOLE, IN PYTEST (2026-11-19). #1998 changed only app/src, all 52 of its PR checks were green, and master
+# went red on tests/test_support_loop_refusal_codes.py: a pytest rail that READS app/src, which no PR job ran. The
+# `app-src-plan` / `app-src-pytest` jobs run the pytest files under tests/ that read app/src and that no other PR job
+# already runs under a trigger covering what they read: on a PR, the ones whose reads or code the PR changes. The list
+# is DERIVED (tools/ci_app_src_rails.py), never hand-kept, and tests/test_ci_app_src_rails.py (in `rails`) fails when
+# an app/src reader runs on no PR and is not on that tool's reasoned EXEMPT list.
+# No secrets, no pull_request_target, read-only token. tests/test_ci_whole_app_rails.py and
+# tests/test_ci_app_src_rails.py rail this file.
 name: whole-app engine rails (PR)
 
 on:
@@ -47,10 +55,49 @@ on:
       - 'docs/pine/lwc5-capability-map.md'
       - 'tests/fixtures/**'
       - 'tests/test_the_member_loop_end_to_end.py'
-      # this job's own definition and tooling
+      # this job's own definition and tooling (tools/ci_app_src_rails.py is under tools/** above)
       - '.github/workflows/whole-app-engine-rails.yml'
       - '.github/actions/pine-heavy-setup/**'
       - 'tests/test_ci_whole_app_rails.py'
+      - 'tests/test_ci_app_src_rails.py'
+      - 'tests/test_ci_app_src_vitest_rails.py'
+      # what the cross-folder VITEST rails read outside the paths above, so a PR changing one runs them. DERIVED:
+      # `python tools/ci_app_src_vitest_rails.py --print-paths` prints what is missing, and
+      # tests/test_ci_app_src_vitest_rails.py fails (UNTRIGGERED READ) until it is added here.
+      - 'corpus/committed/atr-bands__ad60b125e6.pine'
+      - 'corpus/committed/heat-map-seasons__53acdf3223.pine'
+      - 'corpus/committed/makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine'
+      - 'corpus/committed/pa-zigzag-fibonacci-fan__2001.pine'
+      - 'corpus/committed/strong-start-rvol-dashboard__36140b1cbe.pine'
+      - 'corpus/committed/supertrend-strategy__rcRbtoBiKG.pine'
+      - 'corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine'
+      - 'docs/agent/CHARTS_COVERAGE_MATRIX.md'
+      - 'docs/agent/CHARTS_TEACH_STATUS.md'
+      - 'docs/agent/COMPATIBILITY-DECISIONS.md'
+      - 'docs/agent/ROADMAP.md'
+      - 'docs/notebook/evidence/p3a-library-notice-capture/alerts-body.json'
+      - 'docs/notebook/evidence/t2b-notice-capture/alerts-body.json'
+      - 'docs/notebook/export-formats.md'
+      - 'docs/notebook/ios-shortcuts.md'
+      - 'docs/notebook/perf-budgets.json'
+      - 'docs/notebook/proof/f5-r2-routes/routes-before-a0c32d2e2.json'
+      - 'docs/notebook/proof/f5-r2-routes/routes-composite-a0c32d2e2+terminal-c941080f0.json'
+      - 'docs/pine/EDITOR-STATUS-PANEL-SPEC.md'
+      - 'docs/pine/evidence/2026-11-15-w3n-d1/evidence.json'
+      - 'docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine'
+      - 'docs/pine/target-scripts.json'
+      - 'docs/plans/joystick/**'
+      - 'docs/study/bank/rs.drills.json'
+      - 'docs/study/courses/F12/F12.07.json'
+      - 'docs/study/courses/F5/F5.08.json'
+      - 'docs/study/courses/V/**'
+      - 'docs/terminal-research/10-roadmap/coexistence-parity-matrix.md'
+      - 'docs/terminal-research/12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md'
+      - 'extension/**'
+      - 'tests/fixtures_note_tasks.json'
+      - 'tests/fixtures_plain_text.json'
+      - 'tests/fixtures_pm_citation_text.json'
+      - 'tests/fixtures_tag_keys.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
@@ -88,10 +135,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: The rails of this file and its tool
+      - name: The rails of this file and its tools
         run: |
           python -m pip install --quiet pytest pyyaml
-          python -m pytest tests/test_ci_whole_app_rails.py -q -p no:cacheprovider
+          python -m pytest tests/test_ci_whole_app_rails.py tests/test_ci_app_src_rails.py tests/test_ci_app_src_vitest_rails.py -q -p no:cacheprovider
       - name: The list names real engine test files, once each
         run: python tools/ci_whole_app_rails.py --verify-list
       - name: The whole-app rails (offline, read capture on)
@@ -111,9 +158,192 @@ jobs:
         run: |
           python tools/ci_whole_app_rails.py --ran whole-app-out/report.json
           python tools/ci_whole_app_rails.py --check --expected-list --captures read-capture --report whole-app-out/reads.json
+      # #1998's miss as the command that names it in seconds (tools/ci_app_src_rails.py TOOL_CHECKS): a refusal-guard
+      # literal written in app/src that supportLoop/refusalCodes.json lacks, so the server would store it as
+      # `_unlisted`. Stdlib only, under the no-network wrapper; `!cancelled()` so a red vitest rail above cannot hide it.
+      - name: The refusal codes the client writes are on the list the server stores
+        if: ${{ !cancelled() }}
+        run: bash "$CI_TOOLS/tools/ci_offline.sh" python tools/support_loop/refusal_codes.py --check
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: whole-app-engine-rails
           path: whole-app-out/
           if-no-files-found: warn
+
+  # ── THE APP/SRC PYTEST RAILS (2026-11-19) ──────────────────────────────────────────────────────────────────
+  # #1998 (a browser-only change) added a refusal-guard literal to builder/runsHere.js without registering it in
+  # supportLoop/refusalCodes.json; its 52 PR checks were green and master went red on
+  # tests/test_support_loop_refusal_codes.py, a PYTEST rail that READS app/src and that no PR job ran. These two jobs
+  # run such rails on the PR: tools/ci_app_src_rails.py derives them (static, over the AST): the ones no other PR job
+  # already runs under a trigger covering what they read, minus its reasoned EXEMPT. A new app/src rail joins the list
+  # the day it lands, with nothing to edit; a KNOWN_RED test runs as a strict xfail, so it goes red when it goes green.
+  # ⭐ PATH-AWARE (2026-11-19, cost): the whole list is ~41 runner-minutes, and this workflow triggers on most PRs. The
+  # plan runs only the rails whose census read set, own file, helpers or imported api/services modules the PR
+  # changes (all of them when the tool, this file, the setup action, the wrapper, the requirements or a conftest
+  # changes, or when the diff cannot be read); none selected = no shard job at all. Measured over the 20 PRs merged
+  # before it: 176 runner-minutes against 826 for the whole list, median 10.6 per PR. What a static scan cannot see
+  # is the nightly full suite's (full-suite-report.yml runs every file under tests/).
+  # The shards are cut by recorded time (tools/pytest_shard_timings.json), the same partition in every shard, up to
+  # four. Installed as `remote tests` installs (the production set + the CI-only packages), in pine heavy's
+  # environment, every test under the no-network wrapper. The `rails` job above runs tests/test_ci_app_src_rails.py.
+  app-src-plan:
+    name: app/src pytest rails (which ones this PR needs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      count: ${{ steps.plan.outputs.count }}
+      n: ${{ steps.plan.outputs.n }}
+      shards: ${{ steps.plan.outputs.shards }}
+      vcount: ${{ steps.vplan.outputs.count }}
+      vn: ${{ steps.vplan.outputs.n }}
+      vshards: ${{ steps.vplan.outputs.shards }}
+      vknown_red: ${{ steps.vplan.outputs.known_red }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # the PR's merge commit and both its parents: `git diff HEAD^1 HEAD` is what the PR changes against its base
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: The rails whose reads or code this PR changes (tools/ci_app_src_rails.py --plan)
+        id: plan
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml
+          # an empty list means ALL: a plan that cannot see the diff must not pass by running nothing
+          if git rev-parse -q --verify HEAD^2 >/dev/null; then git diff --name-only HEAD^1 HEAD > changed.txt; else : > changed.txt; fi
+          echo "this PR changes $(wc -l < changed.txt) file(s)"
+          python tools/ci_app_src_rails.py --plan --changed changed.txt | tee -a "$GITHUB_OUTPUT"
+      # the VITEST half (2026-11-19): the vitest files that read OTHER folders' sources, selected from the same diff
+      - name: The cross-folder vitest rails this PR needs (tools/ci_app_src_vitest_rails.py --plan)
+        id: vplan
+        run: |
+          set -euo pipefail
+          python tools/ci_app_src_vitest_rails.py --plan --changed changed.txt | tee -a "$GITHUB_OUTPUT"
+
+  app-src-pytest:
+    name: app/src pytest rails (shard ${{ matrix.shard }}/${{ needs.app-src-plan.outputs.n }})
+    needs: app-src-plan
+    if: needs.app-src-plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.app-src-plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # FULL history, as the remote tests lane checks out: listed rails read git objects and older commits, and
+          # under the no-network wrapper a partial clone could not fetch a missing object on demand.
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: The production dependency set and the CI-only packages (as remote tests installs them)
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet -r requirements.txt pytest httpx pyyaml
+          if [ -f tests/ci-only-packages.txt ]; then python -m pip install --quiet -r tests/ci-only-packages.txt; fi
+      - name: The app/src pytest rails, this shard (tools/ci_app_src_rails.py --write-args)
+        env:
+          SHARD: ${{ matrix.shard }}
+          N: ${{ needs.app-src-plan.outputs.n }}
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify HEAD^2 >/dev/null; then git diff --name-only HEAD^1 HEAD > changed.txt; else : > changed.txt; fi
+          python tools/ci_app_src_rails.py --write-args app-src-args.txt --shard "$SHARD/$N" --changed changed.txt
+          mapfile -t args < app-src-args.txt
+          test "${#args[@]}" -gt 0
+          start=$(date +%s); rc=0
+          bash "$CI_TOOLS/tools/ci_offline.sh" python -m pytest "${args[@]}" -q -p no:cacheprovider -rfE || rc=$?
+          echo "app/src pytest rails, shard $SHARD/$N: ${#args[@]} args, wall $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc
+
+  # ── THE CROSS-FOLDER VITEST RAILS (2026-11-19) ────────────────────────────────────────────────────────────────
+  # The vitest half of the same hole. attachedPineDisclosures.noGuardIds.test.jsx (pane/) is a drift rail that WALKS
+  # all of app/src for guard namespaces; #2023 minted `data:*` in engine/pineDataCatalog.js, its PR's vitest legs
+  # (pine heavy: engine/ and builder/) never ran the pane test, and master went red. tools/ci_app_src_vitest_rails.py
+  # derives every vitest file that reads OTHER folders' sources (fs reads, import.meta.glob, ?raw imports; static, over
+  # the source) and lists the ones no other PR job runs under a trigger covering what they read. On a PR the plan above
+  # selects the ones whose reads, own file or direct imports the PR changes (all of them when the tool, this file,
+  # the setup or the package set changes); none selected = this job does not start. KNOWN_RED files run in a step of
+  # their own that must FAIL: the day one passes, the job says to delete its line. In pine heavy's environment
+  # (node_modules, empty licence-held stores), every test under the no-network wrapper.
+  # tests/test_ci_app_src_vitest_rails.py (in `rails`) recomputes the census and fails when a reader runs on no PR.
+  app-src-vitest:
+    name: app/src vitest rails (shard ${{ matrix.shard }}/${{ needs.app-src-plan.outputs.vn }})
+    needs: app-src-plan
+    if: needs.app-src-plan.outputs.vcount != '0' || needs.app-src-plan.outputs.vknown_red != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.app-src-plan.outputs.vshards) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # full history: some listed rails read older commits (`git show <sha>:...`)
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      # several listed rails spawn Python bridges (selection_export_bridge.py, note_tasks_bridge.py, ...) that import
+      # the app: the production set, as the remote tests lane installs it for its vitest shards
+      - name: Install the Python the bridge rails spawn
+        run: python -m pip install --quiet -r requirements.txt pyyaml
+      - name: The cross-folder vitest rails, this shard (tools/ci_app_src_vitest_rails.py --write-files)
+        env:
+          SHARD: ${{ matrix.shard }}
+          N: ${{ needs.app-src-plan.outputs.vn }}
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify HEAD^2 >/dev/null; then git diff --name-only HEAD^1 HEAD > changed.txt; else : > changed.txt; fi
+          python tools/ci_app_src_vitest_rails.py --write-files vitest-files.txt --shard "$SHARD/$N" --changed changed.txt
+          mapfile -t files < vitest-files.txt
+          if [ "${#files[@]}" -eq 0 ]; then
+            test "${{ needs.app-src-plan.outputs.vcount }}" = 0 && test "${{ needs.app-src-plan.outputs.vknown_red }}" != 0
+            echo "no listed rail selected: only the known-red step below has work"; exit 0
+          fi
+          start=$(date +%s); rc=0
+          (cd app && bash "../$CI_TOOLS/tools/ci_offline.sh" npx vitest run "${files[@]}" --maxWorkers=2             --reporter=default --reporter=json --outputFile=../vitest-rails.json) || rc=$?
+          echo "app/src vitest rails, shard $SHARD/$N: ${#files[@]} files, wall $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          # every listed file ran (a vitest that silently matched fewer files is not a pass)
+          python -c "import json,sys; r=json.load(open('vitest-rails.json')); n=len(r.get('testResults') or []); print(f'{n} test files reported'); sys.exit(0 if n == int(sys.argv[1]) else 1)" "${#files[@]}" || rc=1
+          exit $rc
+      - name: Every KNOWN_RED vitest file this PR selects still FAILS (tools/ci_app_src_vitest_rails.py --write-known-red)
+        if: ${{ !cancelled() && matrix.shard == 1 && needs.app-src-plan.outputs.vknown_red != '0' }}
+        run: |
+          set -euo pipefail
+          python tools/ci_app_src_vitest_rails.py --write-known-red known-red.txt --changed changed.txt
+          mapfile -t reds < known-red.txt
+          bad=0
+          for f in "${reds[@]}"; do
+            if (cd app && bash "../$CI_TOOLS/tools/ci_offline.sh" npx vitest run "$f" --maxWorkers=2 >/dev/null 2>&1); then
+              echo "::error::KNOWN_RED $f PASSES now: delete its line in tools/ci_app_src_vitest_rails.py KNOWN_RED"; bad=1
+            else
+              echo "still red, as recorded: $f"
+            fi
+          done
+          exit $bad

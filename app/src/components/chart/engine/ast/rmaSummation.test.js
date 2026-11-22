@@ -21,7 +21,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine } from './pine.js'
-import { interpret, CARRIED, FN } from './interpret.js'
+import { interpret, CARRIED, FN, carriedCellsOf } from './interpret.js'
 import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers } from '../runtime/runtimeColumns.js'
 
 const REPO = path.resolve(process.cwd(), '..')
@@ -84,7 +84,7 @@ describe('⭐⭐ every lane draws TradingView\'s doubles', () => {
   const REF14 = reference(TR, 14, TV_STEP)
   it('the kernel table: `CARRIED.rma` stepped over the true range, every bar', () => {
     const spec = CARRIED.rma
-    const st = new Float64Array(spec.cells)
+    const st = new Float64Array(carriedCellsOf(spec, 14))
     spec.init(st, 0)
     const col = TR.map((v) => spec.step(st, 0, v, 14, spec.alpha(14)))
     expect(bitsEqual(col, REF14)).toBe(true)

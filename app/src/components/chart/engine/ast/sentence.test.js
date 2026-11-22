@@ -187,6 +187,8 @@ const FORMS = [
   { kind: 'call', name: 'cos', parts: ['the cosine of ', 0] },
   { kind: 'call', name: 'tan', parts: ['the tangent of ', 0] },
   { kind: 'call', name: 'atan', parts: ['the arctangent of ', 0] },
+  // U-BUILTIN B3 (2026-11-19) -- `asin`, hand-typed from the manifest's sentence.
+  { kind: 'call', name: 'asin', parts: ['the arcsine of ', 0] },
   // ⭐ PHASE 1 (2026-10-30) -- `acos`, hand-typed from the manifest's sentence.
   { kind: 'call', name: 'acos', parts: ['the arccosine of ', 0] },
   { kind: 'call', name: 'sinh', parts: ['the hyperbolic sine of ', 0] },
@@ -1212,6 +1214,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:alma',
       'function:aroonDown',
       'function:aroonUp',
+      // U-BUILTIN B3 (2026-11-19) -- Pine's `math.asin`.
+      'function:asin',
       'function:atan',
       'function:atr',
       // ⭐ (2026-09-27) Pine's `ta.atr`, with Pine's own seed — see `atrPine` in the forms above.
@@ -1356,7 +1360,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 139 -> 140 (2026-11-14, engine 56 A3): `boolNaWithheld`, the Pine door's bool-na marker.
     // ⭐ 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`.
     // ⭐ 141 -> 148 (2026-11-17): the regular session's two clock leaves and five readers.
-    expect(entries.length).toBe(148)
+    // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`, Pine's `math.asin`.
+    expect(entries.length).toBe(149)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1384,7 +1389,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`.
     // ⭐ 141 -> 148 (2026-11-17): the regular session, two clock leaves (`regularhours`, `regularfirst`) and five
     // readers (`sessionOpen`, `sessionHigh`, `sessionLow`, `openingRangeHigh`, `openingRangeLow`).
-    expect(subjects.length).toBe(148)
+    // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`.
+    expect(subjects.length).toBe(149)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2748,6 +2754,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'pine_percentile_linear_interpolation_between_two_ranks',
       // ⭐ PHASE 1 (2026-10-30) -- one corpus case per new function.
       'pine_acos_of_the_body_share_of_the_range',
+      // U-BUILTIN B3 (2026-11-19) -- `asin`, acos's twin.
+      'pine_asin_of_the_body_share_of_the_range',
       'pine_alma_9_085_6',
       'pine_percentile_nearest_rank_of_the_range',
       // (2026-11-14, engine 56 S1) the v4 / v5 tie mark is its operand
@@ -2851,7 +2859,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ + 139 -> + 140 (2026-11-14, engine 56 A3): `boolNaWithheld`.
     // ⭐ + 140 -> + 141 (2026-11-14, engine 56 S1): `tieNewest`.
     // ⭐ + 141 -> + 148 (2026-11-17): the regular session's two clock leaves and five readers.
-    expect(sentences.length).toBe(CORPUS.cases.length + 148)
+    // U-BUILTIN B3 (2026-11-19) + 148 -> + 149: `asin`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 149)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {
@@ -3251,13 +3260,20 @@ describe('sentence.js is a pure function of (ast, inputs) — by AST over its ow
     // allowlist widened until it means nothing.
     expect(got.imports).toEqual(['./parse.js'])
     const parseImports = scan(acorn.parse(readSource('parse.js'), { ecmaVersion: 2023, sourceType: 'module' })).imports
-    expect(parseImports).toEqual(['./callExpansions.js', './closedTable.json', 'jsep'])
+    expect(parseImports).toEqual(['./callExpansions.js', './closedTable.json', './doorDeadline.js', 'jsep'])
     // ⭐ BATCH 2 — `parse.js` expands the exact-identity functions with
     // `callExpansions.js`, which is SCANNED here rather than allowed: no findings
     // and no imports of its own, so the closure stays exactly as narrow as before.
     const expansions = scan(acorn.parse(readSource('callExpansions.js'), { ecmaVersion: 2023, sourceType: 'module' }))
     expect(expansions.findings, 'callExpansions.js reached something outside a pure derivation').toEqual([])
     expect(expansions.imports).toEqual([])
+    // ⭐ door-deadline (2026-11-20) — `parse.js` ticks the member door's window (`doorDeadline.js`) from its tree walks,
+    // and that module is SCANNED too: no findings, no imports. It reads no clock of its own (a window carries the clock
+    // it was opened with), with no window open every tick is one null test, and inside one a tick can only STOP a walk
+    // (a throw), never change a value it returns: a derived sentence is still a function of (ast, inputs) alone.
+    const door = scan(acorn.parse(readSource('doorDeadline.js'), { ecmaVersion: 2023, sourceType: 'module' }))
+    expect(door.findings, 'doorDeadline.js reached something outside a pure derivation').toEqual([])
+    expect(door.imports).toEqual([])
   })
 
   it('…and the detector can FAIL — the positive control', async () => {

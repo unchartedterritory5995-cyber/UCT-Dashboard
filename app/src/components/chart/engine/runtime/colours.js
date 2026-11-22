@@ -453,7 +453,13 @@ export function colourTypedNamesOf(stmts, findTop) {
           while (k < eq && ts[k].kind === 'ident' && DECL_PREFIXES.has(ts[k].value)) k += 1
           const typed = eq - k === 2 && ts[k].kind === 'ident' && ts[k].value === 'color'
             && ts[k + 1].kind === 'ident'
+          // ⭐ U-BUILTIN B4 (2026-11-19) — `c = color(na)` is typed by its cast ("Casts na to color"), exactly
+          // as `color c = na` is: one name, and the whole right side is `color ( na )`.
+          const cast = !typed && eq - k === 1 && ts[k].kind === 'ident' && ts.length === eq + 5
+            && ts[eq + 1].kind === 'ident' && ts[eq + 1].value === 'color' && isP(ts[eq + 2], '(')
+            && ts[eq + 3].kind === 'ident' && ts[eq + 3].value === 'na' && isP(ts[eq + 4], ')')
           if (typed) colour.add(String(ts[k + 1].value))
+          else if (cast) colour.add(String(ts[k].value))
           else for (let i = 0; i < eq; i += 1) if (ts[i].kind === 'ident') other.add(String(ts[i].value))
         }
       }

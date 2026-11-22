@@ -196,6 +196,35 @@ describe('the ranks strip hosted by the PRICE pane', () => {
     expect(container.querySelector('[data-pane-legend]')).toBeNull()
   })
 
+  it('⭐ a re-render forces no layout from the strip: its ref attaches once, and the strip stays where it was pinned', async () => {
+    const cs = settings(ON_PRICE.id)
+    const view = mount(ON_PRICE.id, 'D', cs)
+    const { container } = view
+    const key = prime(ON_PRICE.id)
+    await act(async () => { notifyColumnsLanded(key) })
+    await vi.waitFor(() => expect(tableOf(container), 'the ranks strip').not.toBeNull(), { timeout: 8000, interval: 100 })
+    const el = tableOf(container)
+    await vi.waitFor(() => expect(el.style.right).toBe('6px'))
+    // every layout read from here on, with WHERE it was made
+    const reads = []
+    const real = Element.prototype.getBoundingClientRect
+    Element.prototype.getBoundingClientRect = function (...a) { reads.push(new Error().stack || ''); return real.apply(this, a) }
+    try {
+      // re-renders of the chart with the strip on screen (a new height prop: the chart renders, the strip stays)
+      for (const h of [401, 402, 403]) {
+        view.rerender(<MemoryRouter><StockChart sym={SYM} tf="D" barsOverride={bars} settingsOverride={cs} alwaysShowLegend height={h} /></MemoryRouter>)
+        await act(async () => {})
+      }
+    } finally { Element.prototype.getBoundingClientRect = real }
+    // ⛔ none of them came from attaching the strip's ref inside a commit (an inline ref re-attaches every render)
+    const fromRefAttach = reads.filter((st) => /pinPriceTable/.test(st) && /AttachRef|attachRef/.test(st))
+    expect(fromRefAttach, fromRefAttach[0] || '').toEqual([])
+    expect(tableOf(container)).toBe(el)
+    expect(el.style.right).toBe('6px')
+    expect(el.style.top).toBe('0px')
+    expect(el.hasAttribute('data-collapsed')).toBe(false)
+  })
+
   it('⛔ a weekly chart draws no strip (the ranks are daily) — the end tag still rides the line', async () => {
     const key = prime(ON_PRICE.id, 'W')
     const { container } = mount(ON_PRICE.id, 'W')

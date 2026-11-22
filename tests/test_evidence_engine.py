@@ -1120,3 +1120,444 @@ def test_the_htf_forming_doc_names_one_phase_per_row_and_its_rows_are_distinct_t
     assert by["vw-request-htf-forming@AMEX:SPY@5@insession"]["rows"][0].endswith("Q-HTF-FORM-e")
     assert by["vw-request-htf-forming@AMEX:SPY@W@insession"]["rows"][0].endswith("Q-HTF-FORM-f")
     assert len(by) == 10 and not any(t["capturePhase"] is None for t in by.values())
+
+
+# ── the x-table marker (coordinator ruling 2026-11-19): a row that asks WHERE objects sit is answered only by a
+#    capture that records it (`objects.xIndex`, or an xmap sidecar) ──
+XT_DOC = """# Capture queue - 2026-11-19 x table
+
+| id | probe | chart | question | live | x table |
+|---|---|---|---|---|---|
+| X1 | `alpha.pine` | NYSE:RDDT 1D | where its objects sit | no | yes |
+"""
+
+
+def test_a_row_asking_for_the_x_table_is_not_answered_by_a_capture_without_one(world):
+    (world.docs_dir / "capture-queue-2026-11-19-xt.md").write_text(XT_DOC, encoding="utf-8")
+    target = _by_id(ee.build_queue(world))["alpha@NYSE:RDDT@D"]
+    # alpha-rddt-1d-2026-10-01 (no x table) answers the plain rows, never this one
+    assert (target["status"], target.get("needsXTable")) == ("QUEUED", True), target["status"]
+    # a capture of the same source, symbol and tf WITH the x table answers it
+    p = world.fixtures / "alpha-rddt-1d-2026-11-19.json"
+    _fixture(p, "alpha-rddt-1d-2026-11-19", ALPHA)
+    cap = json.loads(p.read_text(encoding="utf-8"))
+    cap["objects"] = {"xIndex": {"found": True, "indexes": [0], "times": [1]}}
+    p.write_text(json.dumps(cap), encoding="utf-8")
+    w2 = ee.World(docs_dir=world.docs_dir, probe_dirs=world.probe_dirs, corpus=world.corpus, fixtures=world.fixtures,
+                  coverage=world.coverage_path, ledger=world.ledger_path, cache_dir=world.cache_dir)
+    t2 = _by_id(ee.build_queue(w2))["alpha@NYSE:RDDT@D"]
+    assert t2["status"] == "CAPTURED" and t2["evidence"] == [ee.rel(p)]
+
+
+def test_an_x_table_cell_outside_yes_no_refuses_the_queue_by_name(world):
+    (world.docs_dir / "capture-queue-2026-11-19-xt.md").write_text(XT_DOC.replace("| no | yes |", "| no | maybe |"),
+                                                                     encoding="utf-8")
+    with pytest.raises(ee.XTableMarkerError, match="X1"):
+        ee.build_queue(world)
+# ─── reference scripts (2026-11-19): ONE form, `reference:<slug>` ─────────────────────────────────────────────────────
+# A published sample's text is never in git: `corpus/reference/<slug>.json` holds its title / scriptIdPart / url and the
+# pine_survey cache (`World.cache_dir`, git-ignored) its text, on the machines that fetched it. ⚰️ Three rows spelt
+# `reference/<slug>` resolved to nothing and read as prose ("no probe file named").
+REF_SLUG = "levels-intraday__bfb5a2b8db"
+REF_OPEN = "open-sample__ZkkLVEb1ak"
+REF_HELD = 'indicator("Levels")\nplot(close)\n'                       # no licence line: licence-held
+REF_MPL = "// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n" \
+          'indicator("Open")\nplot(open)\n'                                  # a licence `corpus_licence` permits
+REF_DOC = """# Capture queue - 2026-11-19 reference
+
+Probe `alpha.pine`, NYSE:RDDT 1D.
+
+| id | script | chart | question | live |
+|---|---|---|---|---|
+| R1 | `reference:levels-intraday__bfb5a2b8db` | NYSE:RDDT 1D, AMEX:SPY 1D | the levels | no |
+| R2 | `reference:open-sample__ZkkLVEb1ak` | NYSE:RDDT 1D | the open | no |
+| R3 | `reference/levels-intraday__bfb5a2b8db` | NYSE:RDDT 1D | spelt another way | no |
+| R4 | `reference:nobody-knows__0000000000` | NYSE:RDDT 1D | no metadata | no |
+"""
+
+
+def _reference_world(world, cached=True):
+    ref = world.corpus / "reference"
+    ref.mkdir(parents=True, exist_ok=True)
+    (ref / f"{REF_SLUG}.json").write_text(json.dumps({
+        "scriptIdPart": "PUB;bfb5a2b8dbed4ec8baa5aa2c1dbacc04", "title": "Levels \u2014 Intraday",
+        "url": "https://www.tradingview.com/script/J1mDPr1s-levels/", "licence": "NONE-IN-SOURCE"}), encoding="utf-8")
+    (ref / f"{REF_OPEN}.json").write_text(json.dumps({"scriptIdPart": "ZkkLVEb1ak", "title": "Open Sample"}),
+                                         encoding="utf-8")
+    if cached:
+        src = world.cache_dir / "sources"
+        src.mkdir(parents=True, exist_ok=True)
+        (src / f"{REF_SLUG}.pine").write_text(REF_HELD, encoding="utf-8", newline="")
+        (src / f"{REF_OPEN}.pine").write_text(REF_MPL, encoding="utf-8", newline="")
+    (world.docs_dir / "capture-queue-2026-11-19-reference.md").write_text(REF_DOC, encoding="utf-8")
+    return world
+
+
+def _ref_rows_in_targets(q):
+    return {r.split("#", 1)[1] for t in q["targets"] for r in t["rows"] if "2026-11-19-reference#" in r}
+
+
+def test_a_reference_script_with_its_cached_text_is_a_target_and_a_held_one_is_licence_hold(world):
+    q = ee.build_queue(_reference_world(world))
+    by = _by_id(q)
+    held = by[f"{REF_SLUG}@NYSE:RDDT@D"]
+    assert (held["status"], held["sourceKind"], held["licence"]) == ("LICENCE_HOLD", "reference", "held")
+    assert by[f"{REF_SLUG}@AMEX:SPY@D"]["status"] == "LICENCE_HOLD"
+    # what the add-the-published-script path needs: the dialog data-id (`PUB;<scriptIdPart>`) and the title it searches
+    assert held["publishedScript"] == {"id": "PUB;bfb5a2b8dbed4ec8baa5aa2c1dbacc04", "search": "Levels \u2014 Intraday",
+                                       "url": "https://www.tradingview.com/script/J1mDPr1s-levels/",
+                                       "meta": f"corpus/reference/{REF_SLUG}.json"}
+    opened = by[f"{REF_OPEN}@NYSE:RDDT@D"]
+    assert (opened["status"], opened["licence"]) == ("QUEUED", "permitted")       # the licence is read off the text
+    assert opened["publishedScript"]["id"] == "PUB;ZkkLVEb1ak"                      # the prefix, when the json lacks it
+    assert all(t.get("publishedScript") is None for t in q["targets"] if t["sourceKind"] != "reference")
+    rows = _rows(q)
+    assert rows["R3"]["needsProbe"] == f"a reference script is named `reference:{REF_SLUG}`, not `reference/{REF_SLUG}`"
+    assert rows["R4"]["needsProbe"] == "no corpus/reference/nobody-knows__0000000000.json for `reference:nobody-knows__0000000000`"
+    assert _ref_rows_in_targets(q) == {"R1", "R2"}           # R3 / R4 never took the preamble's `alpha.pine`
+
+
+def test_a_reference_script_without_its_cached_text_is_needs_probe_by_name_and_takes_no_section_probe(world):
+    q = ee.build_queue(_reference_world(world, cached=False))
+    rows = _rows(q)
+    assert rows["R1"]["needsProbe"] == f"{ee.REF_UNCACHED}: `reference:{REF_SLUG}`"
+    assert rows["R2"]["needsProbe"] == f"{ee.REF_UNCACHED}: `reference:{REF_OPEN}`"
+    assert not any(t["sourceKind"] == "reference" for t in q["targets"])
+    assert _ref_rows_in_targets(q) == set()                  # no row of it took the preamble's `alpha.pine`
+
+
+def test_the_committed_reference_rows_derive_and_queue_check_passes_on_a_machine_without_the_cache(
+        tmp_path, monkeypatch, capsys):
+    """⭐ CI never has the pine_survey cache. There, every committed `reference:<slug>` row is NEEDS_PROBE by name
+    (REF_UNCACHED), never a target and never a refusal, and `queue --check` passes."""
+    monkeypatch.setenv("UCT_PINE_CACHE", str(tmp_path / "no-cache"))
+    q = ee.build_queue(ee.World())
+    named = {r["key"].split("#", 1)[1]: r["needsProbe"] for r in q["rowsNeedingProbe"] if ee.REF_RX.search(r["text"])}
+    assert {"Q-ONCE-1a", "Q-ONCE-1b", "Q-ONCE-1c", "TC-A1", "TC-A2"} <= set(named), sorted(named)
+    assert all(why.startswith(ee.REF_UNCACHED) for why in named.values()), named
+    assert not any(t["sourceKind"] == "reference" for t in q["targets"])
+    assert not any(ee.REF_MISSPELT_RX.search(r["text"]) for r in q["rowsNeedingProbe"])   # one form, every doc
+    assert ee.main(["queue", "--check"]) == 0
+    assert "VERDICT: PASS" in capsys.readouterr().out
+
+
+# ─── the session dimension (coordinator ruling 2026-11-21) ───────────────────────────────────────────────────────────
+# A row may ask for an INTRADAY chart's hours beside its chart; such a row is its own target, answered ONLY by a capture
+# that RECORDED those hours (`symbol.session`), never by a capture's id or a row's label. ⚰️ The four
+# `vw-lower-tf-bars-rddt-*-2026-11-16` captures and `vw-bi-time-close-2arg-spy-60-2026-11-19` were asked for extended
+# hours off, recorded 0400-2000, and read CAPTURED. D / W / M charts resolve 0930-1600: no dimension, keys unchanged.
+SESSION_DOC = """# Capture queue - 2026-11-21 sessions
+
+| id | probe | chart | what to record | live |
+|---|---|---|---|---|
+| H1 | `foxtrot.pine` | AMEX:SPY 60, extended hours off, >= 400 bars | every row; the extended session's 04:00 bars are not asked | no |
+| H2 | `foxtrot.pine` | AMEX:SPY 60, EXTENDED HOURS **ON** | the same, beside the regular session's open | no |
+| H3 | `foxtrot.pine` | AMEX:SPY 60 | no session named: the chart's own hours, recorded | no |
+| H4 | `foxtrot.pine` | AMEX:SPY 1D, extended hours off | a daily chart: regular by construction | no |
+| H5 | `foxtrot.pine` | NYSE:RDDT 5 (regular session) and NYSE:RDDT 1D | the regular session on the 5, a daily beside it | no |
+| H6 | `foxtrot.pine` | AMEX:SPY 15 during regular hours, the newest bar forming | when it is taken, not the chart's hours | yes |
+
+### 2. `foxtrot.pine` on a section's chart
+
+**Capture:** AMEX:SPY **30**, extended hours **OFF**, >= 300
+bars.
+
+| id | what |
+|---|---|
+| H7 | the section's chart and its hours |
+"""
+SESSION_DOC_NAME = "capture-queue-2026-11-21-sessions.md"
+
+
+def _session_world(world, doc=SESSION_DOC):
+    (world.docs_dir / SESSION_DOC_NAME).write_text(doc, encoding="utf-8")
+    return world
+
+
+def _session_fixture(path, cid, text, symbol, tf, session):
+    """A capture that RECORDED `session` (its own `symbol.session`, e.g. '0930-1600'), whatever its id says."""
+    _fixture(path, cid, text, symbol, tf)
+    cap = json.loads(path.read_text(encoding="utf-8"))
+    cap["symbol"]["session"] = session
+    path.write_text(json.dumps(cap), encoding="utf-8")
+
+
+@pytest.mark.parametrize("text,want", [
+    ("AMEX:SPY 60, extended hours off, >= 400 bars", {"regular"}),
+    ("NYSE:RDDT **15**, **60** (extended hours **OFF**, as much history as loads)", {"regular"}),
+    ("NYSE:RDDT **5** (extended OFF, full history)", {"regular"}),
+    ("AMEX:SPY 5, EXTENDED HOURS ON, >= 2,000 bars", {"extended"}),
+    ("`vw-time-tf.pine` on AMEX:SPY **5** with the EXTENDED session on (pre-market bars in the series)", {"extended"}),
+    ("the same probe on AMEX:SPY **5** and **60**, regular session, >= 2 weeks", {"regular"}),
+    ("`h3-vwap-source` on AMEX:SPY 5 (regular-session)", {"regular"}),
+    # ⛔ WHEN a capture is taken is never the chart's hours
+    ("AMEX:SPY 5 during regular hours, newest bar forming", set()),
+    ("`vw-s1-core-every-tick.pine` during RTH on SPY 5", set()),
+    ("AMEX:SPY 60 in the regular session, twice a few minutes apart", set()),
+    ("AMEX:SPY 60 after the regular session closes", set()),
+    ("AMEX:SPY 60, >= 400 bars", set()),
+    ("AMEX:SPY 5, extended hours ON and extended hours OFF", {"regular", "extended"}),
+])
+def test_a_rows_session_is_read_from_its_closed_vocabulary_and_timing_words_are_not_hours(text, want):
+    assert ee.session_words(text) == want
+
+
+def test_a_session_row_is_its_own_target_and_a_daily_chart_keeps_its_key(world):
+    _, rows = _doc_rows(_session_world(world), SESSION_DOC_NAME)
+    assert {k: rows[k]["session"] for k in ("H1", "H2", "H3", "H4", "H5", "H6", "H7")} == {
+        "H1": "regular", "H2": "extended", "H3": None, "H4": "regular", "H5": "regular", "H6": None, "H7": "regular"}
+    t = _by_id(ee.build_queue(world))
+    reg, ext, plain = t["foxtrot@AMEX:SPY@60@regular"], t["foxtrot@AMEX:SPY@60@extended"], t["foxtrot@AMEX:SPY@60"]
+    assert (reg["captureSession"], reg["rows"]) == ("regular", ["capture-queue-2026-11-21-sessions#H1"])
+    assert (ext["captureSession"], ext["rows"]) == ("extended", ["capture-queue-2026-11-21-sessions#H2"])
+    # ⭐ a row naming no hours is EXACTLY what it was: its id, and no captureSession key at all
+    assert "captureSession" not in plain and plain["rows"] == ["capture-queue-2026-11-21-sessions#H3"]
+    # ⛔ a daily chart never carries a session, whatever its row says (H4), and keeps its key
+    assert "captureSession" not in t["foxtrot@AMEX:SPY@D"] and not any(i.startswith("foxtrot@AMEX:SPY@D@") for i in t)
+    assert "captureSession" not in t["foxtrot@NYSE:RDDT@D"]
+    assert t["foxtrot@NYSE:RDDT@5@regular"]["rows"] == ["capture-queue-2026-11-21-sessions#H5"]
+    assert "captureSession" not in t["foxtrot@AMEX:SPY@15"]                  # H6: a live row's clock, not its hours
+    assert t["foxtrot@AMEX:SPY@30@regular"]["rows"] == ["capture-queue-2026-11-21-sessions#H7"]   # the section's words
+    # the test doc's own intraday targets name no hours: untouched
+    assert "captureSession" not in t["echo@AMEX:SPY@60"] and "captureSession" not in t["bravo@AMEX:SPY@15"]
+
+
+def test_a_cell_naming_both_sessions_refuses_the_queue_by_name(world):
+    _session_world(world)
+    (world.docs_dir / "capture-queue-2026-11-22-both.md").write_text(
+        "# Capture queue - 2026-11-22 both\n\n| id | probe | chart |\n|---|---|---|\n"
+        "| B9 | `foxtrot.pine` | AMEX:SPY 5, extended hours ON, then extended hours OFF |\n", encoding="utf-8")
+    with pytest.raises(ee.SessionError, match=r"capture-queue-2026-11-22-both\.md:\d+ \('B9'\).*both"):
+        ee.build_queue(world)
+    # ✅ CONTROL: a remark in a cell that names no chart is not read (H2's "the regular session's open")
+    (world.docs_dir / "capture-queue-2026-11-22-both.md").unlink()
+    assert _by_id(ee.build_queue(world))["foxtrot@AMEX:SPY@60@extended"]["status"] == "QUEUED"
+
+
+def test_two_sessions_of_one_phase_are_two_captures_never_a_repeated_phase(world):
+    (world.docs_dir / "capture-queue-2026-11-22-phased-sessions.md").write_text(
+        "# Capture queue - 2026-11-22 phased sessions\n\n| id | probe | chart | live | phase |\n|---|---|---|---|---|\n"
+        "| P1 | `foxtrot.pine` | AMEX:SPY 5, extended hours off | no | insession |\n"
+        "| P2 | `foxtrot.pine` | AMEX:SPY 5, extended hours on | no | insession |\n", encoding="utf-8")
+    t = _by_id(ee.build_queue(world))
+    reg, ext = t["foxtrot@AMEX:SPY@5@regular@insession"], t["foxtrot@AMEX:SPY@5@extended@insession"]
+    assert (reg["capturePhase"], reg["captureSession"], ext["captureSession"]) == ("insession", "regular", "extended")
+    slugs = {s["queueTargetId"]: s["slug"] for s in ee.build_manifest(
+        {"targets": [reg, ext]}, top=None, world=world)["scripts"]}
+    assert slugs == {reg["id"]: "foxtrot-spy-5-rth-insession", ext["id"]: "foxtrot-spy-5-ext-insession"}
+
+
+def test_fixture_status_matches_a_capture_by_the_session_it_recorded_never_by_its_id(world):
+    probe, sha = world.probes["foxtrot"], _sha(FOXTROT)
+    st = lambda tf, sess: ee.fixture_status(world, probe, sha, "AMEX:SPY", tf, None, False, sess)[0]   # noqa: E731
+    # ⛔ an id that SAYS regular hours (`-rth`) and RECORDED extended hours answers the extended question only
+    _session_fixture(world.fixtures / "foxtrot-spy-60-rth-2026-11-20.json", "foxtrot-spy-60-rth-2026-11-20", FOXTROT,
+                     "AMEX:SPY", "60", "0400-2000")
+    world._fixtures = None
+    assert [(f["id"], f["session"]) for f in world.fixture_index if f["id"].startswith("foxtrot-")] == [
+        ("foxtrot-spy-60-rth-2026-11-20", "extended")]
+    assert (st("60", "regular"), st("60", "extended"), st("60", None)) == (None, "CAPTURED", "CAPTURED")
+    # a capture that recorded the regular session answers it, whatever its id says (nothing, here)
+    _session_fixture(world.fixtures / "foxtrot-spy-60-2026-11-21.json", "foxtrot-spy-60-2026-11-21", FOXTROT,
+                     "AMEX:SPY", "60", "0930-1600")
+    world._fixtures = None
+    assert ee.fixture_status(world, probe, sha, "AMEX:SPY", "60", None, False, "regular") == (
+        "CAPTURED", [ee.rel(world.fixtures / "foxtrot-spy-60-2026-11-21.json")])
+    # other hours ('24x7') answer no session question
+    _session_fixture(world.fixtures / "foxtrot-spy-15-2026-11-21.json", "foxtrot-spy-15-2026-11-21", FOXTROT,
+                     "AMEX:SPY", "15", "24x7")
+    world._fixtures = None
+    assert (st("15", "regular"), st("15", "extended"), st("15", None)) == (None, None, "CAPTURED")
+    # STALE by session too: an older foxtrot recorded on extended hours makes only the extended question stale
+    _session_fixture(world.fixtures / "foxtrot-spy-5-2026-11-01.json", "foxtrot-spy-5-2026-11-01", "an older foxtrot",
+                     "AMEX:SPY", "5", "0400-2000")
+    world._fixtures = None
+    assert (st("5", "extended"), st("5", "regular"), st("5", None)) == ("STALE", None, "STALE")
+    # ⛔ the ledger records no session: a filed verdict never answers a session target
+    world.ledger_path.write_text(json.dumps({"sourceSha256": sha, "symbol": "AMEX:SPY", "timeframe": "30",
+                                             "verdict": "MATCH", "captureId": "foxtrot-spy-30-rth-2026-11-19"}) + "\n",
+                                 encoding="utf-8")
+    world._ledger = None
+    assert (st("30", "regular"), st("30", None)) == (None, "VERDICT_LOCAL")
+    # and through the queue: H1 (regular) answered by the regular capture, H2 (extended) by the lying-id one
+    t = _by_id(ee.build_queue(_session_world(world)))
+    assert t["foxtrot@AMEX:SPY@60@regular"]["evidence"] == [ee.rel(world.fixtures / "foxtrot-spy-60-2026-11-21.json")]
+    assert t["foxtrot@AMEX:SPY@60@extended"]["evidence"] == [ee.rel(world.fixtures / "foxtrot-spy-60-rth-2026-11-20.json")]
+    assert t["foxtrot@AMEX:SPY@30@regular"]["status"] == "QUEUED"
+
+
+def test_the_manifest_carries_a_session_target_as_its_own_script_on_its_layout(world):
+    import batch_capture as bc
+    q = ee.build_queue(_session_world(world))
+    ids = {"foxtrot@AMEX:SPY@60@regular", "foxtrot@AMEX:SPY@60@extended", "foxtrot@AMEX:SPY@60"}
+    by = {s["queueTargetId"]: s for s in ee.build_manifest(q, top=None, only=ids, world=world)["scripts"]}
+    assert set(by) == ids and len({s["slug"] for s in by.values()}) == 3
+    reg, ext, plain = (by[i] for i in ("foxtrot@AMEX:SPY@60@regular", "foxtrot@AMEX:SPY@60@extended",
+                                       "foxtrot@AMEX:SPY@60"))
+    assert (reg["slug"], reg["session"], reg["layout"]) == ("foxtrot-spy-60-rth", "regular", bc.RIG_REGULAR_LAYOUT_ID)
+    assert (ext["slug"], ext["session"], ext["layout"]) == ("foxtrot-spy-60-ext", "extended", bc.RIG_LAYOUT_ID)
+    assert reg["captureStem"] == ext["captureStem"] == plain["captureStem"]
+    assert "session" not in plain and "layout" not in plain and plain["slug"] == "foxtrot-spy-60"   # as before
+
+
+def test_a_session_capture_id_parses_back_to_its_stem_and_phase_and_passes_the_gate_grammar():
+    import batch_capture as bc
+    import batch_double as bd
+    stem = "vw-bi-time-close-2arg"
+    for session in (None, "regular", "extended"):
+        for ph in (None,) + PHASES:
+            o = bd.fast_opts(symbol="AMEX:SPY", tf="60")
+            o.session = session
+            cid = bc.capture_id_for({"slug": "x", "captureStem": stem, **({"capturePhase": ph} if ph else {})}, o)
+            # ⭐ ONE grammar: what the batch writes, the gate admits and the ledger reads back to its script and phase
+            assert ee.ID_RX.match(cid) and ee.TAIL_RX.fullmatch(cid[len(stem) + 1:]), cid
+            assert (ee.el.script_key(cid), ee.el.capture_phase(cid)) == (stem, ph), cid
+    for bad in ("-rthx", "-RTH", "-ext-rth", "-regular", "-eth"):
+        cid = f"{stem}-spy-60{bad}-2026-11-22"
+        assert not ee.ID_RX.match(cid) and not ee.TAIL_RX.fullmatch(cid[len(stem) + 1:]), cid
+
+
+def test_the_gate_admits_a_session_id_on_its_capture_stem(tmp_path, world):
+    rd = _run_dir(tmp_path, world, [("alpha-rddt-60-rth-2026-11-21", ALPHA),
+                                    ("alpha-rddt-60-ext-2026-11-21-insession", ALPHA),
+                                    ("alpha-rddt-60-eth-2026-11-21", ALPHA)])
+    by = {i["id"]: i for i in ee.build_packet(rd, world, OkVerifier(), tmp_path / "fixtures")["items"]}
+    assert (by["alpha-rddt-60-rth-2026-11-21"]["action"], by["alpha-rddt-60-rth-2026-11-21"]["problems"]) == \
+        ("PROMOTE", [])
+    assert by["alpha-rddt-60-ext-2026-11-21-insession"]["action"] == "PROMOTE"
+    assert by["alpha-rddt-60-eth-2026-11-21"]["action"] == "REFUSE"
+
+
+def test_the_session_vocabulary_is_defined_once_and_never_restated():
+    import batch_capture as bc
+    vh = REPO / "tools" / "vendor_harness"
+    words = set(ee.el.SESSIONS.values()) | set(ee.el.SESSION_SUFFIX.values())
+    hunt = lambda src: sorted(s for s in _string_literals(src) if s in words)   # noqa: E731
+    # ✅ CONTROLS: the hunter sees the one definition, and a restatement
+    assert hunt((vh / "evidence_ledger.py").read_text(encoding="utf-8")) == sorted(words)
+    assert hunt('ROW_SESSIONS = {"regular": "0930-1600"}\n') == ["0930-1600"]
+    for name in ("evidence_engine.py", "batch_capture.py"):
+        assert hunt((vh / name).read_text(encoding="utf-8")) == [], name
+    assert bc.ROW_SESSIONS is ee.el.SESSIONS and bc.SESSION_SUFFIX is ee.el.SESSION_SUFFIX
+    assert set(bc.SESSION_LAYOUT) == set(ee.el.SESSIONS)
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is required for verify_capture.mjs")
+def test_a_regular_and_an_extended_target_run_to_two_promotable_captures_that_answer_them(world, tmp_path, monkeypatch):
+    import batch_capture as bc
+    import batch_double as bd
+    monkeypatch.setattr(ee, "REPO", tmp_path)
+    monkeypatch.setattr(bc, "REPO", tmp_path)
+    q = ee.build_queue(_session_world(world))
+    ids = {"foxtrot@AMEX:SPY@60@regular", "foxtrot@AMEX:SPY@60@extended"}
+    man = ee.build_manifest(q, top=None, only=ids, world=world)
+    run = tmp_path / "run"
+    # the rig (extended hours) takes the extended row and skips the regular one; the regular-hours copy takes it
+    rig = bd.RecordingTVPage(resolution="1D")
+    rig.session_id = "extended"
+    bd.run(rig, man, run, bd.fast_opts())
+    copy = bd.RecordingTVPage(resolution="1D")
+    copy.session_id, copy.url = "regular", bc.layout_url(bc.RIG_REGULAR_LAYOUT_ID)
+    bd.run(copy, man, run, bd.fast_opts(layout=bc.RIG_REGULAR_LAYOUT_ID))
+    res = bc.RunDir(run, "t").results()
+    assert sorted(r["captureId"] for r in res.values() if r.get("outcome") == bc.CAPTURED) == [
+        "foxtrot-spy-60-ext-2026-09-28", "foxtrot-spy-60-rth-2026-09-28"], res
+    bc.write_json_atomic(run / "manifest.json", man)
+    (run / "verdicts.json").write_text(json.dumps({"results": [
+        {"id": r["captureId"], "verdict": "MATCH", "reason": "graded", "plots": []} for r in res.values()]}),
+        encoding="utf-8")
+    items = ee.build_packet(run, world, bc.NodeVerifier(), tmp_path / "fixtures")["items"]
+    assert sorted((i["id"], i["action"], tuple(i["problems"])) for i in items) == [
+        ("foxtrot-spy-60-ext-2026-09-28", "PROMOTE", ()), ("foxtrot-spy-60-rth-2026-09-28", "PROMOTE", ())]
+    # filed beside the fixtures, each answers its OWN target, by the session it recorded. (The double writes every
+    # capture on NYSE:RDDT 1D; `tv_capture.js` records the chart's own symbol and resolution, so they are set as it
+    # would. The SESSION is the double's own read of the page: 0400-2000 on the rig, 0930-1600 on the copy.)
+    for i in items:
+        cap = json.loads((run / "captures" / f"{i['id']}.json").read_text(encoding="utf-8"))
+        assert cap["symbol"]["session"] == ("0930-1600" if "-rth-" in i["id"] else "0400-2000")
+        cap["symbol"].update(name="SPY", full_name="AMEX:SPY", pro_name="AMEX:SPY")
+        cap["timeframe"] = "60"
+        (world.fixtures / f"{i['id']}.json").write_text(json.dumps(cap), encoding="utf-8")
+    world._fixtures = None
+    t = _by_id(ee.build_queue(world))
+    assert t["foxtrot@AMEX:SPY@60@regular"]["evidence"] == [ee.rel(world.fixtures / "foxtrot-spy-60-rth-2026-09-28.json")]
+    assert t["foxtrot@AMEX:SPY@60@extended"]["evidence"] == [ee.rel(world.fixtures / "foxtrot-spy-60-ext-2026-09-28.json")]
+
+
+# ─── the derived set cannot shrink silently (2026-11-21) ─────────────────────────────────────────────────────────────
+# ⚰️ `queue --check` passed while a doc edit dropped 3 targets: a table split by a line between its rows (543 -> 540).
+def test_a_table_line_outside_every_table_refuses_the_queue_by_name(world):
+    (world.docs_dir / TEST_DOC).write_text(DOC.replace("| Q5 |", "\n| Q5 |", 1), encoding="utf-8")
+    with pytest.raises(ee.TableLineError, match=r"capture-queue-2026-11-02-test\.md:\d+: 6 table line\(s\).*Q5"):
+        ee.build_queue(world)
+    # ✅ CONTROL: a `|` line in a fenced block is not a table line, and the unsplit doc derives
+    (world.docs_dir / TEST_DOC).write_text(DOC + "\n```\n| not | a table |\n```\n", encoding="utf-8")
+    assert "bravo@NYSE:RDDT@D" in _by_id(ee.build_queue(world))
+
+
+def _edited_world(world, tmp_path, edit, rename=None):
+    """A second world over the SAME probes, fixtures and census, whose docs are `world`'s with `edit` applied."""
+    head = tmp_path / "head-docs"
+    head.mkdir()
+    for p in world.docs_dir.glob("capture-queue-*.md"):
+        name = (rename or {}).get(p.name, p.name)
+        (head / name).write_text(edit(p.name, p.read_text(encoding="utf-8")), encoding="utf-8")
+    return world.with_docs(head)
+
+
+E1_ROW = "| E1 | the 60m leg; the old `bravo-spy-15` read 0 on its first loaded bar | AMEX:SPY 60 |\n"
+DISPOSE_E1 = "\n| not a capture | disposition | reason |\n|---|---|---|\n| E1 | ruling | the owner ruled it out |\n"
+
+
+def _in_test_doc(f):
+    return lambda n, s: f(s) if n == TEST_DOC else s
+
+
+@pytest.mark.parametrize("edit,rename,lost", [
+    (lambda n, s: s, None, []),                                                             # ✅ CONTROL: no edit
+    (_in_test_doc(lambda s: s.replace("| E1 |", "| E9 |")), None, []),                     # rewritten: a new row
+    (_in_test_doc(lambda s: s.replace(E1_ROW, "")), None, []),                              # deleted on purpose
+    (_in_test_doc(lambda s: s + DISPOSE_E1), None, []),                                     # disposed of, with a reason
+    (lambda n, s: s, {TEST_DOC: "capture-queue-2026-11-02-renamed.md"}, []),                # renamed: matched by line
+    # ⛔ the heading above its table now reads as a finished record: the row is still there and derives nothing
+    (_in_test_doc(lambda s: s.replace("### 3. `echo.pine`", "### 3. Captured: `echo.pine`")), None, ["E1"]),
+    # ⛔ its probe misspelt: the row needs a probe now
+    (_in_test_doc(lambda s: s.replace("| Q8 | `alpha.pine` |", "| Q8 | `alpha2.pine` |")), None, ["Q8"]),
+])
+def test_a_row_that_asked_for_a_capture_at_a_ref_and_derives_nothing_now_is_named(world, tmp_path, edit, rename, lost):
+    head = _edited_world(world, tmp_path, edit, rename)
+    got = ee.shrink_refusals(world, ee.build_queue(world), head, ee.build_queue(head))
+    assert [g.split(" ", 1)[0].split("#", 1)[1] for g in got] == lost, got
+
+
+def test_queue_check_against_a_ref_fails_by_name_when_a_row_stops_deriving(world, monkeypatch, capsys):
+    base_texts = {p.name: p.read_text(encoding="utf-8") for p in world.docs_dir.glob("capture-queue-*.md")}
+    real_world = ee.World
+    monkeypatch.setattr(ee, "World", lambda *a, **k: world if not (a or k) else real_world(*a, **k))
+    monkeypatch.setattr(ee, "snapshot_tracked", lambda p: False)
+    monkeypatch.setattr(ee, "docs_at_ref", lambda ref: base_texts)
+    # ✅ CONTROL: the same docs at the ref pass
+    assert ee.main(["queue", "--check", "--against", "base"]) == 0
+    out = capsys.readouterr().out
+    assert "VERDICT: PASS" in out and "every row that asked for a capture there still does" in out
+    # ⛔ a section heading edited into a finished record: E1 is named, and the check fails
+    (world.docs_dir / TEST_DOC).write_text(DOC.replace("### 3. `echo.pine`", "### 3. Captured: `echo.pine`"),
+                                           encoding="utf-8")
+    assert ee.main(["queue", "--check", "--against", "base"]) == 1
+    out = capsys.readouterr().out
+    assert "LOST capture-queue-2026-11-02-test#E1" in out and "echo@AMEX:SPY@60" in out and "VERDICT: FAIL" in out
+
+    # ⛔ a ref git cannot read is never a pass; --against without --check is refused
+    def unreadable(ref):
+        raise ee.RefError("unknown revision")
+    monkeypatch.setattr(ee, "docs_at_ref", unreadable)
+    assert ee.main(["queue", "--check", "--against", "nope"]) == 2 and "INCONCLUSIVE" in capsys.readouterr().out
+    assert ee.main(["queue", "--against", "base"]) == 2
+
+
+def test_docs_at_ref_reads_the_committed_queue_docs():
+    texts = ee.docs_at_ref("HEAD")
+    assert texts and all(ee.QUEUE_DOC_RX.fullmatch(n) for n in texts)
+    assert "capture-queue-2026-11-19-builtins.md" in texts and "| Q-BI-TD1a |" in texts["capture-queue-2026-11-19-builtins.md"]
+    with pytest.raises(ee.RefError):
+        ee.docs_at_ref("no-such-ref-anywhere")

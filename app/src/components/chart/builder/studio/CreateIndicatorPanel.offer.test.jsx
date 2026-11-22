@@ -6,6 +6,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import * as registry from '../../engine/nativeRegistry'
 import { mergeChartSettings } from '../../chartDefaults'
 import { _resetSessions, createKey } from '../authoring/conversationSessions'
+import { BUILT_IN_NAMES } from '../authoring/checkedLibrary'
 
 // rsRating is `requiresServer`: offered only once the live server lists it. The switch below
 // stands in for that answer, so both sides of rule 1 are exercised.
@@ -50,7 +51,10 @@ describe('an answer that offers to add one of UCT\'s own built-in indicators', (
   it('the window tells the door what it can add; the answer shows one button; one tap adds it and says so', async () => {
     const { spy, writes } = mount()
     await say('Add the RS Rating')
-    expect(spy.mock.calls[0][0].gateCtx.builtIns).toEqual(['rsMansfield', 'rsRating', 'rsPhases'])
+    // every built-in the library names (this build offers them all: the switch above says so), in its order
+    expect(spy.mock.calls[0][0].gateCtx.builtIns).toEqual(
+      BUILT_IN_NAMES.map((b) => b.indicator).filter((id, i, all) => all.indexOf(id) === i))
+    expect(spy.mock.calls[0][0].gateCtx.builtIns).toEqual(expect.arrayContaining(['rsMansfield', 'rsRating', 'rsPhases', 'vwap', 'atrBands']))
     expect(lastUct().textContent).toContain('RS Rating is one of UCT\'s own indicators')
     expect(offerButton().textContent).toBe('Add UCT RS Rating to this chart')
     expect(writes).toHaveLength(0)                                          // the answer itself changes nothing
@@ -62,6 +66,28 @@ describe('an answer that offers to add one of UCT\'s own built-in indicators', (
     expect(offerButton()).toBeNull()                                         // one tap, one outcome
     expect(lastUct().textContent).toBe('Added UCT RS Rating to this chart.')
     expect(screen.queryByTestId('create-indicator-save')?.disabled ?? true).toBe(true)   // no draft was made
+  })
+
+  // ⭐ ONE SETTING OF A BUILT-IN (2026-11-19): VWAP's standard-deviation bands are Session VWAP with
+  // its "Std dev bands" setting on. This dock is on a DAILY chart (`tf="D"`), where Session VWAP does
+  // not draw: the tap still adds it, and the line says so (the panel hands the tap its timeframe).
+  it('an offer for one setting of a built-in: the button says which, one tap adds it with the setting on, and the line says where it draws', async () => {
+    const said = 'Session VWAP, one of UCT\'s own indicators, draws VWAP standard deviation bands itself when its Std dev bands setting is on.'
+    const { writes } = mount({ converse: async () => ({
+      ok: true, disposition: 'answer', reply: said, turn: 'offer',
+      envelope: { contract: 'uct.authoring.patch/1', baseRevision: 0, ops: [], disposition: 'answer', reply: said },
+      offer: { kind: 'add_built_in', indicator: 'vwap', inputs: { bands: '2' } }, notUnderstood: [], unavailable: [],
+    }) })
+    await say('VWAP with 2 standard deviation bands')
+    expect(offerButton().textContent).toBe('Add Session VWAP with Std dev bands: ±1σ, ±2σ to this chart')
+    expect(writes).toHaveLength(0)
+
+    await act(async () => { fireEvent.click(offerButton()) })
+    expect(writes).toHaveLength(1)
+    expect(instancesOf(writes[0], 'vwap').map((i) => i.inputs.bands)).toEqual(['2'])
+    expect(offerButton()).toBeNull()
+    expect(lastUct().textContent).toBe('Added Session VWAP to this chart with Std dev bands: ±1σ, ±2σ. '
+      + 'Session VWAP does not draw on this timeframe: it will show when the chart is on one it does.')
   })
 
   it('a build that does not offer the indicator tells the door so, and a tap on an offer it should never have got writes nothing', async () => {

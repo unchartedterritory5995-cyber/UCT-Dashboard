@@ -29,6 +29,10 @@
 import jsep from 'jsep'
 import TABLE_JSON from './closedTable.json'
 import { expandCalls, ExpansionRefusal, recogniseExpansion, CALL_EXPANSIONS, sarLegacyNote } from './callExpansions.js'
+// ⭐ door-deadline — the walks below are where a member door's round trip spends its time outside a Resolver (a
+// profiled synthetic script: 5.2 s of 6.4 s), so each step ticks the door's clock (`doorDeadline.js`; one null test
+// when no door is open).
+import { doorTick } from './doorDeadline.js'
 // ⭐ engine-40 bytes: this re-export edge places the member-text guard-id rule (`guardIdText.js`, its ONE
 // authority) inside this module's chunk, which every chart-side wrap site already loads. Import it
 // from `./guardIdText.js`; this line exists for chunk placement (see that file's header).
@@ -1202,6 +1206,7 @@ function offencesIn(root) {
   const found = new Set()
   const stack = [root]
   while (stack.length) {
+    doorTick()
     const node = stack.pop()
     if (Array.isArray(node)) { stack.push(...node); continue }
     if (!node || typeof node !== 'object') continue
@@ -1543,6 +1548,7 @@ function convert(root) {
   const stack = [{ node: root, entered: false, plan: null }]
   const done = []
   while (stack.length) {
+    doorTick()
     const frame = stack[stack.length - 1]
     if (!frame.entered) {
       frame.entered = true
@@ -1655,6 +1661,7 @@ export function parseFormula(source) {
  *  an absent key and it was vacuous until it was round-tripped through real
  *  JSON; this is that lesson as a hard stop. */
 function stableStringify(value) {
+  doorTick() // the round trip's hash walk
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`
   if (value !== null && typeof value === 'object') {
     const keys = Object.keys(value).sort()
@@ -1739,6 +1746,7 @@ export function assertCanonical(ast) {
   // through `convertTextOperand`, so the door-side containment is not enough.
   const stack = [{ node: ast, parent: null }]
   while (stack.length) {
+    doorTick()
     const { node, parent } = stack.pop()
     if (!node || typeof node !== 'object' || Array.isArray(node)) {
       throw new Error(`astHash: not a canonical node: ${JSON.stringify(node) ?? String(node)}`)

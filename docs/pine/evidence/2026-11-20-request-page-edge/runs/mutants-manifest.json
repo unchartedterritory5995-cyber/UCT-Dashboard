@@ -1,0 +1,77 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "P1",
+   "mutant": "a bar before a filling page's first row is not read as still coming (the e88 hole comes back)",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "      if (edge !== null && typeof t === typeof edge && t < edge) return 'older'",
+   "to": "      if (false && edge !== null && typeof t === typeof edge && t < edge) return 'older'",
+   "rail": "cd app && npx vitest run src/components/chart/engine/requestPageEdge.test.js"
+  },
+  {
+   "id": "P2",
+   "mutant": "a deeper page is assumed coming whatever the chart's depth (a wait that cannot end)",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "!(n > page.asked) || ",
+   "to": "",
+   "rail": "cd app && npx vitest run src/components/chart/engine/requestPageEdge.test.js"
+  },
+  {
+   "id": "P3",
+   "mutant": "an ask at /api/bars's ceiling is assumed to have a deeper page",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": " || !(page.asked < BARS_ASK_MAX)) return null",
+   "to": ") return null",
+   "rail": "cd app && npx vitest run src/components/chart/engine/requestPageEdge.test.js"
+  },
+  {
+   "id": "P4",
+   "mutant": "a page holding fewer rows than it asked (the store's whole depth) is marked as filling its ask",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": " || !Array.isArray(held) || held.length < asked) return null",
+   "to": " || !Array.isArray(held)) return null",
+   "rail": "cd app && npx vitest run src/components/chart/engine/requestPageEdge.test.js"
+  },
+  {
+   "id": "P5",
+   "mutant": "a wait for older bars hides a hole inside the held page",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "      if (hole >= 0) {",
+   "to": "      if (hole >= 0 && older < 0) {",
+   "rail": "cd app && npx vitest run src/components/chart/engine/requestPageEdge.test.js"
+  },
+  {
+   "id": "P6",
+   "mutant": "the older-bars wait is named, saying the series' NEWEST bars have not arrived",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "        olderWait = true",
+   "to": "        waits.push(other)",
+   "rail": "cd app && npx vitest run src/components/chart/engine/requestPageEdge.test.js"
+  },
+  {
+   "id": "P7",
+   "mutant": "the bind never marks an intraday grid's filled page",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "!landed && read.fold === WITNESS_PERIOD_READS.AT_OR_BEFORE ? filledPageOf(entry, held) : null",
+   "to": "null",
+   "rail": "cd app && npx vitest run src/components/chart/engine/requestPageEdge.test.js"
+  },
+  {
+   "id": "P8",
+   "mutant": "a fetched window does not record the depth it asked",
+   "file": "app/src/components/chart/engine/secondaryBars.js",
+   "from": "      const entry = _read(payload, bars)\n      _cache.set(url, entry)",
+   "to": "      const entry = _read(payload)\n      _cache.set(url, entry)",
+   "rail": "cd app && npx vitest run src/components/chart/engine/requestPageEdge.test.js"
+  },
+  {
+   "id": "P9",
+   "mutant": "a tail merge drops the held entry's ask",
+   "file": "app/src/components/chart/engine/secondaryBars.js",
+   "from": "      const next = { ...cur, bars: merged, status: SOURCE_STATUS.AVAILABLE }",
+   "to": "      const next = { bars: merged, status: SOURCE_STATUS.AVAILABLE, newestBarIsForming: cur.newestBarIsForming }",
+   "rail": "cd app && npx vitest run src/components/chart/engine/requestPageEdge.test.js"
+  }
+ ]
+}

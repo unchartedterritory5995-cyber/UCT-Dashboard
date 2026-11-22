@@ -5546,7 +5546,9 @@
    "aliases": [
     "accumulation distribution line",
     "accumulation distribution indicator",
-    "chaikin accumulation distribution"
+    "chaikin accumulation distribution",
+    "accumulation/distribution",
+    "accumulation distribution"
    ],
    "placement": "pane",
    "params": [],
@@ -8986,14 +8988,16 @@
    "aliases": [
     "mansfield relative strength",
     "mansfield relative performance",
-    "mansfield relative strength indicator"
+    "mansfield relative strength indicator",
+    "uct mansfield rs"
    ],
    "why": "The Screener has a column of this name. A chart formula for it belongs with the Screener's columns (chart_twins), proved equal to that column; until then there is no checked chart formula.",
    "describe": "the price divided by SPY, as a percent above or below its own 200-day average",
    "built_in": {
     "indicator": "rsMansfield",
     "name": "UCT Mansfield RS",
-    "what": "the RS line as a percent above or below its own long average, around a zero line"
+    "what": "the RS line as a percent above or below its own long average, around a zero line",
+    "own_version": true
    },
    "since": "2026-11-18"
   },
@@ -9030,6 +9034,240 @@
    "since": "2026-11-18"
   },
   {
+   "id": "heikin_ashi",
+   "name": "Heikin Ashi",
+   "aliases": [
+    "heikin ashi",
+    "heiken ashi",
+    "heikinashi",
+    "heikin ashi candles",
+    "heiken ashi candles"
+   ],
+   "why": "Each Heikin Ashi candle is made from the bar and the candle before it, so its open carries from candle to candle. A formula here cannot carry that, and it draws candles, which only a script does.",
+   "describe": "the average of the open, high, low and close of each bar, as a line",
+   "needs_script": "each candle is made from the candle before it",
+   "since": "2026-11-18"
+  },
+  {
+   "id": "builtin_atr_bands",
+   "name": "ATR Bands",
+   "aliases": [
+    "atr bands",
+    "atr band"
+   ],
+   "why": "ATR Bands is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "atrBands",
+    "name": "ATR Bands",
+    "what": "the close with a band a multiple of ATR either side of it",
+    "own_version": true
+   },
+   "since": "2026-11-19"
+  },
+  {
+   "id": "builtin_data_series",
+   "name": "Data Series",
+   "aliases": [
+    "data series"
+   ],
+   "why": "Data Series is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "dataSeries",
+    "name": "Data Series",
+    "what": "a numeric source plotted as it is, with no calculation applied",
+    "own_version": true
+   },
+   "since": "2026-11-19"
+  },
+  {
+   "id": "builtin_dollar_volume",
+   "name": "Dollar Volume",
+   "aliases": [
+    "dollar volume"
+   ],
+   "why": "Dollar Volume is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "dollarVolume",
+    "name": "Dollar Volume",
+    "what": "the cash traded in each bar, volume multiplied by the closing price",
+    "own_version": true
+   },
+   "since": "2026-11-19"
+  },
+  {
+   "id": "builtin_bull_bear_power",
+   "name": "Bull/Bear Power",
+   "aliases": [
+    "bull/bear power",
+    "bull bear power"
+   ],
+   "why": "Bull/Bear Power is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "bullBearPower",
+    "name": "Bull/Bear Power",
+    "what": "how far the high and the low are from an EMA of the close (the Elder-ray reading)",
+    "own_version": true
+   },
+   "since": "2026-11-19"
+  },
+  {
+   "id": "builtin_ma_envelope",
+   "name": "MA Envelope",
+   "aliases": [
+    "ma envelope",
+    "moving average envelope"
+   ],
+   "why": "MA Envelope is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "envelope",
+    "name": "MA Envelope",
+    "what": "a moving average with bands a fixed percentage above and below it",
+    "own_version": true
+   },
+   "since": "2026-11-19"
+  },
+  {
+   "id": "builtin_bollinger_percent_b",
+   "name": "Bollinger %B",
+   "aliases": [
+    "bollinger %b",
+    "bollinger percent b"
+   ],
+   "why": "Bollinger %B is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "bbPercentB",
+    "name": "Bollinger %B",
+    "what": "where the close sits within the Bollinger Bands, 0 at the lower band and 1 at the upper",
+    "own_version": true
+   },
+   "since": "2026-11-19"
+  },
+  {
+   "id": "builtin_historical_volatility",
+   "name": "Historical Volatility",
+   "aliases": [
+    "historical volatility"
+   ],
+   "why": "Historical Volatility is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "historicalVolatility",
+    "name": "Historical Volatility",
+    "what": "annualised close-to-close volatility, in percent, on daily, weekly and monthly charts",
+    "own_version": true
+   },
+   "since": "2026-11-19"
+  },
+  {
+   "id": "builtin_chaikin_oscillator",
+   "name": "Chaikin Oscillator",
+   "aliases": [
+    "chaikin oscillator",
+    "chaikin osc"
+   ],
+   "why": "Chaikin Oscillator is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "chaikinOscillator",
+    "name": "Chaikin Oscillator",
+    "what": "the momentum of the Accumulation/Distribution line, a fast minus a slow EMA of it",
+    "own_version": true
+   },
+   "since": "2026-11-19"
+  },
+  {
+   "id": "builtin_percent_from_ma",
+   "name": "% From MA",
+   "aliases": [
+    "% from ma",
+    "percent from ma",
+    "percent from moving average"
+   ],
+   "why": "% From MA is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "percentFromMa",
+    "name": "% From MA",
+    "what": "how far the value is above or below its moving average, in percent",
+    "own_version": true
+   },
+   "since": "2026-11-19"
+  },
+  {
+   "id": "builtin_fifty_two_week",
+   "name": "52-Week High/Low",
+   "aliases": [
+    "52-week high/low",
+    "52 week high low",
+    "52 week high/low"
+   ],
+   "why": "52-Week High/Low is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "fiftyTwoWeek",
+    "name": "52-Week High/Low",
+    "what": "how far the close is below its 52-week high and above its 52-week low, in percent, on daily, weekly and monthly charts",
+    "own_version": true
+   },
+   "since": "2026-11-19"
+  },
+  {
+   "id": "builtin_uct_relative_strength",
+   "name": "UCT Relative Strength",
+   "aliases": [
+    "uct relative strength",
+    "uct rs line"
+   ],
+   "why": "UCT Relative Strength is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "rsLine",
+    "name": "UCT Relative Strength",
+    "what": "the RS line against a benchmark or a symbol you choose, with its moving average",
+    "own_version": true
+   },
+   "since": "2026-11-19"
+  },
+  {
+   "id": "builtin_uct_rs_vs_21_ema",
+   "name": "UCT RS vs 21 EMA",
+   "aliases": [
+    "uct rs vs 21 ema",
+    "rs vs 21 ema"
+   ],
+   "why": "UCT RS vs 21 EMA is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "rsVsEma",
+    "name": "UCT RS vs 21 EMA",
+    "what": "how far the RS line sits above or below its 21 EMA, in percent, bar by bar",
+    "own_version": true
+   },
+   "since": "2026-11-19"
+  },
+  {
+   "id": "builtin_uct_rs_exit_warnings",
+   "name": "UCT RS Exit Warnings",
+   "aliases": [
+    "uct rs exit warnings",
+    "uct rs exit"
+   ],
+   "why": "UCT RS Exit Warnings is one of UCT's own indicators, on the Indicators list. This library holds no formula under that name: the built-in is the checked thing.",
+   "describe": "what you would change about it, in your own words",
+   "built_in": {
+    "indicator": "rsExit",
+    "name": "UCT RS Exit Warnings",
+    "what": "three warnings on the RS line, from Mike Webster's method, on daily and weekly charts"
+   },
+   "since": "2026-11-19"
+  },
+  {
    "id": "rs_phases",
    "name": "RS Phases",
    "aliases": [
@@ -9044,6 +9282,29 @@
     "indicator": "rsPhases",
     "name": "UCT RS Phases",
     "what": "shaded bars where the RS line and the market pull apart"
+   },
+   "since": "2026-11-18"
+  },
+  {
+   "id": "session_vwap_bands",
+   "name": "VWAP standard deviation bands",
+   "aliases": [],
+   "why": "UCT's built-in Session VWAP draws these bands itself when its Std dev bands setting is on: the session's volume-weighted standard deviation either side of the session's VWAP. It is one setting of one of UCT's indicators, not a formula in this library.",
+   "describe": "the session VWAP plus and minus twice the standard deviation of price around it",
+   "built_in": {
+    "indicator": "vwap",
+    "name": "Session VWAP",
+    "what": "bands one, two or three volume-weighted standard deviations either side of the session's VWAP, on intraday charts",
+    "setting": {
+     "input": "bands",
+     "label": "Std dev bands",
+     "values": [
+      "1",
+      "2",
+      "3"
+     ],
+     "default": "2"
+    }
    },
    "since": "2026-11-18"
   }

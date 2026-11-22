@@ -535,6 +535,40 @@ def _is_breadth_derived_indicator(ticker: str) -> bool:
         return False
 
 
+#: Seconds a member's chart waits before asking again when the tier is unreachable (a deploy swap is seconds).
+TIER_DOWN_RETRY_AFTER_S = 2
+
+
+def _tier_down_cold_tail(ticker: str, tf: str, to: str):
+    """The warming 503 for an INTRADAY read whose tier proxy just failed and whose LOCAL tail is cold-stale
+    (missing a whole session, `bars_fetch._is_cold_stale_intraday`), else None (serve locally as before).
+
+    ⛔⛔ MEASURED ON PRODUCTION 2026-11-20, 16:52:49Z. A bars-api deploy swap left the tier unreachable; the edge
+    hedged a signed-in read to web after 1.2 s; web re-proxied it to the same tier, waited out the 2.0 s connect
+    timeout (`_proxy_bars_to_tier`), and served its LOCAL store. Nothing heals that store while every read is
+    proxied (`BARS_PROXY_PCT=100`), so RDDT 5m came back with a 13:50 ET tail from the day before, 22 hours old,
+    as a 200 that looked current. A deliberate warming 503 instead: the client keeps the rows it holds and asks
+    again after `TIER_DOWN_RETRY_AFTER_S`, by which time the tier is back.
+    ⚠️ Scope: intraday reads only, and not a replay (`to`) or an index (its store is not bars.db). A daily read
+    keeps the local fallback (its own catch-up rules apply). A tail that is merely behind within today's session
+    still falls back locally: answering 503 for every chart during a longer outage would trade a slightly old
+    chart for none. A tail we cannot read is served as before (abstain)."""
+    if to or tf not in _INTRADAY_TFS or is_index(ticker):
+        return None
+    try:
+        last_ts = _bars_fetch._sqlite.get_last_ts(ticker.upper(), tf)
+        if last_ts is None or not _bars_fetch._is_cold_stale_intraday(tf, last_ts):
+            return None
+    except Exception:  # noqa: BLE001 - abstain: the local serve decides as it always has
+        return None
+    resp = JSONResponse(status_code=503, content={
+        "ticker": ticker.upper(), "tf": tf, "bars": [], "warming": True, "error": "tier_unreachable"})
+    resp.headers["Retry-After"] = str(TIER_DOWN_RETRY_AFTER_S)
+    resp.headers["X-Bars-Shed"] = "tier-unreachable"
+    resp.headers["Cache-Control"] = "no-store, must-revalidate"
+    return resp
+
+
 def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     """Canary gate for the hot-path proxy. Routes a real read to the tier ONLY when
     BARS_PROXY_ENABLED=1 AND a per-request draw falls under BARS_PROXY_PCT (0-100).
@@ -566,6 +600,15 @@ def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     # A Pine seed is served from the web pod's `pine_seed_store`, like the above.
     if _is_pine_seed(ticker):
         return False
+    # A currency pair (BTCUSD) is the web pod's too: the tier answers one with 501 "ask
+    # web" (`bars_api_main._pair_handed_to_web`), so proxying it could only fail and fall
+    # back here. Whatever `CRYPTO_BARS_ENABLED` says.
+    try:
+        from api import crypto_bars as _crypto_bars
+        if _crypto_bars.is_pair(ticker):
+            return False
+    except Exception:
+        pass
     if os.environ.get("BARS_PROXY_ENABLED", "0") != "1":
         return False
     try:
@@ -632,6 +675,15 @@ async def get_bars(
         return _theme_index_refusal(ticker, tf)
     if not isinstance(session, str):    # called in-process: the Query() default object
         session = ""
+    # A currency pair (BTCUSD), dark behind CRYPTO_BARS_ENABLED: served by THIS pod from
+    # `api/crypto_bars.py` (FMP only), never the tier (it has no member identity and hands
+    # a pair back here with 501) and never the stock/index serve below. `serves` is False for
+    # every other symbol and for everyone while the switch is off, so they fall through
+    # to exactly the lines that follow.
+    from api.routers import crypto as _crypto
+    if _crypto.serves(ticker, _access):
+        from starlette.concurrency import run_in_threadpool as _pair_pool
+        return await _pair_pool(_crypto.pair_bars_response, ticker, tf, bars, since, to)
     origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
     if origin and _bars_proxy_should_route(ticker, warm):
         try:
@@ -639,7 +691,12 @@ async def get_bars(
             _extra = (session,) if session else ()
             return await _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin, *_extra)
         except Exception:
-            pass  # tier unreachable/slow/error → fall through to local serve (today's path)
+            # tier unreachable/slow/error → fall through to local serve (today's path), EXCEPT an intraday
+            # read whose local tail is cold-stale: see `_tier_down_cold_tail`.
+            from starlette.concurrency import run_in_threadpool as _shed_pool
+            _shed = await _shed_pool(_tier_down_cold_tail, ticker, tf, to)
+            if _shed is not None:
+                return _shed
     # Local serve is SYNC (SQLite/provider I/O) → run it in the threadpool so it never
     # blocks the event loop (this route is async now for the proxy path). Behaviourally
     # identical to the pre-Phase-2 sync route, which FastAPI also ran in the threadpool.
@@ -1722,6 +1779,11 @@ async def get_bars_history(
     See docs/superpowers/specs/2026-08-31-edge-deep-history."""
     if is_econ_symbol(ticker):
         return _econ_refusal(ticker)
+    # A currency pair (see routers/crypto.py): for an admitted caller this route answers the
+    # pair's settled bars from the web pod's own held series, uncached, and is never proxied.
+    from api.routers import crypto as _crypto
+    if _crypto.serves(ticker, _access):
+        return _crypto.pair_history_response(ticker, tf, bars)
     origin = os.environ.get("BARS_HISTORY_ORIGIN_URL", "").rstrip("/")
     # ⛔⛔ MARKET INDICATORS ARE NEVER PROXIED, for exactly the reason the hot-path proxy
     # excludes them (`_bars_proxy_should_route`): their stores — `cboe_indices.db`,
@@ -1742,15 +1804,54 @@ async def get_bars_history(
         # composed on the web pod (collector rows + the OHLC store + the breadth authority
         # seam), none of which the worker has. `/api/bars` already keeps breadth local.
         try:
-            return await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
+            resp = await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
+            return gzip_with_length(resp, request.headers.get("accept-encoding", ""))
         except Exception:
             pass  # worker unreachable/slow → fall back to the web's own shallow history
     # ⛔ (2026-10-10) OFF THE EVENT LOOP. This handler is `async`, and `serve_bars_history` is
     # synchronous: a breadth / market-indicator build here (seconds, cold) froze every request
     # on the single web pod for its whole duration. Same threadpool `/api/bars` uses.
     from starlette.concurrency import run_in_threadpool
-    return await run_in_threadpool(serve_bars_history, ticker, tf, bars, v, d,
+    resp = await run_in_threadpool(serve_bars_history, ticker, tf, bars, v, d,
                                    if_none_match=request.headers.get("if-none-match", ""))
+    return gzip_with_length(resp, request.headers.get("accept-encoding", ""))
+
+
+# ⭐⭐ A LENGTH, OR CACHE RESERVE NEVER KEEPS IT (2026-11-19). Cloudflare's Cache Reserve (the
+# persistent tier behind the edge) stores only responses that carry a Content-Length; a chunked
+# response is refused (developers.cloudflare.com/cache/advanced-configuration/cache-reserve,
+# eligibility). This route's IMMUTABLE answers went out chunked whenever the client asked for gzip,
+# which Cloudflare always does: a middleware inside GZip re-streams the body in several messages, so
+# GZipMiddleware takes its streaming branch and drops the length (measured against the origin: gzip
+# -> `transfer-encoding: chunked`, no length; identity -> `content-length: 873380`). The deep daily
+# history therefore lived only in the ordinary edge cache, which evicts it within hours: at 10:00 ET
+# on 2026-11-19, 0 of 100 tickers the 04:00 sweep had stocked were still cached, and every first
+# open of a daily chart paid the 2-3 s origin build again.
+# The body is gzipped ONCE here, with its length; GZipMiddleware passes an already-encoded response
+# through untouched (`content_encoding_set`), and the length survives to the client.
+GZIP_WITH_LENGTH_MIN_BYTES = 1000
+
+
+def gzip_with_length(resp, accept_encoding: str, *, level: int = 5):
+    """`resp` gzipped with a Content-Length when the client accepts gzip and it is a 200 worth
+    compressing; otherwise `resp` unchanged. Headers (Cache-Control, ETag, Server-Timing) carry over."""
+    import gzip as _gzip
+    from starlette.responses import Response as _Resp
+    body = getattr(resp, "body", None)
+    if (getattr(resp, "status_code", 0) != 200 or not isinstance(body, (bytes, bytearray))
+            or len(body) < GZIP_WITH_LENGTH_MIN_BYTES
+            or "gzip" not in (accept_encoding or "").lower()
+            or "content-encoding" in resp.headers):
+        return resp
+    packed = _gzip.compress(bytes(body), compresslevel=level, mtime=0)
+    headers = {k: v for k, v in resp.headers.items() if k.lower() not in ("content-length", "content-encoding")}
+    out = _Resp(content=packed, status_code=200, headers=headers)
+    out.headers["Content-Encoding"] = "gzip"
+    out.headers["Content-Length"] = str(len(packed))
+    vary = out.headers.get("vary", "")
+    if "accept-encoding" not in vary.lower():
+        out.headers["Vary"] = (vary + ", " if vary else "") + "Accept-Encoding"
+    return out
 
 
 @router.post("/api/admin/warm-universe")
@@ -1943,6 +2044,41 @@ def bars_stream_status():
     except Exception as e:  # noqa: BLE001
         out["feed_client_error"] = str(e)[:200]
     return out
+
+
+@router.post("/api/admin/bars/regraft")
+def bars_regraft(request: Request, payload: dict = Body(...)):
+    """Re-fetch a NAMED list of tickers' deep D/W/M history through the store's own writer, on THIS pod
+    (`api.services.bars_regraft`). A proven join replaces stored pre-floor rows; an unproven one is
+    add-only. Auth: Bearer PUSH_SECRET. Body: {"tickers": [...] (at most 300), "tfs": ["D","W","M"],
+    "dry_run": true (the DEFAULT: writes nothing, reports per-row effects), "interval_s": 5}.
+    One job at a time (409 while one runs); poll GET /api/admin/bars/regraft-status."""
+    _check_admin_auth(request)
+    from api.services import bars_regraft as _rg
+    tickers = list(dict.fromkeys(str(t).strip().upper() for t in (payload.get("tickers") or []) if str(t).strip()))
+    if not tickers or len(tickers) > _rg.MAX_TICKERS:
+        raise HTTPException(status_code=400, detail=f"tickers: 1..{_rg.MAX_TICKERS} symbols")
+    tfs = [str(t).upper() for t in (payload.get("tfs") or list(_rg.TFS))]
+    if not tfs or any(t not in _rg.TFS for t in tfs):
+        raise HTTPException(status_code=400, detail=f"tfs: a subset of {list(_rg.TFS)}")
+    dry_run = payload.get("dry_run", True) is not False
+    try:
+        interval_s = float(payload.get("interval_s", 5.0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="interval_s: a number of seconds")
+    if not _rg.claim(len(tickers), tfs, dry_run):
+        return JSONResponse(status_code=409, content={"status": "already-running", **_rg.status()})
+    _threading.Thread(target=_rg.run, args=(tickers, tfs, dry_run, interval_s), daemon=True,
+                      name="bars-regraft").start()
+    return {"status": "started", "dry_run": dry_run, "tickers": len(tickers), "tfs": tfs,
+            "interval_s": max(_rg.MIN_INTERVAL_S, interval_s), "poll": "/api/admin/bars/regraft-status"}
+
+
+@router.get("/api/admin/bars/regraft-status")
+def bars_regraft_status(request: Request):
+    _check_admin_auth(request)
+    from api.services import bars_regraft as _rg
+    return _rg.status()
 
 
 @router.get("/api/admin/warm-universe-status")

@@ -20,6 +20,7 @@ import ast
 import io
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -1162,7 +1163,7 @@ def test_the_store_REFUSES_an_oversized_or_too_numerous_definition(store):
     """⚠️ `user_preferences` HAS NO SIZE LIMIT AND NO DELETE ROUTE — measured.
     This store is not that store, and the caps are named rather than inherited.
     """
-    with pytest.raises(ValueError, match="definition exceeds"):
+    with pytest.raises(ValueError, match="too large to keep"):
         svc.save(USER, "u_00000000dead", defn(20, pad=svc.MAX_DEFINITION_BYTES + 1,
                                               def_id="u_00000000dead"))
     assert svc.get(USER, "u_00000000dead") is None, "a refused save still stored"
@@ -1429,7 +1430,13 @@ def test_a_store_refusal_reaches_the_caller_as_a_400_with_the_stores_sentence(ap
     r = c.post("/api/user-definitions",
                json={"definition": defn(20, pad=svc.MAX_DEFINITION_BYTES + 1)})
     assert r.status_code == 400
-    assert "definition exceeds" in r.json()["detail"]
+    detail = r.json()["detail"]
+    # ⭐ ITEM 2 (2026-11-21) — the member door renders this detail verbatim, so it is the MEMBER's sentence:
+    # the bytes, the cap, and that nothing was saved. ⛔ The developer's note it used to be never reaches a member.
+    assert re.fullmatch(r"this indicator is too large to keep: as saved it would be \d+ bytes, and a saved "
+                        rf"indicator may hold at most {svc.MAX_DEFINITION_BYTES}\. Nothing was saved\.", detail), detail
+    for internal in ("user_preferences", "names its caps", "definition exceeds"):
+        assert internal not in detail, detail
     assert c.get("/api/user-definitions/u_0123456789ab").status_code == 404
     assert c.get("/api/user-definitions/rsi").status_code == 400
 

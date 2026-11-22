@@ -46,7 +46,7 @@ describe('The Read is on the Views tab', () => {
   it('renders above the visualization, with clauses, on a plain mount', () => {
     render(<BreadthViews rows={ROWS} onDrill={() => {}} />)
     const strip = screen.getByTestId('the-read')
-    expect(strip.textContent).toContain('The Read')
+    expect(strip.textContent).toContain('The read')
     expect(screen.getByTestId('the-read-clause-regime').textContent).toContain('Distribution')
     expect(screen.getByTestId('the-read-clause-events').textContent).toContain('18 sessions ago')
   })

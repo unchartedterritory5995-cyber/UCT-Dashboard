@@ -5,8 +5,9 @@
 // Test infrastructure (like `objectColours.js`). v1 grades drawings by counts,
 // texts and colours of objects paired BY VALUE; it never asks where a drawing
 // is. This file pairs each of our live objects with the capture's record of the
-// same family by CREATION ORDER and reads every field the capture holds, one row
-// per field: `{field, state, vendor, ours}`.
+// same family by CREATION ORDER (by VALUE where the two counts differ,
+// `alignByValue`) and reads every field the capture holds, one row per field:
+// `{field, state, vendor, ours}`.
 //
 // What a row's state MEANS for the grade, which fields exist, which vendor codes
 // decode to what and which fields are not graded (and why) are said ONCE, in
@@ -32,6 +33,47 @@ function alignNewest(vendor, ours) {
   const v = vendor.slice(vendor.length - n)
   const o = ours.slice(ours.length - n)
   return { pairs: v.map((rec, i) => [rec, o[i]]), unpairedVendor: vendor.length - n, unpairedOurs: ours.length - n }
+}
+
+/** ⭐⭐ WHEN THE COUNTS DIFFER, PAIR BY VALUE (coordinator ruling 2026-11-19): each record of the SMALLER side, newest
+ *  first, takes the unused record of the other side it agrees with best on every field the capture holds (geometry and
+ *  style: fewest fields that differ, then most that agree), never the one at its position. Ties fall back to the
+ *  newest-end position, then the lower id, so records that agree wherever they pair are paired exactly as before.
+ *  ⚰️ MEASURED: rsi-support-resistance-by-dgt draws its 5 level lines and withholds its 200 oscillator lines by name.
+ *  Aligned at the newest end, our 5 level lines were graded against TradingView's 5 NEWEST lines (oscillator lines) and
+ *  "differed" in y, though each equals one of TradingView's dotted level lines bit for bit (local capture, RDDT 1D).
+ *  Equal counts keep creation order (and `alignById`'s diagnostic): nothing a capture already pairs moves.
+ *  @param {(v: object, o: object) => {differ: number, agree: number}} score */
+const lexLess = (a, b) => {
+  for (let q = 0; q < a.length; q += 1) if (a[q] !== b[q]) return a[q] < b[q]
+  return false
+}
+function alignByValue(vendor, ours, score) {
+  if (vendor.length === ours.length) return alignNewest(vendor, ours)
+  const n = Math.min(vendor.length, ours.length)
+  const vendorSmaller = vendor.length < ours.length
+  const small = vendorSmaller ? vendor : ours
+  const large = vendorSmaller ? ours : vendor
+  const off = large.length - n // where the newest-end alignment puts small[i]: large[i + off]
+  const used = new Set()
+  const pairs = []
+  for (let i = small.length - 1; i >= 0; i -= 1) {
+    let best = -1
+    let bestKey = null
+    for (let j = 0; j < large.length; j += 1) {
+      if (used.has(j)) continue
+      const s = vendorSmaller ? score(small[i], large[j]) : score(large[j], small[i])
+      const key = [s.differ, -s.agree, Math.abs(j - (i + off)), j]
+      if (!bestKey || lexLess(key, bestKey)) {
+        best = j
+        bestKey = key
+      }
+    }
+    used.add(best)
+    pairs.push(vendorSmaller ? [small[i], large[best]] : [large[best], small[i]])
+  }
+  pairs.reverse()
+  return { pairs, unpairedVendor: vendor.length - n, unpairedOurs: ours.length - n, byValue: true }
 }
 
 /** The alternate pairing: records whose ids are EQUAL on both sides first (the
@@ -262,8 +304,19 @@ export function pairRecords(capture, objects) {
     const spec = OBJECTS_V2_FIELDS[family]
     const vendor = [...(R[family] || [])].filter(Boolean).sort(byId)
     const ours = live.filter((o) => o && o.family === spec.ourFamily)
-    const { pairs, unpairedVendor, unpairedOurs } = alignNewest(vendor, ours)
     ctx.ourFamily = spec.ourFamily
+    // the score is the grade's own field rows: what differs and what agrees, x included
+    const score = (v, o) => {
+      const p = o.props || {}
+      let differ = 0
+      let agree = 0
+      for (const r of recordRows(family, ctx, v, p, pairUndrawn(spec.ourFamily, p, v))) {
+        if (r.state === 'differ') differ += 1
+        else if (r.state === 'agree' || r.state === 'agreeByDefault' || r.state === 'themeRelative') agree += 1
+      }
+      return { differ, agree }
+    }
+    const { pairs, unpairedVendor, unpairedOurs, byValue } = alignByValue(vendor, ours, score)
     const rowsOf = ([v, o]) => {
       const p = o.props || {}
       return { vendorId: v.id, ourId: o.id, where: `${spec.ourFamily} #${o.id}`, fields: recordRows(family, ctx, v, p, pairUndrawn(spec.ourFamily, p, v)) }
@@ -282,11 +335,24 @@ export function pairRecords(capture, objects) {
         && alt.unpairedVendor === 0 && alt.unpairedOurs === 0
         && !differs(alt.pairs.map(rowsOf))
     }
-    families[family] = { unpairedVendor, unpairedOurs, pairs: graded, differsOnlyByCreationOrder }
+    families[family] = { unpairedVendor, unpairedOurs, pairs: graded, differsOnlyByCreationOrder, ...(byValue ? { pairedByValue: true } : {}) }
   }
   {
     const spec = OBJECTS_V2_FIELDS.linefills
-    const vendor = [...(R.linefills || [])].filter(Boolean).sort(byId)
+    // ⭐ ORPHAN FILLS (coordinator ruling 2026-11-21). TradingView keeps the RECORD of a fill whose lines the object
+    // limit (`max_lines_count`) has removed from the chart; a fill between lines that are no longer there has no
+    // geometry and cannot be drawn. So only the fills whose two lines are BOTH in the capture's own line records are
+    // paired and counted; the others are counted apart (`orphanVendor`) and named, never a count difference.
+    // ⛔ FAIL CLOSED: where the capture holds no readable line records, no fill is an orphan (the grade is as before).
+    // ⚰️ liquidity-pools-spy-1d-2026-10-03: 504 fill records, 252 between two lines TradingView still holds; ours 252,
+    // every one paired and agreeing. price-action-as-in-book-...-spy-1d-2026-10-03: 261 records, 49 drawable; ours 49.
+    const linesReadable = Array.isArray(R.lines)
+      && !((capture.objects && Array.isArray(capture.objects.unreadable) ? capture.objects.unreadable : []).includes('lines'))
+    const vendorLineIds = new Set(linesReadable ? R.lines.filter(Boolean).map((l) => l.id) : [])
+    const drawable = (x) => !linesReadable || (vendorLineIds.has(x.line1) && vendorLineIds.has(x.line2))
+    const recorded = [...(R.linefills || [])].filter(Boolean).sort(byId)
+    const vendor = recorded.filter(drawable)
+    const orphanVendor = recorded.length - vendor.length
     const ours = live.filter((o) => o && o.family === spec.ourFamily)
     // ⭐ A LINEFILL IS PAIRED BY ITS TWO LINES, not by creation order: Pine keeps
     // ONE fill per pair of lines (a new `linefill.new` on the same pair replaces
@@ -314,6 +380,7 @@ export function pairRecords(capture, objects) {
     families.linefills = {
       unpairedVendor: vendor.length - usedV.size,
       unpairedOurs,
+      ...(orphanVendor ? { orphanVendor } : {}),
       pairs: pairs.map(([v, o]) => ({ vendorId: v.id, ourId: o.id, where: `linefill #${o.id}`, fields: recordRows('linefills', ctx, v, o.props || {}, false) })),
     }
   }

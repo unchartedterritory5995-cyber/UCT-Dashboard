@@ -117,6 +117,68 @@ describe('G6 — who is asked', () => {
   })
 })
 
+describe('G6 — the refusal names the reason the SERVER gave (found by Deepvue: request-other and varip were told "barstate")', () => {
+  const BARSTATE = 'reads the state of the bar as it forms (barstate or the clock)'
+  const VARIP = 'keeps a `varip` value that changes within a forming bar'
+  const OTHER = 'reads another symbol or timeframe'
+  const UNKNOWN = 'uses a part of Pine'
+  const ALL = [BARSTATE, VARIP, OTHER, UNKNOWN]
+  const answer = async (historyOnly) => {
+    vi.stubGlobal('window', {})
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ sha256: H, admitted: true, missing: [], historyOnly }) })))
+    requestRuntimeAdmission(SRC)
+    await flush()
+    return runtimeFormingRefusalOf({ source: SRC, newestBarIsForming: true })
+  }
+  const only = (said, want) => {
+    expect(said).toContain(`this script ${want}, and that has only been checked`)
+    for (const other of ALL.filter((p) => p !== want && !want.includes(p))) expect(said).not.toContain(other)
+  }
+
+  it.each([
+    ['FR1', 'realtime-state', BARSTATE],
+    ['FR2', 'varip', VARIP],
+    ['FR3', 'request-other', OTHER],
+  ])('%s: the server id %s is said as its own reason, and no other', async (_tag, id, want) => {
+    const said = await answer([id])
+    expect(said).toMatch(FORMING)
+    only(said, want)
+    expect(runtimeAdmissionOf({ hash: H }).historyOnlyIds).toEqual([id])
+  })
+
+  it('FR4: two ids are both said, in the server\'s order, joined by "and"', async () => {
+    const said = await answer(['request-other', 'varip'])
+    expect(said).toContain(`this script ${OTHER} and ${VARIP}, and that has only been checked`)
+    expect(said).not.toContain(BARSTATE)
+    expect(said).not.toContain(UNKNOWN)
+    // and the untold half keeps its own ending with the same reason
+    expect(runtimeFormingRefusalOf({ source: SRC, newestBarIsForming: null })).toContain(`this script ${OTHER} and ${VARIP}, and`)
+    expect(runtimeFormingRefusalOf({ source: SRC, newestBarIsForming: null })).toMatch(UNTOLD)
+  })
+
+  it.each([
+    ['FR5 an id this tab does not know', ['some-new-capability']],
+    ['FR5 a malformed answer (a string)', 'realtime-state'],
+    ['FR5 a malformed answer (an object)', {}],
+    ['FR5 a list with no string id', [7, null]],
+  ])('%s: still refused (fail closed), said plainly', async (_name, historyOnly) => {
+    const said = await answer(historyOnly)
+    expect(said).toMatch(FORMING)
+    expect(said).toContain(`this script ${UNKNOWN}, and that has only been checked`)
+    expect(said).not.toContain(BARSTATE)
+  })
+
+  it('FR6: a known id beside an unknown one says both, each once', async () => {
+    const said = await answer(['varip', 'some-new-capability', 'varip'])
+    expect(said).toContain(`this script ${VARIP} and ${UNKNOWN}, and that has only been checked`)
+    expect(said.split(VARIP).length - 1).toBe(1)
+  })
+
+  it('CONTROL: an empty list is not history-only, so nothing is said at all', async () => {
+    expect(await answer([])).toBeNull()
+  })
+})
+
 describe('G6 — a runtime document, at every run', () => {
   it('⭐ drawn on a closed bar; the NEXT run on a forming or untold bar draws nothing and says why', () => {
     latchRuntimeAdmission(H, { admitted: true, historyOnly: true })

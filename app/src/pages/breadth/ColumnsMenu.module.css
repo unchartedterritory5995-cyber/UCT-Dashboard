@@ -1,0 +1,175 @@
+/* The Breadth "Columns" menu (owner 2026-11-19, design A simplified) — inside the UCT
+   Signature panel (ContextPopover `signature`: #111214, 1px #383b41, radius 10, padding 5).
+   Values are docs/uct-signature-style.md §2. Gold appears ONCE: the current template's ✓.
+   The phone bottom sheet uses the page theme, so every colour is a variable that `.sheet`
+   remaps to the app's tokens. */
+
+/* The top-bar button: "Columns" dim · template name · "· edited" + grey dot · chevron */
+.btn { gap: 6px; max-width: 280px; }
+.btnDim { color: var(--br-faint, var(--ink-faint)); font-weight: 500; white-space: nowrap; }
+.btnName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+.gdot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--signature-faint); flex: 0 0 auto; }
+
+.root {
+  --cm-text: var(--signature-text); --cm-bright: var(--signature-bright); --cm-dim: var(--signature-dim); --cm-rest: var(--signature-rest); --cm-faint: var(--signature-faint);
+  --cm-hover: var(--signature-card); --cm-line: var(--signature-line); --cm-well: var(--signature-well); --cm-outline: var(--signature-outline);
+  --cm-soft: color-mix(in srgb, var(--signature-bright) 6%, transparent); --cm-soft-hi: color-mix(in srgb, var(--signature-bright) 11%, transparent);
+  --cm-sq-ring: color-mix(in srgb, var(--signature-bright) 22%, transparent); --cm-sq-on: var(--signature-sel); --cm-down: var(--signature-down);
+  position: relative;
+  display: flex; flex-direction: column;
+  max-height: min(640px, var(--cm-max, 640px));
+  font-family: var(--font-sans); color: var(--cm-text);
+}
+/* The popover's own title ("Columns", mono) names the dialog; on desktop it stays for screen
+   readers only — the button already says Columns. */
+:global(*):has(+ .root) {
+  position: absolute !important; width: 1px; height: 1px; padding: 0 !important; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.gl { padding: 8px 10px 3px; font: 600 10.5px var(--font-sans); color: var(--cm-faint); user-select: none; }
+.hr { height: 1px; background: var(--cm-line); margin: 4px 6px; flex: 0 0 auto; }
+.tpls { flex: 0 0 auto; display: flex; flex-direction: column; }
+
+/* A row: 13px regular, 6px 10px, radius 6; hover #1a1b1f + bright text */
+.row {
+  display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; min-height: 30px;
+  padding: 6px 10px; border: 0; border-radius: 6px; background: none; text-align: left; cursor: pointer;
+  font: 400 13px var(--font-sans); color: var(--cm-text);
+}
+.row:hover, .row:focus-visible { background: var(--cm-hover); color: var(--cm-bright); outline: none; }
+.row:focus-visible { box-shadow: inset 0 0 0 1px var(--cm-outline); }
+.name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.right { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+/* Templates */
+.tplWrap { display: flex; flex-direction: column; }
+.tplRow { position: relative; display: flex; align-items: center; }
+.tplOwn { padding-right: 34px; }
+.cur { font-weight: 600; color: var(--cm-bright); }
+.chk { flex: 0 0 12px; width: 12px; text-align: center; font-size: 13px; font-weight: 700; color: var(--ut-gold, #dcbb5e); }
+.add { color: var(--cm-rest); }
+.add .chk { color: var(--cm-dim); font-weight: 600; }
+.edited { display: inline-flex; align-items: center; gap: 6px; color: var(--cm-faint); font-weight: 400; white-space: nowrap; }
+.lock { color: var(--cm-faint); display: block; }
+.more {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; border: 0; border-radius: 5px; background: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; letter-spacing: 1px; color: var(--cm-dim); opacity: 0;
+}
+.tplRow:hover .more, .tplRow:focus-within .more, .tplRowOn .more { opacity: 1; }
+.more:hover, .more:focus-visible, .tplRowOn .more { background: color-mix(in srgb, var(--signature-bright) 7%, transparent); color: var(--cm-text); outline: none; }
+
+/* The edited built-in's one quiet strip */
+.strip {
+  display: flex; align-items: center; gap: 6px; margin: 1px 4px 4px; padding: 5px 6px 5px 10px;
+  border-radius: 8px; background: var(--cm-hover); font-size: 12px; color: var(--cm-rest);
+}
+.stripText { margin-right: auto; color: var(--cm-faint); }
+
+/* Buttons: primary soft (+), pill, quiet text, small white confirm inside a field */
+.prim, .pill, .quiet, .white {
+  height: 26px; padding: 0 10px; border: 0; border-radius: 7px; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; font: 600 12px var(--font-sans);
+}
+.prim { background: color-mix(in srgb, var(--signature-bright) 8%, transparent); color: var(--cm-bright); }
+.prim:hover, .prim:focus-visible { background: color-mix(in srgb, var(--signature-bright) 13%, transparent); outline: none; }
+.pill { background: var(--cm-soft); color: var(--cm-text); }
+.pill:hover, .pill:focus-visible { background: var(--cm-soft-hi); outline: none; }
+.quiet { background: none; padding: 0 8px; color: var(--cm-dim); }
+.quiet:hover:not(:disabled), .quiet:focus-visible { color: var(--cm-bright); background: var(--cm-soft); outline: none; }
+.quiet:disabled { opacity: 0.4; cursor: default; }
+.white { background: var(--signature-text); color: var(--signature-panel); font-weight: 700; }
+.white:hover, .white:focus-visible { background: var(--signature-bright); outline: none; }
+.down, .row.down, .row.down:hover, .row.down:focus-visible { color: var(--cm-down); }
+
+/* Inline name field */
+.fieldWrap { padding: 3px 6px 4px; }
+.field { display: flex; align-items: center; gap: 6px; }
+.inp {
+  flex: 1; min-width: 0; height: 28px; box-sizing: border-box; padding: 0 9px; border-radius: 7px;
+  border: 1px solid var(--cm-outline); background: var(--cm-well); color: var(--cm-bright); font: 12.5px var(--font-sans);
+}
+.inp:focus { outline: none; border-color: color-mix(in srgb, var(--signature-bright) 32%, transparent); }
+.inp::placeholder { color: var(--cm-faint); }
+.err { padding: 4px 2px 0; font-size: 11.5px; color: var(--cm-down); }
+
+/* Delete confirm, in the row */
+.confirm { cursor: default; gap: 8px; }
+.confirm:hover { background: var(--cm-hover); }
+.confirmText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+
+/* The ⋯ sub-menu: a small Signature menu over the panel */
+.sub {
+  position: absolute; z-index: 2; width: 150px; box-sizing: border-box; padding: 5px;
+  background: var(--signature-panel); border: 1px solid var(--signature-outline); border-radius: 10px; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+  display: flex; flex-direction: column;
+}
+
+/* Search well */
+.find {
+  flex: 0 0 30px; display: flex; align-items: center; gap: 8px; margin: 2px 4px 4px; padding: 0 10px;
+  border-radius: 7px; background: var(--cm-well); border: 1px solid transparent; color: var(--cm-faint);
+}
+.find:focus-within { border-color: var(--cm-outline); }
+.find input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: none;
+  color: var(--cm-bright); font: 12.5px var(--font-sans);
+}
+.find input::placeholder { color: var(--cm-faint); }
+
+/* The checklist */
+.list { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--signature-bright) 22%, transparent) transparent; padding-bottom: 4px; }
+.fam { display: flex; flex-direction: column; }
+.fold {
+  display: flex; align-items: center; gap: 6px; width: 100%; box-sizing: border-box; padding: 8px 10px 4px;
+  border: 0; border-radius: 6px; background: none; cursor: pointer; text-align: left;
+  font: 600 12px var(--font-sans); color: var(--cm-rest);
+}
+.fold:hover:not(:disabled), .fold:focus-visible { color: var(--cm-bright); outline: none; }
+.fold:focus-visible { box-shadow: inset 0 0 0 1px var(--cm-outline); }
+.fold:disabled { cursor: default; }
+.cnt { color: var(--cm-faint); font-weight: 500; font-variant-numeric: tabular-nums; }
+.car { color: var(--cm-faint); transform: rotate(-90deg); transition: transform 0.12s; flex: 0 0 auto; }
+.carOpen { transform: none; }
+.col { padding-left: 12px; }
+.short { font-size: 11px; color: var(--cm-faint); white-space: nowrap; }
+.tag { font: 600 10.5px var(--font-sans); color: var(--cm-faint); white-space: nowrap; }
+.na { color: color-mix(in srgb, var(--signature-faint) 80%, var(--signature-panel)); }   /* #7c7c82: the dimmest Signature grey */
+.na .sq { opacity: 0.55; }
+.empty { padding: 10px; font-size: 12px; line-height: 1.5; color: var(--cm-faint); }
+
+/* The soft square (§3): 18×18, radius 5; off = inset ring, on = #2c2e33 + white ✓ */
+.sq {
+  flex: 0 0 18px; width: 18px; height: 18px; box-sizing: border-box; border-radius: 5px;
+  box-shadow: inset 0 0 0 1.5px var(--cm-sq-ring);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; line-height: 1; color: var(--signature-bright);
+}
+.row:hover .sq:not(.sqOn) { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--signature-bright) 50%, transparent); }
+.sqOn { background: var(--cm-sq-on); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--signature-bright) 28%, transparent); }
+
+/* Footer */
+.foot { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; padding: 6px 4px 1px; margin-top: 2px; border-top: 1px solid var(--cm-line); }
+.sp { flex: 1 1 auto; }
+
+/* Phone / tablet: the bottom sheet (page theme), 44px rows */
+.sheet .root {
+  --cm-text: var(--text-bright); --cm-bright: var(--text-bright); --cm-dim: var(--text-muted);
+  --cm-rest: var(--text-bright); --cm-faint: var(--text-muted); --cm-hover: var(--bg-hover);
+  --cm-line: var(--border); --cm-well: var(--bg-hover); --cm-outline: var(--border-accent);
+  --cm-soft: var(--bg-hover); --cm-soft-hi: var(--bg-hover); --cm-sq-ring: var(--border-accent);
+  --cm-sq-on: var(--text-muted);
+  max-height: none;
+}
+.sheet .row, .sheet .fold { min-height: var(--tap-min, 44px); }
+.sheet .more { opacity: 1; width: 36px; height: 36px; }
+.sheet .prim, .sheet .pill, .sheet .quiet, .sheet .white { min-height: 36px; }
+.sheet .inp, .sheet .find { min-height: 40px; }
+.sheet .sub { background: var(--bg-elevated); border-color: var(--border-accent); }
+
+/* Column names never cut off (owner 2026-11-19): the menu is wide enough for the
+   longest names, and anything longer wraps to a second line instead of an ellipsis. */
+.wrap { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; padding-block: 3px; }

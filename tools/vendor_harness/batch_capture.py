@@ -23,7 +23,9 @@ the window this tool opens, and every later step is this process.
     fresh `Create new > Indicator` buffer, and the add is gated on the corrected
     BINDING GATE (own-text `Add to chart` exactly once, `Update on chart` never),
     checked in Python AND again inside the same page evaluation as the click.
-    A gate that refuses NEVER clicks.
+    A gate that refuses NEVER clicks. The click is the editor dialog's OWN
+    button (`#pine-editor-dialog`), and each menu row is a `[role="menuitem"]`
+    of an open menu: exactly one, uncovered, or nothing (`rig_controls.js`).
   * saves anything, or calls `chart.exportData()` (plan-gated).
   * records the account name, or an unsalted hash of it: provenance keeps HMAC-SHA256 of the
     name under a LOCAL salt (`$UCT_PROVENANCE_SALT`, >= 16 characters), or `no-salt` without one.
@@ -91,6 +93,7 @@ from pine_member_pane_capture import TIERS, _gate  # noqa: E402
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from evidence_ledger import CAPTURE_PHASES  # noqa: E402 — the ONE phase vocabulary: imported, never restated
+from evidence_ledger import SESSION_SUFFIX, SESSIONS  # noqa: E402 — the ONE session vocabulary, likewise
 
 TV_CAPTURE = HERE / "tv_capture.js"
 VERIFY = HERE / "verify_capture.mjs"
@@ -117,6 +120,82 @@ MIN_THROTTLE_S = 10.0
 #: compare. Unset or shorter than MIN_SALT_CHARS -> the account is not fingerprinted (`no-salt`).
 PROVENANCE_SALT_ENV = "UCT_PROVENANCE_SALT"
 MIN_SALT_CHARS = 16
+
+#: ⭐⭐ THE CONTROL PLOT a probe draws its own `bar_index` in (`I00_bar_index_CONTROL`, `F00_bar_index_CONTROL`, or a
+#: plot titled `bar_index`). ⛔ Never a request's bar_index (`F12_W_bar_index_OFF` reads ANOTHER timeframe's index).
+BAR_INDEX_CONTROL_RX = re.compile(r"(?:^|_)bar_index_CONTROL$|^bar_index$")
+
+
+def starts_at_bar0_contradiction(capture: dict, symbol: str):
+    """⭐⭐ (coordinator, 2026-11-19) Why the capture's OWN data refutes its `history.startsAtBar0` claim, or None. A capture
+    that does not claim it is never refuted. Refuted when:
+      1. the claim's `why` names a symbol that is not the chart's (`symbol.pro_name`), or the batch asserted it for
+         another symbol (`symbol`): the 2026-09-27 wave wrote RDDT's listing on SPY / AAPL charts;
+      2. a bar_index CONTROL plot reads anything but 0 on the capture's first row (vw-int-cast-spy-1d-2026-09-27 read
+         8172 there: its history starts deep, not at bar 0)."""
+    hist = (capture or {}).get("history") or {}
+    if hist.get("startsAtBar0") is not True:
+        return None
+    sym = (capture.get("symbol") or {})
+    pro = sym.get("pro_name") or sym.get("full_name") or ""
+    if symbol and pro and not sym_match(pro, symbol):
+        return f"it was asserted for {symbol}, and the chart is {pro}"
+    why = str(hist.get("why") or "")
+    named = re.match(r"\s*([A-Z0-9_.!]+:[A-Z0-9_.!]+)\s+listed\b", why)
+    if named and pro and not sym_match(pro, named.group(1)):
+        return f"its why names {named.group(1)}, and the chart is {pro}: {why[:120]!r}"
+    plots = {p.get("id"): p.get("title") for p in ((capture.get("study") or {}).get("plots") or []) if isinstance(p, dict)}
+    pv = capture.get("plotValues") or {}
+    fields, rows = pv.get("fields") or [], pv.get("rows") or []
+    if rows and fields:
+        for col, pid in enumerate(fields):
+            title = plots.get(pid)
+            if not title or not BAR_INDEX_CONTROL_RX.search(str(title)):
+                continue
+            first = rows[0][col] if col < len(rows[0]) else None
+            if isinstance(first, (int, float)) and first != 0:
+                return f"its bar_index control plot {title!r} reads {first:g} on the capture's first row, not 0"
+    return None
+
+
+#: ⭐⭐ The listing date's SOURCE (coordinator ruling 2026-11-20): UCT production's own answer, read as the automation account
+#: through the rig's browser context (`Driver.listing_for`). The table below is a CROSS-CHECK that must agree.
+UCT_ORIGIN = "https://uctintelligence.com"
+_ISO_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def uct_ticker_of(symbol) -> str:
+    """Our store's ticker for a TradingView symbol: the part after the exchange, a class share's dot as a hyphen
+    (`NYSE:BRK.B` -> `BRK-B`, the bars route's own spelling)."""
+    return str(symbol or "").split(":")[-1].strip().upper().replace(".", "-")
+
+
+def _json_of(resp):
+    try:
+        return json.loads(resp.text())
+    except Exception:  # noqa: BLE001 -- an unreadable body is no answer
+        return None
+
+
+def uct_first_trade_date(page, symbol):
+    """(date | None, why): `/api/ticker-ipo/<T>`'s `first_trade_date` when `first_trade_final` is true, read through the
+    page's own browser context. ONE GET of a PUBLIC endpoint (measured 2026-11-20: it answers without a session), so
+    the capture profile, which holds no UCT session, reads it without signing in as anyone. Never raises: a lookup that
+    cannot answer is no listing date, with the reason."""
+    try:
+        req = page.context.request
+        t = uct_ticker_of(symbol)
+        r = req.get(f"{UCT_ORIGIN}/api/ticker-ipo/{t}")
+        body = _json_of(r) if getattr(r, "status", 200) == 200 else None
+        if not isinstance(body, dict):
+            return None, f"/api/ticker-ipo/{t} answered {getattr(r, 'status', '?')}"
+        day = body.get("first_trade_date")
+        if body.get("first_trade_final") is not True or not isinstance(day, str) or not _ISO_DAY.match(day):
+            return None, f"/api/ticker-ipo/{t} holds no FINAL first trade date ({body.get('first_trade_final')!r}, {day!r})"
+        return day, f"/api/ticker-ipo/{t}: first trade {day} (final)"
+    except Exception as exc:  # noqa: BLE001
+        return None, f"the listing date could not be read ({type(exc).__name__}: {exc})"
+
 
 #: Listing days this tool may assert `startsAtBar0` against. A young listing is
 #: the instrument (capture-procedure.md, "BAR 0 IS NOT REACHABLE ON A LONG-HISTORY
@@ -256,16 +335,22 @@ RIG_VIEWPORT = {"width": 1760, "height": 1000}
 #: before it decides. Read the instant the fresh model appears, it counted 0 / 0 (2026-11-16).
 BINDING_SETTLE_S = 15.0
 
-#: A visible menu row by OWN text; `a.rightOf` picks a submenu row to the right.
-MENU_ITEM_JS = r"""(a) => {
-  const own = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join(' ').trim();
-  const hits = [...document.querySelectorAll('*')].filter((el) => {
-    if (own(el) !== a.text) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
-  }).map((el) => el.getBoundingClientRect());
-  const ok = a.rightOf ? hits.filter((r) => r.left >= a.rightOf.right - 8) : hits;
-  if (!ok.length) return { ok: false, found: hits.length };
-  const r = ok[0];
-  return { ok: true, x: r.left + r.width / 2, y: r.top + r.height / 2, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } };
+#: ⭐⭐ THE ONE CONTROL A STEP CLICKS, FOUND INSIDE ITS CONTAINER (patrick-54's review, coordinator ruling 2026-11-21):
+#: `rig_controls.js` (one function expression; its leading comment dropped), railed over the rig's recorded DOM in
+#: app/src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js. A menu row is a `[role="menuitem"]`
+#: inside an open `[role="menu"]`; `Add to chart` is inside `#pine-editor-dialog`; exactly one visible control of the
+#: text, which a pointer at its centre would hit, or NOTHING is clicked: several stop the step at once (`STOP`); a covered
+#: one is read again until it clears or the step's timeout refuses it (`covered`; a transient overlay never fails a row).
+#: ⚰️ Both searched own text over the WHOLE page and took the first hit: one attempt clicked an unrelated "Save" behind
+#: a modal ("Save" has 4 own-text matches on the rig page, 2026-11-21 04:10Z, `D:/uct-rig-facts/dom_facts_2026-11-21.json`).
+_RIG_CONTROLS_SRC = (HERE / "rig_controls.js").read_text(encoding="utf-8")
+CONTROL_FINDER_JS = _RIG_CONTROLS_SRC[_RIG_CONTROLS_SRC.index("(a) =>"):].strip()
+
+#: A visible menu row by OWN text inside an open menu (`rig_controls.js`, `within: 'menu'`); `a.rightOf` picks a submenu
+#: row to the right of the row that opened it. Read only: the Driver moves and clicks the REAL pointer at `x, y`.
+MENU_ITEM_JS = "(a) => {\n  const f = (" + CONTROL_FINDER_JS + r""")({ text: a.text, rightOf: a.rightOf, within: 'menu' });
+  if (!f.ok) return { ok: false, STOP: !!f.STOP, found: f.found, covered: !!f.covered, why: f.why };
+  return { ok: true, x: f.x, y: f.y, rect: f.rect };
 }"""
 
 #: WRITE (the unsaved buffer only), behind the pre-write gate IN THE SAME
@@ -290,12 +375,11 @@ ADD_JS = r"""() => {
   const gate = (""" + BINDING_JS + r""")();
   const vis = document.visibilityState;
   if (vis !== 'visible' || !gate.gate) return { STOP: true, vis, gate };
-  const own = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join(' ').trim();
-  const el = [...document.querySelectorAll('button, a, [role="button"], div, span')].find((e) => {
-    const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && !e.disabled && own(e) === 'Add to chart';
-  });
-  if (!el) return { STOP: true, vis, gate, why: 'the gated control vanished before the click' };
-  el.click();
+  // ⭐⭐ the ONE `Add to chart` inside the Pine editor dialog (`rig_controls.js`): the gate above counts the whole page
+  // (exactly one, no `Update on chart`), and the click is the dialog's own button or nothing
+  const f = (""" + CONTROL_FINDER_JS + r""")({ text: 'Add to chart', within: 'editor' });
+  if (!f.ok) return { STOP: true, vis, gate, found: f.found, covered: !!f.covered, why: f.why };
+  f.el.click();
   return { clicked: true, vis, gate };
 }"""
 
@@ -308,6 +392,94 @@ STUDY_JS = "(id) => {" + _CHART + r"""
   const ed = st && st.errorDescription;
   return { found: true, rows: tryv(() => si.dataLength()),
            status: st ? { type: st.type, error: ed ? (ed.error || JSON.stringify(ed)) : null, title: ed ? ed.title || null : null } : null };
+}"""
+
+#: ⭐⭐ A TRADINGVIEW BUILT-IN (or published script), ADDED FROM THE INDICATORS DIALOG (coordinator ruling 2026-11-20,
+#: item 2: "a rig path living in a scratchpad wrapper is exactly the kind of infrastructure that rots"). Moved over
+#: VERBATIM from patrick-54's scratchpad wrapper `batch_builtin.py` (patrick-0b's batch, 2026-11-18, sha256 117e144e…),
+#: which captured 35 built-ins and 4 published scripts that way: open the dialog, type the row's search, click ONLY
+#: the one list element whose `data-id` is exactly the row's id (none, or more than one: nothing is clicked, the row
+#: stops by name), close the dialog. Add to chart only; nothing is saved.
+#: ⭐ THE ONE IN-PAGE INPUT WRITE THE BATCH MAKES: the dialog's search box, set by this evaluation (no Playwright text
+#: entry: `test_the_driver_never_enters_text`). It is a UI search, never the account, never the layout.
+OPEN_DIALOG_JS = r"""() => { if (document.querySelector('[data-name="indicators-dialog"]')) return { open: true }
+  const b = document.querySelector('[data-name="open-indicators-dialog"]'); if (!b) return { open: false, clicked: false }
+  b.click(); return { open: false, clicked: true } }"""
+SEARCH_AND_CLICK_JS = r"""async ({ id, search }) => {
+  const d = document.querySelector('[data-name="indicators-dialog"]'); const input = d && d.querySelector('input')
+  if (!input) return { STOP: 'no dialog search input' }
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, search)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  for (let i = 0; i < 20; i += 1) {
+    await new Promise((r) => setTimeout(r, 300))
+    const hits = [...d.querySelectorAll('[data-id]')].filter((el) => el.getAttribute('data-id') === id)
+    if (hits.length === 1) {
+      const title = (hits[0].getAttribute('data-title') || hits[0].textContent || '').trim().slice(0, 100)
+      hits[0].click()
+      return { clicked: true, title }
+    }
+    if (hits.length > 1) return { STOP: `${hits.length} elements carry data-id ${id}` }
+  }
+  return { STOP: `no element with data-id ${id} after searching ${JSON.stringify(search)}` } }"""
+CLOSE_DIALOG_JS = r"""() => !document.querySelector('[data-name="indicators-dialog"]')"""
+#: a built-in's input ids by their dialog LABEL (`builtinInputs` names inputs by label), from the study API (verbatim)
+INPUT_IDS_JS = "(id) => {" + _CHART + r"""
+  const h = chartOf(); const si = h ? tryv(() => h.c.getStudyById(id)) : null;
+  if (!si) return {};
+  const got = tryv(() => si.getInputsInfo && si.getInputsInfo()) || [];
+  const out = {}; for (const i of got) if (i && i.name && i.id) out[i.name] = i.id;
+  return out }"""
+#: WRITE (the added study's inputs, chart state): set by input id, read back in the same evaluation. Verbatim from
+#: patrick-54's `batch_wide.INPUTS_JS`, which `batch_builtin.py` called.
+INPUTS_JS = "(arg) => {" + _CHART + r"""
+  const h = chartOf(); const si = h ? tryv(() => h.c.getStudyById(arg.id)) : null;
+  if (!si) return { ok: false, why: 'study not found' };
+  if (typeof si.setInputValues !== 'function' || typeof si.getInputValues !== 'function')
+    return { ok: false, why: 'the study API has no setInputValues / getInputValues' };
+  const want = Object.entries(arg.inputs).map(([id, value]) => ({ id, value }));
+  try { si.setInputValues(want) } catch (e) { return { ok: false, why: 'setInputValues threw: ' + e } }
+  const got = tryv(() => si.getInputValues()) || [];
+  const byId = Object.fromEntries(got.map((x) => [x.id, x.value]));
+  const bad = want.filter((w) => byId[w.id] !== w.value).map((w) => ({ id: w.id, want: w.value, got: byId[w.id] }));
+  return { ok: bad.length === 0, bad, set: want.length };
+}"""
+#: ⭐⭐ THE POST-ADD IDENTITY, read-only (coordinator ruling 2026-11-20, item 2): `metaInfo().id` of every INDICATOR on
+#: the chart model, chart events left out by shortId exactly as `tv_capture.js`'s census does. After one add on the
+#: empty scratch layout it must be exactly [`builtin_identity(id)`], or the row stops by name (`Driver.add_builtin`):
+#: a list element whose label moved onto another study can no longer be added silently.
+STUDY_IDENTITY_JS = r"""() => {
+  const col = window._exposed_chartWidgetCollection; if (!col) return { ok: false, why: 'no _exposed_chartWidgetCollection' };
+  let mm; try { mm = col.activeChartWidget.value().model().model() } catch (e) { return { ok: false, why: String(e) } }
+  const EVENTS = new Set(['Splits', 'Earnings', 'Dividends']);
+  const indicators = [];
+  for (const d of (mm.dataSources() || [])) {
+    if (!d || typeof d.metaInfo !== 'function') continue;
+    let mi = {}; try { mi = d.metaInfo() || {} } catch (e) {}
+    if (EVENTS.has(mi.shortId)) continue;
+    indicators.push(mi.id || null);
+  }
+  return { ok: true, indicators };
+}"""
+
+#: ⭐⭐ (coordinator ruling 2026-11-20, (ii)) THE CHART'S RESOLVED SESSION, read-only: what the main series resolved
+#: (`symbolInfo().session`, e.g. '0400-2000' extended / '0930-1600' regular for a US listing, and `subsession_id`).
+#: With it, the series' own interval (read as `tv_capture.js` reads it) and its loaded bar count, so a read made while the
+#: chart is still reloading a new resolution is recognised as such (`Driver.check_row_session` waits for it to settle).
+#: ⚰️ The live probe (patrick-54, 2026-11-21 01:10Z, R4): right after a resolution change `symbolInfo()` read NULL, the new
+#: resolution's bars not yet loaded. A read taken at once there is no reading.
+SESSION_JS = r"""() => {
+  const col = window._exposed_chartWidgetCollection; if (!col) return { ok: false, why: 'no _exposed_chartWidgetCollection' };
+  let ms; try { ms = col.activeChartWidget.value().model().mainSeries() } catch (e) { return { ok: false, why: String(e) } }
+  let si = null; try { si = ms.symbolInfo() } catch (e) { return { ok: false, why: String(e) } }
+  if (!si) return { ok: false, why: 'no symbolInfo yet' };
+  let interval = null; try { interval = ms.interval() } catch (e) {}
+  if (!interval) { try { interval = ms.properties().childs().interval.value() } catch (e) {} }
+  let bars = 0; const times = [];
+  try { const b = ms.bars(); if (b && typeof b.each === 'function') b.each((i, v) => { if (i > -1000000 && v) { bars += 1; times.push(v[0]); if (times.length > 11) times.shift() } return false }) } catch (e) {}
+  let step = null;
+  for (let k = 1; k < times.length; k += 1) { const d = times[k] - times[k - 1]; if (d > 0 && (step === null || d < step)) step = d }
+  return { ok: true, session: si.session || null, subsession: si.subsession_id || null,
+           interval: interval == null ? null : String(interval), bars, step };
 }"""
 
 #: Ask for more history (n > 0) and read the loaded depth. Read-only at n = 0.
@@ -357,6 +529,61 @@ def clean_save_refusal(state: dict, original: dict):
     if res_norm(st.get("resolution")) != res_norm((original or {}).get("resolution")):
         return f"the resolution reads {st.get('resolution')!r}, not {(original or {}).get('resolution')!r}"
     return None
+
+
+#: ⭐⭐ ONE SETTLED READ OF THE RIG (coordinator ruling, 2026-11-19): the one definition of what a fresh load READS,
+#: for every clean-check (`Driver.verify_fresh_load`, which the batch end, the repair's verify-before and the guarded
+#: clean-save's verify-after all call, and the scratchpad end-of-batch rail `rig_verify.py`).
+#: ⚰️ THE CONTRADICTION IT ENDS (2026-11-19, 03:07Z and again 21:31Z): run htfform-c's verify_fresh_load took the first
+#: read where the chart handle answered (0 studies) and called the layout clean, so the guarded clean-save never ran;
+#: the end-of-batch rail's new launch, a few seconds later, read the saved leftover UCTPROBE_RS_SEED_RSRATING. The
+#: next batch (nhdot) read it on its own fresh load and repaired it. A handle that answers is not a layout that has
+#: finished attaching its studies: an empty list read too early is not "clean".
+#: A read counts once the handle answers with a studies list and a symbol; the state is SETTLED when (symbol,
+#: resolution, study ids) is unchanged for `RIG_SETTLE_S` straight. Never settled inside `RIG_SETTLE_MAX_S`: NOT
+#: READ, which no caller may report as clean.
+#: ⛔ RIG_SETTLE_S is a CHOICE, not a measured bound: the read-only measurement of 2026-11-19 22:02Z found the layout
+#: already clean (0 studies for 30 s on a new launch and on a reload), so no attach time was measured. Every settled read
+#: records when its state last changed (`lastChangeS`, `changes`), so the ledger measures it from here on.
+RIG_SETTLE_S = 10.0
+RIG_SETTLE_MAX_S = 90.0
+
+
+def rig_state_key(st):
+    """What a settled read compares: the symbol, the resolution and the study ids, in order. None until it counts."""
+    if not st or st.get("handle") is None or st.get("studies") is None or not st.get("symbol"):
+        return None
+    return (st.get("symbol"), str(st.get("resolution")), tuple(str(s.get("id")) for s in st.get("studies") or []))
+
+
+def settled_rig_read(read, clock, poll_s, settle_s=RIG_SETTLE_S, max_s=RIG_SETTLE_MAX_S) -> dict:
+    """⭐⭐ THE settled read (see RIG_SETTLE_S). `read()` returns the page's STATE_JS answer; `clock` has `monotonic()`
+    and `sleep()`. Returns {"state", "settled", "waitedS", "answeredS", "lastChangeS", "changes"}: `changes` is every
+    distinct state seen, with the second it was first seen, so a study that attaches late is on the record."""
+    t0 = clock.monotonic()
+    last_key, since, answered, st = None, None, None, None
+    changes = []
+    while True:
+        st = read()
+        now = clock.monotonic() - t0
+        key = rig_state_key(st)
+        if key is not None:
+            if answered is None:
+                answered = now
+            if key != last_key:
+                last_key, since = key, now
+                changes.append({"atS": round(now, 2), "symbol": key[0], "resolution": key[1],
+                                "studies": [s.get("name") for s in (st.get("studies") or [])]})
+            elif now - since >= settle_s:
+                return {"state": st, "settled": True, "waitedS": round(now, 2), "answeredS": round(answered, 2),
+                        "lastChangeS": round(since, 2), "changes": changes}
+        if now >= max_s:
+            return {"state": st, "settled": False, "waitedS": round(now, 2),
+                    "answeredS": None if answered is None else round(answered, 2),
+                    "lastChangeS": None if since is None else round(since, 2), "changes": changes}
+        clock.sleep(poll_s)
+
+
 VH_CLEANUP_JS = "() => (window.__uctVH ? window.__uctVH.cleanup() : { globalsLeft: [], absent: true })"
 GLOBALS_JS = "() => Object.keys(window).filter((k) => /^__uct/.test(k))"
 
@@ -376,8 +603,79 @@ def utcnow() -> str:
     return _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
 
 
+#: ⭐⭐ A ROW MAY NAME ITS SESSION, AND THE BATCH ONLY READS IT (coordinator rulings 2026-11-21, #2134 (A) and (B1);
+#: ruling (ii) stands: NO session write, ever). The row's session is a PRECONDITION: read after the row's resolution is
+#: set, at that resolution (`SESSION_JS`: `symbolInfo().session`, and `subsession_id` when TradingView reports one),
+#: and a mismatch stops the row by name (`Driver.check_row_session`), nothing captured. A regular-hours row runs on a
+#: layout SAVED with regular hours (ruling B1: `RIG_REGULAR_LAYOUT_ID`, a copy of the rig made once), never a toggled one.
+#: ⚰️ 2026-11-20: the first version WROTE the session as `setSymbol('={"session":"extended","symbol":"AMEX:SPY"}')`.
+#: That string is TradingView's WIRE encoding (the series' resolve request), not a symbol name: on the live rig the
+#: chart's symbol became the literal string and `symbolInfo()` never arrived (patrick-54, 30 polls), so every session
+#: row stopped. Its double parsed the spec, and `sym_match` read THROUGH it, so its self-checks agreed with the code,
+#: not with TradingView. And its read-back ran BEFORE the resolution was set, on the batch's 1D chart, where a US
+#: listing always resolves 0930-1600 (every daily capture on record), so even a working setter read "regular" there.
+#: The vocabulary is `evidence_ledger.SESSIONS` (and its id suffixes `evidence_ledger.SESSION_SUFFIX`, imported
+#: above): the queue matches a target's session against what each capture RECORDED with the same words.
+ROW_SESSIONS = SESSIONS
+
+#: ⭐⭐ THE LAYOUT A BATCH RUNS ON (`--layout`, ruling B1 2026-11-21). The rig layout is `01f1AcIj`, saved with EXTENDED
+#: hours (probe R1, 2026-11-21: sessionId "extended", 60m resolves 0400-2000 with 186 of 300 bars outside 09:30-16:00);
+#: regular-hours rows run on a COPY of it saved with regular hours (made once by patrick-54). ONE layout per batch: a
+#: row that names another `layout` is skipped (a later batch on that layout takes it, same run dir), and the page must
+#: be on the batch's layout before any step. The layout's hours are never typed here: each row's session is READ.
+RIG_LAYOUT_ID = LAYOUT.rstrip("/").rsplit("/", 1)[-1]
+#: ⭐ THE REGULAR-HOURS COPY (patrick-54, 2026-11-21, owner-approved, made once): "UCT CAPTURE RIG REGULAR HOURS — no
+#: studies", AMEX:SPY 1D, 0 studies, sessionId "regular", resolving 0930-1600 at 60 with 0 of 300 bars off-hours; the rig
+#: `01f1AcIj` read exactly as before afterwards (rig_verify CLEAN). Named here for manifests and `--layout`; a row's
+#: session is still READ on it, never assumed from this name.
+#: ⛔ Measured while making it: TradingView opened the copy in a NEW TAB (so a batch navigates by the id, never follows
+#: a copy), and a direct `sessionId.setValue` is NOT persisted (a fresh load reverts it; only the chart model's
+#: `changeSessionId`, an undo command, is). Selecting a layout is the mechanism, never writing a session.
+RIG_REGULAR_LAYOUT_ID = "MyS1vKSg"
+#: The layout saved with each session's hours (the two above): a manifest row that names its session names this
+#: layout too (`evidence_engine.build_manifest`), so a batch on the other layout skips it instead of failing its read.
+SESSION_LAYOUT = {"extended": RIG_LAYOUT_ID, "regular": RIG_REGULAR_LAYOUT_ID}
+LAYOUT_ID_RX = re.compile(r"^[A-Za-z0-9]{6,16}$")
+
+
+def bar_step_range(tf):
+    """The spacing, in seconds, that consecutive bars of a chart at `tf` have: (low, high). None when unknown.
+    A month spans 28-31 days; everything else has one exact spacing."""
+    r = res_norm(tf)
+    if r.isdigit():
+        return (int(r) * 60, int(r) * 60)
+    m = re.fullmatch(r"(\d*)([DWM])", r)
+    if not m:
+        return None
+    n = int(m.group(1) or 1)
+    return {"D": (86400 * n, 86400 * n), "W": (604800 * n, 604800 * n), "M": (28 * 86400 * n, 31 * 86400 * n)}[m.group(2)]
+
+
+def layout_url(layout_id) -> str:
+    if not LAYOUT_ID_RX.match(str(layout_id or "")):
+        raise GateFailed(f"layout {layout_id!r} is not a TradingView layout id", abort=True)
+    return f"https://www.tradingview.com/chart/{layout_id}/"
+
+
+def layout_id_of(url):
+    m = re.search(r"/chart/([A-Za-z0-9]+)", str(url or ""))
+    return m.group(1) if m else None
+
+
+def go_to_layout(page, layout_id, settle_ms=9000) -> str:
+    """Put the tab on `layout_id` AFTER the sign-in. ⛔ `pine_vendor_capture.acquire()` ends by navigating to the RIG
+    layout (`_to_layout`), whatever page it started on, so a batch on another layout must navigate after it, and
+    `run_batch` then checks the page is there (by its URL) before it reads anything. Returns the layout the page is on."""
+    if layout_id_of(getattr(page, "url", None)) != layout_id:
+        page.goto(layout_url(layout_id), wait_until="domcontentloaded")
+        page.wait_for_timeout(settle_ms)
+    return layout_id_of(getattr(page, "url", None))
+
+
 def sym_match(have, want) -> bool:
-    if not have or not want:
+    """Is the chart on `want`? ⛔ A symbol that reads as a spec (`={…}`) is on NO symbol: TradingView keeps such a
+    string as a literal name and resolves nothing for it (2026-11-20, #2134)."""
+    if not have or not want or str(have).startswith("=") or str(want).startswith("="):
         return False
     a, b = str(have).upper(), str(want).upper()
     if ":" in a and ":" in b:
@@ -387,6 +685,144 @@ def sym_match(have, want) -> bool:
 
 def res_norm(r) -> str:
     return re.sub(r"^1(?=[DWM]$)", "", str(r or "").strip().upper())
+
+
+#: ⭐⭐ THE MEASURED DIALOG SEARCH per data-id: the term typed into the Indicators dialog that lists exactly that `data-id`.
+#: Every pair here CAPTURED, with the added study's `metaInfo().id` recorded as `builtin_identity(id)` (the captures'
+#: `study.id`): runs builtin*-2026-11-18, studio-builtins-2026-11-18, builtin-stoch-2026-11-19,
+#: served-gap-published-2026-11-20, s4-vwap-anchors-retake2-2026-11-21 (patrick-54's rig).
+#: ⚰️ STD;VWAP is "VWAP", NEVER "Volume Weighted Average Price": that search lists 36 elements, every one a community
+#: `PUB;` script, and the built-in (titled "Volume-weighted average price") is not among them (patrick-54's
+#: vwap_dialog_probe, 2026-11-20). Tonight's s4 VWAP-anchor rows stopped by name on it, 7 of 7 (the pre-click gate).
+#: ⛔ One authority: a row may omit `search` (this table answers) or name the same term; a row naming another term for a
+#: measured id is refused at load. An id not here must name its search, and its first live run is the proof.
+BUILTIN_SEARCH = {
+    "STD;Accumulation_Distribution": "Accumulation/Distribution",
+    "STD;Aroon": "Aroon",
+    "STD;Awesome_Oscillator": "Awesome Oscillator",
+    "STD;Bull%Bear%Power": "Bull Bear Power",
+    "STD;Chaikin_Money_Flow": "Chaikin Money Flow",
+    "STD;Chande_Momentum_Oscillator": "Chande Momentum Oscillator",
+    "STD;Chandelier_Exit": "Chandelier Exit",
+    "STD;Choppiness_Index": "Choppiness Index",
+    "STD;Connors_RSI": "Connors RSI",
+    "STD;Coppock%1Curve": "Coppock Curve",
+    "STD;DEMA": "Double exponential moving average",
+    "STD;DMI": "Directional Movement Index",
+    "STD;DPO": "Detrended Price Oscillator",
+    "STD;EFI": "EFI",
+    "STD;EOM": "Ease of Movement",
+    "STD;Fisher_Transform": "Fisher Transform",
+    "STD;Know_Sure_Thing": "Know Sure Thing",
+    "STD;Mass%1Index": "Mass Index",
+    "STD;McGinley%1Dynamic": "McGinley Dynamic",
+    "STD;Negative_Volume_Index": "Negative Volume Index",
+    "STD;On_Balance_Volume": "OBV",
+    "STD;Positive_Volume_Index": "Positive Volume Index",
+    "STD;Price_Oscillator": "Price Oscillator",
+    "STD;Price_Volume_Trend": "PVT",
+    "STD;Stochastic": "Stochastic",
+    "STD;Stochastic_RSI": "Stochastic RSI",
+    "STD;TEMA": "Triple exponential moving average",
+    "STD;TRIX": "TRIX",
+    "STD;True%1Strength%1Indicator": "True Strength Index",
+    "STD;Ulcer_Index": "Ulcer Index",
+    "STD;Ultimate_Oscillator": "Ultimate Oscillator",
+    "STD;Vortex%1Indicator": "Vortex Indicator",
+    "STD;VWAP": "VWAP",
+    "PUB;2lteb6l2tkaWsLlOnbiNJpQEhIQXU34c": "Heatmap Volume [xdecow]",
+    "PUB;b96fdd470dac47d1a227d8aae88bdbb4": "Volume SuperTrend AI (Zeiierman)",
+    "PUB;e764b93365ee4ba6873926bee036bade": "Auto Fibonacci and Gann Fan/Retracements Combo",
+    "PUB;XqxUTKWKYqrZhEffXx3qNtmzHAl99EPn": "Stoch Money Flow (ADMF) & Absolute Strength Index (ASI) [cI8DH]",
+}
+#: the data-id kinds whose added study's identity is MEASURED as `Script$<id>@tv-scripting` (the table above: 33 STD;,
+#: 4 PUB;). Any other kind (e.g. `VWAPAA@tv-basicstudies`, a non-Pine built-in) has no measured identity: refused at load.
+BUILTIN_ID_KINDS = {"STD;": "built-in", "PUB;": "published script"}
+
+
+def builtin_identity(data_id) -> str:
+    """The `metaInfo().id` TradingView gives the study a dialog element with this `data-id` adds (measured, see above)."""
+    return f"Script${data_id}@tv-scripting"
+
+
+def is_builtin_row(script) -> bool:
+    return bool(isinstance(script, dict) and script.get("builtin"))
+
+
+def builtin_spec(script) -> dict:
+    """The row's built-in as {"id", "search", "kind"}, or GateFailed(abort) naming why it cannot be added."""
+    b = script.get("builtin")
+    slug = script.get("slug")
+    if not isinstance(b, dict) or not isinstance(b.get("id"), str) or not b["id"]:
+        raise GateFailed(f"{slug}: `builtin` must be {{\"id\": \"STD;…\"}}, not {b!r}", abort=True)
+    bid = b["id"]
+    kind = next((v for k, v in BUILTIN_ID_KINDS.items() if bid.startswith(k)), None)
+    if kind is None:
+        raise GateFailed(f"{slug}: {bid!r} is not a Pine script id ({' / '.join(BUILTIN_ID_KINDS)}): the identity its add "
+                         "would land on is unmeasured, so it is never added", abort=True)
+    measured, named = BUILTIN_SEARCH.get(bid), b.get("search")
+    if named is not None and (not isinstance(named, str) or not named.strip()):
+        raise GateFailed(f"{slug}: the search of {bid} must be a non-empty string, not {named!r}", abort=True)
+    if measured is not None and named is not None and named != measured:
+        raise GateFailed(f"{slug}: the row searches {named!r} for {bid}; the measured dialog search is {measured!r} "
+                         "(BUILTIN_SEARCH). Drop the row's `search` or fix the table with a new measurement", abort=True)
+    search = named if named is not None else measured
+    if search is None:
+        raise GateFailed(f"{slug}: no measured dialog search for {bid}: name `builtin.search` (its first live run is the "
+                         "proof: the pre-click data-id gate) or add a measured one to BUILTIN_SEARCH", abort=True)
+    return {"id": bid, "search": search, "kind": kind}
+
+
+def _input_text(v) -> str:
+    return "true" if v is True else "false" if v is False else str(v)
+
+
+def builtin_label(script) -> str:
+    """⭐⭐ THE SOURCE A BUILT-IN'S CAPTURE RECORDS, GENERATED from its row, never typed (coordinator ruling
+    2026-11-20): what was added, how, and at which settings. It is what `source.text` holds, so a reader can never take
+    it for Pine, and its sha256 is the row's `sha256`.
+    ⚰️ A hand-written label file said `search "Volume Weighted Average Price"` on the s4 retake2 captures, whose add typed
+    "VWAP": the label outlived the change it described."""
+    b = builtin_spec(script)
+    inputs = script.get("builtinInputs") or {}
+    if not isinstance(inputs, dict):
+        raise GateFailed(f"{script.get('slug')}: builtinInputs must name inputs by their dialog label", abort=True)
+    settings = ("; ".join(f"{k} = {_input_text(v)}" for k, v in inputs.items()) + ", every other setting at its default"
+                if inputs else "every setting at its default")
+    return (f"TradingView {b['kind']} {b['id']} added from the Indicators dialog (search {json.dumps(b['search'], ensure_ascii=False)}), "
+            f"not pasted Pine: {settings}. Label generated by batch_capture.builtin_label from the manifest row.")
+
+
+def normalize_builtin_rows(scripts) -> list:
+    """⛔ BEFORE ANY PAGE STEP: every built-in row's `sha256` is its generated label's (filled in when absent); a row that
+    carries its own `path` (a second source) or another sha is refused by name. Idempotent. Returns the rows."""
+    for s in scripts:
+        if not is_builtin_row(s):
+            continue
+        if s.get("path"):
+            raise GateFailed(f"{s.get('slug')}: a built-in's source is the label generated from its row "
+                             f"(builtin_label); drop `path` ({s['path']!r}), it would be a second source", abort=True)
+        sha = hashlib.sha256(builtin_label(s).encode("utf-8")).hexdigest()
+        if s.get("sha256") not in (None, sha):
+            raise GateFailed(f"{s.get('slug')}: sha256 {str(s['sha256'])[:12]} is not the generated label's {sha[:12]} "
+                             "(a hand label, or the row changed): drop it, the batch derives it", abort=True)
+        s["sha256"] = sha
+        s.setdefault("path", None)
+    return scripts
+
+
+def same_period(day, listing, tf) -> bool:
+    """Do two ISO days fall in one weekly (ISO week) or monthly (calendar month) period? Malformed: False."""
+    import datetime as _dt
+    try:
+        d, l = _dt.date.fromisoformat(str(day)[:10]), _dt.date.fromisoformat(str(listing)[:10])
+    except (TypeError, ValueError):
+        return False
+    if tf == "W":
+        return d.isocalendar()[:2] == l.isocalendar()[:2]
+    if tf == "M":
+        return (d.year, d.month) == (l.year, l.month)
+    return False
 
 
 def slugify(s) -> str:
@@ -425,6 +861,25 @@ def throttle_refusal(throttle_s) -> str | None:
     return None
 
 
+def menu_answered(r) -> bool:
+    """A menu-row read that settles the poll: the one row, or a STOP (several rows). A COVERED row does not settle it:
+    the poll reads again, so an overlay that clears in time never fails a good row (patrick-54's review of #2326)."""
+    return bool(r and (r.get("ok") or r.get("STOP")))
+
+
+def menu_refusal(r, text: str, timed_out: bool = False) -> None:
+    """⛔ A menu read that STOPPED (`rig_controls.js`: several rows of the text in the open menus), or one still COVERED
+    when the step's timeout ran out, fails the row by name before the pointer touches any row."""
+    if r and (r.get("STOP") or (timed_out and r.get("covered"))):
+        raise GateFailed(f"the menu row `{text}` was not clicked: {r.get('why')}", r)
+
+
+def add_answered(r) -> bool:
+    """An `ADD_JS` read that settles the add: it clicked, or it stopped for any reason but a COVERED button (that one is
+    read again until it clears or the timeout refuses it). Nothing is clicked by a read that does not answer."""
+    return bool(r and (r.get("clicked") or (r.get("STOP") and not r.get("covered"))))
+
+
 def capture_id_for(script: dict, o: Opts) -> str:
     """⭐ THE capture id the driver writes for `script` on the chart `o` names (`Driver.opts_for`):
     `<captureStem>-<sym>-<tf>-<yyyy-mm-dd>`, then `-<capturePhase>` when the manifest entry carries one. ONE authority:
@@ -437,8 +892,28 @@ def capture_id_for(script: dict, o: Opts) -> str:
                          abort=True)
     sym_slug = slugify(o.symbol.split(":")[-1])
     tf_slug = slugify(res_norm(o.tf) if re.fullmatch(r"\d+", res_norm(o.tf)) else "1" + res_norm(o.tf))
-    capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}-{o.date}"
+    # ⭐ (2026-11-20) a row that NAMES its session says it in the id: `-ext` extended (`vw-clock-vwap-spy-5-ext-2026-09-28`,
+    # the convention), `-rth` regular. ⚰️ A regular-session row was named exactly as a capture of the chart's own session,
+    # and master's `vw-bi-time-d-extended-spy-60-2026-11-19` (no suffix) holds the EXTENDED session: the next reader trusts
+    # the file name. A row that names no session keeps its name (the chart's own session, recorded in the capture).
+    sess = SESSION_SUFFIX.get(getattr(o, "session", None), "")
+    capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}{sess}-{o.date}"
     return f"{capture_id}-{phase}" if phase else capture_id
+
+
+def session_row_refusal(scripts, opts_for) -> str | None:
+    """None, or why a row's named session can never read back: a daily, weekly or monthly chart of a US listing
+    resolves 0930-1600 whatever the layout's hours (every daily capture on record; probe R0), so an `extended` row there
+    can never pass. Refused at batch start, before any page step (patrick-54's review of #2289)."""
+    for s in scripts:
+        try:
+            o = opts_for(s)
+        except StepOutcome as so:
+            return so.reason
+        if o.session == "extended" and re.search(r"[DWM]$", res_norm(o.tf)):
+            return (f"{s.get('slug')}: an extended-hours row on a {o.tf} chart can never pass (a daily, weekly or monthly "
+                    "chart resolves 0930-1600): give it an intraday timeframe or drop its session")
+    return None
 
 
 def capture_id_refusal(scripts, opts_for) -> str | None:
@@ -585,6 +1060,13 @@ class Opts:
         self.symbol = kw.get("symbol", "NYSE:RDDT")
         self.tf = kw.get("tf", "1D")
         self.listing_date = kw.get("listing_date", KNOWN_LISTING.get(self.symbol.upper()))
+        # ⭐⭐ (2026-11-20) the row's session (`ROW_SESSIONS`), or None: the chart's own, as before. READ, never set
+        self.session = kw.get("session")
+        if self.session is not None and self.session not in ROW_SESSIONS:
+            raise GateFailed(f"session {self.session!r} is not one of {sorted(ROW_SESSIONS)}", abort=True)
+        # ⭐⭐ (2026-11-21, B1) the layout this batch runs on (`--layout`); the rig's by default
+        self.layout = kw.get("layout") or RIG_LAYOUT_ID
+        layout_url(self.layout)                  # refused by name if it is not a layout id
         self.throttle_s = float(kw.get("throttle_s", 30))
         self.compute_timeout_s = float(kw.get("compute_timeout_s", 120))
         self.add_timeout_s = float(kw.get("add_timeout_s", 30))
@@ -601,6 +1083,9 @@ class Opts:
         self.date = kw.get("date") or _dt.datetime.now().strftime("%Y-%m-%d")
         # ⭐ the guarded clean-save (`Driver.guarded_clean_save`): OFF unless the run asks for it
         self.clean_save = bool(kw.get("clean_save", False))
+        # ⭐⭐ the settled read of the rig (`settled_rig_read`): how long its state must hold still, and the most it waits
+        self.rig_settle_s = float(kw.get("rig_settle_s", RIG_SETTLE_S))
+        self.rig_settle_max_s = float(kw.get("rig_settle_max_s", RIG_SETTLE_MAX_S))
 
 
 class Driver:
@@ -628,6 +1113,7 @@ class Driver:
         self.added_id = None
         self.injected = False
         self.menu_open = False
+        self.dialog_open = False     # the Indicators dialog a built-in row opened (`add_builtin`), until it closes
         self.slug = None
 
     def step(self, name):
@@ -664,18 +1150,19 @@ class Driver:
         ⚰️ MEASURED 2026-11-18: run l12-is-2026-11-18's last probe (UCTPROBE_RS_OWN_DAILY_INTRADAY, RDDT 5m) was removed
         and verified gone in the page, the batch restored 1D, and a fresh load read the probe on 5m: the layout had
         saved it at the add. The next batch (Q-FCMP3) stopped at its gate, and the owner's layout carried it until it
-        was cleared by hand. ⛔ Read only: it never removes or sets anything (the only repair is `guarded_clean_save`)."""
+        was cleared by hand. ⛔ Read only: it never removes or sets anything (the only repair is `guarded_clean_save`).
+        ⭐⭐ The read is THE settled read (`settled_rig_read`): the first answer is not the layout (2026-11-19, htfform-c)."""
         self.page.reload(wait_until="domcontentloaded")
-        st, ok = self.poll("verify:state", STATE_JS, None,
-                           lambda s: bool(s and s.get("handle") is not None and s.get("studies") is not None and s.get("symbol")),
-                           max(self.opts.ui_timeout_s * 6, 30))
-        st = st or {}
-        studies = [{"id": s.get("id"), "name": s.get("name")} for s in (st.get("studies") or [])]
+        s = settled_rig_read(lambda: self.ev("verify:state", STATE_JS), self.clock, self.opts.poll_s,
+                             self.opts.rig_settle_s, self.opts.rig_settle_max_s)
+        st, ok = s["state"] or {}, s["settled"]
+        studies = [{"id": x.get("id"), "name": x.get("name")} for x in (st.get("studies") or [])]
         want = {"symbol": original.get("symbol"), "resolution": original.get("resolution")}
         got = {"symbol": st.get("symbol"), "resolution": st.get("resolution")}
         clean = (ok and not studies and sym_match(got["symbol"], want["symbol"])
                  and res_norm(got["resolution"]) == res_norm(want["resolution"]))
-        return {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got}
+        return {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got,
+                "settle": {k: s[k] for k in ("waitedS", "answeredS", "lastChangeS", "changes")}}
 
     def guarded_clean_save(self, original, label="repair") -> dict:
         """⭐⭐ THE GUARDED CLEAN-SAVE (owner ruling, delegated to the coordinator, 2026-11-19: "Save only through the
@@ -736,6 +1223,49 @@ class Driver:
             raise Inconclusive("the chart handle answered but getAllStudies() did not", st)
         return st
 
+    def check_row_session(self, label="row:session"):
+        """⭐⭐ THE ROW'S SESSION, READ, NEVER SET (rulings 2026-11-21, #2134): at the row's own resolution (the caller
+        has set and read it back), the chart's RESOLVED session must be the row's, `ROW_SESSIONS[o.session]`, and a
+        `subsession_id` TradingView reports must name it too. The reading is taken only once it SETTLES (polled up to
+        30 s: `symbolInfo()` answers, the loaded bars are spaced as the row's resolution, two equal reads); never
+        settled: INCONCLUSIVE (could not measure). Settled and not the row's: the ROW stops by name (GateFailed),
+        nothing captured, nothing written. Returns the read."""
+        o = self.opts
+        name, want = o.session, ROW_SESSIONS[o.session]
+        last = {"key": None}
+
+        step_range = bar_step_range(o.tf)
+
+        def settled(s):
+            # ⛔ a reading only once the ROW'S resolution has loaded: symbolInfo answers, and the BARS are the row's
+            # resolution's: the smallest spacing among the last 10 bars is the row's bar spacing (`bar_step_range`).
+            # Then two reads in a row agree. R4: right after a resolution change symbolInfo read null. And the series'
+            # interval property is NOT the freshness test: it can read the new resolution while the previous one's
+            # bars and session are still held (`test_a_stale_read_..._interval_already_new`), and 1D and 60 both held
+            # 300 bars in the probe, so a bar count cannot tell them apart either (patrick-54's review of #2289).
+            # The last 10 bars, not the last two: a newest bar that opens a session sits a session gap after the one
+            # before it.
+            st = s.get("step") if isinstance(s, dict) else None
+            if not (isinstance(s, dict) and s.get("ok") and step_range and isinstance(st, (int, float))
+                    and step_range[0] <= st <= step_range[1] and isinstance(s.get("bars"), int) and s["bars"] > 1):
+                last["key"] = None
+                return False
+            # (no newest-bar time in the key: no stale read it could tell from a fresh one, so it was strictness no
+            # rail could fail, patrick-54's Q4; the spacing above is what rejects a stale read)
+            key = (s.get("session"), s.get("subsession"), s.get("bars"))
+            same, last["key"] = key == last["key"], key
+            return same
+        got, ok = self.poll(label, SESSION_JS, None, settled, 30)
+        if not ok:
+            raise Inconclusive(f"{o.symbol} {o.tf}: the chart's session never settled in 30 s (symbolInfo answering, the "
+                               f"bars spaced as {o.tf}, two equal reads); last read {got!r}", got)
+        if got.get("session") != want or got.get("subsession") not in (None, name):
+            seen = f"session {got.get('session')!r}" + (f", subsession {got.get('subsession')!r}" if got.get("subsession") else "")
+            raise GateFailed(f"{o.symbol} {o.tf}: the chart resolves {seen}, not the {name} session {want!r}. The batch "
+                             f"reads a row's session and never sets it: run this row on a layout saved with {name} hours. "
+                             "The row stops by name, nothing captured")
+        return got
+
     def ensure_symbol_tf(self, st):
         o = self.opts
         if not sym_match(st.get("symbol"), o.symbol):
@@ -757,6 +1287,9 @@ class Driver:
                 raise Inconclusive(f"the resolution did not read back as {o.tf}")
             self.clock.sleep(o.settle_s)
             st = self.read_state()
+        if o.session is not None:
+            # ⛔ AFTER the resolution: a daily chart of a US listing resolves 0930-1600 whatever the layout's hours
+            self.check_row_session()
         return st
 
     def restore(self, target, label):
@@ -779,6 +1312,15 @@ class Driver:
 
     # ── one script ──────────────────────────────────────────────────────────
     def source_of(self, script):
+        if is_builtin_row(script):
+            # a built-in has no pasted source: its capture records the label generated from its row
+            text = builtin_label(script)
+            raw = text.encode("utf-8")
+            sha = hashlib.sha256(raw).hexdigest()
+            if sha != script.get("sha256"):
+                raise GateFailed(f"{script.get('slug')}: the generated label is sha {sha[:12]}, the manifest says "
+                                 f"{str(script.get('sha256'))[:12]} (normalize_builtin_rows did not run)")
+            return raw, text
         path = pathlib.Path(script["path"])
         path = path if path.is_absolute() else REPO / path
         raw = path.read_bytes()
@@ -811,15 +1353,17 @@ class Driver:
         self.step("click:title")
         self.page.mouse.click(title["x"], title["y"])
         self.menu_open = True
-        cn, ok = self.poll("menu:Create new", MENU_ITEM_JS, {"text": "Create new"},
-                           lambda r: bool(r and r.get("ok")), self.opts.ui_timeout_s)
+        cn, ok = self.poll("menu:Create new", MENU_ITEM_JS, {"text": "Create new"}, menu_answered,
+                           self.opts.ui_timeout_s)
+        menu_refusal(cn, "Create new", timed_out=not ok)
         if not ok:
             raise Inconclusive("the script-title menu showed no `Create new` row")
         self.step("hover:Create new")
         self.page.mouse.move(cn["x"], cn["y"])
         self.clock.sleep(0.8)
         ind, ok = self.poll("menu:Indicator", MENU_ITEM_JS, {"text": "Indicator", "rightOf": cn["rect"]},
-                            lambda r: bool(r and r.get("ok")), self.opts.ui_timeout_s)
+                            menu_answered, self.opts.ui_timeout_s)
+        menu_refusal(ind, "Indicator", timed_out=not ok)
         if not ok:
             raise Inconclusive("`Create new` opened no `Indicator` row (the submenu needs a real hover)")
         self.step("click:Indicator")
@@ -855,7 +1399,7 @@ class Driver:
         return r
 
     def add_to_chart(self):
-        r = self.ev("add", ADD_JS)
+        r, _ = self.poll("add", ADD_JS, None, add_answered, self.opts.ui_timeout_s)
         if not r or r.get("STOP") or not r.get("clicked"):
             raise GateFailed(f"the add was refused by its own gate — nothing clicked: {r}", r)
         st, ok = self.poll("state", STATE_JS, None,
@@ -868,7 +1412,83 @@ class Driver:
         if len(new) != 1:
             raise GateFailed(f"one add produced {len(new)} new studies: {new}", abort=True)
         self.added_id = new[0]["id"]
+        self.own_added(new[0])
         self.rd.note_on_claim(self.slug, addedStudyId=self.added_id)
+        return self.added_id
+
+    def own_added(self, study):
+        """⭐⭐ OWNERSHIP IS THE CHART'S OWN NAME FOR THE STUDY (patrick-54's hard requirement, 2026-11-21): the
+        `getAllStudies()` name of the study this add produced, from the SAME read the guarded clean-save makes
+        (`STATE_JS`), recorded the moment it appears. Never the census title, the manifest's search or a label.
+        ⚰️ 2026-11-21 00:5xZ, the s4 VWAP retake 2: ownership was the census title "VWAP" while `getAllStudies()` names the
+        built-in "Volume-weighted average price", so the batch's own leftover read as foreign, the guarded clean-save
+        (correctly) refused, and the rig stayed dirty until `repair` at 00:57Z. A nameless study is owned by nobody:
+        the guard then refuses to remove it (the safe direction)."""
+        name = (study or {}).get("name")
+        if isinstance(name, str) and name:
+            self.added_titles.add(name)
+        return name
+
+    def add_builtin(self, script):
+        """⭐⭐ A built-in from the Indicators dialog (patrick-54's `batch_builtin.add_builtin`, moved over verbatim; its
+        page reads now go through `ev` so every one is a recorded step). TWO GATES, both by name:
+          1. PRE-CLICK (in the click's own evaluation): only the ONE element whose `data-id` is exactly the row's id is
+             clicked; none or several: nothing is clicked, the row stops (GATE_FAILED);
+          2. POST-ADD: the chart model's indicators read exactly [`builtin_identity(id)`] (`STUDY_IDENTITY_JS`);
+             anything else stops the row by name, naming what it landed on, and cleanup removes it.
+        Then the row's `builtinInputs` (by dialog label), each set, read back and recomputed."""
+        b = builtin_spec(script)
+        r = self.ev("builtin:open_dialog", OPEN_DIALOG_JS)
+        if not r or not (r.get("open") or r.get("clicked")):
+            raise Inconclusive(f"the Indicators dialog could not be opened: {r}")
+        self.dialog_open = True
+        self.clock.sleep(2.5)
+        r = self.ev("builtin:search_and_click", SEARCH_AND_CLICK_JS, {"id": b["id"], "search": b["search"]})
+        self.log(f"[builtin] {b['id']} ({b['search']!r}): {json.dumps(r)}")
+        if not r or r.get("STOP") or not r.get("clicked"):
+            self.page.keyboard.press("Escape")
+            self.dialog_open = False
+            raise GateFailed(f"the built-in add was refused by its own gate (nothing clicked): {r}", r)
+        self.clock.sleep(1.5)
+        self.page.keyboard.press("Escape")
+        self.clock.sleep(0.8)
+        if not self.ev("builtin:closed", CLOSE_DIALOG_JS):
+            self.page.keyboard.press("Escape")
+        self.dialog_open = False
+        st, ok = self.poll("state", STATE_JS, None,
+                           lambda s: bool(s and s.get("studies") is not None
+                                          and {x["id"] for x in s["studies"]} - self.baseline_ids),
+                           self.opts.add_timeout_s)
+        new = [x for x in (st or {}).get("studies") or [] if x["id"] not in self.baseline_ids]
+        if not new:
+            raise Inconclusive("the built-in was clicked and no study appeared")
+        if len(new) != 1:
+            raise GateFailed(f"one add produced {len(new)} new studies: {new}", abort=True)
+        self.added_id = new[0]["id"]
+        self.own_added(new[0])        # ours whatever it turns out to be: even a study the identity gate refuses
+        self.rd.note_on_claim(self.slug, addedStudyId=self.added_id)
+        want_id = builtin_identity(b["id"])
+        got = self.ev("builtin:identity", STUDY_IDENTITY_JS)
+        if not got or not got.get("ok"):
+            raise Inconclusive(f"the added study's identity could not be read: {got}", got)
+        if got.get("indicators") != [want_id]:
+            raise GateFailed(f"the built-in add landed on {got.get('indicators')}, not [{want_id!r}]: the element "
+                             f"{b['id']} ({r.get('title')!r}) added another study, so the row stops by name", got)
+        want = script.get("builtinInputs") or {}
+        if want:
+            sid = self.added_id
+            self.wait_compute(sid, "compute:before-inputs")
+            ids = self.ev("builtin:input_ids", INPUT_IDS_JS, sid) or {}
+            for label, value in want.items():
+                iid = ids.get(label)
+                if not iid:
+                    raise GateFailed(f"the built-in has no input labelled {label!r} (inputs: {sorted(ids)})")
+                r = self.ev(f"builtin:input-{iid}", INPUTS_JS, {"id": sid, "inputs": {iid: value}})
+                self.log(f"[builtin-input] {b['id']} {label} ({iid}) = {value!r}: {r}")
+                if not r or not r.get("ok"):
+                    raise Inconclusive(f"input {label!r} could not be set as asked: {r}", r)
+                self.wait_compute(sid, f"compute:input-{iid}")
+                self.clock.sleep(1.5)
         return self.added_id
 
     def wait_compute(self, sid, label="compute"):
@@ -910,6 +1530,28 @@ class Driver:
             last = r.get("count")
         return {"ok": True, "stable": False, "rounds": rounds, **(r or {})}
 
+    def listing_for(self, symbol, stated=None):
+        """⭐⭐ THE LISTING DATE IS READ, NOT TYPED (coordinator ruling 2026-11-20). The symbol's first session as UCT's
+        production answers it (`/api/ticker-ipo/<T>`: `first_trade_date`, only when `first_trade_final` is true), read
+        through the rig's own browser context (a public GET, no session). `KNOWN_LISTING` and a
+        manifest row's `listingDate` (`stated`) are CROSS-CHECKS: each one present must AGREE, and a disagreement STOPS the
+        batch by name (GateFailed, abort) -- never a silent override either way. No final answer: no listing date, so
+        `startsAtBar0` is not asserted (the safe direction), and the reason says why.
+        ⚰️ 2026-11-19: Q-FRED-NHDOT's NASDAQ:BGIN capture (listed 2025-10-21, first_trade_final true) carried no
+        startsAtBar0, because BGIN was not in the hand-typed table; the harness then graded it as a chart reaching before
+        its history (its run half refused `runtime:history-start`) where a member's daily chart draws it."""
+        key = str(symbol or "").upper()
+        cache = self.__dict__.setdefault("_listings", {})
+        if key not in cache:
+            cache[key] = uct_first_trade_date(self.page, symbol)
+        fetched, why = cache[key]
+        self.listing_why = why
+        for name, other in (("KNOWN_LISTING", KNOWN_LISTING.get(key)), ("the manifest row's listingDate", stated)):
+            if other and fetched and other != fetched:
+                raise GateFailed(f"{symbol}: {name} says {other}, and UCT's /api/ticker-ipo says {fetched} (first_trade_final) "
+                                 "-- the listing date is not settled; fix the table or the row before capturing", abort=True)
+        return fetched
+
     def history_assertion(self, depth):
         o = self.opts
         if not depth.get("ok"):
@@ -918,9 +1560,25 @@ class Driver:
             return False, f"history was still growing after {depth.get('rounds')} requestMoreData rounds — not asserted"
         first_day = iso_date_in(depth.get("first"), depth.get("tz") or "Etc/UTC") if depth.get("first") else None
         if not o.listing_date:
-            return False, f"no listing date is known for {o.symbol} — not asserted (first bar {first_day})"
+            return False, (f"no listing date is known for {o.symbol} ({getattr(self, 'listing_why', 'not read')}) — not asserted "
+                           f"(first bar {first_day})")
+        tf = res_norm(o.tf)
+        if tf in ("W", "M"):
+            # ⭐⭐ (coordinator ruling 2026-11-20) ON A WEEKLY / MONTHLY CHART the first bar starts at the listing when ITS
+            # PERIOD holds the first trade: the same ISO week, the same calendar month (the app's own
+            # `listingSeed.listingStartOf`). Without it Saturday's NASDAQ:BGIN 1W capture from the listing could never
+            # say so, and the W / M run half's serving gate would have no evidence to grade.
+            if not same_period(first_day, o.listing_date, tf):
+                unit = "week" if tf == "W" else "month"
+                return False, f"first loaded bar {first_day} is not in the listing {unit} of {o.listing_date} — not asserted"
+            unit = "week" if tf == "W" else "month"
+            return True, (f"{o.symbol} listed {o.listing_date}; the chart's first bar ({first_day}) is the listing {unit} after "
+                          f"requestMoreData stopped growing ({depth.get('count')} bars, batch_capture.py)")
         if first_day != o.listing_date:
             return False, f"first loaded bar {first_day} is not the listing day {o.listing_date} — not asserted"
+        # ⭐ the claim names the symbol it was derived FOR; `starts_at_bar0_contradiction` refuses a capture whose own
+        # symbol is another (2026-11-19: 17 captures of the 2026-09-27 wave carried "NYSE:RDDT listed 2024-03-21" on SPY,
+        # AAPL and other charts, 12 of them false by their own bar_index rows)
         return True, (f"{o.symbol} listed {o.listing_date}; the chart's first bar is the listing day after "
                       f"requestMoreData stopped growing ({depth.get('count')} bars, batch_capture.py)")
 
@@ -941,15 +1599,21 @@ class Driver:
                              f"{[s.get('name') for s in st['studies']]} — the rig must read 0 before a capture",
                              st, abort=True)
         self.script_state = self.ensure_symbol_tf(st)
-        self.open_editor()
-        uri = self.create_new_indicator()
-        self.binding_gate()
-        self.set_source(raw, uri, script["sha256"])
-        self.gate("before add")
-        sid = self.add_to_chart()
+        if is_builtin_row(script):
+            # ⭐ a built-in is added from the Indicators dialog: no editor, no buffer, no binding (`add_builtin`)
+            self.gate("before add")
+            sid = self.add_builtin(script)
+        else:
+            self.open_editor()
+            uri = self.create_new_indicator()
+            self.binding_gate()
+            self.set_source(raw, uri, script["sha256"])
+            self.gate("before add")
+            sid = self.add_to_chart()
         self.wait_compute(sid)
         depth = self.force_depth()
         rows = self.wait_compute(sid, "compute:settle")
+        self.opts.listing_date = self.listing_for(self.opts.symbol, self.opts.listing_date)
         starts, why = self.history_assertion(depth)
         lw = script.get("largestWindow")
         window = {"bars_loaded": rows, "largest_declared_window": lw,
@@ -969,7 +1633,7 @@ class Driver:
         title = listed[0].get("title") or listed[0].get("description")
         if not title:
             raise Inconclusive("the one indicator on the chart has no title to select it by", listed)
-        self.added_titles.add(title)
+        # ⛔ the census title SELECTS the study for `capture()`; it is never ownership (`own_added`, at the add)
         forming, forming_why = newest_bar_forming(o.newest_bar_forming)
         cap_opts = {
             "study": title, "source": text, "id": capture_id,
@@ -1020,6 +1684,11 @@ class Driver:
         back = self.verifier.verify_file(out)
         if not back["ok"]:
             raise Inconclusive(f"the written capture does not re-verify (exit {back['exit']}): {back['tail']}", back)
+        # ⭐⭐ A CLAIM THE CAPTURE'S OWN DATA REFUTES IS REFUSED HERE, never written as evidence (coordinator, 2026-11-19)
+        contra = starts_at_bar0_contradiction(json.loads(out.read_text(encoding="utf-8")), o.symbol)
+        if contra:
+            out.unlink()
+            raise Inconclusive(f"startsAtBar0 refused at capture time: {contra}")
         return {"capture": str(out), "captureId": capture_id, "verify": {"exit": v["exit"], "verdict": v["verdict"]},
                 "summary": {k: summary.get(k) for k in ("study", "symbol", "timeframe", "bars", "studyRows",
                                                         "plots", "objects", "warnings", "chars", "chunks")},
@@ -1068,6 +1737,9 @@ class Driver:
         if self.menu_open:
             sub("dismiss_menu", lambda: self.page.keyboard.press("Escape"))
             self.menu_open = False
+        if self.dialog_open:
+            sub("dismiss_dialog", lambda: self.page.keyboard.press("Escape"))
+            self.dialog_open = False
         st = sub("cleanup:state", lambda: self.page.evaluate(STATE_JS))
         base = self.baseline_ids
         extra = ([] if base is None
@@ -1096,6 +1768,7 @@ class Driver:
             r = sub("cleanup:restore", lambda: self.restore(self.script_state, "cleanup"))
             if r is not None and not r["ok"]:
                 problems.append(f"restore did not read back: {r}")
+        # (a row's session is read, never set, so there is no session to put back: #2134 rulings 2026-11-21)
         if self.injected:
             r = sub("vh_cleanup", lambda: self.page.evaluate(VH_CLEANUP_JS))
             if r is not None and r.get("globalsLeft"):
@@ -1113,9 +1786,14 @@ class Driver:
         """⭐ PER-SCRIPT CHART (evidence engine): a manifest row may name its own
         `symbol` / `tf` / `listingDate`. Absent, the batch's own options stand, exactly
         as before. A listing date is never carried over from another symbol."""
-        if not any(script.get(k) for k in ("symbol", "tf", "listingDate")):
+        if not any(script.get(k) for k in ("symbol", "tf", "listingDate", "session")):
             return self.base_opts
         o = copy.copy(self.base_opts)
+        if script.get("session") is not None:
+            if script["session"] not in ROW_SESSIONS:
+                raise GateFailed(f"{script.get('slug')}: session {script['session']!r} is not one of {sorted(ROW_SESSIONS)}",
+                                 abort=True)
+            o.session = script["session"]
         if script.get("symbol"):
             o.symbol = script["symbol"]
             o.listing_date = script.get("listingDate") or KNOWN_LISTING.get(o.symbol.upper())
@@ -1215,7 +1893,7 @@ def engine_sha() -> str:
 def batch_provenance(page, rd, opts) -> dict:
     return {"runId": rd.run_id, "account": account_fingerprint(page),
             "profile": getattr(opts, "profile_leaf", None) or "unread",
-            "rigLayout": LAYOUT.rstrip("/").rsplit("/", 1)[-1], "engineSha": engine_sha()}
+            "rigLayout": getattr(opts, "layout", None) or RIG_LAYOUT_ID, "engineSha": engine_sha()}
 
 
 def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None,
@@ -1232,11 +1910,25 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
     original = None
     try:
         try:
+            # ⛔ BEFORE ANY PAGE STEP: every built-in row's search, identity kind and generated source (by name)
+            normalize_builtin_rows(manifest["scripts"])
+            # ⛔ BEFORE ANY PAGE STEP: no row names a session its chart can never resolve
+            why = session_row_refusal(manifest["scripts"], drv.opts_for)
+            if why:
+                raise GateFailed(why, abort=True)
             # ⛔ BEFORE ANY PAGE STEP: every script's capture id, and no two the same (nothing is captured otherwise)
             clash = capture_id_refusal(manifest["scripts"], drv.opts_for)
             if clash:
                 raise GateFailed(f"capture ids: {clash}", abort=True)
+            for s in manifest["scripts"]:
+                if s.get("layout") is not None:
+                    layout_url(s["layout"])        # a row's layout is a layout id, or the batch does not start
             drv.gate("batch start")
+            # ⛔ the page is on the batch's layout (`--layout`) before anything is read or written
+            on = layout_id_of(getattr(page, "url", None))
+            if on != opts.layout:
+                raise GateFailed(f"the page is on layout {on!r}, not this batch's {opts.layout!r} (--layout): nothing "
+                                 "is read or written", abort=True)
             original = drv.read_state("state_original")
             drv.provenance = batch_provenance(page, rd, opts)
             rd.ledger("provenance", **drv.provenance)
@@ -1261,6 +1953,13 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
             return 1 if so.outcome == GATE_FAILED else 2
         processed = 0
         for script in scripts:
+            if script.get("layout") is not None and script["layout"] != opts.layout:
+                # ⭐ (B1) another layout's row: a batch on that layout takes it (the same run dir resumes it)
+                counts["SKIPPED"] += 1
+                why = f"runs on layout {script['layout']}, this batch is on {opts.layout}"
+                rd.ledger("skip", slug=script["slug"], reason=why)
+                log(f"[batch] skip {script['slug']}: {why}")
+                continue
             prior = rd.read_result(script["slug"])
             if prior and prior.get("outcome") == INCOMPLETE:
                 rd.ledger("found-incomplete", slug=script["slug"], claimedAt=prior.get("startedAtUTC"),
@@ -1397,11 +2096,12 @@ def _launch(args, body):
             return 2
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         try:
-            page.goto(LAYOUT, wait_until="domcontentloaded")
+            page.goto(layout_url(getattr(args, "layout", None) or RIG_LAYOUT_ID), wait_until="domcontentloaded")
             page.wait_for_timeout(9000)
             code = acquire(page, args.wait)
             if code != 0:
                 return code
+            go_to_layout(page, getattr(args, "layout", None) or RIG_LAYOUT_ID)   # acquire() ends on the rig layout
             page.wait_for_timeout(4000)
             return body(page)
         except Exception as exc:  # noqa: BLE001
@@ -1444,10 +2144,33 @@ def _recon(page, args) -> int:
     return 0
 
 
+def prepare_run_manifest(manifest_path, run_dir, log=print) -> dict:
+    """The manifest a `run` uses, loaded and normalized (`_load_manifest`), compared with the one the run dir already
+    holds (a resume), and written there. ⛔ The run dir's copy is NORMALIZED before the compare: it may be the very file
+    named by `--manifest` (patrick-54's scratch convention, `--manifest $RUN/manifest.json --run-dir $RUN`), hand-written,
+    with a built-in row that carries no sha256 (2026-11-21, review of #2284: `KeyError: 'sha256'` before any page step)."""
+    manifest = _load_manifest(manifest_path)
+    mpath = pathlib.Path(run_dir) / "manifest.json"
+    if mpath.exists():
+        old = json.loads(mpath.read_text(encoding="utf-8"))
+        try:
+            normalize_builtin_rows(old.get("scripts", []))
+        except StepOutcome:
+            pass             # an old copy that no longer normalizes simply differs: the NOTE below says so
+        if [s.get("sha256") for s in old.get("scripts", [])] != [s["sha256"] for s in manifest["scripts"]]:
+            log(f"[batch] NOTE: resuming {run_dir} with a manifest that differs from the one it started with")
+    write_json_atomic(mpath, manifest)
+    return manifest
+
+
 def _load_manifest(path) -> dict:
     m = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
     if m.get("schema") != "uct.vendor-batch-manifest/v1" or not isinstance(m.get("scripts"), list):
         raise SystemExit(f"{path} is not a uct.vendor-batch-manifest/v1")
+    try:
+        normalize_builtin_rows(m["scripts"])     # a built-in row's sha256 is derived before the run dir records it
+    except StepOutcome as so:
+        raise SystemExit(f"{path}: {so.reason}") from None
     return m
 
 
@@ -1465,6 +2188,9 @@ def main(argv=None) -> int:
         sp.add_argument("--channel", default=None, help="chrome | msedge (see pine_vendor_capture.py)")
         sp.add_argument("--wait", type=int, default=1800, help="seconds to wait for the one-time sign-in")
         sp.add_argument("--title-selector", default=None, help="CSS for the editor's script-title control")
+        sp.add_argument("--layout", default=RIG_LAYOUT_ID,
+                        help=f"the TradingView layout id to run on (default the rig's {RIG_LAYOUT_ID}, extended hours; "
+                             f"regular-hours rows run on its regular-hours copy {RIG_REGULAR_LAYOUT_ID})")
 
     rc = sub.add_parser("recon", help="sign in + read-only readings")
     common(rc)
@@ -1523,7 +2249,7 @@ def main(argv=None) -> int:
         run_id = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         rd = RunDir(DEFAULT_RUN_ROOT / f"repair-{run_id}", run_id)
         opts = Opts(symbol=args.symbol, tf=args.tf, title_selector=args.title_selector,
-                    profile_leaf=resolve_profile(args.profile).name, clean_save=True)
+                    profile_leaf=resolve_profile(args.profile).name, clean_save=True, layout=args.layout)
 
         def _repair(page):
             drv = Driver(page, RealClock(page), opts, rd, None)
@@ -1546,16 +2272,10 @@ def main(argv=None) -> int:
         if why:
             print(f"[batch] REFUSED: {why}")
             return 2
-        manifest = _load_manifest(args.manifest)
         run_id = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         run_dir = pathlib.Path(args.run_dir) if args.run_dir else DEFAULT_RUN_ROOT / run_id
         rd = RunDir(run_dir, run_id)
-        mpath = run_dir / "manifest.json"
-        if mpath.exists():
-            old = json.loads(mpath.read_text(encoding="utf-8"))
-            if [s["sha256"] for s in old.get("scripts", [])] != [s["sha256"] for s in manifest["scripts"]]:
-                print(f"[batch] NOTE: resuming {run_dir} with a manifest that differs from the one it started with")
-        write_json_atomic(mpath, manifest)
+        manifest = prepare_run_manifest(args.manifest, run_dir)
         opts = Opts(symbol=args.symbol, tf=args.tf,
                     listing_date=args.listing_date or KNOWN_LISTING.get(args.symbol.upper()),
                     throttle_s=args.throttle_s, compute_timeout_s=args.compute_timeout_s,
@@ -1563,8 +2283,8 @@ def main(argv=None) -> int:
                     title_selector=args.title_selector,
                     profile_leaf=resolve_profile(args.profile).name,
                     retry=[x.strip() for x in args.retry.split(",") if x.strip()],
-                    clean_save=bool(args.clean_save))
-        print(f"[batch] run dir: {run_dir}")
+                    clean_save=bool(args.clean_save), layout=args.layout)
+        print(f"[batch] run dir: {run_dir}  layout: {opts.layout}")
         return _launch(args, lambda page: run_batch(page, manifest, rd, opts, RealClock(page),
                                                     only=args.only, limit=args.limit))
 

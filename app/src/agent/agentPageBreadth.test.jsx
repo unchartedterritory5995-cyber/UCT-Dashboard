@@ -82,4 +82,13 @@ describe('UCT Agent on /breadth (W2-C1)', () => {
     expect(describeBreadthPage({ tab: 'breadth', loading: true, rowCount: 0 })).toMatch(/still loading/)
     expect(describeBreadthPage(null)).toMatch(/not available here/)
   })
+
+  it('the daily sheet says which universe it measures (the Monitor universe switcher)', () => {
+    const { host } = makePage({ universe: 'Nasdaq' })
+    const snap = host.breadthPage.snapshot()
+    expect(snap.universe).toBe('Nasdaq')
+    expect(describeBreadthPage(snap)).toMatch(/^You're on the daily breadth sheet for the Nasdaq universe showing/)
+    // other tabs do not claim a universe (they are UCT's views)
+    expect(describeBreadthPage({ ...snap, tab: 'heatmap' })).not.toMatch(/universe/)
+  })
 })

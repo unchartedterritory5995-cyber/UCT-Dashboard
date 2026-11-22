@@ -142,19 +142,35 @@ def test_a_pitfall_is_warned_about_only_while_it_stands():
 
 def test_every_admitted_capability_is_worded_and_no_other_is_printed():
     # every admitted capability is either worded for the assistant or NAMED as deliberately not offered
-    spoken_for = set(pa.CAPABILITY_WORDS) | set(pa.NOT_FOR_THE_ASSISTANT)
-    assert set(REF["admitted"]) <= spoken_for, sorted(set(REF["admitted"]) - spoken_for)
+    # (a library version, `library:Author/Library/N`, is an OPEN family: named once, `pa.not_offered`)
+    unspoken = sorted(c for c in REF["admitted"] if c not in pa.CAPABILITY_WORDS and not pa.not_offered(c))
+    assert not unspoken, unspoken
     assert not (set(pa.CAPABILITY_WORDS) & set(pa.NOT_FOR_THE_ASSISTANT))
+    assert not any(pa.not_offered(c) for c in pa.CAPABILITY_WORDS)
     assert set(pa.CAPABILITY_WORDS) | set(pa.NOT_FOR_THE_ASSISTANT) <= set(pine_capabilities.CAPABILITY_IDS),         "words for an id the detector cannot return"
-    assert all(reason for reason in pa.NOT_FOR_THE_ASSISTANT.values())
+    assert all(reason for reason in pa.NOT_FOR_THE_ASSISTANT.values()) and pa.NOT_FOR_THE_ASSISTANT_LIBRARIES
     assert "strategy" not in section(pa.document(), "LANGUAGE YOU MAY USE")
     language = section(pa.document(), "LANGUAGE YOU MAY USE")
     for cap in REF["admitted"]:
-        if cap not in pa.NOT_FOR_THE_ASSISTANT:
+        if not pa.not_offered(cap):
             assert pa.CAPABILITY_WORDS[cap] in language
+        else:
+            assert cap not in pa.document(), cap                           # never printed, by id or by family
     ref = copy.deepcopy(REF)
     ref["admitted"] = [c for c in ref["admitted"] if c != "while"]
     assert pa.CAPABILITY_WORDS["while"] not in pa.document(ref)
+
+
+def test_CONTROL_only_the_library_family_and_the_named_ids_are_not_offered():
+    """`not_offered` answers the open library family by the detector's own reader, never a closed id it does not name,
+    so the rule above still reds on an admitted capability nobody worded."""
+    assert pa.not_offered("library:TradingView/ta/7") and pa.not_offered("library:Someone/Lib/12")
+    assert pa.not_offered("strategy-decl")
+    for cap in ("varip", "while", "library", "library:", "library:TradingView/ta", "import"):
+        assert not pa.not_offered(cap), cap
+    ref = copy.deepcopy(REF)
+    ref["admitted"] = list(ref["admitted"]) + ["varip"]
+    assert [c for c in ref["admitted"] if c not in pa.CAPABILITY_WORDS and not pa.not_offered(c)] == ["varip"]
 
 
 def test_names_the_engine_refuses_are_only_ever_under_never():
@@ -308,6 +324,13 @@ def test_every_recipe_in_the_file_is_served_and_only_served_ones_are_ever_handed
     ("unfilled gaps", "gap-zones"),
     ("anchored VWAP from March 3", "anchored-vwap-date"),
     ("prior day high and low", "prior-day-levels"),
+    ("Convert the chart to Heikin Ashi candles", "heikin-ashi-candles"),
+    ("heiken ashi", "heikin-ashi-candles"),
+    ("count the distribution days of the last 25 sessions", "distribution-days"),
+    ("a Distribution Day counter that drops a day after a rally", "distribution-days"),
+    ("mark the follow-through day of a rally attempt", "follow-through-day"),
+    ("show me follow through days", "follow-through-day"),
+    ("which bar is day 1 of a rally", "follow-through-day"),
 ])
 def test_a_request_is_handed_the_recipe_it_names(words, first):
     found = pa.recipes_for(words)
@@ -319,6 +342,9 @@ def test_a_request_is_handed_the_recipe_it_names(words, first):
     "Plot a 21 EMA", "RSI under 30", "", None, "color the bars green when the close is above the open",
     "the epoch of the trend", "costco style accounting", "an abstract idea",          # "poc", "stc", "st" inside other words
     "a multi timeframe trend table",                    # no recipe on purpose: its newest bar cannot be right (see RUN_STOP_WORDS)
+    "a histogram of the distribution of daily returns",         # "distribution" beside "daily" is not a distribution day
+    "follow the trend through the day",                         # the three words, never the phrase
+    "stalling days",                                    # a different rule (an UP day): the distribution recipe would teach the wrong one
 ])
 def test_a_request_that_names_no_recipe_is_handed_none(words):
     assert pa.recipes_for(words) == []
@@ -376,7 +402,299 @@ def test_no_recipe_does_what_the_document_says_never_to_do():
         body = code(r["source"])
         assert "input.time" not in body and "hline(" not in body, r["id"]
         assert "fill(" not in body or r["lane"] == "host", r["id"]
-        assert "plot(" in body or "plotshape(" in body, r["id"]
+        # (a recipe plots something: a line, a marker, or candles, which are four plotted values and a colour)
+        assert "plot(" in body or "plotshape(" in body or "plotcandle(" in body, r["id"]
         assert not re.search(r"\.delete\(\s*array\.", body), f"{r['id']}: a drawing deleted in one call stays in its list"
         for name in REF["refusedNames"]:
             assert name not in body, (r["id"], name)
+
+
+# ═══ the member's real gate: admission to the bar-by-bar lane ═══════════════════════
+#
+# ⚰️ 2026-11-19. The generator proves every recipe and worked example with a test grant that lets EVERY
+# script onto the bar-by-bar lane (`__allowEveryRuntimeScriptForTests`). A member's window has no such
+# grant: the server admits a script to that lane only when every capability it uses is admitted
+# (`runtime_definitions.capability_admitted`, `PINE_RUNTIME_CAPABILITY_ADMISSION`). A recipe proven
+# under the grant and refused by that rule would be shown to the assistant as "runs" and refused on a
+# member's chart. This asks the server's own rule about each one that needs the lane.
+
+def _shown_scripts():
+    """Every script the assistant is shown: (kind, id, lane, source)."""
+    here = pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "components" / "chart" / "supportLoop"
+    recipes = json.loads((here / "assistantRecipes.json").read_text(encoding="utf-8"))["recipes"]
+    examples = json.loads((here / "assistantPineReference.json").read_text(encoding="utf-8"))["examples"]
+    return ([("recipe", r["id"], r["lane"], r["source"]) for r in recipes]
+            + [("example", e["id"], e["lane"], e["source"]) for e in examples])
+
+
+def test_every_script_the_assistant_is_shown_that_needs_the_bar_by_bar_lane_is_admitted_to_it():
+    from api.services import runtime_definitions as rd
+    shown = _shown_scripts()
+    assert {lane for _k, _i, lane, _s in shown} == {"host", "runtime"}
+    needs = [x for x in shown if x[2] == "runtime"]
+    assert len(needs) >= 10
+    for kind, sid, _lane, source in needs:
+        ok, missing = rd.capability_admitted(source, persist=False, wait=20.0)
+        assert ok, f"{kind} {sid} needs the bar-by-bar lane and is NOT admitted to it for a member: {missing}"
+
+
+def test_control_the_admission_rule_can_say_no(monkeypatch):
+    """With nothing admitted, every one of them is refused, each by the capabilities it uses."""
+    from api.services import runtime_definitions as rd
+    real = rd.admitted_capabilities()
+    assert real["admitted"], "the committed registry admits nothing: the test above could not pass honestly"
+    monkeypatch.setattr(rd, "admitted_capabilities", lambda: {**real, "admitted": []})
+    for kind, sid, lane, source in _shown_scripts():
+        if lane != "runtime":
+            continue
+        ok, missing = rd.capability_admitted(source, persist=False, wait=20.0)
+        assert not ok and missing and rd.PENDING not in missing, (kind, sid, missing)
+
+
+# ═══ a way through a limit is a probe too ═════════════════════════════════════════
+#
+# ⚰️ 2026-11-19. The weekly-read limit's sentence said "reading it one bar back does not rescue it".
+# Engine 84 (#1996) made one bar back draw on the newest bar, and the sentence was false until a person
+# read it. Whether one bar back is blank is its own recorded probe now; the document says the limit
+# while that probe stands and the way through while it does not.
+
+def test_the_way_through_a_limit_is_said_exactly_while_the_limit_stands_and_the_way_is_open():
+    limit, closes = "higher-timeframe-newest-bar", "higher-timeframe-one-bar-back"
+    assert set(pa.RUN_STOP_RELIEFS) == {closes} and pa.RUN_STOP_RELIEFS[closes][0] == limit
+    assert closes in pa.RUN_STOP_WORDS and limit in pa.RUN_STOP_WORDS
+    way = pa.RUN_STOP_RELIEFS[closes][1]
+    said = lambda stops: (pa.RUN_STOP_WORDS[limit] in pa.document(run_stops=stops), way in pa.document(run_stops=stops),
+                          pa.RUN_STOP_WORDS[closes] in pa.document(run_stops=stops))
+    assert said([limit]) == (True, True, False)                 # the limit, and the way through it
+    assert said([limit, closes]) == (True, False, True)         # the limit, and that one bar back does not help
+    assert said([]) == (False, False, False)                    # no limit: nothing to get through
+    assert said([closes]) == (False, False, True)
+    assert said(["running-total"]) == (False, False, False)
+    # the way through is said right under its limit
+    doc = pa.document(run_stops=["running-total", limit])
+    assert doc.index(pa.RUN_STOP_WORDS[limit]) < doc.index(way)
+    assert doc[doc.index(pa.RUN_STOP_WORDS[limit]) + len(pa.RUN_STOP_WORDS[limit]):].lstrip().startswith("- " + way)
+    # ⛔ the limit's own sentence no longer answers for one bar back, either way
+    assert "one bar back" not in pa.RUN_STOP_WORDS[limit] and "x[1]" in pa.RUN_STOP_WORDS[limit]
+    # and today's document follows the recorded probes, whatever they are
+    now, standing = pa.document(), pa.standing_run_stops()
+    assert (way in now) == (limit in standing and closes not in standing)
+    for unknown in pa.RUN_STOP_RELIEFS:
+        assert unknown in {s["id"] for s in pa._recipes_doc()["stops"]}, "a way through whose probe the generator does not record"
+
+
+# ═══ rule 10: Pine's own function, where this engine serves one ═════════════════════
+#
+# Coordinator's condition (2026-11-19): a member's own version of a well-known indicator is grounded on
+# Pine's own function where one exists, never improvised. The rule names examples, and it may only name
+# functions the document itself lists as served: naming one the engine refuses would teach a refused script.
+
+def test_rule_ten_names_only_functions_the_document_lists_as_served():
+    doc = pa.document()
+    rule = next(line for line in doc.split(chr(10)) if line.startswith("10. "))
+    assert "{" not in doc.split("## ")[0], "a placeholder of the contract reached the assistant"
+    assert "CALL that function" in rule and "say in `reply` which definition you used" in rule
+    named = re.findall(r"`(ta[.][a-z_0-9]+)`", rule)
+    assert named and len(named) == len(set(named))
+    served = pa.served_names()
+    assert set(named) <= served, sorted(set(named) - served)
+    assert set(named) == {n for n in pa.OWN_FUNCTION_CANDIDATES if n in served}
+    # each one named is a row of the document's own "VALUE FUNCTIONS AND VARIABLES" list
+    values = doc[doc.index("## VALUE FUNCTIONS AND VARIABLES"):]
+    for name in named:
+        assert f"- `{name}`" in values, name
+
+
+def test_rule_ten_follows_the_reference_not_a_list_typed_here():
+    ref = copy.deepcopy(pa.reference())
+    keep = "ta.rsi"
+    assert keep in pa.served_names(ref)
+    ref["values"] = [v for v in ref["values"] if not v["name"].startswith("ta.") or v["name"] == keep]
+    rule = next(line for line in pa.contract(ref).split(chr(10)) if line.startswith("10. "))
+    assert re.findall(r"`(ta[.][a-z_0-9]+)`", rule) == [keep]
+    # an engine that serves none of them is told to write the published calculation, and is given no example
+    ref["values"] = [v for v in ref["values"] if not v["name"].startswith("ta.")]
+    bare = next(line for line in pa.contract(ref).split(chr(10)) if line.startswith("10. "))
+    assert "`ta." not in bare and "The ones listed here" not in bare and "write the published calculation yourself" in bare
+    # a candidate that is not a served name is never said, whatever the list above holds
+    assert "ta.supertrend" in pa.OWN_FUNCTION_CANDIDATES
+    assert ("`ta.supertrend`" in pa.contract()) == ("ta.supertrend" in pa.served_names())
+
+
+# ═══ rule 5: nothing the assistant is taught waits for the last bar, except by name ══════════
+#
+# ⚰️ Found live 2026-11-19. Rule 5 said "draw on the last bar: `if barstate.islast`", three recipes and three
+# worked examples did, and every one was proven on a chart whose newest bar had FINISHED. A script that reads
+# where the chart ends is admitted for finished bars only (G6): before the open they ran, and all session long
+# a member's chart refused them. These hold the instructions, the recipes and the examples to the SERVER'S OWN
+# rule (its capability detector and its `historyOnly` list), not to a list typed here.
+
+def _rule_five(ref=None):
+    return next(line for line in pa.contract(ref).split(chr(10)) if line.startswith("5. "))
+
+
+def test_the_references_finished_bars_list_is_the_servers_own():
+    from api.services import runtime_definitions as rd
+    assert sorted(pa.history_only()) == sorted(rd.admitted_capabilities()["historyOnly"])
+    assert "realtime-state" in pa.history_only(), "nothing is admitted for finished bars only: rule 5 has changed its meaning"
+    # every one of them is either WORDED in rule 5 or not offered to the assistant at all
+    for cap in pa.history_only():
+        assert (cap in pa.HISTORY_ONLY_READS) != (cap in pa.NOT_FOR_THE_ASSISTANT), cap
+
+
+def test_every_read_rule_five_names_is_one_by_the_servers_detector():
+    from api.services import pine_capabilities as pc
+    script = lambda read: f'//@version=5\nindicator("p")\nx = {read}\nplot(close)\n'   # noqa: E731
+    for cap, words in pa.HISTORY_ONLY_READS.items():
+        named = re.findall(r"`([^`]+)`", words)
+        assert len(named) >= 3, words
+        for read in named:
+            if read == "barstate.isfirst":
+                continue
+            read = "barstate.islast" if read == "barstate.*" else read
+            assert cap in pc.capabilities_of(script(read)), f"rule 5 names `{read}` and the server does not count it as {cap}"
+    # the exception the rule makes is a real one: reading the FIRST bar is plain
+    assert "barstate.isfirst" in pa.HISTORY_ONLY_READS["realtime-state"]
+    assert "realtime-state" not in pc.capabilities_of(script("barstate.isfirst"))
+    # CONTROL: a script that reads none of them is not said to wait, one that reads any of them is
+    assert pa.waits_for_the_bar(script("ta.sma(close, 20)")) is False
+    for read in ("barstate.islast", "bar_index == last_bar_index", "time == last_bar_time", "timenow"):
+        assert pa.waits_for_the_bar(script(read)) is True, read
+    assert pa.waits_for_the_bar("") is False and pa.waits_for_the_bar(None) is False
+
+
+def test_rule_five_teaches_updating_on_every_bar_and_says_what_waiting_costs():
+    rule = _rule_five()
+    assert "UPDATED ON EVERY BAR" in rule and "Do not delete and remake it on every bar." in rule
+    assert pa.HISTORY_ONLY_READS["realtime-state"] in rule and "shows nothing all session" in rule
+    assert rule.count("`if barstate.islast`") == 1 and "The ONE exception is work that loops over past bars" in rule
+    doc = pa.document()
+    assert "{last_bar}" not in doc and "{own_functions}" not in doc
+    # every setter the rule names is one the document lists as served
+    for setter in re.findall(r"`((?:table|label|line|box)\.[a-z_0-9]+)`", rule):
+        assert f"`{setter}(" in doc, f"rule 5 names `{setter}` and the document does not list it"
+
+
+def test_rule_five_follows_the_reference(monkeypatch):
+    ref = copy.deepcopy(pa.reference())
+    ref["historyOnly"] = []
+    relaxed = _rule_five(ref)
+    # an engine that draws last-bar scripts on a forming bar: the warning goes, the heavy-work rule stays
+    assert "shows nothing all session" not in relaxed and "last_bar_index" not in relaxed
+    assert relaxed.endswith("once, under `if barstate.islast`.") and "UPDATED ON EVERY BAR" in relaxed
+    assert pa.waits_for_the_bar('//@version=5\nindicator("p")\nplot(barstate.islast ? close : na)\n', ref) is False
+    ref["historyOnly"] = ["request-other"]                                # one with no words: nothing is said for it
+    assert _rule_five(ref) == relaxed
+    # ... in the RULE. The FACT about a script covers every finished-bars-only capability, worded or not.
+    assert pa.waits_for_the_bar('//@version=5\nindicator("p")\nplot(request.security(syminfo.tickerid, "W", close))\n', ref) is True
+    assert pa.waits_for_the_bar('//@version=5\nindicator("p")\nplot(barstate.islast ? close : na)\n', ref) is False
+
+
+def test_no_script_the_assistant_is_shown_waits_for_the_bar_unless_it_says_so():
+    """THE STANDING TEST: the server's own detector, asked about every recipe and every worked example."""
+    from api.services import pine_capabilities as pc
+    hist, worded = set(pa.history_only()), set(pa.HISTORY_ONLY_READS)
+    waits = {}
+    for kind, sid, lane, source in _shown_scripts():
+        caps = set(pc.capabilities_of(source)) & hist
+        # the bar-by-bar lane is the one the engine's rule applies to. A read rule 5 WORDS is held on every
+        # lane all the same: a worked example is the idiom the assistant copies into scripts that lane draws.
+        waits[(kind, sid)] = sorted(caps if lane == "runtime" else caps & worded)
+    assert len(waits) >= 20 and {lane for _k, _i, lane, _s in _shown_scripts()} == {"host", "runtime"}
+    declared = {r["id"] for r in pa.recipes() if r.get("finishedBarsOnly") is True}
+    found = {sid for (kind, sid), caps in waits.items() if caps}
+    assert found == declared, (f"scripts shown to the assistant that are drawn only on a finished bar: {sorted(found)}; "
+                               f"declared in the recipe index: {sorted(declared)}")
+    # no WORKED EXAMPLE waits (an example is the idiom the assistant copies most), and the list may only shrink
+    assert not [sid for (kind, sid), caps in waits.items() if kind == "example" and caps]
+    assert declared <= {"volume-profile", "weekday-returns-table"}, sorted(declared)
+    # each declared one waits because of a read rule 5 words (never an unworded capability), and loops over past bars
+    by_id = {r["id"]: r for r in pa.recipes()}
+    for sid in declared:
+        assert waits[("recipe", sid)] == ["realtime-state"], (sid, waits[("recipe", sid)])
+        assert pa.waits_for_the_bar(by_id[sid]["source"]) is True
+        assert re.search(r"for \w+ = 0 to [^\n]+\n(?:[^\n]*\n){0,3}[^\n]*\[\w+\]", by_id[sid]["source"]), \
+            f"{sid} waits for the last bar and does not loop over past bars: update it on every bar instead"
+        assert pa.LAST_BAR_RECIPE_LINE in pa.recipes_text([by_id[sid]])
+    assert pa.LAST_BAR_RECIPE_LINE not in pa.recipes_text([by_id["fibonacci-swings"]])
+
+
+def test_every_recipe_the_assistant_is_shown_is_proven_as_a_member_has_it():
+    """THE GENERATED PROOF, HELD TO THE SERVER'S OWN RULE (2026-11-20). The recipe generator runs every recipe
+    behind a member's doors (no test grant, the server's admission verdict for that exact source) with the chart's
+    newest bar forming and finished, and writes what the chart did (`member`, per history). A recipe is shown to
+    the assistant only when it is drawn in both, or waits while the bar forms BECAUSE it reads where the chart
+    ends. Who waits is decided here, by the server's detector: the generated proof must say the same."""
+    shown = pa.recipes()
+    assert len(shown) >= 14
+    waiting = set()
+    for r in shown:
+        # (the forming-bar rule is the bar-by-bar lane's: a recipe the fast lane draws is drawn all session,
+        # whatever it reads, which is why the window says the sentence by lane and the server sends only the fact)
+        waits = r["lane"] == "runtime" and pa.waits_for_the_bar(r["source"])
+        assert waits is (r.get("finishedBarsOnly") is True), r["id"]
+        assert set(r["member"]) == {"fromListing", "offListing"}, (r["id"], sorted(r["member"]))
+        for history, answer in r["member"].items():
+            assert answer == {"forming": "waits" if waits else "runs", "finished": "runs"}, (r["id"], history, answer)
+        if waits:
+            waiting.add(r["id"])
+    assert waiting == {"volume-profile", "weekday-returns-table"}, sorted(waiting)
+    # CONTROL: the lane matters. A fast-lane recipe that reads another timeframe carries the fact and does not wait.
+    fast = [r for r in shown if r["lane"] == "host" and pa.waits_for_the_bar(r["source"])]
+    assert fast and all(r["member"]["fromListing"]["forming"] == "runs" for r in fast), [r["id"] for r in fast]
+
+
+def test_the_sentence_about_the_bar_is_the_windows_and_word_for_word_this_one():
+    """The server sends the FACT (`script.waits_for_the_bar`); the window, which knows the lane that draws the
+    script, says the sentence. One wording, held across the two languages."""
+    here = pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "components" / "chart" / "builder" / "authoring"
+    js = (here / "scriptAnswer.js").read_text(encoding="utf-8")
+    said = re.search(r'export const WAITS_ON_A_LIVE_CHART_LINE = "([^"]+)"', js)
+    assert said and said.group(1) == pa.FINISHED_BARS_LINE
+    assert not hasattr(pa, "said_with_the_bar"), "the server writes this sentence again: it cannot know the lane"
+    # and the window keeps the fact the server sends
+    client = (here / "converseClient.js").read_text(encoding="utf-8")
+    assert "s.waits_for_the_bar === true ? { waitsForTheBar: true }" in client
+    # with the reply whole again, the disclosure is never cut by it
+    long = pa.said_with_disclosure("x" * 2000, None)
+    assert len(long) <= pa.REPLY_MAX_CHARS and long.endswith(pa.UNCHECKED_LINE)
+
+
+# ═══ rule 11: a script draws only what was asked, and offers the rest ═══════════════
+#
+# Found by a value check on a live round, 2026-11-20, and the coordinator's ruling the same day: asked to COUNT
+# something, the assistant's script counted it correctly and also drew a label on every event, a corner table, a
+# background colour and an alert condition nobody asked for. Each extra clutters the chart and is another claim
+# that has to be right. The script draws what was asked; anything more is offered in a sentence.
+
+def test_rule_eleven_a_script_draws_only_what_was_asked_and_offers_the_rest():
+    doc = pa.document()
+    rule = next(line for line in doc.split(chr(10)) if line.startswith("11. "))
+    assert rule.startswith("11. Draw ONLY what the member asked for.")
+    for extra in ("a label on every event", "a summary table", "a background colour", "extra shapes", "`alertcondition`"):
+        assert extra in rule, extra
+    assert "OFFER it in `reply`" in rule and "leave it out of the script" in rule
+    # it is a rule of the contract (ahead of the reference sections); the rules are numbered from 1 with no gap and no
+    # repeat, and none sits among the reference sections (this said "and the last one" until rule 12 was written)
+    assert doc.index("11. Draw ONLY") < doc.index("## ")
+    head, rest = doc[:doc.index("## ")], doc[doc.index("## "):]
+    numbers = [int(line.split(". ")[0]) for line in head.split(chr(10)) if line[:1].isdigit() and ". " in line[:4]]
+    assert numbers == list(range(1, len(numbers) + 1)) and len(numbers) >= 11
+    assert not any(line.startswith(f"{len(numbers) + 1}. ") for line in rest.split(chr(10)))
+
+
+def test_rule_eleven_the_plot_a_drawing_only_request_keeps_is_invisible():
+    """Seen in a live round: asked ONLY for a box, a line or two labels, half the scripts also drew the value the
+    drawing is made from as a faint visible line. The plot is worth keeping (a script with one works in alerts),
+    so the rule says to keep it and hide it. What the engine does with such a plot is held on the member's own
+    path by `supportLoop/invisiblePlotCarriesDrawings.test.js`, whose colour this sentence must match."""
+    rule = next(line for line in pa.document().split(chr(10)) if line.startswith("11. "))
+    assert "ONLY a drawing (a box, a line, labels, a table)" in rule and "names no plotted line" in rule
+    assert "used in alerts" in rule                                   # the reason the plot stays
+    assert "`plot(level, \"Level\", color=color.new(color.gray, 100))`" in rule      # the form, written out
+    assert "a hidden plot is there for alerts" in rule                # and the member is told
+    assert rule.rstrip().endswith("Never hide a plot the member asked to see.")
+    # the same colour the engine test proves, read from that file so the two cannot drift apart
+    import pathlib
+    proof = (pathlib.Path(__file__).resolve().parent.parent / "app/src/components/chart/supportLoop/invisiblePlotCarriesDrawings.test.js").read_text(encoding="utf-8")
+    assert "color=color.new(color.gray, 100))" in proof

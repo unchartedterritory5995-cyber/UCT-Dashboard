@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 238,
+  "all": 255,
   "withProductionKinds": 207,
-  "darkGated": 31
+  "darkGated": 48
  },
  "totals": {
-  "capabilities": 238,
-  "withAnyRegressionCase": 186,
+  "capabilities": 255,
+  "withAnyRegressionCase": 203,
   "perProtection": {
    "nl": {
-    "covered": 183,
-    "applicable": 238
+    "covered": 200,
+    "applicable": 255
    },
    "routing": {
-    "covered": 180,
-    "applicable": 238
+    "covered": 197,
+    "applicable": 255
    },
    "args": {
-    "covered": 186,
-    "applicable": 238
+    "covered": 203,
+    "applicable": 255
    },
    "execution": {
-    "covered": 183,
-    "applicable": 238
+    "covered": 200,
+    "applicable": 255
    },
    "receipt": {
-    "covered": 154,
-    "applicable": 238
+    "covered": 171,
+    "applicable": 255
    },
    "refusal": {
     "covered": 35,
-    "applicable": 238
+    "applicable": 255
    },
    "permission": {
-    "covered": 231,
-    "applicable": 238
+    "covered": 248,
+    "applicable": 255
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 238
+    "applicable": 255
    },
    "phrasings": {
-    "covered": 179,
-    "applicable": 238
+    "covered": 196,
+    "applicable": 255
    }
   }
  },
@@ -9463,6 +9463,60 @@
     "phrasings": []
    }
   },
+  "stock.auctionCalendar": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.auctionCalendar: \"treasury auctions\"",
+     "stock.auctionCalendar: \"how did the 10-year auction go\"",
+     "stock.auctionCalendar: \"upcoming bond auctions\"",
+     "stock.auctionCalendar: \"treasury auction results\""
+    ],
+    "routing": [
+     "stock.auctionCalendar: \"treasury auctions\"",
+     "stock.auctionCalendar: \"how did the 10-year auction go\"",
+     "stock.auctionCalendar: \"upcoming bond auctions\"",
+     "stock.auctionCalendar: \"treasury auction results\""
+    ],
+    "args": [
+     "corpus stock.auctionCalendar"
+    ],
+    "execution": [
+     "stock.auctionCalendar (c)"
+    ],
+    "receipt": [
+     "stock.auctionCalendar (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.callSearch": {
    "domain": "stock",
    "group": "data",
@@ -9800,6 +9854,114 @@
     "phrasings": []
    }
   },
+  "stock.dilutionWatch": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.dilutionWatch: \"NVDA dilution\"",
+     "stock.dilutionWatch: \"does NVDA have a shelf registration\"",
+     "stock.dilutionWatch: \"share offerings NVDA filed\"",
+     "stock.dilutionWatch: \"NVDA share issuance filings\""
+    ],
+    "routing": [
+     "stock.dilutionWatch: \"NVDA dilution\"",
+     "stock.dilutionWatch: \"does NVDA have a shelf registration\"",
+     "stock.dilutionWatch: \"share offerings NVDA filed\"",
+     "stock.dilutionWatch: \"NVDA share issuance filings\""
+    ],
+    "args": [
+     "corpus stock.dilutionWatch"
+    ],
+    "execution": [
+     "stock.dilutionWatch (c)"
+    ],
+    "receipt": [
+     "stock.dilutionWatch (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.dividendsCalendar": {
+   "domain": "stock",
+   "group": "marketCalendars",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.dividendsCalendar: \"next ex-dividend date for NVDA\"",
+     "stock.dividendsCalendar: \"upcoming dividends for NVDA\"",
+     "stock.dividendsCalendar: \"when is NVDA's next dividend\"",
+     "stock.dividendsCalendar: \"any upcoming splits for NVDA\""
+    ],
+    "routing": [
+     "stock.dividendsCalendar: \"next ex-dividend date for NVDA\"",
+     "stock.dividendsCalendar: \"upcoming dividends for NVDA\"",
+     "stock.dividendsCalendar: \"when is NVDA's next dividend\"",
+     "stock.dividendsCalendar: \"any upcoming splits for NVDA\""
+    ],
+    "args": [
+     "corpus stock.dividendsCalendar"
+    ],
+    "execution": [
+     "stock.dividendsCalendar (c)"
+    ],
+    "receipt": [
+     "stock.dividendsCalendar (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.earnings": {
    "domain": "stock",
    "group": "data",
@@ -9974,6 +10136,60 @@
     "phrasings": []
    }
   },
+  "stock.eventsTimeline": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.eventsTimeline: \"NVDA events timeline\"",
+     "stock.eventsTimeline: \"timeline of events for NVDA\"",
+     "stock.eventsTimeline: \"dated events on NVDA\"",
+     "stock.eventsTimeline: \"events timeline for NVDA\""
+    ],
+    "routing": [
+     "stock.eventsTimeline: \"NVDA events timeline\"",
+     "stock.eventsTimeline: \"timeline of events for NVDA\"",
+     "stock.eventsTimeline: \"dated events on NVDA\"",
+     "stock.eventsTimeline: \"events timeline for NVDA\""
+    ],
+    "args": [
+     "corpus stock.eventsTimeline"
+    ],
+    "execution": [
+     "stock.eventsTimeline (c)"
+    ],
+    "receipt": [
+     "stock.eventsTimeline (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.expectedMove": {
    "domain": "stock",
    "group": "data",
@@ -10074,6 +10290,60 @@
     ],
     "receipt": [
      "stock.flowRecord (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.fomcWatch": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.fomcWatch: \"fed watch\"",
+     "stock.fomcWatch: \"what changed in the FOMC statement\"",
+     "stock.fomcWatch: \"when is the next FOMC meeting\"",
+     "stock.fomcWatch: \"show me the fed dot plot\""
+    ],
+    "routing": [
+     "stock.fomcWatch: \"fed watch\"",
+     "stock.fomcWatch: \"what changed in the FOMC statement\"",
+     "stock.fomcWatch: \"when is the next FOMC meeting\"",
+     "stock.fomcWatch: \"show me the fed dot plot\""
+    ],
+    "args": [
+     "corpus stock.fomcWatch"
+    ],
+    "execution": [
+     "stock.fomcWatch (c)"
+    ],
+    "receipt": [
+     "stock.fomcWatch (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10190,6 +10460,114 @@
     "phrasings": []
    }
   },
+  "stock.ipoCalendar": {
+   "domain": "stock",
+   "group": "marketCalendars",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.ipoCalendar: \"IPO calendar\"",
+     "stock.ipoCalendar: \"upcoming IPOs\"",
+     "stock.ipoCalendar: \"what IPOs are coming this week\"",
+     "stock.ipoCalendar: \"which IPOs are pricing next week\""
+    ],
+    "routing": [
+     "stock.ipoCalendar: \"IPO calendar\"",
+     "stock.ipoCalendar: \"upcoming IPOs\"",
+     "stock.ipoCalendar: \"what IPOs are coming this week\"",
+     "stock.ipoCalendar: \"which IPOs are pricing next week\""
+    ],
+    "args": [
+     "corpus stock.ipoCalendar"
+    ],
+    "execution": [
+     "stock.ipoCalendar (c)"
+    ],
+    "receipt": [
+     "stock.ipoCalendar (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.ivHistory": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.ivHistory: \"NVDA IV history\"",
+     "stock.ivHistory: \"IV rank for NVDA\"",
+     "stock.ivHistory: \"how has NVDA implied volatility trended\"",
+     "stock.ivHistory: \"NVDA implied volatility history\""
+    ],
+    "routing": [
+     "stock.ivHistory: \"NVDA IV history\"",
+     "stock.ivHistory: \"IV rank for NVDA\"",
+     "stock.ivHistory: \"how has NVDA implied volatility trended\"",
+     "stock.ivHistory: \"NVDA implied volatility history\""
+    ],
+    "args": [
+     "corpus stock.ivHistory"
+    ],
+    "execution": [
+     "stock.ivHistory (c)"
+    ],
+    "receipt": [
+     "stock.ivHistory (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.longRunLeaders": {
    "domain": "stock",
    "group": "data",
@@ -10236,6 +10614,114 @@
     ],
     "receipt": [
      "stock.longRunLeaders (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.marketRegime": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.marketRegime: \"what is the market regime\"",
+     "stock.marketRegime: \"which regime are we in\"",
+     "stock.marketRegime: \"UCT regime read\"",
+     "stock.marketRegime: \"market regime check\""
+    ],
+    "routing": [
+     "stock.marketRegime: \"what is the market regime\"",
+     "stock.marketRegime: \"which regime are we in\"",
+     "stock.marketRegime: \"UCT regime read\"",
+     "stock.marketRegime: \"market regime check\""
+    ],
+    "args": [
+     "corpus stock.marketRegime"
+    ],
+    "execution": [
+     "stock.marketRegime (c)"
+    ],
+    "receipt": [
+     "stock.marketRegime (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.oiChange": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.oiChange: \"open interest change on NVDA\"",
+     "stock.oiChange: \"what is the open interest change on NVDA\"",
+     "stock.oiChange: \"NVDA open interest change\"",
+     "stock.oiChange: \"NVDA oi change\""
+    ],
+    "routing": [
+     "stock.oiChange: \"open interest change on NVDA\"",
+     "stock.oiChange: \"what is the open interest change on NVDA\"",
+     "stock.oiChange: \"NVDA open interest change\"",
+     "stock.oiChange: \"NVDA oi change\""
+    ],
+    "args": [
+     "corpus stock.oiChange"
+    ],
+    "execution": [
+     "stock.oiChange (c)"
+    ],
+    "receipt": [
+     "stock.oiChange (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10359,6 +10845,168 @@
     "phrasings": []
    }
   },
+  "stock.realCurve": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.realCurve: \"real yields\"",
+     "stock.realCurve: \"TIPS yields\"",
+     "stock.realCurve: \"inflation breakevens\"",
+     "stock.realCurve: \"the 10-year breakeven\""
+    ],
+    "routing": [
+     "stock.realCurve: \"real yields\"",
+     "stock.realCurve: \"TIPS yields\"",
+     "stock.realCurve: \"inflation breakevens\"",
+     "stock.realCurve: \"the 10-year breakeven\""
+    ],
+    "args": [
+     "corpus stock.realCurve"
+    ],
+    "execution": [
+     "stock.realCurve (c)"
+    ],
+    "receipt": [
+     "stock.realCurve (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.seasonality": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.seasonality: \"NVDA seasonality\"",
+     "stock.seasonality: \"seasonality for NVDA\"",
+     "stock.seasonality: \"best months for NVDA\"",
+     "stock.seasonality: \"how does NVDA usually do in december\""
+    ],
+    "routing": [
+     "stock.seasonality: \"NVDA seasonality\"",
+     "stock.seasonality: \"seasonality for NVDA\"",
+     "stock.seasonality: \"best months for NVDA\"",
+     "stock.seasonality: \"how does NVDA usually do in december\""
+    ],
+    "args": [
+     "corpus stock.seasonality"
+    ],
+    "execution": [
+     "stock.seasonality (c)"
+    ],
+    "receipt": [
+     "stock.seasonality (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.seasonalityBoard": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.seasonalityBoard: \"sector seasonality\"",
+     "stock.seasonalityBoard: \"seasonality board\"",
+     "stock.seasonalityBoard: \"which sectors usually do best in november\"",
+     "stock.seasonalityBoard: \"seasonality of the sector funds\""
+    ],
+    "routing": [
+     "stock.seasonalityBoard: \"sector seasonality\"",
+     "stock.seasonalityBoard: \"seasonality board\"",
+     "stock.seasonalityBoard: \"which sectors usually do best in november\"",
+     "stock.seasonalityBoard: \"seasonality of the sector funds\""
+    ],
+    "args": [
+     "corpus stock.seasonalityBoard"
+    ],
+    "execution": [
+     "stock.seasonalityBoard (c)"
+    ],
+    "receipt": [
+     "stock.seasonalityBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.sectorPerformance": {
    "domain": "stock",
    "group": "data",
@@ -10459,6 +11107,60 @@
     ],
     "receipt": [
      "stock.sessionHighsLows (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.setups": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.setups: \"confirmed setups on NVDA\"",
+     "stock.setups: \"which setups did the judge confirm for NVDA\"",
+     "stock.setups: \"any setups on NVDA\"",
+     "stock.setups: \"setup verdicts for NVDA\""
+    ],
+    "routing": [
+     "stock.setups: \"confirmed setups on NVDA\"",
+     "stock.setups: \"which setups did the judge confirm for NVDA\"",
+     "stock.setups: \"any setups on NVDA\"",
+     "stock.setups: \"setup verdicts for NVDA\""
+    ],
+    "args": [
+     "corpus stock.setups"
+    ],
+    "execution": [
+     "stock.setups (c)"
+    ],
+    "receipt": [
+     "stock.setups (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10575,6 +11277,60 @@
     "phrasings": []
    }
   },
+  "stock.splitsDividends": {
+   "domain": "stock",
+   "group": "marketCalendars",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.splitsDividends: \"NVDA corporate actions\"",
+     "stock.splitsDividends: \"split history for NVDA\"",
+     "stock.splitsDividends: \"has NVDA ever split\"",
+     "stock.splitsDividends: \"past dividends for NVDA\""
+    ],
+    "routing": [
+     "stock.splitsDividends: \"NVDA corporate actions\"",
+     "stock.splitsDividends: \"split history for NVDA\"",
+     "stock.splitsDividends: \"has NVDA ever split\"",
+     "stock.splitsDividends: \"past dividends for NVDA\""
+    ],
+    "args": [
+     "corpus stock.splitsDividends"
+    ],
+    "execution": [
+     "stock.splitsDividends (c)"
+    ],
+    "receipt": [
+     "stock.splitsDividends (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.themeRotation": {
    "domain": "stock",
    "group": "data",
@@ -10667,6 +11423,60 @@
     "phrasings": []
    }
   },
+  "stock.tideHistory": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.tideHistory: \"market tide history\"",
+     "stock.tideHistory: \"market tide by day\"",
+     "stock.tideHistory: \"market tide over the last week\"",
+     "stock.tideHistory: \"how has the market tide been this week\""
+    ],
+    "routing": [
+     "stock.tideHistory: \"market tide history\"",
+     "stock.tideHistory: \"market tide by day\"",
+     "stock.tideHistory: \"market tide over the last week\"",
+     "stock.tideHistory: \"how has the market tide been this week\""
+    ],
+    "args": [
+     "corpus stock.tideHistory"
+    ],
+    "execution": [
+     "stock.tideHistory (c)"
+    ],
+    "receipt": [
+     "stock.tideHistory (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.topFlowPicks": {
    "domain": "stock",
    "group": "marketBoards",
@@ -10713,6 +11523,114 @@
     ],
     "receipt": [
      "stock.topFlowPicks (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.treasuryYields": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.treasuryYields: \"treasury yields\"",
+     "stock.treasuryYields: \"what is the 10-year yield\"",
+     "stock.treasuryYields: \"is the yield curve inverted\"",
+     "stock.treasuryYields: \"where are bond yields\""
+    ],
+    "routing": [
+     "stock.treasuryYields: \"treasury yields\"",
+     "stock.treasuryYields: \"what is the 10-year yield\"",
+     "stock.treasuryYields: \"is the yield curve inverted\"",
+     "stock.treasuryYields: \"where are bond yields\""
+    ],
+    "args": [
+     "corpus stock.treasuryYields"
+    ],
+    "execution": [
+     "stock.treasuryYields (c)"
+    ],
+    "receipt": [
+     "stock.treasuryYields (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.uct20List": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.uct20List: \"the UCT 20\"",
+     "stock.uct20List: \"what is on the UCT 20 list\"",
+     "stock.uct20List: \"top five of the UCT 20\"",
+     "stock.uct20List: \"the UCT 20 leadership list\""
+    ],
+    "routing": [
+     "stock.uct20List: \"the UCT 20\"",
+     "stock.uct20List: \"what is on the UCT 20 list\"",
+     "stock.uct20List: \"top five of the UCT 20\"",
+     "stock.uct20List: \"the UCT 20 leadership list\""
+    ],
+    "args": [
+     "corpus stock.uct20List"
+    ],
+    "execution": [
+     "stock.uct20List (c)"
+    ],
+    "receipt": [
+     "stock.uct20List (c)"
     ],
     "refusal": [],
     "permission": [],

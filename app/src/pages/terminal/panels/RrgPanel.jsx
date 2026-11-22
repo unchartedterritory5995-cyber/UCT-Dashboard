@@ -138,14 +138,14 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
         <table className={styles.table} data-testid="terminal-rrg-table" aria-label={`Rotation quadrants vs ${RRG_BENCHMARK}`}>
           <thead>
             <tr>
-              <th scope="col">Symbol</th><th scope="col">Quadrant</th><th scope="col">{unit === 'week' ? 'Weeks' : 'Sessions'} in it</th>
-              <th scope="col">RS-Ratio</th><th scope="col">RS-Momentum</th><th scope="col">vs {RRG_BENCHMARK}, last {RRG_METHOD.tail} {unit}s</th>
+              <th scope="col">Symbol</th><th scope="col">Quadrant</th><th scope="col" className={styles.phoneWrap}>{unit === 'week' ? 'Weeks' : 'Sessions'} in it</th>
+              <th scope="col" className={styles.phoneHide}>RS-Ratio</th><th scope="col" className={styles.phoneHide}>RS-Momentum</th><th scope="col" className={styles.phoneWrap}>vs {RRG_BENCHMARK}, last {RRG_METHOD.tail} {unit}s</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
               <tr key={r.sym} data-testid={`terminal-rrg-row-${r.sym}`}>
-                <td>
+                <td className={styles.phoneWrap}>
                   <button type="button" className={styles.rowBtn} onClick={() => onRun?.(`$${r.sym}`, { keepFunction: true })} aria-current={linked === r.sym ? 'true' : undefined}
                     title={`Load ${r.sym} into the linked panels`}>
                     <span className={styles.rowNum}>{i + 1}</span>
@@ -156,8 +156,8 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
                 </td>
                 <td><span className={`${styles.quadPill} ${styles[P_CLASS[r.quadrant]]}`}>{r.quadrant}</span></td>
                 <td>{r.inQuadrant}</td>
-                <td>{formatNumber(r.ratio, { decimals: 2 })}</td>
-                <td>{formatNumber(r.momentum, { decimals: 2 })}</td>
+                <td className={styles.phoneHide}>{formatNumber(r.ratio, { decimals: 2 })}</td>
+                <td className={styles.phoneHide}>{formatNumber(r.momentum, { decimals: 2 })}</td>
                 <td className={r.relRet > 0 ? styles.up : r.relRet < 0 ? styles.down : undefined}>
                   {formatPercent(r.relRet, { decimals: 1, signed: true })}
                 </td>

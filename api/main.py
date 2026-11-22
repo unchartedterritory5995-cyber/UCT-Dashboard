@@ -7083,6 +7083,13 @@ async def lifespan(app: FastAPI):
         _bars_rebuild.start_background_sync()
     except Exception as e:  # noqa: BLE001
         print(f"[startup] rebuilt-history sync start failed (non-fatal): {e}")
+    # The published corrections ledger for served D/W/M bars (bars_corrections); inert with no manifest.
+    # BARS_CORRECTIONS_SERVE=0 = off.
+    try:
+        from api.services import bars_corrections as _bars_corrections
+        _bars_corrections.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        print(f"[startup] bars-corrections sync start failed (non-fatal): {e}")
 
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
@@ -8401,6 +8408,11 @@ async def lifespan(app: FastAPI):
                     breadth_ma_extra.scheduled_extend()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[ma-extra] extend failed: %s", _e)
+                try:   # the pre-built per-universe Monitor rows follow their overlays
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.kick_refresh()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] refresh failed: %s", _e)
 
             _scheduler.add_job(
                 _breadth_nhnl_extend,
@@ -8411,6 +8423,33 @@ async def lifespan(app: FastAPI):
                 _breadth_nhnl_extend, trigger="date",
                 run_date=_dt.now(_ET) + _td(minutes=12),
                 id="breadth_nhnl_extend_boot", replace_existing=True)
+
+            # ⭐ PRE-BUILT per-universe Monitor rows (US / Nasdaq / NYSE, the universe switcher):
+            # a full rebuild every night (a historical revision can never hide in the store), and
+            # a boot refresh that builds any universe whose store is empty. Requests only read.
+            def _breadth_universe_monitor_nightly():
+                try:
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.nightly()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] nightly failed: %s", _e)
+
+            def _breadth_universe_monitor_boot():
+                try:
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.kick_refresh()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] boot refresh failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_universe_monitor_nightly,
+                trigger=CronTrigger(day_of_week="mon-sat", hour=3, minute=25, timezone=_ET),
+                id="breadth_universe_monitor_nightly", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
+            _scheduler.add_job(
+                _breadth_universe_monitor_boot, trigger="date",
+                run_date=_dt.now(_ET) + _td(minutes=15),
+                id="breadth_universe_monitor_boot", replace_existing=True)
         except Exception:
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth put/call fill")
@@ -9016,6 +9055,20 @@ async def lifespan(app: FastAPI):
                 print("[startup] market-tide RTH warm: on (2-min cadence)")
         except Exception as e:
             print(f"[scheduler] market_tide_rth_warm job registration error: {e}")
+
+        # -- Market Tide by day (terminal tide history, 2026-11-19) --
+        # Stores each finished session's tide once, after the close: 16:33, 17:33 and 20:33 ET
+        # (three tries so a late tape still lands; a thinner read never replaces a fuller one).
+        # Always registered: the job reads the tide's own switch when it RUNS and returns
+        # without reading anything while it is off.
+        try:
+            from api.services.options_analytics import tide_history as _tide_history
+            _scheduler.add_job(_tide_history.run_capture_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16,17,20", minute=33, timezone=_ET),
+                id="market_tide_history_capture", max_instances=1, coalesce=True,
+                misfire_grace_time=1800, replace_existing=True)
+        except Exception as e:
+            print(f"[scheduler] market_tide_history_capture job registration error: {e}")
 
         # -- Twitter News Ingestion (spec 2026-05-25) ----------------------
         # Burst windows (every 2 min) cover the high-value pre-market and
@@ -10781,6 +10834,29 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] research depth job registration failed (non-fatal): {e}")
 
+        # INS CLUSTER (2026-11-21): insider cluster buys read from the SEC's own Form 4 filings
+        # (api/services/insider_clusters_sec.py). EDGAR's daily indexes are "updated nightly starting
+        # about 10:00 p.m., ET; the process is usually completed within a few hours" (the SEC's
+        # "Accessing EDGAR Data" page), so the read runs at 01:20 ET Tuesday to Saturday, the night
+        # after each weekday, clear of the 01:47 and 02:00 jobs. The job only starts the module's own
+        # thread (one run at a time) and returns; nothing on a member's request ever starts it.
+        _boot_mark("S10236")
+        try:
+            def _insider_clusters_sec_job():
+                from api.services import insider_clusters_sec as _ics
+                print(f"[scheduler] insider clusters (SEC Form 4) read: {_ics.run_nightly()}")
+
+            from api.services import insider_clusters_sec as _ics_mod
+            _scheduler.add_job(
+                _insider_clusters_sec_job,
+                trigger=CronTrigger(day_of_week="tue-sat", hour=_ics_mod.RUN_AT_ET[0],
+                                    minute=_ics_mod.RUN_AT_ET[1], timezone=_ET),
+                id="insider_clusters_sec_nightly", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            print("[startup] insider clusters (SEC Form 4) scheduled -- Tue-Sat 01:20 ET")
+        except Exception as e:
+            print(f"[startup] insider clusters job registration failed (non-fatal): {e}")
+
         # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
         # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
         # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).
@@ -11095,6 +11171,27 @@ async def lifespan(app: FastAPI):
             print("[startup] notebook passed-setups nightly registered (17:40 ET weekdays)")
         except Exception as e:
             print(f"[startup] notebook passed-setups registration failed (non-fatal): {e}")
+        # GRP / GRPS (2026-11-21) -- group fundamentals and breadth: every sector and industry's medians
+        # from the point-in-time filings store and its breadth from stored closes, built ONCE each evening
+        # on a background thread and held (api/services/group_stats.py). Each tick starts the build only
+        # in the quiet span (from 20:15 ET on a weekday, or a weekend) and only when the held answer is
+        # older than the newest session's evening (or that evening fell short and is retried, at most
+        # three times), so the eight evening ticks build once; the boot tick catches an evening a
+        # restart missed. Never on a member's request. Rail: tests/test_group_stats.py.
+        _boot_mark("GRPS-evening")
+        try:
+            from datetime import datetime as _grp_dt, timedelta as _grp_td
+            from api.services import group_stats as _group_stats
+            _scheduler.add_job(_group_stats.scheduled_refresh,
+                               trigger=CronTrigger(hour="20-23", minute="20,50", timezone=_ET),
+                               id="group_stats_evening", max_instances=1, coalesce=True,
+                               misfire_grace_time=1200, replace_existing=True)
+            _scheduler.add_job(_group_stats.scheduled_refresh, trigger="date",
+                               run_date=_grp_dt.now(_ET) + _grp_td(seconds=600),
+                               id="group_stats_boot", replace_existing=True)
+            print("[startup] group fundamentals and breadth registered (evening ticks 20:20-23:50 ET, boot +10 min)")
+        except Exception as e:
+            print(f"[startup] group fundamentals and breadth registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 
@@ -12067,6 +12164,8 @@ app.include_router(analyst_revisions_router.router)  # /api/research/analyst-rev
 app.include_router(iv_history_router.router)  # /api/research/iv-history/{sym}[/implied-vs-realized] — our own options log, paid, read-only, DARK (IV_HISTORY_ENABLED)
 from api.routers import treasury_yields as treasury_yields_router  # noqa: E402  (RATES: Treasury yields and the curve, paid)
 app.include_router(treasury_yields_router.router)  # /api/research/treasury-yields
+from api.routers import treasury_auctions as treasury_auctions_router  # noqa: E402  (AUCT: Treasury auctions, upcoming and results, paid)
+app.include_router(treasury_auctions_router.router)  # /api/research/treasury-auctions
 app.include_router(options_screener_router.router)  # /api/options-screener/{screen,unusual-volume,iv-percentile} — COV-02/03 over our own options log, paid, read-only, DARK (OPTIONS_SCREENER_ENABLED)
 app.include_router(yf_guard_router.router, dependencies=_OPEN_READS)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
@@ -12155,10 +12254,28 @@ from api.routers import screen_promote as screen_promote_router  # noqa: E402  (
 app.include_router(screen_promote_router.router)
 from api.routers import list_alerts as list_alerts_router  # noqa: E402  (Terminal list alerts, dark)
 app.include_router(list_alerts_router.router)
+from api.routers import crypto as crypto_router  # noqa: E402  (Bitcoin BTC/USD from FMP, dark)
+app.include_router(crypto_router.router)
 from api.routers import short_data as short_data_router  # noqa: E402  (SHINT / SHRTS: FINRA short interest and short volume, paid)
 app.include_router(short_data_router.router)
 from api.routers import dilution_watch as dilution_watch_router  # noqa: E402  (DILU: share-issuance filings from SEC EDGAR, paid)
 app.include_router(dilution_watch_router.router)  # /api/research/dilution-watch/{ticker}
+from api.routers import corporate_actions as corporate_actions_router  # noqa: E402  (CACT: splits and dividends the server already holds, paid)
+app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
+from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
+app.include_router(fed_watch_router.router)  # /api/research/fed-watch
+from api.routers import market_history as market_history_router  # noqa: E402  (MKTH: corrections, bear markets, the rallies and their leaders, paid)
+app.include_router(market_history_router.router)  # /api/research/market-history
+from api.routers import group_stats as group_stats_router  # noqa: E402  (GRP / GRPS: group fundamentals and breadth, built each evening, paid)
+app.include_router(group_stats_router.router)  # /api/research/group-stats
+from api.routers import market_dividends as market_dividends_router  # noqa: E402  (DVD MARKET: the market's ex-dividend dates and splits, this week and next, paid)
+app.include_router(market_dividends_router.router)  # /api/research/market-dividends
+from api.routers import revenue_segments as revenue_segments_router  # noqa: E402  (SEG: one stock's revenue by product and by region, paid)
+app.include_router(revenue_segments_router.router)  # /api/research/revenue-segments/{ticker}
+from api.routers import mergers as mergers_router  # noqa: E402  (MNA: the latest M&A deals, or one company's, paid)
+app.include_router(mergers_router.router)  # /api/research/mergers
+from api.routers import index_changes as index_changes_router  # noqa: E402  (IDXC: S&P 500, Nasdaq 100 and Dow additions and removals, paid)
+app.include_router(index_changes_router.router)  # /api/research/index-changes
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)

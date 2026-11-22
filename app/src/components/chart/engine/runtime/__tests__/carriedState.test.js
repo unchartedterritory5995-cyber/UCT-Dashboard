@@ -32,7 +32,7 @@ import { execute } from '../vm.js'
 import { RuntimeLimitError } from '../limits.js'
 import { translatePine } from '../../ast/pine.js'
 import { parseFormula } from '../../ast/parse.js'
-import { interpret, CARRIED, FINITE_WINDOW, BINARY } from '../../ast/interpret.js'
+import { interpret, CARRIED, FINITE_WINDOW, BINARY, carriedCellsOf, exactSum } from '../../ast/interpret.js'
 
 const N = 40
 // ⛔ A MOVING SOURCE. On a flat series an EMA, an RMA and the source itself all
@@ -524,7 +524,7 @@ describe('⭐⭐⭐ VENDOR — what TradingView actually does (2026-09-08)', () 
       expect(h[at + 1].ena, 'and a number arrives on the VERY NEXT bar').not.toBeNull()
       for (const [fn, key, k] of [['ema', 'ena', 2 / 11], ['rma', 'rna', 1 / 10]]) {
         const spec = CARRIED[fn]
-        const st = new Float64Array(spec.cells)
+        const st = new Float64Array(carriedCellsOf(spec, 10))
         st[0] = h[at - 1][key]; st[1] = 10; st[2] = 0
         expect(Number.isNaN(spec.step(st, 0, NaN, 10, k)), `${fn}: the hole is na`).toBe(true)
         expect(spec.step(st, 0, h[at + 1].srcna, 10, k), `${fn} after the hole`)
@@ -566,18 +566,21 @@ plot(ta.sma(x, 10))
 })
 
 describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intentionally moved', () => {
+  /** ⭐ RMA-SEED (engine 92) — Wilder's seed is the EXACTLY ROUNDED sum of the first `n` values / `n`
+   *  (`exactSum`, SMA-EXACT's own rail `smaExactSum.test.js`); the exponential seed stays the running sum. */
+  const seedOf = (vals, n, wilder) => (wilder ? exactSum(vals, 0, n - 1) / n : vals.reduce((s, x) => s + x, 0) / n)
   /** The loop as it stood BEFORE 2F-2C, transcribed. ⛔ An independent longhand,
    *  not a call into the thing under test. It RESETS on a non-finite value, which
    *  is the behaviour the owner ruled wrong on 2026-09-08. */
   function preCorrectionSmooth(series, n, k, wilder = false) {
     const out = new Float64Array(series.length).fill(NaN)
-    let prev = NaN; let count = 0; let sum = 0
+    let prev = NaN; let vals = []
     for (let i = 0; i < series.length; i += 1) {
       const v = series[i]
-      if (!Number.isFinite(v)) { prev = NaN; count = 0; sum = 0; continue }
+      if (!Number.isFinite(v)) { prev = NaN; vals = []; continue }
       if (Number.isNaN(prev)) {
-        sum += v; count += 1
-        if (count === n) { prev = sum / n; out[i] = prev }
+        vals.push(v)
+        if (vals.length === n) { prev = seedOf(vals, n, wilder); out[i] = prev }
       } else { prev = wilder ? (prev * (n - 1) + v) / n : prev * (1 - k) + v * k; out[i] = prev }
     }
     return out
@@ -585,13 +588,13 @@ describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intention
   /** The same loop with the ONE ruled change: a non-finite value HOLDS. */
   function holdSmooth(series, n, k, wilder = false) {
     const out = new Float64Array(series.length).fill(NaN)
-    let prev = NaN; let count = 0; let sum = 0
+    let prev = NaN; const vals = []
     for (let i = 0; i < series.length; i += 1) {
       const v = series[i]
       if (!Number.isFinite(v)) continue
       if (Number.isNaN(prev)) {
-        sum += v; count += 1
-        if (count === n) { prev = sum / n; out[i] = prev }
+        vals.push(v)
+        if (vals.length === n) { prev = seedOf(vals, n, wilder); out[i] = prev }
       } else { prev = wilder ? (prev * (n - 1) + v) / n : prev * (1 - k) + v * k; out[i] = prev }
     }
     return out
@@ -599,7 +602,7 @@ describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intention
   /** The SHIPPED path, driven through the shared step. */
   function viaTable(series, n, fn) {
     const spec = CARRIED[fn]
-    const st = new Float64Array(spec.cells)
+    const st = new Float64Array(carriedCellsOf(spec, n))
     spec.init(st, 0)
     const k = spec.alpha(n)
     return Array.from(series, (v) => spec.step(st, 0, v, n, k))

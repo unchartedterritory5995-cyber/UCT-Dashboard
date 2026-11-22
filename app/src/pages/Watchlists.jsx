@@ -26,7 +26,7 @@
 //     you chose yourself will happily exercise code no user can reach — that
 //     mistake already cost one design rework (2026-07-31).
 //
-import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense, startTransition } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { useUctHeaderSlot, useUctControlsSlot, useUctRowIsSub } from './charts/uctHeaderSlot'
@@ -100,6 +100,7 @@ import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../li
 import useTagColors from '../hooks/useTagColors'
 import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB, createNeighborHold } from '../utils/barsWarm'
 import { scanNeighbors } from '../utils/scanNeighbors'
+import { publishScanNeighbors } from '../components/chart/neighborFrames'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
 import ArtifactHistory, { useArtifactVersionsAvailable } from '../components/artifactHistory/ArtifactHistory'
@@ -689,6 +690,13 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     scrollMargin,
     // See rafObserveElementRect above — prevents the narrow-width #185 crash.
     observeElementRect: rafObserveElementRect,
+    // ⭐ (2026-11-20, switch profile) NO flushSync ON SCROLL. react-virtual's default re-renders through
+    // `flushSync` on every scroll event while the list scrolls (`isScrolling`), and the arrow key's
+    // `scrollIntoView` is such a scroll: that forced the whole pending chart switch to render and commit
+    // synchronously inside the scroll handler (23 ms a two-chart list flip, profiled on production). As an
+    // ordinary update it batches with the switch. The selected row needs no new render to be seen: it is
+    // already mounted (the window plus `overscan`), and the browser scrolls it into view itself.
+    useFlushSync: false,
   })
   const vItems = virt.getVirtualItems()
   const first = vItems.length ? vItems[0].index : 0
@@ -985,7 +993,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // A ticker the user CLICKED in the list (vs searched): the scan list must NOT scroll to
   // it — only the gold highlight moves. The list only snaps on an external SEARCH.
   const clickSelectRef = useRef(null)
-  const { sym: hubSym, setSym: setHubSym, tf: hubTf } = useChartsSym()
+  const { sym: hubSym, setSym: setHubSym, tf: hubTf, tfs: hubTfs } = useChartsSym()
   useEffect(() => {
     if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
   }, [hubSym]) // intentionally do NOT depend on selectedSym (avoid feedback loop)
@@ -1031,9 +1039,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // bars cache is actually keyed by — warming `SYM_2` for a 2m chart warms
   // nothing (measured: 2m "warm" p50 409ms == cold).
   const warmTf = fetchTf((embedded && hubTf) || chartPeriod)
+  // ⭐ EVERY LINKED CHART'S TIMEFRAME (2026-11-19). A daily and an hourly chart on this list's colour
+  // each need their next rows warm: `hubTf` is only the LAST chart to publish, so the other one waited
+  // on the network at every flip (production, S&P 500, D + 60m: 501 ms against 9 ms). `hubTfs` is
+  // every chart registered on the colour (ChartsWorkspace registerGroupTf); `warmTf` stays first.
+  const warmTfsKey = [...new Set([warmTf, ...((embedded && Array.isArray(hubTfs)) ? hubTfs : []).map(fetchTf)].filter(Boolean))].join(',')
+  const warmTfs = useMemo(() => warmTfsKey.split(',').filter(Boolean), [warmTfsKey])
   // Row-intent handlers below are stable callbacks, so they read through a ref.
   const warmTfRef = useRef(warmTf)
   warmTfRef.current = warmTf
+  const warmTfsRef = useRef(warmTfs)
+  warmTfsRef.current = warmTfs
   const [flagToast, setFlagToast] = useState(null)
   const [expandedLists, setExpandedLists] = useState(new Set())
   const [showCreate, setShowCreate] = useState(false)
@@ -1359,9 +1375,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [scanVisibleSyms, setScanVisibleSyms] = useState([])
   // Report the visible scan window to the caller too (e.g. Custom-Period Sort warms
   // the deep chart history of what's on-screen as you scroll), then update local state.
+  // ⛔ STORED ONLY WHEN THE STREAM READS IT (2026-11-20). `allTickers` below takes the visible
+  // window only for a scan over 800 rows; a smaller scan streams every row. Storing the window
+  // anyway re-rendered the WHOLE watchlist (and re-derived `allTickers`, the price map and the
+  // sort) every time a scroll moved the window by one row — on the Breadth drill, once per arrow
+  // key, which is what made a fast scan lag (production CPU profile: 50-100 ms per scroll).
+  const scanVisibleNeededRef = useRef(false)
+  const lastScanVisibleRef = useRef([])
   const handleScanVisible = useCallback((syms) => {
     onScanVisibleSyms?.(syms)
-    setScanVisibleSyms(syms)
+    lastScanVisibleRef.current = syms
+    if (scanVisibleNeededRef.current) setScanVisibleSyms(syms)
   }, [onScanVisibleSyms])
   // Which symbols each VIRTUALIZED watchlist group currently has on screen, keyed by
   // list id so several open lists can each report their own window.
@@ -1493,6 +1517,21 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     tickers.push(...visibleFromVirtualized)
     return tickers
   }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode, scanWl, scanVisibleSyms, visibleFromVirtualized, groupMode, scanGroups])
+  // Exactly the two `> 800` branches above that return `scanVisibleSyms`.
+  const scanVisibleNeeded = useMemo(() => {
+    if (!scanMode) return false
+    if (groupMode && scanGroups) {
+      let n = 0
+      for (const m of Object.values(scanGroups)) if (Array.isArray(m)) n += m.length
+      return n > 800
+    }
+    return (scanWl?.items?.length || 0) > 800
+  }, [scanMode, groupMode, scanGroups, scanWl])
+  useEffect(() => {
+    scanVisibleNeededRef.current = scanVisibleNeeded
+    // A scan that grows past the bound starts from the window already reported.
+    if (scanVisibleNeeded) setScanVisibleSyms(lastScanVisibleRef.current)
+  }, [scanVisibleNeeded])
 
   const { prices: feedPrices } = useRealtimePrices(allTickers)
   // The whole-list SORT VECTOR — one slow pass at 15 s, matching the server's own
@@ -1696,6 +1735,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // already uses this idiom (`rowStateRef`) to keep callbacks stable. Written by an
   // effect beside that memo; read only inside the handler, which runs after render.
   const navOrderRef = useRef({ syms: [], virtualized: false })
+  // The row an arrow press asked for whose (transition) render has not committed yet, and the
+  // `selectedSym` it stepped from: a stale entry (the selection moved some other way) is ignored.
+  const navPendingRef = useRef(null)
 
   // Build a flat, deduped, top-to-bottom list of every sym currently visible
   // across expanded watchlists / flagged / color-tag auto-lists. Arrow keys
@@ -1778,7 +1820,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       }
       if (!flat.length) flat = nav.syms.length ? nav.syms : visibleSymsFlat
       if (!flat.length) return
-      const idx = selectedSym ? flat.indexOf(selectedSym) : -1
+      // A press made while the previous one's render is still pending steps from THAT target,
+      // not from the committed `selectedSym` (see the transition below).
+      const pending = navPendingRef.current
+      const fromSym = pending && pending.base === selectedSym ? pending.sym : selectedSym
+      const idx = fromSym ? flat.indexOf(fromSym) : -1
       // If selection is set but not in THIS widget's list, don't navigate —
       // another widget (Themes, etc.) owns the selection and its own handler responds.
       if (idx < 0 && selectedSym) return
@@ -1797,8 +1843,23 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       }
       const nextSym = flat[next]
       if (nextSym) {
-        if (nextSym !== selectedSym) setSelectedSym(nextSym)
-        setHubSym(nextSym)   // always re-assert so this widget wins the color group
+        // ⭐ A TRANSITION, NOT A SYNC RENDER PER KEY (2026-11-20). An arrow key is a discrete
+        // event, so these two updates rendered the whole list AND the linked chart synchronously
+        // (~50 ms a press on the Breadth drill, production profile); a fast scan queued them and
+        // the chart landed ~0.5-1 s after the last key. As a transition, a press made while the
+        // previous render is still running interrupts it: the list jumps straight to the newest row
+        // instead of rendering every row in between, and so does a chart whose host keeps the group
+        // symbol in React state (the Breadth drill).
+        // ⛔ (corrected 2026-11-21) NOT the /charts board's charts: they read the group symbol through
+        // useSyncExternalStore (groupSymsStore.js), and React renders a store change made inside a
+        // transition as BLOCKING, so they render synchronously on every press. What keeps a fast scan
+        // there from drawing every row is the handoff's settle rule (useSymbolHandoff), and the board's
+        // setGroupSym decides the switch in this press (hooks/handoffGroups.js): one render, one frame.
+        navPendingRef.current = { sym: nextSym, base: selectedSym }
+        startTransition(() => {
+          if (nextSym !== selectedSym) setSelectedSym(nextSym)
+          setHubSym(nextSym)   // always re-assert so this widget wins the color group
+        })
       }
     }
     // ⛔ THIS USED TO BE GATED ON `flagged.includes(selectedSym)` AND CALL
@@ -1862,8 +1923,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // for a short one.
   useEffect(() => {
     if (!allTickers.length) return
-    prewarmVisibleList(allTickers, { chartTf: warmTf })
-  }, [allTickers, warmTf])
+    for (const tf of warmTfs) prewarmVisibleList(allTickers, { chartTf: tf })
+  }, [allTickers, warmTfs])
 
   // Same-frame scan paint: promote the ±6 arrow-nav neighbors' cached bars from
   // IndexedDB into the synchronous mem cache (zero network) so the NEXT press
@@ -1887,9 +1948,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // The store keeps the ±6 rows around the selection in memory while they are neighbors
   // (barsWarm.createNeighborHold): a list warm of ~100 rows × (chart tf + daily) fills the
   // store's LRU and evicted them before the member arrived (flip proof 2026-11-17).
-  const _holdRef = useRef(null)
-  if (!_holdRef.current) _holdRef.current = createNeighborHold()
-  useEffect(() => () => _holdRef.current.clear(), [])
+  // ONE HOLD PER TIMEFRAME: a hold's `set` keeps only the keys of the timeframe it is given, so two
+  // linked charts (D + 60m) each get their own.
+  const _holdsRef = useRef(new Map())   // tf -> hold
+  useEffect(() => () => { for (const h of _holdsRef.current.values()) h.clear(); _holdsRef.current.clear() }, [])
   useEffect(() => {
     if (!selectedSym) return
     let flat = []
@@ -1912,14 +1974,23 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     _scanPrevRef.current = { sym: selectedSym, idx }
     // Moving up when the previous row sits just below (wrap-aware); down otherwise.
     const dir = (prev.sym && prev.idx >= 0 && prev.idx === (idx + 1) % len) ? -1 : 1
-    const tf = warmTf || 'D'
+    const tfs = warmTfs.length ? warmTfs : ['D']
     const around = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 6 })
+    // ⭐⭐ NEIGHBOR FRAMES (`uct.neighborframes`): the charts on this list's colour prepare the next rows
+    // (±1, then ±2, the way the member is moving first) in idle time. A no-op with the switch off.
+    publishScanNeighbors(selectedSym, scanNeighbors(flat, idx, dir, { ahead: 2, behind: 0 }),
+      scanNeighbors(flat, idx, -dir, { ahead: 2, behind: 0 }))
     const next = scanNeighbors(flat, idx, dir, { ahead: SCAN_URGENT_NEXT, behind: 0 })
-    // `deep`: once the member rests here, the next rows' older history loads too, so the flip
-    // paints them as deep as the chart would reach after its own wait (createNeighborHold).
-    _holdRef.current.set(around, tf, { deep: next })
-    warmMemFromIDB(around, [tf])
-    prefetchBarsToIDB(scanNeighbors(flat, idx, dir, { ahead: 6, behind: 2 }), tf, { priority: true })
+    const holds = _holdsRef.current
+    for (const [htf, h] of holds) if (!tfs.includes(htf)) { h.clear(); holds.delete(htf) }
+    for (const tf of tfs) {
+      if (!holds.has(tf)) holds.set(tf, createNeighborHold())
+      // `deep`: once the member rests here, the next rows' older history loads too, so the flip
+      // paints them as deep as the chart would reach after its own wait (createNeighborHold).
+      holds.get(tf).set(around, tf, { deep: next })
+    }
+    warmMemFromIDB(around, tfs)
+    for (const tf of tfs) prefetchBarsToIDB(scanNeighbors(flat, idx, dir, { ahead: 6, behind: 2 }), tf, { priority: true })
     // ⭐ THE NEXT ROWS, URGENT (2026-11-17). The line above is a background warm, HELD while the
     // daily pack ingests (`_holdBackgroundWarm`: a first visit is 90 s+, and a profile whose pack
     // never stamped holds it for good). Measured in the flip proof with the pack unstamped: the
@@ -1927,9 +1998,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // (first candles 96-221 ms). The screener already bypasses the hold for its next rows
     // (useFocusSelection URGENT_NEXT); the watchlist now does the same for the rows the member
     // is about to reach. Only the latest urgent call stays urgent: a held arrow key aborts the
-    // rows it has passed, so a fast scan costs at most SCAN_URGENT_NEXT requests in flight.
-    prefetchBars(next, tf, { urgent: true })
-  }, [selectedSym, visibleSymsFlat, warmTf])
+    // rows it has passed, so a fast scan costs at most SCAN_URGENT_NEXT requests in flight (per
+    // timeframe: an urgent call only aborts its own timeframe's passed rows).
+    for (const tf of tfs) prefetchBars(next, tf, { urgent: true })
+  }, [selectedSym, visibleSymsFlat, warmTfs])
 
   // Prefetch all timeframes for current ticker + adjacent flagged tickers
   // ⛔ W-L (2026-11-11): ONLY ONCE THE SELECTION RESTS. Fired on every press, a 98-row scan
@@ -1943,9 +2015,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const idx = flagged.indexOf(selectedSym)
     if (idx < 0) return () => clearTimeout(t)
     const upcoming = flagged.slice(idx + 1, idx + 6)
-    prefetchBars(upcoming, warmTf)
+    for (const tf of warmTfs) prefetchBars(upcoming, tf)
     return () => clearTimeout(t)
-  }, [selectedSym, flagged, warmTf])
+  }, [selectedSym, flagged, warmTfs])
 
   function toggleList(id) {
     setExpandedLists(prev => {
@@ -2825,7 +2897,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     } catch { /* a review is a convenience; the chart is not */ }
   }, [])
   const onRowFlag = useCallback((sym) => rowStateRef.current.toggleFlag(sym), [])
-  const onRowIntent = useCallback((sym) => prefetchBarOnIntent(sym, warmTfRef.current), [])
+  const onRowIntent = useCallback((sym) => { for (const tf of warmTfsRef.current) prefetchBarOnIntent(sym, tf) }, [])
   const onRowCtx = useCallback((e, sym, wlId, isOwner) => {
     e.preventDefault(); e.stopPropagation()
     // Community lists aren't yours — no add/remove/notes, so no row menu at all.

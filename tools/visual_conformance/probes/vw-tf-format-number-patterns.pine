@@ -1,0 +1,60 @@
+//@version=6
+indicator("UCTPROBE_VW_TF_FORMAT_NUMBER_PATTERNS", overlay = true)
+
+// PROVENANCE: written 2026-11-19 (Q-TF-N-a, docs/pine/capture-queue-2026-11-20-text-format.md). Our probe, licence `probe`.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+//
+// ─── `str.format` NUMBERS: THE PATTERNS, TIES, SIGNS AND SIZES NO CAPTURE SHOWS YET ───
+//
+// Settled already: `{0}` rounds the exact binary value to three decimals (liquidation-levels 120.42566... ->
+// "120.426"; vw-fmt-tie-readings T24 1.0005 -> "1", T25 2.0625 -> "2.062"); `{0,number,#.##}` has the LENGTH of
+// str.tostring(x, "#.##") on 300 SPY closes, none a tie (w3-format F12). Open, and asked here:
+//   N01  a DECIMAL tie through `{N,number,#.##}`. str.tostring prints these half-up on the shortest decimal
+//        (T01-T07: 1.005 -> "1.01"); the engine prints them from the binary value today (1.005 -> "1"):
+//        which one does str.format draw?
+//   N02  exact binary ties at the second decimal; N04 halves under `#` (half-even would print 0 | 2 | 2 | -0 | -2)
+//   N03  a value rounding to zero from below, 0, a value of 1000 and more, and one that rounds UP to 1000
+//   N05-N08  other patterns; N09 grouping under `{N}`; N10 the direction of an exact tie under `{N}`
+//        (2.0625 is "2.062"; 2.1875 / 2.4375 tell half-even from half-down); N11 small values and -0;
+//        N12 a text, a bool and an int handed to `{N}`
+//   N13  a pattern built while the bar runs; N14 a pattern held in a name (the engine reads this one today);
+//        N15 `close` through `{0,number,#.##}` (continuity with F12)
+// Each cell is ONE str.format call over several arguments, joined by " | " inside its pattern.
+//
+// CAPTURE: AMEX:SPY 1D, inputs at defaults.
+
+string np = "{0,number,#.##}"
+string ns = bar_index >= 0 ? "{0,number,#.##}" : "?"
+
+if barstate.islast
+    var table t = table.new(position.top_right, 2, 15)
+    table.cell(t, 0, 0, "N01 {N,number,#.##} decimal ties")
+    table.cell(t, 1, 0, str.format("{0,number,#.##} | {1,number,#.##} | {2,number,#.##} | {3,number,#.##} | {4,number,#.##} | {5,number,#.##}", 1.005, 163.265, 145.795, 2.675, 127.705, -1.005))
+    table.cell(t, 0, 1, "N02 {N,number,#.##} exact binary ties")
+    table.cell(t, 1, 1, str.format("{0,number,#.##} | {1,number,#.##} | {2,number,#.##} | {3,number,#.##}", 0.125, 0.375, 0.625, -0.125))
+    table.cell(t, 0, 2, "N03 {N,number,#.##} zero, sign, size")
+    table.cell(t, 1, 2, str.format("{0,number,#.##} | {1,number,#.##} | {2,number,#.##} | {3,number,#.##}", -0.004, 0.0, 1234.5678, 999.995))
+    table.cell(t, 0, 3, "N04 {N,number,#} halves")
+    table.cell(t, 1, 3, str.format("{0,number,#} | {1,number,#} | {2,number,#} | {3,number,#} | {4,number,#}", 0.5, 1.5, 2.5, -0.5, -2.5))
+    table.cell(t, 0, 4, "N05 {N,number,0.00}")
+    table.cell(t, 1, 4, str.format("{0,number,0.00} | {1,number,0.00} | {2,number,0.00} | {3,number,0.00} | {4,number,0.00}", 12.3456789, 1.005, -0.004, 1234.5678, 0.5))
+    table.cell(t, 0, 5, "N06 {N,number,#.####}")
+    table.cell(t, 1, 5, str.format("{0,number,#.####} | {1,number,#.####} | {2,number,#.####} | {3,number,#.####}", 0.000123456, 12.3456789, -12.3456789, 1.00005))
+    table.cell(t, 0, 6, "N07 {N,number,#,##0.00}")
+    table.cell(t, 1, 6, str.format("{0,number,#,##0.00} | {1,number,#,##0.00} | {2,number,#,##0.00} | {3,number,#,##0.00}", 1234.5678, 1234567.891, -1234.5678, 0.5))
+    table.cell(t, 0, 7, "N08 {N,number,##.##}")
+    table.cell(t, 1, 7, str.format("{0,number,##.##} | {1,number,##.##} | {2,number,##.##}", 12.3456789, 0.5, 1234.5678))
+    table.cell(t, 0, 8, "N09 {N} grouping")
+    table.cell(t, 1, 8, str.format("{0} | {1} | {2} | {3} | {4} | {5}", 1234.5678, 1234567.891, -1234.5678, 999.9996, 1000.0, 1234567))
+    table.cell(t, 0, 9, "N10 {N} exact binary ties (3 dp)")
+    table.cell(t, 1, 9, str.format("{0} | {1} | {2} | {3} | {4}", 2.0625, 2.1875, 2.4375, -2.0625, 0.0625))
+    table.cell(t, 0, 10, "N11 {N} small, negative zero")
+    table.cell(t, 1, 10, str.format("{0} | {1} | {2}", -0.0004, 0.000123456, 0.0005))
+    table.cell(t, 0, 11, "N12 {N} text, bool, int")
+    table.cell(t, 1, 11, str.format("{0} | {1} | {2}", "txt", true, 7))
+    table.cell(t, 0, 12, "N13 pattern built while the bar runs")
+    table.cell(t, 1, 12, str.format(ns, 12.3456789))
+    table.cell(t, 0, 13, "N14 pattern held in a name")
+    table.cell(t, 1, 13, str.format(np, 12.3456789))
+    table.cell(t, 0, 14, "N15 close")
+    table.cell(t, 1, 14, str.format("{0,number,#.##}", close))

@@ -16,13 +16,24 @@
 # comparison role (Pine's tolerant compare): a new call site anywhere in the app must run it.
 # 2026-11-19: + heldSpanFollowsChart.test.js, which reads app/src/components/StockChart.jsx (the held span it hands
 # useSecondarySources) and api/routers/bars.py (/api/bars's le=60000, the ladder's top rung): either can break it.
+# 2026-11-19 (engine 88 train, #2108's miss, coordinator ruling): + heldWithholds.savedCopies.test.js, which reads
+# tests/fixtures/held_withhold_keys.json (the held-withhold stamp keys the browser and the server both assert): a PR
+# that changes the key fixture and never touches the engine must run it.
+# 2026-11-20: + vendorHarness/historyClaim.test.js, which walks app/src and tools/vendor_harness for any grader that
+# reads `history.startsAtBar0` raw instead of through tools/vendor_harness/history_claim.mjs (one authority).
+# 2026-11-20: + binderSeriesDataSpread.rail.test.js, which reads app/src/components/StockChart.jsx (the chart opts the
+# binder into spreading a heavy pass's series data only where the candles are the indicators' bars, and applies the
+# queue before its live writer and its end labels): a PR that changes those sites and never touches the engine must run it.
+# 2026-11-20: + runtime/__tests__/strategyDeepStart.test.js, which reads app/src/components/StockChart.jsx (a daily chart
+# holding a strategy asks for its full daily history) and app/src/utils/barsBackfill.js (the daily depth pinned to the
+# strategy window): a PR that changes either and never touches the engine must run it.
 src/components/chart/engine/__tests__/bindSymbolFields.rail.test.js
+src/components/chart/engine/__tests__/binderSeriesDataSpread.rail.test.js
 src/components/chart/engine/__tests__/controlDoorCensus.test.js
 src/components/chart/engine/__tests__/dataSourcesRevalidate.test.jsx
 src/components/chart/engine/__tests__/displayTargetOneWriter.test.js
 src/components/chart/engine/__tests__/engineEnabledMigration.test.js
 src/components/chart/engine/__tests__/enumerationSites.test.js
-src/components/chart/engine/__tests__/eventColumns.test.js
 src/components/chart/engine/__tests__/flipB.test.jsx
 src/components/chart/engine/__tests__/flipCGeometry.test.jsx
 src/components/chart/engine/__tests__/flipCRecord.test.js
@@ -35,7 +46,6 @@ src/components/chart/engine/__tests__/markerHost.test.js
 src/components/chart/engine/__tests__/memberPaneGate.test.js
 src/components/chart/engine/__tests__/objectTableDom.test.js
 src/components/chart/engine/__tests__/parityGateBlindness.test.js
-src/components/chart/engine/__tests__/pineImportHold.test.js
 src/components/chart/engine/__tests__/pineRuntimeFrontendGate.test.js
 src/components/chart/engine/__tests__/priceLineStyleSweep.test.js
 src/components/chart/engine/__tests__/primitiveGate.test.js
@@ -48,6 +58,7 @@ src/components/chart/engine/__tests__/settingsBlobMigration.test.js
 src/components/chart/engine/__tests__/singleWriterIndex.test.js
 src/components/chart/engine/__tests__/storeIntradayAgreement.test.js
 src/components/chart/engine/__tests__/suiteCoverage.test.js
+src/components/chart/engine/__tests__/vendorHarness/historyClaim.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.c45BarIndex.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.l8RecordedSupply.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.reqBareSecurityForced.test.js
@@ -72,8 +83,8 @@ src/components/chart/engine/ast/symbolScopeProse.test.js
 src/components/chart/engine/ast/thinkscript.test.js
 src/components/chart/engine/defSchema.test.js
 src/components/chart/engine/heldSpanFollowsChart.test.js
+src/components/chart/engine/heldWithholds.savedCopies.test.js
 src/components/chart/engine/hostKnownDivergence.test.js
-src/components/chart/engine/lineIdentity.test.js
 src/components/chart/engine/nativeRegistry.test.js
 src/components/chart/engine/paneLayout.test.js
 src/components/chart/engine/pineCompareCensus.test.js
@@ -84,6 +95,7 @@ src/components/chart/engine/runtime/__tests__/minContractLock.test.js
 src/components/chart/engine/runtime/__tests__/runtimeDoorBudget.rail.test.js
 src/components/chart/engine/runtime/__tests__/runtimeInputKinds.test.js
 src/components/chart/engine/runtime/__tests__/serverBundle.rail.test.js
+src/components/chart/engine/runtime/__tests__/strategyDeepStart.test.js
 src/components/chart/engine/runtime/__tests__/timeframeInputSetting.test.js
 src/components/chart/engine/runtime/__tests__/w9T11Record.test.js
 src/components/chart/engine/runtime/__tests__/w9T1Broker.test.js

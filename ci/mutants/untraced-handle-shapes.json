@@ -1,0 +1,33 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "Untraced-handle shapes (fix/pine-host-untraced-handle-shapes; FIELD REGISTER STEP A's class sweep): a delete / setter on a field read off an expression is `object.<method>` by name, and an `object.set_*` setter reaches every family with that setter. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "M1",
+   "mutant": "a delete on a field read off an expression vanishes again (emitPostfix answers false)",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "    if (recv && recv.type === 'member') {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostUntracedHandleShapes.test.js",
+   "expectRed": "zs.get(0).lb.delete()"
+  },
+  {
+   "id": "M2",
+   "mutant": "a setter on a field read off an expression is not counted (delete only)",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "      if (method !== 'delete' && !method.startsWith('set_')) return false",
+   "to": "      if (method !== 'delete') return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostUntracedHandleShapes.test.js",
+   "expectRed": "zs.get(0).lb.set_x"
+  },
+  {
+   "id": "M3",
+   "mutant": "an `object.set_*` setter reaches no family again (C45 reads `object` as a family)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (m) lostSetterName(m[1] === 'object' ? null : m[1], m[2], via, null)",
+   "to": "      if (m) lostSetterName(m[1], m[2], via, null)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostUntracedHandleShapes.test.js",
+   "expectRed": "(c ? l1 : f()).set_x"
+  }
+ ]
+}

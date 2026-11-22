@@ -53,7 +53,12 @@ DATE_TFS = ("D", "W", "M")
 _CACHE_MAX = 64
 
 _lock = threading.Lock()
-_state = {"version": 0, "end": None, "symbols": frozenset(), "loaded": False}
+
+#: ⭐ PER-TICKER REVS (U5, 2026-11-21). The manifest's `revs` = {SYM: rev} for symbols AND retired: rev is the version
+#: at which THAT ticker last changed (its payload bytes, newly listed, re-listed, retired). Its payload lives at
+#: v<rev>/<SYM>.json.gz and its epoch is rev x EPOCH_STEP, so a publish that changes one ticker moves one ticker's
+#: history_rev, and every term only rises. A manifest without `revs` (the first versions) means rev = version for all.
+_state = {"version": 0, "end": None, "symbols": frozenset(), "retired": frozenset(), "revs": {}, "loaded": False}
 _cache: dict = {}          # (sym, version) -> [bar dicts]
 _thread: Optional[threading.Thread] = None
 
@@ -69,7 +74,9 @@ def local_dir() -> Path:
 def _set_manifest(m: dict) -> None:
     with _lock:
         _state.update(version=int(m.get("version") or 0), end=m.get("end"),
-                      symbols=frozenset(str(s).upper() for s in (m.get("symbols") or ())), loaded=True)
+                      symbols=frozenset(str(s).upper() for s in (m.get("symbols") or ())),
+                      retired=frozenset(str(s).upper() for s in (m.get("retired") or ())),
+                      revs={str(k).upper(): int(v) for k, v in (m.get("revs") or {}).items()}, loaded=True)
         _cache.clear()
 
 
@@ -81,6 +88,11 @@ def load_local() -> bool:
         return False
     _set_manifest(m)
     return True
+
+
+def _rev(sym: str, revs=None, version=None) -> int:
+    revs = _state["revs"] if revs is None else revs
+    return int(revs.get(sym) or (_state["version"] if version is None else version))
 
 
 def _write_atomic(path: Path, data: bytes) -> None:
@@ -106,18 +118,23 @@ def sync(client=None, bucket: Optional[str] = None) -> dict:
             return out
         m = json.loads(client.get_object(Bucket=bucket, Key=MANIFEST_KEY)["Body"].read())
         version = int(m.get("version") or 0)
+        # ⛔ VERSIONS ONLY RISE (U5): an older manifest would lower every epoch it names.
+        if _state["loaded"] and version < int(_state["version"] or 0):
+            out["reason"] = f"refused: manifest v{version} is older than v{_state['version']} on this volume"
+            _log.warning("[bars-rebuild] %s", out["reason"])
+            return out
         syms = sorted({str(s).upper() for s in (m.get("symbols") or ())})
-        d = local_dir() / f"v{version}"
-        for s in syms:
-            p = d / f"{s}.json.gz"
+        revs = {str(k).upper(): int(v) for k, v in (m.get("revs") or {}).items()}
+        want = {(s, _rev(s, revs, version)) for s in syms}
+        for s, rv in sorted(want):
+            p = local_dir() / f"v{rv}" / f"{s}.json.gz"
             if not p.exists():
-                body = client.get_object(Bucket=bucket, Key=f"{PREFIX}v{version}/{s}.json.gz")["Body"].read()
+                body = client.get_object(Bucket=bucket, Key=f"{PREFIX}v{rv}/{s}.json.gz")["Body"].read()
                 json.loads(gzip.decompress(body))          # a body that does not parse is never kept
                 _write_atomic(p, body)
                 out["fetched"] += 1
-        keep = set(syms)
-        for p in list(d.glob("*.json.gz")):
-            if p.name[:-len(".json.gz")] not in keep:
+        for p in list(local_dir().glob("v*/*.json.gz")):
+            if (p.name[:-len(".json.gz")], int(p.parent.name[1:]) if p.parent.name[1:].isdigit() else -1) not in want:
                 p.unlink(missing_ok=True)
                 out["removed"] += 1
         _write_atomic(local_dir() / "manifest.json", json.dumps(m).encode("utf-8"))
@@ -153,7 +170,8 @@ def active(ticker: str) -> bool:
 
 def series(ticker: str) -> Optional[list]:
     """The rebuilt daily bars of `ticker` as bar dicts ({t, o, h, l, c, v}, ascending), or None."""
-    sym, version = str(ticker or "").upper(), _state["version"]
+    sym = str(ticker or "").upper()
+    version = _rev(sym)
     key = (sym, version)
     hit = _cache.get(key)
     if hit is not None:
@@ -193,6 +211,10 @@ def apply(ticker: str, bars: list, tf: str, head: bool = False) -> Optional[list
         end = _state["end"]
         if not reb or not end:
             return None
+        # The corrections ledger's entries measured on the REBUILT series (bars_corrections, src "rebuild"), applied
+        # to the daily bars BEFORE the W / M resample, so weekly and monthly derive from the corrected dailies.
+        from api.services import bars_corrections as _cor
+        reb = _cor.apply(ticker, "D", reb, "rebuild")
         reb = [b for b in reb if b["t"] <= end]
         if tf == "D":
             out = [dict(b) for b in reb] + [b for b in bars if str(b.get("t"))[:10] > end]
@@ -216,13 +238,18 @@ def apply(ticker: str, bars: list, tf: str, head: bool = False) -> Optional[list
 def history_epoch(ticker: str, tf: str) -> int:
     """What to add to `ticker`'s served history_rev at `tf`: the manifest version's epoch while its rebuilt
     history is served, else 0."""
-    if str(tf).upper() not in DATE_TFS or not active(ticker):
+    if str(tf).upper() not in DATE_TFS or not enabled() or not _state["loaded"]:
+        return 0
+    sym = str(ticker or "").upper()
+    if sym in _state["retired"]:
+        return _rev(sym) * EPOCH_STEP           # a ticker taken back keeps a RISING epoch (browsers replace their copy)
+    if not active(ticker):
         return 0
     # ⛔ Only while the rebuilt series is ON THIS VOLUME: a pod still syncing serves the stored bars, and
     # must not label them with the newer history (a browser would keep them as the new history).
     if series(ticker) is None:
         return 0
-    return int(_state["version"]) * EPOCH_STEP
+    return _rev(sym) * EPOCH_STEP
 
 
 def status() -> dict:

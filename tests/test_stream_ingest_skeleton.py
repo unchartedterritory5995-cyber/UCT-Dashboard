@@ -513,7 +513,10 @@ def test_watch_paths_cover_the_services_own_code():
             "print(' '.join(sorted(m for m in sys.modules if m.startswith('api.') and m != 'api.services')))\n")
     out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, timeout=120)
     assert out.returncode == 0, out.stderr[-2000:]
-    mods = out.stdout.split() + ["api.services.vendor_socket_guard", "api.services.bars_live_ingest"]
+    # Lazily imported: vendor_socket_guard, bars_live_ingest, and the minute-frame publisher and
+    # codec bars_live_ingest reaches for its flag check (universe_am_handler / start_minute_frames).
+    mods = out.stdout.split() + ["api.services.vendor_socket_guard", "api.services.bars_live_ingest",
+                                 "api.services.minute_frame_publisher", "api.services.minute_frames"]
     missing = [m for m in mods if m.replace(".", "/") + ".py" not in watched]
     assert not missing, f"add to railway.ingest.json watchPatterns: {missing}"
     for f in ("railway.ingest.json", "requirements.txt"):

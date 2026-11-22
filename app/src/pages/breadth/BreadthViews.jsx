@@ -549,7 +549,7 @@ export default function BreadthViews({
           <div className={customizeStyles.anchor} {...anchorProps()}>
             <button className={`${customizeStyles.triggerBtn} ${customizeOpen ? customizeStyles.triggerBtnActive : ''}`}
                     onClick={() => setCustomizeOpen(o => !o)} title="Customize this view">
-              <span className={customizeStyles.triggerIcon}><UIcon name="gear" size={13} /></span> {viewLabel}
+              <span className={customizeStyles.triggerIcon}><UIcon name="gear" size={13} gold={false} /></span> {viewLabel}
               {!views.isDefaultActive ? ` · ${views.activePreset}` : ''}
             </button>
             {customizeOpen && (

@@ -39,8 +39,11 @@
   background: transparent;
   transition: background 0.12s;
 }
-.divider:hover::after { background: color-mix(in srgb, var(--ut-gold) 35%, transparent); }
-.dividerActive::after { background: var(--ut-gold); }
+.divider:hover::after { background: var(--dr-outline); }
+.dividerActive::after { background: var(--dr-dim); }
+
+/* The chart pane before the list has a first stock: the canvas, empty (never a stand-in symbol). */
+.chartWaiting { flex: 1; min-height: 0; background: var(--dr-panel, var(--bg-surface)); }
 
 /* Both widgets ejected — say why the board is empty rather than showing a void. */
 .allPopped {

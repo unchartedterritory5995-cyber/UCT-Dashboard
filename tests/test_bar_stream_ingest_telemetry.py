@@ -15,6 +15,14 @@ def _fresh(monkeypatch):
     monkeypatch.setattr(bs, "_ing_prev", None)
     monkeypatch.setattr(bs, "_ing_recv_ms", 0.0)
     monkeypatch.setattr(bs, "_ing_queue_source", "unavailable")
+    # ⚰️ (2026-11-20, master gate run 44808949867: `assert 3 == 4` frames) `_timed_frames`
+    # files each frame under `int(time.time() // 60)`. A test whose ~0.3 s of frames
+    # crossed a WALL-CLOCK minute boundary split them across two windows, so the outcome
+    # was a function of the second the runner started. Pin the wall clock 1 s into a
+    # fixed minute (100), advancing at the real monotonic rate, so idle/busy timings stay
+    # real and no window can roll inside a test. (time.time is restored after each test.)
+    base, t0 = 100 * 60 + 1.0, time.monotonic()
+    monkeypatch.setattr(time, "time", lambda: base + (time.monotonic() - t0))
 
 
 def _set_minute(m):
@@ -143,7 +151,9 @@ def test_get_status_exposes_ingest_and_keeps_feed_fields():
 
 def test_the_reader_loop_runs_through_the_timer():
     import inspect
-    src = inspect.getsource(bs._run_websocket)
+    # the reader body lives in _connection_loop since the hot standby (2026-11-19); _run_websocket runs it
+    assert "_connection_loop(on_bar, policy" in inspect.getsource(bs._run_websocket)
+    src = inspect.getsource(bs._connection_loop)
     assert "async for raw_msg in _timed_frames(ws)" in src
     assert "ingest_core.apply_frame(raw_msg, frame_ctx)" in src
     assert "count_event=_count_event" in src

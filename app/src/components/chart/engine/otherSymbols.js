@@ -422,16 +422,41 @@ export function heldFetchesOf(store, chartTf) {
  *  at what the index door answers (`api/index_bars.py`, 12,500 sessions; from 1990 that is all of it).
  *  ⭐ L13 — a MONTHLY chart: 31 calendar days a month and two months before the first chart month. */
 export const HELD_DAILY_DEPTH_CAP = 12500
-export function heldDepthOf(barCount, chartTf = 'W') {
+export function heldDepthOf(barCount, chartTf = 'W', heldSessions = 0) {
   const n = Number.isFinite(barCount) && barCount > 0 ? Math.floor(barCount) : 200
   const tf = String(chartTf == null ? '' : chartTf)
   // ⭐ RS RATING L12 — an INTRADAY chart's daily rows: one per session its bars span, counted at the regular
   // session's 390 minutes (an extended-hours day holds more bars, so this is the deeper answer), plus ten
+  // ⭐⭐ (e91, the e88 in-session capture) — AND AT LEAST THE SESSIONS THE CHART'S BARS ACTUALLY SPAN (`heldSessions`,
+  // `sessionsSpanned` rounded up a rung by the chart). ⚰️ A count at 78 bars a session is short for a symbol that trades in
+  // fewer slots: RDDT's regular-hours 5m chart (18,749 rows, 273 sessions, ~69 a session) was held 267 daily rows, 7
+  // sessions short of its first bar, and the run refused the chart for the bars it could not read.
   if (Object.prototype.hasOwnProperty.call(INTRADAY_STEP_MIN, tf)) {
-    return Math.min(HELD_DAILY_DEPTH_CAP, Math.ceil((n * INTRADAY_STEP_MIN[tf]) / 390) + 10)
+    const byRows = Math.ceil((n * INTRADAY_STEP_MIN[tf]) / 390) + 10
+    const bySpan = Number.isFinite(heldSessions) && heldSessions > 0 ? Math.floor(heldSessions) + 10 : 0
+    return Math.min(HELD_DAILY_DEPTH_CAP, Math.max(byRows, bySpan))
   }
   const monthly = tf.replace(/^1/, '') === 'M'
   return Math.min(HELD_DAILY_DEPTH_CAP, monthly ? n * 31 + 62 : n * 7 + 14)
+}
+
+/** ⭐⭐ (e91) THE TRADING SESSIONS an intraday chart's bars span, from its first bar's session to its newest bar's, counted
+ *  on the exchange calendar (`isTradingDay`), never estimated from its row count. Pure: two bar times (unix seconds), no
+ *  wall clock (this module is in the run's host-neutral closure). 0 for anything else (a daily chart's ISO dates). */
+export function sessionsSpanned(firstT, lastT) {
+  if (typeof firstT !== 'number' || typeof lastT !== 'number' || !Number.isFinite(firstT) || !(lastT >= firstT)) return 0
+  const a = etDayOf(firstT)
+  const b = etDayOf(lastT)
+  let count = 0
+  for (let d = a, k = 0; d <= b && k < 40000; d = nextDayOf(d), k += 1) if (isTradingDay(d)) count += 1
+  return count
+}
+/** The held-session ladder: a chart's span rounded UP to a rung (`heldSessionsRung`), so a filling chart refetches its
+ *  daily rows a few times, never once per fill step (the same discipline as `useSecondarySources.js::heldSpanFor`). */
+export const HELD_SESSION_LADDER = Object.freeze([64, 128, 256, 512, 1024, 2048, 4096, 8192, HELD_DAILY_DEPTH_CAP])
+export function heldSessionsRung(sessions) {
+  if (!Number.isFinite(sessions) || sessions <= 0) return 0
+  return HELD_SESSION_LADDER.find((r) => r >= sessions) ?? HELD_DAILY_DEPTH_CAP
 }
 
 /** ⭐ A witnessed series' bars keyed the way the chart keys its own: by SESSION DATE
@@ -776,6 +801,25 @@ export function sessionKeyedRowsOf(bars) {
 }
 /** ⭐ RS RATING L12 PR 2 — on a series of daily rows: whether its newest row is a session still in progress. */
 export const SERIES_NEWEST_FORMING = Symbol('rs:newest-forming')
+/** ⭐⭐ (e90, the e88 live capture) — on an intraday grid (`atOrBeforeGridOf`) whose held page FILLED its ask (as many
+ *  rows as the fetch asked for, `secondaryBars.js::askedBars`, so the store may hold older ones): `{from, asked}`, the
+ *  page's first row and that ask. Absent when the page holds fewer rows than it asked (the store's whole depth) or
+ *  names no ask. The run decides from it, with the chart's own row count, whether a deeper page is coming
+ *  (`runtime/requestSupply.js`); this fact alone never says so. */
+export const SERIES_PAGE_FILLED = Symbol('rs:page-filled')
+/** ⛔ The deepest window `/api/bars` answers (`bars: Query(le=60000)`, `api/routers/bars.py`): a deeper ask is a 422,
+ *  never a deeper answer. The held-span ladder's top rung (`useSecondarySources.js::HELD_SPAN_MAX`) and the run's
+ *  "a deeper page is coming" test (`runtime/requestSupply.js::pageEdgeOf`) both read it from here. ⛔ Here and not in
+ *  the bars client (`secondaryBars.js`): the run's compute closure is host-neutral (`tools/pine_runtime_closure.mjs`),
+ *  and the client's fetch, timers and wall clock may not enter it. */
+export const BARS_ASK_MAX = 60000
+/** The `{from, asked}` of a held intraday page that filled its ask, or null (`SERIES_PAGE_FILLED`). */
+function filledPageOf(entry, held) {
+  const asked = entry ? entry.askedBars : undefined
+  if (!Number.isInteger(asked) || asked < 1 || !Array.isArray(held) || held.length < asked) return null
+  const first = held.find((b) => b && typeof b.t === 'number' && Number.isFinite(b.t))
+  return first ? Object.freeze({ from: first.t, asked }) : null
+}
 /** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — the chart's secondary key for THIS chart symbol's own daily rows, fetched
  *  when a run reads its own symbol at "D" above an intraday chart (`useSecondarySources`). ⛔ Not a held key's
  *  shape (`heldKeyParts` reads `<TICKER>@D`, and `SELF` is a listing): it can never be mistaken for a ticker. */
@@ -1358,6 +1402,10 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
       if (read.sample === WITNESS_PERIOD_READS.SESSION_COMPLETED) {
         Object.defineProperty(symbols[ticker], SERIES_NEWEST_FORMING, { value: entry.newestBarIsForming === true, enumerable: false })
       }
+      // ⭐⭐ (e90) an intraday grid whose page filled its ask carries that page (`SERIES_PAGE_FILLED`): the chart-timeframe
+      // series, asked at the held span (`useSecondarySources.js::heldSpanFor`), never the daily rows beside it
+      const page = !landed && read.fold === WITNESS_PERIOD_READS.AT_OR_BEFORE ? filledPageOf(entry, held) : null
+      if (page) Object.defineProperty(symbols[ticker], SERIES_PAGE_FILLED, { value: page, enumerable: false })
       if (read.sample) samples[ticker] = read.sample
       served.push(ticker)
       continue

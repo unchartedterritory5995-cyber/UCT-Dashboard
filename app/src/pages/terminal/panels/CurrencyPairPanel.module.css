@@ -1,0 +1,99 @@
+/* A currency pair in a terminal panel (BTCUSD GP / DES). App tokens only; nothing has a fixed
+   width, so the panel reads the same at 390px and at 640px. */
+
+.chartWrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.chart {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.strip {
+  margin: 0;
+  padding: 2px var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  overflow-wrap: anywhere;
+}
+
+.lead {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-sm);
+}
+
+.name {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+.priceRow {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.price {
+  color: var(--text-bright);
+  font-size: var(--text-xl, var(--text-lg));
+  font-weight: 600;
+}
+
+.change {
+  font-size: var(--text-sm);
+}
+
+.changeNote {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.up {
+  color: var(--success-ink);
+}
+
+.down {
+  color: var(--danger-ink);
+}
+
+.flat {
+  color: var(--text-muted);
+}
+
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: var(--space-xs, 4px) var(--space-md, 12px);
+  font-variant-numeric: tabular-nums;
+}
+
+.fact {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  padding: 2px 0;
+  min-width: 0;
+}
+
+.fact dt {
+  color: var(--text-muted);
+}
+
+.fact dd {
+  margin: 0;
+  color: var(--text);
+}

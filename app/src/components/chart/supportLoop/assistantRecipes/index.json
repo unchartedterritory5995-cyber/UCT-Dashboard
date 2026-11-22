@@ -40,8 +40,9 @@
     "point of control",
     "poc"
    ],
-   "shows": "drawn once, on the last bar: the range of the last N bars is cut into rows, each bar's volume is added to the row its close falls in, and each row is a box whose length is its share of the largest row; the point of control is PLOTTED so the script has an output besides its drawings",
+   "shows": "the range of the last N bars is cut into rows, each bar's volume is added to the row its close falls in, and each row is a box whose length is its share of the largest row; the point of control is PLOTTED so the script has an output besides its drawings. ⛔ THE WORK IS DONE UNDER `if barstate.islast` ON PURPOSE: it loops over past bars, which is too slow to repeat on every bar. A script that reads where the chart ends is drawn only on a FINISHED bar, so on a live chart this one appears when the newest bar closes",
    "chart": "daily",
+   "finishedBarsOnly": true,
    "file": "volume-profile.pine"
   },
   {
@@ -137,8 +138,9 @@
     "seasonality",
     "average return by day"
    ],
-   "shows": "statistics are worked over a FIXED window of the last N bars, by a loop on the last bar only: a running total kept since the first bar depends on where the chart's history starts, and this engine does not draw that on a chart that does not reach the listing; the table is written once, and the best day's average is PLOTTED so the script has an output besides the table",
+   "shows": "statistics are worked over a FIXED window of the last N bars, by a loop: a running total kept since the first bar depends on where the chart's history starts, and this engine does not draw that on a chart that does not reach the listing; the best day's average is PLOTTED so the script has an output besides the table. ⛔ THE WORK IS DONE UNDER `if barstate.islast` ON PURPOSE: it loops over past bars, which is too slow to repeat on every bar. A script that reads where the chart ends is drawn only on a FINISHED bar, so on a live chart this one appears when the newest bar closes",
    "chart": "daily",
+   "finishedBarsOnly": true,
    "file": "weekday-returns-table.pine"
   },
   {
@@ -195,7 +197,7 @@
     "retracement levels",
     "fibonacci levels"
    ],
-   "shows": "the last confirmed pivot high and pivot low are kept in `var` with their bars; each level's PRICE is worked out on every bar into an array, the lines and labels are redrawn from it on the last bar only (kept in arrays, deleted before they are made again), and the 61.8% level is plotted so it can be alerted on",
+   "shows": "the last confirmed pivot high and pivot low are kept in `var` with their bars; each level's PRICE is worked out on every bar into an array; the lines and labels are made ONCE (kept in arrays) and MOVED on every bar with their setters, so nothing waits for the last bar and nothing is deleted and remade; and the 61.8% level is plotted so it can be alerted on",
    "chart": "daily",
    "file": "fibonacci-swings.pine"
   },
@@ -213,6 +215,76 @@
    "shows": "the last two confirmed pivots of each kind are kept in `var`; each side's line is kept in an ARRAY, deleted and made again when a new pivot arrives, and extended to the right; where each line stands on the current bar is plotted, so a break of it can be alerted on",
    "chart": "daily",
    "file": "auto-trendlines.pine"
+  },
+  {
+   "id": "heikin-ashi-candles",
+   "title": "Heikin Ashi candles, in their own pane",
+   "asks": [
+    "heikin ashi",
+    "heiken ashi",
+    "heikinashi",
+    "ha candles",
+    "smoothed candles"
+   ],
+   "shows": "each candle is made from the bar and the candle before it: its close is the average of the bar's four prices, its open is halfway between the open and close of the candle before (the first one uses the bar's own open and close), and its high and low reach the bar's high and low. The candles are drawn in their OWN pane under the chart (a script cannot replace the chart's candles). All three colours of a candle are written (body, wick and border): a candle given only one is drawn half in the chart's default colours",
+   "chart": "daily",
+   "file": "heikin-ashi-candles.pine"
+  },
+  {
+   "id": "average-cloud",
+   "title": "A shaded cloud between two exponential averages",
+   "asks": [
+    "ema cloud",
+    "ema clouds",
+    "cloud between two emas",
+    "shade between two moving averages",
+    "moving average cloud",
+    "shade the area between"
+   ],
+   "shows": "two plots kept in variables (`a = plot(...)`), both TITLED, and one `fill(a, b, ...)` between them whose colour says which average is on top; a fill between plots needs a script with no `var` in it",
+   "chart": "daily",
+   "file": "average-cloud.pine"
+  },
+  {
+   "id": "time-of-day-volume",
+   "title": "Volume so far today against the usual for this time of day",
+   "asks": [
+    "time of day volume",
+    "volume at the same time of day",
+    "same time of day",
+    "volume so far today",
+    "intraday relative volume",
+    "cumulative volume versus its average",
+    "relative volume at time"
+   ],
+   "shows": "today's running volume divided by the average, over the last N FINISHED days, of the running volume at the same bar of the day. Each finished day is one row of a flat array (`array.push` a fixed number of values per day, a short day padded with its own total; the oldest row trimmed with `array.shift` in a counted loop), today's row is rebuilt from `array.clear` at each day change, and nothing is drawn until N whole days are stored. The bars before the first day change may be part of a day and are never stored. An intraday chart only",
+   "chart": "intraday",
+   "file": "time-of-day-volume.pine"
+  },
+  {
+   "id": "distribution-days",
+   "title": "A count of distribution days in which each day stops counting after a rally",
+   "asks": [
+    "distribution day",
+    "distribution days",
+    "distribution day count"
+   ],
+   "shows": "a count over a window in which each counted bar is judged by the bars AFTER it: a loop over the window (`for i = 0 to win - 1`, reading the condition `i` bars back with `isDist[i]`) and, inside it, a loop over the later bars (`for j = 0 to i - 1`) that drops the day once a later close has risen far enough above its close. No `var` is needed (each bar counts afresh). ONE plot, the count, in its own pane",
+   "chart": "daily",
+   "file": "distribution-days.pine"
+  },
+  {
+   "id": "follow-through-day",
+   "title": "A rally attempt and its follow-through day",
+   "asks": [
+    "follow-through day",
+    "follow-through days",
+    "rally attempt",
+    "day 1 of a rally"
+   ],
+   "shows": "a state kept across bars in `var` variables (is an attempt live, which day of it this is, the low it started on), with the order of the two steps written out: FIRST the ending test and the day count of a live attempt, THEN the start test, so a new attempt may start on the bar the old one ended. The signal is one condition over that state, drawn as ONE `plotshape` under the bar and nothing else",
+   "chart": "daily",
+   "file": "follow-through-day.pine"
   }
  ]
 }

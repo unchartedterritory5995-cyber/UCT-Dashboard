@@ -41,6 +41,9 @@ import { POOL_LIMITS } from '../engine/objectPool'
 const keysOf = (o) => (o instanceof Set ? [...o] : Array.isArray(o) ? [...o] : Object.keys(o || {}))
 const sorted = (xs) => [...new Set(xs)].sort()
 
+/** The registry scope of a capability admitted for finished bars only (`api/services/rollout_gate.py`). */
+export const CLOSED_BAR_SCOPE = 'closed-bar-history'
+
 /** The drawing families a script may use, in a fixed order. `obj:<family>` must be admitted. */
 export const DRAWING_FAMILIES = Object.freeze(['line', 'label', 'box', 'table'])
 
@@ -155,6 +158,11 @@ export function buildAssistantPineReference({ allowlist, doorNames, examples = [
       + 'the instructions of the assistant that writes Pine.',
     version: 1,
     admitted,
+    // ⭐ 2026-11-19: the admitted capabilities admitted for FINISHED BARS ONLY (G6, the registry row's `scope`): a
+    // script that uses one is not drawn bar by bar while the chart's newest bar is forming. The assistant's
+    // rule about the last bar is written from this list (`pine_authoring._last_bar_said`), and a test holds it
+    // equal to the server's own (`runtime_definitions.admitted_capabilities()["historyOnly"]`).
+    historyOnly: admitted.filter((id) => caps[id].scope === CLOSED_BAR_SCOPE),
     families,
     drawing,
     constants,

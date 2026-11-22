@@ -574,9 +574,61 @@ export const GROUPS = [
   // at its size (two more would ride with every wave 3 or wave 4 ask, and neither title has room to name them). `words` stays EMPTY
   // here: capabilities/terminalDataWave5.js arms each capability's own words only while it is registered (the server serves its
   // kind), so on a dark server this group never matches and routing is byte-identical to the base (pinned in
-  // agentTerminalDataWave5.test.js). ⚠️ This is the 47th of the 48 groups the server keeps (turn.MAX_GROUPS): one is left.
+  // agentTerminalDataWave5.test.js). This was the 47th of the 48 groups the server kept then (turn.MAX_GROUPS); wave 6 below took the 48th.
   { id: 'shortInterest', title: 'FINRA short interest: one stock\'s reports, days to cover, percent of float and daily short volume; the market list ranked by days to cover, change or float',
     domains: [], actions: ['stock.shortInterest', 'stock.shortList'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 6 (stock.seasonality / stock.seasonalityBoard / stock.tideHistory / stock.oiChange / stock.treasuryYields):
+  // seasonality by calendar month, Market Tide by finished session, one stock's open interest change and US Treasury yields, ALL
+  // FIVE in ONE group of their own, because one group was all that was left. WORDS-ONLY and fillLast for wave 3's reasons, so it is
+  // never a filler and no existing group or unrecognised request changes; listed by `actions` because their `stock` domain would put
+  // them in the `data` group, which has no room under the routing budget. `words` stays EMPTY here:
+  // capabilities/terminalDataWave6.js arms each capability's own words only while it is registered (the server serves its kind), so
+  // on a dark server this group never matches and routing is byte-identical to the base (pinned in agentTerminalDataWave6.test.js).
+  // This was the 48th of the 48 groups the server kept when it was added (turn.MAX_GROUPS): none was left. Wave 7 below raised the
+  // cap on the server for its own group.
+  { id: 'marketRecords', title: 'Seasonality by calendar month (one stock, or the index and sector funds), Market Tide by finished session, a stock\'s open interest change, US Treasury yields',
+    domains: [], actions: ['stock.seasonality', 'stock.seasonalityBoard', 'stock.tideHistory', 'stock.oiChange', 'stock.treasuryYields'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 7 (stock.marketRegime / stock.setups / stock.eventsTimeline / stock.uct20List / stock.ivHistory /
+  // stock.dilutionWatch): UCT's market regime read, the setups its chart judge confirmed, one stock's events timeline, the UCT 20
+  // list, one stock's implied volatility by logged session and one company's share-issuance filings, ALL SIX in ONE group of
+  // their own. No existing group was used: each words-only group is held at its size (more actions ride with every ask of that
+  // group, and no title has room to name six more things). WORDS-ONLY and fillLast for wave 3's reasons, so it is never a filler
+  // and no existing group or unrecognised request changes; listed by `actions` because their `stock` domain would put them in the
+  // `data` group, which has no room under the routing budget. `words` stays EMPTY here: capabilities/terminalDataWave7.js arms
+  // each capability's own words only while it is registered (the server serves its kind), so on a dark server this group never
+  // matches and routing is byte-identical to the base (pinned in agentTerminalDataWave7.test.js).
+  // This is the 49th group. The server kept 48 (turn.MAX_GROUPS); the integrator's wave 7 build raised that to 56 on 2026-11-20,
+  // when the catalog reached 49. A builder's change to the routing contract, not an owner decision.
+  { id: 'marketReads', title: 'UCT\'s market regime read, setups its chart judge confirmed, a stock\'s events timeline, the UCT 20 list, IV history and rank, share-issuance filings (dilution)',
+    domains: [], actions: ['stock.marketRegime', 'stock.setups', 'stock.eventsTimeline', 'stock.uct20List', 'stock.ivHistory', 'stock.dilutionWatch'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 8 (stock.splitsDividends / stock.ipoCalendar / stock.dividendsCalendar): one stock's past splits and
+  // cash dividends, the IPO calendar, and the dividends and splits declared ahead for named stocks, ALL THREE in ONE group of
+  // their own. No existing group was used: `marketReads` (wave 7) holds six actions and stays at its size, the `calendar`
+  // group is the Calendar page's own (its two actions exist on that page only), and every other words-only group is held at
+  // its size. WORDS-ONLY and fillLast for wave 3's reasons, so it is never a filler and no existing group or unrecognised
+  // request changes; listed by `actions` because their `stock` domain would put them in the `data` group, which has no room
+  // under the routing budget. `words` stays EMPTY here: capabilities/terminalDataWave8.js arms each capability's own words
+  // only while it is registered (the server serves its kind), so on a dark server this group never matches and routing is
+  // byte-identical to the base (pinned in agentTerminalDataWave8.test.js). This is the 50th of the 56 groups the server keeps
+  // (turn.MAX_GROUPS); the cap is not changed here.
+  { id: 'marketCalendars', title: 'A stock\'s corporate actions (past splits and cash dividends), the IPO calendar, dividends and splits declared ahead for named stocks',
+    domains: [], actions: ['stock.splitsDividends', 'stock.ipoCalendar', 'stock.dividendsCalendar'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 9 (stock.auctionCalendar / stock.realCurve / stock.fomcWatch): US Treasury auctions coming up and their
+  // results, Treasury real yields and breakevens, and the Fed watch, ALL THREE in ONE group of their own. No existing group was
+  // used: `marketCalendars` (wave 8) and `marketRecords` (wave 6, Treasury yields) are held at their sizes, the `calendar`
+  // group is the Calendar page's own, and every other words-only group is held at its size. WORDS-ONLY and fillLast for wave
+  // 3's reasons, so it is never a filler and no existing group or unrecognised request changes; listed by `actions` because
+  // their `stock` domain would put them in the `data` group, which has no room under the routing budget. `words` stays EMPTY
+  // here: capabilities/terminalDataWave9.js arms each capability's own words only while it is registered (the server serves
+  // its kind), so on a dark server this group never matches and routing is byte-identical to the base (pinned in
+  // agentTerminalDataWave9.test.js). This is the 51st of the 56 groups the server keeps (turn.MAX_GROUPS); the cap is not
+  // changed here.
+  { id: 'marketRates', title: 'US Treasury auctions (coming up and recent results), Treasury real yields and breakevens, the Fed watch (FOMC statement changes, speeches, next decision)',
+    domains: [], actions: ['stock.auctionCalendar', 'stock.realCurve', 'stock.fomcWatch'], fillLast: true, wordsOnly: true,
     words: [] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)

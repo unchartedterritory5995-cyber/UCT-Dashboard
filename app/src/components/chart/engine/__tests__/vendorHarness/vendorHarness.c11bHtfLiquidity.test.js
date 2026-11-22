@@ -63,6 +63,9 @@ describe('⭐ C11b — htf-liquidity draws TradingView\'s previous-day levels, i
     expect(d.ok, d.reason).toBe(true)
     const reader = objectReaderFor(d.definition, bars, {
       tf: 'D', symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: cap.newestBarIsForming ?? null,
+      // ⭐ HTF-LIVE-FIRST-PERIOD (2026-11-19) — the chart states what the capture records: it starts at the listing
+      // (`history.startsAtBar0`), so the first week is the listing week, as TradingView's is, not a partial one
+      historyFromListing: !!(cap.history && cap.history.startsAtBar0 === true),
     })
     const run = evaluateObjects(reader.program, {
       barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime, readUnknown: reader.readUnknown,

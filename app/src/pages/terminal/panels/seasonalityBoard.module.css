@@ -1,0 +1,184 @@
+/* SEASB: the seasonality board. App tokens only (the terminal wears the member's theme). The table
+   itself, its box, the fold of its month columns and the up / down inks are marketPanels.module.css;
+   this sheet is the grid's own cells and the stacked list. It keys nothing on the panel's width:
+   the one fit mechanism (../panelFit.js) is carried by the shared sheet's `phoneHide` and by the
+   step the table box names. */
+
+/* The measure dropdown: a label and the terminal's own select, one line. */
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.filter select {
+  font: inherit;
+  max-width: 12rem;
+  padding: 1px var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+/* Twelve month columns share the row evenly; the line under a figure may take two lines between
+   words, so the grid narrows before it has to fold. With these cells the twelve columns need a
+   566px panel (sample data, beside the app's 5px scrollbar); the table box names the 590 step. */
+.grid {
+  table-layout: auto;
+}
+
+.grid th.month,
+.grid td.cell {
+  height: auto;
+  padding: 3px 1px;
+  text-align: right;
+  vertical-align: top;
+  white-space: normal;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+}
+
+.grid th.fund,
+.grid th.fundHead {
+  height: auto;
+  padding: 3px var(--space-xs) 3px 0;
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  font-weight: 400;
+}
+
+.fundSym {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--panel-fs, var(--text-sm));
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.fundMeta {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+/* No colour of its own: the shared sheet's up / down inks land on this element, and a figure with
+   neither wears the cell's own text colour. */
+.figure {
+  display: block;
+  white-space: nowrap;
+}
+
+/* "12 of 26 up" under the figure. In a narrow column it takes two lines; balanced, so the second
+   is never one stranded word (a browser without the property wraps it the plain way). */
+.sub {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  text-wrap: balance;
+}
+
+/* A month counted too few times: dimmed, never an up or down ink. */
+.thin .figure {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* This month's column: a rule down both sides of it and a word in its header, not colour alone. */
+.grid th.now,
+.grid td.now {
+  border-left-color: var(--accent);
+  border-right-color: var(--accent);
+}
+
+.grid thead th.now {
+  border-top: 1px solid var(--accent);
+}
+
+.mark {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.markNow {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+/* The stacked list: one fund per block, its months wrapping to the block's width. */
+.blocks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.block {
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border);
+}
+
+.blockHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-sm);
+  margin: 0 0 var(--space-xs);
+}
+
+.blockHead .fundSym,
+.blockHead .fundMeta {
+  display: inline;
+}
+
+.months {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.4rem, 1fr));
+  gap: var(--space-xs);
+}
+
+.monthItem {
+  padding: 2px var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+.monthItemNow {
+  border-color: var(--accent);
+}
+
+.monthName {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.facts,
+.withoutList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.facts li {
+  color: var(--text);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}

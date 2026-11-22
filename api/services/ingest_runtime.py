@@ -481,7 +481,14 @@ class IngestRuntime:
             if grace > 0:
                 log.info("[stream-ingest] first Massive connect in %.0fs (deploy handoff grace)", grace)
                 await asyncio.sleep(grace)
-            await bar_stream._run_websocket(self.on_bar, policy=self.policy)
+            # HOT STANDBY (INGEST_HOT_STANDBY=1): a second socket with the same subscriptions, its own
+            # reconnect ladder; its connects never re-seed (bar_stream: only a gap does).
+            self.standby_policy = (massive_reconnect.MaxConnLadder()
+                                   if bar_stream._hot_standby_enabled() else None)
+            # ONE socket-opening call (test_the_one_vendor_socket_path_is_behind_every_gate); the
+            # standby argument rides along only when the standby is on.
+            standby = {"standby_policy": self.standby_policy} if self.standby_policy is not None else {}
+            await bar_stream._run_websocket(self.on_bar, policy=self.policy, **standby)
 
         self._reader = loop.create_task(read())
         self._reader.add_done_callback(lambda t: beat.cancel())
@@ -531,7 +538,10 @@ class IngestRuntime:
                               "connecting" if self._reader is not None and not self._reader.done() else
                               "none"),
             "connect": {"requested": connect_requested(), "allowed": ok, "why_not": why or None,
-                        "reconnect": self.policy.status()},
+                        "reconnect": self.policy.status(),
+                        "standby": bar_stream.hot_standby_status(),
+                        "standby_reconnect": (self.standby_policy.status()
+                                              if getattr(self, "standby_policy", None) is not None else None)},
             "upstream": (None if bs is None else {
                 "connected": bs["connected"], "active_count": bs["active_count"],
                 "feed": bs["feed"], "liveness": bs["liveness"], "loop_stalls": bs["loop_stalls"],

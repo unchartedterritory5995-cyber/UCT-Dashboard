@@ -1,0 +1,46 @@
+//@version=6
+indicator("UCTPROBE_VW_LASTBAR_FORMING", overlay = true, max_labels_count = 50)
+
+// PROVENANCE: written 2026-11-19 (Q-LASTBAR, docs/pine/capture-queue-2026-11-19-lastbar-forming.md).
+// NEVER COMPILED ON TRADINGVIEW.
+//
+// ─── WHAT TRADINGVIEW DRAWS FROM A LAST-BAR-ONLY BLOCK WHILE THE NEWEST BAR IS FORMING ───
+//
+// The engine refuses `barstate.islast`-gated drawing on a FORMING newest bar today (`pane:forming-ungraded`;
+// the G6 ruling: `realtime-state` is closed-bar history only), because no committed capture grades it. That
+// refusal is what made one in three of the script assistant's recipes undrawable during a session on
+// 2026-11-19. This probe is the witness that would let the engine serve the shape where it matches:
+//   - the last-bar label: its bar, its price and its text on a forming bar (does it follow the tick?);
+//   - the last-bar table cell: its text on a forming bar;
+//   - the `barstate.islastconfirmedhistory` label: on which bar it sits once the chart has a realtime bar;
+//   - the barstate flags themselves, per bar, so each capture says which state the newest bar was in.
+//
+//   F01  barstate.islast
+//   F02  barstate.isrealtime
+//   F03  barstate.isconfirmed
+//   F04  barstate.islastconfirmedhistory
+//   F05  bar_index == last_bar_index
+//   F06  time == last_bar_time
+//   F07  close (control: the newest bar's value the label and table should show)
+
+var label lastLabel = na
+var table lastTable = table.new(position.top_right, 2, 2)
+
+if barstate.islast
+    label.delete(lastLabel)
+    lastLabel := label.new(bar_index, high, str.tostring(close, "#.####"), style = label.style_label_down)
+    table.cell(lastTable, 0, 0, "close")
+    table.cell(lastTable, 1, 0, str.tostring(close, "#.####"))
+    table.cell(lastTable, 0, 1, "bar")
+    table.cell(lastTable, 1, 1, str.tostring(bar_index))
+
+if barstate.islastconfirmedhistory
+    label.new(bar_index, low, "LCH " + str.tostring(bar_index), style = label.style_label_up)
+
+plot(barstate.islast ? 1 : 0, "F01 islast", display = display.data_window)
+plot(barstate.isrealtime ? 1 : 0, "F02 isrealtime", display = display.data_window)
+plot(barstate.isconfirmed ? 1 : 0, "F03 isconfirmed", display = display.data_window)
+plot(barstate.islastconfirmedhistory ? 1 : 0, "F04 islastconfirmedhistory", display = display.data_window)
+plot(bar_index == last_bar_index ? 1 : 0, "F05 bar_index==last_bar_index", display = display.data_window)
+plot(time == last_bar_time ? 1 : 0, "F06 time==last_bar_time", display = display.data_window)
+plot(close, "F07 close", display = display.data_window)

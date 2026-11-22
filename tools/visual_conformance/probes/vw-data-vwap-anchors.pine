@@ -1,0 +1,29 @@
+//@version=6
+indicator("UCTPROBE_VW_DATA_VWAP_ANCHORS", overlay = true)
+
+// PROVENANCE: written 2026-11-19 (Pine data unit S4-2, Q-S4-V, docs/pine/capture-queue-2026-11-19-s4-data.md).
+// NEVER COMPILED ON TRADINGVIEW. Written here, from the reference's own functions; no third-party text.
+//
+// ─── A VWAP ANCHORED ON EACH EVENT FAMILY, AS AN ANCHOR READS IT ───
+//
+// TradingView's built-in VWAP offers Earnings, Dividends and Splits anchors: a new period starts on the bar
+// where the event's series is not `na`, read with `gaps_on` and `lookahead_on`. This probe states that rule
+// itself, so the grade of the data unit's placement reaches a value a member's script would draw, without
+// the built-in's text. (The built-in itself, at those moved settings, is the manual rows of the queue doc.)
+//
+//   V01   ta.vwap(hlc3) anchored where an earnings report lands (earnings.actual, gaps_on, lookahead_on)
+//   V02   ta.vwap(hlc3) anchored where a dividend lands (dividends.gross, gaps_on, lookahead_on)
+//   V03   ta.vwap(hlc3) anchored where a split lands (splits.denominator, gaps_on, lookahead_on)
+//   V04   1 on an earnings anchor bar, else 0
+//   V05   1 on a dividend anchor bar, else 0
+//   V06   1 on a split anchor bar, else 0
+
+e = request.earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol = true)
+d = request.dividends(syminfo.tickerid, dividends.gross, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol = true)
+s = request.splits(syminfo.tickerid, splits.denominator, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol = true)
+plot(ta.vwap(hlc3, not na(e)), "V01 vwap anchored at earnings")
+plot(ta.vwap(hlc3, not na(d)), "V02 vwap anchored at dividends")
+plot(ta.vwap(hlc3, not na(s)), "V03 vwap anchored at splits")
+plot(not na(e) ? 1 : 0, "V04 earnings anchor bar")
+plot(not na(d) ? 1 : 0, "V05 dividend anchor bar")
+plot(not na(s) ? 1 : 0, "V06 split anchor bar")

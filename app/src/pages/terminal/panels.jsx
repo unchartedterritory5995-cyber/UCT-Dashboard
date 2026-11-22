@@ -13,7 +13,9 @@
 // The importers are exported so `functions.rail.test.js` can IMPORT every one and assert
 // a default-exported component — the "resolves to a real component" rail is import-based,
 // not a list typed beside this one.
+import { createElement } from 'react'
 import lazy from '../../utils/lazyWithRetry'
+import { useCryptoPair } from '../../lib/cryptoPairs'
 import { SURFACE_IMPORTERS_BY_ID, URL_WRITING_SURFACE_IDS, surfacePanel } from './surfacePanels'
 
 /** A named export served as a lazy() default (VolPanels exports several panels). */
@@ -118,6 +120,8 @@ export const PANEL_IMPORTERS = {
   ThemeRotation: () => import('./panels/ThemeRotationPanel'),
   // data wave 6 (2026-11-17)
   IntradayUpdate: () => import('./panels/IntradayUpdatePanel'),
+  // UNEWS (2026-11-19): UCT News, the live news wire; shares the tab's one stream, no new route
+  UctNews: () => import('./panels/UctNewsPanel'),
   TopFlow: () => import('./panels/TopFlowPanel'),
   // UNVOL (2026-11-18): stocks far above their usual volume for the time of day, over the Screener's scan route.
   UnusualVolume: () => import('./panels/UnusualVolumePanel'),
@@ -130,6 +134,42 @@ export const PANEL_IMPORTERS = {
   ShortList: () => import('./panels/ShortListPanel'),
   // DILU (2026-11-18): one company's share-issuance filings from its public SEC EDGAR filing index
   Dilution: () => import('./panels/DilutionPanel'),
+  // OIC (2026-11-19): one stock's open interest per contract against the recorded day before, from UCT's options log
+  OiChange: () => import('./panels/OiChangePanel'),
+  // TIDEH (2026-11-19): each finished session's Market Tide totals, from the store the server fills after the close
+  TideHistory: () => import('./panels/TideHistoryPanel'),
+  // SEASB: the index funds and the sector funds, month by month (the market's SEAS).
+  SeasonalityBoard: () => import('./panels/SeasonalityBoardPanel'),
+  // Market wave A (2026-11-20): futures positioning, days like today, the markets board
+  Cot: () => import('./panels/CotPanel'),
+  Analogues: () => import('./panels/AnaloguesPanel'),
+  MarketsBoard: () => import('./panels/MarketsBoardPanel'),
+  // IPO / DVD / CACT (2026-11-20): the IPO calendar, the dividends and splits ahead, one stock's held corporate actions
+  IpoCalendar: () => import('./panels/IpoCalendarPanel'),
+  DividendCalendar: () => import('./panels/DividendCalendarPanel'),
+  CorporateActions: () => import('./panels/CorporateActionsPanel'),
+  // Market wave C (2026-11-21): Treasury auctions, upcoming and recent results
+  TreasuryAuctions: () => import('./panels/TreasuryAuctionsPanel'),
+  // FED (2026-11-21): the FOMC statement and its redline, Fed headlines, speeches, the next meeting, the rate, projections, the survey
+  FedWatch: () => import('./panels/FedWatchPanel'),
+  // ECON (2026-11-21): the economy board, theme by theme, with the releases due in the next 7 days
+  Economy: () => import('./panels/EconomyPanel'),
+  // LIQ (2026-11-21): net liquidity (a UCT calculation from the Fed and Treasury figures), its changes, two years of it, the parts
+  Liquidity: () => import('./panels/LiquidityPanel'),
+  // OIL (2026-11-21): the EIA's weekly oil report, the next report's date and two years of crude stocks
+  Oil: () => import('./panels/OilPanel'),
+  // FUND (2026-11-21): one company's metrics over time from its SEC filings, up to three more beside it
+  FundMetrics: () => import('./panels/FundMetricsPanel'),
+  // MKTH (2026-11-21): every correction and bear market of the S&P 500 or the Nasdaq-100, the rally after each low, its leaders
+  MarketHistory: () => import('./panels/MarketHistoryPanel'),
+  // GRPS (2026-11-21): every sector or industry, one row each: median growth, margins, valuation and breadth
+  GroupTable: () => import('./panels/GroupTablePanel'),
+  // SEG (2026-11-21): one stock's revenue by product and by region, the newest period ranked and four side by side
+  RevenueSegments: () => import('./panels/RevenueSegmentsPanel'),
+  // MNA (2026-11-21): the latest M&A deals, or one company's, each with its SEC filing
+  Mergers: () => import('./panels/MergersPanel'),
+  // IDXC (2026-11-21): S&P 500, Nasdaq 100 and Dow additions and removals, or one stock's own
+  IndexChanges: () => import('./panels/IndexChangesPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
@@ -158,12 +198,30 @@ export function panelNameFor(variant) {
   return null
 }
 
+// A CURRENCY PAIR (BTCUSD; dark behind the server switch CRYPTO_BARS_ENABLED). A pair is not a
+// company, so when a panel's security is a pair the server admits this member to, the panel is
+// handed to CurrencyPairPanel: the chart for GP, the price for DES, one sentence for the rest.
+// `useCryptoPair` sends NOTHING for any other symbol (and nothing while a panel has no
+// security), and answers null while the switch is off, so every other panel renders its own
+// component with its own props, exactly as before.
+const PairPanel = lazy(() => import('./panels/CurrencyPairPanel'))
+
+function pairAware(name, Panel) {
+  function PairAwarePanel(props) {
+    const pair = useCryptoPair(props.sym)
+    return pair ? createElement(PairPanel, { ...props, panel: name, pair, Panel }) : createElement(Panel, props)
+  }
+  PairAwarePanel.displayName = `PairAware(${name})`
+  return PairAwarePanel
+}
+
 const cache = new Map()
-/** The lazy component for a panel name (memoised: one `lazy()` per name, ever). */
+/** The component for a panel name: its lazy module, behind the pair check above (memoised:
+ *  one `lazy()` per name, ever). */
 export function panelComponent(name) {
   if (!cache.has(name)) {
     const importer = PANEL_IMPORTERS[name] || SURFACE_IMPORTERS_BY_ID[name]
-    cache.set(name, importer ? lazy(importer) : null)
+    cache.set(name, importer ? pairAware(name, lazy(importer)) : null)
   }
   return cache.get(name)
 }

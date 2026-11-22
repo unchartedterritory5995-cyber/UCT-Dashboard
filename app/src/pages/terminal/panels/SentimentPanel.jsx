@@ -31,7 +31,7 @@ export const SENTIMENT_SERIES = Object.freeze([
   { key: 'aaii_bears', label: 'AAII bearish', dateKey: 'aaii_survey_date', cadence: 'Weekly', unit: 'pct' },
   { key: 'aaii_spread', label: 'AAII bull-bear spread', dateKey: 'aaii_survey_date', cadence: 'Weekly', unit: 'pts' },
   { key: 'naaim', label: 'NAAIM exposure', dateKey: 'naaim_date', cadence: 'Weekly', unit: 'num1' },
-  { key: 'cboe_putcall', label: 'CBOE put/call ratio', dateKey: 'cboe_putcall_asof', cadence: 'Daily', unit: 'num2' },
+  { key: 'cboe_putcall', label: 'CBOE equity put/call', dateKey: 'cboe_putcall_asof', cadence: 'Daily', unit: 'num2' },
   { key: 'cnn_fear_greed', label: 'CNN Fear & Greed', dateKey: 'cnn_fear_greed_asof', cadence: 'Daily', unit: 'num0' },
 ])
 
@@ -146,9 +146,9 @@ function SentimentTable({ read }) {
     )
   }
   return (
-    <div className={styles.tableBox}>
+    <div className={styles.tableBox} data-fold="510">
       {read.error && <p className={styles.note} role="status">{failureText(read.error, 'Sentiment')} Showing the last read.</p>}
-      <table className={styles.table} data-testid="terminal-sent-table">
+      <table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-sent-table">
         <caption className={styles.caption}>Sentiment</caption>
         <thead>
           <tr>
@@ -161,7 +161,7 @@ function SentimentTable({ read }) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.key} data-testid={`terminal-sent-row-${r.key}`}>
-              <td>{r.label} <span className={styles.muted}>{r.cadence}</span></td>
+              <td className={styles.phoneWrap}>{r.label} <span className={styles.muted}>{r.cadence}</span></td>
               {r.last ? (
                 <>
                   <td>
@@ -212,7 +212,7 @@ function EconRow({ sym, meta, start }) {
     body = (
       <>
         <td>{out.value}</td>
-        <td>{out.period}{out.released ? <span className={styles.muted}> {out.released}</span> : null}</td>
+        <td className={styles.phoneWrap}>{out.period}{out.released ? <span className={styles.muted}> {out.released}</span> : null}</td>
         <td>{out.change ? out.change.replace('−', '-') : 'n/a'}</td>
         <td className={styles.phoneHide}><Spark values={valued.slice(-13).map((p) => p.v)} label={`${name}, recent prints`} /></td>
       </>
@@ -220,7 +220,7 @@ function EconRow({ sym, meta, start }) {
   }
   return (
     <tr data-testid={`terminal-sent-econ-${sym}`}>
-      <td>{name}</td>
+      <td className={`${styles.phoneWrap} ${styles.snugWrap}`}>{name}</td>
       {body}
     </tr>
   )
@@ -247,8 +247,8 @@ function EconTable() {
   }
   if (!shown.length) return <p className={styles.muted} data-testid="terminal-sent-econ-empty">No key economic series are published here yet.</p>
   return (
-    <div className={styles.tableBox}>
-      <table className={styles.table} data-testid="terminal-sent-econ">
+    <div className={styles.tableBox} data-fold="510">
+      <table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-sent-econ">
         <caption className={styles.caption}>Economy</caption>
         <thead>
           <tr>

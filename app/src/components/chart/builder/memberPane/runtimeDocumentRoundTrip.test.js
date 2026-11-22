@@ -139,10 +139,18 @@ describe('RF — what a runtime document does not draw is named, paints included
     expect(built.definition.meta.disclosures.map((d) => d.name)).not.toContain('Not drawn by this pane')
   })
 
-  it('⭐ CONTROL — a runtime document whose script paints nothing carries no such note', () => {
+  it('⭐ CONTROL — a runtime document whose script paints nothing (and declares nothing it does not draw) carries no such note', () => {
     flagsOn()
-    const { built } = mint(RUNTIME_ONLY[0], 0) // adx-and-di-for-v4
+    // ⚰️ this was adx-and-di-for-v4 until the family ledger (fix/runtime-family-ledger): its `hline` is drawn by no
+    // runtime document and was named by none, so it now carries the note (below) and is no longer a control
+    const { built } = mint(RUNTIME_ONLY[1], 1) // delta-rsi-oscillator-strategy
     expect(((built.translation.presentation || {}).paints || []).length).toBe(0)
     expect(built.definition.meta.disclosures.map((d) => d.name)).not.toContain('Not drawn by this pane')
+  })
+  it('⭐⭐ THE FAMILY LEDGER — adx-and-di-for-v4\'s `hline`, drawn by no runtime document, is named', () => {
+    flagsOn()
+    const { built } = mint(RUNTIME_ONLY[0], 0) // adx-and-di-for-v4
+    const note = built.definition.meta.disclosures.find((d) => d.name === 'Not drawn by this pane')
+    expect(note && note.note).toContain('a horizontal line')
   })
 })

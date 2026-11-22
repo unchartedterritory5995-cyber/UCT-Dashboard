@@ -27,7 +27,9 @@ import {
   __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList, __resetRuntimeAdmission,
   setRuntimeCapabilityAdmission, latchRuntimeAdmission, runtimeSourceHash,
 } from '../../engine/runtimeKill'
-import { setRunHalfObjectEvidence } from '../../engine/runHalfRailSeam'
+import { setRunHalfObjectEvidence, registerRunHalfObjectRail, registeredRunHalfObjectRail } from '../../engine/runHalfRailSeam'
+import { setRunHalfBeaconReporter, resetRunHalfTelemetry, runHalfRefusalCounts } from '../../engine/runHalfTelemetry'
+import { RUN_HALF_ADMITTED_LOST } from '../../engine/runHalfObjectRail'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 const script = (slug) => fs.readFileSync(path.join(REPO, 'corpus', 'committed', `${slug}.pine`), 'utf8')
@@ -157,5 +159,49 @@ describe('⛔ its gates decide first: a script the server has not admitted keeps
   it('admitted by capability: served; not admitted: refused by name, nothing of the run drawn', () => {
     expect(run(true)).toEqual({ state: 'served', code: null })
     expect(run(false)).toEqual({ state: 'refused', code: 'pane:not-graded' })
+  }, 120000)
+})
+
+// ─── ⭐ THE LOST-DRAWINGS ADMISSION IS AN ANSWER, NEVER A REFUSAL CODE: NOTHING SENDS IT ─────────────────────────────
+//
+// `RUN_HALF_ADMITTED_LOST` ('lost-drawings') is the `admittedBy` of a PASSING verdict (`runHalfObjectRail.js`).
+// `withRunHalf` hands only a FAILING verdict's `code` to the refusal telemetry (`refused(verdict.code)`); a pass is
+// `answered('served', null)`, noted as no code. Measured here on the real path, not read: the rail's own verdict is
+// recorded (a wrapper around the registered rail), the beacon reporter is spied, and the tab's counts are read.
+// `tests/test_run_half_refusal_telemetry.py` holds the REFUSAL constants to the server's code pattern on this basis.
+describe('⭐ the lost-drawings admission is never sent to the refusal telemetry', () => {
+  it('served on the lost-drawings rule: the verdict names it, no beacon and no count carries it; CONTROL: a refusal is sent', () => {
+    const cap = capture(CAPTURES[0].file)
+    paneOn()
+    registry.registerRuntimeLane(runtimeColumnsFor)
+    setRuntimeDoorClock(() => 0)
+    const real = registeredRunHalfObjectRail()
+    expect(real, 'the object rail is registered').toBeTruthy()
+    const verdicts = []
+    const sent = []
+    registerRunHalfObjectRail((args) => { const v = real(args); verdicts.push(v); return v })
+    resetRunHalfTelemetry()
+    setRunHalfBeaconReporter((body) => sent.push(body))
+    try {
+      const def = memberPaneDefinition({ source: script(ATR_SR), id: ID }).definition
+      const bars = barsOf(cap.bars.rows)
+      const ctx = ctxOf(cap, CAPTURES[0].symbol)
+      expect(runHalfOf(columnsOf(def, bars, ctx))).toEqual({ state: 'served', code: null })
+      expect(verdicts.some((v) => v && v.ok === true && v.admittedBy === RUN_HALF_ADMITTED_LOST),
+        JSON.stringify(verdicts)).toBe(true)
+      expect(sent.map((b) => b.code)).not.toContain(RUN_HALF_ADMITTED_LOST)
+      expect(JSON.stringify(runHalfRefusalCounts())).not.toContain(RUN_HALF_ADMITTED_LOST)
+      // ⛔ CONTROL — the same spy hears a refusal: the script not admitted is refused `pane:not-graded`, and sent
+      __resetRuntimeAllowList()
+      __resetRuntimeAdmission()
+      setRuntimeCapabilityAdmission(true)
+      latchRuntimeAdmission(runtimeSourceHash(script(ATR_SR)), { admitted: false })
+      expect(runHalfOf(columnsOf(def, bars, ctx))).toEqual({ state: 'refused', code: 'pane:not-graded' })
+      expect(sent.map((b) => b.code)).toContain('pane:not-graded')
+    } finally {
+      registerRunHalfObjectRail(real)
+      setRunHalfBeaconReporter(null)
+      resetRunHalfTelemetry()
+    }
   }, 120000)
 })

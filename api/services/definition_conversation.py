@@ -853,6 +853,24 @@ CONVERSE_SYSTEM_PROMPT = (
     "An opening range needs bars that divide it (30 minutes on a 1, 5, 15 or 30-minute chart); on "
     "longer bars it is withheld and says so, so mention that an opening range is for intraday "
     "charts.\n"
+    "  \"LAST WEEK'S\" OR \"LAST MONTH'S\" VALUE on a chart of shorter bars (\"last month's high and low\", \"the "
+    "prior week's close\") is the `tf` read as it stands: tf(high, M) already IS the last closed month's high "
+    "on every bar of this month. Do NOT put an offset around it: an offset outside a `tf` read counts bars of "
+    "the CHART, so offset 1 of tf(high, M) is one daily bar late and still shows the month before last on the "
+    "first bar of each month. Only when the member asks for a period further back (\"the month before last\") "
+    "put the offset INSIDE the read, where it counts periods: tf(offset 1 of high, M).\n"
+    "  A VALUE THAT RESTARTS WITH THE CALENDAR on every year, quarter, month or week (\"year to date "
+    "percent change\", \"month to date\", \"this year's high\", \"the high so far this month\", \"since the "
+    "start of each month\") is built from the bar's OWN calendar and NEVER from a date, so it is right on "
+    "every year of the chart and stays right after the year turns. The restart is `year != offset 1 of "
+    "year` for a year, `monthfirst` for a month, `weekfirst` for a week, and `monthfirst && (month == 1 || "
+    "month == 4 || month == 7 || month == 10)` for a quarter. The year to date percent change is the close "
+    "against the prior year's last close: valuewhen(year != offset 1 of year, offset 1 of close, 300). This "
+    "year's running high is accum(high, year != offset 1 of year ? high : max(self, high), 300). The last "
+    "argument of `valuewhen` is a WINDOW in bars and must reach back past the event (a year of daily bars "
+    "is about 252): never 1, which is blank on every bar but the event's own. These need no date, so never "
+    "ask for one. The dates of the next paragraph are for an ANCHOR only (an anchored VWAP from the start "
+    "of this year).\n"
     "  A DATE THE MEMBER NAMES BY THE CALENDAR (\"this year\", \"year to date\", \"this quarter\", \"since the start of the month\", \"this week\"): you do NOT know today's date, so never work out "
     "the year, quarter, month or week yourself. `uct_language_notes.calendar` gives today's date and the exact "
     "start of each, in New York time, as the number `avwap(...)` takes. Use that number as it is and say the "
@@ -863,6 +881,45 @@ CONVERSE_SYSTEM_PROMPT = (
     "the highest volume of the last 10 days is volume > offset 1 of highest(volume, 10)). A "
     "window that includes this bar compares it with itself. Only \"is AT an N-bar high or low\" "
     "includes this bar (close >= highest(close, N)).\n"
+    "  THE EXTREME, THE SUM OR THE AVERAGE OF ONLY SOME BARS IN A WINDOW (\"the highest down-day volume of "
+    "the last 10 days\", \"the lowest close among the up days of the last 20\"): the window is still the "
+    "last N BARS. lowest, highest, an average and a sum SKIP a bar that has no value and look further back "
+    "for one, so a bar given no value (0 / 0, or any division by zero: there is no infinity here) turns "
+    "the window into the last N bars THAT QUALIFY, which is a different number. Give the bars to leave out "
+    "a number that cannot win or count: 0 inside highest and inside a sum, a number far above any real one "
+    "inside lowest (lowest(close > offset 1 of close ? volume : 1000000000000000, 10)). That number is a "
+    "STAND-IN, never an answer: on a bar whose window holds no qualifying bar the stand-in itself comes "
+    "back. Where the extreme is only COMPARED (volume > offset 1 of highest(...)) that is fine. Where it is "
+    "DRAWN or used in arithmetic, make it no value on those bars: sum(cond ? 1 : 0, N) > 0 ? "
+    "lowest(cond ? low : 1000000000000000, N) : 0 / 0. An AVERAGE of only some bars of the last N has no "
+    "stand-in: write it as sum(cond ? x : 0, N) / sum(cond ? 1 : 0, N), which is no value by itself when "
+    "none qualify (an average given no value on the other bars is the average of the last N that "
+    "qualify). Only when the member asks for the last N bars that qualify (\"the average volume of the last "
+    "10 up days\") is no value right, written 0 / 0, and then say in `assumptions` that the window reaches "
+    "back past other bars.\n"
+    "  A COUNT, A SUM OR AN AVERAGE OVER A WINDOW OF A CONDITION THAT READS SOMETHING WITH ITS OWN WARM-UP "
+    "(\"the percent of the last 50 days the close was above its 20 day average\", \"how many of the last 20 "
+    "days closed above the 200 day average\"): a comparison with a value that does not exist yet is FALSE "
+    "here, so on the bars where that average has no value the count would add a 0 and show a NUMBER for "
+    "something that is not known. On a symbol with less history than the average needs, that number is 0 "
+    "on every bar. The count must have NO VALUE until the thing the condition reads (X: the average, the "
+    "highest, the RSI) has a value on the window's OLDEST bar: na(offset N - 1 of X) ? 0 / 0 : <the "
+    "count>. For the last 50 bars above a 20-bar average: na(offset 49 of sma(close, 20)) ? 0 / 0 : "
+    "sum(close > sma(close, 20) ? 1 : 0, 50) * 100 / 50. A condition that reads only this bar and the one "
+    "before it (close > offset 1 of close) needs no such guard.\n"
+    "  A COUNT OF BARS SINCE something, when the count itself is what the member wants to see: give "
+    "`barssince` a window far longer than the thing being measured (500 unless the member names one), "
+    "never the event's own length (\"bars since the last 50-bar high\" is barssince(cond, 500), not 50: "
+    "at 50 the line would stop at 50 and read 50 for 51, 80 or 300 bars). Say in `assumptions` where the "
+    "count stops.\n"
+    "  A RANK, or a count of the bars of a window measured against TODAY's value (\"where does today's "
+    "volume rank among the last 20 bars\", \"how many of the last 50 closes were above today's\"): inside "
+    "sum(..., N) and every other window, each series is read at ITS OWN bar, so nothing written there "
+    "means today's value, and volume > volume compares each bar with itself and is never true. Use "
+    "percentrank: percentrank(x, N) is the percent of the N bars BEFORE this one whose x is at or below "
+    "today's. So among the last N bars with this one, the bars above today's are (N - 1) - percentrank(x, "
+    "N - 1) * (N - 1) / 100, and the rank with 1 for the highest is N - percentrank(x, N - 1) * (N - 1) / "
+    "100 (the last 20 bars: 20 - percentrank(volume, 19) * 19 / 100).\n"
     "  A RUNNING VALUE reads its own previous value: an adaptive average, a stop that ratchets, a "
     "streak or a count. It is accum(seed, update, warmup): it starts at `seed` and becomes "
     "`update` on each of the last `warmup` bars, and inside `update` the series named `self` is "
@@ -871,7 +928,23 @@ CONVERSE_SYSTEM_PROMPT = (
     "300). An adaptive average: accum(close, self + k * (close - self), 300) with k any formula "
     "between 0 and 1. `warmup` is a plain whole number up to 960: use 300 unless the member "
     "asks. `self` exists ONLY inside an accum's update; one accum never sits inside another "
-    "(give the inner one its own output's formula instead).\n"
+    "(give the inner one its own output's formula instead). A TOTAL THAT NEVER FORGETS (on-balance "
+    "volume, an accumulation and distribution line, any \"running total\" or \"cumulative\" value with no "
+    "window) is cum(x): the running total of x over every bar of the loaded history. On-balance volume is "
+    "cum(close > offset 1 of close ? volume : close < offset 1 of close ? 0 - volume : 0). It is NEVER an "
+    "accum: an accum over W bars is that total's CHANGE across the last W bars, a different line. Only "
+    "when the member names a window (\"over the last 300 bars\") is it sum(x, N).\n"
+    "  A RUNNING VALUE THAT STARTS ON A DATE the member names (\"a trailing stop from my entry on 2 June "
+    "2026\", \"the highest high since 3 March\", \"count the up days since 1 May\") has NO value before "
+    "that date and STARTS FRESH on the first bar on or after it: on that bar it is its starting value "
+    "itself, and only the bars after it read `self`. With D the date as the number `time` holds, write "
+    "time < D ? 0 / 0 : accum(start, offset 1 of time < D ? start : update, 900). The stop two ATRs under "
+    "the close that only rises from the date: time < D ? 0 / 0 : accum(close - 2 * atr(high, low, close, "
+    "14), offset 1 of time < D ? close - 2 * atr(high, low, close, 14) : max(self, close - 2 * atr(high, "
+    "low, close, 14)), 900). NEVER let the first bar read `self`: max(self, x) on the start bar carries "
+    "the level of the bar BEFORE the date into the value, so a stop starts too high and a count starts "
+    "above its first number. Do not draw the unstarted level before the date; when the member wants that "
+    "line as well it is a second output. Say in `assumptions` the date it starts on.\n"
     "  SEVERAL RUNNING VALUES THAT FEED EACH OTHER are accum2, accum3 or accum4: accumK(which, "
     "warmup, start1..startK, update1..updateK). All K values are replaced together on each bar. "
     "Inside the updates `state1`..`stateK` are their PREVIOUS values, and `which` (a plain whole "
@@ -997,9 +1070,13 @@ DATA_PREAMBLE = dc.DATA_PREAMBLE
 #: the member's words name a calendar start, the turn carries today's date and the exact start of
 #: this year, quarter, month and week (`calendar_notes`), and the instructions forbid working any of
 #: them out. Any other turn is byte for byte what it was (nothing is added, the clock is not read).
+#: ⭐ 2026-11-21 -- "this CALENDAR year" names one too (it was unmatched, so the assistant asked for a
+#: date the door had). And the dates are for an ANCHOR only: a value that RESTARTS each year, month or
+#: week is built from the bar's own calendar (the instructions' paragraph above the dated one), since a
+#: date written into such a value is blank or wrong on every other year and goes stale when the year turns.
 _CALENDAR_WORDS = re.compile(
-    r"\b(?:this|current)\s+(?:year|quarter|month|week)\b|\byear[\s-]+to[\s-]+date\b|\bytd\b|\bqtd\b|\bmtd\b|"
-    r"\bstart\s+of\s+(?:the\s+|this\s+)?(?:year|quarter|month|week)\b|\b(?:yearly|quarterly|monthly|weekly)\s+(?:anchored\s+)?vwap\b",
+    r"\b(?:this|current)\s+(?:calendar\s+)?(?:year|quarter|month|week)\b|\byear[\s-]+to[\s-]+date\b|\bytd\b|\bqtd\b|\bmtd\b|"
+    r"\bstart\s+of\s+(?:the\s+|this\s+)?(?:calendar\s+)?(?:year|quarter|month|week)\b|\b(?:yearly|quarterly|monthly|weekly)\s+(?:anchored\s+)?vwap\b",
     re.I)
 CALENDAR_TZ = "America/New_York"
 
@@ -1790,8 +1867,18 @@ def own_words_notes(envelope: Mapping[str, Any], own_words: Any) -> List[Dict[st
     described the rule: it is THEIR formula. UCT has checked none under that name."""
     if not own_words:
         return []
-    names = " or ".join(e["name"] for e in own_words)
-    text = f"Built from your own description, as your own formula. UCT has not checked a formula for {names}."
+    # (a name that is one of UCT's own BUILT-INS: the built-in exists and is on the list; what was built here is
+    # the member's own version, and it is not that built-in)
+    own = [e for e in own_words if named_indicators.built_in(e) is None]
+    built = [named_indicators.built_in(e)["name"] for e in own_words if named_indicators.built_in(e) is not None]
+    text = "Built from your own description, as your own formula."
+    if own:
+        text += f" UCT has not checked a formula for {' or '.join(e['name'] for e in own)}."
+    if built:
+        # (never "UCT's own UCT RS Rating"; and a list reads "A, B and C": review 2026-11-19)
+        names = built[0] if len(built) == 1 else ", ".join(built[:-1]) + " and " + built[-1]
+        text += (f" {names} is one of UCT's own indicators, in the Indicators list." if len(built) == 1
+                 else f" {names} are UCT's own indicators, in the Indicators list.")
     return [{"output": key, "text": text[:named_indicators.SENTENCE_MAX]}
             for key, _tree in _patch_outputs(envelope) if isinstance(key, str)]
 
@@ -1953,11 +2040,89 @@ def can_add_built_ins(accepts: Any, built_ins: Any) -> frozenset:
     return frozenset(i for i in built_ins[:BUILT_INS_MAX] if isinstance(i, str) and 0 < len(i) <= BUILT_IN_ID_MAX)
 
 
-def built_in_offer(entry: Mapping[str, Any]) -> Dict[str, Any]:
-    """The one action an answer about a built-in name offers."""
+def built_in_offer(entry: Mapping[str, Any], value: Any = None) -> Dict[str, Any]:
+    """The one action an answer about a built-in name offers. ⭐ For a name that is one SETTING of a
+    built-in, the offer carries that setting's value (`inputs`): the one asked for when the library
+    allows it, else the library's default. It is never offered without it."""
     b = named_indicators.built_in(entry) or {}
-    return {"kind": OFFER_ADD_BUILT_IN, "indicator": b["indicator"], "name": b["name"],
-            "label": f"Add {b['name']} to this chart"}
+    offer = {"kind": OFFER_ADD_BUILT_IN, "indicator": b["indicator"], "name": b["name"],
+             "label": f"Add {b['name']} to this chart"}
+    setting = named_indicators.built_in_setting(entry)
+    if setting is not None:
+        offer["inputs"] = {setting["input"]: value if value in setting["values"] else setting["default"]}
+        offer["label"] = f"Add {b['name']} with its {setting['label']} on to this chart"
+    return offer
+
+
+# ⭐ VWAP'S STANDARD-DEVIATION BANDS (coordinator's approval 2026-11-19). They are not a formula: UCT's
+# built-in Session VWAP draws them when its "Std dev bands" setting is on. A request that is ONLY that
+# is answered by the door, with no assistant call, and offered in one tap.
+#
+# ⛔ A CLOSED-FORM READER, NOT A JUDGEMENT OF MEANING. The request must be "vwap", "band(s)", multiples
+# of 1, 2 or 3, and words from the list below, and NOTHING else. One other word ("anchored", "weekly",
+# "when", "price", "alert", "2.5") and the door does not answer: the assistant reads the request, as
+# before. So the door can be wrong one way only: by not offering.
+VWAP_BANDS_ENTRY = "session_vwap_bands"
+_VWAP_BANDS_WORDS = frozenset(
+    "add show plot draw put give display get me the a an with and at on to of its it my this chart charts "
+    "session intraday standard std dev devs deviation deviations stdev sigma sigmas sd upper lower above below "
+    "around lines line please i want need can you could would like plus minus both either side sides too also "
+    "in for times".split())
+# (`[0-9]`, not `\d`: `\d` also matches full-width and Arabic-Indic digits, which the reader below cannot
+# parse; "vwap bands ２" raised instead of going on to the assistant. Review 2026-11-19.)
+_VWAP_BANDS_NUMBER = r"(?:\+/-|\+-|±|\+|-)?\s*[0-9]+(?:\.[0-9]+)?"
+_VWAP_BANDS_TOKEN = re.compile(_VWAP_BANDS_NUMBER + r"|[a-z]+|σ")
+_VWAP_BANDS_REST = re.compile(_VWAP_BANDS_NUMBER + r"|[a-z]+|σ|[\s,.;:!?()&/'\"-]+")
+VWAP_BANDS_MAX_CHARS = 160
+
+
+def vwap_bands_ask(message: Any) -> Optional[str]:
+    """The value of Session VWAP's bands setting this message asks for, when the WHOLE message is a
+    request for VWAP with its standard-deviation bands; else None. The value is the largest multiple
+    named (the setting draws every band up to it), or the library's default when none is named."""
+    entry = named_indicators.entry(VWAP_BANDS_ENTRY)
+    setting = named_indicators.built_in_setting(entry)
+    text = str(message or "").lower() if isinstance(message, str) else ""
+    if setting is None or not text.strip() or len(text) > VWAP_BANDS_MAX_CHARS or _VWAP_BANDS_REST.sub("", text):
+        return None
+    words, multiples = [], []
+    for token in _VWAP_BANDS_TOKEN.findall(text):
+        if token == "σ":                                     # (a letter to `isalpha`, and not a word here)
+            continue
+        if token[0].isalpha():
+            words.append(token)
+        else:
+            number = float(re.sub(r"[^0-9.]", "", token))
+            if not number.is_integer() or str(int(number)) not in setting["values"]:
+                return None                                  # a multiple the setting does not draw (2.5, 4)
+            multiples.append(int(number))
+    if words.count("vwap") != 1 or not any(w in ("band", "bands") for w in words):
+        return None
+    if any(w not in _VWAP_BANDS_WORDS and w not in ("vwap", "band", "bands") for w in words):
+        return None
+    return str(max(multiples)) if multiples else setting["default"]
+
+
+def _door_offer(pointer: Mapping[str, Any], revision: Any, view: Any, trace: Dict[str, Any],
+                read: Mapping[str, Any], value: Any = None) -> Optional[Dict[str, Any]]:
+    """⭐ THE DOOR ANSWERS, with no model call, and OFFERS THE ACTION: this browser said it can add that
+    built-in now. Nothing is built and nothing is changed by the answer itself. None when the door's own
+    answer does not pass the door (never: if it ever is, the turn goes on as if nothing was offered)."""
+    said = named_indicators.built_in_answer(pointer)
+    answer = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "answer",
+              "reply": said}
+    try:
+        answer = check_envelope(answer, revision, view)
+    except _Refused:
+        logger.exception("[converse] the door's own answer did not pass the door")
+        return None
+    trace["offered"] = pointer["id"]
+    logger.info("[converse] the door offered the built-in %s (no model call)", pointer["id"])
+    return {"ok": True, "disposition": "answer", "reply": said, "turn": "offer", "envelope": answer,
+            "answered_by": "door", "offer": built_in_offer(pointer, value),
+            "not_understood": read.get("not_understood") or [],
+            "unavailable": read.get("unavailable") or [],
+            "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0, "attempts": 0, "model": None}
 
 
 def accepts_note_by(accepts: Any) -> bool:
@@ -1996,10 +2161,19 @@ def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
     twin = chart_twins.house_formula(t.get("name")) if isinstance(t.get("name"), str) else None
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
+        # ⭐ 2026-11-21 (ruling) -- THE MEMBER'S OWN RULE WINS. Found live: asked to mark inside bars "where the
+        # high is below the prior high and the low is above the prior low", the assistant built the firm's
+        # formula (a touch allowed, on a bar that traded) and said so. Nothing was hidden, but the member had
+        # stated the rule and got ours. A house term settles what the WORD means when the member only names
+        # it (the 2026-11-18 ruling: never a question, never two formulas for one word); a member who spells
+        # the rule out has asked for that rule.
         out["rule"] = ("the firm's meaning of this term on a chart: use this formula and "
                        "disclose its numbers in `assumptions`. If the member gave their own "
                        "number for it (a different length or window), keep this formula's shape "
-                       "with the member's number")
+                       "with the member's number. If the member spells out the RULE itself in the "
+                       "same request (what is compared with what, and whether a touch counts), "
+                       "build THEIR rule exactly and say in `assumptions` how it differs from the "
+                       "firm's")
         subject = chart_twins.PATTERN_SUBJECT.get(t.get("name"))
         if subject:
             out["rule"] += ". " + subject
@@ -2243,6 +2417,319 @@ def _refuse_negative_bars_back(trees: List[Tuple[str, Any]]) -> None:
                         "0 on this bar, 1 one bar ago, never negative (unlike TradingView's "
                         "`ta.highestbars` / `ta.lowestbars`). Use the count itself, not negated, "
                         "with numbers of 0 or more: \"3 to 11 bars ago\" is `>= 3` and `<= 11`.")
+
+
+def _is_literal_number(node: Any) -> Optional[float]:
+    """A literal number's value (a plain one, or one behind a unary minus), else None."""
+    if not isinstance(node, Mapping):
+        return None
+    if node.get("type") == "num" and isinstance(node.get("value"), (int, float)) and not isinstance(node.get("value"), bool):
+        return float(node["value"])
+    if node.get("type") == "op" and node.get("name") == "u-" and isinstance(node.get("args"), list) and len(node["args"]) == 1:
+        inner = _is_literal_number(node["args"][0])
+        return None if inner is None else -inner
+    return None
+
+
+def _infinity_by_division(node: Any) -> bool:
+    """A NONZERO literal divided by a literal zero: written to mean "infinity". (``0 / 0`` is this engine's
+    own "no value" and is not this.)"""
+    if not (isinstance(node, Mapping) and node.get("type") == "op" and node.get("name") == "/"
+            and isinstance(node.get("args"), list) and len(node["args"]) == 2):
+        return False
+    top, bottom = _is_literal_number(node["args"][0]), _is_literal_number(node["args"][1])
+    return bottom == 0 and top is not None and top != 0
+
+
+def _windows_that_look_back() -> frozenset:
+    """The window functions that skip a bar with no value and read further back for one (the engine's own
+    table, `ast_interpret.WINDOW_NA`: the SKIP and FINITE members)."""
+    from api.services import ast_interpret
+    return frozenset(name for name, policy in ast_interpret.WINDOW_NA.items()
+                     if policy in (ast_interpret.NA_SKIP, ast_interpret.NA_FINITE))
+
+
+def _refuse_infinity_in_a_window(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-20 -- "INFINITY" INSIDE A WINDOW IS NO VALUE, AND THE WINDOW THEN READS FURTHER BACK.
+
+    Found by a value check. For the lowest of only SOME bars in a window, a formula of the shape
+    ``lowest(close > offset 1 of close ? volume : 1 / 0, 10)`` gives every other bar "infinity", so that
+    it could never be the lowest. Here a division by zero is NO VALUE, and `lowest` skips a bar with no
+    value and looks further back for one (the engine's measured behaviour, and TradingView's). So that
+    formula reads the lowest volume of the last 10 bars THAT QUALIFY, however far back they are: a
+    different number from the one asked for wherever the qualifying bars are sparse, under a reply that
+    described a 10-bar window.
+
+    Refused: a nonzero number divided by a literal zero anywhere in the series a look-back window reads
+    (and not inside a window of its own, which answers for itself). ``0 / 0`` is not refused: it is the
+    engine's own "no value", and "the last N bars that qualify" is a real request; the instruction above
+    says when each is right.
+    """
+    windows = _windows_that_look_back()
+
+    def reads_infinity(node: Any) -> bool:
+        stack = [node]
+        while stack:
+            n = stack.pop()
+            if not isinstance(n, Mapping):
+                if isinstance(n, list):
+                    stack.extend(n)
+                continue
+            if _infinity_by_division(n):
+                return True
+            if n.get("type") == "call" and n.get("name") in windows:
+                continue                       # an inner window is judged on its own visit
+            args = n.get("args")
+            if isinstance(args, list):
+                stack.extend(args)
+        return False
+
+    for where, tree in trees:
+        for node in _walk(tree):
+            if node.get("type") != "call" or node.get("name") not in windows:
+                continue
+            args = node.get("args")
+            if isinstance(args, list) and args and reads_infinity(args[0]):
+                name = node["name"]
+                raise _Refused(
+                    "envelope:reference",
+                    f"{where}: `{name}` reads a number divided by zero for the bars it should leave out. "
+                    "There is no infinity here: a division by zero is NO VALUE, and "
+                    f"`{name}` skips a bar with no value and looks further BACK for one, so this reads the "
+                    "last N bars that qualify, not the qualifying bars among the last N. For the bars among "
+                    "the last N, give the others a number that cannot win or count: 0 inside highest or a "
+                    "sum, a number far above any real one inside lowest (1000000000000000). If the last N "
+                    "qualifying bars is what the member asked for, write the no value as 0 / 0 and say in "
+                    "`assumptions` that the window reaches back past other bars.")
+
+
+#: The call whose last argument is how far BACK it looks for the bar it reads from, and the smallest window
+#: that can reach a bar other than this one.
+_VALUE_AT_AN_EVENT = "valuewhen"
+_SMALLEST_WINDOW_THAT_LOOKS_BACK = 2
+
+
+def _refuse_a_value_at_an_event_that_cannot_look_back(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-21 -- `valuewhen(cond, value, 1)` READS ONLY THIS BAR.
+
+    Found by a value check. Asked for the year to date change, the assistant read "the prior year's last
+    close" as ``valuewhen(<a bar of an earlier year>, close, 1)``. The last argument is a WINDOW in bars: the
+    value comes from the most recent of the last N bars where the condition was true. With N = 1 that is this
+    bar or nothing, so the line had a value only where the condition itself was true and was blank on every
+    bar after the event it was meant to remember, under a reply that described a held level.
+
+    Refused: a literal window below 2. Written honestly that formula is ``cond ? value : 0 / 0``, which is
+    not refused, so nothing a member can ask for is lost. A window that is too short for the event's spacing
+    cannot be seen from the formula; the window's own statement of what is empty on the chart answers that.
+    """
+    for where, tree in trees:
+        for node in _walk(tree):
+            if node.get("type") != "call" or node.get("name") != _VALUE_AT_AN_EVENT:
+                continue
+            args = node.get("args")
+            window = _is_literal_number(args[-1]) if isinstance(args, list) and len(args) == 3 else None
+            if window is not None and window < _SMALLEST_WINDOW_THAT_LOOKS_BACK:
+                raise _Refused(
+                    "envelope:reference",
+                    f"{where}: `{_VALUE_AT_AN_EVENT}` is given a window of {window:g} bar. Its last argument is how "
+                    "many bars it looks BACK for the most recent bar where the condition was true, so this reads "
+                    "only the bar itself: a value where the condition is true and NO VALUE on every bar after "
+                    "it. To hold the value from the last time the condition was true, give it a window that "
+                    "reaches back past that event (500 unless the member names one; a year of daily bars is "
+                    "about 252). If a value on only the bars where the condition is true is what the member "
+                    "asked for, write that as a choice: cond ? value : 0 / 0.")
+
+
+_EXTREMES_OF_A_WINDOW = frozenset({"highest", "lowest"})
+
+
+def _same_tree(a: Any, b: Any) -> bool:
+    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+def _stand_in_of(arg: Any) -> Optional[float]:
+    """The stand-in number of ``cond ? value : NUMBER`` (or ``cond ? NUMBER : value``), or None. A CLAMP is
+    not a stand-in: ``x > 0 ? x : 0`` keeps a real number on every bar (the comparison is of the kept branch
+    with the very number the other branch gives)."""
+    if not (isinstance(arg, Mapping) and arg.get("type") == "op" and arg.get("name") == "?:"
+            and isinstance(arg.get("args"), list) and len(arg["args"]) == 3):
+        return None
+    cond, yes, no = arg["args"]
+    for kept, other in ((yes, no), (no, yes)):
+        number = _is_literal_number(other)
+        if number is None or _is_literal_number(kept) is not None:
+            continue
+        if (isinstance(cond, Mapping) and cond.get("type") == "op" and cond.get("name") in _COMPARISONS
+                and isinstance(cond.get("args"), list) and len(cond["args"]) == 2):
+            left, right = cond["args"]
+            for series, literal in ((left, right), (right, left)):
+                if _same_tree(series, kept) and _is_literal_number(literal) == number:
+                    return None
+        return number
+    return None
+
+
+def _refuse_a_stand_in_drawn_as_a_value(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-20 -- THE STAND-IN FOR "LEAVE THIS BAR OUT" COMES BACK AS THE ANSWER WHEN NO BAR QUALIFIES.
+
+    Found by a value check, the day the rule above it shipped. For the highest or lowest of only SOME bars of
+    a window the other bars are given a number that cannot win: 0 inside ``highest``, a huge number inside
+    ``lowest``. On a bar whose window holds NO qualifying bar that number is the answer. Compared with
+    something it is harmless. DRAWN, it is a price of 0, or a line at a million billion, on every such bar:
+    built, read back plausibly, and wrong (dozens of bars in a few hundred on real daily bars, over a short
+    window).
+
+    Refused: ``highest`` / ``lowest`` of ``cond ? value : NUMBER`` whose answer reaches the output without
+    passing through a comparison or a ``?:`` (which is how it is made no value when none qualify:
+    ``sum(cond ? 1 : 0, N) > 0 ? lowest(...) : 0 / 0``). A clamp (``x > 0 ? x : 0``) is not a stand-in.
+    """
+    def visit(node: Any, guarded: bool, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, guarded, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        args = node.get("args")
+        if (not guarded and node.get("type") == "call" and node.get("name") in _EXTREMES_OF_A_WINDOW
+                and isinstance(args, list) and args):
+            stand_in = _stand_in_of(args[0])
+            if stand_in is not None:
+                name = node["name"]
+                raise _Refused(
+                    "envelope:reference",
+                    f"{where}: `{name}` leaves bars out by giving them the number {stand_in:g}, and its answer "
+                    "is drawn (or used in arithmetic) as it is. On a bar whose window holds no qualifying bar "
+                    f"that stand-in is the answer, so {stand_in:g} would be drawn as if it were a real value. "
+                    f"Make it no value on those bars: `sum(cond ? 1 : 0, N) > 0 ? {name}(...) : 0 / 0`. "
+                    "A stand-in needs no such guard only where the answer is just compared with something.")
+        inside = guarded or (node.get("type") == "op" and (node.get("name") in _COMPARISONS or node.get("name") == "?:"))
+        if isinstance(args, list):
+            visit(args, inside, where)
+
+    for where, tree in trees:
+        visit(tree, False, where)
+
+
+_ORDERINGS = frozenset({"<", "<=", ">", ">="})
+
+
+def _same_bar_reading(node: Any) -> Any:
+    """`node` with every read of "0 bars back" taken away: `barsAgo(x, 0, n)` and `offset 0 of x` are `x`."""
+    if isinstance(node, list):
+        return [_same_bar_reading(child) for child in node]
+    if not isinstance(node, Mapping):
+        return node
+    args = node.get("args")
+    if isinstance(args, list) and args:
+        zero = lambda a: isinstance(a, Mapping) and a.get("type") == "num" and a.get("value") == 0  # noqa: E731
+        if node.get("type") == "call" and node.get("name") == "barsAgo" and len(args) == 3 and zero(args[1]):
+            return _same_bar_reading(args[0])
+        if node.get("type") == "offset" and node.get("value") == 0 and len(args) == 1:
+            return _same_bar_reading(args[0])
+    return {key: _same_bar_reading(value) for key, value in node.items()}
+
+
+def _refuse_a_reading_compared_with_itself(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-20 -- A RANK THAT IS 1 ON EVERY BAR. Found by a value check on real bars.
+
+    Asked where today's value ranks among the last N bars, the model counted `x > x` inside a window (once
+    plainly, once as `barsAgo(x, 0, N) > x`, which reads 0 bars back and is `x`). Inside a window each series
+    is read at its own bar, so that compares every bar with itself: never true, the count is 0, and the rank
+    reads 1 on every bar. Built, described confidently, and wrong on nearly every bar.
+
+    Refused: `<`, `<=`, `>`, `>=` whose two sides are the same reading on the same bar. It is never an answer
+    (`==` and `!=` are left alone: `x == x` is how a formula asks "is this a number"). The note says how a
+    window is measured against today's value.
+    """
+    def visit(node: Any, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        args = node.get("args")
+        if (node.get("type") == "op" and node.get("name") in _ORDERINGS and isinstance(args, list) and len(args) == 2
+                and _same_bar_reading(args[0]) == _same_bar_reading(args[1])):
+            name = node["name"]
+            raise _Refused(
+                "envelope:reference",
+                f"{where}: `a {name} b` compares a reading with ITSELF (both sides are the same value on the same "
+                "bar), so it says nothing. Inside sum(..., N) and every other window each series is read at its "
+                "own bar: nothing written there means today's value. To measure the bars of a window against "
+                "TODAY's value use percentrank: percentrank(x, N) is the percent of the N bars before this one "
+                "whose x is at or below today's, so among the last N bars with this one the bars above today's "
+                "are (N - 1) - percentrank(x, N - 1) * (N - 1) / 100, and the rank with 1 for the highest is "
+                "N - percentrank(x, N - 1) * (N - 1) / 100.")
+        if isinstance(args, list):
+            visit(args, where)
+
+    for where, tree in trees:
+        visit(tree, where)
+
+
+#: a wrapper that reads ITS CHILD somewhere else: on another timeframe, or on another symbol
+_SCOPE_WRAPPERS = ("tf", "tf_live", "sym")
+
+
+def _reads_a_bar(node: Any) -> bool:
+    """Does this formula read anything of a bar: a series, or a call (which computes from bars)?"""
+    if isinstance(node, list):
+        return any(_reads_a_bar(child) for child in node)
+    if not isinstance(node, Mapping):
+        return False
+    return node.get("type") in ("series", "call") or _reads_a_bar(node.get("args"))
+
+
+def _refuse_a_scope_read_of_nothing(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-22 -- A NUMBER STANDING WHERE A VALUE SHOULD BE. Found by a value check of a live round.
+
+    Asked for "today's low so far plus the 14 day ATR, and today's high so far minus the 14 day ATR", the model
+    answered `sessionLow() + tf(0, W)` and `sessionHigh() - tf(0, W)`: a weekly read of the CONSTANT 0 where the
+    ATR it could not write should have been. The door accepted it on the first attempt. Labelled "Session low +
+    ATR", it drew the session low. A wrong picture under an honest-looking label.
+
+    Refused: a `tf`, `tf_live` or `sym` wrapper whose child reads nothing of a bar (no series, no call). Such a
+    read is that number on every bar and never an answer; the model gets its one repair, told to write the value
+    or to say it cannot. Measured before it was written over the 298 answers recorded in the live rounds (281
+    formulas): it refuses that one answer and no other.
+    """
+    def visit(node: Any, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        if node.get("type") in _SCOPE_WRAPPERS and not _reads_a_bar(node.get("args")):
+            raise _Refused(
+                "envelope:reference",
+                f"{where}: `{node['type']}` here reads a plain number, not a value of a bar, so it is that number on "
+                "every bar: a number is standing where the value the member asked for should be. Write the formula "
+                "the read is OF inside it (the weekly close is tf(close, W)). If what the member asked for cannot be "
+                "written with what the table offers, do not stand a number in for it: answer `unsupported` and say "
+                "what is missing.")
+        visit(node.get("args"), where)
+
+    for where, tree in trees:
+        visit(tree, where)
+
+
+#: a reply that is a word left where the sentence should be
+_PLACEHOLDER_REPLY = re.compile(r"^\W*(?:placeholder|todo|tbd|n/?a|reply|text|string|lorem ipsum\b.*)\W*$", re.IGNORECASE)
+
+
+def _refuse_a_placeholder_reply(envelope: Mapping[str, Any]) -> None:
+    """2026-11-22 -- THE SAME ANSWER SAID "Placeholder" TO THE MEMBER. A change whose `reply` is a placeholder
+    word is refused, so the model gets its one repair and writes the sentence. A reply is never checked for what
+    it claims here (the engine writes what was built); only that it IS one. An empty reply is left as it was."""
+    reply = envelope.get("reply")
+    if envelope.get("ops") and isinstance(reply, str) and _PLACEHOLDER_REPLY.match(reply):
+        raise _Refused(
+            "envelope:reference",
+            f"`reply` is {reply.strip()!r}: a placeholder, not what the member is told. Write one or two plain "
+            "sentences saying what was built; and check the formulas for a number left standing in for a value.")
 
 
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
@@ -3535,6 +4022,12 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
         raise _Refused("model:no-tool", "no patch in the answer")
     _refuse_unsupported_nodes(_trees_of(envelope))
     _refuse_negative_bars_back(_trees_of(envelope))
+    _refuse_infinity_in_a_window(_trees_of(envelope))
+    _refuse_a_value_at_an_event_that_cannot_look_back(_trees_of(envelope))
+    _refuse_a_stand_in_drawn_as_a_value(_trees_of(envelope))
+    _refuse_a_reading_compared_with_itself(_trees_of(envelope))
+    _refuse_a_scope_read_of_nothing(_trees_of(envelope))
+    _refuse_a_placeholder_reply(envelope)
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
@@ -4024,7 +4517,43 @@ def running_value_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
                         f"and levels restart {window} bars back. A chart computed from the symbol's "
                         "first bar can differ.")
             notes.append({"output": key, "text": text})
-    return notes[:RUNNING_VALUE_NOTE_MAX]
+    return (notes + running_total_notes(envelope))[:RUNNING_VALUE_NOTE_MAX]
+
+
+#: A total over every bar of the loaded history (the table's own function; `ta.cum` on the Pine lane is this call).
+RUNNING_TOTAL_FN = "cum"
+RUNNING_TOTAL_NOTE = ("This is a running total from the first bar of the loaded history, so its level depends on "
+                      "where that history starts. Its bar-to-bar changes do not.")
+
+
+def running_total_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    """2026-11-20 -- One assumption per output this patch builds from a TRUE running total (`cum`): where it
+    starts, in the member's words. The same honesty by shape as a running value's note, and for the same
+    reason: the door says it itself, the model is not trusted to remember to. The level of such a total moves
+    when more history is loaded (the table's `window_dependent` tag); its changes from bar to bar do not."""
+    notes: List[Dict[str, Any]] = []
+    for op in envelope.get("ops") or []:
+        if not isinstance(op, Mapping):
+            continue
+        if op.get("op") == "create":
+            outputs = [(o.get("key"), o.get("tree")) for o in op.get("outputs") or [] if isinstance(o, Mapping)]
+        elif op.get("op") == "add_output":
+            outputs = [(op.get("key"), op.get("tree"))]
+        elif op.get("op") == "set_output_tree":
+            outputs = [(op.get("output"), op.get("tree"))]
+        else:
+            continue
+        for key, tree in outputs:
+            stack, total = [tree], False
+            while stack and not total:
+                node = stack.pop()
+                if isinstance(node, dict):
+                    total = _is_call(node, (RUNNING_TOTAL_FN,))
+                    if isinstance(node.get("args"), list):
+                        stack.extend(node["args"])
+            if total and isinstance(key, str):
+                notes.append({"output": key, "text": RUNNING_TOTAL_NOTE})
+    return notes
 
 
 def with_running_value_notes(envelope: Dict[str, Any]) -> Dict[str, Any]:
@@ -4302,7 +4831,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
                 lambda: _with_script_lane(formula_turn, message, user_id=user_id, view=view, authoring=authoring,
                                           snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls, trace=trace,
                                           admin=admin, accepts=accepts, script_refusal=script_refusal,
-                                          cancelled=cancelled),
+                                          cancelled=cancelled, can_add=can_add_built_ins(accepts, addable)),
                 cancelled)
             if result is None:
                 # ⭐ THE CEILING PASSED. The member is answered now and their slot is freed as this
@@ -4632,9 +5161,39 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
             "chart_sym": chart.get("sym") if isinstance(chart, Mapping) else None}
 
 
+def door_answers_by_name(message: Any, chart: Any, can_add: Any = frozenset()) -> bool:
+    """Would the door answer this request itself, BY NAME and with no assistant call? A request that is only a
+    built-in's name (offered in one tap, or pointed at in the Indicators list), or only "VWAP with its bands" for a
+    browser that can add Session VWAP, or one that names an indicator UCT HOLDS BACK (no checked formula yet).
+    Pure: no model, nothing stored. Never raises (False).
+
+    ⛔ A HELD NAME IS REFUSED BY NAME WHATEVER VERB ASKS FOR IT (measured 2026-11-20). "show TTM Squeeze" was
+    refused by name with the way forward, and "draw TTM Squeeze with a label" went to the script lane, where the
+    assistant would have written a TTM Squeeze from memory: the one thing a held name exists to prevent ("nothing
+    it could approximate from", `named_indicators.held_names`). The door's answer cannot depend on the verb.
+    ⭐ Two cases still go on, as they always did: a held name whose published form only a script holds
+    (`needs_script`) is written as a script, and a member who describes the rule in their own words gets exactly
+    that built (`understand_turn` refuses neither)."""
+    try:
+        if vwap_bands_ask(message) is not None:
+            pointer = named_indicators.entry(VWAP_BANDS_ENTRY)
+            if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in (can_add or ()):
+                return True
+        understood = understand_turn(message, chart)
+        if understood.get("refusal") is None:
+            return False
+        if understood.get("built_in") is not None:
+            return True
+        held = [named_indicators.entry(i) for i in understood.get("held") or []]
+        return bool(held) and not any(named_indicators.needs_script(e) for e in held)
+    except Exception:                              # noqa: BLE001 -- the ordinary turn decides
+        return False
+
+
 def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: Any, authoring: Any, snippets: Any,
                       chart: Any, cap_usd: float, calls: List[Dict[str, Any]], trace: Dict[str, Any], admin: bool,
-                      accepts: Any, script_refusal: Any, cancelled: Optional[threading.Event]) -> Dict[str, Any]:
+                      accepts: Any, script_refusal: Any, cancelled: Optional[threading.Event],
+                      can_add: Any = frozenset()) -> Dict[str, Any]:
     """⭐ THE ASSISTANT WRITES PINE (`script_conversation`): where a script turn stands beside the
     formula turn. With the lane closed (the default: the switch is off, or the account is not an
     admin, or the browser does not accept a script) this IS the formula turn, untouched.
@@ -4664,7 +5223,11 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
     refused = sc.script_refusal(script_refusal)
     if refused is not None:
         return script(refused)
-    if sc.wants_script(words):
+    # ⛔ A DRAWING WORD DOES NOT TAKE A BUILT-IN'S NAME AWAY FROM THE DOOR (review 2026-11-19). "draw" is a script
+    # word, and it is also how members ask for anything: "draw vwap bands" went to a paid script while "show vwap
+    # bands" got the one-tap offer, and "draw ATR Bands" was improvised where UCT has the indicator. The same holds
+    # for a name UCT holds back: it is refused by name below, never written from memory because the verb was "draw".
+    if sc.wants_script(words) and not door_answers_by_name(words, chart, can_add):
         return script()
     result = formula_turn()
     if cancelled is not None and cancelled.is_set():
@@ -4707,27 +5270,23 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         trace["unknown_name"] = asked_names(message, refused_as_names)
     except Exception:                              # noqa: BLE001
         logger.exception("[converse] the name catalogue could not be read for the record")
+    # ⭐ ONE SETTING OF A BUILT-IN: a request that is only "VWAP with its standard-deviation bands" is
+    # answered here and offered in one tap, for a browser that can add Session VWAP now. Any other
+    # browser, and any request with one more word in it, goes on exactly as before.
+    bands = vwap_bands_ask(message)
+    if bands is not None:
+        pointer = named_indicators.entry(VWAP_BANDS_ENTRY)
+        if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in can_add:
+            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"] or understood_turn, bands)
+            if offered is not None:
+                return offered
     if understood_turn["refusal"] is not None:
         trace["named_held"] = understood_turn.get("held") or []
         pointer = understood_turn.get("built_in")
         if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in can_add:
-            # ⭐ THE DOOR ANSWERS, with no model call, and OFFERS THE ACTION: this browser said it can
-            # add that built-in now. Nothing is built and nothing is changed by the answer itself.
-            said = named_indicators.built_in_answer(pointer)
-            answer = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "answer",
-                      "reply": said}
-            try:
-                answer = check_envelope(answer, revision, view)
-            except _Refused:                       # never: the answer is this door's own. If it ever is, the sentence stands.
-                logger.exception("[converse] the door's own answer did not pass the door")
-            else:
-                trace["offered"] = pointer["id"]
-                logger.info("[converse] the door offered the built-in %s (no model call)", pointer["id"])
-                return {"ok": True, "disposition": "answer", "reply": said, "turn": "offer", "envelope": answer,
-                        "answered_by": "door", "offer": built_in_offer(pointer),
-                        "not_understood": understood_turn["refusal"].get("not_understood") or [],
-                        "unavailable": understood_turn["refusal"].get("unavailable") or [],
-                        "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0, "attempts": 0, "model": None}
+            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"])
+            if offered is not None:
+                return offered
         if understood_turn["refusal"].get("preflight"):
             logger.info("[converse] preflight %s (no model call)", understood_turn["refusal"]["gate"])
         return understood_turn["refusal"]
@@ -4818,11 +5377,12 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         attempts += 1
         try:
             msg, in_tokens, out_tokens = _call_model(messages)
+            dc.note_model_answered()
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             gate = dc.model_failure_gate(exc)
             if gate == "model:unavailable":
-                # ERROR, not WARNING: this does not heal by itself (O7)
-                logger.error("[converse] the provider refused the account: %s", type(exc).__name__)
+                # ERROR, not WARNING: this does not heal by itself (O7); with the kind of refusal
+                dc.log_account_refusal(logger, "converse", exc)
             else:
                 logger.warning("[converse] model call failed: %s", exc)
             dc.charge_unreported(exc, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, _request_for(messages))

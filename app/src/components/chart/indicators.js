@@ -109,10 +109,17 @@ export function toHeikinAshi(bars) {
  *  from the pre-hole state. 380 of 380 bars, and the values reconstruct to 1.3e-6
  *  with the residual decaying geometrically — seed truncation, not a model gap.
  */
-export function computeRSI(bars, period = 14) {
+/** ⭐ RMA-SEED (engine 92) — `opts.seedMean(values, lo, n)` is how the two Wilder averages are SEEDED
+ *  from the first `period` gains and losses: Pine's `ta.rsi` passes `interpret.js::rmaSeedMean` (the exactly
+ *  rounded sum / n, TradingView's `ta.rma` seed) through `FN_PINE.rsi`. Without it (the native chart RSI, the
+ *  screener, the formula language's `rsi`) the seed is the running sum / n, byte for byte as before. */
+export function computeRSI(bars, period = 14, opts = null) {
   if (!bars || bars.length < period + 1) return []
+  const seedMean = opts && typeof opts.seedMean === 'function' ? opts.seedMean : null
   const result = blank(bars)
   let avgGain = NA, avgLoss = NA, seen = 0, sumGain = 0, sumLoss = 0
+  const gains = seedMean ? [] : null
+  const losses = seedMean ? [] : null
   for (let i = 1; i < bars.length; i++) {
     const diff = bars[i].c - bars[i - 1].c
     // ⭐ HOLD. Not a zero observation, not a reset — the state is simply not
@@ -121,9 +128,11 @@ export function computeRSI(bars, period = 14) {
     const gain = diff > 0 ? diff : 0
     const loss = diff < 0 ? -diff : 0
     if (Number.isNaN(avgGain)) {
-      sumGain += gain; sumLoss += loss; seen += 1
+      if (seedMean) { gains.push(gain); losses.push(loss) } else { sumGain += gain; sumLoss += loss }
+      seen += 1
       if (seen < period) continue
-      avgGain = sumGain / period; avgLoss = sumLoss / period
+      avgGain = seedMean ? seedMean(gains, 0, period) : sumGain / period
+      avgLoss = seedMean ? seedMean(losses, 0, period) : sumLoss / period
     } else {
       avgGain = (avgGain * (period - 1) + gain) / period
       avgLoss = (avgLoss * (period - 1) + loss) / period
@@ -272,7 +281,8 @@ const ET_DAY_PARTS = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
 })
 
-function etDayKey(msInstant) {
+/** The IANA reading itself, one formatter call per instant: the authority every faster path is proven against. */
+export function etDayKeyIntl(msInstant) {
   const parts = ET_DAY_PARTS.formatToParts(new Date(msInstant))
   let y = '', m = '', d = ''
   for (const p of parts) {
@@ -281,6 +291,88 @@ function etDayKey(msInstant) {
     else if (p.type === 'day') d = p.value
   }
   return `${y}-${m}-${d}`
+}
+
+// ⭐ THE ET DAY WITHOUT ONE FORMATTER CALL PER BAR (2026-11-20, instant charts).
+//
+// ⚰️ Measured on production data: a 60m chart holds ~45,000 bars, every one in a different UTC hour, so the
+// per-call hour memo in `computeVWAP` never hit and `formatToParts` ran once per bar: 71 ms of a symbol switch's
+// main thread, the largest single item left once the chart library was handed only a window of bars.
+//
+// ⭐ THE IANA DATABASE IS STILL THE ONLY AUTHORITY. Per calendar year the offset is READ from it (`Intl`, ~30
+// calls: one per month, then a bisection to the hour where it changes) and cached; per UTC hour the ET day is
+// then arithmetic, kept in a module map because every symbol shares one calendar: after the first chart a
+// switch is map lookups. No DST rule is restated here, so a change to the zone's rules reaches this path the
+// way it reaches `etDayKeyIntl`. Exact by construction (an ET offset is a whole number of hours and changes only
+// on a whole UTC hour, so the ET day is a function of the UTC hour), and proven against `etDayKeyIntl` over every
+// hour of 1990-2040 (indicators.etDayKey.test.js). Years outside 1900-2200, or an offset that is not a whole
+// number of hours, take the formatter path.
+const ET_OFFSET_FMT = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit',
+})
+/** Hours to subtract from a UTC hour to reach New York wall time, read from the IANA database. */
+function etOffsetHoursAt(utcHour) {
+  let y = 0, m = 0, d = 0, h = 0
+  for (const p of ET_OFFSET_FMT.formatToParts(new Date(utcHour * 3600000))) {
+    if (p.type === 'year') y = Number(p.value)
+    else if (p.type === 'month') m = Number(p.value)
+    else if (p.type === 'day') d = Number(p.value)
+    else if (p.type === 'hour') h = Number(p.value) % 24
+  }
+  return utcHour - Date.UTC(y, m - 1, d, h) / 3600000
+}
+const ET_YEAR_SEGMENTS = new Map()
+/** `[[firstUtcHour, offsetHours], ...]` for one calendar year, ascending. */
+function etYearSegments(year) {
+  let segs = ET_YEAR_SEGMENTS.get(year)
+  if (segs) return segs
+  const h0 = Date.UTC(year, 0, 1) / 3600000
+  const h1 = Date.UTC(year + 1, 0, 1) / 3600000
+  segs = [[h0, etOffsetHoursAt(h0)]]
+  let prevH = h0, prevO = segs[0][1]
+  for (let mo = 1; mo <= 12; mo++) {
+    const h = mo === 12 ? h1 : Date.UTC(year, mo, 1) / 3600000
+    const o = etOffsetHoursAt(h)
+    if (o !== prevO) {
+      // the first hour in (prevH, h] whose offset differs (this zone changes at most once a month)
+      let lo = prevH, hi = h
+      while (hi - lo > 1) {
+        const mid = Math.floor((lo + hi) / 2)
+        if (etOffsetHoursAt(mid) === prevO) lo = mid
+        else hi = mid
+      }
+      if (hi < h1) segs.push([hi, etOffsetHoursAt(hi)])
+      prevO = o
+    }
+    prevH = h
+  }
+  ET_YEAR_SEGMENTS.set(year, segs)
+  return segs
+}
+const ET_DAY_BY_HOUR = new Map()
+const ET_DAY_CAP = 120000
+const pad2 = (n) => (n < 10 ? `0${n}` : `${n}`)
+function etDayKeyOfHour(utcHour, msInstant) {
+  const year = new Date(utcHour * 3600000).getUTCFullYear()
+  if (!(year >= 1900 && year <= 2200)) return etDayKeyIntl(msInstant)
+  const segs = etYearSegments(year)
+  let off = segs[0][1]
+  for (let i = 1; i < segs.length && utcHour >= segs[i][0]; i++) off = segs[i][1]
+  if (!Number.isInteger(off)) return etDayKeyIntl(msInstant)
+  const local = new Date((utcHour - off) * 3600000)
+  return `${local.getUTCFullYear()}-${pad2(local.getUTCMonth() + 1)}-${pad2(local.getUTCDate())}`
+}
+
+export function etDayKey(msInstant) {
+  if (!Number.isFinite(msInstant)) return etDayKeyIntl(msInstant)
+  const utcHour = Math.floor(msInstant / 3600000)
+  let k = ET_DAY_BY_HOUR.get(utcHour)
+  if (k === undefined) {
+    k = etDayKeyOfHour(utcHour, msInstant)
+    if (ET_DAY_BY_HOUR.size >= ET_DAY_CAP) ET_DAY_BY_HOUR.clear()
+    ET_DAY_BY_HOUR.set(utcHour, k)
+  }
+  return k
 }
 
 /**

@@ -49,16 +49,32 @@ def test_the_held_names_and_what_each_carries():
     # Pocket Pivot was held until 2026-11-18; it is a library entry now (tests/test_library_pocket_pivot.py)
     # and two more are names of UCT's own built-in indicators (tests/test_named_built_ins.py)
     # and one more (2026-11-19) is a name whose published form only a script holds: the Schaff Trend Cycle
-    assert set(HELD) == {"ttm_squeeze", "mansfield_relative_strength", "rs_rating", "rs_phases", "schaff_trend_cycle"}
+    # and one more (2026-11-19) is ONE SETTING of a built-in: VWAP's standard-deviation bands
+    # (tests/test_vwap_bands_offer.py)
+    # and one more (2026-11-19, found live): Heikin Ashi, a second name only a script holds, with a recipe
+    # and (2026-11-19) every built-in on the Indicators list that nothing else answers by name: `builtin_*`
+    # (tests/test_built_in_names_census.py holds which, and why each)
+    assert {i for i in HELD if not i.startswith("builtin_")} == {
+        "ttm_squeeze", "mansfield_relative_strength", "rs_rating", "rs_phases", "schaff_trend_cycle",
+        "session_vwap_bands", "heikin_ashi"}
+    assert all(ni.built_in(HELD[i]) is not None for i in HELD if i.startswith("builtin_"))
     built = {e["id"] for e in ni.entries()}
     built_aliases = {a for e in ni.entries() for a in e["aliases"]}
     for e in ni.held_names():
         assert e["id"] not in built
-        assert e["name"].lower() in e["aliases"] and len(set(e["aliases"])) == len(e["aliases"])
+        if ni.built_in_setting(e) is not None:
+            # ⛔ NEVER matched by a phrase (a phrase would hold "weekly vwap bands" too): the door reads
+            # that request with a closed-form reader of its own, so it has no aliases at all
+            assert e["aliases"] == [] and not e.get("acronyms")
+        else:
+            assert e["name"].lower() in e["aliases"]
+        assert len(set(e["aliases"])) == len(e["aliases"])
         assert not (set(e["aliases"]) & built_aliases)
         for alias in e["aliases"]:
             assert alias == alias.lower().strip()
-            assert any(len(w) >= 4 for w in alias.split()), alias       # never a bare short acronym
+            # never a bare short acronym: a word of four letters or more, or (2026-11-19: "uct rs vs 21 ema", the
+            # registry's own name for a built-in) a phrase of at least four words, which no acronym is
+            assert any(len(w) >= 4 for w in alias.split()) or len(alias.split()) >= 4, alias
         assert e["why"] and e["describe"] and e["since"]
         # ⛔ NO FORMULA AT ALL: nothing a model could be handed, nothing to approximate from
         assert not ({"outputs", "formula", "tree", "params", "evidence"} & set(e))
@@ -228,7 +244,14 @@ def test_own_words_notes_directly(conv):
     notes = conv.own_words_notes(patch, [HELD["ttm_squeeze"]])
     assert [n["output"] for n in notes] == ["a", "b"] and all("TTM Squeeze" in n["text"] for n in notes)
     both = conv.own_words_notes(patch, [HELD["ttm_squeeze"], HELD["mansfield_relative_strength"]])
-    assert "for TTM Squeeze or Mansfield Relative Strength." in both[0]["text"] and len(both[0]["text"]) <= ni.SENTENCE_MAX
+    # a name that is one of UCT's own BUILT-INS is said as that: the built-in exists, and this is not it
+    assert both[0]["text"] == ("Built from your own description, as your own formula. UCT has not checked a formula for "
+                               "TTM Squeeze. UCT Mansfield RS is one of UCT's own indicators, in the Indicators list.")
+    assert len(both[0]["text"]) <= ni.SENTENCE_MAX
+    only_built = conv.own_words_notes(patch, [HELD["mansfield_relative_strength"], HELD["rs_rating"]])
+    assert only_built[0]["text"] == ("Built from your own description, as your own formula. UCT Mansfield RS and UCT RS "
+                                     "Rating are UCT's own indicators, in the Indicators list.")
+    assert "checked" not in only_built[0]["text"]
     assert conv.own_words_notes(patch, []) == []
     assert conv.own_words_notes(env(0, [{"op": "rename_definition", "name": "X"}]), [HELD["ttm_squeeze"]]) == []
 

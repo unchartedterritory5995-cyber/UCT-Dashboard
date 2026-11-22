@@ -52,9 +52,13 @@ import {
 import { TAIL_ENTRY_MAX_BARS, HIST_PERSIST_MAX_BARS, historyLagsTail } from '../../utils/historyPrepend'
 import { ACTION, parseKey, isDateTf, isIntradayTf, unixToDateLabel, keyOf } from './types'
 import { isSealedRow, bucketEnd, normT } from './reducer'
+import { deviceSource as _defaultDeviceSource } from '../deviceStore/source'
 
 export const PERSIST_DEBOUNCE_MS = 1000
 export const META_VERSION = 1
+/** How long a hydrate waits, after its saved-copy reads, for an on-device read still in flight (a
+ *  ready device store answers in ~1 ms; a later answer still lands, it just does not hold the caller). */
+export const DEVICE_HYDRATE_WAIT_MS = 8
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x)
 
@@ -155,12 +159,48 @@ const _defaultIdle = (fn) => {
  * @param {number} [o.debounceMs]
  * @param {(fn:Function)=>any} [o.idle]
  * @param {() => number} [o.now]
+ * @param {object|null} [o.device]  the on-device bar store (deviceStore/source: {peek, read}); default
+ *   = the app's, which is null while its switch (localStorage 'uct.deviceStore') is off
  */
 export function createPersist({
   registry, io = null, debounceMs = PERSIST_DEBOUNCE_MS, idle = _defaultIdle, now = () => Date.now(),
-  setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h),
+  setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h), device = undefined,
 } = {}) {
   const IO = { memPutMonotonic, memPeekEntry, idbPutMonotonic, idbGet, idbImportPack, idbPutHistory, idbGetHistory, idbGetHistoryEntry, ...(io || {}) }
+  // ⭐ THE ON-DEVICE COPY (data/deviceStore). A key with no mem record is also looked up in the device
+  // store: synchronously in its recently-read cache (hydrateMem), else one worker read started BESIDE
+  // the IndexedDB read (hydrate), dispatched the moment it lands. It is a LOCAL copy (DEVICE_HIT:
+  // provisional / context, never persisted, the server's answer replaces or joins it under the
+  // reducer's rules), so a symbol nobody opened in this browser paints without waiting on the server.
+  const DEV = device === undefined ? _defaultDeviceSource() : device
+  // (which cache-tfs it holds is the source's own answer: deviceStore/tfs.SERVED_TFS)
+  const _devKey = (p) => !!DEV && !p.window
+  /** May a device copy land on this entry? Nothing held, or only a device copy (no server answer):
+   *  a device copy seeds an entry, or moves its own copy FORWARD (review of #2189: a copy warmed at
+   *  09:35 must not paint its 09:35 bars at 15:55, so the switch re-reads it, refreshDevice). */
+  const _deviceMay = (s) => !s || (!s.restSeen && ((!s.bars.length && !s.developing) || s.source === 'device'))
+  /** key → `through` (unix s) of the device copy the entry holds: how far it is complete (deviceStore
+   *  fresh.js / prefetch.devicePaints read it). Bounded, oldest out. */
+  const devThrough = new Map()
+  const _noteDev = (key, through) => {
+    devThrough.delete(key)
+    devThrough.set(key, Number.isFinite(through) ? through : null)
+    if (devThrough.size > 1000) devThrough.delete(devThrough.keys().next().value)
+  }
+  /** Dispatch a device copy; true when it changed the entry. Its saved time is the moment it is complete
+   *  up to (`savedAt`, from `through`): what every local-copy age rule reads, the daily gate included. */
+  function _deviceHit(key, p, gen, got) {
+    if (!got?.rows?.length) return false
+    const before = registry.peek(key)
+    if (!_deviceMay(before)) return false
+    const held = devThrough.get(key)
+    if (before?.source === 'device' && held != null && !(got.through > held)) return false   // not newer
+    registry.dispatch(key, { type: ACTION.DEVICE_HIT, key, gen, payload: { sym: p.sym, bars: got.rows, saved_at: got.savedAt ?? null } })
+    const after = registry.peek(key)
+    if (after === before) return false
+    if (after?.source === 'device') { _noteDev(key, got.through ?? null); _noteSaved(key, got.savedAt ?? null) }
+    return true
+  }
   /** key → {first, last} of the deep-history segment last written / read (bounded). */
   const hist = new Map()
   const _noteHist = (key, rows) => {
@@ -208,9 +248,9 @@ export function createPersist({
     }
   }
 
-  async function _write(key) {
-    const w = watched.get(key)
-    const s = registry.peek(key)
+  async function _write(key, wIn = null, sIn = null) {
+    const w = wIn || watched.get(key)
+    const s = sIn || registry.peek(key)
     if (!w || !s || !s.restSeen || !s.bars.length || s.baseRev === w.written) return
     w.writing = true
     const rev = s.baseRev
@@ -227,7 +267,16 @@ export function createPersist({
     if (!w) return
     if (--w.refs > 0) return
     // A pending write still lands (the snapshot is server-backed); nothing new is watched.
-    if (w.timer != null) { clearTimer(w.timer); w.timer = null; _write(key) }
+    // ⛔ IN IDLE TIME, NEVER AT THE DETACH (2026-11-20, instant charts). A detach IS a symbol switch: the chart
+    // leaving this key is the chart drawing the next one. Written here, the save (an IDB read, a merge of
+    // thousands of rows in its onsuccess, a put that clones them: ~33 ms on a 60m series, measured) ran inside
+    // that switch on every flip of a scan, because a scan flips faster than the debounce. The snapshot is taken
+    // now, so the write is the same one; only when it runs moved.
+    if (w.timer != null) {
+      clearTimer(w.timer); w.timer = null
+      const snap = registry.peek(key)
+      idle(() => { _write(key, w, snap) })
+    }
     w.unsub?.()
     watched.delete(key)
   }
@@ -261,8 +310,24 @@ export function createPersist({
       if (!p || p.window || watched.has(key) || !s || !s.restSeen || !s.bars.length) return Promise.resolve(false)
       return _put(key, s, startedAt ?? now()).then(() => true, () => false)
     },
-    /** savedAt of the cache record the last hydrate of `key` read (mem, else IDB), or null. */
+    /** savedAt of the cache record the last hydrate of `key` read (mem, else IDB; the device copy's
+     *  `through` for a device hit), or null. */
     savedAtOf(key) { return savedAt.get(key) ?? null },
+    /** `through` (unix s) of the device copy `key` holds, or null. */
+    deviceThroughOf(key) { return devThrough.get(key) ?? null },
+    /**
+     * Bring a held DEVICE copy (no server answer yet) forward to the device's newest: synchronously
+     * from the device's recent-read cache, else one worker read. The switch calls it on every peek of
+     * such an entry (prefetch), so a copy warmed long ago is re-read before it is shown. Resolves true
+     * when the entry moved.
+     */
+    refreshDevice(key) {
+      const p = parseKey(key)
+      if (!p || p.window || !_devKey(p) || !_deviceMay(registry.peek(key))) return Promise.resolve(false)
+      const gen = registry.getSnapshot(key).gen
+      try { if (_deviceHit(key, p, gen, DEV.peek(p.sym, p.cacheTf))) return Promise.resolve(true) } catch { /* optional */ }
+      return Promise.resolve().then(() => DEV.read(p.sym, p.cacheTf)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
+    },
     /** Write every pending key now (page hide / tests). */
     async flush() {
       const keys = [...watched.keys()]
@@ -278,6 +343,8 @@ export function createPersist({
      * The SYNCHRONOUS half of `hydrate`: the mem record only. For a reader that already has an
      * entry holding no rows (a peek made it before a warmer promoted the key to the mem cache)
      * and must not start another pair of IDB reads to look again. Returns the mem entry or null.
+     * With no mem record, an entry holding nothing also takes the on-device store's copy when its
+     * recently-read cache has it (synchronous: a neighbour the warm already read paints this tick).
      */
     hydrateMem(key) {
       const p = parseKey(key)
@@ -288,6 +355,8 @@ export function createPersist({
         const repair = isIntradayTf(p.tf) ? _intradayGapStart(m.bars, p.cacheTf) : null
         registry.dispatch(key, { type: ACTION.MEM_HIT, key, gen, payload: { ...decodeEntry(key, m), saved_at: m.savedAt ?? null, repair_from: repair } })
         _noteSaved(key, m.savedAt)
+      } else if (_devKey(p) && _deviceMay(registry.peek(key))) {
+        try { _deviceHit(key, p, gen, DEV.peek(p.sym, p.cacheTf)) } catch { /* a device copy is optional */ }
       }
       return m?.bars?.length ? m : null
     },
@@ -296,6 +365,12 @@ export function createPersist({
       if (!p || p.window) return registry.getSnapshot(key)
       const gen = registry.getSnapshot(key).gen
       const m = this.hydrateMem(key)
+      // The on-device read leaves NOW, beside the IndexedDB read below, and lands when it lands (a
+      // busy IndexedDB can take hundreds of ms; the device answers in ~1). Only for an entry that
+      // holds no server answer and nothing but (at most) an older device copy.
+      const dev = !m?.bars?.length && _devKey(p) && _deviceMay(registry.peek(key))
+        ? Promise.resolve().then(() => DEV.read(p.sym, p.cacheTf)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
+        : null
       let e = null
       try { e = await IO.idbGet(p.sym, p.cacheTf) } catch { e = null }
       if (e?.bars?.length) {
@@ -330,6 +405,7 @@ export function createPersist({
           else hist.delete(key)
         }
       }
+      if (dev) await Promise.race([dev, new Promise((resolve) => setTimer(resolve, DEVICE_HYDRATE_WAIT_MS))])
       return registry.peek(key)
     },
     /**

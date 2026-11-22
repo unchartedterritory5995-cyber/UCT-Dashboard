@@ -90,10 +90,17 @@ const ResultCards = forwardRef(function ResultCards({ rows, columns, livePrices,
               <div className={styles.cardStats}>
                 {statCols.map(c => {
                   const def = COLUMN_DEFS[c] || { label: c, fmt: v => v ?? '—' }
+                  // The stats share ONE line (the rows are a fixed 64 px apart, so a second line
+                  // was drawn onto the next card). A stat whose value is words (the sector, the
+                  // industry) is the one that gives way: it is cut with an ellipsis and keeps its
+                  // full text in `title`. Numbers and labels never shrink or break.
+                  const raw = row[c]
+                  const words = typeof raw === 'string' && raw.trim() !== '' && Number.isNaN(Number(raw))
+                  const shown = def.fmt(raw, row)
                   return (
-                    <span key={c} className={styles.cardStat}>
+                    <span key={c} className={words ? `${styles.cardStat} ${styles.cardStatText}` : styles.cardStat}>
                       <span className={styles.cardStatLabel}>{def.label}</span>
-                      <span className={styles.cardStatVal}>{def.fmt(row[c], row)}</span>
+                      <span className={styles.cardStatVal} title={words ? (typeof shown === 'string' ? shown : raw) : undefined}>{shown}</span>
                     </span>
                   )
                 })}

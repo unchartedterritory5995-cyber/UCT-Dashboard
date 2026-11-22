@@ -66,7 +66,8 @@ def test_a_by_in_the_assistants_answer_is_taken_off(store, conv, clean_env, mode
     said = notes(r)
     assert said[0]["text"].startswith(CHECKED) and said[0]["by"] == "uct"                  # the door's
     assert {"text": "Checked by UCT against every exchange."} in said                        # the assistant's, unsigned
-    assert [a for a in said if a.get("by")] == [said[0]]
+    # (2026-11-20: On Balance Volume is a running total, so the door also says where such a total starts)
+    assert [a for a in said if a.get("by")] == [said[0], {"output": "obv", "text": conv.RUNNING_TOTAL_NOTE, "by": "uct"}]
 
 
 def test_own_notes_only_takes_the_mark_off_and_touches_nothing_else(conv):

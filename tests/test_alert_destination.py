@@ -151,6 +151,11 @@ CONVERTED = {
     # prompts or member data), resolved lazily inside `_post` with producer="llm_budget".
     # Added 2026-11-15: the census was red on master from the day it landed.
     "api/services/llm_budget.py",
+    # 2026-11-20 -- the model provider is refusing OUR ACCOUNT (an empty balance, a dead key): a page on
+    # the first refusal, at most one per half hour per process, and one "back" line. New (never a literal
+    # reader), an ops message (a closed-set kind, the service, a time; never the provider's text or a
+    # key), resolved lazily inside `_post` with producer="llm_provider_account_refusal".
+    "api/services/llm_provider_alert.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════

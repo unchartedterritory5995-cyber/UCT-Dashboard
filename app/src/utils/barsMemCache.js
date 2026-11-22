@@ -8,8 +8,17 @@ import { mergeMonotonic } from './barsMerge'
 // entries) around the selection — at 60 the promotion itself LRU-evicted the
 // rest of the working set. First-paint entries are ~600 bars (~50KB), so 200
 // entries stays around ~10MB worst-case.
+// ⛔ (2026-11-20) THAT WORST CASE WAS NO LONGER TRUE: the BarStore's persist writes every
+// server-backed snapshot here at its FULL depth, and an intraday key holds up to 50,000 lake bars.
+// Production soak, 30 flips: 114 entries, 1.23M rows, nearly all a second copy of what the store
+// itself holds. So a ROW budget too: over MEM_CACHE_MAX_ROWS the least recently used entries go
+// (never the one just written). 500,000 rows keep the watchlist's warm working set (±6 neighbours
+// × 5 timeframes of ~600 bars) plus about ten deep histories.
 const MEM_CACHE_MAX = 200
+const MEM_CACHE_MAX_ROWS = 500_000
+let _maxRows = MEM_CACHE_MAX_ROWS
 const _map = new Map() // insertion-ordered; delete+set marks most-recently-used
+let _rows = 0
 
 function _key(sym, tf) {
   return `${String(sym || '').toUpperCase()}_${tf}`
@@ -48,7 +57,7 @@ export function memHas(sym, tf) {
 export function memPut(sym, tf, bars, { savedAt, meta } = {}) {
   if (!sym || !tf || !bars?.length) return
   const k = _key(sym, tf)
-  if (_map.has(k)) _map.delete(k)
+  if (_map.has(k)) { _rows -= _map.get(k).bars.length; _map.delete(k) }
   // `savedAt`: when the set was WRITTEN from the server. The bars carry no source
   // timestamp, so the daily paint gate ("is today's bar current, or merely
   // today-dated?" and "was it written after the close?") has nothing else to ask.
@@ -62,8 +71,11 @@ export function memPut(sym, tf, bars, { savedAt, meta } = {}) {
   // that passes it keeps it — every other write replaces the record WITHOUT it, so a set
   // another writer touched never carries a stale seal claim.
   _map.set(k, { bars, lastTs: bars[bars.length - 1]?.t ?? null, savedAt: stamp, ...(meta ? { meta } : {}) })
-  while (_map.size > MEM_CACHE_MAX) {
-    _map.delete(_map.keys().next().value) // evict least-recently-used (oldest)
+  _rows += bars.length
+  while (_map.size > 1 && (_map.size > MEM_CACHE_MAX || _rows > _maxRows)) {
+    const [oldK, oldE] = _map.entries().next().value   // least-recently-used (oldest)
+    _map.delete(oldK)
+    _rows -= oldE.bars.length
   }
 }
 
@@ -95,6 +107,12 @@ export function memPeekEntry(sym, tf) {
 
 export function memClear() {
   _map.clear()
+  _rows = 0
+  _maxRows = MEM_CACHE_MAX_ROWS
 }
 
-export { MEM_CACHE_MAX }
+/** Test-only: the held entries and rows; and a smaller row budget (memClear restores it). */
+export function _memStats() { return { entries: _map.size, rows: _rows } }
+export function _setMemMaxRowsForTests(n) { _maxRows = n }
+
+export { MEM_CACHE_MAX, MEM_CACHE_MAX_ROWS }

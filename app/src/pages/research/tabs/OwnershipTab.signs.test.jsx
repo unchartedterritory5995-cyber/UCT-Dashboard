@@ -31,12 +31,12 @@ vi.mock('../hooks/useOwnership', () => ({ default: () => ({ data, isLoading: fal
 import OwnershipTab, { signed } from './OwnershipTab'
 
 describe('OwnershipTab — a change states its direction in text, not only in colour', () => {
-  it('a holder that added shares reads "+", one that cut reads "-", an unknown change a dash', () => {
+  it('a holder that added shares reads "+", one that cut reads "-", an unknown change says so in words', () => {
     render(<OwnershipTab sym="NVDA" />)
-    const cell = (name) => screen.getByText(name).closest('tr').querySelectorAll('td')[2].textContent
+    const cell = (name) => screen.getByText(name).closest('tr').querySelector('[data-col="change"]').textContent
     expect(cell('Buyer Fund')).toBe('+1.2M')
     expect(cell('Seller Fund')).toBe('-800K')
-    expect(cell('Flat Fund')).toBe('—')
+    expect(cell('Flat Fund')).toBe('not reported')
   })
 
   it('the total-invested change carries a "+" like the other change chips', () => {

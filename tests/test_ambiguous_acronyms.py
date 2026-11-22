@@ -80,6 +80,8 @@ def test_every_clash_of_initials_that_touches_the_library_is_decided(conv):
     library = {e["id"] for e in ni.entries() + ni.held_names()}
     clashes = {k for k, v in things.items() if len(v) > 1 and v & library and 2 <= len(k) <= 4}
     not_asked = {
+        # (2026-11-19: ATR Bands became a built-in name, tests/test_built_in_names_census.py)
+        "ab": "not letters anyone writes for ATR Bands or Acceleration Bands, and AB is not an admitted acronym",
         "ao": "nobody writes AO for the Accelerator Oscillator (its own abbreviation is AC), and AO is not an admitted acronym",
         "cc": "not letters anyone writes for the Coppock Curve or the Cyber Cycle",
         "pp": "not an admitted acronym; Pocket Pivot is asked for by its full name and pivot points is a description",

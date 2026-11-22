@@ -1,0 +1,123 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "HTF-PARTIAL-THROUGH-OFFSET (fix/htf-partial-mask-through-offset): the first-period-partial bars of a weekly / monthly merge follow the value through every history read (engine 56's walk, `walk.exact`: offsets, exact barsAgo, the taken arm of `?:`, a finite window's own span; a running value keeps its rule), both lanes. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "P1",
+   "mutant": "JS: drop the shift (the partial bars are withheld at the root's own positions again, master's rule)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  const firstMask = firstPeriodPartialReadMask(tree, bars, opts, inputs, budget, scalars)",
+   "to": "  const firstMask = firstPeriodPartialMask(bars, found, opts)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfPartialThroughOffset.test.js",
+   "expectRed": "x[1] (bars 3-6"
+  },
+  {
+   "id": "P2",
+   "mutant": "JS: shift by k + 1",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "          const k = Number(node.value) || 0",
+   "to": "          const k = (Number(node.value) || 0) + 1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfPartialThroughOffset.test.js",
+   "expectRed": "x[1] (bars 3-6"
+  },
+  {
+   "id": "P3",
+   "mutant": "Python: drop the shift",
+   "file": "api/services/ast_interpret.py",
+   "from": "    first_mask = _first_period_partial_read_mask(tree, bars, opts, inputs, budget, scalars)",
+   "to": "    first_mask = _first_period_partial_mask(bars, found, opts)",
+   "rail": "python -m pytest tests/test_pine_htf_partial_through_offset.py -q -p no:cacheprovider",
+   "expectRed": "x[1] (bars 3-6"
+  },
+  {
+   "id": "P4",
+   "mutant": "Python: shift by k + 1",
+   "file": "api/services/ast_interpret.py",
+   "from": "                k = int(node.get(\"value\") or 0)",
+   "to": "                k = int(node.get(\"value\") or 0) + 1",
+   "rail": "python -m pytest tests/test_pine_htf_partial_through_offset.py -q -p no:cacheprovider",
+   "expectRed": "x[1] (bars 3-6"
+  },
+  {
+   "id": "P5",
+   "mutant": "JS: barsAgo withheld over its whole buffer (the walk's bound) instead of the bar its count lands on",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "        } else if (walk.exact === true && node.name === 'barsAgo' && args.length === 3",
+   "to": "        } else if (false && node.name === 'barsAgo' && args.length === 3",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfPartialThroughOffset.test.js",
+   "expectRed": "barsAgo(x, 1, 5)"
+  },
+  {
+   "id": "P6",
+   "mutant": "Python: barsAgo withheld over its whole buffer",
+   "file": "api/services/ast_interpret.py",
+   "from": "            elif (exact and name == \"barsAgo\" and len(args) == 3",
+   "to": "            elif (False and name == \"barsAgo\" and len(args) == 3",
+   "rail": "python -m pytest tests/test_pine_htf_partial_through_offset.py -q -p no:cacheprovider",
+   "expectRed": "barsAgo(x, 1, 5)"
+  },
+  {
+   "id": "P7",
+   "mutant": "JS: c ? a : b withheld where either arm is, the taken one or not",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      } else if (walk.exact === true && node.type === 'op' && node.name === '?:' && args.length === 3",
+   "to": "      } else if (false && node.type === 'op' && node.name === '?:' && args.length === 3",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfPartialThroughOffset.test.js",
+   "expectRed": "na(x[1]) ? x[2] : x[1]"
+  },
+  {
+   "id": "P8",
+   "mutant": "Python: c ? a : b withheld where either arm is",
+   "file": "api/services/ast_interpret.py",
+   "from": "        elif (exact and kind == \"op\" and name == \"?:\" and len(args) == 3",
+   "to": "        elif (False and kind == \"op\" and name == \"?:\" and len(args) == 3",
+   "rail": "python -m pytest tests/test_pine_htf_partial_through_offset.py -q -p no:cacheprovider",
+   "expectRed": "na(x[1]) ? x[2] : x[1]"
+  },
+  {
+   "id": "P9",
+   "mutant": "JS: a finite window withheld over its declared lookback (one bar wider than its span)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "          const reach = walk.exact === true && own(FINITE_WINDOW, node.name) && typeof spec.lookback !== 'number'",
+   "to": "          const reach = false && own(FINITE_WINDOW, node.name) && typeof spec.lookback !== 'number'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfPartialThroughOffset.test.js",
+   "expectRed": "sma(x[1], 3) - close"
+  },
+  {
+   "id": "P10",
+   "mutant": "Python: a finite window withheld over its declared lookback",
+   "file": "api/services/ast_interpret.py",
+   "from": "                reach = lb - 1 if (exact and name in _WITNESS_FINITE and not declared) else lb",
+   "to": "                reach = lb",
+   "rail": "python -m pytest tests/test_pine_htf_partial_through_offset.py -q -p no:cacheprovider",
+   "expectRed": "sma(x[1], 3) - close"
+  },
+  {
+   "id": "P11",
+   "mutant": "JS: a site's own bars are lost (a merge withholds nothing for its first period)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      const m = mergeOwn(node)",
+   "to": "      const m = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfPartialThroughOffset.test.js",
+   "expectRed": "x (a direct read"
+  },
+  {
+   "id": "P12",
+   "mutant": "JS: a running value withheld from the first partial bar on (engine 56's forward rule), taking away bars a smoother has forgotten it in",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "          out = walk.exact === true ? u : forward(u)",
+   "to": "          out = forward(u)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfPartialThroughOffset.test.js",
+   "expectRed": "ema(x, 3)"
+  },
+  {
+   "id": "P13",
+   "mutant": "Python: a running value withheld from the first partial bar on",
+   "file": "api/services/ast_interpret.py",
+   "from": "                out = u if exact else forward(u)",
+   "to": "                out = forward(u)",
+   "rail": "python -m pytest tests/test_pine_htf_partial_through_offset.py -q -p no:cacheprovider",
+   "expectRed": "ema(x, 3)"
+  }
+ ]
+}

@@ -58,7 +58,7 @@ describe('Institutional ownership reads the Form 13F block', () => {
     expect(card.getAttribute('data-state')).toBe('ok')
     expect(kv(card, '% of shares outstanding')).toBe('63.46%')
     expect(screen.getByTestId('ownership-institutional-source').textContent)
-      .toBe('Source: Form 13F filings, through FMP · Q3 2026. Each holder, with the change in its position, is in the Form 13F table below.')
+      .toBe('Source: Form 13F filings, through FMP · Q3 2026. Each holder, with the change in its position, is in the Funds (13F) table below.')
     expect(screen.queryByTestId('ownership-institutional-note')).toBeNull()
   })
 
@@ -79,12 +79,12 @@ describe('Institutional ownership reads the Form 13F block', () => {
     expect(names[0]).toBe('Filer 11')
   })
 
-  it('there is ONE holders table on the tab, the Form 13F one, and it lists every holder', () => {
+  it('there is ONE holders table on the tab, the Funds (13F) one, and it lists every holder', () => {
     data = base()
     render(<OwnershipTab sym="AAPL" />)
     const tables = screen.getAllByRole('table')
     expect(tables).toHaveLength(1)
-    expect(tables[0].getAttribute('aria-label')).toBe('Form 13F top holders, 2026Q3')
+    expect(tables[0].getAttribute('aria-label')).toBe('Funds (13F) holders, Q3 2026')
     expect(within(tables[0]).getAllByRole('row')).toHaveLength(HOLDERS.length + 1)
   })
 

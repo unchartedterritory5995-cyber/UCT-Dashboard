@@ -640,7 +640,8 @@ jobs:
       # red) + HP-5. A digest change without an engine bump is red. ⚠️ This runner's V8 (Node 20 =
       # V8 11.3) is NOT the V8 the digests were recorded on (13.6): on a different V8 the tool
       # reports exactly the three NAMED trig cases in corpus.json `reportOnly` (V8 sin/cos 1 ulp; the
-      # one trig script on its three bar sets, `calcbars` since engine 59) and gates the other 163.
+      # one trig script on its three bar sets; the window set is `calcwindow` since 2026-11-19, when the harness began
+      # stamping its window as the member door does) and gates the rest.
       # On the recording V8 all 166 are gated. Exit 2 (inconclusive) fails.
       - name: Pine runtime - host parity, Node half (HP-1, HP-4 control, HP-5)
         run: |
