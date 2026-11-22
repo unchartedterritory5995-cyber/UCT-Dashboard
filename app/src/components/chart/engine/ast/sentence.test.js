@@ -187,6 +187,8 @@ const FORMS = [
   { kind: 'call', name: 'cos', parts: ['the cosine of ', 0] },
   { kind: 'call', name: 'tan', parts: ['the tangent of ', 0] },
   { kind: 'call', name: 'atan', parts: ['the arctangent of ', 0] },
+  // U-BUILTIN B3 (2026-11-19) -- `asin`, hand-typed from the manifest's sentence.
+  { kind: 'call', name: 'asin', parts: ['the arcsine of ', 0] },
   // ⭐ PHASE 1 (2026-10-30) -- `acos`, hand-typed from the manifest's sentence.
   { kind: 'call', name: 'acos', parts: ['the arccosine of ', 0] },
   { kind: 'call', name: 'sinh', parts: ['the hyperbolic sine of ', 0] },
@@ -707,6 +709,23 @@ function readLtfSentence(s) {
   return { via: 'ltf', ast: { type: 'ltf', value: m[2], args: [readOperand(m[1])] } }
 }
 
+/** ⭐ engine 81 (2026-11-18) — A BAR-FIELD ARGUMENT NAMED BY ITS ROLE. Hand-typed, like every
+ *  form in this file, and NOT read from the manifest's `argRoles`: which functions take the bar's
+ *  fields by position, and the word the walker says for each place. When a call's leading
+ *  arguments are not the bar's own fields in this order, the walker writes `highs from <operand>`
+ *  for each; when they are, it writes the operands bare. The reader holds it to exactly that:
+ *  role words on every leading operand or on none, and present IF AND ONLY IF the arguments are
+ *  not the bar's own fields in order (a sentence the walker never writes is not a parse). */
+const HLC = ['highs', 'lows', 'closes']
+const HL = ['highs', 'lows']
+const BAR_ROLE_LEAD = {
+  adx: HLC, atr: HLC, atrPine: HLC, cci: HLC, minusDI: HLC, plusDI: HLC, stoch: HLC, stochPine: HLC, williamsR: HLC,
+  ichimokuChikou: HLC, mfi: [...HLC, 'volumes'], mfiPine: [...HLC, 'volumes'],
+  donchianLower: HL, donchianMiddle: HL, donchianUpper: HL,
+  ichimokuKijun: HL, ichimokuSpanA: HL, ichimokuSpanB: HL, ichimokuTenkan: HL,
+}
+const ROLE_FIELD = { highs: 'high', lows: 'low', closes: 'close', volumes: 'volume' }
+
 function readSentenceCandidates(s) {
   const found = []
   try { found.push({ via: 'leaf', ast: readLeaf(s) }) } catch { /* not a leaf */ }
@@ -743,10 +762,19 @@ function readSentenceCandidates(s) {
     if (!slots) continue
     try {
       const arity = Math.max(...form.parts.filter((p) => typeof p === 'number')) + 1
+      const lead = form.kind === 'call' && own(BAR_ROLE_LEAD, form.name) ? BAR_ROLE_LEAD[form.name] : null
+      const bare = lead ? lead.map((word, i) => (own(slots, i) && slots[i].startsWith(`${word} from `)
+        ? slots[i].slice(`${word} from `.length) : null)) : []
+      const byRole = bare.some((text) => text !== null)
+      if (byRole && !bare.every((text) => text !== null)) throw new Error('some arguments named by role and some not')
       const args = []
       for (let i = 0; i < arity; i++) {
         if (!own(slots, i)) throw new Error(`form ${form.name} never captured argument ${i}`)
-        args.push(readOperand(slots[i]))
+        args.push(readOperand(byRole && i < lead.length ? bare[i] : slots[i]))
+      }
+      if (lead) {
+        const inOrder = lead.every((word, i) => args[i].type === 'series' && args[i].name === ROLE_FIELD[word])
+        if (byRole === inOrder) throw new Error('role words are written exactly when the fields are not the bar\'s own in order')
       }
       found.push({
         via: form.via || `${form.kind}:${form.name}`,
@@ -1186,6 +1214,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:alma',
       'function:aroonDown',
       'function:aroonUp',
+      // U-BUILTIN B3 (2026-11-19) -- Pine's `math.asin`.
+      'function:asin',
       'function:atan',
       'function:atr',
       // ⭐ (2026-09-27) Pine's `ta.atr`, with Pine's own seed — see `atrPine` in the forms above.
@@ -1330,7 +1360,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 139 -> 140 (2026-11-14, engine 56 A3): `boolNaWithheld`, the Pine door's bool-na marker.
     // ⭐ 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`.
     // ⭐ 141 -> 148 (2026-11-17): the regular session's two clock leaves and five readers.
-    expect(entries.length).toBe(148)
+    // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`, Pine's `math.asin`.
+    expect(entries.length).toBe(149)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1358,7 +1389,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`.
     // ⭐ 141 -> 148 (2026-11-17): the regular session, two clock leaves (`regularhours`, `regularfirst`) and five
     // readers (`sessionOpen`, `sessionHigh`, `sessionLow`, `openingRangeHigh`, `openingRangeLow`).
-    expect(subjects.length).toBe(148)
+    // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`.
+    expect(subjects.length).toBe(149)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2722,6 +2754,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'pine_percentile_linear_interpolation_between_two_ranks',
       // ⭐ PHASE 1 (2026-10-30) -- one corpus case per new function.
       'pine_acos_of_the_body_share_of_the_range',
+      // U-BUILTIN B3 (2026-11-19) -- `asin`, acos's twin.
+      'pine_asin_of_the_body_share_of_the_range',
       'pine_alma_9_085_6',
       'pine_percentile_nearest_rank_of_the_range',
       // (2026-11-14, engine 56 S1) the v4 / v5 tie mark is its operand
@@ -2825,7 +2859,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ + 139 -> + 140 (2026-11-14, engine 56 A3): `boolNaWithheld`.
     // ⭐ + 140 -> + 141 (2026-11-14, engine 56 S1): `tieNewest`.
     // ⭐ + 141 -> + 148 (2026-11-17): the regular session's two clock leaves and five readers.
-    expect(sentences.length).toBe(CORPUS.cases.length + 148)
+    // U-BUILTIN B3 (2026-11-19) + 148 -> + 149: `asin`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 149)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {
@@ -3225,13 +3260,20 @@ describe('sentence.js is a pure function of (ast, inputs) — by AST over its ow
     // allowlist widened until it means nothing.
     expect(got.imports).toEqual(['./parse.js'])
     const parseImports = scan(acorn.parse(readSource('parse.js'), { ecmaVersion: 2023, sourceType: 'module' })).imports
-    expect(parseImports).toEqual(['./callExpansions.js', './closedTable.json', 'jsep'])
+    expect(parseImports).toEqual(['./callExpansions.js', './closedTable.json', './doorDeadline.js', 'jsep'])
     // ⭐ BATCH 2 — `parse.js` expands the exact-identity functions with
     // `callExpansions.js`, which is SCANNED here rather than allowed: no findings
     // and no imports of its own, so the closure stays exactly as narrow as before.
     const expansions = scan(acorn.parse(readSource('callExpansions.js'), { ecmaVersion: 2023, sourceType: 'module' }))
     expect(expansions.findings, 'callExpansions.js reached something outside a pure derivation').toEqual([])
     expect(expansions.imports).toEqual([])
+    // ⭐ door-deadline (2026-11-20) — `parse.js` ticks the member door's window (`doorDeadline.js`) from its tree walks,
+    // and that module is SCANNED too: no findings, no imports. It reads no clock of its own (a window carries the clock
+    // it was opened with), with no window open every tick is one null test, and inside one a tick can only STOP a walk
+    // (a throw), never change a value it returns: a derived sentence is still a function of (ast, inputs) alone.
+    const door = scan(acorn.parse(readSource('doorDeadline.js'), { ecmaVersion: 2023, sourceType: 'module' }))
+    expect(door.findings, 'doorDeadline.js reached something outside a pure derivation').toEqual([])
+    expect(door.imports).toEqual([])
   })
 
   it('…and the detector can FAIL — the positive control', async () => {

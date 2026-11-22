@@ -84,9 +84,10 @@ describe('ta.bb and ta.macd destructure into the table’s own vocabulary', () =
       .toBe('crossOver(macd(close, 12, 26), ema(macd(close, 12, 26), 9)) ? 1 : 0')
   })
 
-  it('⛔ `ta.dmi` still destructures — the older member of this family', () => {
-    expect(formulaOf(screen('[p, mi, adxv] = ta.dmi(14, 14)', 'adxv > 25')))
-      .toBe('adx(high, low, close, 14) > 25 ? 1 : 0')
+  it('⛔ `ta.dmi` still destructures — now a member of this table (RMA-SEED: its body over `ta.rma`)', () => {
+    const f = formulaOf(screen('[p, mi, adxv] = ta.dmi(14, 14)', 'adxv > 25'))
+    expect(f.startsWith('100 * rma(abs(valuewhenOccurrence(')).toBe(true)
+    expect(f.endsWith(', 14) > 25 ? 1 : 0')).toBe(true)
   })
 
   it('⛔⛔ a NAMED argument refuses rather than being taken by position', () => {

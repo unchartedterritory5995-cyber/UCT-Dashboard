@@ -25,6 +25,8 @@ export { conditionWords }
 import { TABLE } from '../../engine/ast/parse'
 import { declaredInputs, lintRepaint } from '../../engine/ast/lint'
 import { outputTreeOf } from '../../engine/outputType'
+import { collapseExpansions } from '../../engine/ast/callExpansions'
+import { libraryOutputOf, libraryParts, namedByTitle, settingsWords } from './checkedLibrary'
 import { STATUS } from '../../engine/evaluability'
 import { policyLabel, numericAlertWords } from '../../engine/triggerPolicy'
 import { symTickersOf } from '../../engine/otherSymbols'
@@ -243,6 +245,20 @@ function comparesAnything(node) {
 
 /** The output's own line, after its name: "true when …" for a comparison
  *  condition, else the type in plain words and the exact sentence. */
+// ⭐ 2026-11-18 — A CHECKED LIBRARY INDICATOR SAYS WHAT IT IS, not its formula in words. Read in the
+// live window, KAMA said: "the running value that starts at close and becomes (the running value so
+// far plus ((((((the absolute value of ...". An output that IS a library output (`checkedLibrary.js`)
+// says the entry's own phrase and its settings; the formula in words stays on the output
+// (`formulaWords`) for the window to show on request, and the Formula tab holds the formula itself.
+const sameName = (a, b) => String(a || '').toLowerCase().replace(/[^a-z0-9]+/g, '') === String(b || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+function libraryPhrase(part, name) {
+  const inBrackets = [sameName(name, part.entry.name) ? null : part.entry.name, settingsWords(part) || null].filter(Boolean).join(', ')
+  return `${part.output.says}${inBrackets ? ` (${inBrackets})` : ''}`
+}
+
+/** Said when a title still names a library indicator whose formula the definition no longer holds. */
+export const noLongerChecked = (name) => `No longer UCT's checked formula for ${name}: the formula was edited.`
+
 function phraseOf(o, tree, scope) {
   let cw = null
   try { cw = o.type === 'condition' ? conditionWords(tree, scope) : null } catch { cw = null }
@@ -280,10 +296,22 @@ export function readback(def, state = {}, gateCtx = {}) {
     try { const lint = lintRepaint(tree, { inputs: scope }); mode = lint.mode; forward = lint.forward } catch { mode = 'repaints' }
     if (comparesAnything(tree)) compares = true
     const base = { key: o.key, label: o.label, type: o.type, words: o.words, sentence }
-    return { ...base, name: nameOf(o.key), phrase: phraseOf(base, tree, scope), lane: o.lane,
+    const name = nameOf(o.key)
+    let part = null
+    try { part = libraryOutputOf(collapseExpansions(tree), Object.keys(scope)) } catch { part = null }
+    const words = phraseOf(base, tree, scope)
+    return { ...base, name, phrase: part ? libraryPhrase(part, name) : words, lane: o.lane,
       status: o.verdict.status, reason: o.verdict.reason || null, mode, forward,
+      ...(part ? { library: { id: part.entry.id, name: part.entry.name, version: part.entry.version }, formulaWords: words } : {}),
       ...(o.verdict.pending ? { pending: true } : {}) }
   })
+  // a title that still names a library indicator none of whose formulas is here any more
+  const claimed = namedByTitle(def.meta && def.meta.name)
+  const editedAway = claimed && !outputs.some((o) => o.library && o.library.id === claimed.id)
+    && !rb.outputs.some((o) => {
+      try { return libraryParts(collapseExpansions(outputTreeOf(def, o.key)), Object.keys(scope)).some((p) => p.entry.id === claimed.id) } catch { return false }
+    })
+  const editedLine = editedAway ? noLongerChecked(claimed.name) : null
   const outputLines = outputs.map((o) => {
     let line = `${o.name} — ${o.phrase}`
     // ⭐ PHASE 5 — a pending refusal (another symbol's bars still loading) is not
@@ -326,7 +354,10 @@ export function readback(def, state = {}, gateCtx = {}) {
   const on = (key) => (key && outputs.length > 1 ? ` (on ${nameOf(key)})` : '')
   const assumptions = (state.assumptions || []).map((a) => (a.label !== undefined
     ? `Assumed ${slotWords(a.label)} ${a.value}${on(a.output)}`
-    : (a.source === 'engine' ? `Default: ${a.text}${on(a.output)}` : `The UCT Agent assumed: "${a.text}"`)))
+    // ⭐ 2026-11-18: a note the DOOR wrote is a statement (what was built, what was used), printed
+    // as it stands. It read: The UCT Agent assumed: "Built to UCT's checked formula ...".
+    : (a.source === 'engine' ? `Default: ${a.text}${on(a.output)}`
+      : (a.source === 'uct' ? a.text : `The UCT Agent assumed: "${a.text}"`))))
   const questions = (state.questions || []).map((q) => `Question: ${q.text}`)
   const needsAck = outputs.filter((o) => o.mode === 'preview-repaints').map((o) => o.key)
   // ⭐ PHASE 5 — a FORMING-period read repaints for a reason a member can name.
@@ -349,6 +380,7 @@ export function readback(def, state = {}, gateCtx = {}) {
     : null
   const lines = [
     `Name: ${(def.meta && def.meta.name) || ''}`,
+    ...(editedLine ? [editedLine] : []),
     ...outputLines,
     ...presentation.map((l) => `Look: ${l}`),
     ...(symLine ? [symLine] : []),

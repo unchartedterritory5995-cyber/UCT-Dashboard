@@ -74,11 +74,19 @@ export const DECLARED_DIFFERENCES = Object.freeze({
   // the wire has no framed instance (protocol.mjs closes ctx); a server run never slides that way.
   // RS RATING L5: nor does it carry the chart's other-symbol cache (`secondaryEntries`): a job
   // holds ONE symbol's bars, so a server run is handed no other symbol's bars (see ctxServerOnly).
-  ctxBrowserOnly: Object.freeze(['framed', 'secondaryEntries']),
+  // (2026-11-20, the W / M listing statement) nor the listing FACT on a weekly / monthly chart (`listingStart`, StockChart
+  // from /api/ticker-ipo): this host does not state it, so a withheld run here keeps the off-listing sentence; it never
+  // SERVES anything either way (serving stays `historyFromListing`, daily-only).
+  ctxBrowserOnly: Object.freeze(['framed', 'secondaryEntries', 'listingStart']),
   // RS RATING L3: the wire's symbol is closed to {ticker, exchange} (protocol.mjs), so a server run
   // carries no classification: `syminfo.industry` / `sector` / `type` stay unsettled there and the
   // run refuses them by name (bind.js::classificationWith), never a guessed string.
-  ctxSymbolBrowserOnly: Object.freeze(['industry', 'sector', 'securityType']),
+  // (2026-11-19, Fred RS 1h) and the symbol's FINAL first-trade day (`firstTradeDate`, StockChart symbolMeta from
+  // /api/ticker-ipo): the listing fact requestSupply.js's own-daily first-session na rests on. This host does not state
+  // it, so no listing is claimed here and that session stays unknown (refused by name), never na.
+  // (2026-11-20) and whether that answer is still IN FLIGHT (`firstTradeDatePending`, useTickerIpo's PENDING_IPO): the run
+  // waits on it there; this host states neither, so its run keeps the refusal it gives without a date.
+  ctxSymbolBrowserOnly: Object.freeze(['industry', 'sector', 'securityType', 'firstTradeDate', 'firstTradeDatePending']),
   // RS RATING L5: the ctx facts only this host states. `otherSymbolSupply: false` tells the run it
   // will never be handed another symbol's bars, so a `request.security` of one is refused by name
   // (requestSupply.js) instead of held as "still loading", which on this lane never ends.
@@ -86,6 +94,10 @@ export const DECLARED_DIFFERENCES = Object.freeze({
   // the whole document meta, so the run's own runtimeVersionRefusal (runtimeColumns.js) reads the
   // version facts on every document (design 3.2); the browser worker passes runtimeHistory only
   defMeta: 'doc.meta',
+  // (coordinator ruling 2026-11-19) the BROWSER WORKER's budget scales with the bars a run covers
+  // (runtimeColumns.js::runtimePaneBudgetFor, `budgetScales`); this host keeps the per-run 1,000 ms:
+  // a shared process, where a longer run is every queued job's wait, not one member's labels arriving later.
+  optsBrowserOnly: Object.freeze(['budgetScales']),
 })
 
 /** The bundle's per-run wall budget, or a throw: a run with no budget could have a wall-clock stop
@@ -115,6 +127,9 @@ export function runArgs(doc, job) {
     // W9-T11: the window, from the job's ctx exactly as the browser forwards its own (runtimeAsync.js
     // ::messageOf); never a literal here. HP-7 compares the two shapes.
     ...(job.ctx.historyWindowBars !== undefined ? { historyWindowBars: job.ctx.historyWindowBars } : {}),
+    // (2026-11-20) and the served depth beside it, exactly as the browser forwards its own (runtimeAsync.js::messageOf):
+    // a server run states a deep start the way a chart's does ([B-START-DEEP]). HP-7 compares the two shapes.
+    ...(job.ctx.listingDepthBars !== undefined ? { listingDepthBars: job.ctx.listingDepthBars } : {}),
   }
   return { def, rows, ctx }
 }
@@ -268,6 +283,14 @@ export function libraryRefusalOf(rt, doc, libraries) {
 export function runJob(rt, doc, job, clock = () => performance.now(), libraries = null) {
   const started = clock()
   let out
+  // ⭐ TRACK 6, G-BROKER (coordinator ruling D5, 2026-11-22): the strategy broker runs for a job that asks for the
+  // strategy record ('#strategy', which only profile `backtest` may ask: protocol.mjs) and for no other job. What
+  // may reach this lane at all is the web pod's admission (`server_lane_refusal`: capability admission decides
+  // whether a strategy is served; NO bypass here). The gate is module state in this worker, so it is set for
+  // THIS run and put back off in `finally`, whatever the run did. A bundle without the registry runs it dark.
+  const broker = Array.isArray(job.want) && job.want.includes(STRATEGY_WANT)
+    && typeof rt.registerStrategyBrokerGate === 'function'
+  if (broker) rt.registerStrategyBrokerGate(() => true)
   try {
     const held = libraryRefusalOf(rt, doc, libraries)
     if (held) {
@@ -283,6 +306,7 @@ export function runJob(rt, doc, job, clock = () => performance.now(), libraries 
   } finally {
     // ⭐⭐ U15: a job's libraries are registered for THAT run only (libraryRefusalOf), never kept
     if (typeof rt.clearPineLibraries === 'function') rt.clearPineLibraries()
+    if (broker) rt.registerStrategyBrokerGate(() => false)
     rt.resetRuntimeSessions()
     rt.resetRuntimeLedgers()
   }

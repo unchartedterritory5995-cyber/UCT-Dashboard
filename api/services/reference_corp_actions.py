@@ -59,20 +59,23 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
-def fetch_confirmed_splits(from_iso: str, to_iso: str) -> list[dict[str, Any]]:
+def fetch_confirmed_splits_strict(from_iso: str, to_iso: str) -> list[dict[str, Any]]:
     """Every stock split with an execution date in [from_iso, to_iso], full
     detail, straight from Massive's own reference feed — which IS the
     confirmation; there is no separate detection stage for a vendor's own
-    reference data. Returns `[]` on any provider failure; never raises.
+    reference data. RAISES `CorpActionsUnavailable` when Massive could not give
+    the WHOLE answer (no key, an HTTP error on any page, more than 20 pages), so
+    `[]` here means exactly one thing: Massive answered and lists no split in the
+    window. The first-frame seed's next-session list (`ffseed.next_session_splits`)
+    depends on that difference: an empty list tells devices "no split", an
+    omitted one keeps their split guard closed.
 
     ⛔ Owns its OWN pagination rather than reusing `get_split_tickers`'s (now
     retired) — that function discarded everything but the ticker, which is not
     enough to write a confirmed ROW (execution date + ratio are the row).
 
     TERM-022: reads through `massive_adapter` (one client, one budget, typed
-    errors). The `[]` on failure is THIS sweep's own, logged decision — its only
-    caller upserts — not the adapter's; and past 20 pages it now answers `[]`
-    rather than upserting a silently truncated window.
+    errors; past 20 pages it raises rather than return a truncated window).
     """
     from api.services import massive_adapter
 
@@ -84,8 +87,7 @@ def fetch_confirmed_splits(from_iso: str, to_iso: str) -> list[dict[str, Any]]:
             max_pages=20,  # same bound as the retired reader
         ).value
     except Exception as e:
-        _log.info("[reference-corp-actions] splits fetch failed: %s", e)
-        return []
+        raise CorpActionsUnavailable(f"Massive /v3/reference/splits failed: {type(e).__name__}") from e
     out: list[dict[str, Any]] = []
     for r in rows:
         if not isinstance(r, dict):
@@ -101,6 +103,18 @@ def fetch_confirmed_splits(from_iso: str, to_iso: str) -> list[dict[str, Any]]:
             "split_to": r.get("split_to"),
         })
     return out
+
+
+def fetch_confirmed_splits(from_iso: str, to_iso: str) -> list[dict[str, Any]]:
+    """`fetch_confirmed_splits_strict`, with `[]` on any provider failure; never
+    raises. For the sweep whose only caller upserts (`refresh_confirmed_splits`):
+    a failed tick writes nothing. A caller that must tell "no split" from "could
+    not ask" uses the strict read."""
+    try:
+        return fetch_confirmed_splits_strict(from_iso, to_iso)
+    except CorpActionsUnavailable as e:
+        _log.info("[reference-corp-actions] splits fetch failed: %s", e.__cause__ or e)
+        return []
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -200,6 +214,53 @@ def fetch_ticker_dividends(ticker: str, *, gte: str | None = None,
             "currency": r.get("currency"),
         })
     return rows
+
+
+#: One date-range read of the whole market: 1,000 rows a page, so past 10,000 dividends in one window
+#: the read refuses (`massive_adapter.get_pages` raises) rather than hand back a truncated window.
+_MARKET_READ_MAX_PAGES = 10
+
+
+def fetch_market_dividends_strict(from_iso: str, to_iso: str) -> list[dict[str, Any]]:
+    """Every cash dividend across the market with an ex-date in [from_iso, to_iso], oldest ex-date
+    first: `{ticker, ex_dividend_date, cash_amount, currency, frequency, dividend_type, pay_date,
+    declaration_date, record_date}`. The market-wide sibling of `fetch_ticker_dividends` (the same
+    endpoint, the same client, the same data class), queried by ex-date RANGE with no ticker, for
+    the Terminal's market dividend calendar (`api/services/dividends_market.py`, `DVD MARKET`).
+
+    The range filter (`ex_dividend_date.gte` / `.lte`), `order`, `sort` and the 1,000-row page are
+    Massive's own parameters for `/v3/reference/dividends` (its public docs page "Dividends
+    (Deprecated)", read 2026-11-21; the per-ticker read above already sends the same range keys).
+    A row without a ticker or an ex-date is not returned. RAISES `CorpActionsUnavailable` when
+    Massive could not give the whole window, so `[]` means Massive answered and lists none."""
+    from api.services import massive_adapter
+
+    try:
+        rows = massive_adapter.get_pages(
+            "/v3/reference/dividends",
+            params={"ex_dividend_date.gte": from_iso, "ex_dividend_date.lte": to_iso,
+                    "order": "asc", "sort": "ex_dividend_date", "limit": 1000},
+            data_class="reference", activity="reference_corp_actions.fetch_market_dividends",
+            max_pages=_MARKET_READ_MAX_PAGES,
+        ).value
+    except Exception as e:
+        raise CorpActionsUnavailable(f"Massive /v3/reference/dividends failed: {type(e).__name__}") from e
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        if not isinstance(r, dict) or not r.get("ticker") or not r.get("ex_dividend_date"):
+            continue
+        out.append({
+            "ticker": str(r["ticker"]).upper(),
+            "ex_dividend_date": str(r["ex_dividend_date"])[:10],
+            "cash_amount": r.get("cash_amount"),
+            "currency": r.get("currency"),
+            "frequency": r.get("frequency"),
+            "dividend_type": r.get("dividend_type"),
+            "pay_date": r.get("pay_date"),
+            "declaration_date": r.get("declaration_date"),
+            "record_date": r.get("record_date"),
+        })
+    return out
 
 
 def split_ratio(split_from, split_to) -> float | None:

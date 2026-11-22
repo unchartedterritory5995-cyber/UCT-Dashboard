@@ -47,6 +47,22 @@ export function historyWindowBarsOf(repoRoot) {
   return Number(m[1])
 }
 
+/** ⭐⭐ (2026-11-19, the strategy-only daily window) `bars_window.STRATEGY_HISTORY_WINDOW_BARS`, the window a strategy
+ *  run on a member's chart takes (`GET /api/pine/history-window` answers it as `strategyHistoryWindowBars`, beside the
+ *  shared `historyWindowBars`, which the chart hands as the run's `listingDepthBars`), read off the Python module. */
+export function strategyWindowBarsOf(repoRoot) {
+  const text = fs.readFileSync(path.join(repoRoot, 'api', 'services', 'bars_window.py'), 'utf8')
+  const m = text.match(/^STRATEGY_HISTORY_WINDOW_BARS\s*=\s*(\d+)\s*$/m)
+  if (!m) throw new Error('api/services/bars_window.py states no STRATEGY_HISTORY_WINDOW_BARS')
+  return Number(m[1])
+}
+
+/** What the chart hands a strategy run for its window, as `GET /api/pine/history-window` answers it today:
+ *  `{historyWindowBars: <the strategy window>, listingDepthBars: <the shared window>}`. */
+export function chartStrategyWindowOf(repoRoot) {
+  return { historyWindowBars: strategyWindowBarsOf(repoRoot), listingDepthBars: historyWindowBarsOf(repoRoot) }
+}
+
 const short = (s, n = 240) => (s == null ? null : String(s).slice(0, n))
 
 /**
@@ -93,6 +109,17 @@ export function armedStrategyVerdict({ source, door, bars, ctx }) {
   }
   const rec = runtimeStrategyOf(cols)
   if (!rec) { out.run = { ok: false, guard: 'strategy:no-record', rule: null }; out.wall = 'run:strategy:no-record'; return out }
+  // ⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots) — a broker run refused by name no longer throws when its plots
+  // can stand in without the broker (`runtimeColumns.js::disarmedAfter`): the plots are drawn and the RECORD holds the
+  // refusal (`refusedStrategyRecordOf`; every other record carries none). It is the run's wall exactly as the thrown
+  // refusal was, by the same guard and rule (or capture row).
+  const refusal = (rec.refusals || [])[0]
+  if (refusal) {
+    out.run = { ok: false, guard: refusal.guard || 'runtime:error', rule: refusal.rule || null, capture: null,
+      message: short(refusal.sentence) }
+    out.wall = `run:${out.run.guard}${refusal.rule ? `:${refusal.rule}` : ''}`
+    return out
+  }
   out.run = { ok: true, trades: rec.trades.length, orders: rec.orders.length, rulesUsed: [...rec.rulesUsed].sort() }
   const mk = memberTradeMarkers(cols) || {}
   out.markers = { status: mk.status || null, guard: mk.guard || null, capture: mk.capture || null,

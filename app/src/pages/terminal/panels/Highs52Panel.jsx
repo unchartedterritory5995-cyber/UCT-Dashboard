@@ -34,6 +34,7 @@ import {
   BREADTH_LATEST_URL, BREADTH_LIVE_URL, HIGHS52_CODE, HIGHS52_SIDES, countsSentence, drillRead, highs52CommandArgs, highs52Mode,
   latestSessionDate, liveDrillUrl, normSide52, settledSentence, storedDrillUrl,
 } from './highs52Model'
+import ListAlertSwitch from './ListAlertSwitch'
 import styles from './marketPanels.module.css'
 import bars from './barCells.module.css'
 
@@ -59,12 +60,14 @@ const clock = (iso) => (iso ? formatTimeEt(iso, { zoneSuffix: 'ET', absent: '' }
 /** One read's outcome: 'loading' | 'http' (the request itself failed) | the model's own state. */
 const outcomeOf = (q, parsed) => (!q.body && !q.error ? 'loading' : q.error && !q.body ? 'http' : parsed.state)
 
-/** `paired`: two lists sit side by side, so each keeps only the columns that fit half a panel
+/** The one-list view (six columns) was measured to need 488px with its cells wrapped, so it names
+ *  step 510 of the fold ladder (see marketPanels.module.css); a paired list (four columns) fits and names none.
+ *  `paired`: two lists sit side by side, so each keeps only the columns that fit half a panel
  *  (the company name and the share count are in the one-list view, `H52 HIGHS` / `H52 LOWS`). */
 function SideTable({ side, rows, total, offset, live, paired = false }) {
   const words = HIGHS52_SIDES[side]
   return (
-    <div className={styles.tableBox}>
+    <div className={styles.tableBox} data-fold={paired ? undefined : '510'}>
       <table className={styles.table} data-testid={`terminal-h52-${side}`}>
         <caption className={styles.caption}>{words.caption} ({count(total)})</caption>
         <thead>
@@ -218,7 +221,7 @@ function Highs52Board({ side, view, fallback, staleNote }) {
         </PanelState>
       ) : (
         <>
-          <div className={styles.split}>
+          <div className={`${styles.split} ${styles.splitFair}`}>
             {lists.map((l) => {
               if (l.state !== 'ok' || !l.rows.length) return null
               const table = <SideTable key={l.side} side={l.side} rows={l.rows} total={l.read.rows.length} offset={offset} live={live}
@@ -332,6 +335,8 @@ export default function Highs52Panel({ side: sideProp = null }) {
           ))}
         </div>
       </div>
+      {/* "Alert me when a stock I follow appears here" (new 52-week highs). Draws nothing until the server says the alerts are on. */}
+      <ListAlertSwitch kind="highs52" />
       {/* Keyed by session: a new session is a new pair of reads, so a live list is never drawn under a finished day's date. */}
       {state || <Highs52Board key={`${view.mode}:${view.date}`} side={side} view={view} fallback={fallback} staleNote={staleNote} />}
     </div>

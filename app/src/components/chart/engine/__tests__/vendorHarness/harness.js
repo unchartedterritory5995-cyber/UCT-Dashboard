@@ -14,7 +14,7 @@ import { validateCapture } from '../../../../../../../tools/vendor_harness/schem
 import { compareCapture, renderSummary, compareObjectsV2, MATCH_SUBSTITUTED } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { detectFormat, fromObservation, fromProbeRows } from '../../../../../../../tools/vendor_harness/adapters.mjs'
 import { runOurSide } from './ourSide'
-import { supplyAttributionOf, otherSymbolUnsettledOf } from './supplyAttribution'
+import { supplyAttributionOf, otherSymbolUnsettledOf, supplyBehindOf } from './supplyAttribution'
 import { pairObjects } from './objectColours'
 import { pairRecords, attachXSidecar } from './objectRecords'
 import { gradePaints } from './paintColours'
@@ -122,12 +122,21 @@ export function gradeCapture(original, opts = {}) {
   // SUPPLY-ATTRIBUTED (coordinator ruling on #1541): only where the supply symbol has a committed witness
   const supplyAttribution = integrity.ok && ours && ours.ok ? supplyAttributionOf(capture) : null
   const otherSymbolUnsettled = integrity.ok && ours && ours.ok ? otherSymbolUnsettledOf(capture) : null
-  const indicator = compareCapture(capture, ours, { integrity, objectColours, paints, supplyAttribution, otherSymbolUnsettled })
+  // SUPPLY BEHIND THE CAPTURE (coordinator ruling, 2026-11-18): a forming newest bar the recorded supply cannot answer
+  const supplyBehind = integrity.ok && ours && ours.ok ? supplyBehindOf(capture) : null
+  // ⭐⭐ DISCLOSED PARTIAL (coordinator ruling 2026-11-19) — the records paired field by field (by value where the
+  // counts differ, `objectRecords.js::alignByValue`), handed to v1 too: a family our side drew fewer of BY NAME is
+  // graded on what it draws (`compare.mjs::compareObjects`). The same pairing feeds the v2 report below.
+  const objectRecords = capture.objects && capture.objects.records
+    && ours && ours.ok && ours.objects && ours.objects.ok && Array.isArray(ours.objects.held)
+    ? pairRecords(capture, ours.objects)
+    : null
+  const indicator = compareCapture(capture, ours, { integrity, objectColours, paints, supplyAttribution, otherSymbolUnsettled, supplyBehind, objectRecords })
   // ⭐⭐ THE STRATEGY GRADE, FOLDED IN where the capture holds a Strategy Tester report or our door ran a
   // broker document (`strategyLane.js`, THE FOLD); null, and the verdict unchanged, everywhere else
   const strategy = integrity.ok ? strategyLaneGradeOf(capture, ours, { unrun }) : null
   const verdict = foldStrategyGrade(indicator, strategy)
-  const objectsV2 = objectsV2Of(capture, ours, verdict)
+  const objectsV2 = objectsV2Of(capture, ours, verdict, objectRecords)
   // ⭐ L7 — a run with substituted inputs never reads MATCH, the v2 objects report included
   // (capability admission reads `objectsV2: MATCH` for an `obj:*` family).
   if (objectsV2 && verdict.substituted && objectsV2.verdict === 'MATCH') objectsV2.verdict = MATCH_SUBSTITUTED
@@ -138,13 +147,17 @@ export function gradeCapture(original, opts = {}) {
  *  (`compare.mjs::compareObjectsV2`). A SEPARATE report beside the verdict: the
  *  verdict, and every ratchet that reads it, stays v1. `null` where v1 graded no
  *  objects. */
-export function objectsV2Of(capture, ours, verdict) {
+export function objectsV2Of(capture, ours, verdict, paired = undefined) {
   if (!verdict || !verdict.objects) return null
-  const pairing = capture.objects && capture.objects.records
+  const pairing = paired !== undefined ? paired : capture.objects && capture.objects.records
     && ours && ours.ok && ours.objects && ours.objects.ok && Array.isArray(ours.objects.held)
     ? pairRecords(capture, ours.objects)
     : null
-  return compareObjectsV2(verdict.objects, pairing, (ours && ours.objects && ours.objects.withheldFamilies) || [])
+  // ⭐ (2026-11-21) where v2 overruled a v1 MATCH (`compare.mjs::v2Overrules`) the report is built on v1's OWN grade,
+  // kept beside the verdict, so it says what v1 read and what v2 found, exactly as it did before the rule
+  const o = verdict.objects
+  const v1 = o.overruledBy === 'objectsV2' ? { ...o, verdict: o.v1Verdict, reason: o.v1Reason } : o
+  return compareObjectsV2(v1, pairing, (ours && ours.objects && ours.objects.withheldFamilies) || [])
 }
 
 /**
@@ -163,6 +176,7 @@ export function runHarness(dirs = [VENDOR_DIR], opts = {}) {
     }
     const { verdict, ours, objectsV2 } = gradeCapture(loaded.capture, opts)
     results.push({ file: loaded.file, format: loaded.format, ...verdict, ourNotes: ours ? ours.notes : [],
+      ...(ours && (ours.door === 'host' || ours.door === 'runtime') ? { ourDoor: ours.door } : {}),
       ...(objectsV2 ? { objectsV2 } : {}) })
   }
   return { results, inventory, table: renderSummary(results), files: files.length }

@@ -21,6 +21,7 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 import { foldBound, bindConstsFor } from './ast/bind'
 import {
   otherSymbolRefusalOfTree, isOtherSymbolRefusal, colourReaderRefusal, colourReaderMessage, plotValueIsNaLiteral,
+  withChartNewestDay,
 } from './otherSymbols'
 import { resolveLowerTf } from './lowerTf'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
@@ -32,6 +33,7 @@ import { specializeSymbols } from './symbolInputs.js'
 import { calcBarsWindowOf, windowContext, widenToChart, withCalcBarsRecord, calcBarsWindowReport,
   CALC_BARS_REQUEST_GUARD, calcBarsRequestSentence } from './calcBarsWindow.js'
 import { RUNTIME_OBJECTS_KEY } from './runtime/runtimeObjects'
+import { runtimeOvernightOf } from './runtime/overnightTail.js'
 
 /** ⭐ HEADLESS (R6) — the caller's evaluation counter, as `interpret` reads it (`opts.workSink`).
  *  `{}` without one: the options every chart hands are unchanged. */
@@ -275,7 +277,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   const bound = (tree) => foldBound(tree, bindConsts)
   // ⭐⭐ C26 — which other symbols this binding may read, decided ONCE for every
   // tree of the document (`otherSymbolsFor`).
-  const other = otherSymbolsFor(def, ctx)
+  const other = otherSymbolsFor(def, withChartNewestDay(ctx, bars))   // ⭐ RS RATING L11 PR 2: the bind reads no bars
   // ⭐⭐ C41 — which lower-timeframe codes this binding may read, decided ONCE for
   // every tree of the document (`lowerTfFor`). Null for a document that reads none.
   const lower = lowerTfFor(def, ctx)
@@ -595,8 +597,11 @@ export function chartClockReport(columns) {
   // ⭐⭐ CBC-FMT — a `calc_bars_count` window says so on the same strip ("computed on its
   // last N bars", and the newest bar while it is withheld), in either lane.
   const win = calcBarsWindowReport(columns)
-  if (!win) return own
-  const rows = win.rows.map((r) => ({ code: r.code, reason: r.reason, plots: [] }))
+  // ⭐⭐ (coordinator ruling 2026-11-20) — and an overnight tail the run was cut before (`runtime/overnightTail.js`)
+  const night = runtimeOvernightOf(columns)
+  if (!win && !night) return own
+  const rows = [...((win && win.rows) || []), ...((night && night.rows) || [])]
+    .map((r) => ({ code: r.code, reason: r.reason, plots: [] }))
   return Object.freeze({ withheld: Object.freeze([...((own && own.withheld) || []), ...rows]) })
 }
 
@@ -632,7 +637,11 @@ export function historyFromListingFor(def, ctx) {
  *  pineTernaryFor`). Off the listing, or for a document that does not declare
  *  it, nothing changes. */
 export function listingOptsFor(def, ctx) {
-  if (!historyFromListingFor(def, ctx)) return {}
+  if (!historyFromListingFor(def, ctx)) {
+    // ⭐⭐ (2026-11-20) the listing FACT where it is not served (W / M): only the notes read it, for a true sentence
+    return ctx && ctx.listingStart === true && def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN
+      ? { listingStart: true } : {}
+  }
   return { historyFromListing: true,
     ...(def.meta.naConditionFalse === true ? { naConditionFalse: true } : {}),
     ...(listingSeedUnpinnedFor(def) ? { listingSeedUnpinned: true } : {}) }

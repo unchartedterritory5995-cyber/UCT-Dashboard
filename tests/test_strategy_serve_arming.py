@@ -12,11 +12,16 @@ set (``0`` to hold it) is passed as the build arg and wins. Local and test build
 the gate's dark default and stub it on by name.
 
 WHAT IT REACHES. The broker runs only on the per-bar runtime lane, which needs the member's runtime stage
-(``PINE_RUNTIME_STAGE``, admins today) and the lane's admission (kill list, allowlist, capability admission). Today the
-server admits NO strategy: ``strategy-decl`` has no row in the capability registry, so every strategy declines
-``runtime:not-yet-graded`` and is drawn as before with its backtest refused by name. The JS census
-(``strategyServeCensus.test.js``) latches exactly that verdict for its production state; the last rail here holds the
-verdict to the server, so the day ``strategy-decl`` is admitted this file goes red BY NAME and the census is re-measured.
+(``PINE_RUNTIME_STAGE``, admins today) and the lane's admission (kill list, allowlist, capability admission). The server
+admits a strategy by capability when every capability it uses has a conformant registry row: ``strategy-decl`` since
+2026-11-18, and ``request-other`` (closed-bar history) since 2026-11-19 (#2016), so 22 of the 25 committed strategies
+are admitted and the other 3 are withheld by name by a capability with no row. Admission is a door, not a pin: an
+admitted strategy's backtest is served only where every broker rule it rests on is pinned, and is refused by name
+otherwise; a killed source (the kill list, by source hash) falls back off the runtime lane whatever its admission, so
+its backtest is refused by name (the kill named). The JS census
+(``strategyServeCensus.test.js``) latches the server's verdict per committed strategy (``SERVER_ADMITS``) for its
+production state; the last two rails here hold that list to the server, both ways, so a registry change that moves a
+verdict turns this file red BY NAME and the census is re-measured.
 
 WHICH BUNDLE. Members load the bundle ``web-front`` builds and serves (``front/README.md``), not ``web``'s. Both build
 ``Dockerfile.web`` (``front/service.json``, ``railway.web.json``), each from its OWN Railway variables, so the default
@@ -28,7 +33,11 @@ Mutation proofs (run by hand, each restored from a saved copy; recorded in the E
     1b. point ``front/service.json`` at another Dockerfile            -> members' bundle RED
     2. give another VITE_* ARG a default                              -> only-one-default RED
     3. set the ledger row's status to "dark"                          -> ledger RED
-    4. stop the capability detector naming ``strategy-decl``           -> server-admits-no-strategy RED
+    4. stop the capability detector naming ``strategy-decl``           -> server-admits-exactly-the-census-list RED
+    (2026-11-19, the census re-latch after #2016; recorded in the PR)
+    5. drop one of the five request-other admits from ``SERVER_ADMITS`` -> server-admits-exactly-the-census-list RED
+    6. a CONTROL the server admits (pmax-explorer, the old control)    -> CONTROL RED
+    6b. give ``enum`` a (non-admitted) registry row                   -> CONTROL RED (the no-row check)
 """
 from __future__ import annotations
 
@@ -169,21 +178,69 @@ def _committed_strategies():
     return out
 
 
-def test_the_server_admits_no_strategy_today(monkeypatch):
-    """The production state of `strategyServeCensus.test.js` latches "not admitted" for every committed strategy. This
-    holds that to the server's own verdict (capability admission ON), so admitting `strategy-decl` cannot slip past it:
-    when it is admitted, re-measure the census (`strategyServeAudit.measure.test.js`) and move both."""
+CENSUS = ROOT / "app" / "src" / "components" / "chart" / "engine" / "runtime" / "__tests__" / "strategyServeCensus.test.js"
+
+
+def _census_server_admits() -> list:
+    """`SERVER_ADMITS` as the census rail latches it, PARSED from that file (one list, never a copy here)."""
+    src = CENSUS.read_text(encoding="utf-8")
+    m = re.search(r"const SERVER_ADMITS = Object\.freeze\(\[(.*?)\]\)", src, re.S)
+    assert m, "strategyServeCensus.test.js no longer declares `const SERVER_ADMITS = Object.freeze([...])`"
+    return re.findall(r"'([^']+)'", m.group(1))
+
+
+def _server_verdicts(monkeypatch) -> dict:
     monkeypatch.setenv("PINE_RUNTIME_CAPABILITY_ADMISSION", "on")
     from api.services import runtime_definitions as rd
-    scripts = _committed_strategies()
-    assert len(scripts) == 25, len(scripts)
-    admitted, missing_decl = [], []
-    for key, src in scripts:
+    out = {}
+    for key, src in _committed_strategies():
         ok, missing = rd.capability_admitted(src, persist=False, wait=120.0)
         assert "pending" not in missing, f"{key}: the detector did not answer"
-        if ok:
-            admitted.append(key)
-        if "strategy-decl" not in missing:
-            missing_decl.append(key)
-    assert admitted == [], f"the server now admits strategies {admitted}: re-measure the serve census"
-    assert missing_decl == [], f"`strategy-decl` is no longer what withholds {missing_decl}"
+        out[key] = (ok, missing)
+    return out
+
+
+# ⚰️ `test_the_server_admits_no_strategy_today` (until 2026-11-18): `strategy-decl` had no registry row, so the server
+# admitted none of the 25 and the census latched "not admitted" for each. `strategy-decl` is admitted on Q-SD1 / Q-SD2
+# (supertrend-strategy, community) and W9-Q-S1p, all MATCH runtime-on (api/data/pine_runtime_allowlist.json).
+def test_the_server_admits_exactly_the_census_list(monkeypatch):
+    """The production state of `strategyServeCensus.test.js` latches the server's verdict per committed strategy from
+    its `SERVER_ADMITS`. This holds that list to the server's own verdict (capability admission ON), BOTH ways, so a
+    registry change cannot move what members are served past the census: a moved verdict re-measures the census
+    (`strategyServeAudit.measure.test.js`) and moves both."""
+    verdicts = _server_verdicts(monkeypatch)
+    assert len(verdicts) == 25, len(verdicts)
+    admitted = sorted(k for k, (ok, _) in verdicts.items() if ok)
+    assert admitted == sorted(_census_server_admits()), "the server's admitted strategies are not the census's list"
+    # every withheld one is withheld by a capability with no conformant row, never by `strategy-decl`
+    for key, (ok, missing) in verdicts.items():
+        assert ok or missing, f"{key}: withheld with no reason"
+        assert "strategy-decl" not in missing, f"{key}: `strategy-decl` withholds it"
+
+
+def test_CONTROL_admission_is_a_door_not_a_pin(monkeypatch):
+    """CONTROL. Admission is a door, not a pin: the server admits a strategy whose backtest rests on a broker rule no
+    MATCHing capture pins (B-EXIT-QTY is absent from `brokerPins.resolved.json`), and the census holds that the member
+    is refused by name at its report (`runtime:strategy-unpinned`). Here: such a strategy IS admitted (so the census
+    control is reached), and B-EXIT-QTY is indeed unpinned.
+    ⚰️ Until 2026-11-19 (the strategy unit) the control was B-EXIT-NA on macd-shortlong and stop-loss-and-take-profit:
+    the community capture macd-shortlong-strategy-is-rddt-1d-2026-11-18 now pins it (MATCH), and both are served."""
+    verdicts = _server_verdicts(monkeypatch)
+    pins = json.loads((ROOT / "app" / "src" / "components" / "chart" / "engine" / "runtime" / "brokerPins.resolved.json")
+                      .read_text(encoding="utf-8"))["rules"]
+    assert "B-EXIT-QTY" not in pins
+    assert "B-EXIT-NA" in pins
+    for key in ("tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy",):
+        assert verdicts[key][0] is True, f"{key}: {verdicts[key][1]}"
+        assert key in _census_server_admits()
+    # and the same detector withholds a strategy BY NAME for capabilities that have NO registry row (`enum`; a library
+    # version; and `import`, which is never a row of its own: it is met by its libraries). ⚰️ This was pmax-explorer,
+    # withheld by `request-other` alone, until 2026-11-19: #2016 admitted `request-other` (closed-bar history), so the
+    # server admits pmax-explorer by capability, and the kill list (by source hash, DRAW-1 rule) keeps it off the runtime
+    # lane: the host lane draws it and its backtest is refused by name (the census's REQUEST_OTHER_ADMITS).
+    key, missing = ("trailing-take-profit-trailing-stop-loss__41jwaH1ikz",
+                    ["enum", "import", "library:jason5480/chrono_utils/7"])
+    assert verdicts[key] == (False, missing), verdicts[key]
+    assert key not in _census_server_admits()
+    registry = json.loads((ROOT / "api" / "data" / "pine_runtime_allowlist.json").read_text(encoding="utf-8"))
+    assert not set(missing) & set(registry["capabilities"]), "a control capability now has a registry row"

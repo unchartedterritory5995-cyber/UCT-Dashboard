@@ -83,12 +83,16 @@ describe('#1 a warm is persisted without a subscriber', () => {
   })
 
   it('#2f an IDB-only daily set prepared for useDayFacts is readable from mem', async () => {
-    const w = await boot()
-    await w.idb.idbPutMonotonic('DAY', 'D', [{ t: '2026-11-06', o: 1, h: 1, l: 1, c: 1, v: 1 }])
-    expect(w.mem.memPeek('DAY', 'D')).toBeFalsy()
-    await w.pf.prepareDailyForDisplay('DAY', 'D')
-    expect(w.mem.memPeek('DAY', 'D')?.length).toBe(1)
-    expect(w.server.calls.length).toBe(0)
+    // (split off: no deep history due, so the prepare sends nothing; see prefetch.deepDaily.test.js)
+    localStorage.setItem('uct.barsHistory.enabled', '0')
+    try {
+      const w = await boot()
+      await w.idb.idbPutMonotonic('DAY', 'D', [{ t: '2026-11-06', o: 1, h: 1, l: 1, c: 1, v: 1 }])
+      expect(w.mem.memPeek('DAY', 'D')).toBeFalsy()
+      await w.pf.prepareDailyForDisplay('DAY', 'D')
+      expect(w.mem.memPeek('DAY', 'D')?.length).toBe(1)
+      expect(w.server.calls.length).toBe(0)
+    } finally { localStorage.removeItem('uct.barsHistory.enabled') }
   })
 })
 
@@ -137,16 +141,21 @@ describe('#2a/#2b the legacy wire shape', () => {
 
 describe('#2d typed warm', () => {
   it("a cached daily set the paint authority refuses is fetched, like legacy (not 'cache')", async () => {
-    const run = async (api, w) => {
-      await w.idb.idbPutMonotonic('TYD', 'D', [{ t: '2026-11-03', o: 1, h: 1, l: 1, c: 1, v: 1 }])
-      const r = await (async () => { const p = api.warmTypedSymbol('TYD', 'D'); await settle(w); return p })()
-      return { r, n: w.server.calls.length }
-    }
-    const legacy = await (async () => { const w = await boot(); return run(w.legacy, w) })()
-    fakeDb._clear(); vi.setSystemTime(NOW)
-    const facade = await (async () => { const w = await boot(); return run(w.pf, w) })()
-    expect(facade).toEqual(legacy)
-    expect(facade).toEqual({ r: 'network', n: 1 })
+    // Legacy parity with the deep sealed history off (the legacy warm has no deep join; with it on,
+    // the facade's typed warm also fetches the deep history: prefetch.deepDaily.test.js).
+    localStorage.setItem('uct.barsHistory.enabled', '0')
+    try {
+      const run = async (api, w) => {
+        await w.idb.idbPutMonotonic('TYD', 'D', [{ t: '2026-11-03', o: 1, h: 1, l: 1, c: 1, v: 1 }])
+        const r = await (async () => { const p = api.warmTypedSymbol('TYD', 'D'); await settle(w); return p })()
+        return { r, n: w.server.calls.length }
+      }
+      const legacy = await (async () => { const w = await boot(); return run(w.legacy, w) })()
+      fakeDb._clear(); vi.setSystemTime(NOW)
+      const facade = await (async () => { const w = await boot(); return run(w.pf, w) })()
+      expect(facade).toEqual(legacy)
+      expect(facade).toEqual({ r: 'network', n: 1 })
+    } finally { localStorage.removeItem('uct.barsHistory.enabled') }
   })
 
   it("S1 ADAPTER ITEM (pinned): the facade never answers 'stale-answer' — a chart answer landing mid-request is merged, the warm reports 'network'", async () => {

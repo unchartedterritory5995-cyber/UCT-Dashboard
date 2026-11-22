@@ -222,12 +222,17 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
               <span className={styles.sym}>{sym}</span>
             </PanelTicker>
           </span>
-          {isNew && <span className={styles.newBadge}>NEW</span>}
-          {hasInsiderBuy && <span className={styles.insiderBadge}>INSIDER</span>}
-          {teamBadge && <span className={styles.insiderBadge} title={`${teamBadge.label}: ${teamBadge.speaker}`} data-testid="uct20-team-badge">TEAM</span>}
-          {earnings && earnings.days <= ER_BADGE_MAX_DAYS && (
-            <span className={`${styles.erBadge} ${earnings.soon ? styles.erBadgeSoon : ''}`}>{earnings.badge}</span>
-          )}
+          {/* The badges are one group so a narrow table can give them their own line under the ticker
+              (UCT20.module.css, "The table fits ITSELF"). On a wide screen the group is not a box
+              (display: contents), so the line reads exactly as it did. No badge = an empty group. */}
+          <span className={styles.badges}>
+            {isNew && <span className={styles.newBadge}>NEW</span>}
+            {hasInsiderBuy && <span className={styles.insiderBadge}>INSIDER</span>}
+            {teamBadge && <span className={styles.insiderBadge} title={`${teamBadge.label}: ${teamBadge.speaker}`} data-testid="uct20-team-badge">TEAM</span>}
+            {earnings && earnings.days <= ER_BADGE_MAX_DAYS && (
+              <span className={`${styles.erBadge} ${earnings.soon ? styles.erBadgeSoon : ''}`}>{earnings.badge}</span>
+            )}
+          </span>
           {company && <span className={styles.companyName}>{company}</span>}
         </span>
         <span className={styles.price}>{fmtPrice(livePrice) ?? '—'}</span>
@@ -236,7 +241,7 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
           {rsRank != null ? <span className={`${styles.rsBadge} ${rsClass(rsRank)}`}>{Math.round(rsRank)}</span> : <span className={styles.dim}>—</span>}
         </span>
         <span className={`${styles.cDays} ${styles.days}`}>{daysHeld != null ? `${daysHeld}d` : <span className={styles.dim}>—</span>}</span>
-        <span className={`${styles.since} ${(displayReturn ?? 0) >= 0 ? styles.gain : styles.loss}`}>{fmtPct(displayReturn) ?? <span className={styles.dim}>—</span>}</span>
+        <span className={`${styles.cSince} ${styles.since} ${(displayReturn ?? 0) >= 0 ? styles.gain : styles.loss}`}>{fmtPct(displayReturn) ?? <span className={styles.dim}>—</span>}</span>
         <span className={styles.rating}>{fmtRating(rating) ?? '—'}</span>
         {/* The row's own expand/collapse control — a REAL <button>, a sibling of
             the ticker chip above, never a wrapper around it. `stopPropagation`
@@ -623,6 +628,10 @@ export default function UCT20() {
               : 'Holding history could not be read right now, so days held, return since added and the NEW marks are not shown. That is a gap in what we could read, not a change to the list.'}
           </p>
         )}
+        {/* The box the table measures itself against (UCT20.module.css, "The table fits ITSELF"):
+            the list and its footnote share it, so the footnote's SINCE ADD sentence can fold on
+            the same rule as the column. */}
+        <div className={styles.tableFit}>
         {rowsError && !rows ? (
           <div className={styles.emptyState} data-testid="uct20-error">
             <p className={styles.emptyStateTitle}>The UCT 20 could not be read right now</p>
@@ -687,7 +696,7 @@ export default function UCT20() {
               <SortHead k="chg" label="CHG" className={styles.alignR} />
               <SortHead k="rs" label="RS" className={`${styles.cRs} ${styles.alignC}`} title="Relative strength vs the S&P 500 (percentile)" />
               <SortHead k="days" label="DAYS" className={`${styles.cDays} ${styles.alignR}`} title="Days held in the tracking portfolio" />
-              <SortHead k="since" label="SINCE ADD" className={styles.alignR} title="Return since the name was added to the list" />
+              <SortHead k="since" label="SINCE ADD" className={`${styles.cSince} ${styles.alignR}`} title="Return since the name was added to the list" />
               <SortHead k="rating" label="RATING" className={styles.alignR} />
               <span />
             </div>
@@ -717,9 +726,13 @@ export default function UCT20() {
         )}
         <p className={styles.tableFootnote}>
           Systematic momentum ranking for research and education — not investment advice
-          or a recommendation to buy any security. "SINCE ADD" reflects the no-stops
-          tracking portfolio below, not the risk-managed Book — see "How it&rsquo;s built."
+          or a recommendation to buy any security.{' '}
+          <span className={styles.footSince} data-testid="uct20-foot-since">
+            "SINCE ADD" reflects the no-stops
+            tracking portfolio below, not the risk-managed Book — see "How it&rsquo;s built."
+          </span>
         </p>
+        </div>
       </TileCard>
       <TileCard title="UCT 20 Performance">
         <UCT20Performance />

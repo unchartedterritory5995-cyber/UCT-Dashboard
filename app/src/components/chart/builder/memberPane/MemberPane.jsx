@@ -41,7 +41,7 @@
 // Padding is invisible and scale-setting, and whether the sub-pane is a quarter
 // high are SCREENSHOT questions and are owed against the real chart.
 import { withoutGuardIds } from '../../engine/ast/guardIdText'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ChartPane from '../../pane/ChartPane'
 import * as engineRegistry from '../../engine/nativeRegistry'
 import { addInstance } from '../../engine/instanceControls'
@@ -51,6 +51,7 @@ import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import {
   latchRuntimeLists, runtimeCapabilityAdmissionOn,
   runtimeAdmissionOf, watchRuntimeAdmission, RUNTIME_KILL_PATH,
+  subscribeRuntimeLists, runtimeConsultPendingOf, awaitRuntimeAdmission,
 } from '../../engine/runtimeKill'
 import { requirementNote } from '../../engine/ast/parse'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
@@ -62,6 +63,15 @@ import styles from './MemberPane.module.css'
 import sheetStyles from '../BuilderSheet.module.css'
 
 const noop = () => {}
+
+/** ⭐⭐ ITEM 2 — the build Add keeps: the door's own build, or, for a preview the store cannot hold
+ *  (`built.oversize`), the same build carrying the runtime-lane document Add saves instead; null when Add is
+ *  refused up front (`oversize.refusal`), so nothing is sent. */
+function keptBuildOf(b) {
+  if (!b || !b.ok) return null
+  if (!b.oversize) return b
+  return b.oversize.saveAs ? { ...b, definition: b.oversize.saveAs.definition } : null
+}
 
 /** ⭐ The member's real chart already streams and warms this symbol; a second
  *  surface doing both would double the work for one pane. Same recipe
@@ -174,6 +184,29 @@ export default function MemberPane({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- libRevision: rebuild when a library lands; killVersion: rebuild when the kill list lands
     [live, source, defId, libRevision, killVersion],
   )
+  // ⭐⭐ (2026-11-18, THE FIRST-PASTE RACE) — A BUILD MINTED BEFORE ITS ADMISSION ANSWERED. The build above reads the
+  // runtime admission SYNCHRONOUSLY (`runtimeNotGradedOf`): a script the server has not answered for yet fails closed
+  // to the host lane ("still being checked"). ⚰️ the 2026-11-18 production check's fresh session: the first paste of
+  // supertrend-strategy minted the host copy (5 settings, its backtest declined) while every later paste got the
+  // run-lane copy (12 settings), because nothing re-minted this build when the answer landed by another path, and
+  // the watcher above waited a full recheck after the server's busy answers.
+  // Read right after the build (same render, same state): whether a consult it made answered "still being checked".
+  const mintedPending = useMemo(
+    () => !!(runtimeOn && runtimeConsultPendingOf({ source })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- read beside `built`, on the build's own inputs
+    [runtimeOn, source, defId, libRevision, killVersion],
+  )
+  // the answer, by WHATEVER path it lands (this pane's watcher, the build's own ask, another consult, the lists'
+  // re-read): the build is re-minted on it
+  useEffect(() => {
+    if (!mintedPending) return undefined
+    const settle = () => { if (!runtimeConsultPendingOf({ source })) setKillVersion((n) => n + 1) }
+    const unsub = subscribeRuntimeLists(settle)
+    settle()   // an answer that landed between the build and this effect
+    return unsub
+  }, [mintedPending, source])
+  const aliveRef = useRef(true)
+  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false } }, [])
   const [installed, setInstalled] = useState(null)
 
   // ⭐ U4 — A REFUSAL THE MEMBER HITS IS A RANKED WORK ITEM (the support loop's gap
@@ -273,15 +306,27 @@ export default function MemberPane({
   // mode (`buildDefinition` → `worstRepaint`), so `repaints` anywhere means no
   // checkbox here: the button stays as it was and the server's own refusal
   // sentence is rendered verbatim below. Never persisted, reset per document.
-  const repaintMode = (built && built.ok && built.definition && built.definition.meta
-    && built.definition.meta.repaint) || null
+  // ⭐⭐ ITEM 2 (2026-11-21, coordinator ruling) — A PREVIEW THE STORE CANNOT HOLD (`built.oversize`,
+  // `memberPaneDefinition.js::withOversizeKeep`). The preview above is the host answer, unchanged; what Add KEEPS is
+  // the runtime-lane document of the same script (`saveAs`, its notes shown before the member confirms), or nothing
+  // at all: the refusal is said up front by name and no request is sent (`refusal`). ⚰️ Add used to send the 4 MB
+  // host document and render the store's internal 400 sentence.
+  const oversize = (built && built.ok && built.oversize) || null
+  const keepDoc = oversize ? (oversize.saveAs ? oversize.saveAs.definition : null)
+    : (built && built.ok ? built.definition : null)
+  const repaintMode = (keepDoc && keepDoc.meta && keepDoc.meta.repaint) || null
   const needsAck = repaintMode === 'preview-repaints'
   const [acked, setAcked] = useState(false)
   useEffect(() => { setAcked(false) }, [built])
 
-  const doAttachWith = useCallback(async (fn) => {
-    if (!fn || !built || !built.ok || built.saveable === false) return
-    if (needsAck && !acked) return
+  // ⭐⭐ (2026-11-18, THE FIRST-PASTE RACE) — AN ADD PRESSED WHILE THIS BUILD WAITS FOR ITS ADMISSION ANSWER waits for
+  // the answer (`awaitRuntimeAdmission`, bounded), re-mints the PREVIEW on it, and attaches the build then on screen,
+  // so the claim above stands: what is attached is what is drawn. ⚰️ The Add attached the host copy minted before
+  // the answer. When the wait runs out with no answer, the re-minted build is what the door mints then (the host
+  // copy, as before): an Add is never refused for a server that has not answered.
+  const [queuedAttach, setQueuedAttach] = useState(null)
+  const attachBuilt = useCallback(async (fn, b, ackGiven) => {
+    const ack = !!(b.definition && b.definition.meta && b.definition.meta.repaint === 'preview-repaints')
     setAttach({ state: 'busy', error: null })
     let res = null
     try {
@@ -289,8 +334,8 @@ export default function MemberPane({
       // with it, so the store keeps it beside the document and a later engine can
       // translate it again (`savedScriptUpgrade.js`). The same `source` the
       // memoised build above read: the document and its script are one pair.
-      res = await fn(built.definition, { ...(needsAck && acked ? { previewAcked: true } : {}), source })
-    } catch (e) {
+      res = await fn(b.definition, { ...(ack && ackGiven ? { previewAcked: true } : {}), source })
+    } catch {
       // ⚠️ A THROW IS A TRANSPORT FAILURE, NOT A REFUSAL. The store never
       // answered, so there is no sentence of its to render and inventing one that
       // sounds like a policy would be worse than saying what happened.
@@ -303,7 +348,35 @@ export default function MemberPane({
       error: (res && typeof res.error === 'string' && res.error.trim())
         ? res.error : 'The store refused this definition.',
     })
-  }, [built, needsAck, acked, source])
+  }, [source])
+  const doAttachWith = useCallback(async (fn) => {
+    if (!fn || !built || !built.ok || built.saveable === false) return
+    if (!keptBuildOf(built)) return          // ITEM 2: refused up front, nothing is sent
+    if (needsAck && !acked) return
+    if (mintedPending) {
+      setAttach({ state: 'busy', error: null, checking: true })
+      await awaitRuntimeAdmission(source)
+      if (!aliveRef.current) return
+      setQueuedAttach({ fn, source, acked: needsAck && acked })
+      setKillVersion((n) => n + 1)          // re-mint the preview on the answer
+      return
+    }
+    await attachBuilt(fn, keptBuildOf(built), needsAck && acked)
+  }, [built, needsAck, acked, source, mintedPending, attachBuilt])
+  useEffect(() => {
+    if (!queuedAttach) return
+    const q = queuedAttach
+    setQueuedAttach(null)
+    // the member edited the script while it waited, or the re-minted build is not one this door saves: nothing attaches
+    if (q.source !== source || !built || !built.ok || built.saveable === false) { setAttach({ state: 'idle', error: null }); return }
+    // ITEM 2: a re-minted build whose Add is refused up front sends nothing
+    const kept = keptBuildOf(built)
+    if (!kept) { setAttach({ state: 'idle', error: null }); return }
+    // a re-minted build that asks for a repaint acknowledgement the member has not given waits for it, on screen
+    const reNeedsAck = !!(kept.definition && kept.definition.meta && kept.definition.meta.repaint === 'preview-repaints')
+    if (reNeedsAck && !q.acked) { setAttach({ state: 'idle', error: null }); return }
+    attachBuilt(q.fn, kept, q.acked)
+  }, [queuedAttach, built, source, attachBuilt])
   const doAttach = useCallback(() => doAttachWith(onAttach), [doAttachWith, onAttach])
   const doAttachCopy = useCallback(() => doAttachWith(onAttachCopy), [doAttachWith, onAttachCopy])
 
@@ -352,8 +425,23 @@ export default function MemberPane({
           door for it (`api/services/runtime_definitions.py`), and while that door
           is switched off its refusal sentence is rendered verbatim below.
           `saveable: false` still hides the button for any document that says so. */}
-      {onAttach && built && built.saveable !== false && (
+      {/* ⭐⭐ ITEM 2 — A PREVIEW THE STORE CANNOT HOLD: Add refused up front, by name, and no control to press. */}
+      {onAttach && built && built.saveable !== false && oversize && !oversize.saveAs && (
+        <p data-testid="pine-member-pane-keep-refusal" role="status">{withoutGuardIds(oversize.refusal)}</p>
+      )}
+      {onAttach && built && built.saveable !== false && keptBuildOf(built) && (
         <div data-testid="pine-member-pane-attach">
+          {/* ⭐⭐ ITEM 2 — …or kept drawn bar by bar, and what that means said BEFORE the member confirms. */}
+          {oversize && oversize.saveAs && (
+            <div data-testid="pine-member-pane-keep">
+              <p>{oversize.saveAs.lead}</p>
+              <ul className={styles.notes}>
+                {(oversize.saveAs.notes || []).map((n) => <li key={n.name}>{withoutGuardIds(n.note)}</li>)}
+                {oversize.saveAs.forming && <li key="forming">{oversize.saveAs.forming}</li>}
+                {oversize.saveAs.budget && <li key="budget" data-testid="pine-member-pane-keep-budget">{oversize.saveAs.budget}</li>}
+              </ul>
+            </div>
+          )}
           {needsAck && (
             <>
               <p data-testid="pine-member-pane-repaint-note">This script can repaint recent signals.</p>
@@ -386,6 +474,11 @@ export default function MemberPane({
             >
               {copyLabel}
             </button>
+          )}
+          {attach.state === 'busy' && attach.checking && (
+            <span className={styles.attachOk} role="status" data-testid="pine-member-pane-attach-checking">
+              Checking this script before it is added…
+            </span>
           )}
           {attach.state === 'done' && (
             <span className={styles.attachOk} role="status">

@@ -84,6 +84,43 @@ def daily_closes(symbol) -> dict:
     except Exception:
         return {"status": "unavailable", "reason": "read_failed", "symbol": sym,
                 "detail": f"{sym} price history could not be read."}
+    return _closes_answer(sym, bars)
+
+
+def daily_bars(symbol) -> dict:
+    """`daily_closes`' answer for the SAME single read, plus `"bars": [(YYYY-MM-DD, open, high, low,
+    close, volume)…]` ascending (STAT: the ATR, the ranges and the volumes need the whole bar).
+    `closes`, `first`, `last` and `suspect_jumps` are exactly what `daily_closes` answers. A bar
+    without a positive, finite open, high, low and close is left out of `bars` (never out of
+    `closes`); a volume that is not a finite number of 0 or more is None, never 0. Never raises."""
+    sym = normalize_symbol(symbol)
+    if not sym:
+        return {"status": "refused", "reason": "bad_symbol", "detail": "That isn't a valid ticker symbol."}
+    try:
+        bars = _load_bars(sym)
+    except Exception:
+        return {"status": "unavailable", "reason": "read_failed", "symbol": sym,
+                "detail": f"{sym} price history could not be read."}
+    out = _closes_answer(sym, bars)
+    if out.get("status") != "ok":
+        return out
+    seen: dict[str, tuple] = {}
+    for b in bars or []:
+        d = _iso(b.get("t"))
+        try:
+            o, h, lo, c = float(b.get("o")), float(b.get("h")), float(b.get("l")), float(b.get("c"))
+        except (TypeError, ValueError):
+            continue
+        if not d or not all(x > 0 and x != float("inf") for x in (o, h, lo, c)):   # NaN fails `x > 0`
+            continue
+        v = b.get("v")
+        ok_v = isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and 0 <= v != float("inf")
+        seen[d] = (d, o, h, lo, c, float(v) if ok_v else None)   # a duplicate date keeps the last (served) bar
+    return {**out, "bars": [seen[k] for k in sorted(seen)]}
+
+
+def _closes_answer(sym: str, bars) -> dict:
+    """The closes answer for one read of `sym`'s bars (`daily_closes`, `daily_bars`)."""
     seen: dict[str, float] = {}
     for b in bars or []:
         d = _iso(b.get("t"))

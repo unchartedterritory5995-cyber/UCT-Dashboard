@@ -136,6 +136,11 @@ const NO_FUNDAMENTALS = {
  * 2026-11-02: the profile is never degraded — the legacy snapshot fields stay, the gateway's statements are added with
  * MD-1 wording on the gateway part only). Pure; exported for tests. → { lines, items, source }
  */
+/** The `fundamentals` envelope's `source` → the name the member reads. The gateway names the source that answered
+ *  (FMP first; Yahoo Finance only for a ticker FMP has no statements for), so the sentence follows it and never
+ *  names one by default. */
+const STATEMENT_SOURCES = { fmp: 'FMP', 'yahoo-finance': 'Yahoo Finance' }
+
 export function fundamentalsFacts(env, symbol) {
   const sym = String(symbol || '').toUpperCase()
   if (!usable(env)) return { lines: [`Financial statements: ${NO_FUNDAMENTALS[env?.status] || NO_FUNDAMENTALS.unavailable}; no statement figure is stated.`], items: [], source: null }
@@ -161,7 +166,7 @@ export function fundamentalsFacts(env, symbol) {
   if (missing.length) lines.push(`No ${missing.join(' or ')} data is carried for ${sym}.`)
   const age = env.as_of && env.fetched_at ? daysBetween(env.as_of, env.fetched_at) : null
   lines.push(`Periodic disclosures${d.currency && d.currency !== 'USD' ? ` in ${d.currency}` : ''}: the statement figures describe the reporting period ending ${newest || 'the period named above'}, not today.${env.stale && age != null ? ` Note: that period ended ${age} days ago, so a newer quarter may have been reported.` : ''}`)
-  return { lines, items, source: 'statements from Yahoo Finance through the UCT data gateway' }
+  return { lines, items, source: `statements from ${STATEMENT_SOURCES[env.source] || 'UCT\'s statements source'} through the UCT data gateway` }
 }
 
 /** stock.profile's gateway facts: ONE `fundamentals` read for the open turn → fundamentalsFacts, or null when the kind

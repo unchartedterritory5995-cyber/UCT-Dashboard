@@ -29,6 +29,69 @@ These are door verdicts on one daily chart (NYSE:RDDT 1D), not parity verdicts; 
 a capture exists (each unit's evidence column). Two walls the 1D census cannot see are added from
 other measurements (section 4.4).
 
+## 0. Re-measured 2026-11-19: engine 84, with production's library store
+
+`coverage-map.json` and `parity-roadmap.json` were re-measured at engine 84 (`3685713d65`, the master
+merged into the libraries chain L1 branch; no engine file differs). For the first time the census used
+**production's library store**: the 6 promoted versions (`run_census.py --library-store`). Section 9 has
+the commands. **The JSON is the authority. Sections 2 to 8 below keep the 11-18 (engine 73) prose and
+tables.**
+
+**Members are served 286 of 679 sample scripts (42.1%).** On 11-18 the figure was 275.
+
+| | 11-18, e73, no store | 11-19, e84, production's store |
+|---|---:|---:|
+| member-served (runtime-on with the server's admission) | 275 | **286** |
+| runtime-on, the census granting every script | 285 | 298 |
+| host-only | 220 | 226 |
+| runtime-added / lost | 65 / 0 | 72 / 0 |
+| served on closed-bar history only | 11 | 14 |
+| not served (fully enumerated) | 404 (201) | 393 (203) |
+| never-serve | 12 | 16 |
+| upper bound of the build order | 593 | 589 (86.7%) |
+
+The 11 scripts served now and not on 11-18 split in two. None was lost.
+
+- **5 are the store correction.** These are scripts production already serves, which the 11-18 map
+  counted as walled because it was measured with an empty store:
+  - the four TradingView built-ins importing `TradingView/ta/11`: Aroon oscillator, Chandelier exit,
+    Pring's special K and Ulcer index;
+  - `committed:all-chart-patterns-theeccentrictrader` (the theEccentricTrader libraries).
+  - KAMA and Price Momentum Oscillator also import ta/11 and stay walled. Their own refusal is
+    `pine:function-def`.
+- **6 are engine 73 -> 84:**
+  - `committed:atr-support-and-resistance`
+  - `committed:contraction-box-doji-lines`
+  - `reference:auto-length-moving-average-trend-signals-zeiierman` (U-FGS, #1952)
+  - `reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr`
+  - `reference:engulfing-sinyal`
+  - `reference:order-block-detector-luxalgo`
+
+Never-serve gains 4:
+- the `licence` class (section 6): 3 trendoscope scripts that import a CC-BY-NC-SA version;
+- `committed:volume-footprint-measuring-classical-indicators-by-math-geometry-intro` (footprint-ticks).
+
+Parity at engine 84, over 915 committed captures, both lanes run with the store:
+
+| lane | MATCH | MATCH_SUBSTITUTED | DIVERGE | INCONCLUSIVE |
+|---|---:|---:|---:|---:|
+| production | 198 | - | 79 | 638 |
+| runtime-on | 314 | 23 | 71 | 507 |
+
+`tests/test_pine_parity_roadmap.py::test_the_official_census_is_productions_library_store` holds the map's store
+to the allowlist's `promote` rows. A new promotion turns it red until the census is re-measured.
+
+**Re-measured again for the ta/7 promotion (libraries chain L2, same day, same engine 84).** The store is now 8
+versions: `TradingView/ta/7` and `RelativeValue/2` were promoted under the runtime-only rule.
+- Served is unchanged: **286**. Host-only is 226.
+- Runtime-on is 298 -> 299. `committed:kalman-psar-backquant` now attaches on the runtime lane and is walled
+  only by admission: `admission:import` and `admission:library:TradingView/ta/7`.
+- The other ta/7 importers lose `runtime:library` and keep their own walls:
+  - machine-learning-rsi-bullvision: conditional-history and function-global-state;
+  - smart-money-concept-tradingfinder: its five TFlab libraries and history walls;
+  - relative-volume-at-time: `pine:library-version`.
+- Each lane took its own lock hold.
+
 ## 1. What "served" and "wall" mean here
 
 - **Served (member-facing).** Production runs the runtime pane armed with capability admission on
@@ -43,6 +106,15 @@ other measurements (section 4.4).
     as the 11-17 map's section 1 did (reproduced: the e71 census through this tool gives 275, the 11-17
     figure).
   - An order-placing strategy is never served (the broker is not armed for members).
+- **Served, by what the chart draws (census tools, 2026-11-19).** Served says the door attaches the script;
+  the render sweep (`renderGaps.measure.test.js` over every capture on disk, runtime-on lane, joined by
+  `render_gaps.py`, folded by `coverage_map.py --render-gaps`) says whether every drawing lands. Member-served
+  splits three ways: **servedFully** (a capture was measured and none leaves a drawing off), **servedWithDisclosedGap**
+  (a measured capture leaves drawings off; the member's drawing note discloses them), **servedUnmeasured** (no capture
+  of it was measured). Each gap class is a ranked wall over the served scripts it touches (`renderWalls`, unit
+  `render`): `render:coordinate-unplaced` (a finite x no bar of the chart places), `render:text-withheld:<kind>`
+  (a text the run withheld, `<kind>` the run's own `format:*` name or `unnamed`), `render:drawings-withheld:<guard>`
+  (a family withheld whole by name). The classes sum to memberServed (`tests/test_pine_render_gaps.py`).
 - **Wall.** For a script that is not served, its walls are labels the census already prints:
   - the runtime lane's own walls over every peel step (`runtimeOn.walls.byScript`);
   - if it has none and the host lane attached it dirty (so the runtime lane was never offered it), the
@@ -580,7 +652,7 @@ own identifiers are counted as one row). This is each unit's queue:
 `runtime:conditional-history` stopping on `and` in 7 scripts is Pine v6's lazy `and` / `or`: a call on
 the right of `and` runs only on bars where the left is true, so it keeps call-site history.
 
-### 4.4 Two walls the 1D census cannot see (added 2026-11-18)
+### 4.4 Three walls the 1D census cannot see (added 2026-11-18)
 
 The census runs every script on one daily chart whose history starts at RDDT's 2024 listing. A wall that
 needs an intraday chart, or a longer history, does not show in its rows. Two were measured tonight by
@@ -590,9 +662,10 @@ other sessions and are recorded with their witnesses (`externalWalls`):
 |---|---|---|---|
 | **A running value anchored at the first bar (an all-time ratchet, an all-time high, an anchored VWAP reaching past the look-back cap)** (`first-bar-anchor`) | `first-bar-anchor` | host `budget:lookback` (cap 960 bars, ruled not raised 2026-11-17); the runtime lane runs from the first bar the chart hands it, so it is a wall there only when that bar is not TradingView's | measured 2026-11-18 by another session (local): SPY 1D from the 1993 listing, a level rising since the listing is 82% bar-equal to a windowed value at W=900 and 20% off at worst; McGinley 14 (a decaying recurrence) is bit-equal at W=300. A decaying recurrence converges inside a window; a running extreme or sum does not, at any W the cap allows |
 | **A DAILY read on an intraday chart (previous day's high / low / close, daily pivots): a request.security to a higher timeframe** (`daily-on-intraday`) | `request` | host `tf` reads weekly and monthly only (`pine:request`: "another timeframe as `tf` (weekly and monthly ...)"); the session-reader spelling exceeds `budget:lookback` (1361 vs 960). On the 1D census a "D" request is the chart's own timeframe, so it never shows | measured 2026-11-18 by the Create Indicator capability census (local REPORT.md): 2 of 177 ideas (previous day H/L/C, daily pivots) blocked by exactly this |
+| **U-CONFIRM: when TradingView confirms a closed daily bar for a strategy** (`strategy-bar-confirm`, kind `evidence`: an open question, not an engine gap) | `strategy` | the census treats every closed bar as confirmed; the grade cuts only an ABSENT newest value row of a strategy capture (an `na` row, or a row missing anywhere else, is compared) | r1-strategy-draws-rddt-1d-2026-10-02: 636 bars and 635 value rows, bar 635's session closed at 20:00Z and the capture was taken at 22:57Z (`newestBarIsForming` false); its indicator twin (no broker) holds all 636. The 2026-11-16 report captures (22:09-23:18Z) hold the same shape |
 
-Both are written up in section 5 (U-DAILY, U-ANCHOR). They carry no sample count, because nothing has
-measured one. The census needs an intraday chart and a long-history chart before this can change.
+All three are written up in section 5 (U-DAILY, U-ANCHOR, U-CONFIRM). They carry no sample count, because
+nothing has measured one. The census needs an intraday chart and a long-history chart before this can change.
 
 ### 4.5 The Create Indicator capability census, classified against Pine
 
@@ -647,6 +720,39 @@ computes needs one (`scriptEngineVersion.js`); an evidence-only unit (admission)
   evidence units below.
 - **Risk:** drawing count and position (DRAW-1's known DIVERGE classes: count-at-cap, conditional
   history of a drawing). Route (a) changes no stored document; route (b) does: engine number.
+- **Also this unit: a runtime document's drawings owned by its own run** (added 2026-11-18, coordinator
+  ruling after the `admit:obj:linefill` re-grade, #1804). AlgoAlpha Trend Targets reaches the runtime lane,
+  but the member door keeps the HOST object program (64 ops) in the runtime document: the run owns its
+  drawings only where the host program would draw nothing (`memberPaneDefinition.js::runtimeLaneDefinition`
+  -> `runtimeOwnObjectsOf`). So its lines, labels and linefills are the host lane's (`objectsLane` host), and
+  the script is evidence for no object family. Its run DOES build with its drawings
+  (`probeRuntimeProgram(source, { objectsInRun: true })` succeeds at engine 75), and so do k-clustering's and
+  vdubus-pattern-gen-v2's, both host-drawn today. The smallest honest change: let the run own the drawings
+  where it builds them and draws the same objects as the host program (route-by-cost's same-surface test,
+  applied to the objects), measured capture by capture before any member sees it; no stored document changes.
+  Witness owed: AlgoAlpha AMEX:SPY 1D from the listing. Its 2026-11-17 capture, not from the listing, DIVERGES
+  on a `barcolor` at bar 200; the 2026-11-15 one, from the listing, grades MATCH. With AlgoAlpha's linefills on
+  its own run, FVG Finder and AlgoAlpha are the two scripts `admit:obj:linefill` needs (capture requests for
+  vdubus-pattern-gen-v2, k-clustering and FVG Finder SPY sent 2026-11-18). Taken the same day (run `adm-2026-11-18`):
+  AlgoAlpha SPY 1D from the listing grades MATCH on the runtime-on lane (the 11-17 DIVERGE was its history start), and
+  FVG Finder SPY 1D shows a second objects wall: once the line collector runs at the 500 cap, TradingView holds 289
+  linefills and we hold 250 (every one paired agrees), the linefill analogue of `obj:box`'s count-at-cap carve-out.
+- **Measured and built 2026-11-18 (PARITY UNIT 1, PR #1824, train e77;
+  `docs/pine/evidence/2026-11-18-objects-unit/EVIDENCE.md`).** The probe found the runtime lane builds 14 of the
+  55 (`objects` + `known-lists`) and the value lane stops the other 41. Route (a) was built first as a move to a
+  runtime document and WITHDRAWN (its server lanes went dark; off the listing its run blanked 256 of SPY's 1,800
+  host-drawn bars on `atr-support-and-resistance`). Built instead: the run half draws what the host program lost
+  (`runHalfObjectRail.js`, the lost-drawings rule; the document stays the host's): served 275 -> 277
+  (`atr-support-and-resistance`, `auto-trendlines-by-pivots`), two more on `request-other`. Open, each a later unit:
+  - **Hosts that lost EVERY drawing** (`committed:atr-trailing-stop-by-ceyhun`,
+    `reference:liquidity-heatmap-swiftedge`, both admitted; the run half refused `run-half:no-comparable-objects`).
+    Their document carries no object program, so the bind cannot tell them from a `removes` host (a lost removal,
+    whose run is measured to go silently empty: `fabio-style ... rddt 1d 2026-11-15`, 0 of TradingView's 52
+    objects). Needs a door-side discriminator: a stored-document change, engine number.
+  - **The per-bar step limit** (`committed:volume-profile`, `reference:fourier-extrapolator-of-price-w-projection-
+    forecast-loxx`, both admitted, closed bars): the run stops by name (`runtime:limit`: 205,101 steps on the last
+    bar against the 200,000 limit; TradingView draws 203 and 398 lines). ⛔ Measure the per-chart CPU cost of the
+    last bar at 250,000 steps before anyone proposes raising the limit.
 
 ### U-STRAT `strategy`: order simulation served to members (OWNER-GATED, in progress)
 
@@ -666,6 +772,19 @@ computes needs one (`scriptEngineVersion.js`); an evidence-only unit (admission)
   B-STOP-LIMIT, B-EXIT-LEVELS and `w9-q-s1a-size-stop-v6`.
 - **Risk:** a wrong fill is a wrong P&L a member trusts. No engine number for the registry row; each
   broker rule is its own engine unit (as e68's were).
+
+### U-CONFIRM `strategy-bar-confirm` (part of U-STRAT): when TradingView confirms a closed daily bar (EVIDENCE)
+
+- **TradingView:** a strategy with `calc_on_every_tick = false` (the default) runs a bar once TradingView
+  CONFIRMS it. Measured: a strategy captured after the session close can hold a newest bar its strategy has
+  not run (no value row there), while an indicator captured on the same chart minutes later holds it.
+- **Ours today:** the engine runs every closed bar; it does not guess when TradingView confirms one (coordinator
+  ruling 2026-11-18). The harness grades a strategy capture on the bars its strategy RAN: an ABSENT newest value
+  row is cut on both sides, keyed on the row being absent, never on an `na` value
+  (`__tests__/vendorHarness/strategyLane.js::strategyRanView`, rails `strategyLane.test.js` SL2 / SL2b).
+- **Evidence that would pin it:** one strategy captured just before and just after TradingView confirms a closed
+  daily bar (the same chart, the same script), so the moment of confirmation is read, not assumed.
+- **Risk:** none served today: the question decides one newest bar of a strategy run.
 
 ### U-LIB `libraries`: Pine library imports
 
@@ -735,6 +854,39 @@ computes needs one (`scriptEngineVersion.js`); an evidence-only unit (admission)
   higher-timeframe request. Missing: both (queue rows).
 - **Risk:** realtime repainting of the requested expression; lookahead. Engine number: yes.
 
+### U-REQ-HOIST-COLUMN `request-hoisted-column` (part of U-REQ): a history read in a request's hoisted statements is read from the chart's bars
+
+Added 2026-11-18 (coordinator ruling, from the PA ZigZag Fibonacci FAN DIVERGE at Alt Timeframe 1W / 1M, run
+`rozz-2026-11-18`, local; it is not U-HTF-CALENDAR: NYSE:RDDT's history starts in 2024).
+- **TradingView:** the script requests `zigzag()` at the weekly / monthly context (`lookahead_on`). The function's
+  `_isUp[1]` and `_isDown[1]` are the PREVIOUS requested bar's: TradingView's model of the script over the weekly and
+  monthly folds of its own daily bars reproduces the vendor's `zigzag` on every period (RDDT 140 / 140 weeks and
+  33 / 33 months, SPY 1,765 / 1,765 and 407 / 407).
+- **Ours today:** the function body (`int _dir = na , _dir := …` is a recurrence, so it is lowered as statements) is
+  hoisted into the request's region. Its `_isUp[1]` / `_isDown[1]` are pure subtrees, lowered as COLUMNS of the
+  columnar lane, which computes them once over THIS chart's daily bars. The request's sub-run (`vm.js::runRequest`)
+  is handed the chart's columns (`columns: ctx.columns`) and reads them at the requested bar's index, so on weekly bar
+  j `_isUp[1]` is the chart's daily `close[j-1] >= close[j-2]`. The guard that refuses a column inside a request
+  (`pineRuntimeFrontend.js`, `carriesColumn(valueIr)`) walks the request's VALUE only, never its hoisted statements, so
+  this one is drawn. Everything else the request reads is right (one request per value, our side, RDDT 1W: `_isUp`,
+  `_isDown`, `close[1]`, `ta.highest(2)`, `ta.lowest(2)` equal TradingView's on 140 / 140 weeks), and a model in which
+  only those two reads come from the chart's bars reproduces our `zigzag` exactly (140 / 140 weeks, 33 / 33 months).
+- **The first bar:** RDDT 1W bar 6 (2024-04-01, the third week). TradingView reads the second week for `_isUp[1]`
+  (49.32 >= 46, true), so `_dir` turns -1 and `zigzag` is 74.9; ours reads chart bar 1 (2024-03-22, 46 >= 50.44,
+  false): `zigzag` na. The other three captures part at the bars the evidence names (RDDT 1M bar 278, SPY 1W bar 15,
+  SPY 1M bar 64).
+- **Smallest honest change:** first the guard, because the value is wrong rather than refused: `carriesColumn` walks
+  the hoisted statements too, so such a request refuses by name. Then the serve: a history read inside a request's
+  region lowered as the region's own slot history (committed per requested bar, as `_dir[1]` already is), never a
+  column.
+- **Evidence:** the four `rozz-2026-11-18` captures (`pa-zigzag-fibonacci-fan-alt{w,m}-{rddt,spy}-1d-2026-11-17`) are
+  the witnesses; today they are graded only through the harness's moved-timeframe switch
+  (`docs/pine/evidence/2026-11-18-timeframe-input-setting/EVIDENCE.md`). No member surface draws them: a moved
+  timeframe is read-only, and no `request-other` row is admitted. Until the guard lands, a request capture whose
+  request region hoists such a read is not `request-other` evidence.
+- **Risk:** any requested function body in statement form with a history read of a binding, on another symbol as
+  much as another timeframe. Engine number: yes (a value moves, or refuses).
+
 ### U-DAILY `daily-on-intraday` (part of U-REQ): a DAILY read on an intraday chart
 
 Added 2026-11-18 by the coordinator, measured by the Create Indicator capability census; **the 1D
@@ -755,6 +907,52 @@ census cannot see it** (on a daily chart, "D" is the chart's own timeframe).
   SPY and RDDT (queue row Q-DAILY-1).
 - **Risk:** early closes and half-days (the vendor calendar settles them); realtime repainting of the
   forming day (closed-bar scope). Engine number: yes.
+
+### U-HTF-CALENDAR `htf-calendar` (part of U-REQ): a short week or month before TradingView's exchange calendar begins
+
+Added 2026-11-18 (coordinator ruling, from capture A1 `support-and-resistance-multi-time-frame-spy-1d-2026-11-18`,
+run `adm-2026-11-18`, local). It is NOT a feed wall: TradingView's weekly and monthly values are folds of its own
+daily bars on every bar of that capture (480 of 480 distinct "Resistance Weekly" values, 57 / 57 weekly lows, 159 /
+159 monthly highs, 9 / 9 monthly lows equal a period's fold of the daily rows TradingView drew). The switch year was
+read 2026-11-18 from Q-HTF-CAL-1a / 1b (below).
+- **TradingView:** with look-ahead off, a completed week or month appears on the daily chart on that period's LAST
+  session, except a period that ends early (its last session is not the period's last weekday) before TradingView's
+  exchange calendar begins: then it appears one bar later, on the next period's first session. **The calendar begins
+  in 2000, on AMEX and on NASDAQ alike.** Read off TradingView's own `close` at `"W"` and `"M"` with look-ahead off
+  (A02 / A05) on every short period:
+  - **through 1999, every short period is shown on the NEXT bar:** AMEX:SPY, 13 weeks (8 April 1993 to 23 December
+    1999) and 2 months (May 1993, May 1999); NASDAQ:QQQ (listed March 1999), the weeks of 1 April and 23 December 1999
+    and May 1999;
+  - **from 2000, every short period is shown on its LAST bar:** the same 46 weeks on both (20 April 2000 to 2 July
+    2026) and the same 7 months (March 2002 to March 2024), including the closure of Friday 11 June 2004, which the
+    calendar holds;
+  - **one exception, on both:** the week of 10 September 2001, whose other sessions (11-14 September) closed without
+    notice, is shown on the NEXT bar;
+  - no short period falls between 23 December 1999 and 20 April 2000, so the calendar's first day is in that window;
+    the reading is 1 January 2000.
+  - Controls: every full period is shown on its last bar (SPY 1,701 weeks and 396 months, QQQ 1,394 weeks and 323
+    months; 3 weeks whose close equals the week before cannot be read), and no short period reads anything else.
+- **Ours today:** `interpret.js::requestAlignment` / `tfMergeReads` show every completed period on its last session,
+  whatever the year, so a short period before 2000, and the week of 10 September 2001, read one bar EARLY:
+  Resistance Weekly differs on 7 bars, Support Weekly on 2, Resistance Monthly on 1 (patrick-54's grade of A1 SPY:
+  8,509 bars, daily S/R equal everywhere).
+- **Smallest honest change:** none to the data. A period-close rule stated once in the host alignment the run's
+  supply already shares: a short period whose last session is before 1 January 2000, or the week of 10 September
+  2001, closes on the next bar. The other unscheduled closures since 2000 (2 January 2007, 29-30 October 2012,
+  5 December 2018, 9 January 2025) fall inside a week and a month, so they end no period and no capture can read them.
+- **Evidence:** A1 SPY (above) for the rule; A1 RDDT (NYSE:RDDT 1D, listed 2024) MATCH on both lanes reaches no
+  early short period. Q-HTF-CAL-1a `vw-request-htf-alignment-spy-1d-2026-11-18` (AMEX:SPY 1D, 8,509 bars from the
+  1993-01-29 listing) and Q-HTF-CAL-1b `vw-request-htf-alignment-qqq-1d-2026-11-18` (NASDAQ:QQQ 1D, 6,967 bars from
+  1999-03-10), patrick-54's run `htfcal-2026-11-18`, packet `39001cc9653b`, our probe (licence `probe`, promoted to
+  `tests/fixtures/vendor/harness/`), graded at 76: INCONCLUSIVE on both lanes as expected (the probe's `60` request is
+  below the chart's timeframe); the year-by-year read is of the vendor's own columns, not a grade, and
+  `tests/test_pine_htf_calendar_switch_year.py` re-derives it from the two committed captures (controls: one doctored
+  week, and a start year of 1999 or 2001, each read as a break). Until the rule
+  lands, a weekly or monthly request capture of a symbol whose history reaches a short period before 2000, or the week
+  of 10 September 2001, is not request-other evidence unless none of its plotted values changes on such a period; the
+  counted request-other captures (fair-value-gap RDDT, PA ZigZag RDDT / SPY, all the chart's own period) read no
+  period at all.
+- **Risk:** a wrong bar on old history only; never the newest bar. Engine number: yes (a value moves).
 
 ### U-ANCHOR `first-bar-anchor`: a running value anchored at the first bar
 
@@ -804,6 +1002,14 @@ beyond `budget:lookback` (RDDT's history starts at its 2024 listing).
 - **Evidence:** a capture per name grading MATCH (or a reference sentence that is an identity, as
   `hl2`). The token table is the queue.
 - **Risk:** low per name; engine number per batch.
+- **`ta.sar` (2026-11-18, coordinator ruling on the parity2 design).** BI1, which mapped `ta.sar(start, inc, max)`
+  onto the native `sar(step, maxStep)` when start equals inc, is WITHDRAWN. The native `sar` runs the chart's own
+  Parabolic SAR rules, not TradingView's `ta.sar` (`callExpansions.js::SAR_NOTE`). Its measurement, 0 of 1,039,563
+  bars (`docs/pine/evidence/2026-11-16-sar-window/EVIDENCE.md`), compares a bounded window with the chart's
+  full-history SAR and says nothing about TradingView. The committed parabolic-sar captures are a community script
+  that computes its SAR by hand. BI1' replaces it: a runtime-lane `ta.sar` written from the Pine reference's own
+  `pine_sar` code. It is served only once the built-in Parabolic SAR grades MATCH on every bar (Q-BLT-3a/b,
+  `docs/pine/capture-queue-2026-11-18-parity2.md`). The host lane keeps refusing it by name.
 
 ### U-COND `conditional-history`: history of a value computed only on some bars
 
@@ -935,6 +1141,25 @@ Smaller families, each named by its wall in section 4:
   route-by-cost (#1711) is the path.
 - **known-lists:** `runtime:kill-list` / `[known-divergence]`: a script whose committed capture
   grades DIVERGE, refused by name until the engine fix re-grades it MATCH; each is its own fix.
+  Each listing's owner, measured 2026-11-18 on the parity2 design. Coordinator ruling: no known-lists fix (KL1 /
+  KL2) is built on its own, because every listing is held by another unit's wall; each comes off its list when
+  that unit's fix re-grades its capture MATCH.
+
+  | listing | what holds it on the host lane | where its run stops | owner |
+  |---|---|---|---|
+  | `heat-map-seasons` | the gauge cell's background and the `barcolor` are `color.from_gradient` over `ta.highest` / `ta.lowest` in a `?:` arm (`fn:conditional-history`), so the cell is dropped (TradingView 31 cells, ours 30) | `runtime:call-undeclared-builtin-state` (`ta.correlation` fed by a mutable value) | U-COND (and state-calls for the run) |
+  | `position-size-calc` | the dropped cell's text is a lot size computed from an FX `request.security` and `syminfo.basecurrency` | builds | U-REQ |
+  | `vold-market-breadth` | reads breadth symbols (USI) | `runtime:input-state` | data decision |
+  | `ema-ribbon-trend-filter-strixedge` | its cell texts read `request.*` and built-ins the host does not declare | `lower-tf:store-unmeasured` | request / builtins (lower-tf for the run) |
+  | `artemis-oscillator-pro` | 5 reassigned cell texts | `runtime:call-windowed-state` (`ta.percentile_linear_interpolation` fed by a mutable value) | statements / call-windowed-state |
+  | `htf-candle-footprint-cartel-console` | its labels and lines are created from user types (`pine:type`) | `pine:function` `color` (a `color(x)` call: BI2) | types |
+  | `htf-liquidity-dashboard-tfo` | its cells read collections and state | `pine:request` (`ES1!`, a continuous future) | request |
+  | `momentum-based-zigzag` | `runtime:kill-list` | listed | HIST-K2 |
+  | `average-day-range-adr-pivots` | a global reassigned inside a function (`pine:state`); its SPY DIVERGE (a line's x2) is not yet read | `runtime:request` (`lookahead`) | U-REQ (`lookahead`) |
+  | `contraction-box-doji-lines` | no longer listed on master | builds | freed |
+
+  KL3 (`text_font_family`, artemis's cell (0,0)) is DEFERRED as a later parity nicety: it lifts no listing on its
+  own.
 
 ### Evidence units `admit:<capability>`
 
@@ -955,14 +1180,33 @@ symbol reached through a variable is not seen, so these counts are a floor.
 |---|---:|---|---|
 | fundamentals | 3 | host `pine:request` (`request` namespace guard) or `pine:builtin` (syminfo.*); runtime `runtime:request-with-state` / `runtime:request`; `other-symbol:seed-unregistered` / `other-symbol:venue-foreign` | `builtin:price-target`, `reference:earnings-sr-levels-lazybear`, `reference:my-cme-open-interest` |
 | footprint-ticks | 2 | host `pine:request` / `pine:builtin` / `pine:type` (footprint); runtime `runtime:request`; `lower-tf:unwitnessed` for a seconds timeframe | `builtin:24-hour-volume`, `reference:lorentzian-classification-advanced-trading-dashboard` |
-| other-feeds | 5 | host `pine:request` with `other-symbol:venue-foreign` or `other-symbol:bare`; runtime `runtime:request-with-state` / `runtime:request` | `builtin:24-hour-volume`, `committed:volume-spikes-growing-volume-signals-with-alerts-scanner`, `reference:cobra039s-crypto-market-visualizer`, `reference:divergence-stack-scanner-agpro-series`, `reference:halftrend-longshort-signal-engine-bigbeluga` |
+| other-feeds | 8 | host `pine:request` with `other-symbol:venue-foreign` or `other-symbol:bare`; runtime `runtime:request-with-state` / `runtime:request` | `builtin:24-hour-volume`, `committed:supertrend-explorer` (ruled by name), `committed:volume-spikes-growing-volume-signals-with-alerts-scanner`, `reference:cobra039s-crypto-market-visualizer`, `reference:custom-screener-with-alerts` (ruled by name), `reference:divergence-stack-scanner-agpro-series`, `reference:halftrend-longshort-signal-engine-bigbeluga`, `reference:screener-for-40-instruments` (ruled by name) |
 | broker | 2 | none at the door: the alert text is a string; the order it would place is the broker's | `committed:atr-god-strategy-by-tradesmart`, `committed:rsi-vwap-indicator` |
 | breadth | 1 | host `pine:request` with `other-symbol:venue-foreign` / `other-symbol:class-share` on a USI: spelling | `committed:4c-nyse-market-breadth-ratio` |
 | indices | 1 | `other-symbol:witness-pending` / `other-symbol:venue-foreign` | `committed:sub` |
 | corporate-events | 4 | host `pine:request` / `pine:builtin`; runtime `runtime:request-with-state` | `builtin:volume-weighted-average-price`, `committed:black-scholes-option-pricing-model-w-greeks-loxx`, `reference:earnings-sr-levels-lazybear`, `reference:vwap-trendfollow-strategy-wbburgin` |
+| licence (added 2026-11-19) | 3 | `pine:library-licence` at the import line, both lanes (`pine_library_store.licence_problem`) | `reference:auto-chart-patterns-trendoscope`, `reference:divergence-screener-trendoscope`, `reference:recursive-reversal-chart-patterns-trendoscope` |
 
-- **Never-serve (removed from the ranking):** `fundamentals`, `footprint-ticks` and `other-feeds`, 9
-  distinct scripts (one is in two classes). `broker` is a feature class (an alert whose message drives a connected brokerage). We simulate
+- **`licence` (libraries chain L1, 2026-11-19).** A script that imports a library version under a
+  non-commercial licence is never served.
+  - Those versions are the allowlist's `neverPromoted` list, all CC-BY-NC-SA. `parity_roadmap.nc_library_versions`
+    reads that list fail-closed, and every reason must say non-commercial.
+  - No engine or evidence work changes this. It is a licence, not a wall.
+  - These three scripts were credited to `admit:collections:matrix`, `admit:collections:map` and
+    `admit:enum`, so the upper bound fell by 3.
+
+- **Ruled never-serve by name (coordinator, 2026-11-18, PARITY UNIT 1):** `committed:supertrend-explorer`,
+  `reference:custom-screener-with-alerts` and `reference:screener-for-40-instruments` read crypto pairs as symbol
+  input defaults (a v4 `input('BINANCE:EOSBTC', title=input.symbol)`; bare `XRPUSDT`-style pairs) that the facts
+  hold no venue for, so no detector above classed them, and the `objects` unit asked a capture of each (Q-OBJ1-3).
+  TradingView itself refuses every one at its defaults ("Invalid symbol"; capture run objunit-2026-11-18, packet
+  `582f2cf1e50b7fbb1939bf9d4fd38017981ac9d4c5aeb290f3add37703ccf596`, 0 of 6 capturable, as on 2026-11-15), and we
+  hold no crypto data: `other-feeds`, by name (`parity_roadmap.RULED_NEVER_SERVE`, each with its witness in
+  `parity-roadmap.json` `neverServe[].ruledByName`). `parity-roadmap.json` is rebuilt with them; the tables of this
+  document were written before the ruling, and the JSON is the authority: `objects` sole servable 44 -> 41
+  (unlocks 41, served after 316 of 679, 46.5%), and every later cumulative "served after" count 3 lower.
+- **Never-serve (removed from the ranking):** `fundamentals`, `footprint-ticks` and `other-feeds`, 12
+  distinct scripts (one is in two classes; 9 before the ruling above). `broker` is a feature class (an alert whose message drives a connected brokerage). We simulate
   orders, we never route them, and those scripts stay in the ranking for their chart output.
 - **Data decisions (in scope as data, not engine):** `breadth` (our own breadth data serving USI:
   spellings), `indices` (one spelling at a time behind a capture witness, as SP:SPX), `corporate-events`
@@ -1151,13 +1395,13 @@ unit's rows.
 | `objects` | `committed:liquidity-heatmap-nephew-sam` | committedOther | committed, not runtime-on MATCH: re-grade after the unit |
 | `objects` | `committed:multicator-table` | committedOther | committed, not runtime-on MATCH: re-grade after the unit |
 | `objects` | `committed:sector-rotation` | committedOther | committed, not runtime-on MATCH: re-grade after the unit |
-| `objects` | `committed:supertrend-explorer` | none | NEW: NYSE:RDDT 1D + AMEX:SPY 1D |
+| `objects` | `committed:supertrend-explorer` | none | WITHDRAWN 2026-11-18: never-serve `other-feeds`, ruled by name (TradingView refuses it at its defaults, "Invalid symbol"; section 6) |
 | `objects` | `committed:trend-lines-supports-and-resistances` | committedOther | committed, not runtime-on MATCH: re-grade after the unit |
 | `objects` | `committed:volume-profile` | committedOther | committed, not runtime-on MATCH: re-grade after the unit |
 | `objects` | `reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:crypto-correlation-matrix` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:cryptosignalscanner-rsi-overboughtoversold-divergence-indicator-new` | ledgerOnly | ledger row only: re-grade at e73 |
-| `objects` | `reference:custom-screener-with-alerts` | none | NEW: NYSE:RDDT 1D + AMEX:SPY 1D |
+| `objects` | `reference:custom-screener-with-alerts` | none | WITHDRAWN 2026-11-18: never-serve `other-feeds`, ruled by name (TradingView refuses it at its defaults, "Invalid symbol"; section 6) |
 | `objects` | `reference:dot-dynamics` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:dual-supertrend-ichimoku-and-dmi-color-weighted-by-dgt` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:dynamic-higher-timeframe-fibonacci-pivot-points` | ledgerOnly | ledger row only: re-grade at e73 |
@@ -1176,7 +1420,7 @@ unit's rows.
 | `objects` | `reference:range-filter-x-hull-suite` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:relative-strength-index-divergences-libertus` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:rsi-support-resistance-by-dgt` | ledgerOnly | ledger row only: re-grade at e73 |
-| `objects` | `reference:screener-for-40-instruments` | none | NEW: NYSE:RDDT 1D + AMEX:SPY 1D |
+| `objects` | `reference:screener-for-40-instruments` | none | WITHDRAWN 2026-11-18: never-serve `other-feeds`, ruled by name (TradingView refuses it at its defaults, "Invalid symbol"; section 6) |
 | `objects` | `reference:smart-money-concepts-probability-expo` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:support-and-resistance-step-4` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:support-and-resistance` | ledgerOnly | ledger row only: re-grade at e73 |
@@ -1197,7 +1441,21 @@ Probe rows this page adds (no sample script stands for them):
 - **Q-ANCHOR-1:** an all-time ratchet and `ta.cum` on SPY 1D and RDDT 1D, from the listing.
 - **Q-ANCHOR-2:** TradingView's history depth per intraday timeframe.
 - **Q-REQ-OTHER-1:** two community scripts the runtime lane draws that request another context, graded
-  runtime-on MATCH, to admit `request-other`.
+  runtime-on MATCH, to admit `request-other`. ⚠️ Coordinator ruling 2026-11-18: an identity-only request does not
+  bind for admission. `reference:intraday-power-3-visual` and `reference:support-resistance-fibonacci-retracement`
+  (both drawn by the run half since PARITY UNIT 1, their 1D captures MATCH) read the chart's own symbol and, at
+  their defaults on a daily chart, its own timeframe: they do not count toward this row.
+- **Q-DAILY-2** (U-DAILY, part of U-REQ; for when lower-timeframe charts are in scope): `reference:intraday-power-3-
+  visual` on AMEX:SPY 5m and NYSE:RDDT 5m, at its default (`D`) and at its weekly option (`W`): its four
+  `request.security` reads of the chart's own symbol at a higher timeframe the intraday chart does not hold. The
+  binding capture; its 1D captures witness only the identity case.
+- **Q-FCMP3-1 / -2: READ 2026-11-18, flag off.** Captured as run `fcmp3b-2026-11-18`, packet `b400024aa71d`
+  (committed):
+  `tools/visual_conformance/probes/vw-fcmp-arrays.pine` on AMEX:SPY 1D from the listing and NYSE:RDDT 1D.
+  - `array.lastindexof` reads TOLERANT, and moves onto `pineCompare.js` (engine 81,
+    `feat/pine-tolerant-lastindexof`).
+  - `array.binary_search` / `_leftmost` / `_rightmost` read EXACT, and stay exact (now pinned).
+  - Readings: `docs/pine/capture-queue-2026-11-18-float-tolerance-form.md`, section Q-FCMP3.
 
 ## 8. The machine twin and its rail
 
@@ -1227,6 +1485,68 @@ Probe rows this page adds (no sample script stands for them):
   the map, then `parity_roadmap.py facts` and `build`; the rail then holds the new numbers.
 
 ## 9. How it was measured
+
+### 9.0 The 2026-11-19 re-measure (engine 84, production's library store): the commands to use from now on
+
+**Setup.**
+- The worktree was at `d37693b7c1`, which is `3685713d65` (origin/master, `SCRIPT_ENGINE_VERSION = 84`)
+  merged into the libraries chain L1 branch. Only tooling and tests differ: `git diff --stat origin/master HEAD`
+  lists no engine file.
+- `git rev-parse HEAD` was identical before and after.
+- `$O/prod` and `$O/rt` are fresh copies of the same sample cache (`sample_manifest.json` sha256
+  `bfdf7ea4…`, 679 `ok`). `$REF` is the same `ref_rebuilt.json`.
+- **New: the promoted store `$S`.** It is the allowlist's `promote` rows, copied from an owner-run fetch
+  (never committed). It must pass `promotion_check.py check --exact` before the census reads it, because the
+  census refuses a store whose entries its rows did not all load.
+- **One heavy-lock hold per lane** (coordinator, 2026-11-19), so other jobs interleave.
+
+```sh
+# the store production serves: exactly the promote rows, each at its pinned sha256
+python tools/pine_library/promotion_check.py check --store $S --exact      # PROMOTION CHECK: PASS
+L="python C:/Users/Patrick/uct-clips/tools/heavy_lock.py --timeout 14400 --priority normal"
+$L --label census-production run -- python tools/pine_coverage/run_census.py --cache $O/prod --ref $REF --library-store $S
+$L --label census-runtime-on run -- python tools/pine_coverage/run_census.py --runtime-on --cache $O/rt --ref $REF --library-store $S
+# from app/: the harness links the same store
+PINE_LIBRARY_STORE=$S VENDOR_HARNESS_RUNTIME_ON=0 VENDOR_HARNESS_DIR=../tests/fixtures/vendor/harness VENDOR_HARNESS_OUT=$O/verdicts-prod \
+  $L --label harness-production run -- node node_modules/vitest/vitest.mjs run \
+  src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js --maxWorkers=1
+PINE_LIBRARY_STORE=$S VENDOR_HARNESS_RUNTIME_ON=1 VENDOR_HARNESS_DIR=../tests/fixtures/vendor/harness VENDOR_HARNESS_OUT=$O/verdicts-rt \
+  $L --label harness-runtime-on run -- node node_modules/vitest/vitest.mjs run \
+  src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js --maxWorkers=1
+COVERAGE_DOOR_OUT=$O/engine_door.json $L --label engine-door run -- node node_modules/vitest/vitest.mjs run \
+  src/components/chart/engine/ast/coverageMapDoorCensus.measure.test.js --maxWorkers=1
+# the map (refuses two lanes measured with different stores, and records `libraryStore`)
+python tools/pine_coverage/coverage_map.py --cache $O/prod --ref $REF \
+  --verdicts $O/verdicts-prod/verdicts.json --runtime-cache $O/rt --runtime-verdicts $O/verdicts-rt/verdicts.json \
+  --engine-door $O/engine_door.json --out docs/pine/coverage-map.json --measured-on 2026-11-19 --master-sha 3685713d65
+python tools/pine_coverage/parity_roadmap.py facts --ref $REF --names-ref <the whole v6 reference extract> \
+  --cache $O/prod --runtime-cache $O/rt --verdicts $O/verdicts-prod/verdicts.json \
+  --runtime-verdicts $O/verdicts-rt/verdicts.json --local-runs %LOCALAPPDATA%/uct-vendor-batch/runs --out $O/facts.json
+python tools/pine_coverage/parity_roadmap.py build --facts $O/facts.json
+python tools/pine_coverage/parity_roadmap.py check
+```
+
+**Results.**
+
+| run | result |
+|---|---|
+| census, production | 967 / 967 rows, 0 killed, 1 attempt; `LANE MEASURED: production (gate CLOSED, runtime lane reached 0, host refusals 1199)`; `LIBRARY STORE: 6 version(s)`; 26 passed, 1 skipped; 15.1 min |
+| census, runtime-on | 967 / 967 rows, 0 killed, 1 attempt; `LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 1797, host refusals 1584)`; `LIBRARY STORE: 6 version(s)`; 26 passed, 1 skipped; 15.2 min |
+| harness, production | 11 passed; 915 captures: MATCH 198, DIVERGE 79, INCONCLUSIVE 638; 12.0 min |
+| harness, runtime-on | 11 passed; 915 captures: MATCH 314, MATCH_SUBSTITUTED 23, DIVERGE 71, INCONCLUSIVE 507; 13.8 min |
+| engine door | 26 passed, 1 skipped |
+| the map / roadmap | runtime-on 298/679 (runtime-attached 93); `facts` 453 not served host-only; SERVED 286/679; `check` passes; the five rails that read the map and roadmap: 122 passed |
+
+**The render sweep (census tools, 2026-11-19), after the census.** `renderGaps.measure.test.js` over the committed
+captures and the local capture store (runtime-on lane, the same `PINE_LIBRARY_STORE`), `render_gaps.py` to join the
+rows to the sample, and `coverage_map.py ... --render-gaps <json>`; `build` then splits member-served. Commands,
+results and the members of every class: `docs/pine/evidence/2026-11-19-render-gaps/EVIDENCE.md`
+(294 = fully 262 + disclosed gap 12 + unmeasured 12 + diverging 8).
+
+The `--library-store` flag (and the `libraryStore` it records) is what the 11-18 run below did not have.
+Its census linked no library, so every importer of a promoted version read as walled.
+
+### 9.1 The 2026-11-18 measurement (engine 73, no library store)
 
 The worktree was at `99de72e7c0e558dc429d18706b1da313cce0ba95` (`origin/master`,
 `SCRIPT_ENGINE_VERSION = 73`). `git rev-parse HEAD` was identical before and after every lane. Each lane

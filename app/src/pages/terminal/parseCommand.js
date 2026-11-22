@@ -27,6 +27,7 @@
 import { BY_CODE, ABSENT, canonicalCode, isCode, retiredNote, suggest } from './functions'
 import { CHANNEL_RE, aliasNameRefusal, compareMode, isTickerCollision, looksLikeQuestion } from './grammar'
 import { ARG_KINDS } from './args'
+import { STOCK_BOARD_WORD, stockBoardByWord, stockBoardUsage } from './stockBoards'
 import { normalizeSym as normalizeUrlSym } from '../calendar/useEarningsModalRoute'
 
 /** A ticker token, or null. `$` only ever FORCES a ticker reading, so it is never part of the
@@ -63,7 +64,7 @@ export function normalizeInput(input) {
 }
 
 /** Does `tok` fit one of the arguments `code` declares (GP's timeframe, CAL's day…)? */
-function isDeclaredArg(code, tok) {
+function isDeclaredArg(code, tok, { closed = false } = {}) {
   const fn = BY_CODE[String(code || '').toUpperCase()]
   if (!fn) return false
   // A code that reads as another with no ticker (ERN's `marketAs: 'CAL'`) takes that code's
@@ -72,7 +73,11 @@ function isDeclaredArg(code, tok) {
   const specs = [...(fn.ticker?.args || []), ...(fn.market?.args || []), ...via]
   // A REST spec (IMOV's theme name) takes almost any word, so it never decides alone that a
   // token is an argument rather than a ticker: `phraseArgs` below does that.
-  return specs.some((s) => s.kind !== 'code' && !s.rest && ARG_KINDS[s.kind]?.parse(tok) != null)
+  // `closed`: leave out a spec that takes ANY word of the right shape (`open: true`, COT's market
+  // name). Such a spec cannot tell its own argument from another function's code, unless the word is
+  // in the spec's own dictionary (`known`: COT's market words), which settles it: `COT OIL` is COT's.
+  return specs.some((s) => s.kind !== 'code' && !s.rest && !(closed && s.open && !ARG_KINDS[s.kind]?.known?.(tok))
+    && ARG_KINDS[s.kind]?.parse(tok) != null)
 }
 
 /** `FUNC <words…>` for a code with a REST spec (IMOV's theme name): are these words a phrase
@@ -85,6 +90,16 @@ function phraseArgs(code, words) {
   if (!spec || !words.length || String(words[0]).startsWith('$')) return false
   if (spec.marker && String(words[0]).toUpperCase() === spec.marker) return true
   return words.filter((w) => !isDeclaredArg(code, w)).length >= 2
+}
+
+/** `GRP TECH`, `GRP LIVE ENTERTAINMENT`: a market-only code whose REST argument is a NAME
+ *  (`phrase: true` on the spec, functions.js) reads every word after it as that name, even a word
+ *  that is itself a function code. Without this the canonical order (`TICKER FUNC`) would read
+ *  `GRP TECH` as the TECH function on a ticker called GRP. Only a code that takes no ticker and is
+ *  not a real ticker itself can say so; `$GRP TECH` still forces the ticker reading. */
+function takesPhrase(code) {
+  const fn = BY_CODE[String(code || '').toUpperCase()]
+  return !!fn && !fn.ticker && !isTickerCollision(code) && (fn.market?.args || []).some((s) => s.rest && s.phrase)
 }
 
 /** Parse result `type`s that open something a channel can target: a function (every code
@@ -150,6 +165,10 @@ export default function parseCommand(input, opts = {}) {
   // Scan-to-board: `BOARD FUNC [TICKER… | W:id | FLAGGED]` (feature-gaps #9). A reserved word,
   // so no alias can take it; `$BOARD` would still mean a ticker.
   if (!forced && FIRST === 'BOARD') return parseBoard(tokens.slice(1))
+  // A ready-made stock board: `NVDA STOCK [WORD]`, `STOCK [NVDA] [WORD]` (stockBoards.js). A
+  // reserved word like BOARD, so no alias can take it; `$STOCK` still means a ticker.
+  const stock = parseStockBoard(raw, tokens)
+  if (stock) return stock
 
   // `W` (also `W 2`, `W FLAGGED`) opens MON, the watchlist monitor (lane 9). W is also Wayfair's
   // ticker, so this is V5's collision rule: the code wins, `$W` (or `W DES`) means the stock, and
@@ -295,6 +314,45 @@ function parseBoard(rest) {
   return { ok: true, type: 'board', code, source: { kind: 'list', syms } }
 }
 
+/**
+ * `NVDA STOCK [WORD]` (the canonical order) or `STOCK [NVDA] [WORD]` — open a ready-made stock
+ * board for one ticker (stockBoards.js; the shell opens it, as it opens `BOARD`). WORD picks the
+ * board (`EARNINGS`); none is the default board. With no ticker the shell uses the one the board
+ * is on. Returns null for a line that is not this command, so everything else parses as before:
+ * a line of four or more words or one with a `?` is left to the question rule (ASK).
+ */
+function parseStockBoard(raw, tokens) {
+  if (tokens.length > 3 || raw.includes('?')) return null
+  const up = tokens.map((t) => t.toUpperCase())
+  const tickerFirst = tokens.length >= 2 && up[1] === STOCK_BOARD_WORD
+  if (!tickerFirst && up[0] !== STOCK_BOARD_WORD) return null
+  const refuse = (error) => ({ ok: false, error, suggestions: [] })
+  const usage = stockBoardUsage()
+  const board = (tok) => {
+    const b = stockBoardByWord(tok)
+    return b ? { board: b.id } : { error: `"${String(tok).toUpperCase()}" is not a stock board. Type ${usage}.` }
+  }
+  if (tickerFirst) {
+    const sym = normalizeSym(tokens[0])
+    if (!sym) return refuse(`"${tokens[0]}" is not a ticker. A stock board opens for one ticker: ${usage}.`)
+    const picked = tokens[2] ? board(tokens[2]) : { board: null }
+    return picked.error ? refuse(picked.error) : { ok: true, type: 'stock-board', sym, board: picked.board }
+  }
+  const rest = tokens.slice(1)
+  if (!rest.length) return { ok: true, type: 'stock-board', sym: null, board: null }
+  // `STOCK EARNINGS`: a board word alone is the board, for the ticker the board is on.
+  if (rest.length === 1 && !rest[0].startsWith('$') && stockBoardByWord(rest[0])) {
+    return { ok: true, type: 'stock-board', sym: null, board: stockBoardByWord(rest[0]).id }
+  }
+  const sym = normalizeSym(rest[0])
+  if (!sym) return refuse(`"${rest[0]}" is not a ticker or a stock board. Type ${usage}.`)
+  if (!rest[0].startsWith('$') && isCode(sym)) {
+    return refuse(`${sym} is a function code; put $ in front for the ticker (${STOCK_BOARD_WORD} $${sym}), or type ${usage}.`)
+  }
+  const picked = rest[1] ? board(rest[1]) : { board: null }
+  return picked.error ? refuse(picked.error) : { ok: true, type: 'stock-board', sym, board: picked.board }
+}
+
 function parseCore(raw) {
   const addr = raw.match(ADDRESS_RE)
   if (addr) return { ok: true, type: 'address', address: `${addr[1].toUpperCase()}:${addr[2]}` }
@@ -313,12 +371,25 @@ function parseCore(raw) {
       args: second ? [second.toUpperCase()] : [] }
   }
 
+  // `GRP TECH`: a code whose argument is a name keeps every word after it (see `takesPhrase`).
+  if (second && !forced && isCode(FIRST) && takesPhrase(FIRST)) {
+    return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: null, args: [second, ...rest] }
+  }
+
   // W9-4: `PEER CAL` / `GP CAL`: both words are codes, but only the second is a real ticker
   // (grammar.js TICKER_COLLISIONS) and the first takes one, so it is FUNC on that ticker, not
   // CAL on a ticker called PEER. `CAL PEER` (CAL is a ticker) keeps the canonical order.
   if (second && !forced && isCode(FIRST) && isCode(second) && !second.startsWith('$')
     && BY_CODE[FIRST].ticker && !isTickerCollision(FIRST) && isTickerCollision(second)) {
     return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: second.toUpperCase(), args: rest }
+  }
+  // `LEAD IPO`: IPO is a function code AND the word LEAD declares for its new-listings lens. When
+  // neither code takes a ticker, "IPO on a ticker called LEAD" means nothing, so a word the first
+  // code declares as its argument is that argument. `$LEAD IPO` still forces the ticker reading.
+  if (second && !forced && isCode(FIRST) && isCode(second) && !second.startsWith('$')
+    && !BY_CODE[FIRST].ticker && !BY_CODE[second.toUpperCase()].ticker && !isTickerCollision(FIRST)
+    && isDeclaredArg(FIRST, second, { closed: true })) {
+    return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: null, args: [second, ...rest] }
   }
   // TICKER FUNC [args]  — the canonical order; a code in second place makes the first a ticker.
   if (second && isCode(second)) {

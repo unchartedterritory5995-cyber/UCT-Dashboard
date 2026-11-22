@@ -181,6 +181,33 @@ describe('the neighbor hold deepens the next rows once the member rests', () => 
     expect(t.scrolls.length).toBe(PREFETCH_WINDOWS)
   })
 
+  it('a row that still holds only a local copy after the warm gets the lake depth (no window on a local copy)', async () => {
+    const t = await boot()
+    t.store.lakeCarries = () => true
+    t.store.lakeSeed = vi.fn(async () => 'seed')
+    const local = { key: t.k('AAA'), restSeen: false, status: STATUS.CONTEXT, bars: [{ t: 1 }], depth: 1034, gen: 0 }
+    t.snaps.set(t.k('AAA'), local)
+    t.store.ensure = vi.fn(async () => local)                         // the warm got no server answer
+    const hold = t.pf.createNeighborHold()
+    hold.set(['AAA'], '5', { deep: ['AAA'] })
+    await t.fire()
+    expect(t.store.lakeSeed).toHaveBeenCalledWith(t.k('AAA'))
+    expect(t.scrolls).toEqual([])                                    // a server window never prepends to a local copy
+  })
+
+  it('off the lake, a row that still holds only a local copy is left for the chart (nothing asked)', async () => {
+    const t = await boot()
+    t.store.lakeSeed = vi.fn(async () => 'seed')
+    const local = { key: t.k('AAA'), restSeen: false, status: STATUS.CONTEXT, bars: [{ t: 1 }], depth: 1034, gen: 0 }
+    t.snaps.set(t.k('AAA'), local)
+    t.store.ensure = vi.fn(async () => local)
+    const hold = t.pf.createNeighborHold()
+    hold.set(['AAA'], '5', { deep: ['AAA'] })
+    await t.fire()
+    expect(t.store.lakeSeed).not.toHaveBeenCalled()
+    expect(t.scrolls).toEqual([])
+  })
+
   it('a window with nothing older, refused, still filling or failed ends that row, not the next', async () => {
     for (const answer of [{ ok: true, added: 0 }, { ok: true, added: 0, refused: true }, { ok: true, added: 10, filling: true }, { error: true }, null]) {
       const t = await boot({ windowAnswer: (key) => (key.startsWith('AAA') ? answer : { ok: true, added: HISTORY_WINDOW_BARS }) })
@@ -193,12 +220,26 @@ describe('the neighbor hold deepens the next rows once the member rests', () => 
     }
   })
 
-  it('intraday only, and only rows the hold holds', async () => {
+  it('a window that THROWS ends that row as a named failure (TERM-033), and the next row is still deepened', async () => {
+    // Without the named sentinel the rejection escapes `deepen` and the timer's catch swallows the
+    // WHOLE run: BBB, the next row, would never be deepened.
+    const t = await boot({ windowAnswer: (key) => { if (key.startsWith('AAA')) throw new Error('window read failed'); return { ok: true, added: HISTORY_WINDOW_BARS } } })
+    t.seed('AAA'); t.seed('BBB')
+    const hold = t.pf.createNeighborHold()
+    hold.set(['AAA', 'BBB'], '5', { deep: ['AAA', 'BBB'] })
+    await t.fire()
+    expect(t.scrolls.filter(([key]) => key === t.k('AAA')).length).toBe(1)
+    expect(t.scrolls.filter(([key]) => key === t.k('BBB')).length).toBe(PREFETCH_WINDOWS)
+    expect(t.snaps.get(t.k('AAA')).depth).toBe(470)                  // a failed window adds nothing
+  })
+
+  it('scroll-back windows are intraday only (daily rows join their sealed history instead: prefetch.deepDaily.test.js), and only rows the hold holds', async () => {
     const t = await boot()
     t.seed('AAA', 'D'); t.seed('BBB'); t.seed('ZZZ')
     const hold = t.pf.createNeighborHold()
     hold.set(['AAA'], 'D', { deep: ['AAA'] })
-    expect(t.timers.size).toBe(0)                                    // daily: nothing to deepen
+    for (const ms of [...t.timers.values()].map((x) => x.ms)) await t.fire(ms)
+    expect(t.scrolls).toEqual([])                                    // daily: never an intraday window
     hold.set(['BBB'], '5', { deep: ['ZZZ'] })                        // ZZZ is not in the window
     expect(t.timers.size).toBe(0)
     await t.fire()

@@ -3,6 +3,7 @@ import useOwnership from '../hooks/useOwnership'
 import { AuthContext } from '../../../context/AuthContext'
 import CongressTradesPanel from '../depth/CongressTradesPanel'
 import { DepthStackContext } from '../depth/depthChrome'
+import PanelCommand from '../../../components/terminal/PanelCommand'
 import { SeriesChart } from '../../../components/research-kit'
 import Provenance from '../../../components/provenance/Provenance'
 import FreshnessBadge from '../../../components/provenance/FreshnessBadge'
@@ -15,17 +16,30 @@ import { usePendingReask } from '../depth/depthFetch'
 import { CHART_INK } from '../../../components/research-kit/charts/echartsCore'
 import { formatCompactTerminal, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import { pctUpTo } from '../researchFormat'
+import { holdersByOwnership, institutionalNote, quarterLabel, shortMissingWords } from '../../charts/widgets/ownershipModel'
+import { SOURCE as SHORT_SOURCE, dayText, floatWords } from '../../terminal/panels/shortInterestModel'
+import { FUNDS_TITLE, LEG_13F_WORDS } from '../../terminal/panels/fundHoldersModel'
+import FundHoldersBlock from './FundHoldersBlock'
 import { themeInk } from '../themeInk'
 import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
 /** S8/S11 vertical slice (2026-09-03 A6/A7 pass): Float/shares-outstanding
- *  and Form 13F now flow through D1 (fmp_client.get_shares_float /
+ *  and Form 13F flow through D1 (fmp_client.get_shares_float /
  *  get_institutional_ownership_summary / ...holders, via ownership.py) —
- *  this composes the trust strip onto those two fields specifically. The
- *  institutional-holders table and short-interest fields below stay
- *  yfinance-sourced with no D1 envelope (see the plain "Source" notes) —
- *  same discipline as EstimatesTab's forward/revisions sections. */
+ *  this composes the trust strip onto those two fields specifically.
+ *
+ *  WHERE EACH CARD READS (one answer, /api/research/ownership/{sym}):
+ *    Institutional ownership  the Form 13F block: the percent is the server's
+ *                             `institutional.pct_held` (the 13F summary's), the
+ *                             ranked holders are `topHolders` from the Charts
+ *                             dock's ownershipModel, so both screens list the same
+ *                             filers. No 13F on file: "not available", in words.
+ *    Short interest           the newest FINRA report the short interest service
+ *                             already holds (`short.state === 'ok'`), with its
+ *                             settlement date. The tab never asks a vendor for it:
+ *                             with nothing held the card says "not available" and
+ *                             points at SHINT, whose open reads the reports. */
 function TrustStrip({ meta, sessionContext }) {
   if (!meta) return null
   const availability = mapAvailability({ value: true, degraded: meta.degraded })
@@ -54,10 +68,13 @@ function TrustStrip({ meta, sessionContext }) {
   )
 }
 
-// A vendor ZERO for a float, a short count or days to cover is not a measured zero: a listed
-// security with shares outstanding cannot have a float of 0, and Yahoo/FMP write 0 where they
-// hold nothing (every ETF reads "Float 0"). Rendered as not reported, never as "0".
+// A vendor ZERO for a float is not a measured zero: a listed security with shares outstanding
+// cannot have a float of 0, and FMP writes 0 where it holds nothing (every ETF read "Float 0").
+// Rendered as not reported, never as "0". (The short card is a dated FINRA report: its figures
+// are shown as the report gives them, the way SHINT shows them.)
 const reported = (v) => (v == null || Number(v) === 0 || !Number.isFinite(Number(v)) ? null : Number(v))
+const NOT_AVAILABLE = 'not available'
+const finite = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null)
 
 const fmtShares = (v) => formatCompactTerminal(v)
 // Holder values are US dollars by construction (13F market values, Form 4 prices on the US
@@ -241,11 +258,20 @@ export default function OwnershipTab({ sym }) {
   const tf = o.thirteen_f || null
   const tfs = tf?.summary || {}
   const sessionContext = sessionModel(session)
-  const empty = !(inst.holders?.length) && !insider.length && sh.shares_short == null
-    && inst.pct_held == null && !tf && sc.float_shares == null && !edgarSrc
+  const s = o.sym || sym
+  // The short card draws figures only from a HELD report (`state: 'ok'`, with its settlement date).
+  const shortOk = sh.state === 'ok' && !!sh.settlement_date && finite(sh.shares_short) != null
+  const shortState = shortOk ? 'ok' : (sh.state && sh.state !== 'ok' ? sh.state : 'not_held')
+  const rankedHolders = holdersByOwnership(o)
+  const instPct = finite(inst.pct_held)
+  const instNote = institutionalNote(inst, tf, s)
+  const instQuarter = quarterLabel(tf?.quarter) || tf?.quarter || null
+  const shortFloatWords = shortOk ? floatWords({ pct: finite(sh.short_pct_float), withheld: sh.pct_float_withheld === true }) : null
+  const empty = !insider.length && !shortOk
+    && instPct == null && !tf && sc.float_shares == null && !edgarSrc
 
-  // tq-panels: one leg failing (Yahoo, or the insider read) used to leave its cards
-  // reading as dashes -- indistinguishable from "nothing reported". Say which.
+  // tq-panels: one leg failing (the 13F read, the share counts, or the insider read) used to
+  // leave its cards reading as dashes -- indistinguishable from "nothing reported". Say which.
   const failed = Array.isArray(o.legs_failed) ? o.legs_failed : []
 
   return (
@@ -264,12 +290,12 @@ export default function OwnershipTab({ sym }) {
       )}
 
       <div className={styles.cardGrid}>
-        <section className={styles.card}>
+        <section className={styles.card} data-testid="ownership-institutional" data-state={tf ? 'ok' : (inst.state === 'failed' ? 'failed' : 'none')}>
           <div className={styles.ct}>Institutional ownership</div>
-          <div className={styles.kv}><span>% of shares outstanding</span><b>{fmtPct(inst.pct_held)}</b></div>
-          {!!inst.holders?.length && (
+          <div className={styles.kv}><span>% of shares outstanding</span><b>{instPct == null ? NOT_AVAILABLE : fmtPct(instPct)}</b></div>
+          {rankedHolders.length > 0 && (
             <SeriesChart
-              periods={inst.holders.slice(0, 10).map(h => h.holder)}
+              periods={rankedHolders.map(h => h.name)}
               mode="rank"
               label="Largest institutional holders (% of shares out)"
               valueFormatter={(v) => formatPercent(v == null ? NaN : Number(v), { decimals: 2 })}
@@ -277,40 +303,45 @@ export default function OwnershipTab({ sym }) {
               series={[{
                 name: '% out',
                 color: themeInk('--ut-gold', CHART_INK.gold),
-                values: inst.holders.slice(0, 10).map(h => h.pct_out),
+                values: rankedHolders.map(h => h.ownership),
               }]}
             />
           )}
-
-          {!!inst.holders?.length && (
-            <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
-              <table className={styles.fgrid} aria-label="Institutional ownership">
-                <thead><tr><th scope="col">Holder</th><th scope="col">Shares</th><th scope="col">% Out</th><th scope="col">Value (USD)</th><th scope="col">Reported</th></tr></thead>
-                <tbody>
-                  {inst.holders.map((h, i) => (
-                    <tr key={`${h.holder}-${i}`}>
-                      <td className={`${styles.fperiod} ${styles.holderName}`}>{h.holder}</td>
-                      <td>{fmtShares(h.shares)}</td>
-                      <td>{fmtPct(h.pct_out)}</td>
-                      <td>{fmtMoney(h.value)}</td>
-                      <td className={styles.muted}>{h.date || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {/* Non-D1: no fmp_client adapter carries this today — an honest
-              source label, never a fabricated freshness badge. */}
-          <div className={styles.srcNote}>Source: Yahoo Finance</div>
+          {instNote && <div className={styles.fnote} data-testid="ownership-institutional-note">{instNote}</div>}
+          {/* One holders table, not two: the filers and the change in each position are in the
+              Form 13F card below, read from the same block. */}
+          <div className={styles.srcNote} data-testid="ownership-institutional-source">
+            Source: Form 13F filings, through FMP{instQuarter ? ` · ${instQuarter}` : ''}.
+            {tf?.holders?.length ? ` Each holder, with the change in its position, is in the ${FUNDS_TITLE} table below.` : ''}
+          </div>
         </section>
 
-        <section className={styles.card}>
+        <section className={styles.card} data-testid="ownership-short" data-state={shortState}>
           <div className={styles.ct}>Short interest</div>
-          <div className={styles.kv}><span>Short % of float</span><b>{fmtPct(reported(sh.short_pct_float))}</b></div>
-          <div className={styles.kv}><span>Days to cover</span><b>{formatNumber(reported(sh.days_to_cover) ?? NaN, { decimals: 1 })}</b></div>
-          <div className={styles.kv}><span>Shares short</span><b>{fmtShares(reported(sh.shares_short))}</b></div>
-          <div className={styles.srcNote}>Source: Yahoo Finance</div>
+          <div className={styles.kv}><span>Short % of float</span><b>{shortOk && finite(sh.short_pct_float) != null ? fmtPct(sh.short_pct_float) : NOT_AVAILABLE}</b></div>
+          <div className={styles.kv}><span>Days to cover</span><b>{shortOk && finite(sh.days_to_cover) != null ? formatNumber(Number(sh.days_to_cover), { decimals: 1 }) : NOT_AVAILABLE}</b></div>
+          <div className={styles.kv}><span>Shares short</span><b>{shortOk ? fmtShares(sh.shares_short) : NOT_AVAILABLE}</b></div>
+          {shortOk ? (
+            <>
+              <div className={styles.srcNote} data-testid="ownership-short-asof">
+                FINRA report for settlement date {dayText(sh.settlement_date)}. FINRA publishes each report about two
+                weeks after its settlement date, so this is not today&apos;s position.{' '}
+                {shortFloatWords
+                  ? `Percent of float is not available. ${shortFloatWords}.`
+                  : `Percent of float uses today's float from the nightly screener export${finite(sh.float_shares) != null ? ` (${fmtShares(sh.float_shares)} shares)` : ''}, so the two figures are from different days.`}
+              </div>
+              <div className={styles.srcNote} data-testid="ownership-short-source">
+                Source: {sh.source || SHORT_SOURCE}. Every report for {s}:{' '}
+                <PanelCommand cmd={`${s} SHINT`} label={`Short interest history (SHINT) for ${s}`}>Short interest history (SHINT)</PanelCommand>
+              </div>
+            </>
+          ) : (
+            <div className={styles.fnote} data-testid="ownership-short-unavailable">
+              {shortMissingWords(sh, s)} The dated record, report by report, is on{' '}
+              <PanelCommand cmd={`${s} SHINT`} label={`Short interest history (SHINT) for ${s}`}>Short interest history (SHINT)</PanelCommand>:
+              run <kbd>{s} SHINT</kbd> in the UCT Terminal.
+            </div>
+          )}
 
           <div className={styles.cardDivider}>
             <div className={styles.kv}><span>Float</span><b>{fmtShares(reported(sc.float_shares))}</b></div>
@@ -321,18 +352,16 @@ export default function OwnershipTab({ sym }) {
       </div>
 
       {tf && (
-        <section className={styles.card}>
+        <section className={styles.card} data-testid="ownership-funds">
           {/* Wave 3 (OWN P2 #12): a missing quarter printed a dangling "· " and "…holders, undefined". */}
-          <div className={styles.ct}>Form 13F · institutional activity{tf.quarter ? <span className={styles.muted}> · {tf.quarter}</span> : null}</div>
+          <div className={styles.ct}>{FUNDS_TITLE}{instQuarter ? <span className={styles.muted}> · {instQuarter}</span> : null}</div>
           <div className={`${styles.statRow} ${styles.statRowGap}`}>
-            {/* NOT the same measure as the "% of shares outstanding" figure in
-                the card above, and the two disagree hard: on 2026-08-06 AAPL
-                read 65.95% there against 6.38% here, and ATROB 71.85% against
-                0.47%. That card is the aggregate institutional stake; this one
-                counts only the positions inside THIS quarter's 13F filings.
-                Both were previously labeled "Institutional ownership", so the
-                page appeared to contradict itself on every ticker. The label
-                below states the scope; do not shorten it back. */}
+            {/* The same Form 13F summary figure as "% of shares outstanding" in the
+                card above (that card reads it through `institutional.pct_held`,
+                which withholds a figure over 100). Here it carries its change over
+                the quarter and its own label, which states the scope: what the
+                filers of THIS quarter's 13Fs hold. Do not shorten it back to a bare
+                "Institutional ownership": the two labels must not be the same words. */}
             <div>
               <div className={styles.muted}>Held by 13F filers</div>
               <div className={styles.statBig}>
@@ -349,42 +378,13 @@ export default function OwnershipTab({ sym }) {
               <div>{fmtMoney(tfs.total_invested)} {signed(tfs.total_invested_change, fmtMoney) && <span className={`${chgClass(tfs.total_invested_change)} ${styles.statChg}`}>{signed(tfs.total_invested_change, fmtMoney)}</span>}</div>
             </div>
           </div>
-          {/* Position flow this quarter */}
-          <div className={styles.flowCounts}>
-            <span className={styles.muted}><b className={styles.up}>{fmtNum(tfs.new_positions)}</b> new</span>
-            <span className={styles.muted}><b className={styles.up}>{fmtNum(tfs.increased_positions)}</b> increased</span>
-            <span className={styles.muted}><b className={styles.down}>{fmtNum(tfs.reduced_positions)}</b> reduced</span>
-            <span className={styles.muted}><b className={styles.down}>{fmtNum(tfs.closed_positions)}</b> closed</span>
-          </div>
-
-          {!!tf.holders?.length && (
-            <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
-              <table className={styles.fgrid} aria-label={tf.quarter ? `Form 13F top holders, ${tf.quarter}` : 'Form 13F top holders'}>
-                <thead><tr><th scope="col">Top holder</th><th scope="col">Shares</th><th scope="col">Δ Shares</th><th scope="col">% Own</th><th scope="col">Value (USD)</th></tr></thead>
-                <tbody>
-                  {tf.holders.map((h, i) => (
-                    <tr key={`${h.name}-${i}`}>
-                      <td className={`${styles.fperiod} ${styles.holderName}`}>
-                        {h.name}
-                        {/* !! -- a vendor 0/1 flag would otherwise render a stray "0" beside the name */}
-                        {!!h.is_new && <span className={`${styles.up} ${styles.holderBadge}`} data-holder-badge="new">NEW</span>}
-                        {!!h.is_sold_out && <span className={`${styles.down} ${styles.holderBadge}`} data-holder-badge="sold">SOLD</span>}
-                      </td>
-                      <td>{fmtShares(h.shares)}</td>
-                      <td className={chgClass(h.change_shares)}>{signed(h.change_shares, fmtShares) ?? '—'}</td>
-                      <td>{formatPercent(h.ownership, { decimals: 1 })}</td>
-                      <td>{fmtMoney(h.market_value)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {/* The quarter's position counts in one line, the quarter end and the 45-day filing rule,
+              and every holder figure the answer carries, sortable, 20 rows and the rest on request
+              (FundHoldersBlock + fundHoldersModel). Keyed on the symbol so a new stock starts on the
+              default sort with the list folded. */}
+          <FundHoldersBlock key={s} tf={tf} failed={failed.includes(LEG_13F_WORDS)} />
           <ThirteenFListLine block={o.thirteen_f_list} sym={o.sym || sym} />
           <TrustStrip meta={tf._meta} sessionContext={sessionContext} />
-          {/* 13F filings lag ~45 days by nature — the freshness badge above
-              reflects D1's provenance, this states the structural lag itself. */}
-          <div className={styles.srcNoteTight}>13F filings lag roughly 45 days after quarter-end.</div>
         </section>
       )}
 

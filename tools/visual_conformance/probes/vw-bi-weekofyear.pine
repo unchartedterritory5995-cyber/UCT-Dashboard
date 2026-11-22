@@ -1,0 +1,23 @@
+//@version=6
+indicator("UCTPROBE_VW_BI_WEEKOFYEAR", overlay = false)
+
+// U-BUILTIN (2026-11-19). WHICH WEEK NUMBERING `weekofyear` USES.
+//
+// The reference: "The week number of the year, in the exchange time zone, calculated from the bar's
+// opening UNIX timestamp", with no rule for week 1 (ISO 8601 Monday weeks whose week 1 holds the first
+// Thursday? Sunday-first weeks? week 1 holding 1 January?). A year boundary separates them; a daily chart
+// from the listing crosses 30+. W2 and W3 are the function form committed:previous-day-high-and-low-
+// separators-dailyweekly calls (`weekofyear(time + utcOffsetInMs)`); W4 / W5 the zoned form.
+//
+// CAPTURE: AMEX:SPY 1D from the listing. Inputs at defaults.
+
+plot(bar_index, "W0_bar_index_CONTROL")
+plot(year, "YEAR")
+plot(month, "MONTH")
+plot(dayofmonth, "DAYOFMONTH")
+plot(dayofweek, "DAYOFWEEK")
+plot(weekofyear, "W1_weekofyear")
+plot(weekofyear(time), "W2_weekofyear_of_time")
+plot(weekofyear(time + 3 * 86400000), "W3_weekofyear_of_time_plus_3d")
+plot(weekofyear(time, "UTC"), "W4_weekofyear_utc")
+plot(weekofyear(time, "Asia/Tokyo"), "W5_weekofyear_tokyo")

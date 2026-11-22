@@ -148,9 +148,12 @@ _GROUP_ID = re.compile(r"^[a-z][a-zA-Z]{1,23}$")
 # cached core) and the `need_groups` enum. It never bounds actions: the browser's action budget (NL-1: 55) and
 # MAX_CAPABILITIES do. Groups past it are still cut, but never silently: the first cut in a process is logged
 # (a WARNING naming the dropped ids). Master reached exactly 24 on 2026-11-11 (a 25th group dropped `guide`); master
-# declares 26, queued PRs bring it to 31 and family builds in flight to 33, so 48 gives every family headroom and stays
-# bounded (48 × 160 chars). Rail: app/src/agent/routingMaxGroups.test.js fails when routing.js GROUPS outgrows this.
-MAX_GROUPS = 48
+# declares 26, queued PRs bring it to 31 and family builds in flight to 33, so 48 gave every family headroom. The catalog
+# then filled all 48 (Terminal data wave 6 took the last one). Raised from 48 to 56 by the integrator's wave 7 build on
+# 2026-11-20, when the catalog reached 49 (the `marketReads` group); it stays bounded (56 × 160 chars). A builder's
+# change to the routing contract, stated here as a fact: it is not an owner decision.
+# Rail: app/src/agent/routingMaxGroups.test.js fails when routing.js GROUPS outgrows this.
+MAX_GROUPS = 56
 #: set once the first over-limit routing.groups has been logged (validate_routing runs on every turn)
 _GROUPS_DROP_LOGGED = False
 
@@ -1236,11 +1239,45 @@ _OUTCOME_LABEL = {
 # model-isolated kind (levels.gamma: UCT-computed from an option chain; flow.topPicks and flow.record: UCT's own selections
 # and their option contract results; earnings.reactions: UCT's calendar with third-party results and estimates), so the
 # member sees the card and a model never sees a value
+# stock.earningsSeason / stock.callThemes / stock.groupDrill (terminal data wave 4): each reads a model-isolated kind
+# (earnings.season: UCT's calendar with third-party results and estimates, and UCT's priced and past moves;
+# earnings.callThemes: phrases from third-party transcripts; group.drill: UCT's RS rank, confluence board and themes),
+# so the member sees the card and a model never sees a value or a phrase
+# stock.shortInterest / stock.shortList (terminal data wave 5): each reads a model-isolated kind (short.interest and
+# short.list: FINRA short interest and daily short volume, licensed through the market-data vendor for display to
+# members), so the member sees the card and a model never sees a value
+# stock.seasonality / stock.seasonalityBoard / stock.tideHistory / stock.oiChange / stock.treasuryYields (terminal data
+# wave 6): each reads a model-isolated kind (seasonality.stock and seasonality.board: figures computed from the daily
+# bar store; options.tideHistory: totals derived from the recorded options tape; options.oiChange: UCT's options log;
+# rates.treasury: Treasury yields the register clears for the member's panel and nothing else), so the member sees the
+# card and a model never sees a value
+# stock.marketRegime / stock.setups / stock.eventsTimeline / stock.uct20List / stock.ivHistory / stock.dilutionWatch
+# (terminal data wave 7): each reads a model-isolated kind (market.regime: UCT's regime read over breadth;
+# stock.setups: stored verdicts about the vendor's bars; stock.eventsTimeline: UCT's event stores with third-party
+# earnings figures; uct20.list: UCT's own selection; options.ivHistory: UCT's options log; dilution.watch: filings the
+# register clears for the member's panel and nothing else), so the member sees the card and a model never sees a value
+# stock.splitsDividends / stock.ipoCalendar / stock.dividendsCalendar (terminal data wave 8): each reads a model-isolated
+# kind (stock.corporateActions and calendar.dividends: the vendor's reference data, which the register clears for member
+# display; calendar.ipos: two vendors' IPO calendars, one with no AI clause), so the member sees the card and a model
+# never sees a value
+# stock.auctionCalendar / stock.realCurve / stock.fomcWatch (terminal data wave 9): each reads a model-isolated kind
+# (rates.auctions and rates.realYields: Treasury records no register row clears for a model, beside the par curve's row,
+# which names no AI lane; fed.watch: the Board's and the New York Fed's materials, whose rows name no AI lane, the news
+# wire's headlines, which have no row, and the economic calendar's next decision), so the member sees the card and a
+# model never sees a value
 LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades", "news.movers",
                                 "rs.compare", "stock.analystActions", "stock.sessionHighsLows", "stock.longRunLeaders",
                                 "stock.darkPoolLevels", "stock.yearlyHighsLows", "stock.themeRotation",
                                 "stock.confluenceBoard", "stock.expectedMove", "stock.callSearch",
-                                "stock.gammaLevels", "stock.topFlowPicks", "stock.flowRecord", "stock.earningsReactions"})
+                                "stock.gammaLevels", "stock.topFlowPicks", "stock.flowRecord", "stock.earningsReactions",
+                                "stock.earningsSeason", "stock.callThemes", "stock.groupDrill",
+                                "stock.shortInterest", "stock.shortList",
+                                "stock.seasonality", "stock.seasonalityBoard", "stock.tideHistory", "stock.oiChange",
+                                "stock.treasuryYields",
+                                "stock.marketRegime", "stock.setups", "stock.eventsTimeline", "stock.uct20List",
+                                "stock.ivHistory", "stock.dilutionWatch",
+                                "stock.splitsDividends", "stock.ipoCalendar", "stock.dividendsCalendar",
+                                "stock.auctionCalendar", "stock.realCurve", "stock.fomcWatch"})
 #: ⛔ DATA-READ ANSWERS (hotfix 2026-11-03, live: "when does nvda report" got a reply inventing a date and a
 #: beat while the stock.earnings card said the date was not in UCT's data). These read-only actions (manifest
 #: `query: true`, market / screen data) answer with UCT's own deterministic card; the model's `reply` is written

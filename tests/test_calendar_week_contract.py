@@ -198,7 +198,26 @@ def _drive_followup_board(payload, monkeypatch):
     return ef._board_names(DAY)
 
 
+def _drive_earnings_season(payload, monkeypatch):
+    """ERNS (dbfb166f2e, 2026-11-18): its week read, the current week through the route's own payload."""
+    from api.services import earnings_season as es
+    monkeypatch.setattr("api.routers.calendar._week_dates", lambda: [MONDAY])
+    monkeypatch.setattr("api.routers.calendar._get_calendar_payload", lambda *a, **k: payload)
+    return es.read_week(MONDAY)
+
+
+def _drive_agent_earnings_reactions(payload, monkeypatch):
+    """The agent's earnings-reactions kind (edcab81d3e, 2026-11-17): one day from the week the cache holds."""
+    from api.services.uct_agent.marketdata import earnings_reactions as er
+    monkeypatch.setattr("api.routers.calendar._week_dates", lambda: [MONDAY])
+    monkeypatch.setattr("api.routers.calendar._monday_of", lambda d: MONDAY)
+    monkeypatch.setattr("api.routers.calendar.cache.get", lambda k, *a, **kw: payload if k == "calendar_weekly" else None)
+    return er.cached_day(DAY)
+
+
 DRIVERS = {
+    "api.services.earnings_season.read_week": _drive_earnings_season,
+    "api.services.uct_agent.marketdata.earnings_reactions.cached_day": _drive_agent_earnings_reactions,
     "api.services.journal_two.earnings_followup._board_names": _drive_followup_board,
     "api.services.calendar_week_poster.build_payloads": _drive_week_poster,
     "api.services.earnings_calendar_audit._get_week": _drive_calendar_audit,

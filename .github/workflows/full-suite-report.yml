@@ -58,6 +58,26 @@
 # repository has ever had**, and its output is the inventory. Copy it into this header,
 # with a finding id per row, before anyone argues about promotion.
 
+# ─── 2026-11-18: THE NIGHTLY WAS DEAD AND NOTHING SAID SO ─────────────────────────
+#
+# Measured on master b4358d492a: 2,982 of 3,329 files under tests/ (89.6%) ran in NO
+# per-push or per-PR job, so this workflow was their only runner, and it had not run for
+# two nights. The 203 files under api/** were in no job at all. Five repairs, each railed:
+#   R1 the plan's "timing covers >= 85%" row WARNS instead of refusing (it failed the plan
+#      job 11-16 and 11-17, and every pytest AND vitest shard was skipped). `publish`
+#      records fresh per-file times from tonight's junit and saves them to actions/cache;
+#      `plan` restores the newest and hands the exact file to every shard (one artifact).
+#   R2 the partition is pytest's own discovery: every `testpaths` root (tests AND api),
+#      every `python_files` pattern; api/** is cut into `api-NN` shards.
+#   R3 the flaky set and the diff read the newest 14 records, not all 608 (those two steps
+#      took 92 + 90 min of `publish`); the rolling baseline still searches every summary.
+#   R4 three crons a day; the first job (`today`) skips the run when a master run that ran
+#      its shards published in the last 20 h (tools/full_suite_latch.py). No new permission.
+#   R5 tools/live_check.py (hourly) alerts when the newest VALID master record here is older
+#      than 36 h, and names the NEW failures of the newest valid run, never the baseline.
+# Rails: tests/test_pytest_shards_balance.py, tests/test_full_suite_latch.py, and, in the
+# master deploy gate, tests/test_every_backend_test_file_is_in_the_shard_plan.py.
+
 name: full suite (report-only)
 
 on:
@@ -86,7 +106,12 @@ on:
   # budget that covers ~12,000 minutes a day.
   schedule:
     # 07:30 UTC = 03:30 ET - outside market hours, after joystick-device's 07:00 run.
+    # ⛔ 2026-11-18 (R4): ONE cron was not "daily". GitHub created this run 6.9-9.7 h late on
+    # 11-12..11-17 and, on 11-18, not at all by 12:46 UTC. Two more chances a day; the `today`
+    # job skips every run after the day's first one that actually ran its shards.
     - cron: '30 7 * * *'
+    - cron: '30 13 * * *'
+    - cron: '30 19 * * *'
   workflow_dispatch:
 
 # ⛔ Never cancel a previous run: the whole value of this job is a complete record of
@@ -128,13 +153,40 @@ env:
   BASELINE_RUN_ID: "35008710335"
 
 jobs:
+  # ⭐ 2026-11-18 (R4): has today's full run already happened? A scheduled run that is not owed
+  # stops HERE, in ~10 s: every other job needs this one's `run` output. A hand-dispatched run
+  # always runs. Reads ci-results with git and the checkout's own read token: no new permission.
+  today:
+    name: is a full run still owed today?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.latch.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/full_suite_latch.py
+          sparse-checkout-cone-mode: false
+          filter: blob:none
+          fetch-depth: 1
+      - id: latch
+        name: The latch (tools/full_suite_latch.py)
+        env:
+          EVENT: ${{ github.event_name }}
+        run: python3 tools/full_suite_latch.py --event "$EVENT" --github-output "$GITHUB_OUTPUT"
+
   # E CP6 — the shard list is DERIVED, never typed into this file. A hand-typed matrix
   # beside tools/pytest_shards.py is the enumeration-beside-its-source defect, and here it
   # would mean a test file silently in no shard.
   plan:
     name: derive the shard plan
+    needs: today
+    # ⛔ only an explicit `false` skips: a latch that broke (no output) lets the suite run.
+    if: "!cancelled() && needs.today.outputs.run != 'false'"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
+      plan_digest: ${{ steps.p.outputs.plan_digest }}
       shards: ${{ steps.p.outputs.shards }}
       profile_dirs: ${{ steps.p.outputs.profile_dirs }}
       vitest_shards: ${{ steps.v.outputs.vitest_shards }}
@@ -156,6 +208,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      # ⭐ 2026-11-18 (R1): the newest per-file times `publish` saved (actions/cache). The key
+      # names this run, so it never matches and the newest `pytest-shard-timings-` entry is
+      # restored; with none, the committed file is used. Whichever it is, it is written OVER
+      # tools/pytest_shard_timings.json and uploaded, so every shard cuts the SAME plan.
+      - name: The newest recorded shard timings
+        id: tcache
+        uses: actions/cache/restore@v4
+        with:
+          path: .pytest-timings/pytest_shard_timings.json
+          key: pytest-shard-timings-${{ github.run_id }}
+          restore-keys: pytest-shard-timings-
+      - name: Use them, or the committed file
+        run: |
+          if [ -s .pytest-timings/pytest_shard_timings.json ]; then
+            cp .pytest-timings/pytest_shard_timings.json tools/pytest_shard_timings.json
+            echo "shard timings: actions/cache ${{ steps.tcache.outputs.cache-matched-key }}"
+          else
+            echo "shard timings: the committed tools/pytest_shard_timings.json (no cache entry)"
+          fi
       # ⛔ The partition is PROVED before it is used. A plan that is not a partition runs a
       # file twice or never, and "never" is indistinguishable from a pass downstream.
       - name: Prove the partition, then emit it
@@ -164,7 +235,14 @@ jobs:
           python tools/pytest_shards.py --timings tools/pytest_shard_timings.json --self-check
           python tools/pytest_shards.py --timings tools/pytest_shard_timings.json --plan
           echo "shards=$(python tools/pytest_shards.py --timings tools/pytest_shard_timings.json --list)" >> "$GITHUB_OUTPUT"
+          echo "plan_digest=$(python tools/pytest_shards.py --timings tools/pytest_shard_timings.json --plan-digest)" >> "$GITHUB_OUTPUT"
           echo "profile_dirs=$(python tools/collect_profile_dirs.py)" >> "$GITHUB_OUTPUT"
+      - name: Hand the exact timing file to every shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-shard-timings
+          path: tools/pytest_shard_timings.json
+          if-no-files-found: error
       # ⛔⛔ THE VITEST PARTITION IS PROVED HERE TOO, BEFORE FOUR JOBS RUN IT. Same rule as the
       # pytest one above: a file in two shards runs twice, a file in none is never tested and
       # reads as a pass. ⚰️ `npx vitest list --shard=i/4 --filesOnly` CANNOT prove it on
@@ -333,10 +411,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      # ⛔ 2026-11-18 (R1): the plan job's timing file, byte for byte. A shard that cut its own
+      # list from a different file would run a different partition from the one `plan` proved.
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-shard-timings
+          path: .pytest-timings
+      - name: Cut this shard from the plan's own timings
+        run: |
+          test -s .pytest-timings/pytest_shard_timings.json || {
+            echo "::error::the plan job's timing file did not arrive: this shard cannot cut the proved plan"; exit 1; }
+          cp .pytest-timings/pytest_shard_timings.json tools/pytest_shard_timings.json
       - name: Install
         # ⚰️ T2 CP1 — the line that installed five packages is why 479 of 481 test modules
         # never collected. requirements.txt is a strict superset of that list.
-        run: python -m pip install --quiet -r requirements.txt
+        # 2026-11-18: + tests/ci-only-packages.txt, the test-only packages the production
+        # image does not carry (brotli: six history-lake suites could not be collected).
+        run: python -m pip install --quiet -r requirements.txt -r tests/ci-only-packages.txt
       # ⚰️⚰️ E CP21 — 109 OF RUN #18'S 226 PYTEST FAILURE ENTRIES WERE ONE MISSING
       # INSTALL. Several suites drive a **JS lane**: they run `node` against the repo's own
       # sources to check that the Python and JavaScript implementations agree. Those tests
@@ -490,9 +581,13 @@ jobs:
 
   publish:
     name: publish the result into the repo (ci-results)
-    needs: [plan, vitest, pytest, collect_profile]
-    if: always()
+    needs: [today, plan, vitest, pytest, collect_profile]
+    # ⛔ always(), so a failed shard still publishes; but NOT when the latch said today's run
+    # already happened (then there is nothing to publish, and a record would read as a run).
+    # Only an explicit `false` skips: a latch that broke left no output, and the suite ran.
+    if: always() && needs.today.outputs.run != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     # ⛔ F-CI-8 — PUBLISHERS QUEUE, THEY DO NOT COLLIDE. Two runs reaching this job together
     # both did `git push origin ci-results` with no retry and no lock; one lost. This is the
     # PRIMARY defence. `cancel-in-progress: false` is load-bearing: cancelling a publisher
@@ -541,6 +636,9 @@ jobs:
         continue-on-error: true
       - uses: actions/download-artifact@v4
         with: { pattern: collect-profile-*, path: profile }
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with: { name: pytest-shard-timings, path: effective-timings }
         continue-on-error: true
 
       # ⛔ A MISSING LOG IS NOT A GREEN SUITE. If a job died before writing one, the
@@ -705,6 +803,35 @@ jobs:
           cp -r shards "extract/$GITHUB_RUN_ID/shards" 2>/dev/null || true
           ls -la "extract/$GITHUB_RUN_ID"
 
+      # ⭐ 2026-11-18 (R1 + R3): the record says WHICH partition ran (the plan digest), so
+      # `ci_inventory` never calls a flip between two different process layouts flaky; and the
+      # per-file times this run measured are saved for the next plan, over the ones it used
+      # (a shard that did not report keeps its files' previous times). Never fatal.
+      - name: Record the shard plan; refresh the shard timings
+        id: timings
+        if: always()
+        continue-on-error: true
+        env:
+          PLAN_DIGEST: ${{ needs.plan.outputs.plan_digest }}
+        run: |
+          set -e
+          mkdir -p "extract/$GITHUB_RUN_ID" .pytest-timings
+          python -c "import json,os; json.dump({'digest': os.environ.get('PLAN_DIGEST') or None}, open('extract/' + os.environ['GITHUB_RUN_ID'] + '/shard_plan.json', 'w'))"
+          cat "extract/$GITHUB_RUN_ID/shard_plan.json"; echo
+          ls shards/*/pytest-junit.xml >/dev/null 2>&1 || { echo "no pytest junit in this run: no timings recorded"; exit 0; }
+          test -s effective-timings/pytest_shard_timings.json || { echo "the plan's timing file is missing: no merge base, nothing recorded"; exit 0; }
+          python tools/pytest_shards.py --record-timings shards/*/pytest-junit.xml \
+            --merge-into effective-timings/pytest_shard_timings.json \
+            --timings .pytest-timings/pytest_shard_timings.json \
+            --source "full-suite run $GITHUB_RUN_ID on $GITHUB_REF_NAME ($GITHUB_SHA)"
+      - name: Save them for the next plan (actions/cache; immutable, one entry per run)
+        if: always() && hashFiles('.pytest-timings/pytest_shard_timings.json') != ''
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: .pytest-timings/pytest_shard_timings.json
+          key: pytest-shard-timings-${{ github.run_id }}-${{ github.run_attempt }}
+
       # ⚰️ E CP12 - THIS STEP WAS A 50-LINE PYTHON PROGRAM INSIDE A YAML HEREDOC,
       # and it has failed in every run since E CP6 sharded the suite: `p["runner_line"]`
       # raised KeyError because `ci_aggregate.py` never emitted the key `ci_summarize.py`
@@ -789,7 +916,7 @@ jobs:
             python tools/ci_inventory.py \
               --baseline previous-valid-master --current "$GITHUB_RUN_ID" \
               --current-dir "$CUR" \
-              --results-root allruns/results --repo . \
+              --results-root allruns/results --repo . --window 14 \
               --out "extract/$GITHUB_RUN_ID/diff.json" > diff.md || true
           else
             B="$BASELINE_RUN_ID"
@@ -805,7 +932,7 @@ jobs:
             python tools/ci_inventory.py \
               --baseline "$B" --current "$GITHUB_RUN_ID" \
               --baseline-dir "base/$B" --current-dir "$CUR" \
-              --results-root allruns/results --repo . \
+              --results-root allruns/results --repo . --window 14 \
               --out "extract/$GITHUB_RUN_ID/diff.json" > diff.md || true
           fi
           cat diff.md
@@ -824,7 +951,7 @@ jobs:
           # hand, and never a list anybody maintains. The set is re-derived from the record
           # on every run, so a test leaves it the moment the evidence stops supporting it.
           python tools/ci_inventory.py --flaky \
-            --results-root allruns/results --repo . \
+            --results-root allruns/results --repo . --window 14 \
             --flaky-out "extract/$GITHUB_RUN_ID/flaky_findings.md" \
             --out "extract/$GITHUB_RUN_ID/flaky.json" || true
           if [ -f "extract/$GITHUB_RUN_ID/flaky_findings.md" ]; then
@@ -1013,9 +1140,10 @@ jobs:
   # protection - a SEPARATE checkpoint, deliberately not this one.
   gate:
     name: no NEW failures against the baseline
-    needs: [publish]
-    if: always()
+    needs: [today, publish]
+    if: always() && needs.today.outputs.run != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # ⭐⭐ E CP26 — PROMOTED. `continue-on-error: true` is GONE from this job, so the check's
     # colour is now the verdict's colour: NEW_FAILURES, INVALID or DID_NOT_RECONCILE turn it
     # red. E's criterion was met by the record itself — run #24 published NEW_FAILURES and

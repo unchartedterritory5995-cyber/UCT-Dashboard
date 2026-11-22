@@ -403,7 +403,7 @@ function ownWindow(spec, argNodes) {
   if (lookback === UNBOUNDED) {
     return { back: UNKNOWN, forward: UNBOUNDED }
   }
-  // ⭐ NUMBER PENDING (bt) — AN UNBOUNDED FORWARD REACH SAYS NOTHING ABOUT HOW FAR BACK. The two halves
+  // ⭐ Engine 66 (#1473) (bt) — AN UNBOUNDED FORWARD REACH SAYS NOTHING ABOUT HOW FAR BACK. The two halves
   // are one declaration, but they are two numbers: `lastbaryear` (`lookback: 0`, `forward: "unbounded"`)
   // reads no earlier bar at all. Answering `back: UNKNOWN` here made this reader disagree with
   // `interpret.js::maxLookback`, which reads the lookback alone, on the first corpus tree that holds such

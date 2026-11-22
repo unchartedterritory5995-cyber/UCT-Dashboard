@@ -1,0 +1,26 @@
+//@version=5
+indicator("UCTPROBE_VW_REQ_12M", overlay = false)
+
+// ─── 2026-11-19 (request unit, YEAR) — A `"12M"` REQUEST ON A DAILY CHART ────────────────────────────────────────
+//
+// MTF Key Levels reads the year's open as `security(syminfo.tickerid, "12M", open, lookahead = barmerge.lookahead_on)`,
+// and Saty ATR Levels' Long-term mode reads `"12M"` the same way. The engine merges "W" and "M" from the daily bars
+// and refuses "12M" by name. What a capture must say before it is served: is a "12M" period the CALENDAR year
+// (January..December, as twelve "M" periods counted from January), or twelve months counted from the symbol's first
+// bar; on which daily bar does a look-ahead read switch; what does a look-ahead-off read show on the year's last bar
+// and on the newest bar; and is the first, partial year (a listing in March) one period.
+//
+//   Y01  open,     "12M", look-ahead on       Y02  high,  "12M", look-ahead on
+//   Y03  open[1],  "12M", look-ahead on       Y04  close, "12M", look-ahead off (the default)
+//   Y05  open,     "M",   look-ahead on (the control: the month the bar is inside)
+//   Y06  year(time)                            Y07  month(time)
+//
+// ⛔ CAPTURE (docs/pine/capture-queue-2026-11-19-request-unit.md, Q-REQ7).
+
+plot(request.security(syminfo.tickerid, "12M", open, lookahead = barmerge.lookahead_on), "Y01")
+plot(request.security(syminfo.tickerid, "12M", high, lookahead = barmerge.lookahead_on), "Y02")
+plot(request.security(syminfo.tickerid, "12M", open[1], lookahead = barmerge.lookahead_on), "Y03")
+plot(request.security(syminfo.tickerid, "12M", close), "Y04")
+plot(request.security(syminfo.tickerid, "M", open, lookahead = barmerge.lookahead_on), "Y05")
+plot(year(time), "Y06")
+plot(month(time), "Y07")

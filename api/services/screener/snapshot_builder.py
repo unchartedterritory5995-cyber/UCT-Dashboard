@@ -21,7 +21,7 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 provider calls a night.
   - market    -> six Wave 2 whole-market/nightly readers, each ONE read per
                 build, merged per-ticker into ``market_row``: ``finviz_universe``
-                (float/short/ownership incl. ``inst_pct``, its sole writer now
+                (float/ownership incl. ``inst_pct``, its sole writer now
                 that ``enrich.ratings_fields`` handed it over), ``earnings_dates``
                 (next earnings date/session), ``earnings_context`` (last-report
                 move + implied move/setup grade — two readers, two stores),
@@ -29,6 +29,24 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 growth — ``pt_upside_pct`` is derived HERE from ``pt_target``
                 and the bar-derived ``price``, beside ``dollar_vol_30d``), and
                 ``insider_capture`` (days since the latest cluster buy).
+  - short interest -> ``short_columns.read_short_columns``, ONE read per build,
+                same ``market_row`` merge: the sole writer of ``short_float_pct``
+                and ``short_ratio`` since 2026-11-18. It takes them from the
+                FINRA short-interest list the web process already holds
+                (``short_data.held_market_rows``: read only, it never starts a
+                build or a vendor request) and, for a stock that list cannot
+                answer for, from the nightly export. One ``[screener-short]``
+                log line per build; its counts are ``stats["short_columns"]``.
+  - fundamental trends -> ``fund_trends.read_fields``, ONE read per build, same
+                ``market_row`` merge: the sole writer of the eight trend columns
+                (revenue growth acceleration, the 25% EPS growth streak, the weakest
+                EPS growth of the last 2/3/4 quarters, the two margin changes and the
+                share count change). It reads the ``fund_trend_rows`` side table the
+                evening job wrote from the point-in-time fundamentals store (SEC
+                filings, as of that session's close) and never reads the store itself;
+                an evening more than ``fund_trends.MAX_LAG_SESSIONS`` sessions behind
+                the build's settled session is withheld. Its receipt is
+                ``stats["fund_trends"]``.
   - patterns/flow -> three Wave 5 readers, same ``market_row`` merge, ONE
                 read per build each: ``pattern_join`` (active 7-day
                 pattern-engine detections + regime-blind expectancy — its two
@@ -107,7 +125,7 @@ import time
 from . import (snapshot_db, candles, bar_character, bases, technicals, enrich, setup_score,
               context_joins, finviz_universe, earnings_dates, earnings_context,
               analyst_pass, insider_capture, pattern_join, darkpool_agg, opt_flow,
-              archive_join, rs_columns, rs_setup)
+              archive_join, rs_columns, rs_setup, short_columns, fund_trends)
 
 log = logging.getLogger(__name__)
 
@@ -582,7 +600,8 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     no ordering question to get right here, and none is implied.
 
     ``market_row`` is one ticker's merge of the SIX Wave 2 readers — Finviz
-    float/short/ownership (``finviz_universe``, and the sole writer of
+    float/ownership (``finviz_universe``; the two short-interest columns are
+    ``short_columns``'s, merged beside it, and the sole writer of
     ``inst_pct`` now that ``enrich.ratings_fields`` has handed it over — see
     that module's docstring), next-earnings date/session (``earnings_dates``),
     last-report move + implied move/setup-grade (``earnings_context``'s two
@@ -2034,6 +2053,16 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
     # fabricated value).
     finviz_map = _read_market_source(
         "finviz_universe", finviz_universe.read_finviz_fields, targets, sources)
+    # The two short-interest columns have ONE writer of their own: the FINRA
+    # list the server holds, the nightly export for a stock that list cannot
+    # answer for. It reads what is held and never starts a build (see the
+    # module). `short_receipt` is what it did, counts only, kept in the stats.
+    short_receipt: dict = {}
+    short_map = _read_market_source(
+        "short_columns",
+        lambda t, failures=None: short_columns.read_short_columns(
+            t, failures=failures, receipt=short_receipt),
+        targets, sources)
     edates_map = _read_market_source(
         "earnings_dates", earnings_dates.read_earnings_dates, targets, sources)
     lastmove_map = _read_market_source(
@@ -2102,6 +2131,17 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
     # session it reads, and why: see `_read_rs_history_fields`.
     rshist_map = _read_market_source(
         "rs_history", _read_rs_history_fields, targets, sources)
+    # ⭐ The eight fundamental trend columns: ONE read per build of the side table the
+    # evening job wrote from the point-in-time fundamentals store (`fund_trends`). It
+    # owns those eight columns and nothing else, never reads the store itself, and
+    # withholds an evening too far behind this build's settled session. `fund_receipt`
+    # is what it served, counts only, kept in the stats.
+    fund_receipt: dict = {}
+    fund_map = _read_market_source(
+        "fund_trends",
+        lambda t, failures=None: fund_trends.read_fields(
+            t, failures=failures, settled=settled_session(), receipt=fund_receipt),
+        targets, sources)
     # ⭐ THE SETTLED NEWEST BAR — one whole-market call, before the loop. See the
     # "newest daily bar, settled" block above `settled_session`. The receipt says
     # which session, how many rows came back, and what happened per ticker, or
@@ -2254,12 +2294,13 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
                              else "unrated" if rs_hist else "no_row")
             sources["rs_history"][_hist_outcome] = \
                 sources["rs_history"].get(_hist_outcome, 0) + 1
-            market_row = {**finviz_map.get(T, {}), **edates_map.get(T, {}),
+            market_row = {**finviz_map.get(T, {}), **short_map.get(T, {}),
+                          **edates_map.get(T, {}),
                           **lastmove_map.get(T, {}), **implied_map.get(T, {}),
                           **analyst_map.get(T, {}), **insider_map.get(T, {}),
                           **pattern_map.get(T, {}), **dp_map.get(T, {}),
                           **optflow_map.get(T, {}), **archive_map.get(T, {}),
-                          **rs_hist}
+                          **rs_hist, **fund_map.get(T, {})}
             row = build_row(t, bars,
                             _read_ratings(t, failures=sources),
                             _read_fundamentals(t, mc_price, failures=sources),
@@ -2342,7 +2383,8 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
              "targets": len(targets), "sector_rs": sector_rs,
              "populated": populated, "empty_columns": empty_columns,
              "sources": sources, "identity_refusals": identity_state,
-             "settled_bars": settled_receipt, "bars_rs": rs_timing}
+             "settled_bars": settled_receipt, "bars_rs": rs_timing,
+             "short_columns": short_receipt, "fund_trends": fund_receipt}
     if rs_post is not None:
         stats["rs_post_pass"] = rs_post
     return stats

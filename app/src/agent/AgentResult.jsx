@@ -32,14 +32,14 @@ function Pairs({ items, variant }) {
 export const ROWS_PREVIEW = 8
 
 /** Rows: a compact table where the panel is wide enough; one stacked card per row where it is not. */
-export function Rows({ table, testId = 'agent-result-table', preview = ROWS_PREVIEW }) {
+export function Rows({ table, testId = 'agent-result-table', preview = ROWS_PREVIEW, label = 'Results' }) {
   const [all, setAll] = useState(false)
   const cols = table.columns
   const cut = !all && preview && table.rows.length > preview + 2
   const rows = cut ? table.rows.slice(0, preview) : table.rows
   return (
     <div className={`${styles.rows} ${cols.length > 2 ? styles.many : ''}`} data-testid={testId}>
-      <table className={styles.table}>
+      <table className={styles.table} aria-label={label}>
         <thead><tr>{cols.map(c => <th key={c.key} scope="col">{c.label}</th>)}</tr></thead>
         <tbody>
           {rows.map((r, i) => (
@@ -110,7 +110,7 @@ function Details({ details, sources }) {
         {details?.headlines?.length > 0 && <Headlines items={details.headlines} />}
         {details?.items?.length > 0 && <Pairs items={details.items} variant="dense" />}
         {details?.text && <Prose text={details.text} />}
-        {details?.table && <Rows table={details.table} testId="agent-details-table" />}
+        {details?.table && <Rows table={details.table} testId="agent-details-table" label="Details" />}
         {details?.trimmed && <p className={styles.muted}>Some details were too long to keep with this conversation.</p>}
         {sources?.length > 0 && (
           <div className={styles.sources}>

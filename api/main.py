@@ -2388,12 +2388,17 @@ def _run_snapshot_resume() -> None:
 RS_HISTORY_SHORT_SHARE = 0.20
 
 
-def rs_history_enabled() -> bool:
-    """`RS_HISTORY_ENABLED` read per call: a flip needs no restart. Only "1" arms it
-    (the `_wire_enabled` convention: "true", "yes" and typos all mean off). The ONE
-    reader -- `/api/screener/snapshot-status` imports this, so the job and the
-    surface cannot disagree about the switch."""
-    return os.environ.get("RS_HISTORY_ENABLED", "0") == "1"
+# `rs_history_enabled` MOVED OUT of this module on 2026-11-15 and is re-exported
+# here, so `api.main.rs_history_enabled` keeps resolving for everyone who already
+# spells it that way. It is still ONE definition; it simply no longer lives in a
+# module that costs the whole app to import.
+#
+# ⚰️ Why it moved: `api/services/indicator_alert_evaluator.py` read it with a lazy
+# `from api.main import rs_history_enabled`, which put THIS module inside
+# flow-worker's import closure and took the web app with it — 1,654 files reachable
+# against 24 watched, the S7 price-level modules among them. See
+# `api/services/rs_history_flag.py` for the full account.
+from api.services.rs_history_flag import rs_history_enabled  # noqa: E402
 
 
 def _rs_history_shortfall(receipt: dict):
@@ -3099,6 +3104,25 @@ def register_screener_jobs(scheduler):
                       id="rs_history_stale_watchdog", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
 
+    # -- Fundamental trends: the evening run behind the eight trend columns ------------
+    #
+    # Hourly ticks from 20:35 to 02:35 ET (`fund_trends.TICK_HOURS_ET`), all inside the
+    # quiet span `scan_period` keeps whole-universe work to and all before the 03:00
+    # build that reads the answer. Each tick is a no-op once the evening is stored (one
+    # SELECT), so the later ticks only matter when a deploy or a failed read cost the
+    # first one; `fund_trends.run_evening` runs one build at a time, never more than
+    # `TRIES_PER_EVENING` an evening, and never on a member's request.
+    #
+    # REGISTERED UNCONDITIONALLY (depth 0 under `_add_job_gate_depth`): the switch is
+    # `FUNDAMENTALS_PIT_ENABLED` (the store's own, read per call inside the job), so the
+    # store's routes and this job go dark together with no deploy.
+    from api.services.screener import fund_trends as _fund_trends
+    scheduler.add_job(_fund_trends.scheduled_run,
+                      trigger=CronTrigger(hour=_fund_trends.TICK_HOURS_ET,
+                                          minute=_fund_trends.TICK_MINUTE_ET, timezone=_ET),
+                      id="screener_fund_trends_evening", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=1800)
+
     # -- UCT Relative Strength evidence: the web pull of the worker's artifact --
     #
     # 04:30 ET (unit 2b-03): after the worker's 21:30 ET evidence run has
@@ -3201,11 +3225,32 @@ def register_screener_jobs(scheduler):
     # one fixed copy beside one stale copy is the second-authority defect again.
     from api.services.screener import scan_evaluator
 
+    # ⛔ ONE NIGHTLY SWEEP AT A TIME, across BOTH jobs below (the 05:00 ET sweep and its
+    # boot catch-up): `max_instances=1` guards each job id alone, and a catch-up that
+    # ran beside a sweep in flight would read that sweep's missing receipts as "behind".
+    _nightly_sweep_running = threading.Lock()
+
     def _run_scan_sweep():
+        if not _nightly_sweep_running.acquire(blocking=False):
+            print("[scheduler] screener scan sweep: the catch-up is running; not starting a second sweep")
+            return
         try:
             scan_evaluator.sweep_job()
         except Exception as e:
             print(f"[scheduler] screener scan sweep error: {e}")
+        finally:
+            _nightly_sweep_running.release()
+
+    def _run_scan_sweep_catchup():
+        if not _nightly_sweep_running.acquire(blocking=False):
+            print("[scheduler] screener scan sweep catch-up: a sweep is running; nothing to catch up")
+            return
+        try:
+            scan_evaluator.sweep_catch_up()
+        except Exception as e:
+            print(f"[scheduler] screener scan sweep catch-up error: {e}")
+        finally:
+            _nightly_sweep_running.release()
 
     if scan_evaluator.enabled():
         # ⛔⛔ `misfire_grace_time` AND `coalesce` WERE MISSING HERE AND PRESENT ON
@@ -3241,6 +3286,20 @@ def register_screener_jobs(scheduler):
                                 timezone=_ET),
             id="screener_scan_sweep", max_instances=1, replace_existing=True,
             coalesce=True, misfire_grace_time=3600)
+
+        # -- ... and its BOOT CATCH-UP (2026-11-22: a web restart at 10:00-10:01Z landed
+        # on the 05:00 ET slot and the night's sweep never ran). The grace above only
+        # helps a scheduler that was RUNNING at the slot: a pod that boots after it
+        # computes the next fire as tomorrow. A DATE job a few minutes after every boot
+        # (never inline: the boot is not slowed) sweeps, once, only the definitions with
+        # no `scan_coverage` row for the session, and only between today's slot and its
+        # deadline (`scan_evaluator.sweep_catch_up`, artifact-first like #1281).
+        from datetime import timedelta as _td
+        scheduler.add_job(
+            _run_scan_sweep_catchup, trigger="date",
+            run_date=datetime.now(_ET) + _td(seconds=scan_evaluator.SWEEP_CATCHUP_BOOT_DELAY_S),
+            id="screener_scan_sweep_catchup_boot", max_instances=1, replace_existing=True,
+            misfire_grace_time=3600)
 
         # -- RISK-024 (Phase One Track B, 2026-09-04): the prune this table was --
         # -- always meant to ship with, finally wired ---------------------------
@@ -4510,6 +4569,47 @@ def register_transcript_keyword_jobs(scheduler):
         _run_keyword_alert_scan,
         trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=30, timezone=_ET),
         id="transcript_keyword_alerts", replace_existing=True)
+    return True
+
+
+def register_list_alert_jobs(scheduler):
+    """The Terminal list alerts (owner pick 2026-11-17): tell a member when a stock they
+    follow comes onto the New 52-week highs list, the confluence board or the repeat-hit
+    option contracts list (`api/services/list_alerts.py`).
+
+    Registered unconditionally and the SERVICE decides whether to do anything: it is off
+    unless `TERMINAL_LIST_ALERTS_ENABLED` is `1` (or `admin`, the owner's preview), read on
+    every run, and off it returns before it opens a database or reads a list. Registering
+    it dark keeps arming it an env change rather than a deploy.
+
+    Weekdays at `list_alerts.CHECK_TIMES_ET`, both after the close: each list is read ONCE
+    per run for every member. The second pass is the retry for a list that was not ready
+    and a delivery that reached nobody; the per-session record means it can never repeat a
+    message. The service itself refuses a run before the close, so the by-contract read on
+    the flow-worker is never made in market hours.
+
+    Returns True once the jobs are registered."""
+    # Imported inside the function like every other registrar here.
+    from apscheduler.triggers.cron import CronTrigger
+    from api.services import list_alerts
+
+    _lalog = logging.getLogger(__name__)
+
+    def _run_list_alerts():
+        try:
+            if not list_alerts.enabled():
+                return
+            # `run_evening` logs its own receipt (what was read, sent and skipped).
+            list_alerts.run_evening()
+        except Exception as exc:
+            _lalog.warning("[list-alerts] scheduled run failed: %s", exc)
+
+    for hour, minute in list_alerts.CHECK_TIMES_ET:
+        scheduler.add_job(
+            _run_list_alerts,
+            trigger=CronTrigger(day_of_week="mon-fri", hour=hour, minute=minute, timezone=_ET),
+            id=f"list_alerts_{hour:02d}{minute:02d}", max_instances=1, coalesce=True,
+            misfire_grace_time=1800, replace_existing=True)
     return True
 
 
@@ -6628,6 +6728,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] period preset warm scheduling failed (non-fatal): {e}")
 
+    # The market-wide short interest list (SHRTS, and one stock's row for other readers) is kept
+    # built: the first build runs a few minutes after boot, then a cheap look for a newer report
+    # every few hours. The loop starts itself on the web service only (short_data.start_market_warmer).
+    try:
+        from api.services import short_data as _short_data
+        if not _light_skip("short-data-warm"):
+            _short_data.start_market_warmer()
+    except Exception as e:
+        print(f"[startup] short data warm scheduling failed (non-fatal): {e}")
+
     # Company-logo cache prewarm: fill /data/logo_cache for the whole cap_universe
     # so the FIRST view of any watchlist / theme / calendar serves real logos from
     # disk (edge-cacheable, immutable) instead of a cold transparent-pixel-then-retry
@@ -7019,6 +7129,21 @@ async def lifespan(app: FastAPI):
             print(f"[startup] breadth EOD source job armed (mode={_breadth_eod.mode()})")
     except Exception as e:
         print(f"[startup] breadth EOD source wiring error (non-fatal): {e}")
+
+    # Deep daily history rebuilt from one checked source, served per ticker (bars_rebuild); web serves
+    # /api/bars too when the edge falls back to it. BARS_REBUILD_SERVE=0 = off.
+    try:
+        from api.services import bars_rebuild as _bars_rebuild
+        _bars_rebuild.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        print(f"[startup] rebuilt-history sync start failed (non-fatal): {e}")
+    # The published corrections ledger for served D/W/M bars (bars_corrections); inert with no manifest.
+    # BARS_CORRECTIONS_SERVE=0 = off.
+    try:
+        from api.services import bars_corrections as _bars_corrections
+        _bars_corrections.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        print(f"[startup] bars-corrections sync start failed (non-fatal): {e}")
 
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
@@ -8337,6 +8462,11 @@ async def lifespan(app: FastAPI):
                     breadth_ma_extra.scheduled_extend()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[ma-extra] extend failed: %s", _e)
+                try:   # the pre-built per-universe Monitor rows follow their overlays
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.kick_refresh()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] refresh failed: %s", _e)
 
             _scheduler.add_job(
                 _breadth_nhnl_extend,
@@ -8347,6 +8477,33 @@ async def lifespan(app: FastAPI):
                 _breadth_nhnl_extend, trigger="date",
                 run_date=_dt.now(_ET) + _td(minutes=12),
                 id="breadth_nhnl_extend_boot", replace_existing=True)
+
+            # ⭐ PRE-BUILT per-universe Monitor rows (US / Nasdaq / NYSE, the universe switcher):
+            # a full rebuild every night (a historical revision can never hide in the store), and
+            # a boot refresh that builds any universe whose store is empty. Requests only read.
+            def _breadth_universe_monitor_nightly():
+                try:
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.nightly()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] nightly failed: %s", _e)
+
+            def _breadth_universe_monitor_boot():
+                try:
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.kick_refresh()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] boot refresh failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_universe_monitor_nightly,
+                trigger=CronTrigger(day_of_week="mon-sat", hour=3, minute=25, timezone=_ET),
+                id="breadth_universe_monitor_nightly", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
+            _scheduler.add_job(
+                _breadth_universe_monitor_boot, trigger="date",
+                run_date=_dt.now(_ET) + _td(minutes=15),
+                id="breadth_universe_monitor_boot", replace_existing=True)
         except Exception:
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth put/call fill")
@@ -8708,6 +8865,17 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] screener job registration error: {e}")
 
+        # -- Terminal list alerts (dark unless TERMINAL_LIST_ALERTS_ENABLED) --
+        # In its own try: a failure here skips nothing above or below, and the
+        # other way round.
+        try:
+            if register_list_alert_jobs(_scheduler):
+                logging.getLogger(__name__).info(
+                    "[startup] terminal list alerts: jobs registered (weekday evenings ET; "
+                    "nothing runs unless TERMINAL_LIST_ALERTS_ENABLED is set)")
+        except Exception as e:
+            print(f"[scheduler] list alerts registration error: {e}")
+
         # -- Nightly closed-bar Signature sweep (Phase A) -------------------
         try:
             register_signature_sweep_job(_scheduler)
@@ -8942,13 +9110,28 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] market_tide_rth_warm job registration error: {e}")
 
+        # -- Market Tide by day (terminal tide history, 2026-11-19) --
+        # Stores each finished session's tide once, after the close: 16:33, 17:33 and 20:33 ET
+        # (three tries so a late tape still lands; a thinner read never replaces a fuller one).
+        # Always registered: the job reads the tide's own switch when it RUNS and returns
+        # without reading anything while it is off.
+        try:
+            from api.services.options_analytics import tide_history as _tide_history
+            _scheduler.add_job(_tide_history.run_capture_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16,17,20", minute=33, timezone=_ET),
+                id="market_tide_history_capture", max_instances=1, coalesce=True,
+                misfire_grace_time=1800, replace_existing=True)
+        except Exception as e:
+            print(f"[scheduler] market_tide_history_capture job registration error: {e}")
+
         # -- Twitter News Ingestion (spec 2026-05-25) ----------------------
         # Burst windows (every 2 min) cover the high-value pre-market and
         # post-close trading hours; regular cadence handles mid-day; slow
         # hourly job is a safety net (since_id makes overlap free).
+        _tw_poll_on = False
         if os.environ.get("TWITTERAPI_IO_ENABLED", "").lower() in ("1", "true", "yes"):
+            _tw_poll_on = True
             from api.services.tweet_poller import poll_all_accounts as _tw_poll
-            from api.services.tweet_cleanup import run_cleanup as _tw_cleanup
 
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/2", timezone=_ET),
                                id="tweet_poll_burst_premarket", max_instances=1, replace_existing=True)
@@ -8967,6 +9150,13 @@ async def lifespan(app: FastAPI):
             # makes duplicate fetches free.
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(minute="0", timezone=_ET),
                                id="tweet_poll_slow", max_instances=1, replace_existing=True)
+        # THE EXPIRY JOBS ARE NOT PART OF THE POLLER. They used to be registered inside the `if`
+        # above, so switching the poller off also switched off the 7-day expiry and the check for
+        # posts removed at the source: what was already stored would then have been kept and
+        # served with nothing ever clearing it. Stored posts expire whether or not new ones are
+        # being fetched. `run_cleanup` never raises and does nothing on an empty store.
+        try:
+            from api.services.tweet_cleanup import run_cleanup as _tw_cleanup
             _scheduler.add_job(_tw_cleanup, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                                id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
             # Saved Notebook posts that left X: two checks at least 10 minutes apart. Each job
@@ -8976,7 +9166,12 @@ async def lifespan(app: FastAPI):
                                id="notebook_tweet_capture_sweep", max_instances=1, replace_existing=True)
             _scheduler.add_job(_tw_capture_sync.run_confirm, trigger=CronTrigger(hour=3, minute=25, timezone=_ET),
                                id="notebook_tweet_capture_confirm", max_instances=1, replace_existing=True)
+        except Exception as e:
+            print(f"[scheduler] tweet expiry job registration error: {e}")
+        if _tw_poll_on:
             print("[scheduler] tweet poll jobs registered")
+        else:
+            print("[scheduler] tweet expiry jobs registered (the poller is off)")
 
         # -- The Desk -> Substack articles poller -------------------------------
         # Pulls each configured Substack RSS feed hourly. Free (no API cost), so
@@ -10693,6 +10888,29 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] research depth job registration failed (non-fatal): {e}")
 
+        # INS CLUSTER (2026-11-21): insider cluster buys read from the SEC's own Form 4 filings
+        # (api/services/insider_clusters_sec.py). EDGAR's daily indexes are "updated nightly starting
+        # about 10:00 p.m., ET; the process is usually completed within a few hours" (the SEC's
+        # "Accessing EDGAR Data" page), so the read runs at 01:20 ET Tuesday to Saturday, the night
+        # after each weekday, clear of the 01:47 and 02:00 jobs. The job only starts the module's own
+        # thread (one run at a time) and returns; nothing on a member's request ever starts it.
+        _boot_mark("S10236")
+        try:
+            def _insider_clusters_sec_job():
+                from api.services import insider_clusters_sec as _ics
+                print(f"[scheduler] insider clusters (SEC Form 4) read: {_ics.run_nightly()}")
+
+            from api.services import insider_clusters_sec as _ics_mod
+            _scheduler.add_job(
+                _insider_clusters_sec_job,
+                trigger=CronTrigger(day_of_week="tue-sat", hour=_ics_mod.RUN_AT_ET[0],
+                                    minute=_ics_mod.RUN_AT_ET[1], timezone=_ET),
+                id="insider_clusters_sec_nightly", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            print("[startup] insider clusters (SEC Form 4) scheduled -- Tue-Sat 01:20 ET")
+        except Exception as e:
+            print(f"[startup] insider clusters job registration failed (non-fatal): {e}")
+
         # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
         # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
         # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).
@@ -11007,6 +11225,27 @@ async def lifespan(app: FastAPI):
             print("[startup] notebook passed-setups nightly registered (17:40 ET weekdays)")
         except Exception as e:
             print(f"[startup] notebook passed-setups registration failed (non-fatal): {e}")
+        # GRP / GRPS (2026-11-21) -- group fundamentals and breadth: every sector and industry's medians
+        # from the point-in-time filings store and its breadth from stored closes, built ONCE each evening
+        # on a background thread and held (api/services/group_stats.py). Each tick starts the build only
+        # in the quiet span (from 20:15 ET on a weekday, or a weekend) and only when the held answer is
+        # older than the newest session's evening (or that evening fell short and is retried, at most
+        # three times), so the eight evening ticks build once; the boot tick catches an evening a
+        # restart missed. Never on a member's request. Rail: tests/test_group_stats.py.
+        _boot_mark("GRPS-evening")
+        try:
+            from datetime import datetime as _grp_dt, timedelta as _grp_td
+            from api.services import group_stats as _group_stats
+            _scheduler.add_job(_group_stats.scheduled_refresh,
+                               trigger=CronTrigger(hour="20-23", minute="20,50", timezone=_ET),
+                               id="group_stats_evening", max_instances=1, coalesce=True,
+                               misfire_grace_time=1200, replace_existing=True)
+            _scheduler.add_job(_group_stats.scheduled_refresh, trigger="date",
+                               run_date=_grp_dt.now(_ET) + _grp_td(seconds=600),
+                               id="group_stats_boot", replace_existing=True)
+            print("[startup] group fundamentals and breadth registered (evening ticks 20:20-23:50 ET, boot +10 min)")
+        except Exception as e:
+            print(f"[startup] group fundamentals and breadth registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 
@@ -11154,6 +11393,13 @@ async def lifespan(app: FastAPI):
         print(f"[shutdown] discord-render V2 stop failed (non-fatal): {e}")
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
+    # The cold-preload pool's idle workers would otherwise hold api/serve_dual.py's bounded exit join for
+    # its whole 5 s on every swap (measured 2026-11-22). Never fatal: the join bounds them either way.
+    try:
+        from api.services.discord_render import cold_start_guard as _csg_stop
+        _csg_stop.shutdown()
+    except Exception as e:  # noqa: BLE001
+        print(f"[shutdown] cold-preload pool stop failed (non-fatal): {type(e).__name__}")
 
     # ⚡ Last write before the pod goes away, so the REPLACEMENT boots warm.
     # Deliberately after the scheduler stops (no job can be mutating the cache
@@ -11977,6 +12223,10 @@ app.include_router(entity_resolve_router.router)  # /api/entity/resolve — TERM
 app.include_router(decision_record_router.router)  # /api/decision-record/ticker/{t} — TERM-088 member door, paid, read-only, DARK (DECISION_RECORD_MEMBER_ENABLED)
 app.include_router(analyst_revisions_router.router)  # /api/research/analyst-revisions/{t} — TERM-073 member door, paid, read-only, DARK (ANALYST_REVISIONS_ENABLED)
 app.include_router(iv_history_router.router)  # /api/research/iv-history/{sym}[/implied-vs-realized] — our own options log, paid, read-only, DARK (IV_HISTORY_ENABLED)
+from api.routers import treasury_yields as treasury_yields_router  # noqa: E402  (RATES: Treasury yields and the curve, paid)
+app.include_router(treasury_yields_router.router)  # /api/research/treasury-yields
+from api.routers import treasury_auctions as treasury_auctions_router  # noqa: E402  (AUCT: Treasury auctions, upcoming and results, paid)
+app.include_router(treasury_auctions_router.router)  # /api/research/treasury-auctions
 app.include_router(options_screener_router.router)  # /api/options-screener/{screen,unusual-volume,iv-percentile} — COV-02/03 over our own options log, paid, read-only, DARK (OPTIONS_SCREENER_ENABLED)
 app.include_router(yf_guard_router.router, dependencies=_OPEN_READS)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
@@ -12063,6 +12313,38 @@ from api.routers import alert_outbound as alert_outbound_router  # noqa: E402  (
 app.include_router(alert_outbound_router.router)
 from api.routers import screen_promote as screen_promote_router  # noqa: E402  (FT-027, dark)
 app.include_router(screen_promote_router.router)
+from api.routers import list_alerts as list_alerts_router  # noqa: E402  (Terminal list alerts, dark)
+app.include_router(list_alerts_router.router)
+from api.routers import crypto as crypto_router  # noqa: E402  (Bitcoin BTC/USD from FMP, dark)
+app.include_router(crypto_router.router)
+from api.routers import short_data as short_data_router  # noqa: E402  (SHINT / SHRTS: FINRA short interest and short volume, paid)
+app.include_router(short_data_router.router)
+from api.routers import dilution_watch as dilution_watch_router  # noqa: E402  (DILU: share-issuance filings from SEC EDGAR, paid)
+app.include_router(dilution_watch_router.router)  # /api/research/dilution-watch/{ticker}
+from api.routers import corporate_actions as corporate_actions_router  # noqa: E402  (CACT: splits and dividends the server already holds, paid)
+app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
+from api.routers import pine_events as pine_events_router  # noqa: E402  (track 4 E1: a chart symbol's earnings, dividends and splits for Pine, paid, DARK: admins unless PINE_EVENTS_SUPPLY_ENABLED=all)
+app.include_router(pine_events_router.router)  # /api/pine/events/{ticker}
+from api.routers import pine_breadth as pine_breadth_router  # noqa: E402  (track 4 B1: UCT breadth under USI: spellings for Pine, paid, DARK: admins unless PINE_BREADTH_SUPPLY_ENABLED=all; members refused by the licence until ESC-03)
+app.include_router(pine_breadth_router.router)  # /api/pine/breadth/{spelling}
+from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
+app.include_router(fed_watch_router.router)  # /api/research/fed-watch
+from api.routers import market_history as market_history_router  # noqa: E402  (MKTH: corrections, bear markets, the rallies and their leaders, paid)
+app.include_router(market_history_router.router)  # /api/research/market-history
+from api.routers import group_stats as group_stats_router  # noqa: E402  (GRP / GRPS: group fundamentals and breadth, built each evening, paid)
+app.include_router(group_stats_router.router)  # /api/research/group-stats
+from api.routers import market_dividends as market_dividends_router  # noqa: E402  (DVD MARKET: the market's ex-dividend dates and splits, this week and next, paid)
+app.include_router(market_dividends_router.router)  # /api/research/market-dividends
+from api.routers import revenue_segments as revenue_segments_router  # noqa: E402  (SEG: one stock's revenue by product and by region, paid)
+app.include_router(revenue_segments_router.router)  # /api/research/revenue-segments/{ticker}
+from api.routers import mergers as mergers_router  # noqa: E402  (MNA: the latest M&A deals, or one company's, paid)
+app.include_router(mergers_router.router)  # /api/research/mergers
+from api.routers import index_changes as index_changes_router  # noqa: E402  (IDXC: S&P 500, Nasdaq 100 and Dow additions and removals, paid)
+app.include_router(index_changes_router.router)  # /api/research/index-changes
+from api.routers import stock_stats as stock_stats_router  # noqa: E402  (STAT: one stock's volatility, beta, returns, drawdowns, corrections, paid)
+app.include_router(stock_stats_router.router)  # /api/research/stock-stats/{ticker}
+from api.routers import public_records as public_records_router  # noqa: E402  (PUBR: one company's contracts, trials, FDA approvals and lobbying from government records, paid)
+app.include_router(public_records_router.router)  # /api/research/public-records/{ticker}
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
@@ -12217,7 +12499,7 @@ def _csv_response(csv_path: str, filename: str):
     return JSONResponse(status_code=404, content={"error": f"{filename} not found"})
 
 @app.get("/api/brand/massive-card-logo.png")
-async def _massive_card_logo():
+def _massive_card_logo():
     """Public author-icon for the Massive Discord cards (the UCT Logo).
 
     Discord fetches an embed's ``icon_url`` anonymously, so the image MUST be
@@ -14296,6 +14578,10 @@ register_static_mime_types()
 # sees its noindex.
 PUBLIC_NOTE_PATH_PREFIXES = ("/share/n", "/p")
 PUBLIC_NOTE_HEADERS = {"X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
+# The app shell allows the browser's JS Self-Profiling API (`new Profiler(...)`), so a chart
+# stall measured on the live site can be attributed to functions, not guessed at (2026-11-19).
+# Nothing in the app starts a profiler; the policy only permits one. Mirrored in front_app.py.
+SHELL_DOCUMENT_POLICY = "js-profiling"
 
 
 def is_public_note_path(full_path: str) -> bool:
@@ -14309,7 +14595,7 @@ def spa_index_response(full_path: str):
     headers on a public-note path. Defined OUTSIDE the DIST guard so the rail can serve
     it from a temp DIST; `spa_fallback` below is exactly `return spa_index_response(...)`
     (tests/test_public_note_headers.py pins that by AST)."""
-    headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+    headers = {"Cache-Control": "no-cache, no-store, must-revalidate", "Document-Policy": SHELL_DOCUMENT_POLICY}
     hints = early_hint_link_header()
     if hints:
         headers["Link"] = hints

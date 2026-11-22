@@ -1,7 +1,9 @@
-import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, memo, Suspense, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { WorkspaceContext } from '../../../charts/WorkspaceContext'
 import StockChart from '../../../../components/StockChart'
 import ErrorBoundary from '../../../../components/ErrorBoundary'
 import CompanyLogo from '../../../../components/CompanyLogo'
+import Select from '../../../../components/ui/Select'
 import { PANE_LOOK } from '../../../../components/chart/pane/paneLook'
 import { mergeChartSettings, mergeSettingsOverride } from '../../../../components/chart/chartDefaults'
 import usePreferences from '../../../../hooks/usePreferences'
@@ -49,6 +51,10 @@ const chartLook = { ...PANE_LOOK, volumeSeparatePane: true }
 const ChartSettingsModal = lazy(() => import('../../../../components/chart/ChartSettingsModal'))
 
 const MiniChart = memo(function MiniChart({ sym, tf, settings, big = false, onPersist = null }) {
+  // The scan day (Mark day / Replay), from the drill's workspace, as the Focus chart reads it.
+  const ws = useContext(WorkspaceContext)
+  const markDay = ws?.markDay || null
+  const replayCutoff = ws?.replayCutoff || null
   // A card borrows the grid's look (the Focus chart's template); an edit on a
   // card (legend chip, right-click) stays on that card for the session, never in
   // global settings. The enlarged chart's edits go to the grid's look instead
@@ -94,6 +100,10 @@ const MiniChart = memo(function MiniChart({ sym, tf, settings, big = false, onPe
         // The Focus chart's look (its template), so a card and the big chart match.
         settingsOverride={(!onPersist && edited) || settings || undefined}
         onSettingsPersist={onSettingsPersist}
+        highlightBarTime={markDay || undefined}
+        highlightColor={markDay ? ws.markDayColor : undefined}
+        replayCutoff={replayCutoff}
+        liveUpdates={replayCutoff ? false : undefined}
       />
     </ErrorBoundary>
   )
@@ -470,9 +480,8 @@ export default function ScanGrid({ rows, dir = 1, onSelect, toolbarStart = null,
         {toolbarStart}
         <span className={styles.spacer} />
         <label className={styles.tbLabel} htmlFor={sortId}>Sort</label>
-        <select id={sortId} className={styles.select} value={sortKey} onChange={e => setSortKey(e.target.value)}>
-          {GRID_SORTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-        </select>
+        <Select id={sortId} className={styles.select} value={sortKey} onChange={e => setSortKey(e.target.value)}
+          options={GRID_SORTS.map(s => ({ value: s.key, label: s.label }))} />
         <span className={styles.tbSep} aria-hidden="true" />
         <div className={`${styles.seg} ${styles.segSm}`} role="group" aria-label="Timeframe">
           {TFS.map(([k, l]) => <button key={k} type="button" aria-pressed={tf === k} onClick={() => setTf(k)}>{l}</button>)}

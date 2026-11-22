@@ -316,16 +316,81 @@ class TestRoute:
         r = self._client().get("/api/research/estimates/AAPL")
         assert set(r.json()) == {"sym", "entity", "forward", "revisions"}
 
-    def test_consensus_rides_beside_the_yfinance_blocks_with_their_sources(self, monkeypatch):
+    def test_an_answered_consensus_never_reads_the_yfinance_leg(self, monkeypatch):
+        """FMP answered with forward periods: the yfinance leg is not asked at all, and the
+        answer names FMP alone."""
         import api.routers.research as rr
         import api.services.research.estimates_consensus as ecm
-        monkeypatch.setattr(rr, "get_estimates", lambda sym: {
-            "sym": sym.upper(), "entity": None, "forward": [], "revisions": []})
+
+        def never(sym):
+            raise AssertionError("the yfinance leg was read although the consensus answered")
+        monkeypatch.setattr(rr, "get_estimates", never)
         monkeypatch.setattr(ecm, "get_consensus", lambda sym: {"state": "ok", "annual": [1], "quarterly": []})
         body = self._client().get("/api/research/estimates/AAPL?consensus=1").json()
         assert body["consensus"]["state"] == "ok"
-        assert body["sources"] == {"forward": "Yahoo Finance", "revisions": "Yahoo Finance",
-                                   "consensus": "FMP"}
+        assert body["forward"] == [] and "revisions" not in body
+        assert body["sources"] == {"consensus": "FMP"}
+        assert "yf_unavailable" not in body
+
+    @pytest.mark.parametrize("consensus", [
+        {"state": "empty", "annual": [], "quarterly": []},
+        {"state": "error", "annual": [], "quarterly": [], "errors": {"annual": "x", "quarterly": "y"}},
+        {"state": "ok", "annual": [], "quarterly": []},          # answered, no forward periods
+    ])
+    def test_the_yfinance_forward_table_stands_in_only_when_fmp_holds_none(self, monkeypatch, consensus):
+        import api.routers.research as rr
+        import api.services.research.estimates_consensus as ecm
+        seen = []
+        monkeypatch.setattr(rr, "get_estimates", lambda sym: seen.append(sym) or {
+            "sym": sym.upper(), "entity": {"status": "resolved"}, "forward": [{"period": "Current Qtr"}],
+            "revisions": [{"period": "Current Qtr", "current": 1.0}]})
+        monkeypatch.setattr(ecm, "get_consensus", lambda sym: dict(consensus))
+        body = self._client().get("/api/research/estimates/AAPL?consensus=1").json()
+        assert seen == ["AAPL"]
+        assert body["forward"] == [{"period": "Current Qtr"}]
+        assert body["sources"] == {"consensus": "FMP", "forward": "Yahoo Finance"}
+        assert body["entity"] == {"status": "resolved"}
+        # revisions are their own read, never a rider on the consensus answer
+        assert "revisions" not in body
+
+    def test_a_consensus_that_raised_falls_back_and_says_error(self, monkeypatch):
+        import api.routers.research as rr
+        import api.services.research.estimates_consensus as ecm
+
+        def boom(sym):
+            raise RuntimeError("fmp down")
+        monkeypatch.setattr(ecm, "get_consensus", boom)
+        monkeypatch.setattr(rr, "get_estimates", lambda sym: {
+            "sym": sym.upper(), "entity": None, "forward": [{"period": "Next Yr"}], "revisions": []})
+        body = self._client().get("/api/research/estimates/AAPL?consensus=1").json()
+        assert body["consensus"]["state"] == "error"
+        assert body["forward"] == [{"period": "Next Yr"}] and body["sources"]["forward"] == "Yahoo Finance"
+
+    def test_revisions_are_their_own_read_with_their_own_source(self, monkeypatch):
+        import api.routers.research as rr
+        import api.services.research.estimates_consensus as ecm
+
+        def never(sym):
+            raise AssertionError("the revisions read asked FMP for a consensus")
+        monkeypatch.setattr(ecm, "get_consensus", never)
+        monkeypatch.setattr(rr, "get_estimates", lambda sym: {
+            "sym": sym.upper(), "entity": None, "forward": [{"period": "Current Qtr"}],
+            "revisions": [{"period": "Current Qtr", "current": 1.0, "ago30": 0.9, "up30": 3, "down30": 1}]})
+        body = self._client().get("/api/research/estimates/AAPL?revisions=1").json()
+        assert set(body) == {"sym", "revisions", "sources"}
+        assert body["sym"] == "AAPL"
+        assert body["revisions"] == [{"period": "Current Qtr", "current": 1.0, "ago30": 0.9, "up30": 3, "down30": 1}]
+        assert body["sources"] == {"revisions": "Yahoo Finance"}
+
+    def test_a_failed_revisions_read_is_marked_not_an_empty_finding(self, monkeypatch):
+        import api.routers.research as rr
+
+        def boom(sym):
+            raise RuntimeError("yahoo down")
+        monkeypatch.setattr(rr, "get_estimates", boom)
+        r = self._client().get("/api/research/estimates/AAPL?revisions=1")
+        assert r.status_code == 200
+        assert r.json()["revisions"] == [] and r.json()["yf_unavailable"] is True
 
     def test_financial_history_route_carries_ratios_and_source(self, monkeypatch):
         import api.services.research.financial_history as fhm

@@ -160,8 +160,10 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 // ⭐ U2b — the live forming-bar tail of a server definition (`plots[].liveTail`):
 // `computeSignature` carries the benchmark tail's version into the binder's memo.
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
-import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD } from './runtimeKill'
+import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD, runtimeFormingIdsOf } from './runtimeKill'
+import { formingReasonOf } from './formingReason.js'
 import { HOST_KNOWN_DIVERGENCE_STAMP } from './hostKnownDivergence'
+import { HELD_DIVERGENCE_STAMP } from './heldWithholds'
 // ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
 import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
 import { registeredRunHalfObjectRail, runHalfSettingsAdmitted } from './runHalfRailSeam.js'
@@ -173,7 +175,7 @@ import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './ru
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
 // never imported by the compute closure.
 import './lowerTfGate.js'
-import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf } from './runtime/runtimeObjects'
+import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf, runHalfOf } from './runtime/runtimeObjects'
 import { LIMIT_NAMES } from './runtime/limits'
 import { registeredObjectRuntimeValues, inputsAtDefaults, registerObjectComputeFor } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
@@ -192,7 +194,7 @@ import {
 // ⭐⭐ HEADLESS (R6) — `computeFor` dispatches on the ONE router the headless export asks too.
 import { computeLaneOf, COMPUTE_LANE } from './computeLane.js'
 // ⭐⭐ HOST WORKER — a chart's costly host document, computed off the main thread.
-import { hostLaneOffThread } from './hostLaneAsync.js'
+import { hostLaneColumns } from './hostLaneAsync.js'
 export {
   columnErrors, registerRuntimeErrorStop, RUNTIME_ERROR_GUARD, runtimeErrorStopOf, lowerTfFor, lowerTfReport,
   otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
@@ -2296,6 +2298,8 @@ export function runtimeObjectsWithheld(def, cols) {
  */
 export function runtimeRunStopOf(def, cols) {
   if (!def || !def.compute || def.compute.kind !== 'runtime' || !cols) return null
+  // ⭐ (e85) a wait is not a stop (`runtimeRunWaitingOf` says it)
+  if (cols[RUNTIME_WAITING_KEY]) return null
   const keys = Object.keys(def.compute.outputs || {})
   if (keys.some((k) => cols[k] && typeof cols[k].length === 'number')) return null
   if (runtimeErrorStopOf(cols)) return null
@@ -2306,6 +2310,30 @@ export function runtimeRunStopOf(def, cols) {
     guard: first.guard,
     sentence: `not drawn on this chart (${first.guard}): ${why || 'the per-bar run computed nothing'}`,
   }
+}
+
+/** ⭐ (engine 86) — WHAT THE STRIP SAYS WHILE A RUNTIME RUN IS STILL IN THE WORKER, in the house voice of the
+ *  worker's own sentences (`runtimeAsync.js`, `hostLaneAsync.js`: what is happening, what settles it), so an
+ *  empty pane on a first load or a symbol switch reads as work, not as broken. Never a guard id, never a
+ *  refusal: the binder shows it only where the pane has no picture yet (`binder.js`, `noteRuntimeErrorStop`). */
+export const RUNTIME_COMPUTING_SENTENCE = 'the background worker is still computing this script bar by bar on this chart; '
+  + 'it is drawn when that finishes'
+export const RUNTIME_DRAWINGS_COMPUTING_SENTENCE = "the background worker is still computing this script's drawings bar by "
+  + 'bar on this chart; they are drawn when that finishes'
+
+/** Is a run of this document still computing for these columns: a RUNTIME document whose answer is the
+ *  in-flight `{}` (`runtimeColumnsFor`; nothing refused, nothing reached), or a host document whose run half
+ *  is pending? `{what, sentence}`, or null. */
+export function runtimeRunPendingOf(def, cols) {
+  if (!def || !def.compute || !cols) return null
+  if (def.compute.kind === 'runtime') {
+    if (Object.keys(cols).length !== 0 || runtimeErrorStopOf(cols)) return null
+    if (Object.keys(columnErrors(cols) || {}).length) return null
+    return { what: 'values', sentence: RUNTIME_COMPUTING_SENTENCE }
+  }
+  const half = runHalfOf(cols)
+  if (half && half.state === 'pending') return { what: 'drawings', sentence: RUNTIME_DRAWINGS_COMPUTING_SENTENCE }
+  return null
 }
 
 // ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
@@ -2567,9 +2595,49 @@ function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
     }
     // ⛔ A FAILED BUILD IS EVERY COLUMN'S FAILURE, reported, never a throw on the
     // paint path — the binder would otherwise skip the whole instance silently.
-    return reasonFor((err && err.guard) || ENGINE_ERROR,
+    const out = reasonFor((err && err.guard) || ENGINE_ERROR,
       String((err && err.message) || err))
+    // ⭐ (e85) a run WAITING for other series' newest bars is a wait, said as one (`runtimeRunWaitingOf`), never as a stop
+    if (err && err.pending === true && typeof err.waitingFor === 'string' && err.waitingFor) {
+      Object.defineProperty(out, RUNTIME_WAITING_KEY, { value: Object.freeze({ waitingFor: err.waitingFor }), enumerable: false })
+    }
+    return out
   }
+}
+
+// ─── ⭐⭐ (the e85 live capture, 2026-11-19) — A RUN WAITING FOR ANOTHER SERIES' NEWEST BARS SAYS SO ──────────────
+// A live-tail lag (`runtime/requestSupply.js`: another series' newest bars behind the chart's, within the bound) is a
+// WAIT: the run is asked again when the series updates, and the pane keeps the picture it last served for the run half
+// (`binder.js`). The strip says what it waits for, in the house voice of the worker's own sentences (what is happening,
+// what settles it), never a guard id. ⛔ A wait past the bound is a refusal (`runtime:request-lag`) and says so there.
+/** Where a runtime document's answer records the series its run waits for (non-enumerable): `{waitingFor}`. */
+export const RUNTIME_WAITING_KEY = '__runtimeWaiting'
+const waitingNames = (waitingFor) => String(waitingFor || '').split(',').filter(Boolean).map((s) => `\`${s}\``)
+const waitedFor = (names) => (names.length > 1
+  ? { what: `the newest bars of ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}, which have not arrived yet`,
+    when: 'when they do' }
+  : { what: `${names[0]}'s newest bar, which has not arrived yet`, when: 'when it does' })
+/** The strip's status for a runtime document whose run waits. */
+export function runtimeWaitingSentence(waitingFor) {
+  const w = waitedFor(waitingNames(waitingFor))
+  return `waiting for ${w.what}; this script is drawn bar by bar ${w.when}`
+}
+/** The strip's status for a host document whose run half waits (its plots are drawn; the drawings this pane last
+ *  served stay, `binder.js`). ⛔ It never claims a picture is kept: a first load that waits has none. */
+export function runtimeDrawingsWaitingSentence(waitingFor) {
+  const w = waitedFor(waitingNames(waitingFor))
+  return `waiting for ${w.what}; this script's drawings are drawn ${w.when}`
+}
+/** Is this document's run waiting for other series' newest bars on this chart? `{waitingFor, what, sentence}`, or null. */
+export function runtimeRunWaitingOf(def, cols) {
+  if (!def || !def.compute || !cols) return null
+  if (def.compute.kind === 'runtime') {
+    const w = cols[RUNTIME_WAITING_KEY]
+    return w && w.waitingFor ? { waitingFor: w.waitingFor, what: 'values', sentence: runtimeWaitingSentence(w.waitingFor) } : null
+  }
+  const half = runHalfOf(cols)
+  if (!half || half.state !== 'pending' || !half.waitingFor) return null
+  return { waitingFor: half.waitingFor, what: 'drawings', sentence: runtimeDrawingsWaitingSentence(half.waitingFor) }
 }
 
 /**
@@ -2616,19 +2684,29 @@ const RUNTIME_COLOUR_WHY = Object.freeze({
   'pane:not-permitted': 'running scripts bar by bar is switched off for your account right now, so the candles keep their own colours',
   'pane:killed': 'this script is switched off for running bar by bar, so the candles keep their own colours',
   'pane:not-graded': "this script hasn't been checked against TradingView for running bar by bar yet, so the candles keep their own colours",
-  // ⭐ G6 — `runtimeKill.js::RUNTIME_FORMING_GUARD`
-  'pane:forming-ungraded': "this script reads the state of the bar as it forms, which has only been checked against TradingView on finished bars, so while this chart's newest bar is not known to be finished the candles keep their own colours",
+  // ⭐ G6 — `runtimeKill.js::RUNTIME_FORMING_GUARD` is NOT here: its reason is the server's, per script
+  // (`runtimeColourFormingWhy`, from `formingReason.js`), never a fixed sentence
   'runtime:runtime.error': "the script stops itself with its own error message on this chart, so it draws no colours, as on TradingView",
   'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is still loading, so the colours appear once it has',
   'runtime:unknown-bar': "on some bars the colour can't be worked out exactly, so none are drawn and the candles keep their own colours",
   'runtime:request': 'the script reads another symbol or timeframe, which this chart cannot hand it, so the candles keep their own colours',
+  // ⭐ (e85) `requestSupply.js::REQUEST_LAG_GUARD`
+  'runtime:request-lag': "the newest bars of another symbol the script reads haven't arrived on this chart, so the candles keep their own colours",
   'runtime:clock-zone': "this symbol's exchange time zone isn't known here, and the script reads the clock, so the candles keep their own colours",
 })
 const RUNTIME_COLOUR_WHY_LIMIT = 'running the script bar by bar needed more work than a chart is allowed, so the candles keep their own colours'
 const RUNTIME_COLOUR_WHY_OTHER = "part of the script can't be run bar by bar here, so the candles keep their own colours"
-/** The member's sentence for one refusal code (a gate, or the run's own reason). */
-export function runtimeColourWhy(code) {
+/** Why a run colour is held back on a forming bar, with the reason the server named for THIS script
+ *  (`formingIds`: `runtimeKill.js::runtimeFormingIdsOf`). No ids says "uses a part of Pine" (fail closed). */
+export function runtimeColourFormingWhy(formingIds) {
+  return `this script ${formingReasonOf(formingIds)}, which has only been checked against TradingView on finished bars, `
+    + "so while this chart's newest bar is not known to be finished the candles keep their own colours"
+}
+/** The member's sentence for one refusal code (a gate, or the run's own reason; `formingIds` the server's ids
+ *  when the code is the forming guard). */
+export function runtimeColourWhy(code, { formingIds } = {}) {
   const c = String(code || '')
+  if (c === RUNTIME_FORMING_GUARD) return runtimeColourFormingWhy(formingIds)
   if (Object.hasOwn(RUNTIME_COLOUR_WHY, c)) return RUNTIME_COLOUR_WHY[c]
   if (RUNTIME_LIMIT_CODES.has(c)) return RUNTIME_COLOUR_WHY_LIMIT
   return RUNTIME_COLOUR_WHY_OTHER
@@ -2706,7 +2784,9 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
   // a fresh map: the host one may already carry its own (non-configurable) error record
   const res = withRuntimeErrorStop({ ...out }, runtimeErrorStopOf(out))
   const refuse = (code) => {
-    for (const k of keys) errors[k] = { guard: RUNTIME_COLOUR_GUARD, message: runtimeColourWhy(code), code }
+    // ⭐ G6 — a forming-bar refusal says the reason the server named for THIS script (`formingReason.js`)
+    const said = runtimeColourWhy(code, { formingIds: runtimeFormingIdsOf({ source: rc && rc.source }) })
+    for (const k of keys) errors[k] = { guard: RUNTIME_COLOUR_GUARD, message: said, code }
   }
   const stop = runtimeErrorStopOf(out)
   // ⭐ the pane lane answers to the runtime pane's per-member permission and the kill
@@ -2896,6 +2976,10 @@ function copyColumns(out) {
  *  (`run-half:object-rail`, `run-half:host-object-withheld`), and a run half with nothing
  *  comparable is refused (`run-half:no-comparable-objects`) unless recorded evidence admits its
  *  script. A drawing-only script (no plot mapped) is therefore never served on its gates alone.
+ *  ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18) — when the host document DRAWS an object program, a
+ *  drawing the run makes at a call that program lost (or in a family the host withholds whole on these
+ *  bars) is the run's to draw, on the gates above (`runHalfObjectRail.js`, the lost-drawings rule);
+ *  every site the host draws is still held to the host's, and the plots stay the host's columns.
  *  Every answer is noted for the refusal telemetry (`runHalfTelemetry.js`).
  *  The answer rides non-enumerable (`runtimeObjects.js::RUN_HALF_KEY`): `served` with the
  *  run's drawings beside it (`RUNTIME_OBJECTS_KEY`, the RT5 shape the binder already draws),
@@ -2912,7 +2996,11 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   // a code per document session, a hash-prefixed beacon; never the source)
   const src = ro && typeof ro.source === 'string' ? ro.source : null
   const refused = (code) => { noteRunHalfAnswer(def, src, code); return withRunHalfState(res, { state: 'refused', code }) }
-  const answered = (state, code) => { noteRunHalfAnswer(def, src, null); return withRunHalfState(res, { state, code }) }
+  // ⭐ (e85) a run WAITING for other series' newest bars names them (`waitingFor`, `runtimeColumns.js::requestWait`)
+  const answered = (state, code, waitingFor = null) => {
+    noteRunHalfAnswer(def, src, null)
+    return withRunHalfState(res, { state, code, ...(typeof waitingFor === 'string' && waitingFor ? { waitingFor } : {}) })
+  }
   if (!ro || typeof ro.source !== 'string' || !ro.source || !ro.outputs || typeof ro.outputs !== 'object') {
     return refused('run-half:malformed')
   }
@@ -2972,14 +3060,17 @@ function withRunHalf(def, out, bars, inputs, ctx) {
     // reads another symbol or timeframe, which this chart cannot hand that run" for the seconds
     // the bars took to load, and a different reason once they had. Held, with nothing said about
     // a cause, until the run can answer.
-    if (err && err.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING)
+    if (err && err.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING, err.waitingFor)
     return refused(err && err.name === 'runtime.error' ? 'runtime:runtime.error' : ((err && err.guard) || 'runtime:error'))
   }
   const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
   // ⛔ A run that owns its drawings always attaches them when it finishes
   // (`runtimeColumns.js`): nothing attached is a run still in flight.
   if (!payload || typeof payload !== 'object') return answered('pending', 'runtime:in-flight')
-  if (payload.status === 'WITHHELD' && payload.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING)
+  // ⭐ (e85) a drawing run that waits while its plain run drew (`computeRuntimeColumnsAll`): the drawings wait too
+  if (payload.status === 'WITHHELD' && payload.pending === true) {
+    return answered('pending', RUN_HALF_REQUEST_PENDING, payload.waitingFor)
+  }
   if (payload.status === 'WITHHELD') return refused(payload.guard || 'runtime:objects')
   if (payload.status !== 'ok' || !Array.isArray(payload.live)) return refused('runtime:objects-stopped')
   const hostFams = hostObjectFamilies(def.objects)
@@ -3054,12 +3145,13 @@ export function computeFor(def, bars, inputs, ctx) {
   // astLaneColumns` (moved there unchanged, with the full note); the run-read colours and the run
   // half stay here (`astRunExtras`): they answer to this tab's gates.
   if (lane === COMPUTE_LANE.AST) {
-    // ⭐⭐ HOST WORKER — a CHART's request (`ctx.hostPane`) of a document whose recurrences hold the
-    // main thread (#1711's estimate) is computed off it (`hostLaneAsync.js`: the same values, a
-    // pending answer with the pane's last picture until they land); every other request, and every
-    // document under the budget, is answered here exactly as before.
-    const off = hostLaneOffThread(def, bars, inputs, ctx, astRunExtras)
-    if (off) return off
+    // ⭐⭐ HOST WORKER — a CHART's request (`ctx.hostPane`) is answered by ONE door
+    // (`hostLaneAsync.hostLaneColumns`): the values memoised for these bars, computed on this thread
+    // when the tab has measured them cheap here, in the worker otherwise (the same values, a pending
+    // answer with the pane's last picture until they land). Every request that is not a chart's is
+    // answered here exactly as before.
+    const pane = hostLaneColumns(def, bars, inputs, ctx, astRunExtras)
+    if (pane) return pane
     return astLaneColumns(def, bars, inputs, ctx, astRunExtras)
   }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
@@ -3604,6 +3696,16 @@ export function validateAstLane(def) {
   return errors
 }
 
+/** ⭐⭐ HELD WITHHOLDS (`engine/heldWithholds.js`) — a served row stamped `meta.heldDivergence` is refused with the
+ *  server's sentence and kept (killedIds: the installed copy leaves this tab, the stored row is untouched). */
+function heldDivergenceRefused(def, errors, killedIds) {
+  const why = def.meta && def.meta[HELD_DIVERGENCE_STAMP]
+  if (typeof why !== 'string' || !why) return false
+  errors.push(`${def.id}: ${why} — the saved definition is kept, unchanged.`)
+  killedIds.push(def.id)
+  return true
+}
+
 /**
  * VALIDATE definitions THIS CLIENT DID NOT AUTHOR — the `supportedKinds` door.
  *
@@ -3667,6 +3769,10 @@ export function validateUserDefinitions(rawDefs) {
       // `meta.runtimeKilled`, or latched from the auth payload) is not drawn —
       // refused with the reason, and left in the store untouched.
       const meta = def.meta || {}
+      // ⭐⭐ HELD WITHHOLDS (coordinator ruling 2026-11-19) — a saved copy minted before its script's narrow
+      // withholds is served stamped `meta.heldDivergence` (`runtime_definitions.stamp_served`): not drawn, refused
+      // with the server's sentence, by name, and kept in the store untouched.
+      if (heldDivergenceRefused(def, errors, killedIds)) continue // a runtime copy
       // ⭐ GT (D6) — a stored row whose script is not on the server's starter
       // allowlist is served stamped `meta.runtimeNotGraded` and refused the same
       // way: kept in the store, drawn again once the script is listed. The server
@@ -3710,6 +3816,8 @@ export function validateUserDefinitions(rawDefs) {
         killedIds.push(def.id)
         continue
       }
+      // ⭐⭐ HELD WITHHOLDS — a saved host copy minted before its script's narrow withholds, the same way
+      if (heldDivergenceRefused(def, errors, killedIds)) continue // a host copy
       const laneErrors = validateAstLane(def)
       if (laneErrors.length) {
         errors.push(...laneErrors.map(e => `${def.id}: ${e}`))
@@ -4850,7 +4958,8 @@ const RS_LINE_V5_RAW = {
 // daily charts (`paneTable`, both hosts since U2) — and what the settings offer:
 // about a dozen controls, no presets, no Reading. The Rating, Mansfield,
 // Rotation, Quality and VARS readings are their own definitions now (U6:
-// `rsRating`, `rsPhases`, `rsVsEma`); the Agreement and Regime rows are gone.
+// `rsRating`, `rsPhases`, `rsVsEma`; 2026-11-18: the Mansfield Reading's own
+// columns are `rsMansfield`, UCT Mansfield RS); the Agreement and Regime rows are gone.
 //
 // ⛔⛔ NO SAVED INSTANCE IS DROPPED (map §(b); F20 refuses an undeclared key or an
 // illegal enum value). Every input the v5 definition rendered that this one does
@@ -5677,9 +5786,92 @@ const RS_EXIT_RAW = {
   ],
 }
 
+// ⭐⭐ UCT MANSFIELD RS (`rsMansfield`, 2026-11-18): Weinstein's Mansfield Relative
+// Strength on a pane of its own. Under the RS split the slim UCT RS Line has no Reading
+// switch, so the Mansfield line the server computes under rsLine's `view: 'mansfield'`
+// had no chart to draw it; this definition is that Reading, cut out like the four above.
+// ⭐ NO NEW MATHS: the server row (`registry_defs._rs_mansfield_row`) serves the rsLine
+// row's own Mansfield columns (`RS_MANSFIELD_WIRE_COLUMNS`, the list that Reading keeps),
+// byte for byte (`tests/test_rs_mansfield_rows.py`, against the rsLine envelope and
+// `rs_mansfield.json`). Its readout rows are rsLine's Mansfield rows, moved across.
+// ⭐ THE PLOTS ARE rsLine's MANSFIELD PLOTS: the line in the info blue, the solid zero guide
+// in the neutral, and one dot at zero on each bar the line crosses UP through it (the server
+// builds it; crosses down are not drawn, the readout names the last cross either way).
+// Intraday the line draws and the dot is blank (the server's rule).
+const RS_MANSFIELD_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsMansfield',
+  version: 1,
+  compute: { kind: 'server', fn: 'rsMansfield', rev: 1 },
+  meta: {
+    name: 'UCT Mansfield RS', shortName: 'UCT Mansfield RS', category: CAT.RELATIVE_STRENGTH,
+    description: 'Weinstein\'s Mansfield Relative Strength: the RS line as a percent above or below its own long average, around a zero line, with a dot where it crosses up through zero.',
+    tags: ['rs', 'relative strength', 'mansfield', 'mansfield rs', 'mansfield relative strength',
+      'relative performance', 'weinstein', 'stage analysis', 'zero line', 'zero cross',
+      'benchmark', 'leader', 'leadership', 'custom benchmark'],
+    tier: 'premium', repaint: 'non-repainting',
+    requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
+    legendParams: ['benchmark'],
+    // The pane label's value ONLY while there is nothing to draw: the server's reason
+    // (`benchmark is the symbol`, `not enough bars yet`) is `legend.blankReason`, null on a
+    // live answer, so the label prints the line's own number once.
+    legendFallback: [{ source: 'scalar:legend.blankReason', format: 'text' }],
+    // ⭐ THE ROW'S FIVE KEYS (`registry_defs._rs_mansfield_row`), diffed by
+    // `tests/test_rs_split_js_rows.py`.
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'mansfieldLength'],
+    glossaryHref: '/methodology/relative-strength',
+  },
+  placement: { target: 'pane', pane: rsSplitPane(), axis: 'hidden' },
+  inputs: [
+    ...rsSplitBenchmarkInputs(),
+    // The row's (`relative_strength.MANSFIELD_LENGTH_RANGE`, default 200): rsLine's own.
+    { key: 'mansfieldLength', type: 'int', label: 'Length (bars)', default: 200, min: 2, max: 500, step: 1, group: 'Simple',
+      tooltip: 'Mansfield length in bars: the simple average the RS line is measured against. 200 on a daily chart; Weinstein used 52 weeks on a weekly chart.' },
+    { ...colorInput('color', 'Line color', RS_INFO), group: 'Style', tooltip: 'Color of the Mansfield line; the zero line stays in the neutral' },
+    { ...colorInput('dotColor', 'Zero-cross dot', RS_INFO), group: 'Style',
+      tooltip: 'Color of the dot where the Mansfield line crosses up through zero' },
+    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Style' },
+  ],
+  plots: [
+    // A PERCENT distance from the RS line's own average (−20…+20 on most names).
+    { key: 'mansfield', label: 'Mansfield RS', style: 'line', color: '$color', width: '$lineWidth',
+      precision: 2, role: 'primary', legend: { decimals: 2 } },
+    { key: 'zero', label: 'Zero', style: 'hlines', levels: [0], color: RS_NEUTRAL, width: 1,
+      lineStyle: 'solid', role: 'context' },
+    // The server's cross-up dot, value 0 on the cross bar and null elsewhere, drawn as the
+    // series' own point marker (`restyle: false`: a sparse dot column restyled as a line
+    // draws nothing).
+    { key: 'dotMansfieldCross', label: 'Zero cross', style: 'markers', color: '$dotColor', width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
+  ],
+  readout: [
+    ...rsSplitBenchmarkRows(),
+    // rsLine's Mansfield rows, moved across: the glance row is the server's sentence
+    // (`+4.1%, above zero, rising`), its numbers follow.
+    { key: 'mansfield', label: 'Mansfield RS', source: 'scalar:mansfield.summary', format: 'text',
+      card: { what: 'Mansfield Relative Strength: the RS line as a percent above or below its own simple moving average, measured over the length set on this chart, in this chart\'s bars; the Length row prints it. 200 is the default; 52 on a weekly chart is Weinstein\'s published length. Above zero, the stock is outperforming its own trend against the benchmark; below zero, it is lagging it. The dot marks a cross up through zero.',
+        origin: 'Weinstein, Secrets for Profiting in Bull and Bear Markets; the Mansfield RS line on his charts.',
+        evidence: RS_HONESTY_SENTENCE,
+        // ⭐ (2026-11-18) the MEASURED sentence, as rsLine's Mansfield card reads it: the same column, so the same
+        // `mansfield_cross_up` evidence (the row carries rsLine's `payload.evidence` block)
+        evidenceSource: 'scalar:evidence.sentence.mansfield' } },
+    { key: 'mansfieldValue', label: 'Value', source: 'scalar:mansfield.value', format: 'pct', detailOf: 'mansfield' },
+    // The last cross in EITHER direction (`up, 57 bars ago`): the pane draws only the
+    // crosses up, so the direction is the half the chart does not show.
+    { key: 'mansfieldCross', label: 'Last zero cross', source: 'scalar:mansfield.lastCross', format: 'text', detailOf: 'mansfield' },
+    { key: 'mansfieldLength', label: 'Length', source: 'scalar:mansfield.lengthText', format: 'text', detailOf: 'mansfield' },
+    rsSplitHistoryRow(),
+  ],
+}
+
 // Registered in this order; `registrySizes.SHIPPED_DEF_IDS.server` lists the
-// same five ids in the same order (RS Exit Warnings, 2026-11-12, is the fifth).
-const _serverRegistered = registerDefinitions([RS_LINE_RAW, RS_RATING_RAW, RS_PHASES_RAW, RS_VS_EMA_RAW, RS_EXIT_RAW])
+// same six ids in the same order (RS Exit Warnings, 2026-11-12, is the fifth;
+// UCT Mansfield RS, 2026-11-18, the sixth).
+const _serverRegistered = registerDefinitions([RS_LINE_RAW, RS_RATING_RAW, RS_PHASES_RAW, RS_VS_EMA_RAW, RS_EXIT_RAW,
+  RS_MANSFIELD_RAW])
 if (_serverRegistered.errors.length) {
   throw new Error(`nativeRegistry: invalid server definitions:\n  ${_serverRegistered.errors.join('\n  ')}`)
 }

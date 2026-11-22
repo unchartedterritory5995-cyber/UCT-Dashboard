@@ -148,12 +148,13 @@ def get_breadth_ohlc_status():
 
 
 @router.get("/api/breadth-monitor/universe")
-def get_breadth_universe():
+def get_breadth_universe(_: None = Depends(require_push_secret)):
     """The breadth reconstruction universe — the SAME population the live row
     measured (collector's latest universe_list). Read-only. Consumed by the WORKER
     pod's history backfill, which can't read the collector snapshot on the web
     volume; serving it here keeps pre-2024 reconstruction on ONE population (no
-    seam vs the live/2024 rows)."""
+    seam vs the live/2024 rows). A machine door: the worker presents the
+    `PUSH_SECRET` bearer (`breadth_history_recon._resolve_universe`)."""
     from api.services import breadth_live as bl
     tickers, d = bl.universe()
     return {"tickers": tickers, "date": d, "count": len(tickers)}
@@ -625,8 +626,24 @@ def get_library_health(_access: dict = Depends(require_bars_access)):
 _BODY_CACHE_TTL = 300
 
 
-def _body_cache_key(days: int, end: str, anchor: str) -> str:
-    return f"breadth_history_body_{days}_{end or 'latest'}_{anchor}"
+def _body_cache_key(days: int, end: str, anchor: str, universe: str = "uct",
+                    token: str = "") -> str:
+    """⛔ UCT's key is byte-identical to before; every other universe appends `_{universe}` and
+    its store / live identity, so two universes (or two builds of one) can never share a body."""
+    base = f"breadth_history_body_{days}_{end or 'latest'}_{anchor}"
+    if universe == "uct":
+        return base
+    return f"{base}_{universe}|{token}"
+
+
+def _resolve_universe(universe) -> str:
+    """The validated universe id. ⛔ An unknown id is a 400 — never silently UCT."""
+    from api.services import breadth_universes as bu
+    raw = universe if isinstance(universe, str) else "uct"
+    try:
+        return bu.get(raw)["id"]
+    except bu.UnknownUniverse as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── TERM-082 (census rank 5): serve the last good body while one refresh runs ──
@@ -647,7 +664,8 @@ def _body_cache_key(days: int, end: str, anchor: str) -> str:
 #: Bounded at 5x the body TTL: past that a failing refresh degrades to the old
 #: synchronous build instead of pinning the Monitor to a 25-minute-old body.
 HISTORY_STALE_MAX_AGE = 1500
-_HISTORY_STALE_MAX_KEYS = 16
+#: 64 (was 16): the four universes each hold their own windows.
+_HISTORY_STALE_MAX_KEYS = 64
 _GEN_KEY = "breadth_history_generation"
 _GEN_TTL = 7 * 86400
 
@@ -674,14 +692,18 @@ def _history_stale():
     return _HISTORY_STALE
 
 
-def _build_history_body(days: int, end: str, anchor: str, *, timed: bool) -> dict:
+def _build_history_body(days: int, end: str, anchor: str, *, timed: bool,
+                        universe: str = "uct", bk: str = "") -> dict:
     """Read + bound + encode one window, write the body cache, and return a slot
     record `{body, nrows, gen, gen_end}`. `timed` is False on the background refresh
     thread, which must not write into the requesting caller's timing record."""
     from api.services import breadth_timing
     gen = _history_generation(create=True)
     _t0 = time.perf_counter()
-    rows = svc.get_history_deep(days, end=end or None, anchor=anchor)
+    if universe != "uct":
+        rows = svc.get_history_universe(universe, days, end=end or None, anchor=anchor)
+    else:
+        rows = svc.get_history_deep(days, end=end or None, anchor=anchor)
     if timed:
         breadth_timing.note(reader_ms=(time.perf_counter() - _t0) * 1000.0, rows=len(rows),
                             body_cache="miss")
@@ -691,8 +713,12 @@ def _build_history_body(days: int, end: str, anchor: str, *, timed: bool) -> dic
     # encoder.
     with (breadth_timing.phase("route_tail") if timed else _null_phase()):
         top = rows[0]["date"] if rows else None
-        bounds = svc.date_bounds()
-        _next = svc.next_trading_day(top) if end else None
+        if universe != "uct":
+            bounds = svc.universe_date_bounds(universe)
+            _next = svc.universe_next_trading_day(universe, top) if end else None
+        else:
+            bounds = svc.date_bounds()
+            _next = svc.next_trading_day(top) if end else None
     payload = {
         "rows": rows,
         "days": days,
@@ -703,13 +729,16 @@ def _build_history_body(days: int, end: str, anchor: str, *, timed: bool) -> dic
         # window there is nothing newer to step to.
         "next_date": _next,
     }
+    if universe != "uct":
+        # ⛔ Added ONLY off UCT: the UCT body stays byte-identical.
+        payload["universe"] = universe
     with (breadth_timing.phase("serialise") if timed else _null_phase()):
         body = _render_json(payload)
     gen_end = _history_generation(create=False)
     if gen_end == gen:
         # Only a build no writer interrupted may fill the body cache; a straddling
         # one would otherwise pin pre-push bytes for the full TTL.
-        cache.set(_body_cache_key(days, end, anchor), (body, len(rows)), ttl=_BODY_CACHE_TTL)
+        cache.set(bk or _body_cache_key(days, end, anchor), (body, len(rows)), ttl=_BODY_CACHE_TTL)
     return {"body": body, "nrows": len(rows), "gen": gen, "gen_end": gen_end}
 
 
@@ -760,8 +789,13 @@ def _render_json(payload: dict) -> bytes:
 def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
                         end: str = Query(default=""),
                         anchor: str = Query(default="le"),
+                        universe: str = Query(default="uct"),
                         _user: dict = Depends(require_paid)):
     """History window, newest-first.
+
+    `universe` (default `uct`): `us` / `nasdaq` / `nyse` serve the PRE-BUILT per-universe rows
+    (`breadth_universe_monitor`) with the market-wide columns copied from UCT; an unknown id is
+    a 400. The `uct` answer — body and cache keys — is byte-identical to before.
 
     `end`/`anchor` let the Monitor's Time Navigator teleport the window so its
     top row is a chosen date (`anchor=le`) or the start of a chosen year
@@ -786,6 +820,7 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
     # `end` and `days`. Normalise both the same way `anchor` already is.)
     days = days if isinstance(days, int) else 90
     end = end if isinstance(end, str) else ""
+    universe = _resolve_universe(universe)
     # Request-driven self-heal (cooldown-gated, background): any Monitor view
     # re-checks the newest days so a corrupt collection the scheduled passes missed
     # (or ran too early to fix) gets healed from bars promptly.
@@ -798,7 +833,8 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
     breadth_timing.begin(span=days)
     try:
         from api.services.cache import cache as _cache
-        bk = _body_cache_key(days, end, anchor)
+        bk = (_body_cache_key(days, end, anchor) if universe == "uct" else
+              _body_cache_key(days, end, anchor, universe, svc.universe_cache_token(universe)))
         cached = _cache.get(bk)
         if cached is not None:
             # ⭐ THE WARM PATH, AND IT IS THE ONE MEMBERS ARE ON MOST. Measured before
@@ -826,7 +862,8 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
         rec, tier, age = serve_with_tier(
             stale, bk, fresh=lambda: _fresh_body(bk),
             build=lambda: _build_history_body(days, end, anchor,
-                                              timed=threading.current_thread() is _caller),
+                                              timed=threading.current_thread() is _caller,
+                                              universe=universe, bk=bk),
             good=_history_good)
         if rec.get("hit"):
             breadth_timing.note(cache="hit", cache_tier="body", rows=rec["nrows"],
@@ -841,12 +878,15 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
                         headers={"Server-Timing": server_timing(
                             "breadth_monitor", tier,
                             (time.perf_counter() - _t_route) * 1000.0, age)})
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
 
 @router.get("/api/breadth-monitor/service-history")
 def get_breadth_history_service(days: int = Query(default=90, ge=1, le=8000),
+                                universe: str = Query(default="uct"),
                                 _: None = Depends(require_push_secret)):
     """The Monitor's history body, for the SERVICE credential (the `PUSH_SECRET` bearer).
 
@@ -857,7 +897,10 @@ def get_breadth_history_service(days: int = Query(default=90, ge=1, le=8000),
     It calls the members' handler itself, so the two can never answer differently. ⛔ It does
     not loosen the members' route: that one still answers only a paid session.
     """
-    return get_breadth_history(days=days, end="", anchor="le", _user={})
+    universe = _resolve_universe(universe)
+    if universe == "uct":
+        return get_breadth_history(days=days, end="", anchor="le", _user={})
+    return get_breadth_history(days=days, end="", anchor="le", universe=universe, _user={})
 
 
 @router.post("/api/breadth-monitor/heal")
@@ -1190,13 +1233,32 @@ def _log_series(requested, span_days, sessions, cache_hit, t0) -> None:
 
 
 @router.get("/api/breadth-monitor/dates")
-def get_breadth_dates(_user: dict = Depends(require_paid)):
+def get_breadth_dates(universe: str = Query(default="uct"),
+                      _user: dict = Depends(require_paid)):
     """The full merged session timeline (collector + reconstructed), NEWEST-FIRST.
 
     Tiny (~5k date strings) and cached — this is the index the Monitor's virtual
     scroller renders over, so a teleport is an instant scroll-to-index and only
     the visible rows fetch. `min`/`max` bound the navigator's calendar + year list.
+
+    `universe` (default `uct`): a pre-built universe answers ITS sessions (stored + the
+    provisional ones), its own `min`/`max`, and today's provisional `live_row` (or null).
     """
+    universe = _resolve_universe(universe)
+    if universe != "uct":
+        try:
+            tl = svc.universe_timeline(universe)
+            asc = tl["dates"]
+            return {
+                "dates": list(reversed(asc)),
+                "count": len(asc),
+                "min": asc[0] if asc else None,
+                "max": asc[-1] if asc else None,
+                "universe": universe,
+                "live_row": svc.universe_live_row(universe),
+            }
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=str(e))
     try:
         asc = svc.merged_dates()           # oldest-first
         return {
@@ -1217,6 +1279,42 @@ def get_breadth_analogues(top_n: int = Query(default=5, ge=3, le=10),
         return find_analogues(top_n=top_n)
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
+
+
+_METRIC_KEY = re.compile(r"[a-z][a-z0-9_]{0,47}")
+
+
+@router.get("/api/breadth-monitor/reading")
+def get_breadth_reading(universe: str = Query(default="uct"),
+                        metric: str = Query(...),
+                        date: str = Query(...),
+                        value: float | None = Query(default=None),
+                        per: float | None = Query(default=None),
+                        _user: dict = Depends(require_paid)):
+    """Where one Monitor reading sits in its history: the drill window's reading strip + History
+    drawer (`api/services/breadth_reading.py`). `value` / `per` are the CELL's number and its
+    universe count: the reading ranked is the one the member is looking at (today's provisional
+    cell has no stored row at all), against the stored point-in-time history. Without them the
+    stored row for `date` is ranked."""
+    universe = _resolve_universe(universe)
+    _require_iso_date(date)
+    if not _METRIC_KEY.fullmatch(metric or ""):
+        raise HTTPException(status_code=400, detail="unknown metric")
+    from api.services import breadth_reading as br
+    live_row = None
+    if value is not None and math.isfinite(value):
+        live_row = {"date": date, metric: value}
+        if per is not None and math.isfinite(per):
+            live_row["universe_count"] = per
+    try:
+        return br.reading(universe, metric, date, live_row=live_row)
+    except br.NoReading:
+        return {"ok": False, "universe": universe, "metric": metric, "date": date,
+                "reason": "no-history"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=type(e).__name__)
 
 
 @router.get("/api/breadth-monitor/score-components/{date}")
@@ -1685,6 +1783,10 @@ async def push_breadth_snapshot(request: Request):
     # push is merged UNDER the server-owned keys instead of replacing them.
     from api.services import breadth_eod_source as _eod
     metrics, _source = _eod.on_push(date_str, metrics)
+    # ⛔ cboe_putcall is the server's EQUITY ratio (breadth_putcall_backfill); the
+    # collector's TOTAL reading never lands in it.
+    from api.services import breadth_putcall_backfill as _pcb
+    metrics = _pcb.keep_stored(date_str, metrics)
     # The collector call keeps today's exact shape (two positional arguments).
     ok = (svc.store_snapshot(date_str, metrics) if _source == "collector"
           else svc.store_snapshot(date_str, metrics, source=_source))
@@ -1755,16 +1857,13 @@ def get_drill_list(date_str: str, metric_key: str,
         raise HTTPException(status_code=404, detail=f"No data for {date_str}/{metric_key}")
     # The stored lists carry RVOL, not shares: fill the Vol column from that day's bars.
     items = svc.fill_drill_volumes(date_str, items)
-    # Fire-and-forget: warm Daily bars for the first 30 tickers in the list.
-    # By the time the user navigates to any of them (usually >5 s away), the
-    # Massive API call will have completed and the chart loads instantly.
-    try:
-        from api.routers.bars import warm_bars_async
-        tickers = [i["t"] for i in items if isinstance(i, dict) and i.get("t")]
-        if tickers:
-            warm_bars_async(tickers, tf="D", bars=8000)
-    except Exception:
-        pass
+    # ⚰️ NO SERVER-SIDE BAR WARM HERE (2026-11-20). This route used to `warm_bars_async` EVERY name
+    # on the list (8,000 daily bars each) — on every open AND every hover prefetch of a cell. With a
+    # 200+ name list that is minutes of warm-pool work per request, and it starved the web process:
+    # measured on production, a list-only fetch made unrelated requests take 0.6-1.3 s for ~10 s,
+    # and a drill open stalled every request (the list, the reading, preferences) for 6-12 s. The
+    # browser already warms the list's names itself (BarStore `prefetchListDeep`, plus the edge
+    # history), and the collector's snapshot push still warms each new day's names after the close.
     return {"date": date_str, "metric": metric_key, "items": items}
 
 
@@ -1935,6 +2034,10 @@ async def patch_breadth_field(date_str: str, request: Request):
     value = body.get("value")
     if not key:
         raise HTTPException(status_code=400, detail="'key' required")
+    if key == "cboe_putcall":
+        # ⛔ Server-owned EQUITY ratio; the collector's `--patch-cboe-date` writes TOTAL.
+        raise HTTPException(status_code=409, detail="cboe_putcall is filled by the server "
+                            "(CBOE equity put/call); collector patches are refused")
     ok = svc.patch_field(date_str, key, value)
     if not ok:
         raise HTTPException(status_code=404, detail=f"No snapshot for {date_str}")

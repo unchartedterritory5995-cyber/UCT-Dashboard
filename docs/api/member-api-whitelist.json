@@ -172,6 +172,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "",
+      "path": "/api/alerts/lists",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
       "path": "/api/alerts/routing",
       "rate_limit_family": "member-workspace",
       "tier": "paid"
@@ -371,7 +379,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "days=90, end, anchor=le",
+      "params": "days=90, end, anchor=le, universe=uct",
       "path": "/api/breadth-monitor",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
@@ -387,7 +395,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "",
+      "params": "universe=uct",
       "path": "/api/breadth-monitor/dates",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
@@ -429,6 +437,14 @@
       "method": "GET",
       "params": "{metric_key}",
       "path": "/api/breadth-monitor/live/drill/{metric_key}",
+      "rate_limit_family": "market-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "universe=uct, metric (required), date (required), value, per",
+      "path": "/api/breadth-monitor/reading",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
     },
@@ -787,14 +803,6 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "limit=10, note_type",
-      "path": "/api/coaching-notes",
-      "rate_limit_family": "member-workspace",
-      "tier": "paid"
-    },
-    {
-      "limit": "600/minute",
-      "method": "GET",
       "params": "",
       "path": "/api/community/chat/channels",
       "rate_limit_family": "community-content",
@@ -1063,6 +1071,22 @@
       "path": "/api/cot/{symbol}/narratives",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
+    },
+    {
+      "limit": "1200/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/crypto/pairs",
+      "rate_limit_family": "market-data",
+      "tier": "member"
+    },
+    {
+      "limit": "1200/minute",
+      "method": "GET",
+      "params": "{symbol}",
+      "path": "/api/crypto/quote/{symbol}",
+      "rate_limit_family": "market-data",
+      "tier": "member"
     },
     {
       "limit": "1200/minute",
@@ -1357,6 +1381,14 @@
       "method": "GET",
       "params": "",
       "path": "/api/econ/catalog",
+      "rate_limit_family": "market-analytics",
+      "tier": "member"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "symbols (required)",
+      "path": "/api/econ/latest",
       "rate_limit_family": "market-analytics",
       "tier": "member"
     },
@@ -1895,6 +1927,14 @@
       "path": "/api/indicator-support/reports/mine/{report_id}",
       "rate_limit_family": "screener",
       "tier": "member"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/insider/clusters",
+      "rate_limit_family": "research",
+      "tier": "paid"
     },
     {
       "limit": "600/minute",
@@ -3883,6 +3923,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{sym}, side=any",
+      "path": "/api/options-screener/oi-change/{sym}",
+      "rate_limit_family": "options-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "",
       "path": "/api/options-screener/screen",
       "rate_limit_family": "options-analytics",
@@ -3925,6 +3973,14 @@
       "method": "GET",
       "params": "scope=all",
       "path": "/api/options/market-tide",
+      "rate_limit_family": "market-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "scope=all, sessions=60",
+      "path": "/api/options/market-tide/history",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
     },
@@ -4147,6 +4203,22 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{spelling}",
+      "path": "/api/pine/breadth/{spelling}",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/pine/events/{ticker}",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "",
       "path": "/api/pine/history-window",
       "rate_limit_family": "screener",
@@ -4199,14 +4271,6 @@
       "path": "/api/provenance/quote",
       "rate_limit_family": "market-data",
       "tier": "member"
-    },
-    {
-      "limit": "600/minute",
-      "method": "GET",
-      "params": "days=30",
-      "path": "/api/psychology-events",
-      "rate_limit_family": "member-workspace",
-      "tier": "paid"
     },
     {
       "limit": "600/minute",
@@ -4299,8 +4363,32 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/corporate-actions/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/dilution-watch/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}",
       "path": "/api/research/earnings-reaction/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "metric=eps, window=30",
+      "path": "/api/research/estimate-history",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -4315,7 +4403,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "{sym}, consensus=0",
+      "params": "{sym}, consensus=0, revisions=0",
       "path": "/api/research/estimates/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -4333,6 +4421,14 @@
       "method": "GET",
       "params": "{sym}, report_date, grade=True",
       "path": "/api/research/expected-move/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/research/fed-watch",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -4387,8 +4483,24 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "kind=sector, name",
+      "path": "/api/research/group-stats",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}, days=90",
       "path": "/api/research/history/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "index=all, sym",
+      "path": "/api/research/index-changes",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -4411,6 +4523,22 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "",
+      "path": "/api/research/market-dividends",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/research/market-history",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}, days=90",
       "path": "/api/research/mention-series/{sym}",
       "rate_limit_family": "research",
@@ -4421,6 +4549,14 @@
       "method": "GET",
       "params": "{sym}, window=1m, sort=newest, source=all, label=all, limit=50",
       "path": "/api/research/mention-series/{sym}/polarity",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "sym",
+      "path": "/api/research/mergers",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -4611,6 +4747,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/public-records/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}",
       "path": "/api/research/quote/{sym}",
       "rate_limit_family": "research",
@@ -4635,8 +4779,64 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{ticker}, period=annual",
+      "path": "/api/research/revenue-segments/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/research/seasonality-board",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}",
       "path": "/api/research/seasonality/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/short-data/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "rank, limit",
+      "path": "/api/research/short-interest-list",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/stock-stats/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/research/treasury-auctions",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/research/treasury-yields",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -5212,14 +5412,6 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "",
-      "path": "/api/skill-assessments",
-      "rate_limit_family": "member-workspace",
-      "tier": "paid"
-    },
-    {
-      "limit": "600/minute",
-      "method": "GET",
-      "params": "",
       "path": "/api/skill.md",
       "rate_limit_family": "docs",
       "tier": "member"
@@ -5637,6 +5829,14 @@
       "method": "GET",
       "params": "graph=False, engine",
       "path": "/api/user-definitions",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/user-definitions/assistant-memory",
       "rate_limit_family": "screener",
       "tier": "paid"
     },

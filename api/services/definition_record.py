@@ -580,7 +580,10 @@ def record_pass(rev: int, tf: str, sym: str, *, ast: Any, bars: Sequence[dict],
     sym = _symbol(sym)
 
     bars = list(bars)
-    column = ast_interpret.interpret(ast, bars, inputs, budget)
+    # engine 78 (#1858) -- a Pine document's tree compares within TradingView's epsilon (`None`: a tree
+    # with no definition, or a non-Pine one, evaluates exactly as it always did)
+    cmp_opts = (ast_interpret.pine_compare_opts_for(definition) or None) if definition is not None else None
+    column = ast_interpret.interpret(ast, bars, inputs, budget, opts=cmp_opts)
     # ⭐ M3 — the gates, asked AFTER the tree (a tree that cannot compute keeps its
     # own refusal), under the tree's own inputs and budget
     if definition is not None:
@@ -593,7 +596,7 @@ def record_pass(rev: int, tf: str, sym: str, *, ast: Any, bars: Sequence[dict],
                     "the rule record refuses this pass: the definition given is not the one this "
                     "tree is the scan plot of, so its block-run gates describe another tree")
             why = block_runs.block_runs_refusal(
-                definition, key, lambda guard: ast_interpret.interpret(guard, bars, inputs, budget))
+                definition, key, lambda guard: ast_interpret.interpret(guard, bars, inputs, budget, opts=cmp_opts))
             if why:
                 return {"def_hash": def_hash, "evaluated": 0, "true": 0,
                         "first_bar_time": None, "through_bar_time": None,

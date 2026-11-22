@@ -231,6 +231,48 @@ describe('2 · the TradingView-side snippet, against a RECORDING DOUBLE of the m
     expect(vh.cleanup().globalsLeft).toEqual([])
   })
 
+  it('records an hline (metaInfo band), a fill (filled area) and a candle (OHLC plot): declared, defaults and live state — null when absent', () => {
+    const read = (study) => {
+      const vh = install({ studies: [study], bars: BARS })
+      const sum = vh.capture({ study: 'UCTVH probe', source: SRC, newestBarIsForming: false, chunkSize: 1500 })
+      const parts = []
+      for (let i = 0; i < sum.chunks; i++) parts.push(vh.chunk(i).text)
+      vh.cleanup()
+      const cap = JSON.parse(parts.join(''))
+      expect(validateCapture(cap)).toEqual({ ok: true, errors: [] })
+      return cap.study
+    }
+    const band = { id: 'hline_0', name: 'Zero' }
+    const fill = { id: 'fill_0', objAId: 'plot_0', objBId: 'plot_1', type: 'plot_plot', title: 'Band fill' }
+    const base = mkStudy()
+    const candle = { plotcandle_0: { title: 'Candles' } }
+    const candleDefaults = { plotcandle_0: { color: '#26A69A', wickColor: '#737375', borderColor: '#378658', drawWick: true, drawBorder: true, visible: true } }
+    const candleState = { plotcandle_0: { color: '#EF5350', wickColor: '#737375', borderColor: '#378658', drawWick: false, drawBorder: true, visible: true } }
+    const st = read(mkStudy({
+      mi: { ...base.mi, bands: [band], filledAreas: [fill], ohlcPlots: candle,
+        defaults: { ...base.mi.defaults, bands: [{ color: '#787B86', linestyle: 2, linewidth: 1, value: 0, visible: true }],
+          filledAreasStyle: { fill_0: { color: '#2196F3', transparency: 90, visible: true } }, ohlcPlots: candleDefaults } },
+      state: { ...base.state, bands: [{ color: '#FF0000', linestyle: 0, linewidth: 2, value: 50, visible: true }],
+        filledAreasStyle: { fill_0: { color: '#2196F3', transparency: 80, visible: true } }, ohlcPlots: candleState },
+    }))
+    expect(st.ohlcPlots).toEqual(candle)
+    expect(st.ohlcPlotDefaults).toEqual(candleDefaults)
+    expect(st.ohlcPlotState).toEqual(candleState)
+    expect(st.bands).toEqual([band])
+    expect(st.bandDefaults).toEqual([{ color: '#787B86', linestyle: 2, linewidth: 1, value: 0, visible: true }])
+    expect(st.bandState).toEqual([{ color: '#FF0000', linestyle: 0, linewidth: 2, value: 50, visible: true }])
+    expect(st.filledAreas).toEqual([fill])
+    expect(st.filledAreaDefaults).toEqual({ fill_0: { color: '#2196F3', transparency: 90, visible: true } })
+    expect(st.filledAreaState).toEqual({ fill_0: { color: '#2196F3', transparency: 80, visible: true } })
+    // a study with no hline and no fill: every field is null (the model held none), and the plots are unchanged
+    const plainStudy = read(mkStudy())
+    for (const k of ['bands', 'bandDefaults', 'bandState', 'filledAreas', 'filledAreaDefaults', 'filledAreaState',
+      'ohlcPlots', 'ohlcPlotDefaults', 'ohlcPlotState']) {
+      expect(plainStudy[k]).toBeNull()
+    }
+    expect(plainStudy.plots.map((p) => p.title)).toEqual(['B', 'A', null])
+  })
+
   it('⛔ refuses an ambiguous study name, and a study that failed to compile', () => {
     let vh = install({ studies: [mkStudy(), mkStudy()], bars: BARS })
     expect(() => vh.capture({ study: 'UCTVH', source: SRC })).toThrow(/matched 2 indicators/)
@@ -698,6 +740,16 @@ describe('3 · the comparator', () => {
     expect(compareCapture(edited, ours)).toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/non-default inputs \(Length=50 vs default 20\)/) })
     const atDefault = { ...edited, study: { ...edited.study, inputs: [{ id: 'in_0', name: 'Length', defval: 20, value: 20 }] } }
     expect(compareCapture(atDefault, ours).verdict).toBe('MATCH')
+  })
+
+  it('⭐ a refused script captured at moved settings names OUR refusal first, and keeps the moved settings', () => {
+    const edited = { ...SMA_CAPTURE, study: { ...SMA_CAPTURE.study, inputs: [
+      { id: 'in_0', name: 'Anchor Period', defval: 'Session', value: 'Earnings', isHidden: false },
+    ] } }
+    const r = compareCapture(edited, { ok: false, refusal: 'pine:reassign' })
+    expect(r).toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/^refused on our side: pine:reassign \(the vendor study also ran with non-default inputs: Anchor Period="Earnings" vs default "Session"\)$/) })
+    // ⛔ CONTROL — our side ran and did not take the settings: still the settings sentence
+    expect(compareCapture(edited, runOurSide(SMA_CAPTURE)).reason).toMatch(/non-default inputs .*re-capture at defaults/)
   })
 
   it('a refused script and an invalid capture are INCONCLUSIVE with the reason', () => {

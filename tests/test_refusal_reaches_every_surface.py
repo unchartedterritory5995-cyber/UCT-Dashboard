@@ -194,6 +194,22 @@ def test_the_census_finds_a_projection_hop_by_its_shape(tmp_path):
     assert hop[0]["fn"] == "project", hop[0]
 
 
+def test_a_test_harness_mock_is_not_a_hop_but_the_same_literal_in_shipped_code_is(tmp_path):
+    """The census is of the SHIPPED frontend. A mock payload under `testing/` or `__fixtures__/`
+    (no shipped module imports either) is not on any path to the screen, so it is not a hop;
+    the identical literal in an ordinary source directory still is. Without the second half,
+    an exclusion that grew to swallow real sources would pass here by finding nothing."""
+    hop = ("export function project(e) {\n"
+           "  return { alpha: e.alpha, beta: e.beta, gamma: e.gamma }\n"
+           "}\n")
+    for rel in ("testing/harness.jsx", "__fixtures__/mock.js", "pages/panel/model.js"):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(hop, encoding="utf-8")
+    files = sorted({l["file"].replace("\\", "/") for l in _run_census(tmp_path)["literals"]
+                    if set(l["keys"]) >= {"alpha", "beta", "gamma"}})
+    assert len(files) == 1 and files[0].endswith("pages/panel/model.js"), files
+
+
 def test_the_frontend_still_carries_more_than_one_allow_list_hop(payloads):
     """Abort-on-zero on the discovery itself, without restating WHICH hops. The
     enrichment payload crosses two allow-lists today (the merge and the modal

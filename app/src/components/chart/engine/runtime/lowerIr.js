@@ -131,12 +131,18 @@ export function lowerIrProgram(ir, opts = {}) {
   // ⛔ KEYED BY NAME **AND** TYPE ARGUMENT. `array.new<float>(3)` and
   // `array.new<int>(3)` are the same NAME and different programs, so interning
   // on the name alone would give the second one the first one's element type.
-  const arrayIndex = (fn, typeArg) => {
-    const key = `${fn}<${typeArg || ''}>`
+  // ⭐⭐ the version island: AND BY THE VERSION a v5 library's call is judged under (`islandVersion`, set by the front
+  // end only where it differs from the program's): `array.get` in the library and `array.get` in the script are two
+  // entries, and only the library's carries `version` (`vm.js` sets `budget.opVersion` around it). Every other
+  // program interns exactly as before.
+  const arrayKey = (fn, typeArg, version) => `${fn}<${typeArg || ''}>${version === undefined ? '' : `@v${version}`}`
+  const arrayIndex = (fn, typeArg, islandVersion) => {
+    const version = Number.isFinite(islandVersion) ? islandVersion : undefined
+    const key = arrayKey(fn, typeArg, version)
     for (let i = 0; i < arrayOps.length; i += 1) {
-      if (`${arrayOps[i].fn}<${arrayOps[i].typeArg || ''}>` === key) return i
+      if (arrayKey(arrayOps[i].fn, arrayOps[i].typeArg, arrayOps[i].version) === key) return i
     }
-    arrayOps.push({ fn, typeArg: typeArg || null })
+    arrayOps.push(version === undefined ? { fn, typeArg: typeArg || null } : { fn, typeArg: typeArg || null, version })
     return arrayOps.length - 1
   }
   // ⭐ RT5 — KEYED BY NAME **AND** WHICH PARAMETERS WERE PASSED: two call sites
@@ -256,7 +262,7 @@ export function lowerIrProgram(ir, opts = {}) {
         return
       case EXPR.ARRAY: {
         for (const a of e.args) expr(a)
-        emit(OP.ARRAY, arrayIndex(e.fn, e.typeArg), e.args.length)
+        emit(OP.ARRAY, arrayIndex(e.fn, e.typeArg, e.islandVersion), e.args.length)
         return
       }
       // ⭐⭐ RT5 — the PASSED arguments, in parameter order, then one instruction
@@ -371,10 +377,12 @@ export function lowerIrProgram(ir, opts = {}) {
         if (e.of.kind === EXPR.SERIES) {
           const si = SERIES_NAMES.indexOf(e.of.name)
           if (si < 0) throw new LoweringGap('series', `\`${e.of.name}\``)
+          // (A1's strict read is built over a COLUMN only, `pineRuntimeFrontend.js` `offset`: never here)
           emit(OP.READ_SERIES_HIST_DYN, si, e.limit || 0)
           return
         }
-        emit(OP.READ_HIST_DYN, e.of.index, e.limit || 0)
+        // ⭐ A1 — operand -1: a STRICT read (Pine's 5,000 ceiling, and a negative or fractional offset stops by name)
+        emit(OP.READ_HIST_DYN, e.of.index, e.strict === true ? -1 : (e.limit || 0))
         return
       }
       case EXPR.BINARY: {
@@ -390,7 +398,9 @@ export function lowerIrProgram(ir, opts = {}) {
         // bar (no `na` can reach either), and the one thing that changes is that
         // the undecided side is not run — Pine v6's rule. A v5 script, and any
         // operand that may be `na`, keeps the eager form untouched.
-        if ((e.op === '&&' || e.op === '||') && lazyLogic && isBoolIr(e.left) && isBoolIr(e.right)) {
+        // ⭐⭐ the version island: `eager` marks a v5 library's `and` / `or` inside a v6 program (the front end
+        // decides it with `versionAt`); it keeps the v5 form below
+        if ((e.op === '&&' || e.op === '||') && lazyLogic && e.eager !== true && isBoolIr(e.left) && isBoolIr(e.right)) {
           expr(e.left)
           const toFalse = here()
           emit(OP.JUMP_IF_FALSE, 0)
@@ -420,7 +430,7 @@ export function lowerIrProgram(ir, opts = {}) {
         // Pine's answer, since Pine never holds that operand as `na`.
         // ⛔ v4/v5 (`lazyLogic` false) are untouched: Pine evaluates both operands
         // there, and the eager `logical` below stands.
-        if ((e.op === '&&' || e.op === '||') && lazyLogic) {
+        if ((e.op === '&&' || e.op === '||') && lazyLogic && e.eager !== true) {
           const asBool = asCondition
           expr(e.left)
           const toFalsy = here()
@@ -900,6 +910,8 @@ export function lowerIrProgram(ir, opts = {}) {
       // ⭐ 2F-2C — how many carried instances ONE invocation of this function
       // owns. Per FUNCTION; the SITE supplies the base, exactly as for history.
       carriedCount: fn.carriedCount || 0,
+      // ⭐ S14 fix 1 — and the two-input carried instances, the same way (`carried2Base`)
+      carried2Count: fn.carried2Count || 0,
       windowCount: fn.windowCount || 0,
       effects: fn.effects || null,
       at: fn.at || null,
@@ -930,7 +942,9 @@ export function lowerIrProgram(ir, opts = {}) {
     }
     emit(OP.HALT)
     // ⭐ RS RATING L5 — the host's reading of the request (`target`), for the run's supply
-    return { timeframe: r.timeframe, entry, results, target: r.target || null }
+    return { timeframe: r.timeframe, entry, results, target: r.target || null,
+      // ⭐⭐ HTF-NEWEST-NARROW — what the run withholds on its newest bar when this site cannot know it
+      ...(r.newestReach ? { newestReach: r.newestReach } : {}) }
   })
 
   const made = makeProgram({
@@ -988,6 +1002,8 @@ export function lowerIrProgram(ir, opts = {}) {
       // its live slot at end of bar; a site entry commits what that site last
       // HELD, which is what makes a skipped call re-commit rather than blank.
       site: h.site === undefined ? null : h.site,
+      // ⭐ A1 — a STRICT ring (a copy that reads a parameter per bar): the VM stops a negative or fractional read
+      ...(h.strict === true ? { strict: true } : {}),
     })),
     version: ir.version,
   })

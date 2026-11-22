@@ -59,6 +59,23 @@ def _rss_mb():
         return None
 
 
+def _distinct_tickers_at_least(conn, n: int) -> int:
+    """How many distinct tickers `ohlcv` holds, counting up to `n`: one primary-key seek per ticker
+    (`ticker > ? ORDER BY ticker LIMIT 1`, the walk intraday_grid uses), so ~n index descents.
+
+    ⚡ It replaced `SELECT COUNT(*) FROM (SELECT ticker FROM ohlcv GROUP BY ticker LIMIT 3000)`
+    (2026-11-19): GROUP BY reads EVERY row of the first 3,000 tickers, which on bars-api's cold
+    20 GB store took 70-82 s of full-store IO at every boot, while members' bar reads on that pod ran
+    p90 350-810 ms (Railway HTTP logs after the 23:02Z boot, against 10-30 ms settled)."""
+    cur, k = "", 0
+    while k < n:
+        row = conn.execute("SELECT ticker FROM ohlcv WHERE ticker > ? ORDER BY ticker LIMIT 1", (cur,)).fetchone()
+        if not row:
+            break
+        cur, k = row[0], k + 1
+    return k
+
+
 def _ensure_local_db_installed() -> None:
     """SYNCHRONOUS boot install — CALLED FROM main() BEFORE uvicorn.
 
@@ -116,12 +133,11 @@ def _ensure_local_db_installed() -> None:
         if os.path.exists(p):
             c = sqlite3.connect(p, timeout=5)
             try:
-                row = c.execute(
-                    "SELECT COUNT(*) FROM (SELECT ticker FROM ohlcv GROUP BY ticker LIMIT 3000)"
-                ).fetchone()
-                n = int(row[0]) if row else 0
+                t0 = time.monotonic()
+                n = _distinct_tickers_at_least(c, 2000)
                 populated = n >= 2000
-                _log.info("[bars-api] local bars.db ~%d distinct tickers (populated=%s)", n, populated)
+                _log.info("[bars-api] local bars.db >=%d distinct tickers (populated=%s, %.1fs)",
+                          n, populated, time.monotonic() - t0)
             except Exception:
                 populated = False
             finally:
@@ -284,9 +300,52 @@ async def _lifespan(app: FastAPI):
                   ",".join(index_bars.SERVING_TIER_WARM_TFS))
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] index warm loop start failed (non-fatal): %s", e)
+    try:
+        # Deep daily history rebuilt from one checked source, served per ticker (bars_rebuild):
+        # the local copy loads at once, then syncs from the bars bucket. BARS_REBUILD_SERVE=0 = off.
+        from api.services import bars_rebuild
+        bars_rebuild.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] rebuilt-history sync start failed (non-fatal): %s", e)
+    try:
+        # The published corrections ledger for served D/W/M bars (bars_corrections): the local copy loads at once,
+        # then syncs from the bars bucket. Inert with no manifest. BARS_CORRECTIONS_SERVE=0 = off.
+        from api.services import bars_corrections
+        bars_corrections.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] bars-corrections sync start failed (non-fatal): %s", e)
     _log.info("[bars-api] serving tier UP — /api/bars + /api/bars-history "
               "(no universe warmers, no uploader, no WS; index warm on)")
     yield
+
+
+# -- currency pairs (Bitcoin, 2026-11-19): this tier hands them to the web pod ----------
+# A pair (`BTCUSD`) is served by the WEB pod only (`api/crypto_bars.py`, behind
+# `CRYPTO_BARS_ENABLED` and the member check). This tier has no member identity and holds
+# no pair series, and the edge Worker sends `/api/bars/BTCUSD` here first because the
+# symbol is shaped like a stock. So this tier answers a pair with 501: the Worker treats
+# every 5xx that is not a deliberate 503 shed as "ask web" and asks web at once
+# (`edge/bars-edge-router/worker.js` `routeToTier`; pinned by `tests/test_crypto_bars.py`).
+# Whatever the switch says on web, web then answers: the pair when it is on, the stock
+# path (which carries no such stock) when it is off. Nothing else reaches these lines.
+PAIR_HANDOFF_STATUS = 501
+
+
+def _pair_is_webs(ticker) -> bool:
+    try:
+        from api import crypto_bars
+        return crypto_bars.is_pair(ticker)
+    except Exception:                             # noqa: BLE001 - never between a stock and its bars
+        return False
+
+
+def _pair_handed_to_web(ticker):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=PAIR_HANDOFF_STATUS,
+        content={"ticker": str(ticker).strip().upper(), "bars": [], "error": "served_by_web",
+                 "detail": "currency pairs are served by the web pod"},
+        headers={"Cache-Control": "no-store"})
 
 
 def _build_app() -> FastAPI:
@@ -406,6 +465,8 @@ def _build_app() -> FastAPI:
         warm: int = 0,
         session: str = "",
     ):
+        if _pair_is_webs(ticker):
+            return _pair_handed_to_web(ticker)
         return serve_bars_http(ticker, tf, bars, since=since, to=to, warm=warm, session=session)
 
     # ⛔ NO GATE HERE ON PURPOSE — same reason as `/api/bars/{ticker}` above.
@@ -417,6 +478,8 @@ def _build_app() -> FastAPI:
         v: str = "",
         d: str = "",
     ):
+        if _pair_is_webs(ticker):
+            return _pair_handed_to_web(ticker)
         return serve_bars_history(ticker, tf, bars, v, d)
 
     return app

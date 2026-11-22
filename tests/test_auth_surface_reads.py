@@ -339,3 +339,118 @@ def test_CONTROL_a_plain_entry_is_stale_whether_or_not_a_bundle_is_served():
     plain = {("GET", "/robots.txt"): {"kind": "public", "reason": "r"}}
     res = asc.audit_surface(_dist_app(catch_all=False, robots=False), baseline=plain)
     assert ("GET", "/robots.txt") in res["stale_baseline"]
+
+
+# ── 6. NAMED ROUTERS: every route declares its audience, reads AND writes ────
+#
+# The read census above covers every GET in the app; the mutating verdict only
+# looks under `AUDITED_PREFIXES`. For the routers named here BOTH halves are
+# held, route by route: a guard dependency, the staged read gate's table, a
+# recorded baseline entry, the installed admin middleware, or (writes only) an
+# inline gate the handler's own code calls. A route added to one of these
+# routers with none of them is a finding, by name.
+
+#: module -> the inline gate its mutating handlers call (None = it has none, so
+#: every mutating route there must carry a guard dependency).
+AUDIENCE_DECLARED_ROUTERS: dict[str, str | None] = {
+    "api.schwab_router": None,
+    "api.liveflow_router": None,
+    "api.routers.intradaypack_router": None,
+    "api.routers.intelligence": None,
+    "api.routers.breadth_monitor": "_check_auth",
+}
+
+
+def _audience_of(route, method, *, baseline, mw_prefixes, inline_marker):
+    """How this (route, method) declares who may call it, or None."""
+    from api import open_reads_gate as org
+    path = getattr(route, "path", "") or ""
+    names = asc._guard_names_for(route)
+    if names & asc.GUARD_NAMES:
+        return "dependency"
+    if mw_prefixes and path.startswith(mw_prefixes):
+        return "middleware"
+    if method in asc.READ_METHODS:
+        if asc.READ_GATE_NAME in names and org.family_of(path):
+            return "staged-read-gate"
+        entry = baseline.get((method, path))
+        if entry and entry.get("kind") in asc.BASELINE_KINDS and entry.get("reason", "").strip():
+            return "baseline"
+        return None
+    if (method, path) in asc.ALLOWED_OPEN:
+        return "allowed-open"
+    if inline_marker and asc._handler_mentions(getattr(route, "endpoint", None), inline_marker):
+        return "inline"
+    return None
+
+
+def _undeclared(app, routers, baseline):
+    mw = asc.middleware_guarded_prefixes(app)
+    seen, missing, examined = set(), [], 0
+    for route in getattr(app, "routes", []):
+        mod = getattr(getattr(route, "endpoint", None), "__module__", None)
+        if mod not in routers:
+            continue
+        for method in sorted((getattr(route, "methods", None) or set()) - {"OPTIONS"}):
+            key = (method, getattr(route, "path", ""))
+            if key in seen:
+                continue
+            seen.add(key)
+            examined += 1
+            if _audience_of(route, method, baseline=baseline, mw_prefixes=mw,
+                            inline_marker=routers[mod]) is None:
+                missing.append(key)
+    return sorted(missing), examined
+
+
+def test_every_route_of_the_named_routers_declares_its_audience(real_app):
+    missing, examined = _undeclared(real_app, AUDIENCE_DECLARED_ROUTERS,
+                                    asc.load_read_baseline())
+    assert examined > 80, f"examined only {examined} routes -- the walk is not reaching the routers"
+    assert missing == [], (
+        "route(s) with no declared audience (add a guard dependency, or record "
+        "the read in the baseline with a reason):\n  "
+        + "\n  ".join(f"{m} {p}" for m, p in missing))
+
+
+def test_every_named_router_is_really_served(real_app):
+    """A module name that matches nothing would make the rail above vacuous for it."""
+    served = {getattr(getattr(r, "endpoint", None), "__module__", None) for r in real_app.routes}
+    assert set(AUDIENCE_DECLARED_ROUTERS) <= served, sorted(set(AUDIENCE_DECLARED_ROUTERS) - served)
+
+
+def _named_router_fixture(*, gated: bool, inline: bool = False):
+    app = _bare()
+    r = APIRouter()
+    deps = [Depends(get_current_user)] if gated else []
+    if inline:
+        def write():
+            _inline_gate_fixture()
+            return 1
+    else:
+        def write():
+            return 1
+
+    def read():
+        return 1
+    write.__module__ = read.__module__ = "fixture.named_router"
+    r.post("/api/fixture/write", dependencies=deps)(write)
+    r.get("/api/fixture/read", dependencies=deps)(read)
+    app.include_router(r)
+    return app
+
+
+def test_CONTROL_an_undeclared_write_and_read_in_a_named_router_are_both_reported():
+    routers = {"fixture.named_router": None}
+    missing, examined = _undeclared(_named_router_fixture(gated=False), routers, {})
+    assert examined == 2
+    assert missing == [("GET", "/api/fixture/read"), ("POST", "/api/fixture/write")]
+    assert _undeclared(_named_router_fixture(gated=True), routers, {}) == ([], 2)
+
+
+def test_CONTROL_an_inline_gate_counts_for_a_write_only_while_the_code_calls_it():
+    routers = {"fixture.named_router": _MARKER}
+    base = {("GET", "/api/fixture/read"): {"kind": "public", "reason": "fixture"}}
+    assert _undeclared(_named_router_fixture(gated=False, inline=True), routers, base)[0] == []
+    assert _undeclared(_named_router_fixture(gated=False, inline=False), routers, base)[0] == [
+        ("POST", "/api/fixture/write")]

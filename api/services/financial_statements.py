@@ -1,15 +1,25 @@
 """Historical financial statements (income / balance sheet / cash flow) for the
-Company Intelligence panel — sourced from yfinance, which is ALREADY a dependency,
-so this adds **no new paid data provider** (cost-control mandate).
+Company Intelligence panel, the earnings model's fiscal calendar and the Agent's
+`fundamentals` kind.
 
-yfinance returns ~5 annual + ~5 quarterly periods of fully-itemized statements.
+ONE payload shape, two possible sources, and `meta.source` names the one used:
+
+* **FMP first.** The statements come from `research/financial_history.get_history`
+  (the reader the Financials panels already use: three statement legs, one process
+  cache, up to 24 quarters and 12 fiscal years). Nothing is fetched or cached a
+  second time here: this module only reshapes that answer.
+* **Yahoo Finance (yfinance) only when FMP answered and holds no statements for the
+  ticker.** A read that FAILED is not "holds nothing": it returns an honest
+  "temporarily unavailable" answer that is retried, never the other source.
+
 We normalize a curated, stable set of line items to snake_case keys, compute a TTM
 column for the flow statements (sum of the last 4 reported quarters), and cache the
 whole bundle per ticker. Every yfinance access is bounded (yf_util.bounded_call) so
 a stalled Yahoo response can never pin a worker thread.
 
 Values are RAW numbers in the reporting currency (the frontend formats to B/M and %);
-EPS rows are per-share. Missing cells are `None`, never fabricated.
+EPS rows are per-share. Missing cells are `None`, never fabricated: a line the
+source in use does not carry is left out, never zero.
 """
 from __future__ import annotations
 
@@ -17,6 +27,8 @@ import logging
 import math
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date, timedelta
 from typing import Any
 
 import yfinance as yf
@@ -38,6 +50,22 @@ _KIND = "fin_stmts_v2"      # bump with the curated schema (shape is cached)
 _TTL = 12 * 3600            # "fresh" window — a new filing can land any day
 _STALE_MAX = 30 * 86400     # serve-stale ceiling; history itself doesn't rot
 _NEG_TTL = 600              # brief negative cache for dead/failing tickers
+_RETRY_TTL = 60             # a FAILED read: held just long enough to absorb a burst
+
+# How long a STORED FMP-built answer stays fresh (`_store_ttl`). Statements change when
+# a company reports, once a quarter, and FMP meters bandwidth (the account was cut off
+# at its 30-day cap on 2026-11-13, statements the largest line). The armed panel prewarm
+# walks the whole universe every ~16 hours, so a flat 12 hours would buy every company's
+# six statement reads again on every pass. Instead the stored copy is fresh for as long
+# as no newer quarter can have been reported, then checked daily until one arrives.
+_QUIET_DAYS = 100           # after a quarter ends, the next one cannot be reported sooner
+_QUIET_TTL = 14 * 86400     # inside that window: re-read only to pick up a restatement
+_DUE_TTL = 24 * 3600        # outside it: a new quarter can land any day
+
+SOURCE_LICENSED = "FMP"
+SOURCE_FALLBACK = "Yahoo Finance"
+_LICENSED_CALLS = 6         # three statement legs x (quarterly, annual)
+_FALLBACK_CALLS = 6         # the six bounded yfinance statement reads
 
 _refreshing: set[str] = set()
 _refresh_lock = threading.Lock()
@@ -140,6 +168,105 @@ _CASHFLOW = [
 
 _FLOW_STATEMENTS = {"income", "cashflow"}   # TTM = sum of last 4 quarters
 
+# The same payload keys, read from the FMP reader's series: (payload key, series
+# key in `financial_history.LINE_ITEMS` / `EXTRA_LINE_ITEMS`). A payload key with no
+# FMP line is simply absent here (the panel hides a line with no value in any
+# period): `tax_rate`, `accumulated_depreciation`, `working_capital`,
+# `shares_outstanding`, `book_value`, `net_investments`, `debt_issued`,
+# `debt_repaid`. None of them is derived: every value stays as reported.
+_LICENSED_INCOME = [
+    ("revenue", "revenue"),
+    ("cost_of_revenue", "cost_of_revenue"),
+    ("gross_profit", "gross_profit"),
+    ("operating_expense", "operating_expenses"),
+    ("rnd", "research_and_development"),
+    ("sga", "sga"),
+    ("other_opex", "other_expenses"),
+    ("total_expenses", "cost_and_expenses"),
+    ("operating_income", "operating_income"),
+    ("ebitda", "ebitda"),
+    ("ebit", "ebit"),
+    ("interest_income", "interest_income"),
+    ("interest_expense", "interest_expense"),
+    ("net_interest_income", "net_interest_income"),
+    ("other_income_expense", "non_operating_income"),
+    ("pretax_income", "pretax_income"),
+    ("tax", "income_tax"),
+    ("net_income", "net_income"),
+    ("net_income_common", "net_income_to_common"),
+    ("eps_basic", "eps_basic"),
+    ("eps_diluted", "eps_diluted"),
+    ("shares_basic", "shares_basic"),
+    ("shares_diluted", "shares_diluted"),
+]
+_LICENSED_BALANCE = [
+    ("cash", "cash_and_equivalents"),
+    ("short_term_investments", "short_term_investments"),
+    ("receivables", "receivables"),
+    ("inventory", "inventory"),
+    ("other_current_assets", "other_current_assets"),
+    ("current_assets", "total_current_assets"),
+    ("ppe", "ppe_net"),
+    ("goodwill", "goodwill"),
+    ("intangibles", "intangible_assets"),
+    ("long_term_investments", "long_term_investments"),
+    ("other_noncurrent_assets", "other_noncurrent_assets"),
+    ("noncurrent_assets", "total_noncurrent_assets"),
+    ("total_assets", "total_assets"),
+    ("payables", "accounts_payable"),
+    ("current_debt", "short_term_debt"),
+    ("other_current_liabilities", "other_current_liabilities"),
+    ("current_liabilities", "total_current_liabilities"),
+    ("long_term_debt", "long_term_debt"),
+    ("capital_leases", "capital_lease_obligations"),
+    ("other_noncurrent_liabilities", "other_noncurrent_liabilities"),
+    ("noncurrent_liabilities", "total_noncurrent_liabilities"),
+    ("total_debt", "total_debt"),
+    ("net_debt", "net_debt"),
+    ("total_liabilities", "total_liabilities"),
+    ("common_stock", "common_stock"),
+    ("paid_in_capital", "additional_paid_in_capital"),
+    ("retained_earnings", "retained_earnings"),
+    ("treasury_stock", "treasury_stock"),
+    ("equity", "total_equity"),
+]
+_LICENSED_CASHFLOW = [
+    ("net_income", "cf_net_income"),
+    ("d_and_a", "depreciation_amortization"),
+    ("sbc", "stock_based_compensation"),
+    ("change_receivables", "change_receivables"),
+    ("change_inventory", "change_inventory"),
+    ("change_payables", "change_payables"),
+    ("change_wc", "change_working_capital"),
+    ("other_noncash", "other_non_cash_items"),
+    ("operating_cf", "operating_cash_flow"),
+    ("capex", "capital_expenditure"),
+    ("acquisitions", "acquisitions"),
+    ("investments_purchased", "purchases_of_investments"),
+    ("investments_sold", "sales_of_investments"),
+    ("investing_cf", "investing_cash_flow"),
+    ("net_debt_issuance", "net_debt_issuance"),
+    ("stock_issued", "common_stock_issuance"),
+    ("buybacks", "buybacks"),
+    ("dividends_paid", "dividends_paid"),
+    ("financing_cf", "financing_cash_flow"),
+    ("free_cash_flow", "free_cash_flow"),
+    ("fx_effect", "fx_effect_on_cash"),
+    ("change_in_cash", "net_change_in_cash"),
+    ("begin_cash", "cash_at_beginning"),
+    ("end_cash", "cash_at_end"),
+]
+
+# A 52/53-week filer closes on a weekday near a month end (Apple: the last
+# Saturday of September; Broadcom: the Sunday nearest 31 October, which can land
+# in November). The payload's `period` is that month end, the shape this payload
+# has always had, so the fiscal calendar and the panel's period labels read the
+# same dates whichever source answered. The date as reported rides beside it.
+_SNAP_DAYS = 6
+# Four consecutive quarters span about nine months end to end. A window wider than
+# this has a quarter missing inside it, and its sum would not be twelve months.
+_TTM_MAX_SPAN_DAYS = 290
+
 
 def _clean(v: Any):
     try:
@@ -195,6 +322,9 @@ def _ttm_at(quarterly, schema, start):
     window = quarterly[start:start + 4]
     if len(window) < 4:
         return None
+    span = _days_between(window[-1].get("period"), window[0].get("period"))
+    if span is not None and span > _TTM_MAX_SPAN_DAYS:
+        return None
     out = {}
     for key, _ in schema:
         if key in _POINT_KEYS:
@@ -214,6 +344,18 @@ def _ttm(quarterly, schema):
     return _ttm_at(quarterly, schema, 0)
 
 
+def _iso(d) -> date | None:
+    try:
+        return date.fromisoformat(str(d)[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def _days_between(older, newer) -> int | None:
+    a, b = _iso(older), _iso(newer)
+    return (b - a).days if a and b else None
+
+
 def _ttm_series(quarterly, schema):
     """Rolling TTM, newest first — one point per quarter with a full trailing
     window. yfinance returns ~5-7 quarters, so this is typically 2-4 points:
@@ -228,9 +370,211 @@ def _ttm_series(quarterly, schema):
     return out
 
 
+def _month_end_period(reported: str) -> str:
+    """The month end a reported period end belongs to: '2025-09-27' -> '2025-09-30',
+    '2024-11-03' -> '2024-10-31'. A date further than `_SNAP_DAYS` from any month
+    end is returned as reported."""
+    d = _iso(reported)
+    if d is None:
+        return str(reported)[:10]
+    prev_end = d.replace(day=1) - timedelta(days=1)
+    this_end = (d.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+    best = min((prev_end, this_end), key=lambda e: abs((e - d).days))
+    return best.isoformat() if abs((best - d).days) <= _SNAP_DAYS else d.isoformat()
+
+
+def _licensed_rows(hist: dict, pairs) -> list:
+    """One statement's rows, newest first, from the FMP reader's aligned series.
+
+    The reader joins balance sheet and cash flow onto the income statement's
+    dates, so a statement it has nothing for arrives as columns of gaps. Dates
+    with no figure at either END are not periods of this statement and are
+    dropped (an absent statement then reaches the panel's own empty state, and a
+    statement that lags the income statement starts at its own newest period).
+    A gap BETWEEN two real periods is kept as an empty period, so the rows stay
+    one period apart and "four rows back" is still the same quarter a year ago."""
+    dates = hist.get("dates") or []
+    cols = {**(hist.get("series") or {}), **(hist.get("extra_series") or {})}
+    by_period: dict = {}
+    for i, reported in enumerate(dates):
+        values = {}
+        for key, src in pairs:
+            col = cols.get(src)
+            values[key] = _clean(col[i]) if isinstance(col, list) and i < len(col) else None
+        reported = str(reported)[:10]
+        period = _month_end_period(reported)
+        prior = by_period.get(period)
+        # Two reported dates on one month end: the later filing date stands.
+        if prior is None or reported > prior["reported_period"]:
+            by_period[period] = {"period": period, "reported_period": reported, "values": values}
+    rows = sorted(by_period.values(), key=lambda p: p["period"], reverse=True)
+
+    def blank(row):
+        return all(v is None for v in row["values"].values())
+
+    while rows and blank(rows[0]):
+        rows.pop(0)
+    while rows and blank(rows[-1]):
+        rows.pop()
+    return rows
+
+
+def _licensed_state(hist) -> str:
+    """'ok' (periods), 'empty' (FMP answered: no statements) or 'error' (the read failed)."""
+    if not isinstance(hist, dict):
+        return "error"
+    if hist.get("dates"):
+        return "ok"
+    return "error" if hist.get("state") == "error" else "empty"
+
+
+def _read_licensed(sym: str) -> tuple:
+    """(quarterly, annual) from the FMP reader, read side by side. Never raises:
+    a reader that raised is reported as a failed read."""
+    from api.services import single_flight
+    from api.services.research import financial_history
+
+    # The reader shares one FMP read between concurrent callers, and a member
+    # never waits on a read a warmer leads. That mark is per thread, so it is
+    # carried onto the two reader threads here.
+    warming = single_flight.in_background()
+
+    def one(period):
+        try:
+            if warming:
+                with single_flight.background():
+                    return financial_history.get_history(sym, period=period, full=True)
+            return financial_history.get_history(sym, period=period, full=True)
+        except Exception as e:  # noqa: BLE001
+            _log.warning("statements %s %s read failed: %s", sym, period, e)
+            return None
+
+    try:
+        with ThreadPoolExecutor(max_workers=2, thread_name_prefix="stmts-read") as ex:
+            fq, fa = ex.submit(one, "quarter"), ex.submit(one, "annual")
+            return fq.result(), fa.result()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("statements %s read failed: %s", sym, e)
+        return None, None
+
+
+def _build_licensed(sym: str) -> tuple:
+    """(payload | None, state). `state` is 'ok'; 'partial' (served, one statement
+    leg missing: not stored); 'half' (served, the quarterly or the annual read
+    failed: not stored, retried soon); 'empty' (FMP holds no statements for this
+    ticker); or 'error' (the read failed, so nothing can be said about the ticker)."""
+    hq, ha = _read_licensed(sym)
+    sq, sa = _licensed_state(hq), _licensed_state(ha)
+    if "ok" not in (sq, sa):
+        return None, ("error" if "error" in (sq, sa) else "empty")
+    hq = hq if sq == "ok" else {}
+    ha = ha if sa == "ok" else {}
+
+    inc_a, inc_q = _licensed_rows(ha, _LICENSED_INCOME), _licensed_rows(hq, _LICENSED_INCOME)
+    bal_a, bal_q = _licensed_rows(ha, _LICENSED_BALANCE), _licensed_rows(hq, _LICENSED_BALANCE)
+    cf_a, cf_q = _licensed_rows(ha, _LICENSED_CASHFLOW), _licensed_rows(hq, _LICENSED_CASHFLOW)
+    if not any([inc_a, inc_q, bal_a, bal_q, cf_a, cf_q]):
+        return None, "empty"
+
+    gaps = sorted({*(hq.get("partial") or []), *(ha.get("partial") or [])})
+    half = "error" in (sq, sa)
+    if half:
+        gaps.append("quarterly" if sq == "error" else "annual")
+    meta = {
+        "source": SOURCE_LICENSED,
+        "source_kind": "provider-normalised reported figures",
+        "retrieved_at": time.time(),
+        # As the provider states it (TSM: "TWD"); None when it does not say.
+        "currency": ha.get("currency") or hq.get("currency"),
+        "units": "reporting currency, absolute (EPS per share, rates in %)",
+        "fiscal_year_end": (inc_a[0]["period"][5:] if inc_a else None),
+        "annual_periods": len(inc_a),
+        "quarterly_periods": len(inc_q),
+        "reported_keys": sorted({k for s in (_LICENSED_INCOME, _LICENSED_BALANCE, _LICENSED_CASHFLOW)
+                                 for k, _ in s}),
+        "calculated_in_client": ["gross_margin", "operating_margin", "ebitda_margin",
+                                 "net_margin", "fcf_margin", "yoy", "cagr"],
+        "ttm_method": "sum of the last four reported quarters; point-in-time keys carried from the latest quarter",
+        "period_basis": ("period is the fiscal period end on its month end; "
+                         "reported_period is the period end as reported"),
+        "build_calls": _LICENSED_CALLS,
+    }
+    if gaps:
+        meta["partial"] = gaps
+    result = {
+        "ticker": sym,
+        "income": {"annual": inc_a, "quarterly": inc_q, "ttm": _ttm(inc_q, _LICENSED_INCOME),
+                   "ttm_series": _ttm_series(inc_q, _LICENSED_INCOME)},
+        "balance": {"annual": bal_a, "quarterly": bal_q,
+                    "ttm": bal_q[0]["values"] if bal_q else None,
+                    "ttm_series": []},
+        "cashflow": {"annual": cf_a, "quarterly": cf_q, "ttm": _ttm(cf_q, _LICENSED_CASHFLOW),
+                     "ttm_series": _ttm_series(cf_q, _LICENSED_CASHFLOW)},
+        "meta": meta,
+    }
+    return result, ("half" if half else "partial" if gaps else "ok")
+
+
+def _today() -> date:
+    return date.today()
+
+
+def _store_ttl(payload: dict) -> int:
+    """Seconds a stored copy of `payload` is served before it is refreshed.
+
+    A Yahoo Finance answer keeps the 12 hours it always had. An FMP answer is
+    fresh until its newest quarter is `_QUIET_DAYS` old (no newer quarter can
+    have been reported before then), for at most `_QUIET_TTL` at a time; from
+    then on, and whenever the newest quarter cannot be read, it is `_DUE_TTL`.
+    Never below `_DUE_TTL`, so the day the window opens is not a burst of reads."""
+    meta = payload.get("meta") if isinstance(payload, dict) else None
+    if not isinstance(meta, dict) or meta.get("source") != SOURCE_LICENSED:
+        return _TTL
+    rows = (payload.get("income") or {}).get("quarterly") or []
+    newest = rows[0] if rows and isinstance(rows[0], dict) else {}
+    ended = _iso(newest.get("reported_period") or newest.get("period"))
+    if ended is None:
+        return _DUE_TTL
+    age_days = (_today() - ended).days
+    if not 0 <= age_days < _QUIET_DAYS:
+        return _DUE_TTL
+    return max(_DUE_TTL, min(_QUIET_TTL, (_QUIET_DAYS - age_days) * 86400))
+
+
+def _unavailable(sym: str) -> dict:
+    """The statements read failed. Not an empty statement and not a fund: a state
+    of its own, so no screen has to say "this company has no financials"."""
+    return {"error": "statements temporarily unavailable", "state": "unavailable",
+            "ticker": sym,
+            "meta": {"retrieved_at": time.time(), "source": SOURCE_LICENSED,
+                     "build_calls": _LICENSED_CALLS}}
+
+
+def _build_first(sym: str) -> tuple:
+    """(payload, hold): FMP first, Yahoo Finance only for a ticker FMP holds
+    nothing for. `hold` says what the caller may do with the answer:
+
+      'keep'   a complete answer: cache it and store it
+      'brief'  an answer worth serving but not worth remembering (a gap that
+               should heal, or no statements anywhere)
+      'retry'  a read failed: hold it for seconds, never store it
+    """
+    licensed, state = _build_licensed(sym)
+    if licensed is not None:
+        return licensed, {"ok": "keep", "half": "retry"}.get(state, "brief")
+    if state == "error":
+        return _unavailable(sym), "retry"
+    out = _build(sym)
+    meta = out.setdefault("meta", {})
+    meta["sources_tried"] = [SOURCE_LICENSED, SOURCE_FALLBACK]
+    # the security-type lookup on the empty path is one more read
+    meta["build_calls"] = _LICENSED_CALLS + _FALLBACK_CALLS + (1 if out.get("error") else 0)
+    return out, ("brief" if out.get("error") else "keep")
+
+
 def _build(sym: str) -> dict:
-    """Live build — six bounded provider round-trips. Callers should reach this
-    at most once per company per refresh cycle (see get_statements)."""
+    """The Yahoo Finance build: six bounded provider round-trips. Reached only
+    through `_build_first`, for a ticker FMP holds no statements for."""
 
     def _fetch(attr):
         try:
@@ -252,7 +596,7 @@ def _build(sym: str) -> dict:
         # correct explanation instead of an income statement full of dashes.
         return {"error": "no statements available", "ticker": sym,
                 "security_type": _security_type(sym),
-                "meta": {"retrieved_at": time.time(), "source": "Yahoo Finance"}}
+                "meta": {"retrieved_at": time.time(), "source": SOURCE_FALLBACK}}
 
     # yfinance reports "Tax Rate For Calcs" as a FRACTION (0.13). Everything else
     # in this payload is a raw reporting-currency number or a per-share figure, so
@@ -278,7 +622,7 @@ def _build(sym: str) -> dict:
         # "Data & methodology"; the rest exists so a value can later be traced to
         # the filing it came from without reshaping the payload.
         "meta": {
-            "source": "Yahoo Finance",
+            "source": SOURCE_FALLBACK,
             "source_kind": "provider-normalised reported figures",
             "retrieved_at": time.time(),
             "currency": _currency(inc_a or bal_a or cf_a),
@@ -325,10 +669,12 @@ def _schedule_refresh(sym: str) -> None:
 
     def _run():
         try:
-            fresh = _build(sym)
-            if not fresh.get("error"):
+            fresh, hold = _build_first(sym)
+            # Only a complete answer replaces the stored copy: a gap or a failed
+            # read must not overwrite the last good statements.
+            if hold == "keep":
                 cache.set(f"{_KIND}::{sym}", fresh, _TTL)
-                snap_store.put(_KIND, sym, fresh, _TTL)
+                snap_store.put(_KIND, sym, fresh, _store_ttl(fresh))
         except Exception as e:  # noqa: BLE001
             _log.warning("statements refresh %s failed: %s", sym, e)
         finally:
@@ -342,9 +688,14 @@ def get_statements(ticker: str) -> dict:
     """Statements for a ticker, shared across every user of the app.
 
     memory → disk (fresh) → disk (stale, refresh behind the response) → build.
+    How long a stored copy counts as fresh is `_store_ttl`'s answer for that copy.
     Financial history is company-level intelligence, not per-user data: the first
     viewer of a ticker pays for the fetch and everyone after that is served from
     storage, across restarts.
+
+    The build asks FMP first (`_build_first`); `meta.source` names the source of
+    the answer being served, including a stored copy built before this order.
+    Never raises.
     """
     sym = (ticker or "").upper().strip()
     if not sym:
@@ -361,7 +712,8 @@ def get_statements(ticker: str) -> dict:
         if isinstance(payload, dict) and not payload.get("error"):
             payload.setdefault("meta", {})["age_seconds"] = int(age)
             if age <= ttl:
-                cache.set(ck, payload, max(60, int(ttl - age)))
+                # memory holds it for 12 hours at most, however long the stored copy is good
+                cache.set(ck, payload, max(60, int(min(ttl - age, _TTL))))
                 return payload
             if age <= _STALE_MAX:
                 # Serve the last validated copy NOW; refresh out of band. A slow
@@ -372,10 +724,14 @@ def get_statements(ticker: str) -> dict:
                 _schedule_refresh(sym)
                 return payload
 
-    result = _build(sym)
-    if result.get("error"):
-        cache.set(ck, result, _NEG_TTL)
+    try:
+        result, hold = _build_first(sym)
+    except Exception as e:  # noqa: BLE001 -- a build that raised is a failed read
+        _log.warning("statements build %s failed: %s", sym, e)
+        result, hold = _unavailable(sym), "retry"
+    if hold != "keep":
+        cache.set(ck, result, _RETRY_TTL if hold == "retry" else _NEG_TTL)
         return result
     cache.set(ck, result, _TTL)
-    snap_store.put(_KIND, sym, result, _TTL)
+    snap_store.put(_KIND, sym, result, _store_ttl(result))
     return result

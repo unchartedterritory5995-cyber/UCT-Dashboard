@@ -129,6 +129,7 @@ def stamp_indexes(indexes: Dict[str, dict], rows, as_of: str) -> int:
         tables = factors.build_factor_tables(rows, as_of)
     except ValueError as exc:
         raise BuildError(str(exc)) from exc
+    tables = factors.with_class_share_spellings(tables, indexes.keys())
     n = 0
     for sym, doc in indexes.items():
         doc["splits"] = tables.get(sym, [])

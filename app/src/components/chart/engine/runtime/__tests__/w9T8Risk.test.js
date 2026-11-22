@@ -347,8 +347,8 @@ describe('W9-T8 pin before serve (D1): nothing T8 adds serves without its own pi
       expect(err.message).toMatch(/is not pinned by a matching TradingView capture/)
     })
   }
-  it('the D7 scorecard stays derived: 41 of every named rule', () => {
+  it('the D7 scorecard stays derived: 47 of every named rule', () => {
     for (const r of T8_RULES) expect(BROKER_RULE_IDS).toContain(r)
-    expect(strategyScorecardWording()).toMatch(new RegExp(`^41 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
+    expect(strategyScorecardWording()).toMatch(new RegExp(`^47 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
   })
 })

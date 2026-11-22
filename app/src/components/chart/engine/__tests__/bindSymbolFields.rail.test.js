@@ -27,7 +27,8 @@ describe('L3 — the symbol fields, one list', () => {
   })
   it('StockChart builds the symbol object with every listed field, from tickerMeta', () => {
     const src = code(read(path.resolve(process.cwd(), 'src/components/StockChart.jsx')))
-    const m = src.match(/const symbolMeta = useMemo\(\(\) => \(([\s\S]*?)\), \[sym, tickerMeta\]\)/)
+    // (2026-11-19) the memo also carries the symbol's FINAL first-trade day (`_firstTradeDate`, the own-daily listing fact)
+    const m = src.match(/const symbolMeta = useMemo\(\(\) => \(([\s\S]*?)\), \[sym, tickerMeta(?:, _firstTradeDate(?:, _firstTradeDatePending)?)?\]\)/)
     expect(m, 'the symbolMeta memo').toBeTruthy()
     for (const f of BIND_SYMBOL_FIELDS) expect(m[1], f).toMatch(new RegExp(`\\b${f}:`))
     expect(m[1]).toMatch(/securityType: \(tickerMeta && tickerMeta\.security_type\)/)

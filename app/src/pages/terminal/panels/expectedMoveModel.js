@@ -134,7 +134,9 @@ export function earningsRead(body, today) {
   return { state: 'ok', reason: null, nextReport: next && t && next >= t ? next : null, events, measured: sent !== null }
 }
 
-/** Pure: a server reason token as words (`no_atm_strike` -> `no atm strike`). Never a lookup table. */
+/** Pure: a server reason token as words (`some_server_reason` -> `some server reason`). Never a lookup table.
+ *  ⛔ The example is deliberately NOT a real token: the server owns the vocabulary, and
+ *  tests/test_implied_reason_on_the_wire.py fails on any copy of it under app/src, prose included. */
 export const reasonWords = (reason) => text(reason).replace(/_/g, ' ').trim()
 
 /**

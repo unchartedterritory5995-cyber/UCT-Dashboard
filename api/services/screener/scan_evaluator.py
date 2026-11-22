@@ -1401,7 +1401,9 @@ def _block_runs_withheld(definition: Any, key: Optional[str], bars: list, scalar
             "varOriginAbsolute":
                 ast_interpret.bar_index_absolute_for(definition),
             "semantics":
-                ast_interpret.semantics_for(definition)}
+                ast_interpret.semantics_for(definition),
+            # engine 78 (#1858) -- a Pine document compares within TradingView's epsilon
+            **ast_interpret.pine_compare_opts_for(definition)}
     return block_runs.block_runs_refusal(
         definition, key,
         lambda guard: ast_interpret.interpret(guard, bars, scalars=scalars, opts=dict(opts)))
@@ -2197,7 +2199,9 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                                                    "varOriginAbsolute":
                                                        ast_interpret.bar_index_absolute_for(definition),
                                                    "semantics":
-                                                       ast_interpret.semantics_for(definition)})
+                                                       ast_interpret.semantics_for(definition),
+                                                   # engine 78 (#1858) -- the Pine compare
+                                                   **ast_interpret.pine_compare_opts_for(definition)})
             # ⭐⭐ C48 / C45 — A PLOT THE MEMBER'S CHART WITHHOLDS ON THESE BARS IS
             # NOT COMPUTABLE HERE EITHER (`_block_runs_withheld`, under the opts
             # above), never answered off the every-bar value. Asked AFTER the tree.
@@ -2962,6 +2966,71 @@ def note_demand(symbols: Sequence[Any]) -> None:
     scan_store.note_demand(symbols)
 
 
+#: ⭐ TRACK 6, PR-B -- THE NIGHTLY SWEEP'S CAP ON RUNTIME DOCUMENTS (owner ruling Q2, 2026-11-02,
+#: docs/pine/SERVER-RUNTIME-DESIGN.md 9.1: "25 runtime documents per nightly sweep"; the T14
+#: evidence named it unowned and required before `PINE_RUNTIME_SERVER_STAGE` is set above `off`).
+#: T9 measured 0.3-1.6 min of wall per document over the universe on 2 pinned CPUs, so 25 is about
+#: 8-40 minutes on the service's 2 vCPU. It holds at EVERY stage until it is re-derived from the
+#: deployed service's own numbers (coordinator ruling D6, 2026-11-22): changing it is a commit.
+#: Distinct DOCUMENTS (after the dedupe by maths), never members, never tree definitions.
+RUNTIME_SWEEP_CAP = 25
+#: The guard a capped document is counted under. Never silent: one WARNING line per night names
+#: how many rotated out, and they lead on the following nights (`_runtime_sweep_turn`).
+RUNTIME_SWEEP_CAP_GUARD = "runtime:sweep-cap"
+
+#: 2026-11-22: a live definition `definitions_to_sweep` could not read (a gate that raised, a malformed
+#: document). Counted and named in the log, never raised: one row never takes the whole night down.
+SWEEP_UNREADABLE_GUARD = "sweep:unreadable-definition"
+
+
+#: ⭐ TRACK 6, PR-C -- THE PER-MEMBER QUOTA (owner ruling Q2, 2026-11-02: "Per-member quota: YES, required
+#: before stage `all`. Initial proposal: 3 runtime documents per member in the nightly sweep"). At most this
+#: many of ONE owner's admitted runtime documents are swept per night, so one member cannot take the whole
+#: cap from everyone else. It applies at the effective server stage ``all`` (Q2's "before stage all"); at
+#: ``admins`` and ``cohort`` the cap alone governs, so the operators' measured load (L-cohort) stays possible.
+#: Re-derived from the deployed service's numbers like the cap; changing it is a commit.
+RUNTIME_SWEEP_PER_MEMBER = 3
+#: The guard a document over its owner's quota is counted under (never silent; it rotates in like the cap's).
+RUNTIME_SWEEP_QUOTA_GUARD = "runtime:sweep-member-quota"
+
+
+def _runtime_owner(definition: Any) -> str:
+    """The owner of a swept runtime document (its stored row's ``user_id``), or ``""`` when unknown."""
+    row = getattr(definition, "lane_row", None)
+    owner = row.get("user_id") if isinstance(row, Mapping) else None
+    return str(owner) if owner else ""
+
+
+def _runtime_sweep_quota(docs: Sequence[Any], quota: int, day: int) -> tuple:
+    """``(kept handles, over-quota count)``: per owner, a `_runtime_sweep_turn` window of ``quota`` over that
+    owner's handles, so each owner's documents rotate through the nights exactly as the cap's do. An owner
+    that cannot be read is its own group under ``""`` (fails toward fewer runs, never more)."""
+    by_owner: dict = {}
+    for d in docs:
+        by_owner.setdefault(_runtime_owner(d), []).append(_result_handle(d))
+    kept: set = set()
+    over = 0
+    for handles in by_owner.values():
+        turn = _runtime_sweep_turn(handles, quota, day)
+        kept |= turn
+        over += len(set(handles)) - len(turn)
+    return kept, over
+
+
+def _runtime_sweep_turn(handles: Sequence[str], cap: int, day: int) -> set:
+    """WHICH runtime documents tonight's sweep runs when there are more than `cap`: a window of
+    `cap` over the handles in sorted order, starting at ``(day * cap) % n``. Consecutive nights'
+    windows tile the circle, so EVERY admitted document is swept at least once every
+    ``ceil(n / cap)`` nights, and which ones run is a pure function of the handles and the date
+    (a restart mid-night picks the same ones). ``n <= cap`` runs them all."""
+    ordered = sorted(set(handles))
+    n = len(ordered)
+    if n <= cap:
+        return set(ordered)
+    start = (day * cap) % n
+    return {ordered[(start + i) % n] for i in range(cap)}
+
+
 def definitions_to_sweep() -> list:
     """Every live `ast` definition on the box, DEDUPED BY MATHS.
 
@@ -2975,59 +3044,106 @@ def definitions_to_sweep() -> list:
     seen: set = set()
     not_admitted: dict = {}
     for row in user_definitions.live_definitions():
-        definition = row.get("definition")
-        if not isinstance(definition, dict):
-            continue
-        # ⛔ THE CONSUMER CONTRACT, AND THIS IS THE DOOR IT MATTERS MOST AT.
-        # `user_definitions.consumer_refusal` is one authority for five consumers;
-        # here it stops a fetch-dependent column from being filed in `scan_hits`
-        # under an `ast_hash` that promises the number means the same thing
-        # tomorrow. ⚠️ SILENT ON PURPOSE, unlike the other four: the sweep is a
-        # background job with no member in front of it, and the SAME definition is
-        # refused BY NAME at `routers/user_definitions._stamped` before it can
-        # ever be offered as a filter — so nobody learns of this skip by its
-        # absence. A log line per definition per night would be noise about a
-        # refusal the member already read.
-        if user_definitions.consumer_refusal("sweep", row.get("requirements")):
-            continue
-        # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is
-        # not swept (silent here for the reason above: the member reads it BY NAME
-        # at `routers/user_definitions._stamped`, gate `withheld`).
-        if user_definitions.engine_withheld_reason(row):
-            continue
-        compute = definition.get("compute")
-        if runtime_definitions.is_runtime(definition):
-            # W5-T14: admitted only when the lane admission says so, asked per row
-            # on every sweep. Silent per row (the member read the sentence at the
-            # door), counted per guard in one line below.
-            try:
-                plot = scan_runtime.runtime_scan_spec(definition)["plot"]
-            except scan_definition.ScanRefused:
-                # not scannable: handed on, so `run_sweep` refuses it BY NAME (counted
-                # `refused`); it asks for no plot, runs nothing, sends nothing.
-                plot = None
-            refused = (scan_runtime.runtime_admission(row, "sweep", plot)
-                       if plot is not None else None)
-            if refused is not None:
-                not_admitted[refused[0]] = not_admitted.get(refused[0], 0) + 1
-                continue
-            definition = scan_runtime.runtime_scan_doc(row)
-        elif not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:
-            continue
-        # ⭐⭐ DEDUPED BY MATHS **AND SEMANTICS** (owner decision A). The row's
-        # `ast_hash` names the tree only, so deduping on it collapsed a semantics-1
-        # and a semantics-2 definition of the same tree into ONE sweep — whichever
-        # came first — and the other's answers were never computed under its own
-        # semantics. `result_identity` is the key the sweep files results under.
+        # ⛔⛔ ONE ROW CAN NEVER TAKE THE NIGHT DOWN (2026-11-22). Any row this loop cannot read (a gate
+        # that raises, a malformed document) is counted under SWEEP_UNREADABLE_GUARD, named by its def_id
+        # in one line, and skipped; every other member's definitions are still swept.
         try:
-            handle = _result_handle(definition)
+            definition = row.get("definition")
+            if not isinstance(definition, dict):
+                continue
+            # ⛔ THE CONSUMER CONTRACT, AND THIS IS THE DOOR IT MATTERS MOST AT.
+            # `user_definitions.consumer_refusal` is one authority for five consumers;
+            # here it stops a fetch-dependent column from being filed in `scan_hits`
+            # under an `ast_hash` that promises the number means the same thing
+            # tomorrow. ⚠️ SILENT ON PURPOSE, unlike the other four: the sweep is a
+            # background job with no member in front of it, and the SAME definition is
+            # refused BY NAME at `routers/user_definitions._stamped` before it can
+            # ever be offered as a filter — so nobody learns of this skip by its
+            # absence. A log line per definition per night would be noise about a
+            # refusal the member already read.
+            if user_definitions.consumer_refusal("sweep", row.get("requirements")):
+                continue
+            # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is
+            # not swept (silent here for the reason above: the member reads it BY NAME
+            # at `routers/user_definitions._stamped`, gate `withheld`).
+            if user_definitions.engine_withheld_reason(row):
+                continue
+            compute = definition.get("compute")
+            if runtime_definitions.is_runtime(definition):
+                # W5-T14: admitted only when the lane admission says so, asked per row
+                # on every sweep. Silent per row (the member read the sentence at the
+                # door), counted per guard in one line below.
+                try:
+                    plot = scan_runtime.runtime_scan_spec(definition)["plot"]
+                except scan_definition.ScanRefused:
+                    # not scannable: handed on, so `run_sweep` refuses it BY NAME (counted
+                    # `refused`); it asks for no plot, runs nothing, sends nothing.
+                    plot = None
+                refused = (scan_runtime.runtime_admission(row, "sweep", plot)
+                           if plot is not None else None)
+                if refused is not None:
+                    not_admitted[refused[0]] = not_admitted.get(refused[0], 0) + 1
+                    continue
+                definition = scan_runtime.runtime_scan_doc(row)
+            elif not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:
+                continue
+            # ⭐⭐ DEDUPED BY MATHS **AND SEMANTICS** (owner decision A). The row's
+            # `ast_hash` names the tree only, so deduping on it collapsed a semantics-1
+            # and a semantics-2 definition of the same tree into ONE sweep — whichever
+            # came first — and the other's answers were never computed under its own
+            # semantics. `result_identity` is the key the sweep files results under.
+            try:
+                handle = _result_handle(definition)
+            except Exception:                                    # noqa: BLE001
+                # not hashable: let `run_sweep` refuse it BY NAME, never drop it here
+                handle = ("unhashable", row.get("def_id"), row.get("version"))
+            if handle in seen:
+                continue
+            seen.add(handle)
+            out.append(definition)
+        except Exception as exc:                             # noqa: BLE001
+            not_admitted[SWEEP_UNREADABLE_GUARD] = not_admitted.get(SWEEP_UNREADABLE_GUARD, 0) + 1
+            log.warning("[scan] sweep skipped definition %s: it could not be read (%s: %s)",
+                        str(row.get("def_id") if isinstance(row, dict) else "?")[:64], type(exc).__name__, str(exc)[:200])
+
+    # ⭐ TRACK 6, PR-B -- the Q2 cap, applied AFTER admission and the dedupe, so a document the
+    # lane refuses or a second member's copy of the same script never takes a slot.
+    day = _now_et().date().toordinal()
+    # ⛔⛔ AN UNSCANNABLE RUNTIME DOCUMENT IS HANDED ON, NEVER COUNTED (2026-11-22). A runtime document
+    # that maps more than one plot is kept above so `run_sweep` refuses it BY NAME; it has no result
+    # handle (`_result_handle` raises ScanRefused). Counting it below raised out of this function, and
+    # `sweep_job` then logged "could not read the definitions to sweep" and swept NOTHING for anyone:
+    # the 2026-11-22 05:00 ET sweep died that way on one admin's three-plot document. `_capped` is the
+    # only way the quota and the cap read a handle; a document with none takes no slot and stays handed on.
+    def _capped(d) -> Optional[str]:
+        try:
+            return _result_handle(d)
         except Exception:                                    # noqa: BLE001
-            # not hashable: let `run_sweep` refuse it BY NAME, never drop it here
-            handle = ("unhashable", row.get("def_id"), row.get("version"))
-        if handle in seen:
-            continue
-        seen.add(handle)
-        out.append(definition)
+            return None
+
+    def _uncounted(d) -> bool:
+        return not runtime_definitions.is_runtime(d) or _capped(d) is None
+
+    # ⭐ TRACK 6, PR-C -- the per-member quota FIRST (at the effective stage `all` only), then the cap over
+    # what is left, so the cap rotates over documents every owner is entitled to tonight.
+    if runtime_definitions.effective_server_stage() == runtime_definitions.STAGE_ALL:
+        kept, over = _runtime_sweep_quota([d for d in out if not _uncounted(d)],
+                                          RUNTIME_SWEEP_PER_MEMBER, day)
+        if over:
+            out = [d for d in out if _uncounted(d) or _capped(d) in kept]
+            not_admitted[RUNTIME_SWEEP_QUOTA_GUARD] = over
+            log.warning("[scan] runtime sweep member quota: %d runtime document(s) over their owner's quota of "
+                        "%d are not swept tonight (ruling Q2) and lead on the following nights",
+                        over, RUNTIME_SWEEP_PER_MEMBER)
+    runtime_handles = [_capped(d) for d in out if not _uncounted(d)]
+    if len(runtime_handles) > RUNTIME_SWEEP_CAP:
+        turn = _runtime_sweep_turn(runtime_handles, RUNTIME_SWEEP_CAP, day)
+        out = [d for d in out if _uncounted(d) or _capped(d) in turn]
+        capped = len(runtime_handles) - len(turn)
+        not_admitted[RUNTIME_SWEEP_CAP_GUARD] = capped
+        log.warning("[scan] runtime sweep cap: %d of %d admitted runtime documents are swept tonight "
+                    "(cap %d, ruling Q2); the other %d are not swept tonight and lead on the following "
+                    "nights", len(turn), len(runtime_handles), RUNTIME_SWEEP_CAP, capped)
     if not_admitted:
         log.info("[scan] runtime documents not admitted to the sweep: %s",
                  ", ".join(f"{g} x{c}" for g, c in sorted(not_admitted.items())))
@@ -3079,6 +3195,83 @@ def sweep_job() -> None:
             "because they failed. They lead the next run.",
             receipt.get("unswept"), receipt["distinct"],
             receipt.get("unswept_reason"), receipt.get("deadline"))
+
+
+#: How long after a boot the catch-up looks (never inline: the boot is not slowed).
+#: The rs-history catch-up's delay, for the same reason.
+SWEEP_CATCHUP_BOOT_DELAY_S = 300
+
+
+def _has_receipt(definition: Any, tf_code: str, as_of: int) -> bool:
+    """Whether ``definition`` carries a ``scan_coverage`` row for ``as_of``: the
+    artifact a COMPLETED nightly evaluation leaves, and the only thing the catch-up
+    believes. Unhashable or unreadable counts as NO receipt: a definition swept
+    twice costs a little; one never swept is the defect this exists for."""
+    try:
+        return scan_store.coverage(_scannable_handle(definition), tf_code, as_of) is not None
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def sweep_catch_up() -> Optional[dict]:
+    """THE BOOT CATCH-UP for a nightly sweep a restart skipped or cut short.
+
+    🔴 THE SCHEDULER CANNOT DO THIS ITSELF. Its jobs live in memory, so a pod that
+    starts after 05:00 ET computes the next fire as TOMORROW: `misfire_grace_time`
+    only helps a scheduler that was running at the slot. Measured 2026-11-22: a web
+    restart at 10:00-10:01Z landed on the 05:00 ET slot and the night's sweep did
+    not run at all.
+
+    ⭐ ARTIFACT-FIRST (the store-backup catch-up's pattern, #1281): what is behind is
+    READ from the store, never remembered. Past today's slot and before its
+    deadline, the definitions tonight's sweep would take (`definitions_to_sweep`,
+    the same admission, cap and rotation) are checked for a `scan_coverage` row for
+    the session the sweep screens; ONLY those without one are swept, once, under the
+    sweep's own deadline. Run twice, the second run finds the receipts the first
+    wrote and sweeps nothing. A run killed half-way leaves the rest without receipts
+    for the next boot to find.
+
+    ⛔ IT NEVER RUNS BESIDE THE SCHEDULED SWEEP: the caller (`api/main.py`) holds one
+    lock over both jobs. This module imports no concurrency primitive (the census in
+    tests/test_scan_evaluator.py).
+
+    Returns the run's receipt, or ``None`` when nothing was due.
+    """
+    now = _now_et()
+    slot = now.replace(hour=SWEEP_HOUR_ET, minute=SWEEP_MINUTE_ET, second=0, microsecond=0)
+    if now < slot:
+        log.info("[scan] sweep catch-up: %s is before today's %s slot; the scheduled sweep "
+                 "runs it", now.isoformat(), slot.strftime("%H:%M ET"))
+        return None
+    deadline = sweep_deadline(now)
+    if now >= deadline:
+        log.info("[scan] sweep catch-up: %s is past today's deadline %s; nothing to catch "
+                 "up today", now.isoformat(), deadline.isoformat())
+        return None
+    try:
+        definitions = definitions_to_sweep()
+    except Exception as exc:                                 # noqa: BLE001
+        log.exception("[scan] sweep catch-up could not read the definitions to sweep: %s", exc)
+        return None
+    as_of = int(scan_store._normalise_as_of(expected_session()))
+    tf_code = scan_store._normalise_tf(DEFAULT_TF)
+    missing = [d for d in definitions if not _has_receipt(d, tf_code, as_of)]
+    if not missing:
+        log.info("[scan] sweep catch-up: all %s definitions carry a scan_coverage row for "
+                 "as_of=%s; nothing to catch up", len(definitions), as_of)
+        return None
+    log.warning("[scan] sweep catch-up: %s of %s definitions carry NO scan_coverage row for "
+                "as_of=%s (a restart skipped or cut today's %s sweep); sweeping them once now",
+                len(missing), len(definitions), as_of, slot.strftime("%H:%M ET"))
+    receipt = run_sweep(missing, as_of=as_of, deadline=deadline)
+    if not receipt:
+        log.warning("[scan] sweep catch-up did not run")
+        return None
+    proven = sum(1 for d in missing if _has_receipt(d, tf_code, as_of))
+    log.info("[scan] sweep catch-up receipts read back: %s of %s definitions now carry a "
+             "scan_coverage row for as_of=%s (stopped_early=%s)", proven, len(missing), as_of,
+             receipt.get("stopped_early"))
+    return receipt
 
 
 def live_sweep_job() -> None:

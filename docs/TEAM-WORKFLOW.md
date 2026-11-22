@@ -5,13 +5,27 @@ For: Patrick, Manrav (Ravi), Bracco. Public since 2026-11-08. Not open source: s
 ## What changed, and what did not
 
 - **Anyone on the internet can READ this repo**: code, full history, PRs, commit messages, Actions logs.
-- **Only our account can WRITE.** Nobody outside can push, merge, deploy or touch the site through the
+- **Only the three of us can WRITE.** Nobody outside can push, merge, deploy or touch the site through the
   repo. Deploys still go master -> `master deploy gate` -> `production` -> Railway.
 - **Why:** private repos bill every Actions minute and get smaller runners. Public = free CI on bigger
   runners while we build with 0 users.
 - **Only this repo is public.** tsdr-ledger, uct-brain, uct-agent-training-data, uct-intelligence(-bot),
   morning-wire, uct-clips, uct-growth, uct-sunday-scan, tx-recap, uct-extras, uct-large-files,
   UCT-Dashboard-evidence and uct-claude-memory stay PRIVATE.
+
+## Where the repo lives, and one login each (since 2026-11-21)
+
+- The repo is `github.com/northstar-quarry/UCT-Dashboard`, inside a GitHub organization. The old address
+  still forwards, but point every copy at the new one:
+  `git remote set-url origin https://github.com/northstar-quarry/UCT-Dashboard.git`
+- **Each of us signs in with our OWN GitHub account, with two-factor login turned on.** The shared login is
+  no longer for work on this repo. Commits, PRs and merges now show who made them.
+- Patrick owns the organization. Bracco is Admin on this repo. Ravi has Write.
+- Only the organization owner can delete the repo, move it, or change who can see it.
+- The PRIVATE repos listed above did not move. They stay on the original account; access is by invite to
+  your own account.
+- Railway deploys from the new address. A service that has not been reconnected yet keeps running but gets
+  no new code. Before deploying one, read `docs/runbooks/railway-repo-reconnect.md`.
 
 ## Never commit (it is public within minutes, and deleting it later does not help)
 
@@ -30,8 +44,13 @@ For: Patrick, Manrav (Ravi), Bracco. Public since 2026-11-08. Not open source: s
 - **Ravi (GitHub web UI, "Add files via upload"):** this path skips local git hooks. GitHub push
   protection is the safety net. Before uploading, open the file and check for keys or emails. If GitHub
   blocks the commit for a secret, **do not click "allow"**: take the key out and put it in Railway.
+  Since 2026-11-22 a change reaches `master` through a pull request only. On the upload page choose
+  **"Create a new branch for this commit and start a pull request"**, open the pull request, wait for the
+  check `master gate static checks` to turn green (about 5 to 8 minutes), then press **Merge pull request**.
 - **Bracco / Patrick / Claude sessions:** work on a branch, run the focused tests locally, push once per
   finished unit. Every master push runs the full deploy gate and a deploy.
+  Merge into `master` once `master gate static checks` is green; GitHub refuses the merge before that.
+  Never pass `--admin` to get around it.
 
 ## The guards
 
@@ -41,6 +60,21 @@ For: Patrick, Manrav (Ravi), Bracco. Public since 2026-11-08. Not open source: s
    commits, for what push protection does not know (generic tokens, keys inside URLs). Advisory: a red
    does not block deploys, because a key on a public commit is already exposed.
 3. **Outside contributors' PRs** need our approval before their workflows run, and never see secrets.
+4. **Rules on `master`** (since 2026-11-22; repository rulesets, nobody is exempt):
+   - it cannot be deleted or force-pushed;
+   - a merge needs the check `master gate static checks` green on the pull request. That job runs the deploy
+     gate's static checks before the merge instead of after it. A direct push to `master` of a commit that
+     never passed it is refused.
+   - **If GitHub Actions is down** and a fix must land: an organization owner or repo admin sets the ruleset
+     "master merges need the static check green" to Disabled (Settings -> Rules -> Rulesets), merges, turns
+     it back on, and says so in the pull request.
+5. **`bars rails (PR)`**: the deploy gate's bars checks, run on pull requests that touch `api/`, `services/`,
+   `tools/` or the bars tests. Advisory, 6 to 8 minutes. It tests the merge with `master`, so it is red
+   whenever `master` itself is red on a bars check.
+
+Why these exist: of the 18 times `master` went red between 2026-11-14 and 11-22, 12 were one pull request whose
+failing check had only ever run in the deploy gate, after the merge. None was traced to two pull requests
+breaking each other, so there is no merge queue.
 
 ## If a secret lands in the repo
 

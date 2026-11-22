@@ -88,7 +88,7 @@
 /* A hidden board still lists — it is hidden on the CHART, not from the manager.
    Dimming the control is how you tell, and the aria-label says it outright. */
 .ctlOff { opacity: 0.45; }
-.danger { color: var(--loss, #ef4444); }
+.danger { color: var(--danger-ink, #ef4444); }
 
 .rename {
   flex: 1 1 auto;

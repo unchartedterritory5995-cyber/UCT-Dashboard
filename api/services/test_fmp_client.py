@@ -52,7 +52,7 @@ def test_successful_call_returns_provider_result_with_value_and_provenance():
     assert result.value == [{"symbol": "AAPL", "price": 230}]
     assert result.provenance.vendor == "fmp"
     assert result.provenance.source_activity == "fmp_client.get_quote"
-    assert result.licensing_class == "R"
+    assert result.licensing_class == "LA"     # ("fmp", "fundamentals"), T-33 DDLA column (restated 2026-11-19)
     assert result.freshness == "delayed_15"
     assert result.degraded is None
 

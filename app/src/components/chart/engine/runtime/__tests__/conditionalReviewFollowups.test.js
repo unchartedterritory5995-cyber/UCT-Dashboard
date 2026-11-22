@@ -90,9 +90,11 @@ describe('M1 — `(expr)[k]` in a block', () => {
 
 describe('M2 — a dynamic offset in a pure subtree meets the buffer stop', () => {
   const LONG = mkBars(5100)
-  it('past a DECLARED buffer: the run stops (it was served)', () => {
+  it('past a DECLARED buffer: the REAL history, as TradingView answers it (WS-C Q1 M2 / Q-MBB-1, captured 2026-11-18)', () => {
     const src = '//@version=6\nindicator("t", max_bars_back = 20)\nplot(close[bar_index % 30])\n'
-    expect(() => run(src, LONG)).toThrow(/history buffer of 20 bars/)
+    const [y] = run(src, LONG)
+    expect(y[29]).toBe(LONG[0].c)                         // 29 bars back, past the declared 20
+    expect(y[5025]).toBe(LONG[5025 - (5025 % 30)].c)
   })
   it('past 5,000 on a longer chart: the run stops (it answered `na`)', () => {
     expect(() => run(v6('plot(close[bar_index])\n'), LONG)).toThrow(/history buffer of 5000 bars/)
@@ -170,12 +172,20 @@ describe('H1b — the held-body scan is an ALLOWLIST: any non-pointwise call or 
 })
 
 describe('L3b — a parameter branch refusal names the real cause', () => {
+  // ⭐⭐ A4 (feat/a4-param-branch-checked) — a per-bar argument for an UNDECLARED parameter now compiles a copy
+  // whose branch is checked to run on every call (`a4ParamBranchChecked.test.js`), so the build refusal this pinned
+  // is asked where it still stands: a parameter declared `simple` (Pine does not compile a per-bar value there).
   it('`(close - open)[1]` in a parameter branch says an expression\'s history, not a `ta.*` call', () => {
-    const src = v6('f(mode) =>\n    float r = na\n    if mode == "A"\n        r := (close - open)[1]\n    else\n        r := 0.0\n    r\n'
+    const src = v6('f(simple string mode) =>\n    float r = na\n    if mode == "A"\n        r := (close - open)[1]\n    else\n        r := 0.0\n    r\n'
       + 'plot(f(close > open ? "A" : "B"))\n')
     const r = refusalOf(src)
     expect(r && r.guard).toBe(R4)
     expect(r.message).not.toMatch(/a `ta\.\*` call/)
     expect(r.message).toMatch(/reads a series with history/)
+  })
+  it('A4 — the undeclared parameter: never drawn off every call, stopped by name where the branch skips', () => {
+    const src = v6('f(mode) =>\n    float r = na\n    if mode == "A"\n        r := (close - open)[1]\n    else\n        r := 0.0\n    r\n'
+      + 'plot(f(close > open ? "A" : "B"))\n')
+    expect(runGuardOf(src, { bars: BARS })).toBe(R4)
   })
 })

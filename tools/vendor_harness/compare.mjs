@@ -63,6 +63,7 @@
 //   observation states the vendor's own display precision, and nothing else".
 //   ⛔ NEVER WIDEN THESE TO MAKE A DELTA GO AWAY.
 import { isFillTarget } from './schema.mjs'
+import { startsAtBar0Holds } from './history_claim.mjs'
 
 export const REL_TOL = 1e-9
 export const ABS_TICK_FRACTION = 1e-6
@@ -458,7 +459,7 @@ export function mapPlots(vendorValuePlots, ourPlots) {
  *                                   See `colourWarmupOf`.
  * @param {object} a.tol             from `tolerancePolicy`
  */
-export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null, unsettledBars = null }) {
+export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null, unsettledBars = null, behindBars = null }) {
   const n = times.length
   const res = {
     bars: n,
@@ -512,6 +513,9 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
     // OTHER-SYMBOL UNSETTLED (coordinator ruling on #1541): a bar TradingView's own captures disagree about
     // is not compared; it is named on the plot (`otherSymbolUnsettled`) and counted here, never a gap
     if (unsettledBars && unsettledBars[i]) { res.unsettledBars = (res.unsettledBars || 0) + 1; continue }
+    // SUPPLY BEHIND THE CAPTURE (coordinator ruling, 2026-11-18): the forming newest bar a recorded supply cannot
+    // answer (`supplyAttribution.js::supplyBehindOf`) is not compared; it is named on the plot (`supplyBehind`)
+    if (behindBars && behindBars[i]) { res.supplyBehindBars = (res.supplyBehindBars || 0) + 1; continue }
     if (withheldBars && withheldBars[i]) {
       res.withheldBars += 1
       // only a steady-state bar weighs on the verdict; a warm-up bar is reported, as a warm-up
@@ -876,8 +880,17 @@ export function compareCapture(capture, ours, opts = {}) {
   const tookSettings = changed.length && ours && ours.ok && ours.capturedInputs
     && typeof ours.capturedInputs === 'object' && Object.keys(ours.capturedInputs).length === changed.length
   if (tookSettings) base.settings = { ...ours.capturedInputs }
-  if (changed.length && !tookSettings) return inconclusive(`the vendor study ran with non-default inputs (${changed.map((i) => `${i.name || i.id}=${JSON.stringify(i.value)} vs default ${JSON.stringify(i.defval)}`).join(', ')}); v1 compares at default inputs only — re-capture at defaults`)
-  if (!ours || !ours.ok) return inconclusive(`refused on our side: ${(ours && ours.refusal) || 'no result'}`)
+  const movedText = changed.map((i) => `${i.name || i.id}=${JSON.stringify(i.value)} vs default ${JSON.stringify(i.defval)}`).join(', ')
+  // ⭐ (track 4, 2026-11-22) OUR OWN REFUSAL IS NAMED FIRST. A capture taken at moved settings of a script our side
+  // refuses was reported as "v1 compares at default inputs only — re-capture at defaults": the seven built-in VWAP
+  // anchor rows (s4-vwap-anchors-retake3-2026-11-21) read so, though settings parity (2c) would have graded them and
+  // the wall is our side's (the built-in VWAP is refused on both lanes). A re-capture at defaults would not move them.
+  // The moved settings stay in the sentence, so neither cause is lost.
+  if (!ours || !ours.ok) {
+    return inconclusive(`refused on our side: ${(ours && ours.refusal) || 'no result'}`
+      + (changed.length ? ` (the vendor study also ran with non-default inputs: ${movedText})` : ''))
+  }
+  if (changed.length && !tookSettings) return inconclusive(`the vendor study ran with non-default inputs (${movedText}); v1 compares at default inputs only — re-capture at defaults`)
   // ⭐ L7 — a substituted input must have been FED the vendor's own value, or nothing below
   // proves the engine (`substitutionProblems`).
   const subProblems = substitutionProblems(capture, ours.substituted)
@@ -887,6 +900,9 @@ export function compareCapture(capture, ours, opts = {}) {
   const tol = tolerancePolicy(capture)
   base.tolerance = tol
   const times = capture.bars.rows.map((r) => r[0])
+  // SUPPLY BEHIND THE CAPTURE: ONLY the newest bar, ONLY when `supplyBehindOf` found its supply behind it
+  const supplyBehind = opts.supplyBehind || null
+  const behindBars = supplyBehind && times.length ? times.map((_, i) => i === times.length - 1) : null
   const rowsByTime = new Map((capture.plotValues.rows || []).map((r) => [String(r[0]), r]))
   const roles = vendorPlotRoles(capture)
   for (const p of roles.notDrawn) base.notCompared.push({ id: p.id, title: p.title, type: p.type, why: 'alertcondition — draws nothing on TradingView either; not a visual claim' })
@@ -894,7 +910,8 @@ export function compareCapture(capture, ours, opts = {}) {
 
   // History: a capture that provably starts at bar 0 has no pre-window state our
   // side lacks, so there is no warm-up excuse and every bar counts.
-  const bar0 = capture.history && capture.history.startsAtBar0 === true
+  // ⛔⛔ read through `history_claim.mjs`: a claim the capture's own bar_index row contradicts is FALSE
+  const bar0 = startsAtBar0Holds(capture)
 
   const map = mapPlots(roles.value, ours.plots || [])
   for (const u of map.unmappedVendor) {
@@ -993,7 +1010,7 @@ export function compareCapture(capture, ours, opts = {}) {
     const unreadAfter = [treeShift ? times.length - treeShift : null, o.withheldNewest === true ? times.length - 1 : null]
       .filter((x) => x !== null)
     const plotArgs = { times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : gradedVendorColors, ourColors: colourUngraded ? null : gradedOurColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
-      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null }
+      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null, behindBars }
     let r = comparePlot(plotArgs)
     const verdictOpts = {
       colorMeasured: vc.measured && !colourUngraded,
@@ -1045,7 +1062,7 @@ export function compareCapture(capture, ours, opts = {}) {
       const cr = co ? comparePlot({ times, vendor: vendorVals, ours: leadBy(drawnOnly ? Array.from(co.column, notDrawn) : co.column, treeShift),
         vendorColors: null, ourColors: null, warmupBars, colorWarmupBars, tol,
         oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
-        withheldBars: leadBy(co.withheldBars, treeShift) || null, floatOrderFloor: leadBy(co.floatOrderFloor, treeShift) || null }) : null
+        withheldBars: leadBy(co.withheldBars, treeShift) || null, floatOrderFloor: leadBy(co.floatOrderFloor, treeShift) || null, behindBars }) : null
       if (cr && cr.steady.divergent === 0 && cr.steady.compared > 0) {
         const n = r.steady.divergent
         pv = {
@@ -1056,6 +1073,13 @@ export function compareCapture(capture, ours, opts = {}) {
           supplyAttributed: { ...sa.record, bars: n },
         }
       }
+    }
+    if (supplyBehind && r.supplyBehindBars) {
+      const last = times.length - 1
+      const { sentence, ...rec } = supplyBehind
+      pv = { ...pv,
+        reason: `${pv.reason}; the newest bar INCONCLUSIVE by name: ${sentence} (supplyBehind)`,
+        supplyBehind: { verdict: 'INCONCLUSIVE', bar: last, time: times[last], ...rec } }
     }
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
@@ -1074,8 +1098,13 @@ export function compareCapture(capture, ours, opts = {}) {
   for (const o of map.unmappedOurs) base.notCompared.push({ ours: o.key, title: o.title, why: 'our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)' })
 
   // Objects — counts of what each side KEEPS, and the text they carry.
+  // ⭐ OTHER-SYMBOL UNSETTLED, FOR THE DRAWINGS TOO (`unsettledBarsOf`): a drawing placed on a bar the plot grade
+  // found unsettled is not compared, by the same name.
   if (capture.objects || (ours.objects && ours.objects.drawsObjects)) {
-    base.objects = compareObjects(capture.objects || null, ours.objects || null, opts.objectColours || null)
+    base.objects = compareObjects(capture.objects || null, ours.objects || null, opts.objectColours || null, opts.objectRecords || null,
+      unsettledBarsOf(base.plots, capture))
+    // ⭐⭐ A v1 MATCH CANNOT STAND WHEN v2 DIVERGES (`v2Overrules`, coordinator ruling 2026-11-21)
+    base.objects = v2Overrules(base.objects, opts.objectRecords || null, ours)
   }
 
   // Paints — `bgcolor` / `barcolor` (B1, step 61). Graded only where the caller
@@ -1130,6 +1159,10 @@ export function compareCapture(capture, ours, opts = {}) {
     if (out.verdictWithoutPaints) out.verdictWithoutPaints = asSubstituted(out.verdictWithoutPaints)
     if (out.verdictWithoutColour) out.verdictWithoutColour = asSubstituted(out.verdictWithoutColour)
   }
+  // SUPPLY BEHIND THE CAPTURE — the capture names the bar it could not judge and the plots it was withheld from;
+  // the verdict is the other bars' (never lifted to MATCH by it, never lowered)
+  const behind = base.plots.filter((p) => p.supplyBehind)
+  if (behind.length) out.supplyBehind = { ...behind[0].supplyBehind, plots: behind.map((p) => p.title ?? p.id) }
   if (substituted) {
     out.substituted = substituted
     out.verdict = asSubstituted(out.verdict)
@@ -1231,7 +1264,187 @@ export function objectColourRows(pairing) {
  *  @param {{rows: object[], unpaired: object}|null} [colour] the paired colour
  *    slots (C44). `null` — a caller that did not pair them — grades counts and
  *    texts only, exactly as before, and its reason reads as it always did. */
-export function compareObjects(vendorObjs, ourObjs, colour = null) {
+/** ⭐⭐ DISCLOSED PARTIAL — the guard a partly withheld family is graded under (`compareObjects`). */
+export const OBJECTS_PARTIAL_GUARD = 'objects:partial'
+/** ⭐⭐ …and the one it is graded under when a drawn record's PLACE (x) could not be compared: the capture predates the
+ *  x table and has no sidecar (coordinator ruling 2026-11-19). Never a lift: `host_divergence.py` keeps a script's
+ *  entry on this grade, and only a capture WITH the x table can lift it. */
+export const OBJECTS_PARTIAL_UNPOSITIONED_GUARD = 'objects:partial-unpositioned'
+/** The families a disclosed partial is graded on record by record (the ones v2 pairs by value). */
+const PARTIAL_GRADED = new Set(['lines', 'labels', 'boxes'])
+/** Does every record our side DRAWS in family `f` pair with one of TradingView's and agree field by field?
+ *  `{agree, first}` — `first` names the first record that does not. Fails closed: no pairing, or any field that
+ *  differs (x included), is not agreement. */
+function drawnRecordsAgree(records, f) {
+  const p = records && records.families ? records.families[f] : null
+  if (!p) return { agree: false, first: 'no record of it was paired field by field' }
+  // (every record of ours is paired: a partial holds fewer than TradingView, and `alignByValue` pairs the smaller side whole)
+  let unpositioned = false
+  for (const pair of p.pairs || []) {
+    for (const r of pair.fields || []) {
+      if (V2_DIFFERS.has(r.state)) return { agree: false, first: { field: r.field, vendor: r.vendor, ours: r.ours, where: pair.where, vendorId: pair.vendorId } }
+      if (r.x === true && V2_X_MISSING.has(r.state)) unpositioned = true
+    }
+  }
+  return { agree: true, first: null, unpositioned }
+}
+/** Is every item of `sub` in `all`, as many times (both sorted)? */
+function subMultiset(sub, all) {
+  const left = new Map()
+  for (const x of all) left.set(x, (left.get(x) || 0) + 1)
+  for (const x of sub) {
+    const n = left.get(x) || 0
+    if (!n) return false
+    left.set(x, n - 1)
+  }
+  return true
+}
+
+// ── OTHER-SYMBOL UNSETTLED, FOR THE DRAWINGS (coordinator, 2026-11-21) ─────────────────────
+//
+// The plot grade leaves a bar UNSETTLED where TradingView's own captures disagree about another symbol's value there
+// (`unsettledRecord`): that bar is not compared, by name. A drawing PLACED on such a bar reads the same unsettled value,
+// so it is not compared either, by the same name: a paired record (lines, labels, boxes: `objectRecords.js::pairRecords`)
+// any of whose x coordinates resolves, on either side, to an unsettled bar is taken out of the counts, the texts and the
+// records before the drawing is graded, and named on the grade (`otherSymbolUnsettled`). The verdict follows from the
+// drawings that remain; with none left on either side it is INCONCLUSIVE.
+// ⚰️ rs-rating-fred6724-pm-alab-1d-2026-11-16: its plots agree on 667 of 668 bars and the newest is unsettled (SPX
+// 7416.59 in this capture, 7561.67 in the other three of that date), yet the RS label drawn ON that bar graded DIVERGE
+// (y 91.6678 vs 89.9090: exactly the SPX ratio; text "74" vs "69").
+// ⛔ FAIL CLOSED: only PAIRED records are taken out (an unpaired one stays a count difference), a text that cannot be
+// matched to the counted texts leaves the grade exactly as it was, and a colour the colour pairing grades is not touched.
+
+// ── SUPPLY BEHIND THE CAPTURE, FOR THE DRAWINGS (coordinator ruling 2026-11-21) ──────────────────────────────────
+//
+// The plot grade leaves the forming newest bar INCONCLUSIVE by name when the other-symbol supply recorded beside the
+// capture predates the session that bar read (`supplyAttribution.js::supplyBehindOf`, `supplyBehind`). A drawing PLACED
+// on that bar reads the same value, so it is not compared either, by that name, the same way as an unsettled bar
+// (`unsettledCutOf`), and named on the grade apart (`supplyBehind`).
+// ⚰️ rs-rating-fred6724-w-{nvda,rddt}-1w-2026-11-17 (runtime-on): the two RS labels sit at `y = rs` on the forming week;
+// TradingView's y equals its own RS Line on that bar exactly (62.2642 / 37.8408, read with the 2026-11-17 SPX close),
+// ours read the harness's 2026-11-16 SPX: the y "differed" while x and the rating text agreed. v1, which compares no
+// coordinate, read MATCH; v2 read DIVERGE. Neither was a judgement of that bar.
+
+/** The capture-bar indexes the plot grade left unsettled (`otherSymbolUnsettled`, by time) or could not answer from
+ *  the recorded supply (`supplyBehind`, the newest bar), each named with its rule, or null. */
+export function unsettledBarsOf(plots, capture) {
+  const recs = (plots || []).flatMap((p) => (p && Array.isArray(p.otherSymbolUnsettled) ? p.otherSymbolUnsettled : []))
+  const behind = (plots || []).map((p) => p && p.supplyBehind).filter((s) => s && Number.isFinite(s.time))
+  if (!recs.length && !behind.length) return null
+  const rows = (capture && capture.bars && capture.bars.rows) || []
+  const at = new Map(rows.map((r, i) => [r[0], i]))
+  const bars = new Set()
+  const names = new Map()
+  for (const r of recs) {
+    const i = at.get(r.time)
+    if (!Number.isInteger(i)) continue
+    bars.add(i)
+    names.set(i, { time: r.time, symbol: r.symbol, date: r.date })
+  }
+  for (const s of behind) {
+    const i = at.get(s.time)
+    if (!Number.isInteger(i) || bars.has(i)) continue
+    bars.add(i)
+    names.set(i, { rule: 'supplyBehind', time: s.time, symbol: s.symbol, session: s.session, newestRow: s.newestRow })
+  }
+  return bars.size ? { bars, names } : null
+}
+
+const UNSETTLED_FAMILIES = ['lines', 'labels', 'boxes']
+
+/** Both sides with the paired records placed on an unsettled bar taken out, and the list of what was, or null when
+ *  nothing is taken out (or the cut cannot be made exactly: then the grade is the one it always was). */
+export function unsettledCutOf(vendorObjs, ourObjs, records, unsettled) {
+  if (!unsettled || !unsettled.bars || !unsettled.bars.size || !records || !records.families) return null
+  if (!vendorObjs || !ourObjs || !ourObjs.ok || ourObjs.drawsObjects === false) return null
+  const onUnsettled = (pair) => (pair.fields || []).some((r) => r.x === true
+    && ((Number.isInteger(r.vendor) && unsettled.bars.has(r.vendor)) || (Number.isInteger(r.ours) && unsettled.bars.has(r.ours))))
+  const excluded = []
+  const families = { ...records.families }
+  for (const f of UNSETTLED_FAMILIES) {
+    const p = records.families[f]
+    if (!p || !Array.isArray(p.pairs)) continue
+    const out = p.pairs.filter(onUnsettled)
+    if (!out.length) continue
+    families[f] = { ...p, pairs: p.pairs.filter((x) => !onUnsettled(x)) }
+    for (const pair of out) {
+      const xr = (pair.fields || []).find((r) => r.x === true
+        && ((Number.isInteger(r.vendor) && unsettled.bars.has(r.vendor)) || (Number.isInteger(r.ours) && unsettled.bars.has(r.ours))))
+      const bar = unsettled.bars.has(xr.vendor) ? xr.vendor : xr.ours
+      const text = (pair.fields || []).find((r) => r.field === 'text')
+      excluded.push({ family: f, vendorId: pair.vendorId, ourId: pair.ourId, where: pair.where, bar, ...unsettled.names.get(bar),
+        ...(text ? { vendorText: text.vendor, ourText: text.ours } : {}) })
+    }
+  }
+  if (!excluded.length) return null
+  const vCounts = { ...(vendorObjs.counts || {}) }
+  const oCounts = { ...(ourObjs.counts || {}) }
+  for (const e of excluded) {
+    if (!Number.isFinite(vCounts[e.family]) || !Number.isFinite(oCounts[e.family])) return null
+    vCounts[e.family] -= 1
+    oCounts[e.family] -= 1
+  }
+  // a label's text leaves the counted texts with it: one occurrence each side, or no cut at all
+  const drop = (list, x) => {
+    const i = list.indexOf(x)
+    if (i < 0) return false
+    list.splice(i, 1)
+    return true
+  }
+  const vTexts = { ...(vendorObjs.texts || {}) }
+  const oTexts = { ...(ourObjs.texts || {}) }
+  const labels = excluded.filter((e) => e.family === 'labels')
+  if (labels.length) {
+    const vt = Array.isArray(vTexts.labels) ? vTexts.labels.map(String) : null
+    const ot = Array.isArray(oTexts.labels) ? oTexts.labels.map(String) : null
+    if (vt && ot) {
+      for (const e of labels) {
+        if (typeof e.vendorText !== 'string' || typeof e.ourText !== 'string') return null
+        if (!drop(vt, e.vendorText) || !drop(ot, e.ourText)) return null
+      }
+      vTexts.labels = vt
+      oTexts.labels = ot
+    }
+  }
+  const remaining = UNSETTLED_FAMILIES.concat(['tables', 'tableCells'])
+    .reduce((n, f) => n + (Number.isFinite(vCounts[f]) ? vCounts[f] : 0) + (Number.isFinite(oCounts[f]) ? oCounts[f] : 0), 0)
+  return {
+    vendor: { ...vendorObjs, counts: vCounts, texts: vTexts },
+    ours: { ...ourObjs, counts: oCounts, texts: oTexts },
+    records: { ...records, families },
+    excluded: excluded.map(({ vendorText, ourText, ...e }) => ({ verdict: 'INCONCLUSIVE', ...e })),
+    remaining,
+  }
+}
+
+/** @param {object|null} [records] `objectRecords.js::pairRecords`' pairing (by value where counts differ): a family
+ *  our side drew fewer of BY NAME (`ourObjs.partialFamilies`, coordinator ruling 2026-11-19) is graded on what it
+ *  draws. `null` grades exactly as before.
+ *  @param {object|null} [unsettled] `unsettledBarsOf`: the drawings placed on those bars are not compared, by name. */
+export function compareObjects(vendorObjs, ourObjs, colour = null, records = null, unsettled = null) {
+  const cut = unsettledCutOf(vendorObjs, ourObjs, records, unsettled)
+  if (!cut) return gradeObjects(vendorObjs, ourObjs, colour, records)
+  const graded = gradeObjects(cut.vendor, cut.ours, colour, cut.records)
+  const symbolsOf = (list) => [...new Set(list.map((e) => e.symbol).filter(Boolean))].join(', ') || 'another symbol'
+  const osu = cut.excluded.filter((e) => e.rule !== 'supplyBehind')
+  const behind = cut.excluded.filter((e) => e.rule === 'supplyBehind').map(({ rule, ...e }) => e)
+  const parts = []
+  if (osu.length) parts.push(`${osu.length} drawing object(s) placed on a bar where TradingView's own captures disagree on ${symbolsOf(osu)} are not compared (otherSymbolUnsettled)`)
+  if (behind.length) {
+    parts.push(`${behind.length} drawing object(s) placed on the forming newest bar, which the ${symbolsOf(behind)} supply recorded `
+      + `beside this capture (newest row ${behind[0].newestRow}) cannot answer for session ${behind[0].session}, are not compared (supplyBehind)`)
+  }
+  const said = parts.join('; ')
+  const named = { ...(osu.length ? { otherSymbolUnsettled: osu } : {}), ...(behind.length ? { supplyBehind: behind } : {}) }
+  // (a DIVERGE that remains, a colour the colour pairing grades among them, is never softened)
+  if (!cut.remaining && graded.verdict !== 'DIVERGE') {
+    return { ...graded, verdict: 'INCONCLUSIVE', ...(graded.verdictWithoutColour ? { verdictWithoutColour: 'INCONCLUSIVE' } : {}),
+      reason: `every drawing object is on such a bar: ${said}`, ...named }
+  }
+  return { ...graded, reason: `${graded.reason}; ${said}`, ...named }
+}
+
+function gradeObjects(vendorObjs, ourObjs, colour = null, records = null) {
   if (!vendorObjs) return { verdict: 'INCONCLUSIVE', reason: 'our side draws objects but the capture recorded none — re-capture with graphics' }
   // ⭐ OUR SCRIPT HAS NO DRAWING PROGRAM AT ALL. That is an answer, not a missing
   // one: if TradingView drew nothing either, the two agree; if it drew something,
@@ -1261,6 +1474,16 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
   // withheld family is not what we hold.
   const RUNTIME_FAMILY = { lines: 'line', labels: 'label', boxes: 'box', tables: 'table', tableCells: 'table' }
   const withheldFams = new Set(Array.isArray(ourObjs.withheldFamilies) ? ourObjs.withheldFamilies : [])
+  // ⭐⭐ DISCLOSED PARTIAL (coordinator ruling 2026-11-19) — a family our side drew FEWER of than TradingView holds, BY
+  // NAME (a create the program lost, an object the run withheld: `ourSide.js` `partialFamilies`), is graded on what it
+  // DRAWS: every record of ours paired (by value) with one of TradingView's and agreeing field by field is a gap with a
+  // name (WITHHELD, `objects:partial`), never a count DIVERGE; one record that does not agree is still a DIVERGE. A
+  // family we hold MORE of, one nobody named, or one whose records were not paired, grades on its count as before.
+  // ⚰️ rsi-support-resistance-by-dgt: its 5 level lines equal TradingView's bit for bit, its 200 oscillator lines and 5
+  // labels are named at the door ("6 of 52 drawing elements aren't supported yet"), and it graded DIVERGE on count.
+  const partialNamed = new Set(Array.isArray(ourObjs.partialFamilies) ? ourObjs.partialFamilies : [])
+  const partialOf = (f) => partialNamed.has('*') || partialNamed.has(RUNTIME_FAMILY[f])
+  const partial = new Map()
   const rows = []
   let diverge = 0
   let withheldHeld = 0
@@ -1274,6 +1497,17 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
     }
     if (v === undefined || o === undefined) { rows.push({ family: f, vendor: v ?? null, ours: o ?? null, agree: null }); continue }
     const agree = v === o
+    if (!agree && o < v && PARTIAL_GRADED.has(f) && partialOf(f)) {
+      const drawn = drawnRecordsAgree(records, f)
+      if (drawn.agree) {
+        partial.set(f, { vendor: v, ours: o, unpositioned: drawn.unpositioned })
+        rows.push({ family: f, vendor: v, ours: o, agree: null, withheld: true, partial: true, ...(drawn.unpositioned ? { unpositioned: true } : {}) })
+        continue
+      }
+      diverge += 1
+      rows.push({ family: f, vendor: v, ours: o, agree: false, partial: true, drawnDiffers: drawn.first })
+      continue
+    }
     if (!agree) diverge += 1
     rows.push({ family: f, vendor: v, ours: o, agree })
   }
@@ -1285,29 +1519,46 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
     if (!Array.isArray(vt) || !Array.isArray(ot)) continue
     const a = [...vt].map(String).sort()
     const b = [...ot].map(String).sort()
-    const agree = a.length === b.length && a.every((x, i) => x === b[i])
+    // a disclosed partial's texts: every text we draw is one TradingView's holds (the rest are withheld by name)
+    const agree = partial.has(f) ? subMultiset(b, a) : a.length === b.length && a.every((x, i) => x === b[i])
     if (!agree) diverge += 1
     textRows.push({ family: `${f} text`, agree, onlyVendor: a.filter((x) => !b.includes(x)).slice(0, 10), onlyOurs: b.filter((x) => !a.includes(x)).slice(0, 10) })
   }
-  const measured = rows.filter((r) => r.agree !== null).length + textRows.length
+  const measured = rows.filter((r) => r.agree !== null || r.partial).length + textRows.length
   if (!measured) return { verdict: 'INCONCLUSIVE', reason: 'no object family was recorded on both sides', counts: rows }
   // (a colour that differs on a family we DO draw still diverges)
   const shownColourDiffers = colour
     ? objectColourRows(colour).some((r) => r.agree === false && !withheldFams.has(RUNTIME_FAMILY[r.family]))
     : false
-  if (withheldHeld && !diverge && !shownColourDiffers) {
-    const names = rows.filter((r) => r.withheld).map((r) => r.family).join(', ')
-    // ⭐ OZ — a family withheld by another named guard (`withheldGuards`) says that
-    // guard and the member's sentence; the collector-only reason is unchanged.
-    const guards = Array.isArray(ourObjs.withheldGuards) && ourObjs.withheldGuards.length
-      ? ourObjs.withheldGuards : ['objects:collector']
-    const onlyCollector = guards.length === 1 && guards[0] === 'objects:collector'
+  if ((withheldHeld || partial.size) && !diverge && !shownColourDiffers) {
+    const names = rows.filter((r) => r.withheld && !r.partial).map((r) => r.family).join(', ')
+    const said = []
+    let guards = []
+    if (withheldHeld) {
+      // ⭐ OZ — a family withheld by another named guard (`withheldGuards`) says that
+      // guard and the member's sentence; the collector-only reason is unchanged.
+      guards = Array.isArray(ourObjs.withheldGuards) && ourObjs.withheldGuards.length
+        ? [...ourObjs.withheldGuards] : ['objects:collector']
+      const onlyCollector = guards.length === 1 && guards[0] === 'objects:collector'
+      said.push(onlyCollector
+        ? `our ${names} are withheld by name (TradingView's object limit may have removed some of them; objects:collector)`
+        : `our ${names} are withheld by name (${guards.join(', ')}: ${ourObjs.withheldWhy || 'no sentence'})`)
+    }
+    if (partial.size) {
+      const each = [...partial].map(([f, c]) => `${f} ${c.ours} of ${c.vendor}`).join(', ')
+      // ⛔ a drawn record whose PLACE (x) this capture cannot compare is not witnessed: its own grade, never a lift
+      if ([...partial.values()].some((c) => c.unpositioned)) {
+        guards.push(OBJECTS_PARTIAL_UNPOSITIONED_GUARD)
+        said.push(`our drawing is a disclosed partial (${each} drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (${OBJECTS_PARTIAL_UNPOSITIONED_GUARD})`)
+      } else {
+        guards.push(OBJECTS_PARTIAL_GUARD)
+        said.push(`our drawing is a disclosed partial (${each} drawn): each one drawn pairs with a record of TradingView's and agrees field by field, and the rest are withheld by name (${OBJECTS_PARTIAL_GUARD})`)
+      }
+    }
     return {
       verdict: 'INCONCLUSIVE',
       withheld: guards.join(','),
-      reason: onlyCollector
-        ? `our ${names} are withheld by name (TradingView's object limit may have removed some of them; objects:collector); every other object family's counts and texts agree`
-        : `our ${names} are withheld by name (${guards.join(', ')}: ${ourObjs.withheldWhy || 'no sentence'}); every other object family's counts and texts agree`,
+      reason: `${said.join('; ')}; every other object family's counts and texts agree`,
       counts: rows,
       texts: textRows,
       // the colours of what we DO draw, paired with TradingView's, are still graded
@@ -1366,10 +1617,13 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
 // ratchets red on the progress they measure, or force them to be loosened.
 //
 // THE PAIRING (`vendorHarness/objectRecords.js`, the only reader of records):
-//   lines, labels, boxes, linefills  both sides sorted by id (creation order) and
-//            aligned at the NEWEST end: when the counts differ, the object limit
-//            took the oldest, so the newest are the ones both still hold. The
-//            extra records are counted `unpaired`, never graded.
+//   lines, labels, boxes  equal counts: both sides sorted by id (creation order), paired in order.
+//            ⭐⭐ COUNTS THAT DIFFER (coordinator ruling 2026-11-19): paired BY VALUE, never by position
+//            (`objectRecords.js::alignByValue`): each record of the smaller side takes the record of
+//            the other it agrees with best on every field the capture holds, ties going to the
+//            newest-end position (the object limit takes the oldest). ⚰️ Aligned at the newest end,
+//            rsi-support-resistance-by-dgt's 5 level lines (equal to TradingView's bit for bit) were
+//            graded against its 5 newest oscillator lines. The extra records are counted `unpaired`.
 //   tables   by creation order; cells by (paired table, column, row).
 //   linefills by their two lines (one fill per pair of lines, Pine's rule), the
 //            lines mapped through the line pairing.
@@ -1570,13 +1824,30 @@ export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
     // ⚠️ `pairedNothing`: this verdict is v1's, carried; v2 graded nothing (review #1150 note 6)
     return { verdict: v1.verdict, verdictWithoutX: v1.verdict, v1: v1.verdict, pairedNothing: true, x: null, reason: `no record was paired; v1: ${v1.reason}`, families: [], ungraded }
   }
+  // ⭐ OTHER-SYMBOL UNSETTLED (`unsettledCutOf`): the records v1 took out, by their pair, are not graded here either —
+  // ONE decision, v1's, read off its own lists (and the newest bar SUPPLY BEHIND the capture, the same way)
+  const osuOut = Array.isArray(v1.otherSymbolUnsettled) ? v1.otherSymbolUnsettled : []
+  const behindOut = Array.isArray(v1.supplyBehind) ? v1.supplyBehind : []
+  const unsettledOut = [...osuOut, ...behindOut]
+  if (unsettledOut.length) {
+    const out = new Set(unsettledOut.map((e) => `${e.family}|${e.vendorId}|${e.ourId}`))
+    const fams = { ...pairing.families }
+    for (const f of UNSETTLED_FAMILIES) {
+      const p = pairing.families[f]
+      if (p && Array.isArray(p.pairs)) fams[f] = { ...p, pairs: p.pairs.filter((x) => !out.has(`${f}|${x.vendorId}|${x.ourId}`)) }
+    }
+    pairing = { ...pairing, families: fams }
+  }
   const families = []
   // ⛔ A FAMILY v1 FOUND WITHHELD BY NAME (W-C22-DEL / OZ: `counts[].withheld`)
   // is a gap with a name, already graded as one; v2 does not pair it again and
   // never counts its missing records as a difference (the cells go with their
   // tables, as in v1's RUNTIME_FAMILY, and the fills with their lines).
-  const withheld = new Set((v1.counts || []).filter((r) => r && r.withheld).map((r) => r.family))
+  const withheld = new Set((v1.counts || []).filter((r) => r && r.withheld && !r.partial).map((r) => r.family))
   if (withheld.has('tables')) withheld.add('tableCells')
+  // ⭐⭐ DISCLOSED PARTIAL — a family v1 graded on what it draws (`compareObjects`, `objects:partial`): its paired records
+  // are graded here as always; the records TradingView holds that our side withheld by name are counted, never a difference
+  const partialFams = new Set((v1.counts || []).filter((r) => r && r.withheld && r.partial).map((r) => r.family))
   // ⛔ What OUR side withheld by name is read from its own list
   // (`ourSide.js` withheldFamilies, our family names), never inferred: a fill
   // our side still holds is graded even when its lines were withheld
@@ -1649,12 +1920,18 @@ export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
     row.agreeWithoutX = row.graded === 0 ? null : row.differing === 0
     // ⛔ A record one side holds and the other does not is a difference a member
     // sees (for lines … cells v1's counts already say so; for linefills only v2 does).
-    if (p.unpairedVendor || p.unpairedOurs) {
+    if (partialFams.has(f) && p.unpairedVendor && !p.unpairedOurs) {
+      row.withheldUnpaired = p.unpairedVendor
+    } else if (p.unpairedVendor || p.unpairedOurs) {
       row.agreeWithoutX = false
       const count = { field: 'count', vendor: row.paired + p.unpairedVendor, ours: row.paired + p.unpairedOurs, where: `${f} held` }
       if (!row.firstWithoutX) row.firstWithoutX = count
       if (!row.first) row.first = count
     }
+    if (p.pairedByValue) row.pairedByValue = true
+    // ⭐ ORPHAN FILLS (`objectRecords.js`, coordinator ruling 2026-11-21): TradingView's fill records whose lines the
+    // object limit removed are not drawable; counted apart and named, never a count difference
+    if (Number.isInteger(p.orphanVendor) && p.orphanVendor > 0) row.orphanVendor = p.orphanVendor
     // ⭐ U13 — with x: any difference diverges; an x not resolved (and nothing that
     // differs) leaves the family UNGRADED (`xIncomplete`), never agreeing.
     if (row.agreeWithoutX === false || row.x.differing > 0) row.agree = false
@@ -1690,6 +1967,10 @@ export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
       ? `${diverging.length} object ${diverging.length === 1 ? 'family differs' : 'families differ'} field by field (first: ${first.family} ${first.field} of ${first.where} — vendor ${JSON.stringify(first.vendor)}, ours ${JSON.stringify(first.ours)})${diverging.every((r) => r.differsOnlyByCreationOrder) ? ' — ONLY in creation order: paired by equal ids, every field agrees' : ''}`
       : `every paired record agrees on ${graded} graded fields`)
     : 'no field of a paired record was graded'
+  const orphans = families.reduce((n, r) => n + (r.orphanVendor || 0), 0)
+  const orphansSaid = orphans
+    ? `; ${orphans} of TradingView's fill records are between lines the object limit removed (not drawable, not graded: orphanFills)`
+    : ''
   const topWhy = Object.entries(xt.missingWhy).sort((a, b) => b[1] - a[1])[0]
   const xSaid = xt.missing
     ? `x: ${xt.graded} graded (${xt.differing} differ), ${xt.missing} not resolvable to a bar (${topWhy[0]})${verdict === 'INCONCLUSIVE' && v1.verdict === 'MATCH' ? ', so x is not witnessed and this is not a MATCH (G1)' : ''}`
@@ -1700,12 +1981,65 @@ export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
     v1: v1.verdict,
     pairedNothing: false,
     differsOnlyByCreationOrder: diverging.length > 0 && diverging.every((r) => r.differsOnlyByCreationOrder),
-    reason: `${fieldsSaid}; ${xSaid}; v1: ${v1.reason}; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)`,
+    reason: `${fieldsSaid}${orphansSaid}; ${xSaid}; v1: ${v1.reason}; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)`,
     first,
     firstWithoutX,
     x: { ...xt, incompleteFamilies: incomplete.map((r) => r.family) },
     families,
     ungraded,
+    ...(orphans ? { orphanFills: orphans } : {}),
+    ...(osuOut.length ? { otherSymbolUnsettled: osuOut } : {}),
+    ...(behindOut.length ? { supplyBehind: behindOut } : {}),
+  }
+}
+
+// ── A v1 MATCH CANNOT STAND WHEN v2 DIVERGES (coordinator ruling 2026-11-21) ─────────────────────────────────────
+//
+// v1 grades a drawing by its counts, its texts and the colours it pairs by value: no coordinate, no fill count. v2
+// grades every paired record field by field. Until this ruling v2 was "a separate report, not the verdict", so a
+// capture whose labels sat at another price, or whose lines sat one bar off, read MATCH on v1 while v2 said DIVERGE
+// (htf-candle-footprint-cartel-console: label y 147.06 vs 144.41; average-day-range-adr-pivots: lines x2 666 vs 665).
+// Now the objects grade is v1's, except that a v1 MATCH whose v2 report DIVERGEs is DIVERGE, by name (`overruledBy`),
+// with v1's own grade kept beside it (`v1Verdict`, `v1Reason`). v2 never improves a v1 DIVERGE or INCONCLUSIVE, and an
+// x v2 could not resolve leaves the v1 MATCH as it is (G1 makes the v2 REPORT INCONCLUSIVE; the verdict is not
+// lowered for a field nobody could compare). ⛔ Nor does a v2 DIVERGE that v2 itself names ONLY CREATION ORDER
+// (`differsOnlyByCreationOrder`: paired by equal ids, every field agrees): the same drawings, made in another order, are
+// the same picture (vw-call-site-history-{rddt,spy}-1d-2026-10-01: 24 labels, every field agreeing id for id). `verdictWithoutColour` (C44) moves with it only where v2 differs on more
+// than colour, so a capture whose two verdicts differ still differs for colour and no other reason.
+// ⛔ It reads the SAME pairing the v2 report does (`objectRecords.js::pairRecords`); with no pairing it changes nothing.
+
+/** Does this v2 report differ on anything but a colour field (a count, an x, a coordinate, a text, a style)? */
+export function v2DiffersBeyondColour(v2) {
+  for (const r of (v2 && v2.families) || []) {
+    if (r.agree !== false) continue
+    if ((r.unpairedVendor || r.unpairedOurs) && !r.withheldUnpaired) return true
+    const spec = OBJECTS_V2_FIELDS[r.family]
+    const kindOf = (field) => ((spec && spec.fields.find((x) => x.field === field)) || {}).kind
+    for (const [field, s] of Object.entries(r.byField || {})) {
+      if (s && s.differ > 0 && kindOf(field) !== 'colour') return true
+    }
+  }
+  return false
+}
+
+/** The objects grade with the v2 rule applied (see the header): `v1` itself unless v1 reads MATCH and v2 DIVERGEs. */
+export function v2Overrules(v1, records, ours) {
+  if (!v1 || v1.verdict !== 'MATCH' || !records) return v1
+  const v2 = compareObjectsV2(v1, records, (ours && ours.objects && ours.objects.withheldFamilies) || [])
+  // a DIVERGE v2 itself says is ONLY creation order (paired by equal ids, every field agrees) is the same picture
+  if (!v2 || v2.verdict !== 'DIVERGE' || v2.differsOnlyByCreationOrder === true) return v1
+  const f = v2.first || {}
+  const said = `the records differ field by field (objectsV2, first: ${f.family} ${f.field} of ${f.where} — vendor `
+    + `${JSON.stringify(f.vendor)}, ours ${JSON.stringify(f.ours)}); v1, which compares no coordinate and no fill count, `
+    + `read MATCH: ${v1.reason}`
+  return {
+    ...v1,
+    verdict: 'DIVERGE',
+    ...(v1.verdictWithoutColour === 'MATCH' && v2DiffersBeyondColour(v2) ? { verdictWithoutColour: 'DIVERGE' } : {}),
+    overruledBy: 'objectsV2',
+    v1Verdict: v1.verdict,
+    v1Reason: v1.reason,
+    reason: said,
   }
 }
 
@@ -1780,7 +2114,11 @@ export function comparePaints(grade) {
   const withheldSaid = w0
     ? `; ${withheldByName.length} paint${withheldByName.length === 1 ? '' : 's'} withheld by name, not graded (first: ${w0.kind} ${w0.id}${w0.title ? ` "${w0.title}"` : ''} — ${w0.reason})`
     : ''
-  const rowsOut = () => rows.map((r) => ({ id: r.id, kind: r.kind, state: r.state, ...(r.reason ? { reason: r.reason } : {}) }))
+  // ⭐⭐ (2026-11-19, held evidence) each row says which of OUR paints it is (`line`, `title`) and whether it DIFFERS, so a
+  // licence-held capture's ledger row can name the one paint to withhold (`held_evidence.lane_withholds`)
+  const rowsOut = () => rows.map((r) => ({ id: r.id, kind: r.kind, state: r.state, ...(r.reason ? { reason: r.reason } : {}),
+    ...(Number.isInteger(r.line) ? { line: r.line } : {}), ...(r.title ? { title: r.title } : {}),
+    differs: differing.includes(r) }))
   if (!graded) {
     // ⭐ G5 — a paint withheld BY NAME is an item that could not be compared, as a plot is
     if (withheldByName.length) {

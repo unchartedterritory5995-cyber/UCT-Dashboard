@@ -130,7 +130,7 @@
       "group": "example",
       "turns": [
         {
-          "words": "RSI 28 with a 5-period moving average of the RSI.",
+          "words": "RSI 28 with a 5-period simple moving average of the RSI.",
           "expect": {
             "kind": "change",
             "outputs": [
@@ -370,11 +370,11 @@
       ]
     },
     {
-      "id": "ctl-mcginley",
+      "id": "ctl-unknown-name",
       "group": "control",
       "turns": [
         {
-          "words": "Add the McGinley Dynamic",
+          "words": "Add the Gann Fan",
           "model_expected": false,
           "expect": {
             "kind": "refused",

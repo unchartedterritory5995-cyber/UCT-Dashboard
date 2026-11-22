@@ -24,6 +24,33 @@ MODEL-ISOLATED, and none ever starts a build: each reads what its service alread
 Terminal data wave 3 (terminal-data): `levels.gamma`, `flow.topPicks`, `flow.record`, `earnings.reactions` — the Agent
 half of the LVL (options half) / TOPF / Flow Record / EMOV surfaces. All default OFF, all MODEL-ISOLATED, and none ever
 starts a build or spends a provider call (MD-1 §4.12).
+Terminal data wave 4 (terminal-data): `earnings.season`, `earnings.callThemes`, `group.drill` — the Agent half of the
+ERNS / CEOS / GRP terminal panels. All default OFF, all MODEL-ISOLATED, and none ever starts a build or spends a provider
+call: each reads only the answer its service already holds, through that service's read-only accessor (MD-1 §4.13). The
+UNVOL panel needs no kind of its own: it is the Screener's by-now relative volume, which `screen.run` already scans.
+Terminal data wave 5 (terminal-data): `short.interest`, `short.list` — the Agent half of the SHINT / SHRTS terminal
+panels (FINRA short interest and daily short volume). Both default OFF, both MODEL-ISOLATED, and neither ever starts a
+build, a check or a vendor request: each reads only what `api/services/short_data.py` already holds, through that
+service's read-only accessors (MD-1 §4.14).
+
+Terminal data wave 6 (terminal-data): `seasonality.stock`, `seasonality.board`, `options.tideHistory`,
+`options.oiChange`, `rates.treasury` — the Agent half of the SEAS / SEASB / TIDEH / OIC / RATES terminal panels. All
+five default OFF, all five MODEL-ISOLATED, and none ever starts a build, a fetch or a vendor request: each reads only
+what its service or store already holds (MD-1 §4.15).
+
+Terminal data wave 7 (terminal-data): `market.regime`, `stock.setups`, `stock.eventsTimeline`, `uct20.list`,
+`options.ivHistory`, `dilution.watch` — the Agent half of the REGM / TECH (confirmed setups) / EVTS / UCT 20 / IVH /
+DILU surfaces. All six default OFF, all six MODEL-ISOLATED, and none ever starts a compute, a build, a download or
+a vendor request: each reads only what its service or store already holds (MD-1 §4.16).
+
+Terminal data wave 8 (terminal-data): `stock.corporateActions`, `calendar.ipos`, `calendar.dividends` — the Agent half
+of the CACT / IPO / DVD terminal panels. All three default OFF, all three MODEL-ISOLATED, and none ever starts a build
+or a vendor request: each reads only what its service already holds (MD-1 §4.17). The MKTS board gets no kind: its
+figures are live quotes the existing `quotes` and `rates.treasury` kinds already read.
+
+Terminal data wave 9 (terminal-data): `rates.auctions`, `rates.realYields`, `fed.watch` — the Agent half of the AUCT
+terminal panel, the real-yield block of RATES and the FED panel. All three default OFF, all three MODEL-ISOLATED, and
+none ever starts a build or a request: each reads only what its service already holds (MD-1 §4.18).
 """
 from __future__ import annotations
 
@@ -35,6 +62,14 @@ from api.services.uct_agent.marketdata import (analyst_actions, darkpool_levels,
 from api.services.uct_agent.marketdata import (confluence_board, earnings_call_search, earnings_expected_move,
                                               themes_rotation, yearly_highs_lows)
 from api.services.uct_agent.marketdata import earnings_reactions, flow_record, flow_top_picks, gamma_levels
+from api.services.uct_agent.marketdata import earnings_call_themes, earnings_season, group_drill
+from api.services.uct_agent.marketdata import short_interest, short_list
+from api.services.uct_agent.marketdata import (oi_change_read, seasonality_board_read, seasonality_stock,
+                                               tide_history_read, treasury_read)
+from api.services.uct_agent.marketdata import (dilution_read, events_timeline_read, iv_history_read, regime_read,
+                                               setups_read, uct20_read)
+from api.services.uct_agent.marketdata import corporate_actions_read, dividends_calendar_read, ipo_calendar_read
+from api.services.uct_agent.marketdata import fed_watch_read, real_yields_read, treasury_auctions_read
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -95,8 +130,9 @@ def register(registry) -> None:
     registry.register(Kind(
         name="fundamentals", fn=statements.read_fundamentals, validate=statements.validate, freshness="periodic",
         owner="agent-md", max_symbols=ONE_SYMBOL,
-        description="Periodic financial disclosures (income, balance, cash flow) from Yahoo Finance via "
-                    "financial_statements; as_of is the newest period end, stale after "
+        description="Periodic financial disclosures (income, balance, cash flow) via financial_statements "
+                    "(FMP; Yahoo Finance only for a ticker FMP has no statements for; `source` names the one "
+                    "that answered); as_of is the newest period end, stale after "
                     f"{statements.STALE_AFTER_DAYS} days. Params: {{symbol, period: quarterly|annual, periods}}.",
     ))
     registry.register(Kind(
@@ -325,6 +361,286 @@ def register(registry) -> None:
                     "hold (never a week build, never a price read: 'not held' otherwise); as_of is null (no data time "
                     "is carried). Shown to the member only. "
                     f"Params: {{date? (YYYY-MM-DD, a weekday), limit (1-{earnings_reactions.MAX_LIMIT})}}.",
+    ))
+    # Terminal data wave 4 (owner: terminal-data): three more kinds, the Agent half of the ERNS, CEOS and GRP panels.
+    # Default OFF like every kind (UCT_AGENT_DATA_KINDS); ALL THREE are model-isolated, so each also needs its own
+    # UCT_AGENT_ISOLATED_KINDS entry (ADR-005) and its capability is local-only. None starts a build or spends a provider
+    # call: each member route can start its service's background build, so each adapter reads the service's own
+    # read-only accessor (`earnings_season.held_day`, `call_themes.held_themes`, `scan_period.period_groups_of` over the
+    # held ranking) and answers `unavailable`, with the reason, when nothing is held.
+    registry.register(Kind(
+        name=earnings_season.KIND, fn=earnings_season.read_earnings_season, validate=earnings_season.validate,
+        # declared `periodic` (results and moves land through the day); a past day's read reports `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="One day's earnings reporters in one read: who reports before the open and after the close, biggest "
+                    "company first, each with the move options priced before the report (UCT's stored capture from its "
+                    "own Massive option chain), its past earnings moves, and the result and move once it lands. Only the "
+                    "answer the server already holds, never a build ('not held' otherwise); as_of is null (only UCT's "
+                    "build time is known). Shown to the member only. "
+                    f"Params: {{date? (YYYY-MM-DD, a weekday), session: {'|'.join(earnings_season.SESSION_CHOICES)}, "
+                    f"limit (1-{earnings_season.MAX_LIMIT})}}.",
+    ))
+    registry.register(Kind(
+        name=earnings_call_themes.KIND, fn=earnings_call_themes.read_call_themes,
+        validate=earnings_call_themes.validate, freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL,
+        model_isolated=True,
+        description="The phrases new and rising across a month of earnings calls: one- to three-word phrases whose share "
+                    "of calls rose the most against the months before, with counts and example tickers (phrases from "
+                    "third-party transcripts; no other transcript text). Only the lists the server already holds, never "
+                    "the scan ('not held' otherwise); as_of is the newest call they were worked out from. Shown to the "
+                    "member only. "
+                    f"Params: {{month? (YYYY-MM), list: {'|'.join(earnings_call_themes.LISTS)}, "
+                    f"limit (1-{earnings_call_themes.MAX_LIMIT})}}.",
+    ))
+    registry.register(Kind(
+        name=group_drill.KIND, fn=group_drill.read_group_drill, validate=group_drill.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="One sector, industry or UCT theme and its stocks: each stock's percent change over a one-click "
+                    "range, its RS rank and whether it is on UCT's confluence board, joined from answers the server "
+                    "already holds (never a ranking build: 'not held' otherwise). With no group named: the names of the "
+                    "ranked groups, for resolving one. as_of is null (the ranking carries two days and UCT's build "
+                    "time). Shown to the member only. "
+                    f"Params: {{range: {'|'.join(group_drill.RANGES)}, kind?: {'|'.join(group_drill.GROUP_KINDS)}, "
+                    f"group? (its exact name; needs kind), sort: {'|'.join(group_drill.SORTS)}, "
+                    f"dir: {'|'.join(group_drill.DIRS)}, limit (1-{group_drill.MAX_LIMIT})}}.",
+    ))
+    # Terminal data wave 5 (owner: terminal-data): two more kinds, the Agent half of the SHINT and SHRTS panels. Default OFF
+    # like every kind (UCT_AGENT_DATA_KINDS); BOTH are model-isolated, so each also needs its own UCT_AGENT_ISOLATED_KINDS
+    # entry (ADR-005) and its capability is local-only. Neither starts a build, a check or a vendor request: each member
+    # route can start the service's background build, so each adapter reads the service's own read-only accessor
+    # (`short_data.held_stock`, `short_data.held_market`) and answers `unavailable`, with the reason, when nothing is held.
+    registry.register(Kind(
+        name=short_interest.KIND, fn=short_interest.read_short_interest, validate=short_interest.validate,
+        # declared `periodic` (a report lands twice a month, short volume daily); every read reports the LESS fresh
+        # `historical` (a settled report and completed sessions)
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's FINRA short interest: the newest report (settlement date, shares short, days to cover, "
+                    "average daily volume, the change from the report before), percent of float, its newest reports and "
+                    "its newest days of daily short volume (off-exchange trades only; not short interest). Only the "
+                    "answer the server already holds, never a vendor read ('not held' otherwise); as_of is the "
+                    "settlement date, never today. Shown to the member only. "
+                    f"Params: {{symbol, reports (1-{short_interest.MAX_REPORTS}), days (1-{short_interest.MAX_DAYS})}}.",
+    ))
+    registry.register(Kind(
+        name=short_list.KIND, fn=short_list.read_short_list, validate=short_list.validate,
+        # declared `periodic` (a report lands twice a month); every read reports the LESS fresh `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The newest FINRA short interest report across the stocks UCT follows, each beside its previous "
+                    "report, ranked by days to cover, by the biggest percent increase or decrease in short interest, or "
+                    "by percent of float. Only the list the server already holds, never a vendor read or a look for a "
+                    "newer report ('not held' otherwise); as_of is the settlement date, never today. Shown to the member "
+                    f"only. Params: {{rank: {'|'.join(short_list.RANKS)}, limit (1-{short_list.MAX_LIMIT})}}.",
+    ))
+    # Terminal data wave 6 (owner: terminal-data): five more kinds, the Agent half of the SEAS, SEASB, TIDEH, OIC and
+    # RATES panels. Default OFF like every kind (UCT_AGENT_DATA_KINDS); ALL FIVE are model-isolated, so each also needs
+    # its own UCT_AGENT_ISOLATED_KINDS entry (ADR-005) and its capability is local-only. None starts a build, a fetch or
+    # a vendor request: where the member route can start work (the bar serve's deep fetch, the board's build, the
+    # open-interest pair's background build, the Treasury build), the adapter reads the read-only path beside it and
+    # answers `unavailable`, with the reason, when nothing is held (MD-1 §4.15).
+    registry.register(Kind(
+        name=seasonality_stock.KIND, fn=seasonality_stock.read_seasonality_stock, validate=seasonality_stock.validate,
+        # declared `periodic` (the table moves once a month); every read reports the LESS fresh `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock by calendar month and by weekday, close to close: for each month the years counted, "
+                    "the average and the median month return, the percent of years it rose and a flag when too few "
+                    "years are counted, with the window the record covers. Only the completed daily bars the server "
+                    "already holds, never a fetch; a history held only in part is 'unavailable', never a short record "
+                    "stated as the record. as_of is the newest bar in the record, never today. Shown to the member "
+                    "only. Params: {symbol}.",
+    ))
+    registry.register(Kind(
+        name=seasonality_board_read.KIND, fn=seasonality_board_read.read_seasonality_board,
+        validate=seasonality_board_read.validate,
+        # declared `periodic` (built once a New York day); every read reports the LESS fresh `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The seasonality board: the index funds and the sector funds by calendar month (years counted, "
+                    "average and median month return, percent of years up, a flag on a thin month), each fund without "
+                    "numbers listed with its reason. Only the board the server already holds today, never a build "
+                    "('not held' otherwise); as_of is the newest bar the board covers, never today. Shown to the member "
+                    "only. No params.",
+    ))
+    registry.register(Kind(
+        name=tide_history_read.KIND, fn=tide_history_read.read_tide_history, validate=tide_history_read.validate,
+        # declared `periodic` (one row a session, stored after the close); every read reports `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="Market Tide by finished session, newest first: net call premium, net put premium and net for each "
+                    "stored session, for the whole options tape, stocks only or funds only, with the first stored day "
+                    "and the sessions that have no row. Only the stored sessions, never a capture or a live tide; as_of "
+                    "is the newest stored session, never today. Shown to the member only. "
+                    f"Params: {{scope: {'|'.join(tide_history_read.SCOPES)}, rows (1-{tide_history_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=oi_change_read.KIND, fn=oi_change_read.read_oi_change, validate=oi_change_read.validate,
+        # declared `periodic` (one log file a session); every read reports `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's open-interest change by contract between the two newest sessions of UCT's options "
+                    "log: the changed and the newly listed contracts, biggest first, for calls, puts or both, with the "
+                    "totals by side, what expired, what was not reported and any session skipped. Only the pair of "
+                    "files the server already holds, never the background build ('not prepared' otherwise); as_of is "
+                    "the newer file's date, never today. Shown to the member only. "
+                    f"Params: {{symbol, side: {'|'.join(oi_change_read.SIDES)}, rows (1-{oi_change_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=treasury_read.KIND, fn=treasury_read.read_treasury, validate=treasury_read.validate,
+        # declared `periodic` (one curve a day, end of day); every read reports `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="US Treasury daily par yields by maturity as UCT holds them: each yield, what it was one day, one "
+                    "week, one month, three months and one year earlier with the change in basis points, and the "
+                    "10-year minus 2-year and 10-year minus 3-month spreads with their state. Only the answer the "
+                    "server already holds, never a request to the Treasury's website ('not held' otherwise); as_of is "
+                    "the curve's date, never today. Shown to the member only. No params.",
+    ))
+    # Terminal data wave 7 (owner: terminal-data): six more kinds, the Agent half of the REGM, TECH (confirmed
+    # setups), EVTS, UCT 20, IVH and DILU surfaces. Default OFF like every kind (UCT_AGENT_DATA_KINDS); ALL SIX are
+    # model-isolated, so each also needs its own UCT_AGENT_ISOLATED_KINDS entry (ADR-005) and its capability is
+    # local-only. None starts a compute, a build, a download or a vendor request: where the member route can start
+    # work (the regime recompute, the earnings rebuild, the pending-acquisition build and the bar warm, the options
+    # log download, the SEC build), the adapter reads the read-only path beside it and answers `unavailable`, with
+    # the reason, when nothing is held (MD-1 §4.16).
+    registry.register(Kind(
+        name=regime_read.KIND, fn=regime_read.read_regime, validate=regime_read.validate,
+        # declared `periodic` (recomputed at most every 15 minutes); every read reports `periodic`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="UCT's rules-based market regime read as the server last computed it: the regime, its "
+                    "confidence, the sizing band UCT's own GRADE verdicts read, and the breadth figures behind it. "
+                    "The UCT Exposure Rating and the VIX level are left out. Only a read the server already holds, "
+                    "never a recompute ('not held' otherwise); as_of is when the server computed it, never the "
+                    "time of the read. What UCT's rules read, not advice. Shown to the member only. No params.",
+    ))
+    registry.register(Kind(
+        name=setups_read.KIND, fn=setups_read.read_setups, validate=setups_read.validate,
+        # declared `periodic` (the judge runs on a schedule); every read reports `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's setups confirmed by UCT's chart judge on its daily chart, as stored: the setup, the "
+                    "daily bar it was judged on, the judge's confidence and key level, newest first, with how many "
+                    "setups were judged in the window. Stored verdicts only, never a detection or a chart reading; "
+                    "a stock that was not judged is 'unavailable', never 'no setup'. as_of is the newest bar "
+                    "judged, never the time of the read. Shown to the member only. "
+                    f"Params: {{symbol, rows (1-{setups_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=events_timeline_read.KIND, fn=events_timeline_read.read_events, validate=events_timeline_read.validate,
+        # declared `periodic` (the stores are written by daily jobs); every read reports `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's dated events from UCT's stores, each placed against its nearest earnings report: "
+                    "earnings reports and the next scheduled one, catalyst engine flags, SEC filings in UCT's "
+                    "index and days the room's mentions spiked, newest first. Stored events only, never a fetch; "
+                    "off while the timeline's own switch is off, and a source that did not answer is named. as_of "
+                    "is the newest event that is not in the future, never the time of the read. Shown to the "
+                    f"member only. Params: {{symbol, rows (1-{events_timeline_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=uct20_read.KIND, fn=uct20_read.read_uct20, validate=uct20_read.validate,
+        # declared `periodic` (one wire run a day); every read reports `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The current UCT 20 leadership list as the morning wire last pushed it: each name's rank, RS "
+                    "rating, UCT 20 score, one-month and three-month returns and next earnings date. The model "
+                    "portfolio, its NAV and each name's entry, stop and targets are left out. Only the list the "
+                    "server already holds, never a build ('not held' otherwise); as_of is the wire run's date, "
+                    "never the time of the read. Shown to the member only. "
+                    f"Params: {{rows (1-{uct20_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=iv_history_read.KIND, fn=iv_history_read.read_iv_history, validate=iv_history_read.validate,
+        # declared `periodic` (one logged session a day); every read reports `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's at-the-money implied volatility by session from UCT's own options log, newest "
+                    "first, with the day the log began, the sessions held and the IV rank and percentile (null, "
+                    "with the reason, under the service's minimum of sessions). Only the sessions already on the "
+                    "server's disk, never a download ('not held' otherwise); as_of is the newest session with a "
+                    "figure, never the time of the read. Shown to the member only. "
+                    f"Params: {{symbol, rows (1-{iv_history_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=dilution_read.KIND, fn=dilution_read.read_dilution, validate=dilution_read.validate,
+        # declared `periodic` (an answer is held for an hour and rebuilt on a member's visit); reads report `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One company's share-issuance filings of the last three years as UCT classified them from the "
+                    "SEC's filing index: each filing's date, form and kind, the shelf registrations and their "
+                    "state, and counts of offerings, unregistered sales and registrations. Only the answer the "
+                    "server already holds, never a request to the SEC ('not held' otherwise); as_of is the newest "
+                    "filing's day, never the time of the read. Shown to the member only. "
+                    f"Params: {{symbol, rows (1-{dilution_read.MAX_ROWS})}}.",
+    ))
+    # Terminal data wave 8 (owner: terminal-data): three more kinds, the Agent half of the CACT, IPO and DVD panels.
+    # Default OFF like every kind (UCT_AGENT_DATA_KINDS); ALL THREE are model-isolated, so each also needs its own
+    # UCT_AGENT_ISOLATED_KINDS entry (ADR-005) and its capability is local-only. None asks a vendor: where the member
+    # route can (the IPO calendar's two vendor reads, the dividend calendar's reference reads), the adapter reads the
+    # held-only reader beside the service and answers `unavailable`, with the reason, when nothing is held (MD-1 §4.17).
+    registry.register(Kind(
+        name=corporate_actions_read.KIND, fn=corporate_actions_read.read_corporate_actions,
+        validate=corporate_actions_read.validate,
+        # declared `periodic` (the record is rebuilt when the chart is opened and it is old); every read is `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's splits and cash dividends as UCT holds them beside its chart: splits back 45 years "
+                    "and cash dividends back 5 years by ex-date, each block newest first with its own count and newest "
+                    "date; dividend amounts split-adjusted. The name and ticker record is left out. Only the record "
+                    "the server already holds, never a vendor request ('not held' otherwise); as_of is the newest "
+                    "event, never the time of the read. Shown to the member only. "
+                    f"Params: {{symbol, rows (1-{corporate_actions_read.MAX_ROWS} per block)}}.",
+    ))
+    registry.register(Kind(
+        name=ipo_calendar_read.KIND, fn=ipo_calendar_read.read_ipos, validate=ipo_calendar_read.validate,
+        # declared `periodic` (one range is held for at most six hours); every read is `periodic`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The IPO calendar for the IPO panel's window (last week's Monday to next week's Friday) as UCT "
+                    "holds it, merged from two vendor calendars: each deal's day, company, symbol, exchange, price or "
+                    "range, shares, value and status, today and ahead soonest first, earlier newest first. Only the "
+                    "calendar the server already holds, never a vendor request ('not held' otherwise); the calendars "
+                    "carry no as-of, so as_of is null and the time UCT read them rides beside it, never the time of "
+                    f"the read. Shown to the member only. Params: {{rows (1-{ipo_calendar_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=dividends_calendar_read.KIND, fn=dividends_calendar_read.read_dividends,
+        validate=dividends_calendar_read.validate,
+        # declared `periodic` (one stock's answer is held for at most twelve hours); every read is `periodic`
+        freshness="periodic", owner="terminal-data", max_symbols=dividends_calendar_read.MAX_SYMBOLS,
+        model_isolated=True,
+        description="The dividends and splits declared ahead for the stocks named, one stock at a time as UCT holds "
+                    "them: each stock's next ex-dividend date with the cash amount as declared, and every split ahead, "
+                    "soonest first. Never the member's own lists. Only what the server already holds, never a vendor "
+                    "request ('not held' otherwise, per stock); a forward calendar carries no as-of, so as_of is null "
+                    "and the time UCT read each stock rides beside it, never the time of the read. Shown to the member "
+                    f"only. Params: {{symbols (1-{dividends_calendar_read.MAX_SYMBOLS} tickers)}}.",
+    ))
+    # Terminal data wave 9 (owner: terminal-data): three more kinds, the Agent half of the AUCT panel, the real-yield block
+    # of RATES and the FED panel. Default OFF like every kind (UCT_AGENT_DATA_KINDS); ALL THREE are model-isolated, so each
+    # also needs its own UCT_AGENT_ISOLATED_KINDS entry (ADR-005) and its capability is local-only. None asks a source:
+    # where the member route can (each service's background build; the Fed watch's rates through the economics store's
+    # published files), the adapter reads the held-only reader beside the service and answers `unavailable`, with the
+    # reason, when nothing is held (MD-1 §4.18).
+    registry.register(Kind(
+        name=treasury_auctions_read.KIND, fn=treasury_auctions_read.read_auctions, validate=treasury_auctions_read.validate,
+        # declared `periodic` (the records are looked for once each weekday evening); every read is `periodic`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="US Treasury auctions as UCT holds them from the Treasury's Fiscal Data service: the auctions coming "
+                    "up (security, auction day, issue day, amount offered), soonest first, and the results of the last 45 "
+                    "days (high yield, rate or discount margin, bid-to-cover, the award split between primary dealers, "
+                    "direct and indirect bidders), newest first. Only the answer the server already holds, never a build "
+                    "or a request ('not held' otherwise); as_of is the newest record's date, never the time of the read. "
+                    f"Shown to the member only. Params: {{rows (1-{treasury_auctions_read.MAX_ROWS} per list)}}.",
+    ))
+    registry.register(Kind(
+        name=real_yields_read.KIND, fn=real_yields_read.read_real, validate=real_yields_read.validate,
+        # declared `periodic` (the curve is looked for each weekday evening); every read is `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="US Treasury daily par real yields (TIPS, 5 to 30 years) as UCT holds them: each real yield with its "
+                    "1-day and 1-week change in basis points, and the breakeven at each maturity (nominal minus real on "
+                    "the newest day both curves hold, worked out by the server, with its own date). Only the block the "
+                    "server already holds, never a build or a request ('not held' otherwise); as_of is the real curve's "
+                    "own date, never the time of the read. Shown to the member only. Params: {}.",
+    ))
+    registry.register(Kind(
+        name=fed_watch_read.KIND, fn=fed_watch_read.read_fed_watch, validate=fed_watch_read.validate,
+        # declared `periodic` (the Board's feeds are looked for on a schedule); every read is `periodic`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The Fed watch as UCT holds it, seven blocks each with its own state, source and date: the newest "
+                    "FOMC statement with the added and removed word counts and the passages that changed, Fed speeches "
+                    "and testimony, Fed headlines from the news wire with the time UCT received each, the next FOMC "
+                    "decision, the federal funds rates, the officials' median rate projections and the New York Fed "
+                    "survey's median path. Only what the server already holds, never a build or a request (a block not "
+                    "held is said); as_of is null and each block carries its own date, never the time of the read. Shown "
+                    f"to the member only. Params: {{rows (1-{fed_watch_read.MAX_ROWS} per list)}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from

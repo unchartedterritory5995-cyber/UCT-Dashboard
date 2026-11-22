@@ -22,6 +22,7 @@ import { usePanelWriteBack } from './commandWriteBack'
 import useWarmingPoll from './warmingPoll'
 import WarmingState from './WarmingState'
 import { imovCommand } from './imovModel'
+import { groupDrillCommand } from './groupDrillModel'
 import {
   ROTATION_POLL_MS, ROTATION_SIDES, ROTATION_THRESHOLD, THEME_ROTATION_CODE, THEME_ROTATION_URL, deltaText,
   normRotationSide, rankMoveText, rotationCommandArgs, rotationRead, rotationSummary,
@@ -62,6 +63,12 @@ function RotationTable({ side, rows }) {
                 <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                 <PanelCommand cmd={imovCommand({ theme: { ticker: r.themeKey, name: r.name }, win: '1W' })}
                   label={`Open the stocks driving ${r.name}`}>{r.name}</PanelCommand>
+                {' '}
+                {/* the span carries the small muted type: the link itself inherits its font and color */}
+                <span className={styles.muted}>
+                  <PanelCommand cmd={groupDrillCommand({ kind: 'theme', name: r.name, range: '1M' })}
+                    label={`Open the stocks of ${r.name}, ranked`}>stocks</PanelCommand>
+                </span>
               </td>
               <td className={tone(r.delta)}>{deltaText(r) ?? NA}</td>
               <td className={styles.phoneHide}>{rankMoveText(r) ?? NA}</td>
@@ -154,7 +161,7 @@ export default function ThemeRotationPanel({ side: sideProp = null }) {
         when it has climbed {ROTATION_THRESHOLD} points or more (stronger lately than over the month) and rotating out when
         it has dropped {ROTATION_THRESHOLD} or more. Biggest move first. A theme can rotate in while its return is still
         negative: the rank compares it with the other themes. A sign (+/-) marks every change, so color is never the only
-        signal. Click a theme to see which of its stocks drive it.
+        signal. Click a theme to see which of its stocks drive it; "stocks" opens every stock of the theme, ranked.
         {view.generatedAt ? ` Ranks worked out at ${formatTimeEt(view.generatedAt, { zoneSuffix: 'ET', absent: '' })}; the server refreshes them every 15 minutes.` : ''}
       </p>
     </div>

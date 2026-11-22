@@ -149,7 +149,10 @@ def test_base_then_delta_round_trip(tmp_path, monkeypatch):
     worker_dir.mkdir()
     monkeypatch.setattr(data_sync, "_DATA_DIR", str(worker_dir))
     old_daily_ts = base_now - 100 * 86400   # ~100 days old: in base, outside delta window
-    recent_5m_ts = base_now - 3600          # 1h ago: inside the 7-day intraday window
+    # ⚰️ It was `base_now - 3600`: wall-clock, so on the 5m grid about 1 run in 300. Since 83794f67b8 (11-10,
+    # off-grid intraday rows are never stored) the merge rightly drops an off-grid 5m row, and the round trip
+    # read as broken. A real 5m bar opens on a 300 s boundary.
+    recent_5m_ts = (base_now - 3600) // 300 * 300   # 1h ago, on the 5m grid: inside the 7-day intraday window
     _seed_db(str(worker_dir / "bars.db"), [("AAPL", "D", old_daily_ts, 1, 1, 1, 1, 1)])
     base_ts = data_sync.upload_snapshot(force=True)        # existing full path
     assert base_ts
@@ -182,7 +185,7 @@ def test_sync_with_deltas_is_idempotent(tmp_path, monkeypatch):
     monkeypatch.setattr(data_sync, "_DATA_DIR", str(worker_dir))
     _seed_db(str(worker_dir / "bars.db"), [("AAPL", "D", base_now - 100 * 86400, 1, 1, 1, 1, 1)])
     data_sync.upload_snapshot(force=True)
-    _seed_db(str(worker_dir / "bars.db"), [("AAPL", "5", base_now - 3600, 9, 9, 9, 9, 9)])
+    _seed_db(str(worker_dir / "bars.db"), [("AAPL", "5", (base_now - 3600) // 300 * 300, 9, 9, 9, 9, 9)])  # on the 5m grid
     data_sync.upload_delta(now=base_now + 10)
 
     web_dir = tmp_path / "web"

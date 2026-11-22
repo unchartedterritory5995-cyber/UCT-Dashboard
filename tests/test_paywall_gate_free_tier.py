@@ -70,18 +70,17 @@ SRC = os.path.join(REPO_ROOT, "app", "src")
 # derived route table; the gate is read off `route.dependant`.
 PAID_NOW: set[tuple[str, str]] = {
     # ── Compass brain / knowledge base (api/routers/intelligence.py) ─────────
+    # (that router's three desk-ledger reads are ADMIN, not paid; their rail is
+    # tests/test_intelligence_desk_ledger_admin.py)
     ("GET", "/api/analogs"),
-    ("GET", "/api/coaching-notes"),
     ("GET", "/api/confidence-scores/{symbol}"),
     ("GET", "/api/leader-persistence/{symbol}"),
     ("GET", "/api/model-examples"),
     ("GET", "/api/pre-trade-checklist"),
-    ("GET", "/api/psychology-events"),
     ("GET", "/api/risk-summary"),
     ("GET", "/api/setup-performance/{setup_type}"),
     ("GET", "/api/setup-templates"),
     ("GET", "/api/setup-templates/{name}"),
-    ("GET", "/api/skill-assessments"),
     # ── Model Book reads (api/routers/modelbook.py) ──────────────────────────
     ("GET", "/api/modelbook/all-stocks"),
     ("GET", "/api/modelbook/index-drawings"),
@@ -774,6 +773,25 @@ REACHED_FROM_FREE_PAGE = {
         "member renders the shell since the 2026-10-02 ruling.",
     "/api/modelbook/stock/":
         "Same embed, the per-stock read; same gate, same reach.",
+    # ⭐ 2026-11-18 (security-census triage): three more, found the first time this file ran in
+    # CI after #1855. Verdict, made out loud: each is in PAID_NOW and carries require_paid (this
+    # file's own dependency-tree and free-member-402 tests prove it), and since the 2026-10-02
+    # ruling FREE_PAGES is empty, so no free member renders the shell this walk starts from.
+    # Each chain was traced with this file's own `_module_tree` walk, not inferred:
+    "/api/calendar/next-report":
+        "Layout -> ChartsDeskHost (a01389e3e7, popped-out chart windows stay open across "
+        "pages) -> chartsWorkspaceImporter -> ChartsWorkspace -> AgentPanel -> useAgent -> "
+        "agent/builtins -> agent/capabilities/calendar.js: the Charts workspace's agent; "
+        "paid, and no free member renders the shell.",
+    "/api/stock-brief/":
+        "Same Layout -> ChartsDeskHost -> ChartsWorkspace edge, then WidgetHost -> "
+        "ProfileWidget -> useStockBrief; the Charts workspace's Profile widget, paid like "
+        "the page.",
+    "/api/single-stock-etfs/":
+        "TickerPopup -> ChartPane -> chart/restedReaders -> singleStockEtfsKey "
+        "(8b8944f0fe, the rest gate moved to the chart's own call sites): the chart "
+        "header's leverage control; paid, refused 402 to a free member, and no free "
+        "member renders the page.",
 }
 
 

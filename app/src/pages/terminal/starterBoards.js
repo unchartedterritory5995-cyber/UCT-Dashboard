@@ -66,6 +66,12 @@ export const STARTER_BOARDS = Object.freeze([
     about: 'Where the options money is going, with the curated flow lists, contracts hit again and again, dark pool size lining up with long-dated flow, and the Top Flow picks.',
     commands: ['FLWL', 'ACCUM', 'CONFL', 'TOPF'],
   },
+  {
+    id: 'short-interest',
+    name: 'Short interest',
+    about: 'The most shorted stocks in the newest FINRA report, by days to cover, biggest rise in shares short and percent of float, beside the stocks on unusual volume today.',
+    commands: ['SHRTS', 'SHRTS UP', 'SHRTS FLOAT', 'UNVOL'],
+  },
 ].map((b) => Object.freeze({ ...b, commands: Object.freeze([...b.commands]) })))
 
 const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/

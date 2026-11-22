@@ -1104,9 +1104,13 @@ def daily_rows_from_snapshot(tickers: Iterable[dict], today_ymd: int) -> list[tu
     """Today's daily bar per ticker from the provider's whole-market snapshot `day`.
     A ticker with no regular-session print yet (zeros) gets no row: its newest stored
     daily bar (yesterday) is then the truth, exactly as the provider's daily series."""
+    from api.services.vendor_symbols import app_symbol
     out = []
     for t in tickers:
-        sym = t.get("ticker")
+        # ⛔ `BCpC` (Brunswick's preferred C) is not `BCPC` (Balchem): a lowercase-marked vendor
+        # ticker has no app key. Upper-cased, the preferred's day bar replaced Balchem's on every
+        # poll (2026-11-16/17: 20.55 against 171.48; api/services/vendor_symbols.py).
+        sym = app_symbol(t.get("ticker"))
         day = t.get("day") or {}
         try:
             o, h, l, c, v = (float(day.get(k) or 0) for k in ("o", "h", "l", "c", "v"))
@@ -1114,7 +1118,7 @@ def daily_rows_from_snapshot(tickers: Iterable[dict], today_ymd: int) -> list[tu
             continue
         if not sym or min(o, h, l, c) <= 0:
             continue
-        out.append((sym.replace(".", "-").upper(), today_ymd, o, h, l, c, int(v)))
+        out.append((sym, today_ymd, o, h, l, c, int(v)))
     return out
 
 
@@ -1132,13 +1136,25 @@ def _daily_poll_once(last: Optional[dict] = None) -> tuple[int, set]:
     if not tickers:
         return 0, set()
     today = int(datetime.now(_ET).strftime("%Y%m%d"))
+    # ⛔ NO ROW BEFORE TODAY'S REGULAR SESSION HAS OPENED. The poll runs from 04:00, and before
+    # the open the snapshot's `day` can still hold the PRIOR session (2026-09-04, 2026-09-11:
+    # the same object stamped with today's date drew a second copy of yesterday's candle on
+    # every pre-market daily chart). The one rule for "may today's `day` be dated today" is
+    # `massive._regular_session_has_opened_today` (todays_daily_bar and the today pack ask it
+    # too); asked here rather than restated. Before the open nothing is written, so the stored
+    # series ends at the prior session, exactly what the uncovered path serves; every ticker
+    # is still reported, so daily coverage does not drop.
+    from api.services import massive
+    opened = massive._regular_session_has_opened_today()
     # Only bars that moved since the last poll: an unchanged ticker's stored row is
     # already exact, and rewriting ~13k rows every poll would crowd the write lock.
-    rows = [r for r in daily_rows_from_snapshot(tickers, today) if last.get(r[0]) != r]
+    rows = ([r for r in daily_rows_from_snapshot(tickers, today) if last.get(r[0]) != r]
+            if opened else [])
     n = _write_rows("D", rows) if rows else 0
     for r in rows:
         last[r[0]] = r
-    seen = {str(t.get("ticker", "")).replace(".", "-").upper() for t in tickers if t.get("ticker")}
+    from api.services.vendor_symbols import app_symbol
+    seen = {s for s in (app_symbol(t.get("ticker")) for t in tickers) if s}
     return n, seen
 
 

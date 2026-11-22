@@ -1060,6 +1060,11 @@ def test_prices_for_resolves_a_breadth_pseudo_ticker_via_breadth_symbols(monkeyp
 
     def _boom(*a, **k):
         raise AssertionError("Massive must not be consulted for a breadth symbol")
+    # ⛔ IMPORT THE BINDER BEFORE PATCHING. `api.routers.live_prices` does `from api.services.massive import
+    # _get_client`; first imported INSIDE this patch, it kept `_boom` after the patch was undone (the conftest
+    # bound-function tripwire). It used to be imported earlier only because flow-worker's accidental
+    # `api.main` edge loaded the whole app; with that edge cut (PR #1360) this test must say what it needs.
+    import api.routers.live_prices  # noqa: F401
     monkeypatch.setattr("api.services.massive._get_client", _boom)
 
     prices, missing = _proj._prices_for(["UCTA5"])

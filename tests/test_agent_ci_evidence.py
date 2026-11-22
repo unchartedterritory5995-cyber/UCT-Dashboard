@@ -1,5 +1,5 @@
 """P2 merge-tree evidence (tools/agent_ci_evidence.py, tools/agent_ci_rearm.py): PASS only for the newest completed
-pull_request (or, opted in, re-arm) agent ci run of THIS PR whose 13 records agree on a merge commit of the CURRENT base
+pull_request (or, opted in, re-arm) agent ci run of THIS PR whose 18 records agree on a merge commit of the CURRENT base
 tip + PR head with the expected tree. Every fail-closed branch is driven from one PASS fixture
 (tests/fixtures/agent_ci_evidence/pass_run.json) by changing ONE thing."""
 from __future__ import annotations
@@ -7,6 +7,7 @@ from __future__ import annotations
 import copy
 import json
 import pathlib
+import re
 import subprocess
 import types
 
@@ -47,10 +48,12 @@ def _recs(fx):
 
 
 # ---- the required job set ---------------------------------------------------------------------------------------
-def test_required_keys_cover_the_thirteen_required_jobs_one_to_one():
-    assert list(KEYS) == acr.required_jobs(DOC) and len(KEYS) == 13
-    assert len(set(KEYS.values())) == 13
-    assert {k for k in KEYS.values() if k.startswith("browser-")} == {f"browser-{i}" for i in range(1, 9)}
+def test_required_keys_cover_the_eighteen_required_jobs_one_to_one():
+    assert list(KEYS) == acr.required_jobs(DOC) and len(KEYS) == 18
+    assert len(set(KEYS.values())) == 18
+    assert {k for k in KEYS.values() if k.startswith("browser-")} == {f"browser-{i}" for i in range(1, 13)}
+    assert {k for k in KEYS.values() if k.startswith("capability-regression-clock-")} == {
+        f"capability-regression-clock-{c}" for c in ("post", "rth-1", "rth-2")}
     assert set(_recs(FIXTURE)) == set(KEYS.values()), "the fixture no longer matches agent-ci.yml's jobs"
 
 
@@ -59,7 +62,7 @@ def test_the_fixture_passes_and_reports_the_evidence():
     verdict, reason, evidence = _decide(_fx())
     assert verdict == "PASS", reason
     assert evidence["tree"] == FIXTURE["expected_tree"] and evidence["base_sha"] == FIXTURE["base_tip"]
-    assert evidence["head_sha"] == FIXTURE["pr"]["head_sha"] and evidence["jobs"] == evidence["records"] == 13
+    assert evidence["head_sha"] == FIXTURE["pr"]["head_sha"] and evidence["jobs"] == evidence["records"] == 18
     assert evidence["merge_sha"] == "d" * 40 and evidence["event"] == "pull_request"
 
 
@@ -93,7 +96,8 @@ CASES = {
     # the run
     "no-run": (lambda f: f.update(runs=[]), "no-run"),
     "only-a-push-run": (lambda f: _run(f).update(event="push"), "no-run"),
-    "dispatch-not-accepted-by-default": (lambda f: _run(f).update(event="workflow_dispatch"), "no-run"),
+    "dispatch-not-accepted-by-default": (lambda f: _run(f).update(event="repository_dispatch"), "no-run"),
+    "workflow-dispatch-is-never-a-run": (lambda f: _run(f).update(event="workflow_dispatch"), "no-run"),
     "run-in-progress": (lambda f: _run(f).update(status="in_progress", conclusion=None), "run-in-progress"),
     "run-queued": (lambda f: _run(f).update(status="queued", conclusion=None), "run-in-progress"),
     "newer-run-in-progress": (lambda f: f["runs"].append(dict(copy.deepcopy(_run(f)), id=9, status="in_progress",
@@ -148,12 +152,17 @@ def test_a_run_whose_api_event_is_not_a_pr_event_fails_even_if_accepted():
 
 
 # ---- --accept-dispatch (a re-arm run) ----------------------------------------------------------------------------
+#: a repository_dispatch run's head_sha is the DEFAULT branch's commit that ran the workflow (master's tip, or an
+#: ancestor of it by verify time) -- never the commit under test
+WF_SHA = "a" * 40
+
+
 def _dispatch_fx():
     fx = _fx()
-    _run(fx)["event"] = "workflow_dispatch"
-    _run(fx).update(head_branch="master", path=".github/workflows/agent-ci.yml")
+    _run(fx)["event"] = "repository_dispatch"
+    _run(fx).update(head_branch="master", path=".github/workflows/agent-ci.yml", head_sha=WF_SHA, head_on_master=True)
     for r in _recs(fx).values():
-        r["event"], r["ref"] = "workflow_dispatch", "refs/heads/master"
+        r["event"], r["ref"] = "repository_dispatch", "refs/heads/master"
     return fx
 
 
@@ -302,8 +311,19 @@ def test_F1_cli_fails_closed_when_the_protected_list_is_unreadable(tmp_path, cap
 
 def test_a_rearm_record_under_a_pr_run_is_refused():
     fx = _fx()
-    _recs(fx)["union"]["event"] = "workflow_dispatch"
+    _recs(fx)["union"]["event"] = "repository_dispatch"
     assert _code(_decide(fx, accept=BOTH)) == "non-pr-event"
+
+
+@pytest.mark.parametrize("accept", [BOTH, (ev.PR_EVENT,), (ev.PR_EVENT, "workflow_dispatch"), ("workflow_dispatch",)])
+def test_P2c_a_workflow_dispatch_run_never_passes_whatever_the_caller_accepts(accept):
+    """AUDIT #6: ONE re-arm path. A workflow_dispatch run (or record) is refused even if a caller lists it."""
+    fx = _dispatch_fx()
+    _run(fx)["event"] = "workflow_dispatch"
+    for r in _recs(fx).values():
+        r["event"] = "workflow_dispatch"
+    assert _decide(fx, accept=accept, ref_sha=M)[0] == "FAIL"
+    assert BOTH == ("pull_request", "repository_dispatch")
 
 
 # ---- gather() over a fake gh (no network) --------------------------------------------------------------------------
@@ -326,8 +346,13 @@ class FakeGh:
         if "runs?event=pull_request" in path:
             assert f"branch={pr['head_ref']}" in path
             return {"workflow_runs": [dict(run, head_branch=pr["head_ref"], pull_requests=[{"number": pr["number"]}])] + self.extra}
-        if "runs?event=workflow_dispatch" in path:
+        if "runs?event=repository_dispatch" in path:
             return {"workflow_runs": self.dispatch}
+        if "runs?event=workflow_dispatch" in path:
+            raise AssertionError("verify must not list workflow_dispatch runs (P2c: one re-arm path)")
+        if path.startswith("compare/"):
+            base = path[len("compare/"):].split("...", 1)[0]
+            return self.compare if self.compare is not None else {"status": "ahead", "merge_base_commit": {"sha": base}}
         if "/files?" in path:
             page = int(path.rsplit("page=", 1)[1])
             files = self.fx["changed_paths"] or []
@@ -345,6 +370,7 @@ class FakeGh:
         return self.ref_sha.get(ref) if isinstance(self.ref_sha, dict) else self.ref_sha
 
     ref_sha = None
+    compare = None
 
     def download(self, run_id, name, dest):
         key = name[len(f"{ev.ARTIFACT_PREFIX}{self.fx['pr']['number']}-"):]
@@ -377,7 +403,7 @@ def test_gather_missing_and_expired_artifacts_fail_closed():
 
 
 def test_gather_any_in_progress_dispatch_is_busy():
-    busy = {"id": 77, "event": "workflow_dispatch", "status": "in_progress", "created_at": "2026-11-17T12:00:00Z"}
+    busy = {"id": 77, "event": "repository_dispatch", "status": "in_progress", "created_at": "2026-11-17T12:00:00Z"}
     assert _code(_gather_decide(FakeGh(_fx(), dispatch_runs=[busy]), accept_dispatch=True)) == "run-in-progress"
 
 
@@ -467,14 +493,69 @@ def test_build_record_for_a_pull_request_run(tmp_path):
     assert rec["failed"]["pytest"] == ["tests.test_uct_agent_a::test_bad", "tests.test_uct_agent_b.TestK::test_err"]
 
 
-def test_build_record_for_a_rearm_dispatch_binds_the_input_merge_sha():
-    env = dict(PR_ENV, GITHUB_EVENT_NAME="workflow_dispatch", GITHUB_SHA="a" * 40, GITHUB_REF="refs/heads/master")
-    payload = {"inputs": {"pr": "1700", "merge_sha": M}}
-    assert ev.build_record("server", env, payload, M, "e" * 40, [B, H])["errors"] == []
-    wrong = ev.build_record("server", env, payload, "f" * 40, "e" * 40, [B, H])   # checked out something else
-    assert wrong["errors"] and "not the event's merge commit" in wrong["errors"][0]
-    bad_pr = ev.build_record("server", env, {"inputs": {"pr": "1; rm -rf /", "merge_sha": M}}, M, "e" * 40, [B, H])
-    assert bad_pr["errors"] and bad_pr["pr"] is None
+DISPATCH_ENV = dict(PR_ENV, GITHUB_EVENT_NAME="repository_dispatch", GITHUB_SHA="a" * 40, GITHUB_REF="refs/heads/master")
+DISPATCH_PAYLOAD = {"action": "agent-ci-evidence", "client_payload": {"pr": 1700, "merge_sha": M}}
+
+
+def test_build_record_for_a_rearm_dispatch_binds_the_payload_merge_sha():
+    rec = ev.build_record("server", DISPATCH_ENV, DISPATCH_PAYLOAD, M, "e" * 40, [B, H])
+    assert rec["errors"] == [] and rec["pr"] == 1700 and rec["event"] == "repository_dispatch" and rec["sha"] == M
+    wrong = ev.build_record("server", DISPATCH_ENV, DISPATCH_PAYLOAD, "f" * 40, "e" * 40, [B, H])   # checked out something else
+    assert wrong["errors"] and "not the event's merge commit" in wrong["errors"][0] and wrong["sha"] == "f" * 40
+    as_str = dict(DISPATCH_PAYLOAD, client_payload={"pr": "1700", "merge_sha": M})               # a string pr is the same PR
+    assert ev.build_record("server", DISPATCH_ENV, as_str, M, "e" * 40, [B, H])["pr"] == 1700
+
+
+def test_P2c_the_record_sha_is_the_checkout_never_github_sha_or_the_payload():
+    """AUDIT #2: GITHUB_SHA is master's TIP on a repository_dispatch. A job that checked out the tip (a ref fallback)
+    records the tip and an error; the record never copies GITHUB_SHA or the payload's merge_sha into `sha`."""
+    tip = DISPATCH_ENV["GITHUB_SHA"]
+    on_tip = ev.build_record("server", DISPATCH_ENV, DISPATCH_PAYLOAD, tip, "e" * 40, [B, H])
+    assert on_tip["sha"] == tip and on_tip["errors"], on_tip
+    env_says_m = dict(DISPATCH_ENV, GITHUB_SHA=M)               # even if GITHUB_SHA happened to name M, HEAD decides
+    assert ev.build_record("server", env_says_m, DISPATCH_PAYLOAD, "f" * 40, "e" * 40, [B, H])["errors"]
+    no_payload_sha = dict(DISPATCH_PAYLOAD, client_payload={"pr": 1700})
+    rec = ev.build_record("server", dict(DISPATCH_ENV, GITHUB_SHA=M), no_payload_sha, M, "e" * 40, [B, H])
+    assert rec["errors"], "a dispatch record must never fall back to GITHUB_SHA as the expected commit"
+
+
+@pytest.mark.parametrize("payload", [
+    {"action": "agent-ci-evidence", "client_payload": {"pr": "1; rm -rf /", "merge_sha": M}},
+    {"action": "agent-ci-evidence", "client_payload": {"pr": True, "merge_sha": M}},
+    {"action": "agent-ci-evidence", "client_payload": {"pr": 1700.0, "merge_sha": M}},
+    {"action": "agent-ci-evidence", "client_payload": {"pr": [1700], "merge_sha": M}},
+    {"action": "agent-ci-evidence", "client_payload": {"pr": "1700\n", "merge_sha": M}},
+    {"action": "agent-ci-evidence", "client_payload": {"pr": "01700", "merge_sha": M}},
+    {"action": "agent-ci-evidence", "client_payload": {"pr": 12345678, "merge_sha": M}},
+    {"action": "agent-ci-evidence", "client_payload": {"pr": 0, "merge_sha": M}},
+    {"action": "agent-ci-evidence", "client_payload": {"pr": None, "merge_sha": M}},
+    {"action": "agent-ci-evidence", "client_payload": {"merge_sha": M}},
+    {"action": "agent-ci-evidence", "client_payload": {"pr": 1700, "merge_sha": [M]}},
+    {"action": "agent-ci-evidence", "client_payload": "pr=1700"},
+    {"action": "agent-ci-evidence"},
+    {"action": "other-type", "client_payload": {"pr": 1700, "merge_sha": M}},
+    {"client_payload": {"pr": 1700, "merge_sha": M}},
+    {"inputs": {"pr": "1700", "merge_sha": M}},                       # a workflow_dispatch-shaped event
+])
+def test_P2c_build_record_refuses_a_hostile_or_foreign_payload(payload):
+    rec = ev.build_record("server", DISPATCH_ENV, payload, M, "e" * 40, [B, H])
+    assert rec["errors"], payload
+
+
+@pytest.mark.parametrize("pr", [1, 42, 1701, 9999999, "42"])
+def test_P2c_the_record_pr_is_client_payload_pr_and_nothing_else(pr):
+    """AUDIT #5: the PR a re-arm record names comes from client_payload.pr alone (verify then matches it, and the
+    artifact name, to the PR being verified); no other field of the event can supply or override it."""
+    event = {"action": "agent-ci-evidence", "number": 1700, "pull_request": {"number": 1700},
+             "client_payload": {"pr": pr, "merge_sha": M, "number": 1700, "pull_request": 1700}}
+    rec = ev.build_record("server", DISPATCH_ENV, event, M, "e" * 40, [B, H])
+    assert rec["errors"] == [] and rec["pr"] == int(pr)
+
+
+def test_P2c_a_workflow_dispatch_record_is_not_a_rearm_record():
+    env = dict(DISPATCH_ENV, GITHUB_EVENT_NAME="workflow_dispatch")
+    rec = ev.build_record("server", env, {"inputs": {"pr": "1700", "merge_sha": M}}, M, "e" * 40, [B, H])
+    assert rec["pr"] is None and rec["errors"]
 
 
 def test_build_record_marks_an_unreadable_report_and_a_non_merge(tmp_path):
@@ -514,7 +595,7 @@ def test_record_cli_on_a_real_merge_commit(tmp_path, monkeypatch):
 def test_P2b_a_rearm_run_on_the_tools_merge_commit_passes():
     verdict, reason, evidence = _decide(_dispatch_fx(), accept=BOTH, ref_sha=M)
     assert verdict == "PASS", reason
-    assert (evidence["base_sha"], evidence["head_sha"], evidence["tree"], evidence["event"]) == (B, H, "e" * 40, "workflow_dispatch")
+    assert (evidence["base_sha"], evidence["head_sha"], evidence["tree"], evidence["event"]) == (B, H, "e" * 40, "repository_dispatch")
 
 
 P2B_CASES = {
@@ -532,6 +613,18 @@ P2B_CASES = {
     "record-ran-from-evidence-ref": (lambda f: _recs(f)["union"].update(ref="refs/agent-ci-evidence/pr-1700"), "dispatch-ref"),
     "record-ran-from-a-branch": (lambda f: _recs(f)["server"].update(ref="refs/heads/agent/pl/x"), "dispatch-ref"),
     "push-run-on-the-evidence-ref": (lambda f: _run(f).update(event="push", head_branch="agent-ci-evidence/pr-1700"), "no-run"),
+    # P2c (AUDIT #5): the workflow commit must be on master's history NOW
+    "workflow-commit-not-on-master": (lambda f: _run(f).update(head_on_master=False), "dispatch-ref"),
+    "workflow-commit-unknown": (lambda f: _run(f).pop("head_on_master"), "dispatch-ref"),
+    "workflow-commit-truthy-not-true": (lambda f: _run(f).update(head_on_master="yes"), "dispatch-ref"),
+    "wrong-workflow-path": (lambda f: _run(f).update(path=".github/workflows/agent-ci-benchmark.yml"), "dispatch-ref"),
+    "workflow-from-another-ref": (lambda f: _run(f).update(path=".github/workflows/agent-ci.yml@refs/heads/agent/pl/x"), "dispatch-ref"),
+    # the records name master's tip (GITHUB_SHA), not the tool's commit: the evidence ref (M) refuses it
+    "records-echo-masters-tip": (lambda f: [r.update(sha=WF_SHA) for r in _recs(f).values()], "evidence-ref"),
+    "one-record-on-masters-tip": (lambda f: _recs(f)["browser-4"].update(sha=WF_SHA), "record-mismatch"),
+    "record-from-workflow-dispatch": (lambda f: _recs(f)["server"].update(event="workflow_dispatch"), "non-pr-event"),
+    "record-for-another-pr": (lambda f: _recs(f)["union"].update(pr=1701), "record-mismatch"),
+    "record-without-pr": (lambda f: _recs(f)["union"].update(pr=None), "record-mismatch"),
 }
 
 
@@ -556,9 +649,10 @@ def test_P2b_the_evidence_ref_guard_does_not_touch_pull_request_runs():
 def test_P2b_gather_reads_the_tools_ref_only_with_accept_dispatch():
     fx = _dispatch_fx()
     disp = dict(copy.deepcopy(_run(fx)), id=_run(fx)["id"], created_at="2026-11-17T12:00:00Z")
+    disp.pop("head_on_master")                                                # gather() must compute it, never trust it
     fx["runs"][0] = dict(_run(fx), event="pull_request", head_branch="agent/pl/x", path=None)   # the PR run (older)
     for r in _recs(fx).values():
-        r["event"], r["ref"] = "workflow_dispatch", "refs/heads/master"   # records belong to the newer dispatch run
+        r["event"], r["ref"] = "repository_dispatch", "refs/heads/master"   # records belong to the newer dispatch run
     api = FakeGh(fx, dispatch_runs=[disp])
     api.ref_sha = {ev.evidence_ref(1700): M}
     assert _code(_gather_decide(api, accept_dispatch=True)) == "PASS"
@@ -570,6 +664,34 @@ def test_P2b_gather_reads_the_tools_ref_only_with_accept_dispatch():
     plain = FakeGh(_fx())
     _gather_decide(plain)
     assert not any(c.startswith("ls-remote") for c in plain.calls)
+
+
+@pytest.mark.parametrize("compare", [{"status": "diverged", "merge_base_commit": {"sha": "9" * 40}},
+                                     {"status": "behind", "merge_base_commit": {"sha": B}},
+                                     # inconsistent answers: BOTH the status and the merge base must say "ancestor"
+                                     {"status": "behind", "merge_base_commit": {"sha": WF_SHA}},
+                                     {"status": "diverged", "merge_base_commit": {"sha": WF_SHA}},
+                                     {"merge_base_commit": {"sha": WF_SHA}},
+                                     {"status": "ahead", "merge_base_commit": {"sha": "9" * 40}},
+                                     {"status": "ahead"}, {}, None])
+def test_P2c_gather_refuses_a_dispatch_run_whose_workflow_commit_is_not_on_master(compare):
+    """AUDIT #5: the dispatch run's head_sha (the workflow commit that ran) must be an ancestor of master's tip NOW,
+    read by gather() through a read-only compare, never taken from the run listing."""
+    fx = _dispatch_fx()
+    disp = dict(copy.deepcopy(_run(fx)), created_at="2026-11-17T12:00:00Z")
+    disp.pop("head_on_master")
+    fx["runs"][0] = dict(_run(fx), event="pull_request", head_branch="agent/pl/x", path=None)
+    api = FakeGh(fx, dispatch_runs=[disp])
+    api.ref_sha = {ev.evidence_ref(1700): M}
+    api.compare = compare if compare is not None else {"status": "identical", "merge_base_commit": {"sha": WF_SHA}}
+    want = "PASS" if compare is None else "dispatch-ref"
+    assert _code(_gather_decide(api, accept_dispatch=True)) == want, compare
+    assert f"compare/{WF_SHA}...{B}?per_page=1" in api.calls
+    for bad_head in (None, "", "short", WF_SHA.upper()):
+        api2 = FakeGh(fx, dispatch_runs=[dict(disp, head_sha=bad_head)])
+        api2.ref_sha = {ev.evidence_ref(1700): M}
+        assert _code(_gather_decide(api2, accept_dispatch=True)) == "dispatch-ref", bad_head
+        assert not any(c.startswith("compare/") for c in api2.calls)
 
 
 def test_P2b_self_protection_is_still_the_prs_diff_vs_its_merge_base(monkeypatch):
@@ -585,7 +707,9 @@ def test_P2b_self_protection_is_still_the_prs_diff_vs_its_merge_base(monkeypatch
     monkeypatch.setattr(acr, "pr_changed_paths", lambda a, n: seen.append(n) or real(a, n))
     assert _code(_gather_decide(api, accept_dispatch=True)) == "self-protected-diff"
     assert seen == [1700] and any(c.startswith("pulls/1700/files") for c in api.calls)
-    assert not any("compare/" in c or "/commits/" in c for c in api.calls), "the diff must not come from the evidence commit"
+    assert not any(M in c or "/commits/" in c for c in api.calls), "the diff must not come from the evidence commit"
+    # the one compare call is the dispatch run's WORKFLOW commit vs master's tip (ancestry, AUDIT #5), never a diff
+    assert not [c for c in api.calls if "compare/" in c and c != f"compare/{WF_SHA}...{B}?per_page=1"]
     # and decide() takes the list as given: an empty evidence-commit diff cannot launder a protected PR diff
     assert _code(_decide(fx, accept=BOTH, ref_sha=M)) == "self-protected-diff"
 
@@ -743,7 +867,8 @@ def test_P2b_rearm_builds_the_merge_pushes_its_own_ref_and_dispatches_once(repo,
     assert len(pushes) == 1 and len(gh) == 1
     c = pushes[0][-1].split(":")[0].lstrip("+")
     assert pushes[0] == ["git", "push", "--quiet", f"https://github.com/{REPO}.git", f"+{c}:refs/agent-ci-evidence/pr-1700"]
-    assert gh[0] == ["gh", "workflow", "run", "agent-ci.yml", "-R", REPO, "--ref", "master", "-f", "pr=1700", "-f", f"merge_sha={c}"]
+    assert gh[0] == ["gh", "api", "-X", "POST", f"repos/{REPO}/dispatches", "-f", "event_type=agent-ci-evidence",
+                     "-F", "client_payload[pr]=1700", "-f", f"client_payload[merge_sha]={c}"]
     assert log.index(pushes[0]) < log.index(gh[0]), "dispatch before the commit is reachable"
     assert ["git", "fetch", "--no-tags", "--quiet", f"https://github.com/{REPO}.git", repo.tip, repo.head] in log
     assert ev.commit_parents  # the CI-side parent reader agrees with the tool:
@@ -875,18 +1000,151 @@ def test_P2b_rearm_refuses_a_push_argv_aimed_elsewhere(repo, monkeypatch):
     assert rc == rearm.REFUSED and pushes == [] and gh == []
 
 
-def test_F2_rearm_has_no_ref_option_and_always_dispatches_master(repo):
+def test_F2_rearm_has_no_ref_option_and_the_dispatch_names_no_ref_or_workflow(repo):
+    """repository_dispatch ALWAYS runs the default branch's agent-ci.yml: there is no ref to pass, and none is passed."""
     for argv in (["--ref", "agent/pl/x"], ["--ref", "master"], ["--ref=agent/pl/x"]):
         with pytest.raises(SystemExit):
             rearm.main(["--pr", "1700", "--repo", REPO, *argv], get=lambda p: None, run=lambda a, **k: pytest.fail("ran"))
     argv = rearm.dispatch_argv(REPO, 1700, M)
-    assert argv[argv.index("--ref") + 1] == "master" and argv.count("--ref") == 1
+    assert "--ref" not in argv and "workflow" not in argv and not any(a.startswith(("ref=", "-R")) for a in argv)
+    rearm.assert_dispatch_is_own(argv, REPO, 1700, M)
 
 
-def test_F2_rearm_hard_refuses_a_non_master_workflow_ref(repo, monkeypatch):
-    monkeypatch.setattr(rearm, "WORKFLOW_REF", "agent/pl/x")
+# ---- P2c: the ONE repository_dispatch -----------------------------------------------------------------------------
+P2C_EXPECTED_BODY = {"event_type": "agent-ci-evidence", "client_payload": {"pr": 1700, "merge_sha": M}}
+
+
+def _gh_body(argv):
+    """gh api's documented field encoding (gh 2.102.0 `gh api --help`): -f/--raw-field = a string; -F/--field = typed
+    (true / false / null / integers become JSON values; `@file` reads a file, never produced here); `key[sub]=v` nests.
+    Captured 2026-11-18 against a local 127.0.0.1 listener (GH_CONFIG_DIR empty, dummy GH_TOKEN; nothing reached GitHub):
+    gh 2.102.0 sent exactly {"client_payload":{"merge_sha":"<C>","pr":1700},"event_type":"agent-ci-evidence"}."""
+    body, rest = {}, argv[5:]
+    assert len(rest) % 2 == 0, argv
+    for flag, kv in zip(rest[::2], rest[1::2]):
+        assert flag in ("-f", "-F"), argv
+        key, val = kv.split("=", 1)
+        if flag == "-F":
+            assert not val.startswith("@")
+            if val in ("true", "false", "null"):
+                val = {"true": True, "false": False, "null": None}[val]
+            elif re.fullmatch(r"-?[0-9]+", val):
+                val = int(val)
+        m = re.fullmatch(r"(\w+)\[(\w+)\]", key)
+        if m:
+            body.setdefault(m.group(1), {})[m.group(2)] = val
+        else:
+            body[key] = val
+    return body
+
+
+def test_P2c_the_dispatch_body_is_one_json_object_with_an_integer_pr():
+    argv = rearm.dispatch_argv(REPO, 1700, M)
+    assert argv[:5] == ["gh", "api", "-X", "POST", f"repos/{REPO}/dispatches"]
+    body = _gh_body(argv)
+    assert body == P2C_EXPECTED_BODY and type(body["client_payload"]["pr"]) is int
+    # the record (and the workflow's validate step, tests/test_ci_agent_merge_ref.py) accept exactly this payload
+    event = {"action": body["event_type"], "client_payload": body["client_payload"]}
+    rec = ev.build_record("server", DISPATCH_ENV, event, M, "e" * 40, [B, H])
+    assert rec["errors"] == [] and rec["pr"] == 1700
+
+
+BAD_DISPATCH_ARGVS = {
+    "gh-workflow-run": lambda r, n, c: ["gh", "workflow", "run", "agent-ci.yml", "-R", r, "--ref", "master", "-f", f"pr={n}", "-f", f"merge_sha={c}"],
+    "other-event-type": lambda r, n, c: ["gh", "api", "-X", "POST", f"repos/{r}/dispatches", "-f", "event_type=agent-ci-evidence-2", "-F", f"client_payload[pr]={n}", "-f", f"client_payload[merge_sha]={c}"],
+    "pr-as-raw-string": lambda r, n, c: ["gh", "api", "-X", "POST", f"repos/{r}/dispatches", "-f", "event_type=agent-ci-evidence", "-f", f"client_payload[pr]={n}", "-f", f"client_payload[merge_sha]={c}"],
+    "sha-typed": lambda r, n, c: ["gh", "api", "-X", "POST", f"repos/{r}/dispatches", "-f", "event_type=agent-ci-evidence", "-F", f"client_payload[pr]={n}", "-F", f"client_payload[merge_sha]={c}"],
+    "other-commit": lambda r, n, c: ["gh", "api", "-X", "POST", f"repos/{r}/dispatches", "-f", "event_type=agent-ci-evidence", "-F", f"client_payload[pr]={n}", "-f", f"client_payload[merge_sha]={'f' * 40}"],
+    "other-pr": lambda r, n, c: ["gh", "api", "-X", "POST", f"repos/{r}/dispatches", "-f", "event_type=agent-ci-evidence", "-F", f"client_payload[pr]={n + 1}", "-f", f"client_payload[merge_sha]={c}"],
+    "extra-field": lambda r, n, c: ["gh", "api", "-X", "POST", f"repos/{r}/dispatches", "-f", "event_type=agent-ci-evidence", "-F", f"client_payload[pr]={n}", "-f", f"client_payload[merge_sha]={c}", "-f", "client_payload[ref]=x"],
+    "input-file": lambda r, n, c: ["gh", "api", "-X", "POST", f"repos/{r}/dispatches", "--input", "-"],
+    "header": lambda r, n, c: ["gh", "api", "-X", "POST", "-H", "X: y", f"repos/{r}/dispatches", "-f", "event_type=agent-ci-evidence", "-F", f"client_payload[pr]={n}", "-f", f"client_payload[merge_sha]={c}"],
+    "other-endpoint": lambda r, n, c: ["gh", "api", "-X", "POST", f"repos/{r}/actions/workflows/agent-ci.yml/dispatches", "-f", "event_type=agent-ci-evidence", "-F", f"client_payload[pr]={n}", "-f", f"client_payload[merge_sha]={c}"],
+    "other-repo": lambda r, n, c: ["gh", "api", "-X", "POST", "repos/x/y/dispatches", "-f", "event_type=agent-ci-evidence", "-F", f"client_payload[pr]={n}", "-f", f"client_payload[merge_sha]={c}"],
+    "get-not-post": lambda r, n, c: ["gh", "api", "-X", "GET", f"repos/{r}/dispatches", "-f", "event_type=agent-ci-evidence", "-F", f"client_payload[pr]={n}", "-f", f"client_payload[merge_sha]={c}"],
+    "reordered": lambda r, n, c: ["gh", "api", "-X", "POST", f"repos/{r}/dispatches", "-F", f"client_payload[pr]={n}", "-f", "event_type=agent-ci-evidence", "-f", f"client_payload[merge_sha]={c}"],
+    "twice": lambda r, n, c: rearm.dispatch_argv(r, n, c) + rearm.dispatch_argv(r, n, c)[1:],
+    "a-tuple": lambda r, n, c: tuple(rearm.dispatch_argv(r, n, c)) + ("--silent",),
+}
+
+
+@pytest.mark.parametrize("case", sorted(BAD_DISPATCH_ARGVS))
+def test_P2c_the_dispatch_guard_refuses_every_other_shape(case):
+    with pytest.raises(rearm.Refused):
+        rearm.assert_dispatch_is_own(BAD_DISPATCH_ARGVS[case](REPO, 1700, M), REPO, 1700, M)
+
+
+@pytest.mark.parametrize("case", ["gh-workflow-run", "other-event-type", "other-commit", "extra-field", "input-file"])
+def test_P2c_rearm_refuses_a_dispatch_argv_aimed_elsewhere(repo, monkeypatch, case):
+    """Whatever produced the argv (a future edit), the guard runs before anything is pushed or dispatched."""
+    monkeypatch.setattr(rearm, "dispatch_argv", lambda r, n, c: list(BAD_DISPATCH_ARGVS[case](r, n, c)))
     rc, pushes, gh, _ = _rearm(repo)
     assert rc == rearm.REFUSED and pushes == [] and gh == []
+
+
+def test_P2c_the_dispatch_guard_refuses_bad_numbers_commits_and_repos():
+    for n in ("1700", True, 0, -1, 12345678, 1700.0, None):
+        with pytest.raises(rearm.Refused):
+            rearm.assert_dispatch_is_own(["gh"], REPO, n, M)
+        with pytest.raises(rearm.Refused):   # even the tool's own argv shape for that number
+            rearm.assert_dispatch_is_own(rearm.dispatch_argv(REPO, n, M), REPO, n, M)
+    for c in (M.upper(), M[:39], "HEAD", "", None):
+        with pytest.raises(rearm.Refused):
+            rearm.assert_dispatch_is_own(rearm.dispatch_argv(REPO, 1700, M), REPO, 1700, c)
+    for r in ("o/r/../x", "o", "o/r x", "https://github.com/o/r", "o/r/dispatches?x=1", ""):
+        with pytest.raises(rearm.Refused):
+            rearm.assert_dispatch_is_own(rearm.dispatch_argv(r, 1700, M), r, 1700, M)
+
+
+def test_P2c_rearm_takes_no_payload_from_argv():
+    """AUDIT #7: pr is the one --pr integer; merge_sha is ONLY the commit this run built. Nothing else is accepted."""
+    for opt in ("--merge-sha", "--merge_sha", "--sha", "--commit", "--payload", "--client-payload", "--event-type",
+                "--event_type", "--input", "--field", "-F", "-f", "--tree", "--workflow"):
+        with pytest.raises(SystemExit):
+            rearm.main(["--pr", "1700", "--repo", REPO, opt, "x"], get=lambda p: pytest.fail("read"),
+                       run=lambda a, **k: pytest.fail("ran"))
+
+
+def test_P2c_rearm_dispatches_exactly_the_commit_it_built_and_pushed(repo):
+    rc, pushes, gh, log = _rearm(repo)
+    assert rc == 0 and len(gh) == 1
+    c = pushes[0][-1].split(":")[0].lstrip("+")
+    assert _gh_body(gh[0]) == {"event_type": "agent-ci-evidence", "client_payload": {"pr": 1700, "merge_sha": c}}
+    assert _git(repo.path, "rev-parse", f"{c}^1") == repo.tip and _git(repo.path, "rev-parse", f"{c}^2") == repo.head
+    assert [a for a in log if isinstance(a, list) and a[0] == "gh"] == gh   # the ONLY gh process the tool started
+
+
+def test_P2c_rearm_refuses_a_pr_beyond_the_workflows_bound():
+    for pr in ("12345678", "0", "-3"):
+        calls = []
+        assert rearm.main(["--pr", pr, "--repo", REPO], get=lambda p: calls.append(p), run=lambda a, **k: calls.append(a)) == rearm.REFUSED
+        assert calls == [], pr
+    assert rearm.PR_RE.pattern == ev.PR_RE.pattern == r"[1-9][0-9]{0,6}\Z"
+
+
+def _rearm_ast():
+    import ast
+    return ast.parse((ROOT / "tools" / "agent_ci_rearm.py").read_text(encoding="utf-8"))
+
+
+def test_P2c_rail_the_rearm_tool_has_only_these_gh_calls_and_runs_each_side_effect_once():
+    """AUDIT #7: the only gh argv shapes in the tool are the read-only GET and the ONE dispatch POST (+ its guard's
+    expected copy); main() starts the push and the dispatch with exactly one `run(...)` each, outside any loop."""
+    import ast
+    tree = _rearm_ast()
+    gh_lists = [n for n in ast.walk(tree) if isinstance(n, ast.List) and n.elts and isinstance(n.elts[0], ast.Constant) and n.elts[0].value == "gh"]
+    shapes = sorted(tuple(e.value if isinstance(e, ast.Constant) else "?" for e in n.elts[:4]) for n in gh_lists)
+    assert shapes == [("gh", "api", "-X", "GET"), ("gh", "api", "-X", "POST"), ("gh", "api", "-X", "POST")], shapes
+    consts = {n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    assert "workflow" not in consts and "run" not in consts and "--ref" not in consts
+    assert "event_type=agent-ci-evidence" in consts                       # the guard's LITERAL event type
+    main = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "main")
+    runs = [n for n in ast.walk(main) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "run"]
+    assert [ast.unparse(c.args[0]) for c in runs] == ["push_", "disp"], [ast.unparse(c) for c in runs]
+    assert not [n for n in ast.walk(main) if isinstance(n, (ast.For, ast.While, ast.AsyncFor, ast.comprehension))], "a loop in main(): a retry?"
+    for fn in (n for n in tree.body if isinstance(n, ast.FunctionDef)):
+        assert not any(isinstance(x, ast.Call) and isinstance(x.func, ast.Attribute) and x.func.attr in ("sleep", "retry")
+                       for x in ast.walk(fn)), fn.name
 
 
 def test_rearm_takes_exactly_one_pr():

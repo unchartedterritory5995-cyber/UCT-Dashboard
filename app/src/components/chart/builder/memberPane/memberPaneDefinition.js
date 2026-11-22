@@ -23,7 +23,8 @@
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { staticPlotRefusalsOf } from '../../engine/otherSymbols.js'
-import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP, NO_VERSION_GUARD, modernPineSyntaxIn, noVersionSentence } from '../../engine/ast/pine'
+import { checkDoorDeadline } from '../../engine/ast/doorDeadline'
+import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP, NO_VERSION_GUARD, modernPineSyntaxIn, noVersionSentence, withDoorDeadline } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR } from '../../engine/pinePalette'
 import { THEME_FG } from '../../engine/objectTheme'
@@ -44,17 +45,21 @@ import { OHLC_DEF_STYLES } from '../../engine/defSchema'
 import { warmRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjectsDoor'
+import { runtimeFamilyLedger, FAMILY_WORDS } from './runtimeFamilyLedger'
 // ⭐⭐ ENGINE 53 — ONE row pairing for both lanes (the runtime document and the run half).
 import { pairRunRows } from './runRowPairing'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
-import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
+import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf } from '../../engine/runtimeKill'
 import { hostKnownDivergenceOf } from '../../engine/hostKnownDivergence'
+import { heldWithholdsOf, heldWithholdSentence, heldDrawingsNote, objectFamiliesOf, HELD_DIVERGENCE_GUARD,
+  HELD_WITHHOLDS_STAMP, heldWithholdsStamp, heldRefusalReason } from '../../engine/heldWithholds'
 import { hostLaneCostOf } from '../../engine/hostLaneCost'
 import { sameDrawnSurface } from './costRoute'
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
 // ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
-import { storedBytesOf, sentDocument } from './storedBytes'
+import { storedBytesOf, sentDocument, pyJsonBytes } from './storedBytes'
+import { DEFAULT_LIMITS, LIMIT_PLAIN } from '../../engine/runtime/limits'
 import { runHalfProgramDigest, isGraphForm, RUN_HALF_PROGRAM_STAMP, RUN_HALF_PROGRAM_GRAPH_STAMP } from '../../engine/runHalfProgram'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation, pineLineWidth } from '../builderInputs'
@@ -68,7 +73,7 @@ import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
 import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
-import { substitutionNotesFor } from '../../engine/ast/symbolSubstitution'
+import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'
 
 // ─── ⭐⭐ SERVE OR REFUSE BY NAME (owner ruling 2026-11-17, delegated): A STRATEGY DRAWN WITHOUT ITS BACKTEST ─────
 //
@@ -293,7 +298,77 @@ function calcBarsMeta(t) {
   return { calcBarsCount: t.calcBarsCount, ...(t.calcBarsRequest === true ? { calcBarsRequest: true } : {}) }
 }
 
-export function memberPaneDefinition({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {
+/** ⭐ TEST SEAM (coordinator ruling 2026-11-18, request-other Q1) — THE RUNTIME LANE, FORCED. The vendor harness
+ *  grades a capture on the per-bar runtime lane whatever lane this door picks for a member (the host lane draws
+ *  `support-and-resistance-multi-time-frame` for members): runtime-lane evidence for a capability. Off everywhere
+ *  but a rail; while on, the door answers with `runtimeLaneDefinition` (its kill list, allowlist and admission
+ *  still decide) as soon as the translation stands. ⛔ No member surface may import it
+ *  (`vendorHarness.reqBareSecurityForced.test.js` walks `app/src` for one). */
+let runtimeLaneForced = false
+export function __forceRuntimeLaneForTests(on = true) { runtimeLaneForced = on === true }
+
+// ─── ⭐⭐ THE DOOR DEADLINE (door-deadline unit, 2026-11-20; engine 92) ─────────────────────────────────────
+//
+// ⚰️ THREE PUBLIC SCRIPTS HELD A MEMBER'S TAB FOR MINUTES. `MemberPane.jsx` builds this door
+// synchronously on the page's main thread (`useMemo`), and every bound the translator has is PER TRANSLATION: this
+// door runs many in a row (the strict host translation and its input retries, then the runtime lane's front-end
+// builds, its colour probes, its object pass), each with a fresh 10 s, so the slowest paste bought ~40 of them back to
+// back before it was refused by name. The worker watchdogs (`hostLaneAsync.js`, `runtimeAsync.js`) start only after
+// this door has answered, so they never saw it.
+// ⭐ ONE DEADLINE BOUNDS THE WHOLE CALL (`pine.js::withDoorDeadline`): every translation, retry and Resolver below
+// shares it, and past it the script is refused BY NAME (`pine:timeout`) with `doorTimeoutSentence()`. A picture
+// built while the clock ran out is never served: a tripped call is refused whole, whatever its lanes answered.
+// ⭐ THE VALUE IS MEASURED (docs/pine/evidence/2026-11-20-door-deadline/EVIDENCE.md), AND IT IS A BACKSTOP, NOT A
+// SMOOTHNESS BAR. Scripts the door SERVES today take up to minutes in this same call on the dev PC (the slowest,
+// 2.6 minutes, is drawn by the host lane), so a deadline any shorter would take a correct picture away. It sits at
+// about twice the slowest served call measured, so every call that finishes under it answers byte for byte as before
+// (served -> refused: 0 in the scoped census, both lanes), and it ends the calls that ran on for longer. ⛔ Lowering
+// it refuses served scripts by name (the evidence lists them): that is a ruling, not a tuning. The main-thread time
+// itself is the job of taking this build off the main thread (evidence, section 6).
+
+/** The member door's whole-call deadline, in ms (see the evidence above for how it was chosen). */
+export const MEMBER_DOOR_BUDGET_MS = 300000
+
+/** What the member reads when the door's deadline ran out. */
+export function doorTimeoutSentence(budgetMs = MEMBER_DOOR_BUDGET_MS) {
+  const s = Math.round(budgetMs / 1000)
+  const span = s >= 120 && s % 60 === 0 ? `${s / 60} minutes` : `${s} seconds`
+  return `this script is not drawn: checking it took longer than ${span}, and the chart stops a check `
+    + 'that long rather than keep the page waiting. That is a limit of this engine, not a mistake in the script.'
+}
+
+/** ⭐ TEST SEAM — the door's budget (and, optionally, its clock) for a rail: a synthetic slow script must not cost a
+ *  rail the real budget, and a clock that advances per read makes "time" a count of the door's own checks, the same
+ *  on every machine. `null` restores `MEMBER_DOOR_BUDGET_MS` on the wall clock. ⛔ No member surface may import it. */
+let doorBudgetForTests = null
+let doorClockForTests = null
+export function __setMemberDoorBudgetForTests(ms = null, now = null) {
+  doorBudgetForTests = Number.isFinite(ms) && ms > 0 ? ms : null
+  doorClockForTests = typeof now === 'function' ? now : null
+}
+
+/** The door's own refusal carries this mark: a deadline is a fact about the CHECK (the device, its load), never about
+ *  the script, so a reader that must not take a picture away for it (`savedScriptUpgrade.retranslateRow`) can tell
+ *  it from every other `pine:timeout`. */
+export const DOOR_TIMED_OUT = 'doorTimedOut'
+
+/** ⛔ THE ONE RULE OF A TRIPPED CALL: whatever its lanes answered (a refusal, or a document an upgrade's decline
+ *  handed back after the clock ran out), the door refuses it whole, by name. A call that did not trip answers as it
+ *  always did. (`withDoorDeadline`'s `{ value, tripped }` in, the door's answer out.) */
+export function doorAnswer({ value, tripped }, budgetMs) {
+  if (!tripped) return value
+  return {
+    ok: false, definition: null, reason: doorTimeoutSentence(budgetMs), guard: 'pine:timeout', [DOOR_TIMED_OUT]: true,
+    translation: (value && value.translation) || null, rows: [], notes: [],
+  }
+}
+
+export function memberPaneDefinition(args = {}) {
+  const budgetMs = doorBudgetForTests || MEMBER_DOOR_BUDGET_MS
+  return doorAnswer(withDoorDeadline(budgetMs, () => memberPaneDefinitionWithin(args), doorClockForTests), budgetMs)
+}
+
+function memberPaneDefinitionWithin({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {
   const no = (reason, guard = null, t = null) => ({
     ok: false, definition: null, reason, guard, translation: t, rows: [], notes: [],
   })
@@ -333,6 +408,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       return no(`the translator threw: ${String((err && err.message) || err)}`)
     }
   }
+  // ⭐ door-deadline — a phase boundary: past the deadline, nothing after the host translation runs
+  checkDoorDeadline()
 
   // ⭐⭐ ENGINE 58 (review item 4, coordinator ruling) — NO `//@version` AND v4+ SYNTAX:
   // TradingView would not compile it (no pragma is v1), so it is refused BY NAME on
@@ -341,6 +418,13 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   if (t && t.version === null) {
     const form = modernPineSyntaxIn(source)
     if (form) return no(noVersionSentence(form), NO_VERSION_GUARD, t)
+  }
+
+  // ⭐ TEST SEAM — the harness's forced runtime lane (`__forceRuntimeLaneForTests`, off for members).
+  if (runtimeLaneForced && runtimePaneEnabled()) {
+    return runtimeLaneDefinition({
+      source, id, name, t, hostReason: 'the harness asked for the runtime lane (forced)', hostGuard: null, routed: false, no,
+    })
   }
 
   // ⭐⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — A SCRIPT WITH A COMMITTED TRADINGVIEW
@@ -396,13 +480,35 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // line says so too, whatever the gate (it was drawn as an indicator in silence).
   let strategyNote = null
   if (strategyBrokerEnabled() && runtimePaneEnabled() && t && t.declaration === 'strategy') {
-    const viaBroker = runtimeLaneDefinition({ source, id, name, t, hostReason: gate.reason, hostGuard: gate.guard, routed: false, no })
-    const d = viaBroker && viaBroker.ok ? viaBroker.definition : null
-    if (d && d.compute && d.compute.kind === 'runtime' && d.meta && d.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY) return viaBroker
+    const { heldFull, ...asked } = runtimeLaneDefinition({
+      source, id, name, t, hostReason: gate.reason, hostGuard: gate.guard, routed: false, no, keepHeldFull: true,
+    }) || {}
+    const brokerDocOf = (r) => {
+      const dd = r && r.ok ? r.definition : null
+      return !!(dd && dd.compute && dd.compute.kind === 'runtime' && dd.meta && dd.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
+    }
+    // ⭐⭐ e89 — A HELD WITHHOLD NEVER DECIDES THE LANE. Which document the member gets is decided WITHOUT the list
+    // (`heldFull`: the run with its held withholds ignored); when that is the broker document, the list only narrows it
+    // (its held elements withheld, each named) or, where it cannot, refuses the script by name. ⚰️ A held row was the
+    // narrowed broker document's `takesAway`, so the HOST document was served, drawing the very row held.
+    if (heldFull && brokerDocOf(heldFull) && !(heldFull.takesAway || []).length) {
+      return brokerDocOf(asked) ? asked : heldRefusalOf({ source, t, no }, asked)
+    }
+    const viaBroker = heldFull || asked
+    const brokerDoc = brokerDocOf(viaBroker)
+    // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — AN ADMISSION NEVER TAKES AWAY WHAT A MEMBER SEES (owner rule,
+    // coordinator ruling 2026-11-18): a broker document that would withhold a plot or paint the host document shows
+    // (`takesAway`: a forward `offset`, a presentation the run does not carry) does NOT replace it; the member keeps the
+    // host document, and its note says why the backtest is not run. ⚰️ hull-moving-average-crossover-strategy: its
+    // `plot(..., offset = 3)` line, drawn by the host lane today, was withheld by the broker document.
+    const takesAway = brokerDoc ? (viaBroker.takesAway || []) : []
+    if (brokerDoc && !takesAway.length) return viaBroker
     const declined = viaBroker && !viaBroker.ok ? viaBroker.runtimeDeclined : null
-    strategyNote = strategyBacktestNote(declined
-      ? `the per-bar lane that runs the backtest declined it: ${declined.why || declined.code}`
-      : strategyRunDeclinedWhy(viaBroker))
+    strategyNote = strategyBacktestNote(takesAway.length
+      ? `running the backtest here would leave ${takesAway.join(', ')} undrawn, so the chart draws the script without it`
+      : declined
+        ? `the per-bar lane that runs the backtest declined it: ${declined.why || declined.code}`
+        : strategyRunDeclinedWhy(viaBroker))
   } else if (t && t.declaration !== 'strategy' && declaresStrategy(source)) {
     strategyNote = strategyBacktestNote('its `strategy()` line is not one this engine reads, so the script is drawn as an indicator')
   }
@@ -414,7 +520,18 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // plot-only document (`objects: null` is every script without drawings), so
   // withholding is a narrowing of what it draws, never a new render path.
   const objectsGate = paneObjectsGate(t)
-  const withholdObjects = !objectsGate.draw
+  // ⭐⭐ HELD WITHHOLDS (coordinator rulings 2026-11-19, `engine/heldWithholds.js`) — the NARROWEST withholds a
+  // licence-held capture asks for on THIS door. A drawing family that differs from TradingView's is withheld by
+  // name (its plots, and every other correct element, keep drawing). A withhold this door cannot yet honour as
+  // narrowly refuses the script by name: never the wrong element drawn because it could not be held back alone.
+  const heldHost = heldWithholdsOf(source, 'host')
+  const heldHostOther = heldHost.filter((w) => w.scope !== 'objectFamily')
+  if (heldHostOther.length) {
+    const what = heldHostOther.map((w) => "`" + (w.title || w.kind || w.scope) + "` " + heldWithholdSentence(w))
+    return no(`this script is not drawn: ${what.join('; ')}`, HELD_DIVERGENCE_GUARD, t)
+  }
+  const heldHostFamilies = heldHost.filter((w) => w.scope === 'objectFamily')
+  const withholdObjects = !objectsGate.draw || heldHostFamilies.length > 0
   // ⭐⭐ CBC-FMT — a `calc_bars_count` document's plots are computed over its window
   // (`engine/calcBarsWindow.js`); the host object program has no window yet (phase 2:
   // `objectReaderFor` over the window), so its drawings are withheld BY NAME rather than
@@ -447,12 +564,14 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // mistranslation wearing a label". Selection is `chooseOutput`'s and it already
   // declines a hidden row; this only decides what the document CONTAINS.
   // Carriage is not offer, and the acceptance pins that both ways.
-  const carryable = (t.outputs || [])
-    .filter((o) => o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition')
-  const visible = carryable.filter((o) => !o.hidden).slice(0, CARRY_MAX)
+  // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — and DRAWING is not offer either: a
+  // fill anchor ruling 1.2 never offers is DRAWN unless its own `display` hides it
+  // (`paneHides`), as TradingView draws it.
+  const carryable = (t.outputs || []).filter(hostCarriesRow)
+  const visible = carryable.filter((o) => !paneHides(o)).slice(0, CARRY_MAX)
   const visibleSet = new Set(visible)
   const drawable = carryable
-    .filter((o) => !o.hidden ? visibleSet.has(o) : true)
+    .filter((o) => !paneHides(o) ? visibleSet.has(o) : true)
     .slice(0, DOC_CARRY_MAX)
   // ⛔ THE REFUSAL STILL KEYS OFF WHAT CAN BE *SEEN*. A script whose only rows are
   // hidden anchors draws nothing a member could look at, and saying "nothing a
@@ -479,6 +598,10 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // ⭐⭐ CBC-FMT — a windowed script whose only drawing is its host object program: that
     // program has no window yet, so it is refused by name, never "declares nothing".
     if (windowed && hostObjectsWouldDraw) return no(CALC_BARS_DRAWINGS_NOTE, 'pine:calc-bars-objects', t)
+    // ⭐ PLOTARROW — a script whose only drawing is a `plotarrow` is refused by that name, never "nothing".
+    if (carryable.some(plotarrowWithheld)) {
+      return no(`this script is not drawn: ${PLOTARROW_NOT_DRAWN}`, 'pine:plotarrow-not-drawn', t)
+    }
     return no('this script declares nothing a chart can draw', null, t)
   }
   // ⛔ A PANE SCRIPT WHOSE ONLY DRAWING IS A BACKGROUND IS REFUSED BY NAME.
@@ -641,7 +764,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       // hidden row, so the field could only ever be false and said nothing. Now
       // it is the anchor's whole meaning: the renderer draws no series for it and
       // a fill may still reference it.
-      hidden: !!o.hidden,
+      // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — the AUTHOR's statement only
+      // (`paneHides`): an untitled fill anchor with no `display.none` is drawn.
+      hidden: paneHides(o),
       // ⚰️ `opacity` WAS DROPPED HERE, AND IT IS NOT DECORATION — measured on the
       // real chart, 2026-09-12 (T5 pixels). Volume v2's fourth plot is
       // `Scale Padding`: `color = #FFFFFF, opacity = 0, width = 1`, a series whose
@@ -1042,7 +1167,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // ⭐⭐ ENGINE 53 — THE RUN HALF (`hostPartialRunHalf`): a script whose host object program
   // lost drawings may have them made, complete, by the per-bar run, where every gate passes.
   // Declined, the document is exactly what it was.
-  const runHalf = hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, routeHostPartial })
+  // (a held drawing family is never made by the run half instead: withheld is withheld)
+  const runHalf = heldHostFamilies.length ? null
+    : hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, routeHostPartial })
   if (runHalf && runHalf.runtimeObjects) {
     definition.compute = { ...definition.compute, runtimeObjects: runHalf.runtimeObjects }
     // the document's own script, by hash: what the bind and the store check the run half against
@@ -1076,7 +1203,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // tables are incomplete — or withheld — is the fact a member most needs before
   // reading anything it draws. Worded in `objectLoss.js`, never here; `null` for
   // a clean object program and for a script that draws no objects at all.
-  const lossNote = objectLossNote(objectsGate.loss, { withheld: withholdObjects })
+  const lossNote = heldHostFamilies.length
+    ? heldDrawingsNote(heldHostFamilies, objectFamiliesOf(t.objects))
+    : objectLossNote(objectsGate.loss, { withheld: withholdObjects })
   // ⭐ ENGINE 53 — a document carrying a run half says where its drawings may come from.
   const drawingNote = lossNote && runHalf && runHalf.runtimeObjects
     ? { ...lossNote, note: `${lossNote.note} ${RUN_HALF_DRAWING_SENTENCE}` } : lossNote
@@ -1085,10 +1214,23 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     notes.push(drawingNote)
   }
   if (windowed && hostObjectsWouldDraw) notes.unshift({ name: 'Drawings', note: CALC_BARS_DRAWINGS_NOTE })
+  // ⭐ PLOTARROW — each one carried and not drawn is said so, by its title.
+  for (const o of drawable.filter(plotarrowWithheld)) {
+    const name = o.title || 'plotarrow'
+    seen.add(`${name} :: plotarrow`)
+    notes.push({ name, note: `\`${name}\` is not drawn: ${PLOTARROW_NOT_DRAWN}.` })
+  }
   // ⭐⭐ RS RATING L3 — A VALUE FROM UCT DATA IN PLACE OF TRADINGVIEW'S IS SAID SO, BY NAME
   // (`syminfo.industry` / `syminfo.sector`, `bind.js::classificationWith`). The program's
   // substitution rule: disclosed at the member door, never passed off as TradingView's.
   for (const n of substitutionNotesFor(source)) {
+    seen.add(`${n.name} :: ${n.note}`)
+    notes.push(n)
+  }
+  // ⭐⭐ (2026-11-20, the SPX data gap) — AN OTHER SYMBOL'S BARS ARE UCT'S OWN, AND THAT IS SAID SO, BY NAME
+  // (`symbolSubstitution.js::otherSymbolSourceNotesFor`, the same sentence the runtime document says).
+  for (const n of otherSymbolSourceNotesFor(t.otherSymbols)) {
+    if (seen.has(`${n.name} :: ${n.note}`)) continue
     seen.add(`${n.name} :: ${n.note}`)
     notes.push(n)
   }
@@ -1170,6 +1312,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   definition.meta = {
     ...(definition.meta || {}),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
+    // ⭐⭐ the held withholds this document honours, stamped (the server half reads it; absent when there are none)
+    ...(heldHostFamilies.length ? { [HELD_WITHHOLDS_STAMP]: heldWithholdsStamp(heldHostFamilies) } : {}),
     requirementTags,
     // ⭐⭐ C12w / F1 — the facts this document's TREES are evaluated under
     // (`pineTreeStamps`, the ONE place they are written; the runtime document that
@@ -1242,8 +1386,17 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     if (bytes > DOCUMENT_BYTE_BUDGET) {
       docOut = withoutRunHalf(definition)
       notesOut = notes.map(withoutRunHalfSentence)
-      runHalfOut = { declined: { code: 'run-half:size', why: `with the run half the document is ${bytes} bytes as `
-        + `the store counts it, past its ${DOCUMENT_BYTE_BUDGET}-byte cap` } }
+      // ⭐ A6 — THE SENTENCE NAMES THE TRUE CAUSE. ⚰️ It always blamed the run half: vdubus-pattern-gen-v2 read
+      // "with the run half the document is 4095605 bytes", when its host document alone is 4,077,043 bytes (its
+      // `objects` program) and the run half adds 18,539. The host share is the store's own measure of the document
+      // the door writes without the run half (`withoutRunHalf`, the same `storedBytesOf`).
+      const hostBytes = storedBytesOf(docOut)
+      const share = bytes - hostBytes
+      runHalfOut = { declined: { code: 'run-half:size', why: hostBytes > DOCUMENT_BYTE_BUDGET
+        ? `the document is ${hostBytes} bytes as the store counts it WITHOUT the run half, already past its `
+          + `${DOCUMENT_BYTE_BUDGET}-byte cap; the run half would add ${share} bytes`
+        : `with the run half the document is ${bytes} bytes as the store counts it, past its `
+          + `${DOCUMENT_BYTE_BUDGET}-byte cap (${hostBytes} without it; the run half adds ${share})` } }
     }
   }
   // ⛔⛔ DOOR-ROBUSTNESS — A DOCUMENT THE INSTALL DOOR WILL REFUSE IS REFUSED HERE, BY NAME.
@@ -1264,7 +1417,7 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     }
     return no(installWhy.reason, installWhy.guard, t)
   }
-  return routeByCost({ source, id, name, t, no, host: {
+  return withOversizeKeep(routeByCost({ source, id, name, t, no, host: {
     ok: true,
     definition: docOut,
     reason: null,
@@ -1283,10 +1436,89 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // declined (by code, for the census); absent for a script whose drawings are complete.
     ...(runHalfOut && runHalfOut.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalfOut.runtimeObjects.outputs).length } } : {}),
     ...(runHalfOut && runHalfOut.declined ? { runHalfDeclined: runHalfOut.declined } : {}),
-  } })
+  } }), { source, id, name, t, no })
 }
 
-/** ⭐⭐ ROUTE BY COST (NUMBER PENDING, docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
+/** ⭐⭐ ITEM 2 — the guard a host document the store cannot hold is refused at ADD by. */
+export const DOCUMENT_SIZE_GUARD = 'pine:document-size'
+
+/** Mirrors `api/services/runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES` (a runtime document's store cap;
+ *  `oversizeKeep.test.js` reads the server's line and holds the two equal). */
+export const RUNTIME_DOCUMENT_BYTE_BUDGET = 128 * 1024
+
+/** The member's sentence for a host document past the store's cap, the bytes as the store counts them. */
+export function documentSizeSentence(bytes, cap = DOCUMENT_BYTE_BUDGET) {
+  return `this script can be shown here but is too large to keep: as a saved indicator it would be ${bytes} bytes, `
+    + `and one may hold at most ${cap}`
+}
+
+/** …and, among those notes (coordinator ruling, 2026-11-21): the kept form runs bar by bar under the runtime lane's
+ *  per-bar step budget, and a chart where it passes that budget stops it BY NAME, drawing nothing rather than part of
+ *  it. ⚰️ k-clustering's kept run reached 200,090 steps on the last of 632 RDDT bars. Said before Add, in the budget's
+ *  own words and number (`runtime/limits.js`), never decided at the click (a run there would hold the page). */
+export function keepStepBudgetSentence(limit = DEFAULT_LIMITS.INSTRUCTIONS_PER_BAR) {
+  return `On some charts this kept form may go past ${LIMIT_PLAIN.INSTRUCTIONS_PER_BAR} (at most ${limit}); `
+    + 'there it stops and says so by name, and draws nothing rather than part of it.'
+}
+
+/** …and the lead of the notes shown before Add when the bar-by-bar version is what Add keeps. */
+export function keepAnotherWaySentence(bytes, cap = DOCUMENT_BYTE_BUDGET) {
+  return `As drawn here this script is too large to keep (${bytes} bytes as a saved indicator; one may hold at most `
+    + `${cap}), so Add keeps it drawn bar by bar instead:`
+}
+
+/**
+ * ⭐⭐ ITEM 2 (2026-11-21, coordinator ruling) — A HOST DOCUMENT THE STORE CANNOT HOLD IS KEPT ANOTHER WAY, OR ITS
+ * ADD IS REFUSED UP FRONT, BY NAME. The PREVIEW is untouched: the answer is the host answer it was, drawn as before.
+ *
+ * ⚰️ vdubus-pattern-gen-v2's host document is 4,076,728 bytes as the store counts it (its object program: one
+ * ambiguity guard of a two-site `var` array window inlined once per read, 538 distinct nodes in 124,058), the store's
+ * cap is 65,536, and no tree encoding fits (its 149 drawing ops alone are ~60 KB). The door drew it, offered Add, and
+ * the store then answered 400 with its own internal sentence: a picture a member could preview and never keep.
+ *
+ * `oversize` rides on such an answer, measured by the store's own count (`storedBytesOf`):
+ *   · `saveAs` — with the runtime pane on, the RUNTIME-lane document of the same script (`runtimeLaneDefinition`,
+ *     offered as any host refusal is), when that lane builds it and it fits ITS cap: Add saves it, and the pane shows
+ *     its notes (and `forming`, the G6 sentence when the script is admitted for closed-bar history only) before the
+ *     member confirms;
+ *   · `refusal` — otherwise (pane off, the lane declined, or its document too large too): Add is refused by name,
+ *     up front, and nothing is sent.
+ * An answer the store can hold carries nothing new.
+ */
+function withOversizeKeep(answer, { source, id, name, t, no }) {
+  const doc = answer && answer.ok ? answer.definition : null
+  if (!doc || !doc.compute || doc.compute.kind !== 'ast') return answer
+  const bytes = storedBytesOf(doc)
+  if (bytes <= DOCUMENT_BYTE_BUDGET) return answer
+  const why = documentSizeSentence(bytes)
+  const base = { guard: DOCUMENT_SIZE_GUARD, bytes, cap: DOCUMENT_BYTE_BUDGET }
+  if (!runtimePaneEnabled()) return { ...answer, oversize: { ...base, refusal: why } }
+  const run = runtimeLaneDefinition({
+    source, id, name, t, no, routed: false, hostReason: why, hostGuard: DOCUMENT_SIZE_GUARD,
+  }) || {}
+  const keep = run.ok ? run.definition : null
+  if (keep && keep.compute && keep.compute.kind === 'runtime') {
+    // the store counts a runtime document as written (`user_definitions._save_runtime`); the id it mints may move
+    // this by a few bytes, and a document that then fails is refused by the store in its own member sentence
+    const keepBytes = pyJsonBytes(keep)
+    if (keepBytes <= RUNTIME_DOCUMENT_BYTE_BUDGET) {
+      return { ...answer, oversize: { ...base, saveAs: {
+        definition: keep, notes: run.notes || [], bytes: keepBytes, lead: keepAnotherWaySentence(bytes),
+        budget: keepStepBudgetSentence(),
+        forming: runtimeFormingRefusalOf({ source, newestBarIsForming: true }),
+      } } }
+    }
+    const tooBig = `its bar-by-bar version is ${keepBytes} bytes, past that one's ${RUNTIME_DOCUMENT_BYTE_BUDGET}-byte cap`
+    return { ...answer, oversize: { ...base, refusal: `${why}, and ${tooBig}`,
+      runtimeDeclined: { code: DOCUMENT_SIZE_GUARD, why: tooBig } } }
+  }
+  const declined = run.runtimeDeclined || null
+  return { ...answer, oversize: { ...base,
+    refusal: declined && declined.why ? `${why}, and its bar-by-bar version declined: ${declined.why}` : why,
+    runtimeDeclined: declined } }
+}
+
+/** ⭐⭐ ROUTE BY COST (Engine 73 (#1711), docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
  *  THE HOST LANE'S ANSWER, OR THE SAME SCRIPT DRAWN BY THE RUNTIME LANE WHEN THE HOST ONE IS TOO DEAR.
  *
  *  The host lane computes on the member's main thread, inside the chart's paint, for every new bars
@@ -1303,21 +1535,33 @@ function routeByCost({ host, source, id, name, t, no }) {
   const cost = hostLaneCostOf(host.definition)
   if (!cost.over) return host
   // ⛔ The refusal `runtimeLaneDefinition` builds on a decline is never read (the host answer stands),
-  // so it carries no guard of its own: a code nobody can be shown is not minted.
-  const run = runtimeLaneDefinition({
-    source, id, name, t, no, routed: false, hostGuard: null,
+  // so it carries no guard of its own: a code nobody can be shown is not minted. (A HELD refusal, below, is read.)
+  const { heldFull, ...run } = runtimeLaneDefinition({
+    source, id, name, t, no, routed: false, hostGuard: null, keepHeldFull: true,
     hostReason: `its formula lane would hold the chart for about ${cost.stepsPerBar} steps a bar`,
     drawnBecause: 'because drawn as formulas it would hold the chart for a noticeable time on every update',
-  })
+  }) || {}
+  // ⭐⭐ e89 — A HELD WITHHOLD NEVER DECIDES THE LANE. Whether the script moves is decided WITHOUT the list (`heldFull`:
+  // the run with its held withholds ignored, the picture the host document is compared with); once it moves, the list
+  // only narrows the run (each held element withheld, named) or, where the narrowed run cannot stand, refuses the
+  // script by name. ⚰️ The NARROWED run was compared: it lacked the held element, so the pictures differed and the
+  // HOST document was kept, drawing the very element held (9 of the e88 sweep's cases), and a run narrowed to nothing
+  // (`runtime:withheld-all`) kept it too (1).
+  const move = costMoveOf(host, heldFull || run)
+  if (!move.ok) return { ...host, costRoute: { moved: false, cost, code: move.code, why: move.why } }
+  if (run.ok) return { ...run, costRoute: { moved: true, cost } }
+  return { ...run, costRoute: { moved: false, cost, code: run.guard, why: run.reason } }
+}
+
+/** Does the cost route move the host document onto this runtime answer? `{ok}`, or `{ok: false, code, why}` for the
+ *  census: the run's own decline, or `costRoute.js::sameDrawnSurface`'s difference. */
+function costMoveOf(host, run) {
   const doc = run && run.ok ? run.definition : null
   if (!doc || !doc.compute || doc.compute.kind !== 'runtime') {
     const declined = run && run.runtimeDeclined
-    return { ...host, costRoute: { moved: false, cost, code: (declined && declined.code) || null,
-      why: (declined && declined.why) || null } }
+    return { ok: false, code: (declined && declined.code) || null, why: (declined && declined.why) || null }
   }
-  const same = sameDrawnSurface(host, run)
-  if (!same.ok) return { ...host, costRoute: { moved: false, cost, code: same.code, why: same.why } }
-  return { ...run, costRoute: { moved: true, cost } }
+  return sameDrawnSurface(host, run)
 }
 
 /** The guard an install refusal that is NOT a budget cap is named by: the document this door
@@ -1493,7 +1737,8 @@ function hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, 
   if (!pairing.ok) return declined(pairing.code, pairing.why)
   const outputs = {}
   for (const [i, o] of drawable.entries()) {
-    if (o.hidden) continue
+    // every row the host document DRAWS (a fill anchor too: `paneHides`)
+    if (paneHides(o)) continue
     const index = (t.outputs || []).indexOf(o)
     const run = pairing.runOutputOf.get(index)
     if (!Number.isInteger(run)) {
@@ -1645,12 +1890,15 @@ const RUNTIME_PAINT_COLOUR_CODES = new Set(['paint:colour', 'paint:v4-default-tr
 
 /** ⭐ RT1 — what the host translation lists and a runtime document does NOT draw.
  *  Said to the member by name rather than left to look like the whole script. */
-const RUNTIME_UNDRAWN_KINDS = Object.freeze({
+export const RUNTIME_UNDRAWN_KINDS = Object.freeze({
   fill: 'a fill between two plots',
   hline: 'a horizontal line',
   bgcolor: 'a background colour',
   barcolor: 'a bar colour',
 })
+/** ⭐⭐ the member's word for a family the family ledger names: these four keep the words above, every other is the
+ *  ledger's (`runtimeFamilyLedger.js::FAMILY_WORDS`); one word per family, never two. */
+export const familyWord = (f) => RUNTIME_UNDRAWN_KINDS[f] || FAMILY_WORDS[f]
 
 /** W4-T13 - the calls a runtime document draws as a candle / bar FROM THE RUN. Each is four host
  *  outputs (open, high, low, close - `pine.js::MULTI_OUTPUT_CALLS`) and four run outputs of the
@@ -2034,8 +2282,43 @@ function runtimeShiftContext(source, version, specs) {
  * disagreement. Both lanes emit outputs in source order, so the n-th `plotshape`
  * of the one is the n-th of the other — and when the counts differ the mapping
  * is unknown, which is a refusal, never a guess.
+ *
+ * ⭐⭐ e89 — A HELD WITHHOLD NARROWS THIS DOCUMENT OR REFUSES THE SCRIPT BY NAME; IT NEVER MOVES IT TO ANOTHER LANE.
+ * With the script's runtime-door withholds (`engine/heldWithholds.js`) the run is asked TWICE: as the member gets it
+ * (narrowed) and with the list ignored (`runtimeLaneDocument`'s `ignoreHeld`). The answer WITHOUT the list decides
+ * whether this lane draws the script at all; the list then only narrows that document (each held element withheld,
+ * named) or, when the narrowed run cannot stand (the held family was the drawing build it needed; the held row was all
+ * it drew), refuses the script by name, `pine:held-divergence` (`heldRefusalOf`). ⚰️ The narrowed run's decline was
+ * read as any other: the member got the HOST lane's unrelated refusal (`pine:no-output`, `pine:tuple`, ...; 12 of the
+ * e88 sweep's 101 cases). `keepHeldFull` hands the caller the answer without the list (`heldFull`), for the two callers
+ * that choose between this lane and the host document (`routeByCost`, the W9 armed route); every other caller returns
+ * this answer as it stands, so they never see it.
  */
-function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = null, routed = true, no, drawnBecause = null }) {
+function runtimeLaneDefinition(args) {
+  // ⭐ door-deadline — a phase boundary: a call whose deadline has passed starts no runtime lane work
+  checkDoorDeadline()
+  const run = runtimeLaneDocument(args)
+  if (!heldWithholdsOf(args.source, 'runtime').length) return run
+  const full = runtimeLaneDocument({ ...args, ignoreHeld: true })
+  const keep = args.keepHeldFull ? { heldFull: full } : {}
+  // without the list this lane declines: the withhold is not why, and the answer is the one without it
+  if (!full || !full.ok) return { ...full, ...keep }
+  if (run && run.ok) return { ...run, ...keep }
+  return { ...heldRefusalOf(args, run), ...keep }
+}
+
+/** ⭐⭐ e89 — the member's refusal when the script's held withholds are what keep it off the runtime lane: named by
+ *  `pine:held-divergence`, each element and why (`heldRefusalReason`); the narrowed run's own decline rides beside it
+ *  for the census (`runtimeDeclined.why`). */
+function heldRefusalOf({ source, t, no }, narrowed) {
+  const declined = narrowed && narrowed.runtimeDeclined
+  return {
+    ...no(heldRefusalReason(heldWithholdsOf(source, 'runtime')), HELD_DIVERGENCE_GUARD, t),
+    runtimeDeclined: { code: HELD_DIVERGENCE_GUARD, why: (declined && (declined.why || declined.code)) || (narrowed && narrowed.reason) || null },
+  }
+}
+
+function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null, routed = true, no, drawnBecause = null, ignoreHeld = false }) {
   const decline = (code, why) => {
     const refusal = routed
       ? no(`${hostReason} — and the per-bar lane that could draw it declined: ${why}`, 'pine:state', t)
@@ -2065,10 +2348,18 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // ⭐⭐ RT5 — when the host object program would draw nothing here and the run
   // builds WITH its drawings, the document's objects come from its own run.
   const own = runtimeOwnObjectsOf({ source, t })
+  // ⭐⭐ HELD WITHHOLDS (`engine/heldWithholds.js`) on THIS door: a row by title, a row's colour, a paint, a drawing
+  // family, each the narrowest element a licence-held capture found wrong, each named. (`ignoreHeld`: the answer
+  // without the list, which decides the lane, `runtimeLaneDefinition`.)
+  const heldRun = ignoreHeld ? [] : heldWithholdsOf(source, 'runtime')
+  const heldRunOut = new Map(heldRun.filter((w) => w.scope === 'output').map((w) => [w.title, w]))
+  const heldRunColour = new Map(heldRun.filter((w) => w.scope === 'outputColour').map((w) => [w.title, w]))
+  const heldRunPaints = heldRun.filter((w) => w.scope === 'paint')
+  const heldRunFamilies = heldRun.filter((w) => w.scope === 'objectFamily')
   // ⛔ DRAW-1 — a host picture that lost a create is not drawn in the run's place (`runtimeObjectsDoor.js`)
   if (own.declineHostPartial) return decline(own.guard, own.why)
-  const ownObjects = !!own.probe
-  const probe = own.probe || own.valueProbe || probeRuntimeProgram(source)
+  const ownObjects = !!own.probe && !heldRunFamilies.length
+  const probe = (ownObjects ? own.probe : null) || own.valueProbe || probeRuntimeProgram(source)
   if (!probe.ok) {
     const r = probe.refusal || {}
     // RT5: a drawing the value build cannot hold is the drawing build's to explain.
@@ -2116,11 +2407,15 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const { ofKind, runtimeByKind, hostCandles, runCandles, runOutputOf } = pairing
   const seen = new Map()
   const carried = []
-  const withheld = []
+  // ⭐ PLOTARROW — this lane never drew one (`runRowPairing.RUNTIME_ROW_KINDS` leaves it out); now it says so, by name.
+  const withheld = ((t && t.outputs) || []).filter(plotarrowWithheld)
+    .map((o, i) => ({ label: o.title || `plotarrow ${i + 1}`, why: PLOTARROW_NOT_DRAWN, o }))
   // ⭐ WS-E — read once: the statements and literal settings `runtimeRowShift` reads,
   // and the settings a carried displacement pins at the author's default.
   const shiftCtx = runtimeShiftContext(source, t && t.version, runtimeInputSpecsOf(source).specs)
   const shiftPinned = new Set()
+  // the families of elements skipped as hidden BY THEIR AUTHOR (the family ledger: hidden is not "not drawn")
+  const authorSkipped = new Set()
   for (const { o, index } of ofKind) {
     const ord = seen.get(o.kind) || 0
     seen.set(o.kind, ord + 1)
@@ -2130,14 +2425,29 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // host's screening judgement, not the author's, and TradingView draws the line. ⚰️ vw-array-na lost
     // `plot(array.min(a))` and four siblings here ("hidden helper or beyond its row ceiling") while the
     // run computed them (TradingView: 1, 3, 6, 2, na).
-    if ((o.hidden && o.hiddenReason !== 'constant') || o._authorHidden === true) continue
+    // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — nor a row the host hid as a `fill-anchor`
+    // (`paneHides`): ruling 1.2 never OFFERS it, and TradingView DRAWS it unless its own `display`
+    // hides it. ⚰️ supertrend-strategy's `mPlot` (Q-SD1 / Q-SD2: `display: 15`, `visible: true`) was
+    // "the member pane did not carry this output" here, its value and its colour never drawn.
+    if ((paneHides(o) && o.hiddenReason !== 'constant') || o._authorHidden === true) {
+      if (o._authorHidden === true || o.hiddenReason === 'author') authorSkipped.add(o.kind)
+      continue
+    }
     const label = o.title || `${o.kind} ${ord + 1}`
+    if (o.title && heldRunOut.has(o.title)) { withheld.push({ label, why: heldWithholdSentence(heldRunOut.get(o.title)), o }); continue }
     // ⭐ WS-E — a leftward `offset` is carried (`runtimeRowShift`), the rest withheld.
     const shift = runtimeRowShift(o, shiftCtx)
-    if (!shift.ok) { withheld.push({ label, why: shift.why }); continue }
+    if (!shift.ok) { withheld.push({ label, why: shift.why, o }); continue }
     const out = runOutputOf.get(index)
     const pres = runtimeRowPresentation(o, t && t.version, probe.outputs[out])
-    if (!pres.ok) { withheld.push({ label, why: pres.why }); continue }
+    if (!pres.ok) { withheld.push({ label, why: pres.why, o }); continue }
+    if (o.title && heldRunColour.has(o.title)) {
+      // its VALUES are right: drawn, in the neutral ink an unread colour uses, its colour named (`colourWithheldNotes`)
+      for (const k of shift.keys) shiftPinned.add(k)
+      carried.push({ o, index, out: runOutputOf.get(index), displace: shift.displace, colourOutput: undefined,
+        p: { ...pres.p, colorWithheld: { code: HELD_DIVERGENCE_GUARD, reason: heldWithholdSentence(heldRunColour.get(o.title)) } } })
+      continue
+    }
     for (const k of shift.keys) shiftPinned.add(k)
     carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput, displace: shift.displace })
   }
@@ -2155,10 +2465,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       // price series (`hiddenReason: 'passthrough'`, so it does not draw four lines over the chart),
       // and that is exactly the candle that RECOLOURS the chart's own bars, which TradingView draws.
       if (group.some(({ o }) => o.hiddenReason === 'author' || o._authorHidden === true)
-        || (run.ro.candle && run.ro.candle.display === 'display.none')) return
+        || (run.ro.candle && run.ro.candle.display === 'display.none')) { authorSkipped.add(kind); return }
       const label = (run.ro.candle && run.ro.candle.title) || `${kind} ${ord + 1}`
       const pres = runtimeCandlePresentation(kind, t && t.version, run.ro, !!(t.presentation && t.presentation.overlay === true))
-      if (!pres.ok) { withheld.push({ label, why: pres.why }); return }
+      if (!pres.ok) { withheld.push({ label, why: pres.why, o: group[3] && group[3].o }); return }
       candleEntries.push({
         candle: kind,
         label,
@@ -2307,6 +2617,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       hk.forEach((p, i) => {
         // A paint its author hid, or coloured `na`, draws nothing on TradingView either.
         if (p.hidden || p.na) return
+        const heldPaint = heldRunPaints.find((w) => w.kind === kind && w.line === p.line)
+        if (heldPaint) { paintWithheld.push({ p, why: heldWithholdSentence(heldPaint) }); return }
         if (p.withheld && !RUNTIME_PAINT_COLOUR_CODES.has(p.withheld.code)) {
           paintWithheld.push({ p, why: p.withheld.reason })
           return
@@ -2346,7 +2658,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const hostWouldDraw = objectsGate.draw && !!(t.objects && (t.objects.ops || []).length)
   // ⭐ WS-E review M1 — a `calc_bars_count` document never carries the host program
   // (it would draw over every bar beside plots drawn over the window); named below.
-  const drawsObjects = !ownObjects && !own.hostWithheld && hostWouldDraw
+  // ⭐⭐ PARITY UNIT LF — a run-owned document whose host program was CLEAN carries that program beside the
+  // run (`own.hostFallback`): drawn instead whenever the run holds back a family it draws.
+  const drawsObjects = (!ownObjects || own.hostFallback === true) && !own.hostWithheld && hostWouldDraw
+    && !heldRunFamilies.length
   // ⭐ RT5 — a document whose only output is its drawings carries the hidden
   // anchor row an objects-only document carries (never offered, never drawn).
   // ⭐⭐ W9 ARMED ROUTE — a broker document with no row of its own (a tester-only strategy) sits on the PRICE
@@ -2448,7 +2763,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   }
   const notes = [{
     name: 'Drawn bar by bar',
-    // ⭐ ROUTE BY COST (NUMBER PENDING) — a script moved for its cost says so (`drawnBecause`); every
+    // ⭐ ROUTE BY COST (Engine 73 (#1711)) — a script moved for its cost says so (`drawnBecause`); every
     // other caller keeps the sentence it always had.
     note: 'This script is drawn by running it bar by bar, the way TradingView does, '
       + `${drawnBecause || 'because a single formula per line cannot hold it'}. Its settings can be changed `
@@ -2508,16 +2823,37 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // and nothing said so. Every fill the run lowered — solid or gradient — is named.
     ...(probe.outputs || []).filter((ro) => ro && ro.call === 'fill' && ro.hidden !== true).map(() => 'fill'),
   ])]
-  if (undrawn.length) {
+  const drawingNote = heldRunFamilies.length
+    ? heldDrawingsNote(heldRunFamilies, objectFamiliesOf(t.objects))
+    : ownObjects || own.hostWithheld ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
+  // ⭐⭐ THE FAMILY LEDGER (coordinator ruling 2026-11-19, `runtimeFamilyLedger.js`) — every family the SOURCE
+  // declares is drawn, named, or hidden by its author. ⚰️ Only the branches above named anything, so a family no
+  // branch was written for left the document silently: luxalgo's market-structure drew its two plots and said
+  // nothing of its lines and labels (the run's drawing build refused, the host held no program). Named here, in the
+  // same note the undrawn kinds use; a document with nothing unnamed keeps its exact note.
+  const familyLedger = runtimeFamilyLedger({
+    source,
+    t,
+    runOutputs: probe.outputs,
+    drawn: [...drawnRows.map((r) => r.candle || (r.o && r.o.kind)), ...docPaints.map((p) => p.kind)],
+    authorSkipped,
+    named: [...withheld.map((w) => w.o && w.o.kind), ...paintWithheld.map(({ p }) => p.kind), ...undrawn],
+    objectsAccounted: drawsObjects || ownObjects || !!drawingNote || (!ownObjects && !!own.hostWithheld && hostWouldDraw),
+  })
+  const unnamedFamilies = familyLedger.unnamed.filter((f) => !undrawn.includes(f))
+  if (undrawn.length || unnamedFamilies.length) {
     notes.push({
       name: 'Not drawn by this pane',
-      note: `This script also writes ${undrawn.map((k) => RUNTIME_UNDRAWN_KINDS[k]).join(', ')}, `
-        + 'which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.',
+      note: `This script also writes ${[...undrawn.map((k) => RUNTIME_UNDRAWN_KINDS[k]),
+        ...unnamedFamilies.map(familyWord)].join(', ')}, `
+        + 'which a script drawn bar by bar does not draw here yet. '
+        + (unnamedFamilies.length ? 'Those are not drawn here.' : 'Its lines are drawn; those are not.'),
     })
   }
   // ⭐⭐ RS RATING L3 — the substituted-value disclosure, the same sentence the host document says.
   notes.push(...substitutionNotesFor(source))
-  const drawingNote = ownObjects || own.hostWithheld ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
+  // ⭐⭐ (2026-11-20) — and an other symbol's bars are UCT's own, said by name, as the host document says it
+  notes.push(...otherSymbolSourceNotesFor(t && t.otherSymbols))
   if (drawingNote) notes.unshift(drawingNote)
   if (!ownObjects && own.hostWithheld && hostWouldDraw) {
     notes.push({
@@ -2536,6 +2872,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       name: 'Drawings',
       note: 'Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way '
         + 'TradingView makes them. A kind of drawing whose result is not known exactly is not drawn.'
+        + (own.hostFallback === true ? ' Where the run holds back a kind of drawing that the script’s formula '
+          + 'drawing program draws, this chart draws that program’s drawings instead, so nothing it showed is lost. '
+          + 'That program is drawn at the author’s settings, so once a setting of the script is changed here it is '
+          + 'not drawn, and a kind of drawing the run holds back is named on the chart instead.' : '')
         + (rep ? ` These replace the drawing program this pane would otherwise use, which could not make `
           + `${Number.isInteger(rep.dropped) && Number.isInteger(rep.attempted) ? `${rep.dropped} of its ${rep.attempted}` : 'some of its'} `
           + 'drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that '
@@ -2575,6 +2915,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // ⭐⭐ CBC-FMT — the same window stamp the host lane's document carries
     ...calcBarsMeta(t),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
+    // ⭐⭐ the held withholds this document honours, stamped (the server half reads it; absent when there are none)
+    ...(heldRun.length ? { [HELD_WITHHOLDS_STAMP]: heldWithholdsStamp(heldRun) } : {}),
     requirementTags: [],
   }
   // Registered only once a runtime document exists, so a chart that never
@@ -2584,7 +2926,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // ⚡ And its worker spawned NOW (`warmRuntimeLane`): its ~1.3 MB chunk loads while the preview
   // fetches its bars, not after the first run is posted. This path is reached only with the
   // runtime pane switched on for this member, so a member it is off for fetches nothing.
-  warmRuntimeLane()
+  // (Not for the answer without the held list: that one only decides the lane, it is never drawn.)
+  if (!ignoreHeld) warmRuntimeLane()
   return {
     ok: true,
     definition,
@@ -2593,12 +2936,20 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     translation: t,
     rows,
     notes,
+    // ⭐⭐ the family ledger (`runtimeFamilyLedger.js`): declared / drawn / named / hidden / unnamed, read by its rail
+    familyLedger,
     requirementTags: [],
     lane: 'runtime',
     // ⭐ RT1 — offered as a save; the store answers (its sentence, verbatim) when
     // it does not take runtime documents.
     saveable: true,
     withheld: withheld.map((w) => w.label),
+    // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — what this document withholds that the HOST document shows
+    // (`hostShowsRow`, `hostShowsPaint`): the armed route never replaces the host document with one that draws less
+    takesAway: [
+      ...withheld.filter((w) => hostShowsRow(w.o)).map((w) => shownRowName(w.o)),
+      ...paintWithheld.filter(({ p }) => hostShowsPaint(p)).map(({ p }) => shownPaintName(p)),
+    ],
     // ⭐ SERVE OR REFUSE BY NAME (2026-11-17) — the broker build's refusal, for the armed route's host note
     ...(probe.brokerDeclined ? { brokerDeclined: probe.brokerDeclined } : {}),
   }
@@ -2802,6 +3153,67 @@ function guardInputSpecs(t, stamp, existing) {
  *  ⭐ A document saved in the old shape still renders TradingView's default and
  *  honours a pick: `pool.resolvePlotForInstance`. The alpha byte is TradingView's
  *  (`designTokens.withAlphaByte`). An opaque colour keeps its six digits. */
+/**
+ * ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — DOES THE PANE HIDE THIS ROW THE HOST TRANSLATED?
+ *
+ * The host translation's `hidden` merges three statements (`pine.js` `hiddenReason`): the AUTHOR's
+ * `display = display.none` ('author'); an untitled plot of a bare price source that a `fill` names
+ * ('fill-anchor'); a column that reads no bar ('constant'). Only the first is about DRAWING. 'fill-anchor'
+ * is ruling 1.2's SCREENING judgement (a column offered under the script's title that is the author's ohlc4
+ * fill edge is a mistranslation wearing a label: never OFFERED, never SELECTED, `chooseOutput`), and it was
+ * never a statement about what TradingView draws.
+ *
+ * TradingView DRAWS such an anchor unless its own `display` hides it, read off its own records:
+ * supertrend-strategy's `mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)` reads back
+ * `display: 15` (pane, data window, price scale, status line) and `visible: true` (Q-SD1, Q-SD2, and
+ * `supertrend-strategy-{rddt,spy}-1d-2026-10-02`), while pmax-explorer's identical line with
+ * `display=display.none` reads back `display: 0, visible: false`, and that one is 'author' here, hidden as
+ * before. So a fill anchor's visibility follows ONLY its own `display` argument.
+ * ('constant' keeps its lane's rule: the runtime lane draws it (B7), the host lane hides it as before.)
+ */
+function paneHides(o) {
+  return (!!(o && o.hidden) && o.hiddenReason !== 'fill-anchor') || plotarrowWithheld(o)
+}
+
+/** ⭐⭐ PLOTARROW, WITHHELD BY NAME (coordinator ruling 2026-11-19). The reference: `plotarrow` "Plots up and down
+ *  arrows on the chart. Up arrow is drawn at every indicator positive value, down arrow is drawn at every negative
+ *  value." This door drew it as a LINE of its value (in the neutral ink, its colours withheld): a picture TradingView
+ *  never draws. Until arrows are built it is not drawn, on either lane, and says so; the translation still offers its
+ *  value as a column to screen on (`chooseOutput` reads the translator's own `hidden`, never this predicate), and
+ *  `plotshapeEndToEnd.test.js` still pins that it is not drawn as a marker either. */
+const PLOTARROW_NOT_DRAWN = 'TradingView draws a `plotarrow` as up and down arrows at its positive and negative '
+  + 'values, which this chart does not draw yet, so it is not drawn as a line of its value'
+function plotarrowWithheld(o) {
+  return !!o && o.kind === 'plotarrow'
+}
+
+/** A host translation row the host document CARRIES (a translated formula, not refused, not an alert condition). */
+function hostCarriesRow(o) {
+  return !!(o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition')
+}
+
+/** ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — a host row or paint the HOST document shows a member: carried
+ *  and not hidden (`paneHides`), the host lane's own rule. The armed route reads it to decide whether a broker document
+ *  would take anything away. */
+function hostShowsRow(o) {
+  return hostCarriesRow(o) && !paneHides(o)
+}
+function hostShowsPaint(p) {
+  return !!p && !p.withheld && !p.hidden && !p.na
+}
+/** What the member's legend calls a row (coordinator wording, 2026-11-18): "the 'Hull' line" by its TITLE, and "a line
+ *  this chart draws" only when it has none. Never an engine label (`plot 1`). */
+const SHOWN_ROW_NOUN = Object.freeze({ plot: 'line', plotshape: 'markers', plotchar: 'markers', plotarrow: 'arrows',
+  plotcandle: 'candles', plotbar: 'bars' })
+function shownRowName(o) {
+  const noun = SHOWN_ROW_NOUN[o && o.kind] || 'plot'
+  const title = o && typeof o.title === 'string' ? o.title.trim() : ''
+  return title ? `the '${title}' ${noun}` : `a ${noun} this chart draws`
+}
+function shownPaintName(p) {
+  return p && p.kind === 'barcolor' ? 'the bar colours this chart draws' : 'the background colour this chart draws'
+}
+
 function rowColour(p) {
   // ⛔ No colour of its own (a palette / condition / gradient row): its opacity is
   // the palette's shared alpha and stays where it was.

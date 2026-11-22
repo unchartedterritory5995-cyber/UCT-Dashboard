@@ -29,6 +29,7 @@ import base64
 import hashlib
 import json
 import pathlib
+import re
 import sys
 import tempfile
 
@@ -103,6 +104,18 @@ class _Request:
         self.page = page
 
     def get(self, url):
+        # ⭐ (2026-11-20) UCT's own API through the rig's browser context: the automation account's session and the
+        # listing answers production gives (`batch_capture.uct_first_trade_date`, a public GET); `page.ipo` steers it
+        if url.startswith(bc.UCT_ORIGIN + "/api/"):
+            self.page._log("request", "uct_api", url)
+            path = url[len(bc.UCT_ORIGIN):]
+            if path.startswith("/api/ticker-ipo/"):
+                t = path.rsplit("/", 1)[-1]
+                row = self.page.ipo.get(t)
+                if row is None:
+                    return _Resp(404, json.dumps({"detail": "not found"}), url)
+                return _Resp(200, json.dumps({"symbol": t, **row}), url)
+            return _Resp(404, "{}", url)
         self.page._log("request", "layout_access", url)
         if self.page.signed_in:
             return _Resp(200, "<html><title>UCT CAPTURE RIG</title></html>", url)
@@ -133,6 +146,44 @@ class _Keyboard:
         self.page._log("press", key, None)
         if key == "Escape":
             self.page.menu = None
+            self.page.dialog_open = False
+        if key == bc.SAVE_SHORTCUT:
+            # the layout's own Save: the persisted copy becomes the page as it is now (the guarded clean-save)
+            self.page.persisted = {"studies": json.loads(json.dumps(self.page.studies)),
+                                   "symbol": self.page.symbol, "resolution": self.page.resolution}
+            self.page.saved_word = True
+
+
+#: ⭐ THE INDICATORS DIALOG AS MEASURED (2026-11-20, item 2). What a search lists, by `data-id` and the element's title:
+#: patrick-54's vwap_dialog_probe read the two VWAP searches on the rig (the first entries of each, in order); every
+#: other measured pair of `bc.BUILTIN_SEARCH` lists its own id (it captured). A search not listed here lists nothing.
+MEASURED_DIALOG = {
+    "Volume Weighted Average Price": [   # 36 elements, every one a community script: the built-in is NOT among them
+        {"id": "PUB;dc6dc22f6df34a818f00858fdbd237b1", "title": "Volume Weighted Average Price"},
+        {"id": "PUB;39qrkQnRpKsQUoJTk8wxl00Pa4Rj7n0v", "title": "Volume Weighted Average Price Oscillator [NeoButane]"},
+        {"id": "PUB;31d30a274d234879af531500a2dc4bb5", "title": "Volume Weighted Average Price (VWAP) with Extras [starlord_xrp]"},
+    ],
+    "VWAP": [
+        {"id": "STD;VWAP", "title": "Volume-weighted average price"},
+        {"id": "VWAPAA@tv-basicstudies", "title": "VWAP auto-anchored"},
+        {"id": "PUB;2741", "title": "VWAP Stdev Bands v2 Mod"},
+    ],
+}
+#: ⭐⭐ A BUILT-IN'S TWO NAMES (patrick-54, 2026-11-21): `getAllStudies()` names the built-in VWAP by its description
+#: "Volume-weighted average price" (the dialog element's title, which the double uses as the study's `name`), while the
+#: census (`tv_capture.js`: `title(true)` / shortDescription) titles it "VWAP". A data-id not here: one name for both.
+MEASURED_CENSUS_TITLE = {"STD;VWAP": "VWAP"}
+#: the built-in VWAP's inputs by dialog label (`getInputsInfo`), as its retake2 captures recorded them
+MEASURED_INPUTS = {"STD;VWAP": {"Hide VWAP on 1D or Above": ("in_0", False), "Anchor Period": ("in_1", "Session"),
+                                "Source": ("in_2", "hlc3"), "Offset": ("in_3", 0)}}
+
+
+def measured_dialog():
+    out = {k: [dict(x) for x in v] for k, v in MEASURED_DIALOG.items()}
+    for bid, search in bc.BUILTIN_SEARCH.items():
+        if not any(x["id"] == bid for x in out.get(search, [])):
+            out.setdefault(search, []).append({"id": bid, "title": search})
+    return out
 
 
 TITLE_XY = (300.0, 100.0)
@@ -157,7 +208,45 @@ class RecordingTVPage:
     """
 
     def __init__(self, behaviours=None, stays_bound=(), symbol="NASDAQ:AAPL", resolution="5",
-                 studies=None, signed_in=True, visible=True):
+                 studies=None, signed_in=True, visible=True, autosave=None, persisted=None, attach_delay_s=0.0):
+        # ⭐ THE LAYOUT'S PERSISTED COPY, what a fresh load reads (`reload`). None: a fresh load reads the page as
+        # it is. autosave="tradingview": the MEASURED rig (2026-11-18): an editor add saves the layout as it is
+        # then; a widget-API removal or resolution change is never saved.
+        self.autosave = autosave
+        self.persisted = json.loads(json.dumps(persisted)) if persisted is not None else None
+        # ⭐ A SLOW ATTACH (2026-11-19, htfform-c): after a fresh load the chart handle answers at once, with 0 studies,
+        # and the layout's saved studies attach `attach_delay_s` (virtual) seconds later. 0: they are there at once.
+        self.attach_delay_s = float(attach_delay_s)
+        # ⭐ (2026-11-21, #2134) the hours the LAYOUT is saved with ("regular" | "extended"): what an INTRADAY chart
+        # resolves (`_resolved_session`); a daily, weekly or monthly chart of a US listing resolves 0930-1600 whatever it
+        # is. Nothing the batch does changes it (a row's session is read, never set). `subsession` is what
+        # `symbolInfo().subsession_id` reports: None by default (no capture records one; the live probe reads it)
+        self.session_id = "regular"
+        self.subsession = None
+        # ⭐ (2026-11-21, probe R4) after a resolution change `symbolInfo()` reads NULL until the new resolution's bars
+        # load: `reload_s` (virtual) seconds here; 0, at once. And the page's URL (the layout it is on, `--layout`).
+        self.reload_s = 0.0
+        self.res_changed_at = None
+        self.url = LAYOUT
+        # ⭐ (2026-11-21, patrick-54's review of #2289) a STALE read after a resolution change: for `stale_polls` session
+        # reads the PREVIOUS resolution's bars and session are still what the series holds. `stale_mode` "held": its
+        # interval too (patrick-54's spec); "bars": the interval property already reads the NEW resolution.
+        self.stale_polls = 0
+        self.stale_mode = "held"
+        self.prev_resolution = None
+        self._stale_left = 0
+        self.stale_served = 0                   # how many stale reads the batch was actually offered
+        # ⭐ (2026-11-20, item 2) the Indicators dialog: what each search lists (`measured_dialog`), whether it is open,
+        # and `lands_on` {data-id: metaInfo id}: an element whose click adds ANOTHER study (a moved label)
+        self.dialog = measured_dialog()
+        self.dialog_open = False
+        self.lands_on = {}
+        self.searches = []
+        # ⭐ UCT's answers through the rig's browser context: `/api/ticker-ipo` per ticker as
+        # production answers it (measured 2026-11-19: RDDT 2024-03-21 and ALAB 2024-03-20, both final)
+        self.ipo = {"RDDT": {"first_trade_date": "2024-03-21", "first_trade_final": True},
+                    "ALAB": {"first_trade_date": "2024-03-20", "first_trade_final": True}}
+        self.attach_at = None
         self.behaviours = behaviours or {}
         self.stays_bound = set(stays_bound)
         self.symbol, self.resolution = symbol, resolution
@@ -170,6 +259,13 @@ class RecordingTVPage:
         self.buffers = {}
         self.bound = "update"                  # the editor starts bound to the last add
         self.menu = None
+        # ⭐ (2026-11-21) THE CONTAINERS (`rig_controls.js`, the rig's recorded DOM): how many rows of a text the open
+        # menus hold (a same-text element outside every menu is not one), the texts something else covers at their
+        # centre, whether the editor dialog holds its own `Add to chart`, and how many sit OUTSIDE it (a modal's).
+        self.menu_rows = {"Create new": 1, "Indicator": 1}
+        self.covered = {}                      # text -> how many more reads it stays covered (math.inf: never clears)
+        self.add_in_dialog = True
+        self.add_outside = 0
         self.create_count = 0
         self.next_id = 100
         self.injected = False
@@ -184,6 +280,7 @@ class RecordingTVPage:
             GATE_EXPR: ("gate", self._gate), AUTH_JS: ("auth", self._auth),
             TV_CAPTURE_TEXT: ("inject", self._inject),
             bc.STATE_JS: ("STATE", self._state), bc.SET_SYMBOL_JS: ("SET_SYMBOL", self._set_symbol),
+            bc.SESSION_JS: ("SESSION", self._session),
             bc.SET_RESOLUTION_JS: ("SET_RESOLUTION", self._set_resolution),
             bc.SET_STRETCH_JS: ("SET_STRETCH", self._set_stretch),
             bc.EDITOR_PRESENT_JS: ("EDITOR_PRESENT", lambda a: self.editor_open),
@@ -195,6 +292,13 @@ class RecordingTVPage:
             bc.VH_CAPTURE_JS: ("VH_CAPTURE", self._vh_capture), bc.VH_CHUNK_JS: ("VH_CHUNK", self._vh_chunk),
             bc.VH_CLEANUP_JS: ("VH_CLEANUP", self._vh_cleanup), bc.GLOBALS_JS: ("GLOBALS", self._globals),
             bc.ACCOUNT_JS: ("ACCOUNT", lambda a: self.account),
+            bc.SAVED_TEXT_JS: ("SAVED_TEXT", lambda a: bool(getattr(self, "saved_word", False))),
+            bc.FOCUS_BODY_JS: ("FOCUS_BODY", lambda a: getattr(self, "focus_leaves", True)),
+            bc.OPEN_DIALOG_JS: ("OPEN_DIALOG", self._open_dialog),
+            bc.SEARCH_AND_CLICK_JS: ("SEARCH_AND_CLICK", self._search_and_click),
+            bc.CLOSE_DIALOG_JS: ("CLOSE_DIALOG", lambda a: not self.dialog_open),
+            bc.STUDY_IDENTITY_JS: ("STUDY_IDENTITY", self._study_identity),
+            bc.INPUT_IDS_JS: ("INPUT_IDS", self._input_ids), bc.INPUTS_JS: ("INPUTS", self._inputs),
         }
 
     # ── recording ───────────────────────────────────────────────────────────
@@ -225,6 +329,17 @@ class RecordingTVPage:
     def goto(self, url, **kw):
         self._check_alive()
         self._log("goto", url, None)
+        self.url = url
+
+    def reload(self, **kw):
+        """A fresh load: the page reads the layout's persisted copy (when one is modelled); injected globals are gone."""
+        self._check_alive()
+        self._log("reload", "reload", None)
+        self.injected, self.globals, self.editor_open = False, set(), False
+        if self.persisted is not None:
+            self.studies = json.loads(json.dumps(self.persisted["studies"]))
+            self.symbol, self.resolution = self.persisted["symbol"], self.persisted["resolution"]
+        self.attach_at = self.t + self.attach_delay_s if self.attach_delay_s > 0 else None
 
     def _pointer(self, kind, x, y):
         self._check_alive()
@@ -265,15 +380,43 @@ class RecordingTVPage:
         return {"signedOut": [], "signedIn": ["header-user-menu-toggle"], "ambiguous": [], "title": "rig"}
 
     def _state(self, _):
+        attached = self.attach_at is None or self.t >= self.attach_at     # a slow attach: 0 studies until then
         return {"handle": "TradingViewApi", "vis": "visible" if self.visible else "hidden",
                 "symbol": self.symbol, "resolution": self.resolution,
-                "studies": [{"id": s["id"], "name": s["name"]} for s in self.studies], "panes": list(self.panes)}
+                "studies": [{"id": s["id"], "name": s["name"]} for s in self.studies] if attached else [],
+                "panes": list(self.panes)}
 
     def _set_symbol(self, s):
+        # ⭐⭐ AS THE LIVE RIG ANSWERED (patrick-54, 2026-11-20, #2134): setSymbol takes ANY string and says ok. A session
+        # spec (`={"session":…,"symbol":…}`, TradingView's wire encoding) becomes the chart's LITERAL symbol, and
+        # `symbolInfo()` never arrives for it; only a plain symbol brings it back. The layout's hours never change.
         self.symbol = s
         return {"ok": True}
 
+    def _resolved_session(self, res=None):
+        if re.search(r"[DWM]$", bc.res_norm(self.resolution if res is None else res)):
+            return bc.ROW_SESSIONS["regular"]      # every daily / weekly capture on record reads 0930-1600
+        return bc.ROW_SESSIONS[self.session_id]
+
+    def _session(self, _):
+        if str(self.symbol).startswith("="):
+            return {"ok": False, "why": "no symbolInfo yet"}
+        if self.res_changed_at is not None and self.t - self.res_changed_at < self.reload_s:
+            return {"ok": False, "why": "no symbolInfo yet"}      # the new resolution's bars are still loading
+        held = self.resolution
+        if self._stale_left > 0 and self.prev_resolution is not None:
+            self._stale_left -= 1
+            self.stale_served += 1
+            held = self.prev_resolution                            # the previous resolution's bars and session
+        step = (bc.bar_step_range(held) or (None, None))[0]
+        interval = held if (held == self.resolution or self.stale_mode == "held") else self.resolution
+        return {"ok": True, "session": self._resolved_session(held), "subsession": self.subsession,
+                "interval": str(interval), "bars": BARS, "step": step}
+
     def _set_resolution(self, r):
+        self.res_changed_at = self.t
+        if r != self.resolution:
+            self.prev_resolution, self._stale_left = self.resolution, self.stale_polls
         self.resolution = r
         return {"ok": True}
 
@@ -300,16 +443,41 @@ class RecordingTVPage:
         return {"ok": True, "x": TITLE_XY[0], "y": TITLE_XY[1], "text": "Untitled script", "how": "heuristic"}
 
     def _menu_item(self, a):
-        if a.get("text") == "Create new" and self.menu in ("title", "create"):
+        """As `rig_controls.js` (`within: 'menu'`) answers on the page: the ONE row of the text in the open menus
+        (`menu_rows`), never a covered one (`covered`); several is a STOP, a covered one is read again."""
+        text = a.get("text")
+        shown = ((text == "Create new" and self.menu in ("title", "create"))
+                 or (text == "Indicator" and self.menu == "create" and bool(a.get("rightOf"))))
+        n = self.menu_rows.get(text, 1) if shown else 0
+        if n == 0:
+            return {"ok": False, "STOP": False, "found": 0, "covered": False, "why": f"no visible {text!r} in an open menu"}
+        if n > 1:
+            return {"ok": False, "STOP": True, "found": n, "covered": False,
+                    "why": f"{n} visible {text!r} in an open menu: exactly one, or nothing is clicked"}
+        if self._still_covered(text):
+            return {"ok": False, "STOP": False, "found": 1, "covered": True,
+                    "why": f"{text!r} in an open menu is covered at its centre by another element: nothing is clicked"}
+        if text == "Create new":
             return {"ok": True, "x": CREATE_XY[0], "y": CREATE_XY[1],
                     "rect": {"left": 280, "right": 360, "top": 130, "bottom": 150}}
-        if a.get("text") == "Indicator" and self.menu == "create" and a.get("rightOf"):
-            return {"ok": True, "x": INDICATOR_XY[0], "y": INDICATOR_XY[1],
-                    "rect": {"left": 440, "right": 520, "top": 130, "bottom": 150}}
-        return {"ok": False, "found": 0}
+        return {"ok": True, "x": INDICATOR_XY[0], "y": INDICATOR_XY[1],
+                "rect": {"left": 440, "right": 520, "top": 130, "bottom": 150}}
+
+    def _still_covered(self, text):
+        """Is `text` under another element at this read? Each read uses one of its covered reads up."""
+        left = self.covered.get(text, 0)
+        if left <= 0:
+            return False
+        self.covered[text] = left - 1
+        return True
+
+    def _own_add(self):
+        """The editor dialog's own `Add to chart` (shown while the editor is open and unbound)."""
+        return 1 if self.editor_open and self.bound == "add" and self.add_in_dialog else 0
 
     def _binding(self, _):
-        add = 1 if self.editor_open and self.bound == "add" else 0
+        # the binding gate counts own-text `Add to chart` over the WHOLE page: the dialog's and any outside it
+        add = self._own_add() + self.add_outside
         upd = 1 if self.editor_open and self.bound == "update" else 0
         return {"addToChart": add, "updateOnChart": upd, "gate": add == 1 and upd == 0}
 
@@ -333,6 +501,13 @@ class RecordingTVPage:
         if not self.visible or not gate["gate"]:
             self.adds.append((self.bound, False))
             return {"STOP": True, "vis": "visible", "gate": gate}
+        # ⭐ as `rig_controls.js` (`within: 'editor'`): the ONE button inside the dialog, uncovered, or nothing
+        covered = self._own_add() == 1 and self._still_covered("Add to chart")
+        if self._own_add() != 1 or covered:
+            self.adds.append((self.bound, False))
+            return {"STOP": True, "vis": "visible", "gate": gate, "found": self._own_add(), "covered": covered,
+                    "why": "no visible 'Add to chart' in #pine-editor-dialog" if self._own_add() != 1
+                    else "'Add to chart' in #pine-editor-dialog is covered at its centre by another element"}
         src = self.buffers[self.current]
         sha = hashlib.sha256(src.encode("utf-8")).hexdigest()
         self._maybe_crash("add", sha)
@@ -341,7 +516,59 @@ class RecordingTVPage:
         self.studies.append({"id": f"st{self.next_id}", "name": declared_title(src) or "Untitled",
                              "sha": sha, "source": src, "reads": 0})
         self.bound = "update"        # every add binds the editor (capture-procedure.md, S5)
+        if self.autosave == "tradingview":
+            self.persisted = {"studies": json.loads(json.dumps(self.studies)), "symbol": self.symbol, "resolution": self.resolution}
         return {"clicked": True, "vis": "visible", "gate": gate}
+
+    # ── the Indicators dialog (item 2, 2026-11-20) ──────────────────────────
+    def _open_dialog(self, _):
+        if self.dialog_open:
+            return {"open": True}
+        self.dialog_open = True
+        return {"open": False, "clicked": True}
+
+    def _search_and_click(self, a):
+        """As the page: the ONE element whose data-id is exactly `id` among what `search` lists is clicked (it adds its
+        study); none or several, nothing is clicked."""
+        if not self.dialog_open:
+            return {"STOP": "no dialog search input"}
+        self.searches.append(a["search"])
+        hits = [x for x in self.dialog.get(a["search"], []) if x["id"] == a["id"]]
+        if len(hits) > 1:
+            return {"STOP": f"{len(hits)} elements carry data-id {a['id']}"}
+        if not hits:
+            return {"STOP": f"no element with data-id {a['id']} after searching {json.dumps(a['search'])}"}
+        self.next_id += 1
+        inputs = {iid: dv for iid, dv in (MEASURED_INPUTS.get(a["id"]) or {}).values()}
+        self.studies.append({"id": f"st{self.next_id}", "name": hits[0]["title"], "sha": None, "source": None,
+                             "title": MEASURED_CENSUS_TITLE.get(a["id"], hits[0]["title"]),
+                             "reads": 0, "builtin": a["id"], "inputs": inputs,
+                             "metaInfoId": self.lands_on.get(a["id"], bc.builtin_identity(a["id"]))})
+        if self.autosave == "tradingview":
+            # ⚠️ UNMEASURED whether a dialog add autosaves the layout as an editor add does; the double assumes the
+            # worse case (it does), so the batch's removal and fresh-load verify must cover it
+            self.persisted = {"studies": json.loads(json.dumps(self.studies)), "symbol": self.symbol, "resolution": self.resolution}
+        return {"clicked": True, "title": hits[0]["title"]}
+
+    def _study_identity(self, _):
+        return {"ok": True, "indicators": [s.get("metaInfoId") or "Script$USER;787899e2@tv-scripting" for s in self.studies]}
+
+    def _input_ids(self, sid):
+        s = self._find(sid)
+        if not s or not s.get("builtin"):
+            return {}
+        return {label: iid for label, (iid, _) in (MEASURED_INPUTS.get(s["builtin"]) or {}).items()}
+
+    def _inputs(self, a):
+        s = self._find(a["id"])
+        if not s:
+            return {"ok": False, "why": "study not found"}
+        bad = [{"id": k, "want": v, "got": None} for k, v in a["inputs"].items() if k not in s.get("inputs", {})]
+        for k, v in a["inputs"].items():
+            if k in s.get("inputs", {}):
+                s["inputs"][k] = v
+        s["reads"] = 0                       # a new input recomputes
+        return {"ok": not bad, "bad": bad, "set": len(a["inputs"])}
 
     def _find(self, sid):
         return next((s for s in self.studies if s["id"] == sid), None)
@@ -382,11 +609,12 @@ class RecordingTVPage:
         return {"studies": len(self.studies) + 2, "events": ["Splits", "Earnings"], "indicators": len(self.studies),
                 "controlProbeSawSomething": True, "controlFilterRemovedExactlyTheEvents": True,
                 "list": [{"id": "Script$USER;787899e2", "shortId": "Script$USER;787899e2",
-                          "title": s["name"], "description": s["name"]} for s in self.studies]}
+                          "title": s.get("title") or s["name"], "description": s["name"]} for s in self.studies]}
 
     def _vh_capture(self, o):
         self._need_vh()
-        hits = [s for s in self.studies if o["study"] in s["name"]]
+        # as tv_capture.js: the study is selected by a substring of its census title or its description
+        hits = [s for s in self.studies if o["study"] in (s.get("title") or s["name"]) or o["study"] in s["name"]]
         if len(hits) != 1:
             return {"ok": False, "error": f"study {json.dumps(o['study'])} matched {len(hits)} indicators — need exactly one."}
         s = hits[0]
@@ -422,7 +650,7 @@ class RecordingTVPage:
             "tool": {"snippet": "tools/vendor_harness/tv_capture.js", "version": 1},
             "page": {"url": LAYOUT, "visibilityState": "visible", "hasFocus": True},
             "symbol": {"name": "RDDT", "full_name": "NYSE:RDDT", "pro_name": "NYSE:RDDT", "exchange": "NYSE",
-                       "listed_exchange": "NYSE", "type": "stock", "session": "0930-1600",
+                       "listed_exchange": "NYSE", "type": "stock", "session": self._resolved_session(),
                        "timezone": "America/New_York", "pricescale": 100, "minmov": 1, "currency": "USD"},
             "timeframe": "D",
             "newestBarIsForming": o.get("newestBarIsForming") if isinstance(o.get("newestBarIsForming"), bool) else None,
@@ -433,11 +661,13 @@ class RecordingTVPage:
             "census": {"studies": len(self.studies) + 2, "events": ["Splits", "Earnings"],
                        "indicators": len(self.studies), "controlProbeSawSomething": True,
                        "controlFilterRemovedExactlyTheEvents": True},
-            "study": {"id": "Script$USER;787899e2@tv-scripting-101", "fullId": None, "title": s["name"],
-                      "description": s["name"], "shortDescription": s["name"], "status": {"type": 2},
+            "study": {"id": s.get("metaInfoId") or "Script$USER;787899e2@tv-scripting-101", "fullId": None,
+                      "title": s.get("title") or s["name"], "description": s["name"],
+                      "shortDescription": s.get("title") or s["name"], "status": {"type": 2},
                       "plots": [{"id": "plot_0", "type": "line", "title": "Plot"}],
                       "styles": {"plot_0": {"title": "Plot"}}, "styleState": None, "palettes": {},
-                      "paletteState": None, "inputs": []},
+                      "paletteState": None,
+                      "inputs": [{"id": k, "value": v} for k, v in (s.get("inputs") or {}).items()]},
             "window": {"chartBarsLoaded": BARS, "studyBarsLoaded": BARS,
                        "firstBarTime": bars[0][0], "lastBarTime": bars[-1][0]},
             "bars": {"fields": ["time", "open", "high", "low", "close", "volume"], "timeUnit": "unix-s",
@@ -519,8 +749,10 @@ def run(page, manifest, run_dir, opts=None, verifier=None, **kw):
     from pine_vendor_capture import acquire
     clock = FakeClock(page)
     rd = bc.RunDir(run_dir, "selfcheck")
+    opts = opts or fast_opts()
     assert acquire(page, 5) == 0
-    code = bc.run_batch(page, manifest, rd, opts or fast_opts(), clock, verifier or bc.NodeVerifier(),
+    bc.go_to_layout(page, opts.layout)          # as `_launch`: acquire() ends on the rig layout
+    code = bc.run_batch(page, manifest, rd, opts, clock, verifier or bc.NodeVerifier(),
                         log=lambda *a: None, **kw)
     return code, rd, clock
 

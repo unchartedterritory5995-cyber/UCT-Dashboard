@@ -39,7 +39,7 @@ describe('a timeframe chosen by a ternary', () => {
 
   // ─── the idiom, both ways round ────────────────────────────────────────────
 
-  // ⚰️ (bt, NUMBER PENDING) these v4 scripts wrote the bare `period`, which TradingView's v4 compiler
+  // ⚰️ (bt, Engine 66 (#1473)) these v4 scripts wrote the bare `period`, which TradingView's v4 compiler
   // refuses ("Undeclared identifier 'period'"), so they spell it `timeframe.period`
   // (`pine.js::legacyPeriodUndeclared`); a script's OWN `period` binding (below) is unchanged.
   it('⭐⭐ a TRUE default takes `timeframe.period` — the chart\'s own timeframe, so no tf node', () => {

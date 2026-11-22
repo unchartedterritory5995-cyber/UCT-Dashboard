@@ -2,6 +2,8 @@
 
 Monthly and weekday return distributions, computed from the daily bars this pod
 already serves (`api.services.seasonality`). No vendor, no licence question.
+The seasonality board (`GET /api/research/seasonality-board`, the Terminal's SEASB) is the same
+computation for the four index funds and the eleven sector funds, behind the same switch.
 
 DARK behind SEASONALITY_ENABLED: unset, the route answers FastAPI's 404 before
 identity is read. The handler is a plain `def`: the bar read is blocking SQLite /
@@ -148,3 +150,17 @@ def seasonality(sym: str, _user: dict = Depends(require_paid)):
         raise HTTPException(status_code=503, detail=f"Daily bars for {s} are unavailable right now")
     out = svc.compute(bars)
     return {"ticker": s, "source": "UCT daily bar store, close to close", **out}
+
+
+@router.get("/api/research/seasonality-board", dependencies=[Depends(_armed)])
+def seasonality_board(_user: dict = Depends(require_paid)):
+    """The index funds and the eleven sector funds, month by month (the Terminal's SEASB).
+
+    Same switch and same paid gate as the single-stock route above. It takes no parameters, and
+    its path is its own segment (`seasonality-board`), so it is never read as a symbol of
+    `/api/research/seasonality/{sym}`. A plain `def`: the first read of a day is fifteen blocking
+    daily reads; after that the service answers from the one board it holds
+    (`api.services.seasonality_board`). A fund without numbers is listed with its reason in a
+    200, so the board never answers 503 for one fund's cold read."""
+    from api.services import seasonality_board as board
+    return board.serve()

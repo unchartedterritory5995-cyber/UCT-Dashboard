@@ -177,6 +177,20 @@ _log = logging.getLogger(__name__)
 #: store this replaced (`user_preferences`) has none.
 MAX_DEFINITION_BYTES = 64 * 1024
 
+
+def too_large(size: int, cap: int) -> ValueError:
+    """⭐ ITEM 2 (2026-11-21) -- THE STORE'S SIZE REFUSAL, IN THE MEMBER'S WORDS (both caps: a formula's
+    `MAX_DEFINITION_BYTES`, a runtime document's `RUNTIME_MAX_DEFINITION_BYTES`). The router hands it to the
+    member door verbatim (400 `detail`), and the pane renders it as written.
+
+    ⚰️ It read "definition exceeds 65536 bytes (4076735) -- this store names its caps rather than inheriting
+    `user_preferences`', which has none": a note to the next developer, shown to a member who pressed Add on a
+    script the pane had just drawn (vdubus-pattern-gen-v2, whose host document is 4 MB)."""
+    return ValueError(
+        f"this indicator is too large to keep: as saved it would be {size} bytes, and a saved indicator may "
+        f"hold at most {cap}. Nothing was saved.")
+
+
 #: Live (non-tombstoned) definitions per user.
 MAX_DEFINITIONS_PER_USER = 50
 
@@ -2266,6 +2280,11 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
         # through `engine_withheld_reason`, `stamp_served` stamps it for the install door. Derived at
         # read, never stored: unlisting the script brings the row back on the next read.
         **_host_known_divergence_of(definition, row),
+        # ⭐ HELD WITHHOLDS (coordinator ruling 2026-11-19) — a Pine `ast` or `runtime` version whose script carries a
+        # narrow withhold (`engine/heldWithholds.json`) for the door it was minted on that its mint stamp
+        # (`meta.heldWithholds`) does not name was saved before that withhold: it carries the refusal sentence
+        # (`held_withholds.refused`), and ONLY then. Derived at read, never stored.
+        **_held_divergence_of(definition, row),
     }
 
 
@@ -2276,6 +2295,15 @@ def _host_known_divergence_of(definition: Any, row: Any) -> dict:
         return {}
     why = hkd.refused(_pine_source_of(row))
     return {"host_known_divergence": why} if why else {}
+
+
+def _held_divergence_of(definition: Any, row: Any) -> dict:
+    """``{"held_divergence": sentence}`` for a stored copy saved before its script's narrow withholds."""
+    from api.services import held_withholds as hw
+    if not hw.applies_to(definition):
+        return {}
+    why = hw.refused(definition, _pine_source_of(row))
+    return {"held_divergence": why} if why else {}
 
 
 #: The browser's engine-number file — the ONE authority for the number.
@@ -2974,6 +3002,12 @@ def engine_withheld_reason(row: Any, current: Optional[int] = None) -> Optional[
     hk = row.get("host_known_divergence") if isinstance(row, Mapping) else None
     if isinstance(hk, str) and hk:
         return hk
+    # ⭐ HELD WITHHOLDS (coordinator ruling 2026-11-19) — a saved copy minted before its script's narrow withholds
+    # (`held_withholds.refused`) runs on no server lane either, refused by name (`pine:held-divergence`): the chart
+    # refuses the same copy, and a chart never draws what the alerts withhold, or the reverse.
+    hw = row.get("held_divergence") if isinstance(row, Mapping) else None
+    if isinstance(hw, str) and hw:
+        return hw
     st = row.get("engine_status") if isinstance(row, Mapping) else None
     if not isinstance(st, Mapping) or st.get("status") != "refused":
         # ⭐ COND-TA — a Pine import applied before the conditional-call fix, with no script
@@ -2985,6 +3019,17 @@ def engine_withheld_reason(row: Any, current: Optional[int] = None) -> Optional[
         return (f"engine-refused: today's script engine (version {eng}) "
                 f"refuses this script — {st.get('reason')}. It stays withheld until it is "
                 "saved from its script (open it in the Builder's Pine tab and save).")
+    # ⭐ TRACK 6 (a) (coordinator ruling 2026-11-22) -- A RUNTIME DOCUMENT'S OLDER REFUSAL EXPIRES WITH
+    # ITS ENGINE. A runtime document is recompiled from its own source on EVERY run, on the chart and on
+    # the pine-runtime service alike, so the engine that refused it is not the engine that runs it today:
+    # today's engine answers on the next run, by name if it still refuses. Holding it on `same_maths`
+    # (the rule for a script-less `ast` copy, whose stored maths IS what runs) withheld a saved runtime
+    # script on every server lane forever once the engine moved. The browser
+    # (`savedScriptUpgrade.upgradeKindOf`) answers the same way, so the chart and the alerts agree.
+    # A refusal at TODAY's engine still binds (above).
+    from api.services import runtime_definitions
+    if runtime_definitions.is_runtime(row.get("definition")):
+        return None
     if _awaits_retranslation(row, cur):
         failed = st.get("write_failed_engine")
         if isinstance(failed, int) and not isinstance(failed, bool) and failed >= cur:
@@ -3275,6 +3320,13 @@ def save(user_id: Any, def_id: str, definition: dict,
     _hk_why = _hkd.refused(pine_source)
     if _hk_why:
         raise SaveRefused("tree", _hk_why, guard=_hkd.GUARD)
+    # ⭐ HELD WITHHOLDS (coordinator ruling 2026-11-19) — and a document that does not honour its script's narrow
+    # withholds on this door (its `meta.heldWithholds` stamp does not name them) is not stored: an old tab, a direct
+    # API save, a fork of a copy saved before them. The member door mints the version that honours them.
+    from api.services import held_withholds as _hw
+    _hw_why = _hw.refused(definition, pine_source, audience="save")
+    if _hw_why:
+        raise SaveRefused("tree", _hw_why, guard=_hw.GUARD)
     # ⭐ R2 — the browser's one provable load-time repair, applied here too, so an old
     # param-edited document with a stale handle saves under its tree's own name.
     definition = refresh_stale_handle(definition)
@@ -3399,10 +3451,7 @@ def save(user_id: Any, def_id: str, definition: dict,
                       ensure_ascii=False)
     size = len(blob.encode("utf-8"))
     if size > MAX_DEFINITION_BYTES:
-        raise ValueError(
-            f"definition exceeds {MAX_DEFINITION_BYTES} bytes ({size}) — this "
-            "store names its caps rather than inheriting `user_preferences`', "
-            "which has none")
+        raise too_large(size, MAX_DEFINITION_BYTES)
 
     verdict = lint_verdict(definition)
     repaint = json.dumps(verdict, sort_keys=True, separators=(",", ":"))
@@ -3497,10 +3546,7 @@ def save(user_id: Any, def_id: str, definition: dict,
                               separators=(",", ":"), ensure_ascii=False)
             size = len(blob.encode("utf-8"))
             if size > MAX_DEFINITION_BYTES:
-                raise ValueError(
-                    f"definition exceeds {MAX_DEFINITION_BYTES} bytes ({size}) — this "
-                    "store names its caps rather than inheriting `user_preferences`', "
-                    "which has none")
+                raise too_large(size, MAX_DEFINITION_BYTES)
 
         if prev is None:
             prev_version = prior_rev = None
@@ -3833,6 +3879,12 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
     why = runtime_definitions.killed(def_id, source)
     if why:
         raise ValueError(f"{why} — so it is not saved. Nothing else of yours was touched.")
+    # ⭐ HELD WITHHOLDS (coordinator ruling 2026-11-19) — a runtime document that does not honour its script's narrow
+    # withholds (its `meta.heldWithholds` stamp does not name them) is not stored, by name.
+    from api.services import held_withholds as _hw
+    _hw_why = _hw.refused(definition, audience="save")
+    if _hw_why:
+        raise SaveRefused("tree", _hw_why, guard=_hw.GUARD)
     # ⭐ GT (D6) — the starter allowlist: only a script graded MATCH is stored.
     # WS-I Part 2 (re-review F1): `not_graded_at_save` waits briefly for the detector and raises
     # `CapabilityCheckBusy` (retryable) rather than ever storing an unadmitted runtime row
@@ -3881,10 +3933,7 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
     size = len(blob.encode("utf-8"))
     cap = runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES
     if size > cap:
-        raise ValueError(
-            f"definition exceeds {cap} bytes ({size}) — this "
-            "store names its caps rather than inheriting `user_preferences`', "
-            "which has none")
+        raise too_large(size, cap)
     repaint = json.dumps(runtime_definitions.repaint_stamp(definition), sort_keys=True,
                          separators=(",", ":"))
     requirements = "[]"
@@ -4094,13 +4143,30 @@ def live_definitions() -> list[dict]:
     """
     with contextlib.closing(_connect()) as c:
         _ensure(c)
-        rows = c.execute(
-            "SELECT * FROM user_definitions u WHERE version = ("
-            "  SELECT MAX(version) FROM user_definitions v"
-            "   WHERE v.user_id=u.user_id AND v.def_id=u.def_id)"
-            " ORDER BY u.id",
-        ).fetchall()
-        return [_with_engine_status(c, _row_to_dict(r)) for r in rows if r["deleted_at"] is None]
+        return [_with_engine_status(c, _row_to_dict(r)) for r in _live_newest_rows(c)]
+
+
+def _live_newest_rows(c: sqlite3.Connection) -> list:
+    """The stored rows behind `live_definitions`: every definition's newest version that is not a tombstone, across
+    every member, oldest first (one spelling of "live" for both of its readers)."""
+    rows = c.execute(
+        "SELECT * FROM user_definitions u WHERE version = ("
+        "  SELECT MAX(version) FROM user_definitions v"
+        "   WHERE v.user_id=u.user_id AND v.def_id=u.def_id)"
+        " ORDER BY u.id",
+    ).fetchall()
+    return [r for r in rows if r["deleted_at"] is None]
+
+
+def held_withholds_census() -> dict:
+    """⭐ HELD WITHHOLDS (coordinator ruling 2026-11-19) — how many live saved copies each held script has, and how
+    many of them were saved before its narrow withholds (`held_withholds.census`: counts only, no member, no id, no
+    script). ⛔ Run on a local copy of the tables (`USER_DEFINITIONS_DB_PATH`), never against production from a
+    session."""
+    from api.services import held_withholds as hw
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        return hw.census(_live_newest_rows(c))
 
 
 def history(user_id: Any, def_id: str) -> list[dict]:
@@ -4384,7 +4450,8 @@ def resolve_share(token: str, *, _with_author: bool = False) -> dict:
     newest = get(row["user_id"], row["def_id"])
     if newest is None or newest.get("deleted_at") is not None:
         raise ShareRefused("gone", "the member who shared this has since deleted it")
-    doc = get(row["user_id"], row["def_id"], version=row["version"])
+    # (`with_source`: the author's script, read here to judge the version and never put in what this returns)
+    doc = get(row["user_id"], row["def_id"], version=row["version"], with_source=True)
     if doc is None:
         raise ShareRefused("gone", "the version that was shared is no longer in the store")
     # ⛔⛔ THE AUTHOR'S PINE NEVER TRAVELS WITH A SHARE (owner ruling) -- and an `ast` document can
@@ -4419,6 +4486,12 @@ def resolve_share(token: str, *, _with_author: bool = False) -> dict:
     load = share_load(row["user_id"], row["def_id"], row["version"])
     if load is not None:
         out["load"] = load
+    # ⭐ HELD WITHHOLDS (coordinator ruling 2026-11-19) — the shared version judged on its AUTHOR's stored script (the
+    # copy never carries it): one saved before its script's narrow withholds is previewed stamped and never installed.
+    from api.services import held_withholds as hw
+    held = hw.refused(doc["definition"], doc.get("pine_source"), audience="share")
+    if held:
+        out["held_divergence"] = held
     if _with_author:
         out["author_id"] = row["user_id"]
     return out
@@ -4440,6 +4513,11 @@ def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = N
     from.
     """
     resolved = resolve_share(token, _with_author=True)
+    # ⭐ HELD WITHHOLDS (coordinator ruling 2026-11-19) — a version saved before its script's narrow withholds is not
+    # copied into a second member's store, by name (the recipient's copy would carry no script to name it by).
+    if resolved.get("held_divergence"):
+        from api.services import held_withholds as hw
+        raise SaveRefused("tree", resolved["held_divergence"], guard=hw.GUARD)
     doc = json.loads(json.dumps(resolved["definition"]))
     def_id = new_def_id()
     doc["id"] = def_id

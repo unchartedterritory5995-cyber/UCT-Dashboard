@@ -78,3 +78,72 @@ describe('the Inputs tab shows the formula’s own numbers', () => {
     expect(screen.getByTestId('no-inputs')).toBeTruthy()          // the declared-inputs note is unchanged
   })
 })
+
+// ⭐ 2026-11-18 — A CHECKED LIBRARY INDICATOR IN THE FORMULA TAB (`authoring/checkedLibrary.js`).
+// Read in the live window: KAMA showed "Inputs 8" (every number of its formula); it has three
+// settings, and its slow length sits in two places.
+const KAMA = 'accum(close, self + pow(abs(close - close[10]) / sum(abs(close - close[1]), 10) * (2 / (2 + 1) - 2 / (30 + 1)) + 2 / (30 + 1), 2) * (close - self), 300)'
+const nameField = () => screen.getByLabelText('Name')
+const notice = () => screen.queryByTestId('library-title-dropped')
+
+describe('a checked library indicator in the Formula tab', () => {
+  it('shows the entry\'s own three settings, and one field moves every place the setting sits', async () => {
+    mount()
+    await typeFormula(KAMA)
+    expect(inputsCount()).toBe(3)
+    openInputs()
+    expect(rows().map((r) => box(r).value)).toEqual(['10', '2', '30'])
+    expect(screen.getByTestId('form-settings').textContent).toMatch(/Efficiency length[\s\S]*Fast length[\s\S]*Slow length/)
+    fireEvent.change(box(rows()[2]), { target: { value: '40' } })
+    await act(async () => { fireEvent.keyDown(box(rows()[2]), { key: 'Enter' }) })
+    await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS + 10) })
+    expect(formulaBox().value.match(/\(40 \+ 1\)/g)).toHaveLength(2)        // BOTH places, together
+    expect(formulaBox().value).not.toMatch(/\(30 \+ 1\)/)                   // neither place was left behind
+    expect(inputsCount()).toBe(3)                                          // still that indicator: still three
+    // a value the maths cannot take is refused beside the field, and nothing moves
+    fireEvent.change(box(rows()[2]), { target: { value: '5001' } })
+    await act(async () => { fireEvent.keyDown(box(rows()[2]), { key: 'Enter' }) })
+    expect(within(rows()[2]).getByRole('alert').textContent).toMatch(/whole number from 2 to 5000/)
+    expect(formulaBox().value.match(/\(40 \+ 1\)/g)).toHaveLength(2)
+  })
+
+  it('a title that names it gives way when the formula is edited by hand, says so, and comes back with the formula', async () => {
+    mount()
+    await typeFormula(KAMA)
+    await act(async () => { fireEvent.change(nameField(), { target: { value: 'Kaufman Adaptive Moving Average' } }) })
+    expect(notice()).toBeNull()
+    // the formula's own "2 / (fast + 1)" becomes "3 / ...": not Kaufman's formula any more
+    await typeFormula(KAMA.replace('(2 / (2 + 1)', '(3 / (2 + 1)'))
+    expect(nameField().value).not.toMatch(/kaufman/i)
+    expect(nameField().value.length).toBeGreaterThan(0)
+    expect(notice().textContent).toBe("No longer UCT's checked formula for Kaufman Adaptive Moving Average: the formula was edited.")
+    expect(inputsCount()).toBeGreaterThan(3)                               // and its numbers are its own again
+    // the formula put back: the title returns and the line goes
+    await typeFormula(KAMA)
+    expect(nameField().value).toBe('Kaufman Adaptive Moving Average')
+    expect(notice()).toBeNull()
+    // edited away again, and this time the member names it themselves before putting the formula back:
+    // the line goes (the formula is the checked one again) and THEIR title stays
+    await typeFormula(KAMA.replace('(2 / (2 + 1)', '(3 / (2 + 1)'))
+    expect(notice()).not.toBeNull()
+    await act(async () => { fireEvent.change(nameField(), { target: { value: 'My adaptive line' } }) })
+    await typeFormula(KAMA)
+    expect(nameField().value).toBe('My adaptive line')
+    expect(notice()).toBeNull()
+  })
+
+  it('CONTROL: a title of the member\'s own is never touched, and a library title they type over another formula is theirs', async () => {
+    mount()
+    await typeFormula(KAMA)
+    await act(async () => { fireEvent.change(nameField(), { target: { value: 'My trend line' } }) })
+    await typeFormula(KAMA.replace('(2 / (2 + 1)', '(3 / (2 + 1)'))
+    expect(nameField().value).toBe('My trend line')
+    expect(notice()).toBeNull()
+    // never agreed with a library formula in this sheet: typing the library's title claims nothing here
+    await act(async () => { fireEvent.change(nameField(), { target: { value: 'On Balance Volume' } }) })
+    await typeFormula('rsi(close, 14) >= 70')
+    expect(nameField().value).toBe('On Balance Volume')
+    expect(notice()).toBeNull()
+  })
+})
+

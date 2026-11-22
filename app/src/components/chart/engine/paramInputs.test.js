@@ -10,6 +10,8 @@ import * as registry from './nativeRegistry'
 import { checkInstanceInput } from './instanceControls'
 import { fieldsForInstance } from '../indicatorRegistry'
 import { paramInputSpecs, withParamInputs, stripParamInputs, specializeParams, paramInputKey } from './paramInputs'
+import { toGraphDocument, hydrateGraphDocument } from './ast/graphDocument'
+import { readAt, literalValueOf } from './paramLiteral.js'
 
 const SRC = `//@version=5
 indicator("P", overlay = false)
@@ -128,6 +130,48 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const FIXTURE = path.resolve(process.cwd(), '..', 'tests', 'fixtures', 'ast', 'param_inputs_parity.json')
+
+/** The document a member's browser holds after a save: stored as a shared graph, read back hydrated
+ *  (`useUserDefinitions` → `hydrateGraphDocument`). */
+function roundTripped(stored) {
+  const g = toGraphDocument(stored)
+  expect(g.ok, g.reason).toBe(true)
+  return hydrateGraphDocument(JSON.parse(JSON.stringify(g.definition)))
+}
+
+describe('⭐⭐ a SAVED copy computes the instance\'s value too (the shared-graph round trip, 2026-11-18)', () => {
+  // Hydration names the scan plot's locators `treeIndex: null`; the specialiser wrote those into `ast` only,
+  // while a multi-tree document runs its scan plot from `trees[scanPlot]`: a moved setting did nothing to the
+  // first plot of every saved Pine copy (Fred RS, found by the 10-member sweep on production).
+  it('the round trip names the scan plot\'s locators null, and the saved copy computes what the fresh one does', () => {
+    const stored = minted()
+    const back = roundTripped(stored)
+    const id = idOf(back, 'Length')
+    expect(back.compute.paramManifest[id].locators.map((l) => l.treeIndex)).toContain(null)
+    const saved = migrateMemberDocument(back)
+    const [len] = paramInputSpecs(saved)
+    const viaSaved = cols(saved, { [len.key]: 30 })
+    const viaFresh = cols(migrateMemberDocument(stored), { [len.key]: 30 })
+    for (const k of plotKeys(saved)) expect(Array.from(viaSaved[k]), k).toEqual(Array.from(viaFresh[k]))
+    expect(Array.from(viaSaved.value), 'the scan plot moved off the default').not.toEqual(Array.from(cols(saved, {}).value))
+  })
+
+  it('⛔ CONTROL: a null locator is never written blind into a scan tree that holds another literal there', () => {
+    const back = roundTripped(minted())
+    const id = idOf(back, 'Length')
+    const loc = back.compute.paramManifest[id].locators.find((l) => l.treeIndex === null)
+    const path = loc.astPath
+    const scan = back.compute.scanPlot
+    // a scan tree that differs from `ast` at that path (a hand-made document: no door writes one)
+    const odd = JSON.parse(JSON.stringify(back))
+    const node = readAt(odd.compute.trees[scan], path)
+    node.value = 99
+    const def = migrateMemberDocument(odd)
+    const s = specializeParams(def, { [paramInputSpecs(def)[0].key]: 30 })
+    expect(literalValueOf(readAt(s.compute.ast, path))).toBe(30)
+    expect(literalValueOf(readAt(s.compute.trees[scan], path))).toBe(99)
+  })
+})
 
 describe('the parity fixture both lanes read', () => {
   it('⭐ the JS lane reproduces the committed fixture exactly (regenerate with PARAM_INPUTS_PARITY_WRITE=1)', () => {

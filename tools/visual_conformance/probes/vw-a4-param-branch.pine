@@ -1,0 +1,23 @@
+//@version=4
+study("UCTPROBE_VW_A4_PARAM_BRANCH", overlay=false)
+
+// PROVENANCE: written 2026-11-20 for the Pine parity programme, objects unit A4 (capture queue
+// docs/pine/capture-queue-2026-11-20-a4-param-branch.md, Q-A4-2). NEVER COMPILED ON TRADINGVIEW.
+// The support-and-resistance shape: a branch of a function body decided by a parameter the call passes
+// per bar, with history (`cum`, `a[p]`) in the arm. The runtime lane draws such a branch while it has run
+// on every call (P01, C00) and stops by name at the first call it skips (P02). P02's reading is what Pine
+// keeps over the calls the arm ran on (what serving it per run would have to equal).
+//   P01  the per-bar parameter is never 1: the else arm runs on every call
+//   P02  the parameter is 1 on bars 3, 10, 17, ...: the else arm skips those calls
+//   C00  a fixed parameter (the call site fixes the branch)
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults; AMEX:SPY 1D second.
+
+Sma(src,p) => a = cum(src), (a - a[max(p,0)])/max(p,0)
+Variance(src,p) => p == 1 ? 0 : Sma(src*src,p) - pow(Sma(src,p),2)
+k1 = bar_index > 10 ? 5 : 2
+k2 = bar_index % 7 == 3 ? 1 : 5
+
+plot(bar_index, title="A00_bar_index_CONTROL")
+plot(Variance(close, k1), title="P01_every_call")
+plot(Variance(close, k2), title="P02_skips")
+plot(Variance(close, 5), title="C00_fixed")

@@ -50,7 +50,7 @@
 // ⛔⛔ NEVER A PARTIAL RESULT, SILENTLY. A definition is refused BY NAME, with the engine's own
 // refusal code, when:
 //   · the server's served row says it is not drawn (`meta.runtimeKilled`, `meta.runtimeNotGraded`,
-//     `meta.hostKnownDivergence` — the stamps the install door refuses on), or it declares its own
+//     `meta.hostKnownDivergence`, `meta.heldDivergence` — the stamps the install door refuses on), or it declares its own
 //     `runtime.error` checks, which the chart evaluates in its object lane and this host does not load;
 //   · its run stops (a limit, a build or version refusal, a request it is not handed, the script's
 //     own `runtime.error`, an engine error);
@@ -88,11 +88,13 @@ import {
   computeRuntimeColumns, runtimeWarmupOf, RUNTIME_REQUEST_WITHHELD_KEY, RUNTIME_HISTORY_GUARD,
 } from './runtime/runtimeColumns.js'
 import { runtimeInputValues } from './runtime/runtimeInputs.js'
-import { fetchableOtherSymbols, heldFetchOf } from './otherSymbols.js'
+import { fetchableOtherSymbols, heldFetchesOf } from './otherSymbols.js'
 import { instanceDocumentForFetch } from './symbolInputs.js'
 import { HOST_KNOWN_DIVERGENCE_GUARD, HOST_KNOWN_DIVERGENCE_STAMP } from './hostKnownDivergence.js'
+import { HELD_DIVERGENCE_GUARD, HELD_DIVERGENCE_STAMP } from './heldWithholds.js'
 import { plotOwnTitlesOf } from './pinePresentation.js'
 import { ENGINE_ERROR } from './ast/parse.js'
+import { PER_BAR_CLOCK_CODES as PER_BAR_CLOCK_CODE_LIST } from './ast/interpret.js'
 
 /** The clock the runtime lane is handed: it never moves, so no wall-clock stop decides anything. */
 const STILL_CLOCK = () => 0
@@ -124,8 +126,13 @@ function supplyOf(def, otherBars, inputs, tf) {
     const rows = read(k)
     // ⭐ RS RATING L11 — a key this timeframe HOLDS at another one (`heldFetchOf`: SP:SPX on a weekly
     // chart) is filed under its held key, as the chart files it; its rows are that timeframe's (daily)
-    const held = heldFetchOf(k, tf)
-    if (Array.isArray(rows) && rows.length) secondary.set(held ? held.key : k, { bars: rows, status: 'available' })
+    const held = heldFetchesOf(k, tf)
+    if (Array.isArray(rows) && rows.length) secondary.set(held.length ? held[0].key : k, { bars: rows, status: 'available' })
+    // ⭐ RS RATING L12 — a second held series (an intraday chart's daily rows) is read under its own key
+    for (const h of held.slice(1)) {
+      const extra = read(h.key)
+      if (Array.isArray(extra) && extra.length) secondary.set(h.key, { bars: extra, status: 'available' })
+    }
   }
   return secondary.size ? secondary : null
 }
@@ -170,7 +177,10 @@ function drawnOutputs(def, out) {
       if (bars) withheld.push({ code, bars })
     }
     if (warm && warm.withheldBars > 0) withheld.push({ code: RUNTIME_HISTORY_GUARD, bars: warm.withheldBars })
-    if (newest) for (const code of newest.codes || []) withheld.push({ code, bars: 1 })
+    // ⭐⭐ HTF-NEWEST-NARROW — only the plots the run blanked (`keys`; `null` = every column)
+    if (newest && (!Array.isArray(newest.keys) || newest.keys.includes(p.key))) {
+      for (const code of newest.codes || []) withheld.push({ code, bars: 1 })
+    }
     entries.push({ key: p.key, title: titles.has(p.key) ? titles.get(p.key) : null, values: Array.from(col),
       ...(withheld.length ? { withheld } : {}) })
   }
@@ -185,6 +195,8 @@ function runtimeLane(def, rows, opts) {
   // the install door's refusals of a served row (`nativeRegistry.validateUserDefinitions`)
   if (text(meta.runtimeKilled)) return refused(lane, KILLED, meta.runtimeKilled)
   if (text(meta.runtimeNotGraded)) return refused(lane, NOT_GRADED, meta.runtimeNotGraded)
+  // a saved copy minted before its script's narrow withholds (`heldWithholds.js`, the server's sentence)
+  if (text(meta[HELD_DIVERGENCE_STAMP])) return refused(lane, HELD_DIVERGENCE_GUARD, meta[HELD_DIVERGENCE_STAMP])
   let ctx = contextOf(def, opts)
   // the instance's settings ride the context, as `runtimeColumnsFor` hands them
   const values = runtimeInputValues(def, isObj(opts.inputs) ? opts.inputs : {})
@@ -238,10 +250,23 @@ function hostRefusalOf(def, out) {
   // a plot withheld on every bar by the chart clock or a calc_bars window says so on the chart's
   // strip; here it is a refusal, named the same way
   const clock = chartClockReport(out)
-  const row = clock && Array.isArray(clock.withheld) ? clock.withheld.find((w) => w && w.plots && w.plots.length) : null
-  if (row) return { code: row.code, message: row.reason, plots: Object.fromEntries(row.plots.map((p) => [p, { code: row.code, message: row.reason }])) }
+  // ⭐⭐ PER BAR, NOT WHOLE (coordinator ruling (A), 2026-11-20) — `history:before-chart` withholds the bars that read
+  // before the chart's first one and draws every other: a plot that carries it PER BAR (`withheldBarsReport`, written by
+  // `interpret.js::historyBeforeChartMask`) gives its values with those bars withheld by name (`drawnOutputs`), as the
+  // runtime lane's warm-up curtain does. ⚰️ Every named chart-clock row refused the whole script here, so since engine 90
+  // "Inspect a bar" answered "not computed here" for `plot(nz(close[1]))` off the listing. ⛔ Fails closed: a plot named
+  // with no per-bar column for the code, and every other chart-clock code, still refuses.
+  const perBar = withheldBarsReport(out) || {}
+  const wholeOf = (w) => (w && Array.isArray(w.plots) ? w.plots : [])
+    .filter((p) => !(PER_BAR_CLOCK_CODES.has(w.code) && perBar[p] && perBar[p][w.code]))
+  const row = clock && Array.isArray(clock.withheld) ? clock.withheld.find((w) => wholeOf(w).length) : null
+  if (row) return { code: row.code, message: row.reason, plots: Object.fromEntries(wholeOf(row).map((p) => [p, { code: row.code, message: row.reason }])) }
   return null
 }
+
+/** The chart-clock codes a plot can carry per bar (`__withheldBars`) rather than whole: `interpret.js::PER_BAR_CLOCK_CODES`,
+ *  the one authority (each writes its bars there). */
+const PER_BAR_CLOCK_CODES = new Set(PER_BAR_CLOCK_CODE_LIST)
 
 function hostLane(def, rows, opts) {
   const lane = COMPUTE_LANE.AST
@@ -249,6 +274,7 @@ function hostLane(def, rows, opts) {
   if (text(meta[HOST_KNOWN_DIVERGENCE_STAMP])) {
     return refused(lane, HOST_KNOWN_DIVERGENCE_GUARD, meta[HOST_KNOWN_DIVERGENCE_STAMP])
   }
+  if (text(meta[HELD_DIVERGENCE_STAMP])) return refused(lane, HELD_DIVERGENCE_GUARD, meta[HELD_DIVERGENCE_STAMP])
   // ⛔ the script's own `runtime.error` checks are evaluated by the chart's object lane
   // (`runtimeErrorStop.js`), which this host-neutral compute does not load: never the unchecked values
   const checks = meta.runtimeErrors

@@ -523,6 +523,180 @@ def test_run_sweep_resolves_a_runtime_entry_to_its_handle_and_sweeps_it(world, m
     assert world.hits_written[0][0][0] == runtime_definitions.handle(_doc())
 
 
+# ═══ 8b. track 6 PR-B: the Q2 cap of runtime documents per nightly sweep ═══════
+
+def _distinct_rows(n, start=0):
+    """n admitted runtime rows of DIFFERENT scripts (so n distinct handles), one per member."""
+    return [_row(def_id="u_%012x" % (0xabc000 + i), user_id=f"member-{i}",
+                 definition=_doc(source=SOURCE + f"\n// variant {i}")) for i in range(start, start + n)]
+
+
+def _on_day(monkeypatch, ordinal):
+    day = datetime.date.fromordinal(ordinal)
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(day.year, day.month, day.day, 5, 0,
+                                                                  tzinfo=ZoneInfo("America/New_York")))
+
+
+def _swept_runtime_handles():
+    return {ev._result_handle(d) for d in ev.definitions_to_sweep() if runtime_definitions.is_runtime(d)}
+
+
+def test_the_cap_is_q2s_25_and_a_sweep_under_it_runs_every_admitted_document(world, live_rows, monkeypatch, caplog):
+    assert ev.RUNTIME_SWEEP_CAP == 25 and ev.RUNTIME_SWEEP_CAP_GUARD == "runtime:sweep-cap"
+    _on_day(monkeypatch, 740_000)
+    live_rows += _distinct_rows(25)
+    with caplog.at_level("INFO"):
+        assert len(_swept_runtime_handles()) == 25
+    assert "sweep cap" not in caplog.text
+
+
+def test_over_the_cap_tonight_runs_exactly_the_cap_and_says_how_many_rotated_out(world, live_rows, monkeypatch, caplog):
+    _on_day(monkeypatch, 740_000)
+    live_rows += _distinct_rows(30)
+    with caplog.at_level("INFO"):
+        swept = _swept_runtime_handles()
+    assert len(swept) == 25
+    assert "runtime sweep cap: 25 of 30" in caplog.text and "the other 5" in caplog.text
+    assert "runtime:sweep-cap x5" in caplog.text, "counted under its guard in the not-admitted line"
+
+
+def test_every_admitted_document_is_swept_within_ceil_n_over_cap_nights(world, live_rows, monkeypatch):
+    live_rows += _distinct_rows(60)
+    every = set()
+    for day in (740_000, 740_001, 740_002):              # ceil(60 / 25) = 3 nights
+        _on_day(monkeypatch, day)
+        tonight = _swept_runtime_handles()
+        assert len(tonight) == 25
+        every |= tonight
+    assert len(every) == 60, "a document the rotation never reaches is a scan that silently never runs"
+
+
+def test_the_same_night_picks_the_same_documents(world, live_rows, monkeypatch):
+    live_rows += _distinct_rows(40)
+    _on_day(monkeypatch, 740_123)
+    first = _swept_runtime_handles()
+    live_rows.reverse()                                  # the store's order is not the turn's
+    assert _swept_runtime_handles() == first
+
+
+def test_tree_definitions_never_take_a_slot_and_are_never_capped(world, live_rows, monkeypatch):
+    from tests.test_scan_evaluator import _definition, _num, _op, _series
+    _on_day(monkeypatch, 740_000)
+    trees = []
+    for i in range(30):
+        d = _definition(_op(">", _series("close"), _num(100 + i)), def_id="u_%012x" % (0xdef000 + i))
+        trees.append(d)
+        live_rows.append({"def_id": d["id"] if "id" in d else "u_%012x" % (0xdef000 + i), "version": 1,
+                          "user_id": f"tree-{i}", "definition": d, "requirements": None})
+    live_rows += _distinct_rows(30)
+    out = ev.definitions_to_sweep()
+    assert sum(1 for d in out if not runtime_definitions.is_runtime(d)) == 30
+    assert sum(1 for d in out if runtime_definitions.is_runtime(d)) == 25
+
+
+def test_a_refused_document_or_a_second_copy_never_takes_a_slot(world, live_rows, monkeypatch):
+    _on_day(monkeypatch, 740_000)
+    rows = _distinct_rows(25)
+    # the same 25 scripts again under other members: deduped BEFORE the cap
+    copies = [dict(r, user_id=r["user_id"] + "-copy", def_id="u_%012x" % (0xccc000 + i)) for i, r in enumerate(rows)]
+    live_rows += rows + copies
+    assert len(_swept_runtime_handles()) == 25
+    # 10 more scripts the lane REFUSES: they must not push an admitted one out
+    refused = _distinct_rows(10, start=100)
+    refused_ids = {r["def_id"] for r in refused}
+    live_rows += refused
+
+    def refusal(row, *, lane):
+        world.sw.asked.append(("admission", lane))
+        return ("runtime:server-stage", "off") if row["def_id"] in refused_ids else None
+    monkeypatch.setattr(runtime_definitions, "server_lane_refusal", refusal)
+    assert _swept_runtime_handles() == {ev._result_handle(scan_runtime.runtime_scan_doc(r)) for r in rows}
+
+
+def test_the_turn_is_a_pure_window_over_the_sorted_handles():
+    hs = [f"h{i:02d}" for i in range(7)]
+    assert ev._runtime_sweep_turn(hs, 10, 3) == set(hs)
+    assert ev._runtime_sweep_turn(hs, 3, 0) == {"h00", "h01", "h02"}
+    assert ev._runtime_sweep_turn(hs, 3, 1) == {"h03", "h04", "h05"}
+    assert ev._runtime_sweep_turn(hs, 3, 2) == {"h06", "h00", "h01"}, "wraps"
+    assert ev._runtime_sweep_turn(list(reversed(hs)), 3, 1) == {"h03", "h04", "h05"}, "order-free"
+
+
+# ═══ 8c. track 6 PR-C: the Q2 per-member quota (at the effective stage `all`) ═══════
+
+def _owned_rows(owner, n, start=0):
+    """n admitted runtime rows of DIFFERENT scripts, all owned by ``owner``."""
+    return [_row(def_id="u_%012x" % (0xa00000 + start + i), user_id=owner,
+                 definition=_doc(source=SOURCE + f"\n// {owner} {i}")) for i in range(n)]
+
+
+def _stage(monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv(runtime_definitions.STAGE_ENV, raising=False)
+        monkeypatch.delenv(runtime_definitions.SERVER_STAGE_ENV, raising=False)
+    else:
+        monkeypatch.setenv(runtime_definitions.STAGE_ENV, value)
+        monkeypatch.setenv(runtime_definitions.SERVER_STAGE_ENV, value)
+
+
+def _swept_by_owner():
+    out = {}
+    for d in ev.definitions_to_sweep():
+        if runtime_definitions.is_runtime(d):
+            out.setdefault(d.lane_row["user_id"], set()).add(ev._result_handle(d))
+    return out
+
+
+def test_the_quota_is_q2s_3_and_at_stage_all_one_member_runs_at_most_3_a_night(world, live_rows, monkeypatch, caplog):
+    assert ev.RUNTIME_SWEEP_PER_MEMBER == 3 and ev.RUNTIME_SWEEP_QUOTA_GUARD == "runtime:sweep-member-quota"
+    _stage(monkeypatch, "all")
+    _on_day(monkeypatch, 740_000)
+    live_rows += _owned_rows("heavy", 5) + _distinct_rows(4)
+    with caplog.at_level("INFO"):
+        got = _swept_by_owner()
+    assert len(got["heavy"]) == 3
+    assert sum(len(v) for k, v in got.items() if k != "heavy") == 4, "every other member still runs"
+    assert "member quota: 2 runtime document(s)" in caplog.text
+    assert "runtime:sweep-member-quota x2" in caplog.text
+
+
+@pytest.mark.parametrize("stage", [None, "admins", "cohort"])
+def test_below_stage_all_the_cap_alone_governs(world, live_rows, monkeypatch, stage):
+    _stage(monkeypatch, stage)
+    _on_day(monkeypatch, 740_000)
+    live_rows += _owned_rows("operator", 12)
+    assert len(_swept_by_owner()["operator"]) == 12
+
+
+def test_one_members_documents_rotate_through_the_nights(world, live_rows, monkeypatch):
+    _stage(monkeypatch, "all")
+    live_rows += _owned_rows("heavy", 7)
+    every = set()
+    for day in (740_000, 740_001, 740_002):              # ceil(7 / 3) = 3 nights
+        _on_day(monkeypatch, day)
+        tonight = _swept_by_owner()["heavy"]
+        assert len(tonight) == 3
+        every |= tonight
+    assert len(every) == 7
+
+
+def test_the_quota_comes_before_the_cap_so_one_member_cannot_crowd_out_the_rest(world, live_rows, monkeypatch):
+    _stage(monkeypatch, "all")
+    _on_day(monkeypatch, 740_000)
+    live_rows += _owned_rows("heavy", 30) + _distinct_rows(10)
+    got = _swept_by_owner()
+    assert len(got["heavy"]) == 3
+    assert sum(len(v) for k, v in got.items() if k != "heavy") == 10, "all ten other members run"
+
+
+def test_many_members_within_quota_still_meet_the_cap(world, live_rows, monkeypatch):
+    _stage(monkeypatch, "all")
+    _on_day(monkeypatch, 740_000)
+    for m in range(20):
+        live_rows += _owned_rows(f"m{m}", 2, start=m * 10)
+    assert sum(len(v) for v in _swept_by_owner().values()) == 25
+
+
 # ═══ 9. NOTHING reaches members while PINE_RUNTIME_SERVER_STAGE is unset ═════
 
 _REAL_SERVER_LANE_REFUSAL = runtime_definitions.server_lane_refusal
@@ -744,3 +918,71 @@ def test_a_finite_value_inside_the_warmup_withholds_the_symbol_never_a_non_hit(w
     assert out["withheld_reason"] == prc.INTEGRITY
     assert "warm-up" in out["runtime_withheld_symbols"][0]["sentence"]
     assert out["persisted"] is False and world.hits_written == []
+
+
+# ═══ 8d. 2026-11-22: an UNSCANNABLE runtime document is handed on, never counted ══════════════
+#
+# The 05:00 ET sweep of 2026-11-22 swept NOTHING for anyone: `definitions_to_sweep` RAISED on one admin's
+# three-plot runtime document ("a scan reads ONE plot and this script maps 3"), because the cap counted
+# `_result_handle` of every runtime document, and a multi-plot one has none. Such a document is kept so
+# `run_sweep` refuses it BY NAME; it must take no cap or quota slot and must never take the night down.
+# Mutation proof: count it again (the old `[_result_handle(d) for d in out if is_runtime(d)]`) -> RED here.
+
+def _multi_plot_row(i=0, owner="admin-1"):
+    return _row(def_id="u_%012x" % (0xbad000 + i), user_id=owner,
+                definition=_doc(outputs={"value": 0, "out2": 1, "out3": 2}, source=SOURCE + f"\n// three plots {i}"))
+
+
+@pytest.mark.parametrize("stage", [None, "admins", "all"])
+@pytest.mark.parametrize("scannable", [3, 30])
+def test_a_multi_plot_runtime_document_never_takes_the_night_down(world, live_rows, monkeypatch, stage, scannable):
+    _stage(monkeypatch, stage)
+    _on_day(monkeypatch, 740_000)
+    live_rows += _distinct_rows(scannable) + [_multi_plot_row(0), _multi_plot_row(1, owner="member-0")]
+    out = ev.definitions_to_sweep()                     # raised ScanRefused before the fix
+    runtime = [d for d in out if runtime_definitions.is_runtime(d)]
+    multi = [d for d in runtime if len(d["compute"]["outputs"]) > 1]
+    assert len(multi) == 2, "handed on, so run_sweep refuses each BY NAME"
+    assert len(runtime) - len(multi) == min(scannable, ev.RUNTIME_SWEEP_CAP), "and it took no slot"
+
+
+def test_the_sweep_job_runs_and_refuses_the_multi_plot_document_by_name(world, live_rows, monkeypatch, caplog):
+    _on_day(monkeypatch, 740_000)
+    live_rows += [_multi_plot_row(0)]
+    seen = {}
+    monkeypatch.setattr(ev, "run_sweep", lambda defs, *a, **k: seen.setdefault("defs", list(defs)) and None)
+    with caplog.at_level("INFO"):
+        ev.sweep_job()
+    assert "could not read the definitions to sweep" not in caplog.text
+    assert len(seen.get("defs") or []) == 1
+
+
+def test_a_sweep_over_good_poison_good_answers_both_good_documents(world, live_rows, monkeypatch, caplog):
+    """⛔⛔ PER-DOCUMENT ISOLATION (coordinator, 2026-11-22): ANY row the sweep cannot read -- here a gate that
+    RAISES -- is counted under its guard, named in one line and skipped; both good documents are still swept.
+    Mutation proof: let the raise escape the row loop -> RED."""
+    good1, poison, good2 = _distinct_rows(1)[0], _row(def_id="u_00000bad0001", user_id="member-x",
+                                                      definition=_doc(source=SOURCE + "\n// poison")), _distinct_rows(1, start=1)[0]
+    live_rows += [good1, poison, good2]
+    real = user_definitions.engine_withheld_reason
+
+    def gate(row):
+        if row.get("def_id") == "u_00000bad0001":
+            raise RuntimeError("a gate that cannot answer")
+        return real(row)
+
+    monkeypatch.setattr(user_definitions, "engine_withheld_reason", gate)
+    _on_day(monkeypatch, 740_000)
+    with caplog.at_level("INFO"):
+        out = ev.definitions_to_sweep()
+    assert sorted(d.lane_row["def_id"] for d in out) == sorted([good1["def_id"], good2["def_id"]])
+    assert "sweep skipped definition u_00000bad0001" in caplog.text
+    assert f"{ev.SWEEP_UNREADABLE_GUARD} x1" in caplog.text
+    # and the sweep itself answers both
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_resume_order", lambda entries, tf, as_of, **k: list(entries))
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(2026, 11, 4, 5, 0, tzinfo=ZoneInfo("America/New_York")))
+    monkeypatch.setattr(ev, "sweep_deadline", lambda now=None: datetime.datetime(2026, 11, 4, 9, 0, tzinfo=ZoneInfo("America/New_York")))
+    receipt = ev.run_sweep(out, universe=["UP", "DN"], as_of=SESSION)
+    assert receipt["swept"] == 2 and receipt["refused"] == 0

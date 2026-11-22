@@ -1,4 +1,4 @@
-"""SMA-EXACT (NUMBER PENDING): the Python twin's ``sma`` and ``sum`` are the exactly rounded window sum.
+"""SMA-EXACT (Engine 65 (#1484)): the Python twin's ``sma`` and ``sum`` are the exactly rounded window sum.
 
 TradingView's ``ta.sma`` / ``math.sum`` equal ``math.fsum`` of the window on every bar of every capture
 taken from 2026-11-14 on; the left-to-right sum missed the last bit on about one bar in four. The JS

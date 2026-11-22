@@ -117,7 +117,7 @@ function drift(b, s) {
   const out = []
   if (JSON.stringify(b.args) !== JSON.stringify(s.args)) out.push(`args ${JSON.stringify(b.args)} vs ${JSON.stringify(s.args)}`)
   const serverOnly = Object.keys(SERVER_ONLY_OPTS)
-  const bo = without(b.opts, ['now'])
+  const bo = without(b.opts, ['now', ...DECLARED_DIFFERENCES.optsBrowserOnly])
   const so = without(s.opts, ['now', ...serverOnly])
   if (JSON.stringify(bo) !== JSON.stringify(so)) out.push(`opts ${JSON.stringify(bo)} vs ${JSON.stringify(so)}`)
   for (const k of serverOnly) {
@@ -144,18 +144,23 @@ test('HP-7: the service adapter builds the browser worker\'s (def, rows, ctx, op
   const s = serverSide()
   assert.deepEqual(drift(b, s), [])
   // the facts the rail rests on, so a parse that silently read nothing cannot pass
-  assert.deepEqual(b.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS' })
+  assert.deepEqual(b.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS', budgetScales: 'literal:true' })
   assert.deepEqual(s.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS', incremental: 'literal:false' })
   assert.deepEqual(b.row, ['t', 'o', 'h', 'l', 'c', 'v'])
-  assert.deepEqual(Object.keys(s.ctx), ['tf', 'newestBarIsForming', 'historyFromListing', 'runtimeInputs', 'symbol', 'otherSymbolSupply', 'historyWindowBars'])
+  assert.deepEqual(Object.keys(s.ctx), ['tf', 'newestBarIsForming', 'historyFromListing', 'runtimeInputs', 'symbol', 'otherSymbolSupply', 'historyWindowBars', 'listingDepthBars'])
   // RS RATING L3 / L5: the browser ships every bind field and the other-symbol cache; the server
   // ships neither, and says so (DECLARED_DIFFERENCES), so the parse read them rather than skipped them
-  assert.deepEqual(Object.keys(b.ctx.symbol), [...BIND_SYMBOL_FIELDS])
+  // (2026-11-19) plus the browser's optional listing fact, `firstTradeDate` (declared browser-only in job.mjs)
+  // (2026-11-20) and whether that listing answer is still in flight, `firstTradeDatePending` (declared browser-only too)
+  assert.deepEqual(Object.keys(b.ctx.symbol), [...BIND_SYMBOL_FIELDS, 'firstTradeDate', 'firstTradeDatePending'])
   assert.ok('secondaryEntries' in b.ctx)
   assert.deepEqual(Object.keys(s.ctx.symbol), ['ticker', 'exchange'])
   // W9-T11: both hosts forward the window from their own ctx, never from a literal
   assert.equal(b.ctx.historyWindowBars, 'expr:ctx.historyWindowBars')
   assert.equal(s.ctx.historyWindowBars, 'expr:job.ctx.historyWindowBars')
+  // (2026-11-20) and the served depth of the strategy-only daily window, the same way (parity, never declared)
+  assert.equal(b.ctx.listingDepthBars, 'expr:ctx.listingDepthBars')
+  assert.equal(s.ctx.listingDepthBars, 'expr:job.ctx.listingDepthBars')
 })
 
 test('HP-7: every declared difference is still a real one (no stale declaration)', () => {
@@ -163,6 +168,7 @@ test('HP-7: every declared difference is still a real one (no stale declaration)
   assert.deepEqual(SERVER_ONLY_OPTS, { incremental: false })
   for (const k of Object.keys(SERVER_ONLY_OPTS)) assert.ok(!(k in b.opts), `the browser does not pass ${k}`)
   for (const k of DECLARED_DIFFERENCES.ctxBrowserOnly) assert.ok(k in b.ctx, `the browser still ships ctx.${k}`)
+  for (const k of DECLARED_DIFFERENCES.optsBrowserOnly) assert.ok(k in b.opts, `the browser still passes ${k}`)
   for (const k of DECLARED_DIFFERENCES.ctxSymbolBrowserOnly) assert.ok(k in b.ctx.symbol, `the browser still ships ctx.symbol.${k}`)
   for (const k of Object.keys(DECLARED_DIFFERENCES.ctxServerOnly)) assert.ok(!(k in b.ctx), `the browser does not ship ctx.${k}`)
   assert.notEqual(b.def.meta, `expr:${DECLARED_DIFFERENCES.defMeta}`, 'the browser meta still differs')

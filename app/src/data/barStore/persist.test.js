@@ -293,6 +293,30 @@ describe('persist.js — the real write path (barsMemCache + barsIDB on a fake I
     expect(fakeDb._rows().get('HSEG_5').meta).toEqual({ v: 1, key: 'HSEG_5' })
   })
 
+  it('a detach (the chart switching away) hands its pending write to idle time, and it still lands', async () => {
+    const sim = simulateIntraday(rng(91003), { tf: '5', session: 'rth' })
+    vi.setSystemTime(sim.nowSec * 1000)
+    const nowMs = sim.nowSec * 1000
+    const registry = createRegistry({ ctx: () => ({ nowMs, streamLive: true }) })
+    const timers = []
+    const idles = []
+    const persist = createPersist({
+      registry, idle: (fn) => { idles.push(fn) }, now: () => nowMs,
+      setTimer: (fn, ms) => { const h = { fn, ms }; timers.push(h); return h },
+      clearTimer: (h) => { const i = timers.indexOf(h); if (i >= 0) timers.splice(i, 1) },
+    })
+    const off = persist.attach(sim.key)
+    for (const e of sim.events) registry.dispatch(sim.key, e.action, e.ctx)
+    expect(timers.length).toBe(1)                                  // a write is pending
+    const puts0 = fakeDb._puts()
+    off()                                                          // the switch
+    await flushMicro()
+    expect(fakeDb._puts()).toBe(puts0)                             // nothing written inside it
+    expect(idles.length).toBe(1)
+    idles.splice(0).forEach((fn) => fn()); await flushMicro()
+    expect(fakeDb._puts()).toBeGreaterThan(puts0)                  // the same write, later
+  })
+
   it('writes only on a baseRev change, debounced, and never for a local-only copy', async () => {
     const sim = simulateIntraday(rng(91002), { tf: '1', session: 'eth' })
     vi.setSystemTime(sim.nowSec * 1000)

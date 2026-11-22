@@ -173,3 +173,28 @@ describe('createSessionBreaksPrimitive', () => {
     expect(xs).toEqual([95.5, 295.5])
   })
 })
+
+describe('the session breaks draw only the days on screen (2026-11-18)', () => {
+  it('a deep history costs a frame only its visible breaks, and the visible ones all draw', () => {
+    const DAY = 86400
+    const times = Array.from({ length: 6000 }, (_, i) => (i + 1) * DAY)
+    const visible = { from: 5990 * DAY + 100, to: 5995 * DAY + 100 }
+    let coords = 0
+    const ts = {
+      getVisibleRange: () => visible,
+      timeToCoordinate: (t) => { coords++; return (t - visible.from) / 100 },
+      coordinateToLogical: () => null,
+      options: () => ({ barSpacing: 6 }),
+    }
+    const ctl = createSessionBreaksPrimitive()
+    ctl.primitive.attached({ chart: { timeScale: () => ts }, requestUpdate: () => {} })
+    ctl.set(times, 'rgba(1,1,1,0.3)')
+    const lines = []
+    const ctx = { save() {}, restore() {}, setLineDash() {}, beginPath() {}, stroke() {}, moveTo: (x) => lines.push(x), lineTo() {} }
+    ctl.primitive.paneViews()[0].renderer().draw({
+      useBitmapCoordinateSpace: (fn) => fn({ context: ctx, bitmapSize: { width: 100000, height: 600 }, horizontalPixelRatio: 1, verticalPixelRatio: 1 }),
+    })
+    expect(coords).toBeLessThanOrEqual(6)
+    expect(lines.length).toBe(5)                                           // days 5991..5995
+  })
+})

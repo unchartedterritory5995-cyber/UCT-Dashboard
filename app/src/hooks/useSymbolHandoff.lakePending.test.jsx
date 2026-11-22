@@ -15,17 +15,20 @@ vi.mock('../data/barStore/prefetch', () => ({
   prepareForDisplay: (...a) => prepareMock(...a),
   prepareDailyForDisplay: () => new Promise(() => {}),
   prefetchBarsToIDB: () => {},
+  heldRows: () => 0,   // rows unknown here: the cover rule (COVER_ROWS) is useSymbolHandoff.coverRows.test.jsx's
 }))
 vi.mock('../utils/prefetchBars', () => ({ prefetchBarsToIDB: () => {}, prepareForDisplay: () => new Promise(() => {}), prepareDailyForDisplay: () => new Promise(() => {}) }))
 const cols = { ready: true, resolve: null }
+const warmColumnsFor = vi.fn()
 vi.mock('../components/chart/engine/serverCompute', () => ({
   columnsReadyFor: () => cols.ready,
   whenColumnsReady: () => new Promise((r) => { cols.resolve = r }),
+  warmColumnsFor: (...a) => warmColumnsFor(...a),
 }))
 
 import useSymbolHandoff from './useSymbolHandoff'
 
-beforeEach(() => { vi.useFakeTimers(); st.displayable = true; st.pending = true; prepareMock.mockClear(); resolvePrepare = null; cols.ready = true; cols.resolve = null })
+beforeEach(() => { vi.useFakeTimers(); st.displayable = true; st.pending = true; prepareMock.mockClear(); resolvePrepare = null; cols.ready = true; cols.resolve = null; warmColumnsFor.mockClear() })
 afterEach(() => { vi.useRealTimers() })
 
 describe('the store path: a held key whose lake depth is still due', () => {
@@ -38,6 +41,16 @@ describe('the store path: a held key whose lake depth is still due', () => {
     expect(result.current).toBe('A')                          // the poll does not commit it either
     await act(async () => { resolvePrepare('current'); await Promise.resolve() })
     expect(result.current).toBe('B')
+  })
+
+  // 2026-11-18, production 60m (URI): the columns request left only from the commit's wait, after the
+  // prepare reported (~235 ms); the wait ran out at 535 ms and the RS lines landed 167 ms after the candles.
+  it("the panes' columns are asked for at Enter, beside the bars, before the prepare reports", () => {
+    const { rerender } = renderHook(({ s }) => useSymbolHandoff(s, '5'), { initialProps: { s: 'A' } })
+    act(() => { rerender({ s: 'B' }) })
+    expect(prepareMock).toHaveBeenCalled()
+    expect(resolvePrepare).not.toBe(null)                    // the prepare is still running
+    expect(warmColumnsFor).toHaveBeenCalledWith('B', '5')
   })
 
   it('a held key whose depth is not due commits at once, with no prepare', () => {

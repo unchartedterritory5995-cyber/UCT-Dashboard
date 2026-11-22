@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { memGet, memPeek, memHas, memPut, memClear, MEM_CACHE_MAX } from './barsMemCache'
+import { memGet, memPeek, memHas, memPut, memPutMonotonic, memClear, MEM_CACHE_MAX, MEM_CACHE_MAX_ROWS, _memStats, _setMemMaxRowsForTests } from './barsMemCache'
 
 const bars = (n, base = 1) =>
   Array.from({ length: n }, (_, i) => ({ t: base + i, o: 1, h: 2, l: 0, c: 1, v: 10 }))
@@ -77,5 +77,41 @@ describe('barsMemCache savedAt — the SOURCE write time, never the promotion ti
     expect(memPeekSavedAt('NULLSTAMP', 'D')).toBeNull()
     expect(memPeekSavedAt('ZEROSTAMP', 'D')).toBeNull()
     expect(memPeekSavedAt('NOSTAMP', 'D')).not.toBeNull()
+  })
+})
+
+// ⛔ (2026-11-20) the BarStore writes full-depth series here (an intraday key: up to 50,000 lake
+// bars), so an entry count alone held 1.23M rows after 30 production flips. A row budget too.
+describe('barsMemCache row budget', () => {
+  beforeEach(() => memClear())
+
+  it('over the row budget the least recently used entries go; the newest stays however large', () => {
+    expect(MEM_CACHE_MAX_ROWS).toBeGreaterThanOrEqual(60 * 600 + 2 * 56000)   // the warm working set and two deep keys
+    _setMemMaxRowsForTests(1000)
+    memPut('A', 'D', bars(600))
+    memPut('B', 'D', bars(600))
+    expect(memHas('A', 'D')).toBe(false)
+    expect(_memStats()).toEqual({ entries: 1, rows: 600 })
+    memPut('C', 'D', bars(1500))
+    expect(memPeek('C', 'D')).toHaveLength(1500)
+    expect(_memStats()).toEqual({ entries: 1, rows: 1500 })
+  })
+
+  it('a rewrite of one entry counts its rows once; a get refreshes recency; memClear restores the budget', () => {
+    _setMemMaxRowsForTests(1000)
+    memPut('A', 'D', bars(300))
+    memPut('A', 'D', bars(400))
+    memPutMonotonic('A', 'D', bars(450))
+    expect(_memStats()).toEqual({ entries: 1, rows: 450 })
+    memPut('B', 'D', bars(300))
+    memGet('A', 'D')                  // A is now the most recently used
+    memPut('C', 'D', bars(300))       // 1050 > 1000: B (least recent) goes, not A
+    expect(memHas('A', 'D')).toBe(true)
+    expect(memHas('B', 'D')).toBe(false)
+    expect(_memStats()).toEqual({ entries: 2, rows: 750 })
+    memClear()
+    expect(_memStats()).toEqual({ entries: 0, rows: 0 })
+    for (const s of ['P', 'Q', 'R']) memPut(s, 'D', bars(600))
+    expect(_memStats()).toEqual({ entries: 3, rows: 1800 })   // the default budget again
   })
 })

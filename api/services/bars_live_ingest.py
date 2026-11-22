@@ -37,6 +37,8 @@ import os
 import time
 from typing import Optional
 
+from api.services.vendor_symbols import app_symbol as _vendor_app_symbol
+
 _log = logging.getLogger(__name__)
 
 BUCKET_S = 300
@@ -62,7 +64,7 @@ _inflight: set[tuple[str, int]] = set()
 _epoch_flushes: int = 0
 _watermark_ms: int = 0
 _stats = {"events": 0, "flushes": 0, "flush_errors": 0, "rows_sent": 0, "minutes_sent": 0,
-          "resyncs": 0, "overflows": 0, "last_flush_ok": None}
+          "resyncs": 0, "overflows": 0, "last_flush_ok": None, "skipped_marked": 0}
 _flush_task: Optional[asyncio.Task] = None
 _m1_stats = {"m1_sent": 0}
 
@@ -75,9 +77,11 @@ def enabled_1m() -> bool:
     return os.environ.get("BARS_LIVE_1M_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
 
 
-def _app_symbol(sym: str) -> str:
-    # Massive uses DOT class shares (BRK.B); storage keys use the HYPHEN form.
-    return sym.upper().replace(".", "-")
+def _app_symbol(sym: str) -> Optional[str]:
+    # Massive uses DOT class shares (BRK.B); storage keys use the HYPHEN form. A lowercase-
+    # marked vendor ticker (a preferred, `BCpC`) has no key: upper-cased it was Balchem's
+    # BCPC, and its minutes were written into Balchem's bars (api/services/vendor_symbols.py).
+    return _vendor_app_symbol(sym)
 
 
 def mark_connected(now_ms: Optional[int] = None) -> None:
@@ -129,6 +133,9 @@ def on_am(sym: str, bar: dict) -> None:
         return
     bucket = (t_ms // 1000) // BUCKET_S * BUCKET_S
     s = _app_symbol(sym)
+    if s is None:
+        _stats["skipped_marked"] += 1
+        return
     if t_ms > _watermark_ms:
         _watermark_ms = t_ms
     _stats["events"] += 1
@@ -150,6 +157,42 @@ def on_am(sym: str, bar: dict) -> None:
             _log.warning("[bars-live-ingest] %d unflushed buckets held for %s; starting a "
                          "new epoch so the tier repairs the gap", len(per), s)
             resync()
+
+
+def universe_am_handler():
+    """The callable bar_stream hands every universe AM event to. With minute frames OFF
+    (`MINUTE_FRAMES_ENABLED` unset, the default) it is `on_am` ITSELF, the same object as
+    before, so the universe feed is unchanged. On, it is `on_am` followed by the minute-frame
+    publisher's (api/services/minute_frame_publisher.py), each guarded so neither can break
+    the other."""
+    from api.services import minute_frame_publisher as mfp
+    if not mfp.enabled():
+        return on_am
+    pub_on_am = mfp.on_am
+
+    def both(sym: str, bar: dict) -> None:
+        try:
+            on_am(sym, bar)
+        finally:
+            try:
+                pub_on_am(sym, bar)
+            except Exception:  # noqa: BLE001 - frames must never cost the forwarder an event
+                pass
+
+    return both
+
+
+def note_gap_connect() -> None:
+    """A socket connected while none was live: tell the minute-frame publisher (no-op off)."""
+    from api.services import minute_frame_publisher as mfp
+    if mfp.enabled():
+        mfp.note_connected()
+
+
+def start_minute_frames(loop: asyncio.AbstractEventLoop) -> bool:
+    """Start the minute-frame publisher next to the flusher (no-op while its flag is off)."""
+    from api.services import minute_frame_publisher as mfp
+    return mfp.start(loop)
 
 
 def bucket_row(sym: str, bucket: int) -> Optional[list]:
@@ -300,6 +343,9 @@ def status() -> dict:
     }
     if enabled_1m():
         out.update(m1_enabled=True, **_m1_stats)
+    from api.services import minute_frame_publisher as mfp
+    if mfp.enabled():          # off: the status is exactly what it was
+        out["minute_frames"] = mfp.status()
     return out
 
 

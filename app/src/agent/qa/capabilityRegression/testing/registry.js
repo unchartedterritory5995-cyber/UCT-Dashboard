@@ -21,7 +21,19 @@ export const ALL_KINDS = [...PROD_KINDS, 'history.eventStudy', 'research.company
   // terminal data wave 2 (dark): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels
   'highsLows.yearly', 'themes.rotation', 'confluence.board', 'earnings.expectedMove', 'earnings.callSearch',
   // terminal data wave 3 (dark): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel
-  'levels.gamma', 'flow.topPicks', 'flow.record', 'earnings.reactions']
+  'levels.gamma', 'flow.topPicks', 'flow.record', 'earnings.reactions',
+  // terminal data wave 4 (dark): the Agent half of the ERNS / CEOS / GRP terminal panels
+  'earnings.season', 'earnings.callThemes', 'group.drill',
+  // terminal data wave 5 (dark): the Agent half of the SHINT / SHRTS terminal panels (FINRA short interest)
+  'short.interest', 'short.list',
+  // terminal data wave 6 (dark): the Agent half of the SEAS / SEASB / TIDEH / OIC / RATES terminal panels
+  'seasonality.stock', 'seasonality.board', 'options.tideHistory', 'options.oiChange', 'rates.treasury',
+  // terminal data wave 7 (dark): the Agent half of the REGM / TECH / EVTS / IVH / DILU terminal panels and the UCT 20 page
+  'market.regime', 'stock.setups', 'stock.eventsTimeline', 'uct20.list', 'options.ivHistory', 'dilution.watch',
+  // terminal data wave 8 (dark): the Agent half of the CACT / IPO / DVD terminal panels
+  'stock.corporateActions', 'calendar.ipos', 'calendar.dividends',
+  // terminal data wave 9 (dark): the Agent half of the AUCT panel, the real-yield block of RATES and the FED panel
+  'rates.auctions', 'rates.realYields', 'fed.watch']
 
 /** PKG2: the data kinds an entry runs under. `"kinds": "ALL"` marks a DARK entry (its kind is not in production's list yet:
  *  history.eventStudy, the asset quotes), run only by corpus.dark.test.jsx with every gated kind on; every other entry

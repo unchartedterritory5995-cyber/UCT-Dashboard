@@ -1,9 +1,42 @@
-"""Tests for $300M market cap enforcement in news and RSS filtering."""
+"""Tests for $300M market cap enforcement in news and RSS filtering.
+
+The gate reads the company profile first and the yfinance read only when the
+profile cannot decide. The `profile` fixture is that profile: left at None it
+cannot decide, so the yfinance tests below exercise the second read.
+"""
+import types
+
 import pytest
 from unittest.mock import patch, MagicMock
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def profile(monkeypatch):
+    """The company profile the gate reads first. `.facts` is what it answers
+    (None = no row or a failed read; an exception is raised); `.calls` counts."""
+    from api.services.catalyst import ticker_metadata
+    state = types.SimpleNamespace(facts=None, calls=[])
+
+    def _facts(sym):
+        state.calls.append(sym)
+        if isinstance(state.facts, Exception):
+            raise state.facts
+        return state.facts
+
+    monkeypatch.setattr(ticker_metadata, "profile_facts", _facts)
+    return state
+
+
+def _facts(**over):
+    """A profile that passes the gate: $1B cap, $15M dollar volume, a stock."""
+    facts = {"name": "Foo Corp", "is_etf": False, "is_fund": False,
+             "market_cap": 1_000_000_000.0, "price": 50.0, "avg_volume": 300_000.0,
+             "year_high": 60.0}
+    facts.update(over)
+    return facts
+
 
 def _make_fast_info(market_cap, price=50.0, avg_vol=200_000, quote_type="EQUITY"):
     fi = MagicMock()
@@ -83,6 +116,70 @@ def test_check_sym_blocks_non_equity():
         mock_yf.return_value.fast_info = fi
         sym, ok = _check_sym_cap("SPY")
     assert ok is False
+
+
+# ── The company profile decides first ──────────────────────────────────────────
+
+def test_profile_passes_a_large_liquid_stock_without_a_yfinance_read(profile):
+    from api.services.engine import _check_sym_cap
+    profile.facts = _facts()
+    with patch("yfinance.Ticker") as mock_yf:
+        assert _check_sym_cap("AAPL") == ("AAPL", True)
+    assert not mock_yf.called
+    assert profile.calls == ["AAPL"]
+
+
+@pytest.mark.parametrize("over, allowed", [
+    ({"market_cap": 300_000_000.0}, True),                      # exactly $300M passes
+    ({"market_cap": 299_999_999.0}, False),                     # a dollar under does not
+    ({"price": 10.0, "avg_volume": 500_000.0}, True),           # exactly $5M dollar volume
+    ({"price": 10.0, "avg_volume": 499_999.0}, False),          # $4,999,990
+    ({"is_etf": True}, False),                                  # not a stock
+    ({"is_fund": True}, False),
+])
+def test_profile_applies_the_same_gates(profile, over, allowed):
+    """Blocked means blocked by the profile: the yfinance read below would let
+    every one of these through, and it is never reached."""
+    from api.services.engine import _check_sym_cap
+    profile.facts = _facts(**over)
+    passing = _make_fast_info(market_cap=5_000_000_000, price=100.0, avg_vol=1_000_000)
+    with patch("yfinance.Ticker") as mock_yf:
+        mock_yf.return_value.fast_info = passing
+        assert _check_sym_cap("SYM") == ("SYM", allowed)
+    assert not mock_yf.called
+
+
+@pytest.mark.parametrize("over", [
+    {"price": None}, {"avg_volume": None}, {"market_cap": None},
+    {"is_etf": None}, {"is_fund": None},
+])
+def test_a_profile_missing_a_needed_field_hands_over_to_yfinance(profile, over):
+    """The second read's verdict is the answer, here a block: a gate that failed
+    open instead, or guessed from half a profile, would say True."""
+    from api.services.engine import _check_sym_cap
+    profile.facts = _facts(**over)
+    blocking = _make_fast_info(market_cap=100_000_000, price=4.0, avg_vol=2_000_000)
+    with patch("yfinance.Ticker") as mock_yf:
+        mock_yf.return_value.fast_info = blocking
+        assert _check_sym_cap("TINY") == ("TINY", False)
+    assert mock_yf.called
+
+
+def test_a_profile_read_that_raises_hands_over_to_yfinance(profile):
+    from api.services.engine import _check_sym_cap
+    profile.facts = RuntimeError("store unavailable")
+    blocking = _make_fast_info(market_cap=100_000_000, price=4.0, avg_vol=2_000_000)
+    with patch("yfinance.Ticker") as mock_yf:
+        mock_yf.return_value.fast_info = blocking
+        assert _check_sym_cap("TINY") == ("TINY", False)
+    assert mock_yf.called
+
+
+def test_still_fails_open_when_neither_read_answers(profile):
+    from api.services.engine import _check_sym_cap
+    profile.facts = RuntimeError("store unavailable")
+    with patch("yfinance.Ticker", side_effect=Exception("network error")):
+        assert _check_sym_cap("NOFETCH") == ("NOFETCH", True)
 
 
 # ── Task 3 tests: RSS fallback ticker filtering logic ──────────────────────────

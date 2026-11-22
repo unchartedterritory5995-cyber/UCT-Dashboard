@@ -82,8 +82,27 @@ describe('THMS panel', () => {
     const { open } = renderPanel({ win: '1W' })
     await screen.findByTestId('terminal-thms-leaders')
     expect(screen.getByTestId('terminal-thms-period-1W').getAttribute('aria-pressed')).toBe('true')
-    fireEvent.click(within(screen.getByTestId('terminal-thms-row-gold')).getByRole('button'))
+    fireEvent.click(within(screen.getByTestId('terminal-thms-row-gold')).getByRole('button', { name: /^Open IMOV for / }))
     expect(open).toHaveBeenCalledWith('IMOV THEME GOLD 1W')
+  })
+
+  it('"stocks" beside a theme opens every stock of it, ranked (GRP); the period carries over when GRP has it', async () => {
+    jsonFetcher.mockResolvedValue(PAYLOAD)
+    const { open } = renderPanel()
+    await screen.findByTestId('terminal-thms-leaders')
+    const door = within(screen.getByTestId('terminal-thms-row-gold')).getByRole('button', { name: 'Open the stocks of Gold Miners, ranked (GRP THEME GOLD MINERS)' })
+    expect(door.textContent).toBe('stocks')
+    fireEvent.click(door)
+    expect(open).toHaveBeenLastCalledWith('GRP THEME GOLD MINERS')
+    // 1D and 1W are not ranges GRP has, so it opens on its own default; 1M, 3M, 1Y and YTD carry over
+    cleanup()
+    jsonFetcher.mockResolvedValue({ themes: [{ name: 'Gold Miners', ticker: 'GDX', theme_id: 'gold', group_return: { '1d': -1, '1y': 12 }, holdings: [{ sym: 'NEM', returns: {} }] }] })
+    renderPanel({}, { open })
+    await screen.findByTestId('terminal-thms-laggards')
+    fireEvent.click(screen.getByTestId('terminal-thms-period-1Y'))
+    fireEvent.click(within(screen.getByTestId('terminal-thms-row-gold')).getByRole('button', { name: /^Open the stocks of Gold Miners/ }))
+    expect(open).toHaveBeenLastCalledWith('GRP THEME GOLD MINERS 1Y')
+    expect(screen.getByTestId('terminal-thms-method').textContent).toContain('"stocks" opens every stock of the theme, ranked.')
   })
 
   it('a failed read is an error with Retry; a 402 says paid plan', async () => {

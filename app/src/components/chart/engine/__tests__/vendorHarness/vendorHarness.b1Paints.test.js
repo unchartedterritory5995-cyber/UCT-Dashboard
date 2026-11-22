@@ -111,7 +111,13 @@ describe('B1 — paints graded against the captures that record them', () => {
     'renko-candles-overlay-rddt-1d-2026-10-03.json': ['refused pine:collection'],
     'renko-candles-overlay-spy-1d-2026-10-03.json': ['refused pine:collection'],
     'renko-candles-overlay-crwv-1d-2026-11-16.json': ['refused pine:collection'],
+    'supertrend-strategy-alab-1d-2026-11-17.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
+    // 2026-11-20 (PR #2146's rig run, Q-SU-7 / Q-SU-8): each chart scrolled back to its listing
+    'supertrend-strategy-deep-aapl-1d-2026-11-19.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
+    'supertrend-strategy-deep-spy-1d-2026-11-19.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
     'supertrend-strategy-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
+    'supertrend-strategy-rddt-1d-2026-11-17.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
+    'supertrend-strategy-is-rddt-1d-2026-11-18.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
     'supertrend-strategy-spy-1d-2026-10-02.json': ['supply warm vw-object-gc-b-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_9 withheld'],
     'trend-targets-algoalpha-rddt-1d-2026-10-02.json': ['refused pine:state'],
     'trend-targets-algoalpha-spy-1d-2026-10-02.json': ['refused pine:state'],
@@ -153,7 +159,7 @@ describe('B1 — paints graded against the captures that record them', () => {
     'fx-market-sessions-rddt-1d-2026-11-15.json': ['refused pine:module'],
     'heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-rddt-1d-2026-11-14.json': ['refused pine:cycle'],
     'ict-institutional-order-flow-fadi-rddt-1d-2026-11-14.json': ['refused pine:objects-only'],
-    'ict-killzone-index-version-rddt-1d-2026-11-14.json': ['refused pine:objects-only'],   // bt (NUMBER PENDING): its session translates now, so the door reaches the objects-only refusal
+    'ict-killzone-index-version-rddt-1d-2026-11-14.json': ['refused pine:objects-only'],   // bt (Engine 66 (#1473)): its session translates now, so the door reaches the objects-only refusal
     'inside-bar-boxes-rddt-1d-2026-11-14.json': ['refused pine:reassign'],
     'kalman-psar-backquant-rddt-1d-2026-11-15.json': ['refused pine:module'],
     'kernel-channel-backquant-rddt-1d-2026-11-14.json': ['refused pine:block'],
@@ -174,7 +180,7 @@ describe('B1 — paints graded against the captures that record them', () => {
     'relative-volume-at-time-rddt-1d-2026-11-14.json': ['refused pine:text-value'],
     'relative-volume-at-time-spy-1d-2026-11-14.json': ['refused pine:text-value'],
     'session-hilo-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_5 agree 666/666 painted=0'],
-    // bt (NUMBER PENDING): its wrapping sessions translate now; every paint agrees with TradingView
+    // bt (Engine 66 (#1473)): its wrapping sessions translate now; every paint agrees with TradingView
     'sessions-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_3 agree 666/666 painted=666', 'plot_7 agree 666/666 painted=666', 'plot_11 agree 666/666 painted=0', 'plot_15 naBoth 666/666 painted=0'],
     'smart-money-breakouts-chartprime-rddt-1d-2026-11-14.json': ['refused pine:reassign'],
     'smart-money-interest-index-algoalpha-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_10 agree 666/666 painted=0'],

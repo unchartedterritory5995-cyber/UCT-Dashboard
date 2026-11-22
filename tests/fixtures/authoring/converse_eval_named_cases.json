@@ -1,0 +1,2298 @@
+{
+ "contract": "uct.converse-eval.cases/1",
+ "_": "THE NAMED-INDICATOR LIBRARY, as cases (Studio, 2026-11-18). A member names an indicator in api/data/named_indicators.json and the assistant is handed its ONE checked formula; the door accepts the change only if the patch holds that formula. Each example's scripted answer is the library's own tree; the case holds that the door accepts it in one call, the browser's own patch engine applies it, the engine computes it, and the door says what it built and how it was checked. `named-chandelier-own-number` carries the member's own number at a declared parameter. `ctl-named-substitute` is the NEW negative control: asked for the McGinley Dynamic, the scripted model answers with an exponential average, twice, and nothing is built (the substitution found live in 2026 that the unknown-name rule was written for). `ctl-unknown-name` among the standard controls still holds that an UNKNOWN Title-Case name is refused before any model call. ONLY THE NAME IS WITHHELD: `ctl-held-name` asks for a held name alone (known by name, no checked formula) and is refused by name with no call; `held-own-words` names the same indicator beside the member's own description of the rule, and that description is built and labelled as theirs. `ctl-which-average` asks for a moving average and names no kind: the door asks which, with no model call, and builds nothing (owner ruling, 2026-11-18).",
+ "chart": {
+  "sym": "TEST",
+  "tf": "D"
+ },
+ "bars": 1500,
+ "cases": [
+  {
+   "id": "named-mcginley",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add the McGinley Dynamic",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "accum",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "series",
+             "name": "self"
+            },
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "op",
+               "name": "-",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "series",
+                 "name": "self"
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 14
+                },
+                {
+                 "type": "call",
+                 "name": "pow",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "/",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "series",
+                     "name": "self"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 4
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 300
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "named-kama",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add the Kaufman Adaptive Moving Average",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "accum",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "series",
+             "name": "self"
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "call",
+               "name": "pow",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "+",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "*",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "/",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "abs",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "-",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "close"
+                          },
+                          {
+                           "type": "offset",
+                           "value": 10,
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "close"
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "sum",
+                       "args": [
+                        {
+                         "type": "call",
+                         "name": "abs",
+                         "args": [
+                          {
+                           "type": "op",
+                           "name": "-",
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "close"
+                            },
+                            {
+                             "type": "offset",
+                             "value": 1,
+                             "args": [
+                              {
+                               "type": "series",
+                               "name": "close"
+                              }
+                             ]
+                            }
+                           ]
+                          }
+                         ]
+                        },
+                        {
+                         "type": "num",
+                         "value": 10
+                        }
+                       ]
+                      }
+                     ]
+                    },
+                    {
+                     "type": "op",
+                     "name": "-",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "/",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 2
+                        },
+                        {
+                         "type": "op",
+                         "name": "+",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 2
+                          },
+                          {
+                           "type": "num",
+                           "value": 1
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "op",
+                       "name": "/",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 2
+                        },
+                        {
+                         "type": "op",
+                         "name": "+",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 30
+                          },
+                          {
+                           "type": "num",
+                           "value": 1
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "/",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 2
+                    },
+                    {
+                     "type": "op",
+                     "name": "+",
+                     "args": [
+                      {
+                       "type": "num",
+                       "value": 30
+                      },
+                      {
+                       "type": "num",
+                       "value": 1
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 2
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "-",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "series",
+                 "name": "self"
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 300
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "named-connors",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Plot Connors RSI in a lower pane",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "op",
+             "name": "+",
+             "args": [
+              {
+               "type": "call",
+               "name": "rsi",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 3
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "rsi",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "accum",
+                 "args": [
+                  {
+                   "type": "num",
+                   "value": 0
+                  },
+                  {
+                   "type": "op",
+                   "name": "?:",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": ">",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "close"
+                      },
+                      {
+                       "type": "offset",
+                       "value": 1,
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "close"
+                        }
+                       ]
+                      }
+                     ]
+                    },
+                    {
+                     "type": "op",
+                     "name": "?:",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": ">",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "self"
+                        },
+                        {
+                         "type": "num",
+                         "value": 0
+                        }
+                       ]
+                      },
+                      {
+                       "type": "op",
+                       "name": "+",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "self"
+                        },
+                        {
+                         "type": "num",
+                         "value": 1
+                        }
+                       ]
+                      },
+                      {
+                       "type": "num",
+                       "value": 1
+                      }
+                     ]
+                    },
+                    {
+                     "type": "op",
+                     "name": "?:",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "<",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "close"
+                        },
+                        {
+                         "type": "offset",
+                         "value": 1,
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "close"
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "op",
+                       "name": "?:",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "<",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "self"
+                          },
+                          {
+                           "type": "num",
+                           "value": 0
+                          }
+                         ]
+                        },
+                        {
+                         "type": "op",
+                         "name": "-",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "self"
+                          },
+                          {
+                           "type": "num",
+                           "value": 1
+                          }
+                         ]
+                        },
+                        {
+                         "type": "op",
+                         "name": "u-",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 1
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "num",
+                       "value": 0
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 100
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 2
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "percentrank",
+             "args": [
+              {
+               "type": "call",
+               "name": "roc",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 1
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 100
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 3
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "named-ultimate",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add the Ultimate Oscillator",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "op",
+           "name": "*",
+           "args": [
+            {
+             "type": "num",
+             "value": 100
+            },
+            {
+             "type": "op",
+             "name": "+",
+             "args": [
+              {
+               "type": "op",
+               "name": "+",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "*",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 4
+                    },
+                    {
+                     "type": "call",
+                     "name": "sum",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "-",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "close"
+                        },
+                        {
+                         "type": "call",
+                         "name": "min",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "low"
+                          },
+                          {
+                           "type": "offset",
+                           "value": 1,
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "close"
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "num",
+                       "value": 7
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "call",
+                   "name": "sum",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "-",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "max",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "high"
+                        },
+                        {
+                         "type": "offset",
+                         "value": 1,
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "close"
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "min",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "low"
+                        },
+                        {
+                         "type": "offset",
+                         "value": 1,
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "close"
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    },
+                    {
+                     "type": "num",
+                     "value": 7
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "*",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 2
+                    },
+                    {
+                     "type": "call",
+                     "name": "sum",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "-",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "close"
+                        },
+                        {
+                         "type": "call",
+                         "name": "min",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "low"
+                          },
+                          {
+                           "type": "offset",
+                           "value": 1,
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "close"
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "num",
+                       "value": 14
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "call",
+                   "name": "sum",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "-",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "max",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "high"
+                        },
+                        {
+                         "type": "offset",
+                         "value": 1,
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "close"
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "min",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "low"
+                        },
+                        {
+                         "type": "offset",
+                         "value": 1,
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "close"
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    },
+                    {
+                     "type": "num",
+                     "value": 14
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "sum",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "call",
+                     "name": "min",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "low"
+                      },
+                      {
+                       "type": "offset",
+                       "value": 1,
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "close"
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 28
+                  }
+                 ]
+                },
+                {
+                 "type": "call",
+                 "name": "sum",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "call",
+                     "name": "max",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "offset",
+                       "value": 1,
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "close"
+                        }
+                       ]
+                      }
+                     ]
+                    },
+                    {
+                     "type": "call",
+                     "name": "min",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "low"
+                      },
+                      {
+                       "type": "offset",
+                       "value": 1,
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "close"
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 28
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 7
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "named-chandelier-own-number",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Chandelier Exit with an ATR multiplier of 2.5",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "-",
+         "args": [
+          {
+           "type": "call",
+           "name": "highest",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "num",
+             "value": 22
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "*",
+           "args": [
+            {
+             "type": "num",
+             "value": 2.5
+            },
+            {
+             "type": "call",
+             "name": "atr",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              },
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 22
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "+",
+         "args": [
+          {
+           "type": "call",
+           "name": "lowest",
+           "args": [
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "num",
+             "value": 22
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "*",
+           "args": [
+            {
+             "type": "num",
+             "value": 2.5
+            },
+            {
+             "type": "call",
+             "name": "atr",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              },
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 22
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "named-elder-ray",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Show the Elder Ray",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "-",
+         "args": [
+          {
+           "type": "series",
+           "name": "high"
+          },
+          {
+           "type": "call",
+           "name": "ema",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 13
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "-",
+         "args": [
+          {
+           "type": "series",
+           "name": "low"
+          },
+          {
+           "type": "call",
+           "name": "ema",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 13
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "named-squeeze",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add the Squeeze Momentum Indicator",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "linreg",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "op",
+               "name": "+",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "+",
+                   "args": [
+                    {
+                     "type": "call",
+                     "name": "highest",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "num",
+                       "value": 20
+                      }
+                     ]
+                    },
+                    {
+                     "type": "call",
+                     "name": "lowest",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "low"
+                      },
+                      {
+                       "type": "num",
+                       "value": 20
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 2
+                  }
+                 ]
+                },
+                {
+                 "type": "call",
+                 "name": "sma",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 20
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 2
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 20
+          }
+         ]
+        }
+       },
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "bbLower",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 20
+              },
+              {
+               "type": "num",
+               "value": 2
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 20
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 1.5
+                },
+                {
+                 "type": "call",
+                 "name": "sma",
+                 "args": [
+                  {
+                   "type": "call",
+                   "name": "max",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "-",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "series",
+                       "name": "low"
+                      }
+                     ]
+                    },
+                    {
+                     "type": "call",
+                     "name": "max",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "abs",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "-",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "high"
+                          },
+                          {
+                           "type": "offset",
+                           "value": 1,
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "close"
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "abs",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "-",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "low"
+                          },
+                          {
+                           "type": "offset",
+                           "value": 1,
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "close"
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 20
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "<",
+           "args": [
+            {
+             "type": "call",
+             "name": "bbUpper",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 20
+              },
+              {
+               "type": "num",
+               "value": 2
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "+",
+             "args": [
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 20
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 1.5
+                },
+                {
+                 "type": "call",
+                 "name": "sma",
+                 "args": [
+                  {
+                   "type": "call",
+                   "name": "max",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "-",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "series",
+                       "name": "low"
+                      }
+                     ]
+                    },
+                    {
+                     "type": "call",
+                     "name": "max",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "abs",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "-",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "high"
+                          },
+                          {
+                           "type": "offset",
+                           "value": 1,
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "close"
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "abs",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "-",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "low"
+                          },
+                          {
+                           "type": "offset",
+                           "value": 1,
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "close"
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 20
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "named-chaikin",
+   "group": "example",
+   "turns": [
+    {
+     "words": "show the Chaikin Money Flow",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "call",
+           "name": "sum",
+           "args": [
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": "==",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "series",
+                 "name": "low"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 0
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "-",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "close"
+                      },
+                      {
+                       "type": "series",
+                       "name": "low"
+                      }
+                     ]
+                    },
+                    {
+                     "type": "op",
+                     "name": "-",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "series",
+                       "name": "close"
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "series",
+                     "name": "low"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "series",
+                 "name": "volume"
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "sum",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "named-coppock",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add the Coppock Curve",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "wma",
+         "args": [
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "call",
+             "name": "roc",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "roc",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 11
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 10
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "named-stoch-rsi",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Stochastic Rsi",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "call",
+           "name": "stoch",
+           "args": [
+            {
+             "type": "call",
+             "name": "rsi",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "rsi",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "rsi",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 3
+          }
+         ]
+        }
+       },
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "call",
+             "name": "stoch",
+             "args": [
+              {
+               "type": "call",
+               "name": "rsi",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 14
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "rsi",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 14
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "rsi",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 14
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 3
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 3
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "named-triple-ema",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add the Triple Ema",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "+",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 3
+              },
+              {
+               "type": "call",
+               "name": "ema",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 9
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 3
+              },
+              {
+               "type": "call",
+               "name": "ema",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "ema",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 9
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 9
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "ema",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "call",
+               "name": "ema",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 9
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 9
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 9
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "named-fisher",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add the Fisher Transform",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "fisher",
+         "args": [
+          {
+           "type": "num",
+           "value": 9
+          }
+         ]
+        }
+       },
+       {
+        "type": "series",
+        "tree": {
+         "type": "offset",
+         "value": 1,
+         "args": [
+          {
+           "type": "call",
+           "name": "fisher",
+           "args": [
+            {
+             "type": "num",
+             "value": 9
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "held-own-words",
+   "group": "example",
+   "turns": [
+    {
+     "words": "ttm squeeze when volume is above the highest volume in 10 days",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "volume"
+          },
+          {
+           "type": "call",
+           "name": "highest",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "num",
+             "value": 10
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-named-substitute",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Add the McGinley Dynamic 14",
+     "expect": {
+      "kind": "refused",
+      "gate_prefix": "named:formula",
+      "max_model_calls": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-held-name",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Add the TTM Squeeze",
+     "model_expected": false,
+     "expect": {
+      "kind": "refused",
+      "gate_prefix": "named:unchecked",
+      "max_model_calls": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-which-average",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Add a 50 day moving average",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-unknown-name",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Add the Gann Fan",
+     "model_expected": false,
+     "expect": {
+      "kind": "refused",
+      "max_model_calls": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-other-symbol",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Highlight when the close is above the SPY close",
+     "expect": {
+      "kind": "safe-change-allowed",
+      "named_symbols": [
+       "SPY"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-screener-text",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Highlight it when the sector is Technology",
+     "expect": {
+      "kind": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-ambiguous",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Show RSI 14 above 70.",
+     "role": "setup",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "words": "add volume confirmation",
+     "expect": {
+      "kind": "clarify",
+      "name_fixed": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-rename-nothing",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Show RSI 14 above 70.",
+     "role": "setup",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "words": "rename it",
+     "expect": {
+      "kind": "none",
+      "name_fixed": true
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -22,7 +22,7 @@ import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
 import { translatePine } from '../../ast/pine.js'
 import { parseFormula } from '../../ast/parse.js'
-import { interpret, CARRIED, hullWindows } from '../../ast/interpret.js'
+import { interpret, CARRIED, hullWindows, carriedCellsOf, rmaSeedMean } from '../../ast/interpret.js'
 import { computeRSI } from '../../../indicators.js'
 
 const N = 120
@@ -68,13 +68,14 @@ const same = (got, want, label) => {
 /** Drive `CARRIED.rsiPine` over a plain array, as the VM does. */
 const stepRsi = (xs, n) => {
   const spec = CARRIED.rsiPine
-  const st = new Float64Array(spec.cells)
+  const st = new Float64Array(carriedCellsOf(spec, n))
   spec.init(st, 0)
   return xs.map((v) => spec.step(st, 0, v, n))
 }
-/** The shipped `computeRSI` over the same array, UNTRIMMED, bar-aligned. */
+/** The shipped `computeRSI` over the same array, UNTRIMMED, bar-aligned, seeded as Pine's `ta.rsi` is
+ *  (RMA-SEED: `rmaSeedMean`, the `FN_PINE.rsi` reading). */
 const shippedRsi = (xs, n) => {
-  const pts = computeRSI(xs.map((c, i) => ({ t: i, c })), n)
+  const pts = computeRSI(xs.map((c, i) => ({ t: i, c })), n, { seedMean: rmaSeedMean })
   return xs.map((_, i) => (pts.length && pts[i] && typeof pts[i].value === 'number' ? pts[i].value : NaN))
 }
 

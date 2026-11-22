@@ -26,11 +26,11 @@ WHAT EACH ONE IS NOW, measured 2026-09-29 against api.main:app
   4. STAGED by OPEN_READS_GATE (family PAID). Live readers are the paid Flow
      Record page and the Dashboard tile; its "public by design" docstring is the
      owner's to overrule, which the enforce flip does.
-  5. INLINE token (`_check_token`, fail-closed, constant-time). The token is baked
-     into the frontend bundle (VITE_CHART_RENDER_TOKEN), so it is effectively
-     public; closing that needs the build var removed + a rotation (OI-13), a
-     Railway/owner action. Readers: morning-wire panelshot, /buzz, Sunday Scan,
-     the headless /r/* pages.
+  5. INLINE token (`_check_token`, fail-closed, constant-time), checked on the
+     server only: since 2026-11-19 the frontend build reads no copy of it
+     (OI-13: the build variable is removed; the rotation is a Railway/owner
+     action). Readers: morning-wire panelshot, /buzz, Sunday Scan, the headless
+     /r/* pages.
   6. ALREADY CLOSED, INLINE: `_check_auth` (PUSH_SECRET bearer) is the first
      statement of each handler -- 401 anonymous. ARCH-06 had not read the body.
      This item made the compare constant-time (responses unchanged).

@@ -30,12 +30,13 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import Input from '../../../components/ui/Input'
 import FieldError from '../../../components/ui/FieldError'
 import {
-  PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
 import { formatCurrency, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { todayIso } from '../../calendar/earningsModalRow'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
+import { groupDrillCommand } from './groupDrillModel'
 import {
   DEFAULT_PERIOD_RANGE, PERIOD_CHANGE_CODE, PERIOD_FLOOR, PERIOD_RANGES, PERIOD_SIDES, PERIOD_UNITS, breadthOf, groupMemberRows,
   normPeriodSide, normPeriodUnit, parsePeriodDate, parsePeriodRange, periodChangeCommandArgs, periodGroupsRead, periodGroupsUrl,
@@ -291,7 +292,7 @@ function Results({ req, side, code, today }) {
 
 /** The stocks of one sector, industry or theme, each with its own change between the same two closes.
  *  `read` and `view` are the stock ranking's read (GroupResults owns it, with the panel's rows). */
-function GroupStocks({ group, unit, side, startDay, endDay, read, view, members, shown, onMore, onBack, backRef }) {
+function GroupStocks({ group, unit, side, startDay, endDay, read, view, members, shown, onMore, onBack, backRef, ownPanel = null }) {
   const u = PERIOD_UNITS[unit]
   const losers = side === 'losers'
   const stocksFailed = !read.loading && view.state !== 'ok' && view.state !== 'computing'
@@ -299,6 +300,7 @@ function GroupStocks({ group, unit, side, startDay, endDay, read, view, members,
     <>
       <div className={styles.toolbar}>
         <button ref={backRef} type="button" className={styles.chip} onClick={onBack} data-testid="terminal-pchg-back">Back to all {u.many}</button>
+        {ownPanel ? <span className={styles.muted}><PanelCommand cmd={ownPanel} label={`Open ${group.name} as its own panel, with RS and flow`}>Open as its own panel</PanelCommand></span> : null}
       </div>
       <div className={styles.head}>
         <span className={styles.lede} data-testid="terminal-pchg-group-head">
@@ -385,6 +387,7 @@ function GroupResults({ req, unit, side, code, today }) {
         <ReadNotes read={read} req={req} view={view} />
         <GroupStocks group={openGroup} unit={unit} side={side} startDay={startDay} endDay={endDay} read={stocks.read} view={stocks.view}
           members={members} shown={shownMembers} onMore={() => setMemberLimit((n) => Math.min(MAX_ROWS, n + PAGE_ROWS))}
+          ownPanel={req.range ? groupDrillCommand({ kind: unit, name: openGroup.name, range: req.range }) : null}
           backRef={backRef} onBack={() => { returnTo.current = openGroup.name; setOpenName(null) }} />
       </>
     )

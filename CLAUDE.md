@@ -104,6 +104,16 @@ local; send anything heavier than a few files here. Rails: `tests/test_remote_te
 deleted mid-run on 2026-11-16 by a "leftover ref" cleanup that counted every session's refs); the tool deletes
 its own ref when it finishes.
 
+**It waits for room before it enqueues (2026-11-20).** GitHub has no job priority, so on a full 40-job pool a
+session's run sat in the same queue as the master deploy gate (11/20: gate jobs waited up to 22 min for a runner;
+a ~16 min gate took 44). Now, BEFORE it pushes its ref, the tool waits on this PC while the deploy gate has a job
+waiting for a runner, or while 4+ remote runs are in flight and other runs are queued; it prints why and re-checks
+every 60-75 s. The wait is capped at 30 min (`--max-wait-min N`) and then it dispatches anyway: it never drops a
+request, it dispatches at once if it cannot read the load, and a wait that is stopped leaves nothing behind (no
+ref, no run). `--max-wait-min 0` skips the wait: for a production incident only. Spend the pool deliberately: one
+request per finished change (not one per step of a train), only the tests and shards you need, and no second
+dispatch while one of yours is still queued or running.
+
 ## ⛔⛔ flow-worker DEPLOYS ARE MANUAL (owner decision 2026-11-12) — read before touching options-flow code
 
 Railway **auto deploy is DISABLED for `flow-worker`** (the live options tape, Live Flow, Options Flow,
@@ -1551,7 +1561,7 @@ The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V
 ### Architecture
 - **Top-level shell:** `app/src/pages/charts/ChartsWorkspace.jsx` — owns layout state + 4 color groups + viewport-lock sizing. Layout persists to `usePreferences('charts_workspace_layout')` (debounced 500ms). Color-group syms persist to `charts_workspace_groups`.
 - **Grid:** `react-grid-layout@^1.5.3` Responsive component. `cols={12}`, `FIXED_ROWS=20`, `rowHeight` computed dynamically via `ResizeObserver` on `.workspaceBody` so the grid always fills the visible viewport exactly. `maxRows={20}` + `overflow: hidden` on body = no outer scroll. `margin=[6,6]`, `compactType: 'vertical'`. `resizeHandles={['nw','ne','sw','se']}` enables resize from all 4 corners.
-- **Color groups (A/B/C/D)** are how widgets link tickers. A widget assigned color A reads/writes `groupSyms.A`; multiple widgets on the same color stay in lockstep. `WorkspaceContext` (`useWorkspace()`) exposes `{groupSyms, setGroupSym(color, sym)}`. `ChartsSymContext` (V1 API, `useChartsSym()`) is now a shim: explicit Provider → WorkspaceContext Group A → null fallback. Watchlists/ThemeTrackerPage/Screener (V1-era) still work without code change because they default to Group A.
+- **Color groups (A/B/C/D)** are how widgets link tickers. A widget assigned color A reads/writes `groupSyms.A`; multiple widgets on the same color stay in lockstep. `WorkspaceContext` (`useWorkspace()`) exposes `{groupSyms, setGroupSym(color, sym)}`. ⭐ On /charts `groupSyms` is a store the board owns (`groupSymsStore.js`, 2026-11-20), not board state: a symbol switch re-renders only the components whose render READS `groupSyms` (useWorkspace subscribes them), never the board, the grid or the widget hosts. `ChartsSymContext` (V1 API, `useChartsSym()`) is now a shim: explicit Provider → WorkspaceContext Group A → null fallback. Watchlists/ThemeTrackerPage/Screener (V1-era) still work without code change because they default to Group A.
 - **Widget types — ⭐ measure it, don't quote it:** the authoritative list is
   `WIDGET_REGISTRY` in `app/src/widgets/registry.js` (metadata + menu membership
   + journal-embed params), with the /charts component bindings in
@@ -1700,12 +1710,14 @@ All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key com
 - TradingView-style overlay at top-left of chart, appears on hover
 - Shows: date/time, O, H, L, C, V (formatted K/M), change + change%, MA overlay values with colors
 - Developing bar: falls back to REST session volume + last computed MA values
-- Uses `chart.subscribeCrosshairMove()` API, state in `crosshairData`
+- Uses `chart.subscribeCrosshairMove()` API. The payload (`crosshairData`) is NOT StockChart state (2026-11-20): it lives in a per-chart store (`chart/readoutStore.js`) printed by `ReadoutIsland`s, so a hover frame or a switch's readout re-renders the legend rows, never the whole chart. Read it inside an island's render function, never at StockChart's top level
 - Works on all chart surfaces (TickerPopup, Breadth, ThemeTracker, Watchlists, CustomScan)
 
 ### Chart Performance Architecture
 - **Chart instance reuse**: no DOM destroy on ticker switch — `setData()` on existing series, `applyOptions()` for settings. Only `chart.remove()` on unmount.
 - **Memoized data**: `ohlcData`, `closeData`, `volData`, `overlayData`, `resolvedOverlays` all wrapped in `useMemo`. Prevents recomputation on non-data changes.
+- **A live price tick never renders the chart** (2026-11-20): under BARSTORE StockChart reads quotes through `useQuietRealtimePrices(tickers, { renderKey, onTickRef })` (`hooks/useQuietRealtimePrices.js`, `lib/liveQuote.js`; its own module because `useRealtimePrices.js` is on the Notebook's first open): the render re-runs only when the feed badge or the include-mode session candle's ext price changes; the Pre/Post tags, the screenshot price and `livePricesRef` update between renders. Never read the quote through a hook that re-renders per publish in the chart body. Rail: `StockChart.liveTicks.test.jsx`.
+- **Per-symbol metadata never renders the chart** (2026-11-20): ticker meta, listing date, event / news / desk markers, the watermark logo and the pane's next-earnings date are read by `ChartMetaFeed` (in `StockChart.jsx`) into a per-chart store (`chart/chartMetaStore.js`); an answer redraws the watermark lines, markers and badges directly (`_drawMeta`). Never add a per-symbol read as a hook or `useState` in the chart body; only a fact the engine computes on re-renders it. Rail: `StockChart.metaRenders.test.jsx`.
 - **GZip compression**: `GZipMiddleware` on FastAPI (skips `/api/stream/*` SSE endpoints), ~6x smaller payloads
 - **3-layer cache**: in-memory TTLCache (~1ms, 5-15min) → persistent disk `/data/bars_cache/` (~10ms, 2-72hr) → Massive API (4-30s)
 - **Disk cache TTLs**: D=48hr, W=72hr, 60m=8hr, 30m=4hr, 5m=2hr. Empty results never cached.
@@ -2523,7 +2535,38 @@ an OOM, and thirteen concurrent contexts is still an account limit. **Scoping ea
 bound the sum of the jobs.** The cap is on the sum, which is why it is a number and not a
 principle.
 
-Worktrees live in `.worktrees/` (project-local, gitignored).
+## ⛔⛔ WORKTREES: create with `wt_new.py` on C:, never by hand; the sweep is the only reaper (2026-11-18)
+
+⚰️ C: reached **0 GB** on 2026-11-18 when four agents ran `git worktree add` + `npm ci` at once (about 2.6 GB
+each), with no floor and no ordering. Measured: a dashboard checkout is 2.24 GB (`docs/notebook` 0.86,
+`tests/fixtures` 0.71); `app/node_modules` is 0.31 GB. Worktrees live in `C:\Users\Patrick\uct-worktrees\`
+(⚰️ this line used to say `.worktrees/`; that folder holds only old ones).
+
+```sh
+python C:/Users/Patrick/uct-monitors/wt_new.py <name> --branch <branch> --session <your session id>
+python C:/Users/Patrick/uct-monitors/wt_new.py <name> --done --session <your session id>   # once merged
+```
+
+- **One at a time, with a floor.** It holds a short create-lock, then refuses (exit 3, nothing created) when
+  the target drive would drop below 15 GB free. It never deletes anything to make room: it prints the
+  sweep's dry run to read, and the answer is to ask the coordinator.
+- **C:, always, for active work.** D: is a spinning HDD (owner rule): `--drive D` is only for a COLD lane
+  nobody builds or tests in. A backend or test started from a D: directory also writes `D:\data`.
+- **`node_modules` is `npm ci --prefer-offline` in the worktree. NEVER a junction.** Every recursive delete
+  (`git worktree remove`, `rm -rf`, `Remove-Item -Recurse`) follows a junction and empties the shared target
+  (five recorded wipes); `npm ci` inside a junctioned worktree rebuilds the shared tree under every borrower;
+  a branch with a different lockfile silently tests against the wrong packages.
+- **It writes `.uct-session-owner`** (the ownership rule below). `--done` removes ONLY your own worktree,
+  merged into origin/master and clean, through the same guards as the sweep.
+- **Every other removal is the sweep's job: `C:\Users\Patrick\uct-monitors\weekly_sweep.ps1`**, at 02:30 and,
+  while C: is below 40 GB free, every 2 h ("UCT Worktree Reclaim"). It removes a worktree only when it is
+  merged into GitHub master (or pushed and idle 3 days), clean, idle 6 h, not `git worktree lock`ed, not the
+  target of a junction anywhere on C: or D:, and not in use: no process names it or has its current
+  directory inside it, and no live Claude session mentioned it in the last 12 h. Small local-only ignored
+  files are archived to `D:\uct-archive\sweeps\ignored-<stamp>\` first; every removal writes a recovery line.
+  Thresholds: `worktree_policy.json`; guards: `wt_guards.ps1`, both in `C:\Users\Patrick\uct-monitors`.
+- **To keep a worktree the sweep would take:** `git worktree lock --reason "<why>" <path>` (unlock when done).
+  Dry run, read-only and safe at any time: `pwsh -NoProfile -File C:\Users\Patrick\uct-monitors\weekly_sweep.ps1`.
 
 ## ⛔⛔ WORKTREE OWNERSHIP — A SESSION DELETES ONLY WHAT IT CREATED
 
@@ -3340,12 +3383,18 @@ gets.** C1–C3 still carry the real argument (the incoming commits cannot inter
 branch); what is gone is the net that was believed to be under it. When in doubt, re-gate.
 
 ⭐ **What C5 DOES do, and it is not nothing:** its verdict decides whether `production` is
-promoted, and **`web` deploys from `production`** — so a red gate stops the member-facing
-deploy. ⚠️ The other five services (`worker`, `bars-api`, `chart-renderer`, `flow-worker`,
-`terminal-next-monitor`) deploy from **`master`** and are NOT gated by it. Measured
-2026-09-20, `railway status --json`. This also supersedes `master-deploy-gate.yml`'s own
-*"a RED gate still deploys"* line, which was true on 2026-09-14 and stopped being true for
-`web` at the cutover.
+promoted, and **`web` AND `bars-api` deploy from `production`** — so a red gate stops both
+member-facing serving tiers. ⚠️ `worker` and `flow-worker` deploy from **`master`** and are NOT
+gated by it. Measured 2026-11-21, read-only `railway deployment list --service <svc> --json`
+(each SUCCESS row's `meta.branch`): web `production`, bars-api `production` (the same
+`createdAt` as web's deploy of each commit), worker `master`, flow-worker `master`;
+`chart-renderer` and `terminal-next-monitor` listed no SUCCESS deployment, so their branch is
+UNMEASURED — measure before relying on it. ⚰️ This line said "the other five services (incl.
+`bars-api`) deploy from `master`" (measured 2026-09-20); bars-api moved to `production` since,
+and the stale line was taken as fact on 2026-11-20 (docs/incidents/
+2026-11-20-index-intraday-tail-goes-back.md § Deploy). This also supersedes
+`master-deploy-gate.yml`'s own *"a RED gate still deploys"* line, which was true on 2026-09-14
+and stopped being true for `web` at the cutover.
 
 ⛔ **Any of C1–C3 failing ⇒ local re-gate.** The "third supersession = STOP" rule counts
 C1–C3 failures **only** — disjoint commits that carry are not supersessions.

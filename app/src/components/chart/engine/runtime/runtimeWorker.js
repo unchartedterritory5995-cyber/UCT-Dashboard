@@ -17,6 +17,7 @@ import { RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
 // ⭐⭐ W9-T11 — the run's `strategy` record crosses beside the columns, like the drawings.
 import { runtimeStrategyOf } from './strategyRecord.js'
 import { calcBarsWindowReport } from '../calcBarsWindow.js'
+import { runtimeOvernightOf } from './overnightTail.js'
 // ⭐⭐ W9-T11 (T1 review N1a) — THE WORKER IS ITS OWN MODULE GRAPH: the member door's
 // registration (`memberPaneDefinition.js`) never runs here, so without this the worker's
 // front end would read the registry's default (off) while the main thread's probe read the
@@ -24,6 +25,8 @@ import { calcBarsWindowReport } from '../calcBarsWindow.js'
 // file is browser transport, outside the server compute closure (`pine_runtime_closure.mjs`).
 import { strategyBrokerEnabled } from '../strategyBrokerGate.js'
 import { registerStrategyBrokerGate } from '../strategyBrokerGateRegistry.js'
+// ⭐⭐ (switch smoothness, 2026-11-20) the chart's own-daily question, asked off its main thread (`ownDailyAsync.js`)
+import { OWN_DAILY_ASK, ownDailyReplyOf } from './ownDailyProbe.js'
 registerStrategyBrokerGate(strategyBrokerEnabled)
 
 // ⭐ P3 WS-H (S8) — how long the run took, IN the worker (a stop's beacon reports
@@ -31,6 +34,8 @@ registerStrategyBrokerGate(strategyBrokerEnabled)
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 self.onmessage = (event) => {
+  // ⭐ a probe is answered and nothing else is done: it carries no run (`ownDailyProbe.js`)
+  if (event.data && event.data.kind === OWN_DAILY_ASK) { self.postMessage(ownDailyReplyOf(event.data)); return }
   const { id, def, rows, ctx: plainCtx } = event.data || {}
   const startedAt = clock()
   try {
@@ -42,7 +47,10 @@ self.onmessage = (event) => {
         return { ...rest, secondary, exchangeOf: (k) => { const e = secondary.get(k); return (e && e.exchange) || null } }
       })()
       : plainCtx
-    const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
+    // ⭐⭐ (coordinator ruling 2026-11-19) off the main thread the budget scales with the bars the run covers
+    // (`runtimeColumns.js::runtimePaneBudgetFor`); every main-thread door keeps 1,000 ms. ⭐⭐ (engine 86, A2) and
+    // here alone the VM's `WALL_TIME` follows that budget (`runLimitsOf`): every other caller keeps 5,000
+    const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true })
     // ⭐ RT5 — the run's drawings are non-enumerable on the record, so a
     // structured clone would drop them; they cross beside it. ⭐ UIE PHASE 2 — the raw
     // payload, a WITHHELD one included (its sentence is the member's), and the warm-up
@@ -50,7 +58,9 @@ self.onmessage = (event) => {
     self.postMessage({ id, ok: true, columns, objects: columns[RUNTIME_OBJECTS_KEY] || null,
       warmup: runtimeWarmupOf(columns), strategy: runtimeStrategyOf(columns),
       // ⭐⭐ CBC-FMT — the `calc_bars_count` window record crosses beside the columns too
-      calcBars: calcBarsWindowReport(columns) })
+      calcBars: calcBarsWindowReport(columns),
+      // ⭐⭐ (2026-11-20) and the overnight tail's record (`overnightTail.js`), which the strip reads too
+      overnight: runtimeOvernightOf(columns) })
   } catch (err) {
     self.postMessage({
       id,

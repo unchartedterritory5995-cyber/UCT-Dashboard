@@ -9,6 +9,9 @@ the boundary's name list had no `self`, so the model was shown a function it cou
 Opened by the engine session's ruling, with its conditions, each held here:
 
   * ONE running value: `accum2`..`accum4` and `state1`..`state4` stay closed, refused by name.
+    (⭐ 2026-11-18, later the same day: opened for the shapes that SETTLE. What this file still
+    holds of them: values that never forget their start are refused, and a state name outside
+    its own function is refused. The opened shapes: `tests/test_converse_running_values_linked.py`.)
   * `self` is the model's to write only inside an `accum` update; one `accum` never sits inside
     another; the warm-up is a literal within the lookback cap.
   * HONESTY BY SHAPE: the door itself says where the value starts, with the STRONGER sentence
@@ -94,14 +97,15 @@ def test_self_outside_a_running_values_update_is_refused_by_name(conv, tree, whe
 
 
 @pytest.mark.parametrize("name, n_states", [("accum2", 2), ("accum3", 3), ("accum4", 4)])
-def test_two_or_more_running_values_stay_closed_by_name(conv, name, n_states):
+def test_running_values_that_only_carry_themselves_never_forget_and_are_refused(conv, name, n_states):
+    """Each value kept as it is (state1 stays state1): where it started is all it will ever be."""
     states = [S(f"state{i}") for i in range(1, n_states + 1)]
     tree = call(name, num(1), num(300), *([S("close")] * n_states), *states)
     refused = _refused(conv, tree)
     assert refused.gate == GATE
-    assert f"{name} is not available" in refused.detail and "ONE running value only" in refused.detail
+    assert f"this {name} never forgets where it started" in refused.detail
     assert "unsupported" in refused.detail                                # the way out for the model
-    assert "two or more running values" in refused.reason                 # a member's words, no function name
+    assert "never stop depending on where they started" in refused.reason  # a member's words, no function name
     assert name not in refused.reason
 
 
@@ -183,12 +187,14 @@ def test_notes_follow_every_door_a_formula_enters_by_and_only_running_values(con
 def test_the_doors_notes_come_first_are_not_repeated_and_respect_the_contracts_limit(conv):
     own = notes_of(conv, [create(STREAK)])[0]
     with_models = conv.with_running_value_notes({**env(0, [create(STREAK)]), "assumptions": [{"text": "I took 'in a row' to mean consecutive closes."}]})
-    assert with_models["assumptions"][0] == own and len(with_models["assumptions"]) == 2
+    # (each of the door's own notes is marked as the door's: `tests/test_note_by.py`)
+    marked = {**own, "by": "uct"}
+    assert with_models["assumptions"][0] == marked and len(with_models["assumptions"]) == 2
     again = conv.with_running_value_notes({**env(0, [create(STREAK)]), "assumptions": [dict(own)]})
-    assert again["assumptions"] == [own]
+    assert again["assumptions"] == [own]                                    # already said: not said again
     full = {**env(0, [create(STREAK)]), "assumptions": [{"text": f"assumption {i}"} for i in range(conv.MAX_ASSUMPTIONS)]}
     capped = conv.with_running_value_notes(full)
-    assert len(capped["assumptions"]) == conv.MAX_ASSUMPTIONS == 12 and capped["assumptions"][0] == own
+    assert len(capped["assumptions"]) == conv.MAX_ASSUMPTIONS == 12 and capped["assumptions"][0] == marked
     untouched = env(0, [create(call("sma", S("close"), num(20)))])
     assert conv.with_running_value_notes(untouched) is untouched
 
@@ -210,7 +216,7 @@ def test_two_running_values_are_refused_and_one_repairs_it(conv, clean_env, mode
     r = conv.converse("a smoother of the close", user_id="u1", view=empty_view(0))
     assert r["ok"] is True and r["attempts"] == 2 and r["usage"]["repair_gate"] == GATE
     said = client.calls[1]["messages"][-1]["content"][0]["content"]
-    assert "accum2 is not available" in said and "ONE running value only" in said
+    assert "this accum2 never forgets where it started" in said
     model([emits(two), emits(two)])
     r = conv.converse("a two-pole smoother of the close", user_id="u2", view=empty_view(0))
     assert r["ok"] is False and r["gate"] == GATE and "envelope" not in r
@@ -222,7 +228,8 @@ def test_the_instructions_say_how_and_what_is_closed(conv):
     assert "A RUNNING VALUE reads its own previous value" in text
     assert "accum(0, close > offset 1 of close ? self + 1 : 0, 100)" in text
     assert "`self` exists ONLY inside an accum's update" in text
-    assert "accum2, accum3 and accum4 are NOT available" in text
+    assert "SEVERAL RUNNING VALUES THAT FEED EACH OTHER are accum2, accum3 or accum4" in text
+    assert "NOT available" not in text[text.index("A RUNNING VALUE reads"):text.index("AN UP DAY is")]
     assert "use 300 unless the member asks" in text
     assert "built to its PUBLISHED formula or not at all" in text
     assert text.index("the window is the N bars BEFORE this one") < text.index("A RUNNING VALUE reads") < text.index("DO NOT FABRICATE CAPABILITIES")

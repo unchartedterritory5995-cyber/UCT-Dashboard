@@ -190,7 +190,7 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
       // `newday(res)` as `time("D")`, which translates, so the next wall is line 140's
       // session clock `time(timeframe.period, '0000-0000:7')` - a window that wraps past
       // midnight, refused by name. Still refuses, still not on `timenow`.
-      // ⚰️ …AND LEFT THIS LIST (bt, NUMBER PENDING): "0000-0000:<day>" is the bar's own
+      // ⚰️ …AND LEFT THIS LIST (bt, Engine 66 (#1473)): "0000-0000:<day>" is the bar's own
       // date (vw-w4-session-overnight-btcusd-60 O4, the user manual's "0000-0000:23456"),
       // so the script now TRANSLATES — asserted below, by name, rather than dropped.
       // ⚰️ WAS /MILLISECONDS/. Same script, same guard, DIFFERENT blocker since

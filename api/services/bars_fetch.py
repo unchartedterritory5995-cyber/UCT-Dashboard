@@ -1871,7 +1871,15 @@ def _intraday_deblockable(tf, last_ts) -> bool:
     it would pin a GAPPED first paint that the once-per-mount fetch never re-heals (the
     May-8 universe-freeze class), so it stays synchronous. `last_ts` here is UNIX
     SECONDS (intraday), so map it to its ET session date before the closed-session
-    compare. Default OFF; flip the env to roll out, unset to roll back."""
+    compare. Default OFF; flip the env to roll out, unset to roll back.
+
+    ⛔⛔ "CARRIES THE LAST CLOSED SESSION" MEANS IT REACHES THAT SESSION'S FINAL BAR, NOT ITS DATE (2026-11-20,
+    production). This compared only the date, so a tail that stopped at 13:50 ET of the last closed session passed.
+    Web runs this flag, and its fallback (tier unreachable during a deploy swap) answered RDDT 5m with that tail,
+    22 hours old, as an instant stale-while-revalidate 200. The tail must reach the final bar of that session's
+    REGULAR hours (`_session_window(.., "rth")`, half-day aware) by THE ONE tolerance rule
+    (`tail_within_one_bucket`: at it, or one bucket short, for a thin name that did not print in the last interval).
+    Rails: tests/test_intraday_async_heal.py test_A0_*."""
     if tf not in ("1", "5", "15", "30", "60") or last_ts is None:
         return False
     if _os.environ.get("BARS_INTRADAY_ASYNC_HEAL", "0") != "1":
@@ -1879,7 +1887,12 @@ def _intraday_deblockable(tf, last_ts) -> bool:
     try:
         et = _ZI("America/New_York")
         last_date = int(datetime.fromtimestamp(int(last_ts), et).strftime("%Y%m%d"))
-        return last_date >= _last_closed_session_yyyymmdd()
+        closed = _last_closed_session_yyyymmdd()
+        if last_date != closed:
+            return last_date > closed
+        day = datetime(closed // 10000, closed // 100 % 100, closed % 100, tzinfo=et)
+        final_bar = _ext_bucket_start(tf, _session_window(day, "rth")[1] - 1)
+        return tail_within_one_bucket(tf, int(last_ts), final_bar)
     except Exception:
         return False
 
@@ -2787,7 +2800,14 @@ def _fill_daily_tail_with_yf(ticker: str, massive_iso: list[dict]) -> list[dict]
     }
     for b in massive_iso:
         by_date[b["t"]] = b  # Massive wins overlap
-    return [by_date[k] for k in sorted(by_date)]
+    out = [by_date[k] for k in sorted(by_date)]
+    if not massive_iso and out:
+        # ⛔ No Massive answer at all: this is yfinance's WHOLE history, unjoined (ruling 2026-11-21). Held
+        # history (every session before the newest) may only fill dates the store lacks. The newest session
+        # is the mutable tail (bars_sqlite.history_floor: D/W/M history is every row before the tail), so it
+        # may still update, as the tail-fill always could.
+        out = [_sqlite.AddOnlyBar(b) for b in out[:-1]] + out[-1:]
+    return out
 
 
 def _recent_daily_iso(ticker: str, days: int) -> list[dict]:
@@ -3324,18 +3344,104 @@ def _yf_only_bars_response(ticker_up: str, tf: str, bars: int):
     )
 
 
+#: The join of yfinance's older bars onto Massive's (`_yf_join_factor`): the factor is read from
+#: this many sessions both vendors hold, starting at Massive's first bar ...
+_MERGE_JOIN_SESSIONS = 20
+#: ... and is used only when every one of them is within this of their median (ONE basis) ...
+_MERGE_JOIN_TOL = 0.01
+#: ... and the median is further than this from 1 (closer is the same basis, left as it is).
+_MERGE_JOIN_MIN_GAP = 0.01
+
+
+def _yf_join_factor(yf_bars: list[dict], massive_bars: list[dict]) -> float | None:
+    """The factor that puts yfinance's OLDER bars on Massive's basis, or None to leave them.
+
+    ⚰️ 2026-11-18, production EMBJ (Embraer ADR, 4:1 on 2026-11-16): Massive's EMBJ starts on
+    2025-11-03 (the ERJ -> EMBJ ticker change) and is adjusted; yfinance had not adjusted its
+    history yet, so every deep fetch wrote 64.48 before 2025-11-03 against Massive's 16.17 after
+    it, a x0.25 cliff, and put that back over a repaired store within minutes. The same seam
+    is where the 2003-09-10 cliffs sit (Massive's archive starts there; MNST x75, BF-A x12.5).
+
+    The two vendors overlap from Massive's first bar on. When their closes keep ONE ratio over
+    the first `_MERGE_JOIN_SESSIONS` shared sessions, they are one security on two bases, and
+    that ratio joins them. When the ratio wanders, they are different securities (GEN: Massive's
+    per-ticker GenOn against yfinance's Symantec) and nothing is rescaled: that is a lineage
+    question (bars_identity), not a basis one.
+
+    ⭐ 2026-11-21: a PROVEN SAME basis returns 1.0, not None. One ratio over the window, within
+    `_MERGE_JOIN_MIN_GAP` of 1, proves both vendors are on one basis, so the graft is a join of
+    1.0: an ordinary replacing write that can repair a store whose pre-floor rows sit on a third
+    basis (web's ADSK / BSX / KIM x2). None now means UNPROVEN only (too short an overlap, a
+    wandering ratio), and `_merge_daily_bars` makes that graft add-only."""
+    by_t = {b.get("t"): b for b in yf_bars}
+    ratios = []
+    for m in massive_bars:
+        y = by_t.get(m.get("t"))
+        try:
+            mc, yc = float(m["c"]), float(y["c"]) if y else 0.0
+        except (KeyError, TypeError, ValueError):
+            continue
+        if mc > 0 and yc > 0:
+            ratios.append(mc / yc)
+            if len(ratios) >= _MERGE_JOIN_SESSIONS:
+                break
+    if len(ratios) < _MERGE_JOIN_SESSIONS:
+        return None
+    med = sorted(ratios)[len(ratios) // 2]
+    if any(abs(r / med - 1.0) > _MERGE_JOIN_TOL for r in ratios):
+        return None                       # the ratio wanders: unproven
+    if abs(med - 1.0) <= _MERGE_JOIN_MIN_GAP:
+        return 1.0                        # proven: one basis already
+    return med
+
+
 def _merge_daily_bars(yf_bars: list[dict], massive_bars: list[dict]) -> list[dict]:
     """Merge yfinance (deep history) + Massive (recent, more accurate).
     Massive wins for any overlapping date range. yfinance fills the older
-    pre-Massive history.
+    pre-Massive history, on Massive's basis when the two overlap on one
+    (`_yf_join_factor`).
     """
     if not yf_bars:
         return massive_bars
     if not massive_bars:
-        return yf_bars
+        # ⛔ An EMPTY Massive answer (an outage, a refusal) is an unjoined source too (ruling 2026-11-21):
+        # yfinance's whole series may only ADD dates the store lacks, never rewrite held history onto
+        # another basis. A brand-new ticker still gets every row (nothing is held), with its provenance
+        # recorded (`bars_sqlite.unjoined_writes`); a later proven join rebases them (a plain write).
+        return [_sqlite.AddOnlyBar(b) for b in yf_bars]
     cutoff = massive_bars[0]["t"]  # ISO date string sorts lexically
     older_yf = [b for b in yf_bars if b["t"] < cutoff]
+    f = _yf_join_factor(yf_bars, massive_bars)
+    if f == 1.0 and older_yf:
+        older_yf = [dict(b) for b in older_yf]          # a proven same basis: a plain, replacing write
+    elif f is not None and older_yf:
+        from api.services.bars_sanitize import scale_bar
+        older_yf = [scale_bar(dict(b), 1.0 / f) for b in older_yf]
+    elif older_yf:
+        # ⛔ UNPROVEN JOIN, ADD-ONLY (2026-11-21). Without one proven basis these bars may be on
+        # another one (web's CX: Yahoo's, 1.04^4 below the vendor's). They may fill dates the store
+        # lacks, never replace rows it holds (`bars_sqlite.AddOnlyBar`).
+        older_yf = [_sqlite.AddOnlyBar(b) for b in older_yf]
     return older_yf + massive_bars
+
+
+def _add_only_periods(daily: list[dict], periods: list[dict], tf: str) -> list[dict]:
+    """W/M resampled from a deep daily series: every period that STARTS before its first joined day
+    (the first non-`AddOnlyBar`) holds unjoined graft days, so it is add-only too."""
+    joined = [b["t"] for b in daily if not isinstance(b, _sqlite.AddOnlyBar)]
+    if len(joined) == len(daily):
+        return periods
+    first = min(joined) if joined else None
+    out = []
+    for p in periods:
+        try:
+            d = datetime.strptime(str(p["t"])[:10], "%Y-%m-%d")
+            start = (d - timedelta(days=d.weekday())) if tf == "W" else d.replace(day=1)
+            late = first is not None and start.strftime("%Y-%m-%d") >= first
+        except (KeyError, TypeError, ValueError):
+            late = False
+        out.append(p if late else _sqlite.AddOnlyBar(p))
+    return out
 
 
 def _fetch_daily(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
@@ -3369,7 +3475,7 @@ def _fetch_weekly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
         # Build deep daily series first, then resample. Need enough daily bars
         # to cover max_bars weeks: ~5 trading days/week + buffer.
         daily = _fetch_daily(ticker, max_bars * 7, deep=True)
-        weekly = _resample_weekly_iso(daily)
+        weekly = _add_only_periods(daily, _resample_weekly_iso(daily), "W")
         return weekly[-max_bars:]
     # Fast path: Massive recent + yfinance tail-fill when stale, resampled.
     from api.services.massive import get_agg_bars
@@ -3412,7 +3518,7 @@ def _fetch_monthly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]
     """Fetch monthly bars — daily from Massive (+ yfinance if deep), resampled."""
     if deep:
         daily = _fetch_daily(ticker, max_bars * 25, deep=True)  # ~21 trading days/month
-        monthly = _resample_monthly_iso(daily)
+        monthly = _add_only_periods(daily, _resample_monthly_iso(daily), "M")
         return monthly[-max_bars:]
     # Fast path: Massive recent + yfinance tail-fill when stale, resampled.
     from api.services.massive import get_agg_bars
@@ -3443,14 +3549,17 @@ def _bar_volume(bar: dict) -> float:
     return 0 if v is None else v
 
 
-def _resample_weekly_iso(daily_bars: list[dict], ticker: str | None = None) -> list[dict]:
+def _resample_weekly_iso(daily_bars: list[dict], ticker: str | None = None,
+                         sessions_only: bool = True) -> list[dict]:
     """Resample our normalized daily bars (t = ISO date string) to weekly.
     Non-session daily rows are excluded (`date_bar_keys`) — a week is its sessions."""
     if not daily_bars:
         return []
     from api.services.date_bar_keys import session_daily
     weeks = {}
-    for bar in session_daily(daily_bars, ticker):
+    # ``sessions_only=False``: every row as handed (the Pine interpreter's resample, ``ast_interpret._htf_resampled``,
+    # which withholds by name a week holding a day without a session rather than leaving the row out of one lane)
+    for bar in (session_daily(daily_bars, ticker) if sessions_only else daily_bars):
         try:
             dt = datetime.strptime(bar["t"], "%Y-%m-%d")
         except (ValueError, TypeError):
@@ -3483,14 +3592,15 @@ def _resample_weekly_iso(daily_bars: list[dict], ticker: str | None = None) -> l
     ]
 
 
-def _resample_monthly_iso(daily_bars: list[dict], ticker: str | None = None) -> list[dict]:
+def _resample_monthly_iso(daily_bars: list[dict], ticker: str | None = None,
+                         sessions_only: bool = True) -> list[dict]:
     """Resample our normalized daily bars (t = ISO date string) to monthly.
     Non-session daily rows are excluded (`date_bar_keys`) — a month is its sessions."""
     if not daily_bars:
         return []
     from api.services.date_bar_keys import session_daily
     months = {}
-    for bar in session_daily(daily_bars, ticker):
+    for bar in (session_daily(daily_bars, ticker) if sessions_only else daily_bars):
         try:
             dt = datetime.strptime(bar["t"], "%Y-%m-%d")
         except (ValueError, TypeError):

@@ -1,7 +1,8 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
+import Select from '../../../../components/ui/Select'
 import { GROUP_HUES, UNCLASSIFIED } from './scanDeckModel'
-import ws from '../../../charts/ChartsWorkspace.module.css'
+import RankLine from '../reading/RankLine'
 import styles from './ScanDeck.module.css'
 
 const MODE_LABEL = { focus: 'Focus', grid: 'Grid', table: 'Table' }
@@ -13,6 +14,8 @@ const MODE_LABEL = { focus: 'Focus', grid: 'Grid', table: 'Table' }
 export function ScanHeader({
   label, count, live, drillCols, colKey, onPickMetric,
   dateNav, ctx, onWantDays, summary, mode, onMode, modes, onClose, children,
+  reading = null, readingLoading = false, onHistory = null, histOpen = false,
+  tile = null, badge = null, note = null, dayTools = null,
 }) {
   const metricId = useId()
   return (
@@ -22,35 +25,49 @@ export function ScanHeader({
           {drillCols?.length > 1 && onPickMetric ? (
             <>
               <label htmlFor={metricId} className="sr-only">Breadth list</label>
-              <select id={metricId} className={styles.metric} value={colKey || ''} onChange={e => onPickMetric(e.target.value)}>
-                {drillCols.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
+              <Select id={metricId} className={styles.metric} value={colKey || ''} onChange={e => onPickMetric(e.target.value)}
+                options={drillCols.map(c => ({ value: c.key, label: c.label }))} />
             </>
           ) : (
             <span className={styles.metric}>{label}</span>
           )}
           {live && <span className={styles.live}><i />Live</span>}
+          {badge && <span className={styles.badge}>{badge}</span>}
         </div>
         {dateNav && <div className={styles.dateWrap}>{dateNav}</div>}
       </div>
 
-      <CountHistory count={count} ctx={ctx} onWantDays={onWantDays} />
+      <CountHistory count={count} ctx={ctx} onWantDays={onWantDays} {...(tile || {})} />
 
-      <SectorMix sectors={summary?.sectors} />
+      {/* count | sectors | the reading | view toggles (owner 2026-11-19: the reading gets its
+          own section, using the band's empty width) */}
+      {note ? <span className={styles.headNote}>{note}</span> : <SectorMix sectors={summary?.sectors} />}
 
+      <RankLine reading={reading} loading={readingLoading} onHistory={onHistory} histOpen={histOpen} />
+
+      {/* View tabs + close on top; Mark day / Replay under the tabs (owner 2026-11-19: both are
+          about how the charts below look, and the right side had the room). */}
       <div className={styles.headEnd}>
+        <div className={styles.headEndTop}>
         {children}
-        <div className={ws.sessionToggle} role="group" aria-label="View">
-          {modes.map(m => (
-            <button key={m} type="button" aria-pressed={mode === m} onClick={() => onMode(m)}
-              className={`${ws.sessionBtn} ${styles.viewBtn}${mode === m ? ' ' + ws.sessionBtnActive : ''}`}>
-              {MODE_LABEL[m]}
-            </button>
-          ))}
-        </div>
+        {modes?.length > 0 && (
+          <div className={styles.viewTabs} role="group" aria-label="View">
+            {modes.map(m => (
+              <button key={m} type="button" aria-pressed={mode === m} onClick={() => onMode(m)}
+                className={styles.viewBtn}>
+                {MODE_LABEL[m]}
+              </button>
+            ))}
+          </div>
+        )}
         <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close" title="Close">
-          <UIcon name="x" size={15} />
+          {/* A plain line icon in the text colour (UIcon's metallic gold is not Signature). */}
+          <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          </svg>
         </button>
+        </div>
+        {dayTools}
       </div>
     </div>
   )
@@ -77,9 +94,22 @@ const fmtDay = (d) => {
   return new Date(y, m - 1, dd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function CountHistory({ count, ctx, onWantDays }) {
+function CountHistory({
+  count, ctx, onWantDays,
+  // A reading-only window (a ratio, a percent, another universe) names its own column and units.
+  label = null, fmt = null, unitOne = 'stock', unitMany = 'stocks',
+}) {
   const [range, setRange] = useState(readRange)
   const [hover, setHover] = useState(null)
+  // While the pointer runs along the bars the number changes; its block keeps the width it had
+  // when the hover began, so the sparkline never resizes under the pointer.
+  const numRef = useRef(null)
+  const [lockW, setLockW] = useState(null)
+  const enter = (i) => {
+    if (hover == null && numRef.current) setLockW(numRef.current.getBoundingClientRect().width)
+    setHover(i)
+  }
+  const leave = () => { setHover(null); setLockW(null) }
   const r = RANGES.find(x => x.key === range) || RANGES[1]
   // A range longer than the history on hand asks the window for more.
   const have = ctx?.series?.length || 0
@@ -92,19 +122,26 @@ function CountHistory({ count, ctx, onWantDays }) {
   const vals = all.slice(start)
   const days = dates.slice(start)
   const last = vals.length - 1
-  const pick = (k) => { setRange(k); setHover(null); try { localStorage.setItem(RANGE_LS, k) } catch { /* private mode */ } }
+  const pick = (k) => { setRange(k); leave(); try { localStorage.setItem(RANGE_LS, k) } catch { /* private mode */ } }
 
   const shownVal = hover != null ? vals[hover] : count
-  // The open day's date is already in the box to the left; only a hovered past
-  // bar names its day.
+  // The open day's date is already in the box to the left; a hovered past bar names its day in
+  // the label above (a fixed slot), so "stocks" always sits right after the number.
   const past = hover != null && hover !== last
-  const shownDay = past ? fmtDay(days[hover]) : (shownValIsOne(count) ? 'stock' : 'stocks')
+  const shownUnit = shownValIsOne(shownVal) ? unitOne : unitMany
+  const show = (v) => (Number.isFinite(v) ? (fmt ? fmt(v) : v.toLocaleString()) : '—')
   const finite = vals.filter(Number.isFinite)
   const max = Math.max(...finite, 1)
+  // Counts start at zero; a signed or ratio column is drawn from its own low.
+  const minV = Math.min(...finite, 0)
+  const lo = minV < 0 ? minV : 0
+  const span = Math.max(max - lo, 1e-9)
   return (
     <div className={`${styles.tile} ${styles.tileCount}`}>
       <span className={styles.tileHead}>
-        <span className={styles.tileLbl}>Stocks each day · {r.words}</span>
+        <span className={styles.tileLbl} data-past={past || undefined}>
+          {past ? fmtDay(days[hover]) : `${label || 'Stocks'} each day · ${r.words}`}
+        </span>
         <span className={styles.rangeSeg} role="group" aria-label="Chart range">
           {RANGES.map(x => (
             <button key={x.key} type="button" aria-pressed={x.key === range} onClick={() => pick(x.key)}>{x.key}</button>
@@ -112,17 +149,22 @@ function CountHistory({ count, ctx, onWantDays }) {
         </span>
       </span>
       <span className={styles.tileVal}>
-        <b>{Number.isFinite(shownVal) ? shownVal.toLocaleString() : '—'}</b>
-        <small className={styles.countDay} data-past={past || undefined}>{shownDay}</small>
+        {/* The number with its unit right after it ("60 stocks", "1,125 stocks"); the sparkline
+            takes all the width that is left. */}
+        <span className={styles.countNum} ref={numRef} style={lockW ? { minWidth: lockW } : undefined}>
+          <b>{show(shownVal)}</b>
+          {shownUnit && <small className={styles.countDay}>{shownUnit}</small>}
+        </span>
         {finite.length > 1 && (
-          <svg className={styles.spark} viewBox={`0 0 ${vals.length * 3} 24`} preserveAspectRatio="none"
-            role="img" aria-label={`Stocks on this list each day, ${r.words}`} onMouseLeave={() => setHover(null)}>
+          <svg className={styles.spark} viewBox={`0 0 ${vals.length * 3} 28`} preserveAspectRatio="none"
+            role="img" aria-label={`${label || 'Stocks on this list'} each day, ${r.words}`} onMouseLeave={leave}>
             {vals.map((v, i) => {
-              const h = Number.isFinite(v) ? Math.max(1.5, (v / max) * 24) : 0
+              const h = Number.isFinite(v) ? Math.max(1.5, (Math.max(0, v - lo) / span) * 28) : 0
               return (
-                <g key={i} onMouseEnter={() => setHover(i)}>
-                  <rect x={i * 3} y={0} width={3} height={24} fill="transparent" />
-                  <rect x={i * 3 + 0.4} y={24 - h} width={2.2} height={h} rx={0.6}
+                <g key={i} onMouseEnter={() => enter(i)}>
+                  <rect x={i * 3} y={0} width={3} height={28} fill="transparent" />
+                  {/* The open day's bar is the one gold mark on the sparkline (owner 2026-11-19). */}
+                  <rect x={i * 3 + 0.4} y={28 - h} width={2.2} height={h} rx={0.6}
                     data-now={i === last || undefined} data-hover={i === hover || undefined} />
                 </g>
               )

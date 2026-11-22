@@ -86,6 +86,10 @@
 
 .tileHeader {
   display: flex;
+  /* A narrow panel or a phone: the count and the "Board of" control drop under the title instead of
+     squeezing it to four lines and running off the card's right edge (2026-11-20). */
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
@@ -110,7 +114,7 @@
   line-height: 1.6;
 }
 
-.tableWrap { width: 100%; overflow-x: auto; }
+.tableWrap { width: 100%; overflow-x: auto; container: cath-table / inline-size; }
 .table { width: 100%; border-collapse: collapse; font-size: var(--text-base); font-family: var(--font-sans); }
 .table th {
   text-align: left;
@@ -174,6 +178,14 @@
   .colPrice, .colVol, .colTag, .colWhen { display: none; }
   .table { font-size: var(--text-sm); }
   .table td { padding: 8px 6px; }
+}
+
+/* The table reacts to its OWN width as well as the screen's (2026-11-21): a UCT Terminal panel on a wide screen is
+   about 525px of table, where the six fixed columns (540px) left the catalyst text about 94px and cut Catalyst Time.
+   Below 720px of table, Tag and Catalyst Time step aside (the same two the small-screen rule above hides with the
+   others); symbol, price, change, relative volume and the catalyst stay. */
+@container cath-table (max-width: 720px) {
+  .colTag, .colWhen { display: none; }
 }
 
 /* Touch (wave 14): quick-jump chips audited 24px, the date input 36px. */

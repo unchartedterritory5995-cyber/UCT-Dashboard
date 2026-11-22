@@ -1,0 +1,47 @@
+//@version=5
+indicator("UCTPROBE_VW_TF_TICK_FORMAT_IDIOM_V5", overlay = true)
+
+// PROVENANCE: written 2026-11-19 (Q-TF-W1-c, docs/pine/capture-queue-2026-11-20-text-format.md). Our probe, licence `probe`.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+//
+// ─── W1: THE "TICK FORMAT" IDIOM - A FORMAT STRING BUILT FROM THE SYMBOL'S TICK ───
+//
+// The idiom (written here in our own words, the shape the corpus uses at //@version=4 and 5): print the tick
+// with no format, then turn its digits 25 / 5 / 1 into zeros, so a 0.01 tick gives "0.00" and a 0.00001 tick
+// gives "0.00000"; the result is the FORMAT of a later `str.tostring`. The engine withholds every finite value
+// printed through it (`fmtUnread`, `tostring:f_tickFormat()`), and prints `na` as "NaN" (witnessed under a
+// computed format: position-size-calculator RDDT "Position Size : NaN").
+// //@version=5 twin: the helper ends on its name, as the v5 shape does.
+//
+//   I01  the tick printed with no format       (what the idiom starts from)
+//   I02  the idiom's result                      (the format string itself, as text)
+//   I03  seven fixed values and `close` through the idiom, joined by " | "
+//   I04  the same through format.mintick       (control: CBC-FMT T08-T12)
+//
+// CAPTURE: the queue doc's row names the charts (ticks 0.01 and 0.00001, and a crypto pair). Inputs at defaults.
+
+f_tickFormat() =>
+    _s = str.tostring(syminfo.mintick)
+    _s := str.replace_all(_s, "25", "00")
+    _s := str.replace_all(_s, "5", "0")
+    _s := str.replace_all(_s, "1", "0")
+    _s
+
+float v1 = 0.000123456
+float v2 = 1.005
+float v3 = 12.3456789
+float v4 = 1234.5678
+float v5 = -0.004
+float v6 = -12.3456789
+float v7 = na
+
+if barstate.islast
+    var table t = table.new(position.top_right, 2, 4)
+    table.cell(t, 0, 0, "I01 tick")
+    table.cell(t, 1, 0, str.tostring(syminfo.mintick))
+    table.cell(t, 0, 1, "I02 idiom")
+    table.cell(t, 1, 1, f_tickFormat())
+    table.cell(t, 0, 2, "I03 via idiom")
+    table.cell(t, 1, 2, str.tostring(v1, f_tickFormat()) + " | " + str.tostring(v2, f_tickFormat()) + " | " + str.tostring(v3, f_tickFormat()) + " | " + str.tostring(v4, f_tickFormat()) + " | " + str.tostring(v5, f_tickFormat()) + " | " + str.tostring(v6, f_tickFormat()) + " | " + str.tostring(v7, f_tickFormat()) + " | " + str.tostring(close, f_tickFormat()))
+    table.cell(t, 0, 3, "I04 via format.mintick")
+    table.cell(t, 1, 3, str.tostring(v1, format.mintick) + " | " + str.tostring(v2, format.mintick) + " | " + str.tostring(v3, format.mintick) + " | " + str.tostring(v4, format.mintick) + " | " + str.tostring(v5, format.mintick) + " | " + str.tostring(v6, format.mintick) + " | " + str.tostring(v7, format.mintick) + " | " + str.tostring(close, format.mintick))

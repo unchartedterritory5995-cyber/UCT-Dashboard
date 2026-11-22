@@ -120,19 +120,19 @@ function ThemeTable({ name, list, rows, startAt, view, code, onAll }) {
           aria-label={`${title} across earnings calls in ${view.label}, ${rows.length} of ${list.qualified} ${plural(list.qualified, 'phrase', 'phrases')}`}>
           <thead>
             <tr>
-              <th scope="col" className={styles.wrapCell} title={`Click a phrase to open its quotes in the call search (${CALL_SEARCH_CODE}) beside this panel`}>Phrase</th>
+              <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`} title={`Click a phrase to open its quotes in the call search (${CALL_SEARCH_CODE}) beside this panel`}>Phrase</th>
               <th scope="col" title={`Calls in ${view.label} that said it, as a share of the month's calls`}>Share of calls</th>
               <th scope="col" className={styles.phoneHide}
                 title="The share of the earlier calls that said it, weighted to this month's mix of industries">Before</th>
-              <th scope="col" title="The share now less the share before, in percentage points, and how many times the share before it is">Change</th>
-              <th scope="col" className={styles.wrapCell}
+              <th scope="col" className={styles.phoneWrap} title="The share now less the share before, in percentage points, and how many times the share before it is">Change</th>
+              <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}
                 title="Different companies whose call said it, and the ones whose call said it most. Click a symbol to load it into the linked panels">Companies</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
               <tr key={r.key} data-testid={`terminal-ceos-row-${r.key.replace(/\s+/g, '-')}`}>
-                <td className={styles.wrapCell}>
+                <td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>
                   <span className={styles.rowNum} aria-hidden="true">{startAt + i + 1}</span>
                   <PanelCommand cmd={r.cmd} label={`Open the calls that say ${r.phrase}`}>{r.phrase}</PanelCommand>
                   {r.related.length ? <span className={`${styles.muted} ${styles.phoneHide}`}>{` with ${r.related.join(', ')}`}</span> : null}
@@ -144,8 +144,8 @@ function ThemeTable({ name, list, rows, startAt, view, code, onAll }) {
                   <span className={styles.muted}>{` ${count(r.calls)}${NBSP}${plural(r.calls, 'call', 'calls')}`}</span>
                 </td>
                 <td className={styles.phoneHide}>{share(r.base)}</td>
-                <td><ChangeCell row={r} name={name} /></td>
-                <td className={styles.wrapCell}>
+                <td className={styles.phoneWrap}><ChangeCell row={r} name={name} /></td>
+                <td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>
                   {count(r.companies)}
                   {r.examples.length ? (
                     <span className={styles.muted}>

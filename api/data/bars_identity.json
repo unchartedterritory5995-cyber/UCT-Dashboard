@@ -1,7 +1,9 @@
 {
-  "version": 1,
-  "generated": "2026-11-17",
-  "how": "Every symbol another company held before (52, from the vendor's ticker events, tools/history_lake/identity.py) was checked against production's daily series for a price break at the edges of the other company's window. These five serve another company inside a window. `source`: the symbol the current company traded as during the window (its bars replace the window's); null: it did not trade yet (the window is dropped). `from` null: everything before `until`. Dates are ET trading dates, `until` exclusive.",
+  "version": 3,
+  "generated": "2026-11-18",
+  "revs": {"META": 3, "CALY": 3, "CCC": 3, "MSGE": 3, "STRC": 3, "GEN": 3, "ACT": 3, "ADPT": 3, "ALF": 3, "AMR": 3, "BOX": 3, "CAI": 3, "CRC": 3, "FIG": 3, "FRSH": 3, "FSBC": 3, "GIW": 3, "MDA": 3, "NINE": 3, "PBA": 3, "RVI": 3, "SE": 3, "SLS": 3, "SOLS": 3, "SUNC": 3, "TLN": 3, "VAL": 3, "VIA": 3, "B": 3, "DOC": 3, "ARIS": 3, "ACIC": 3},
+  "retired": [],
+  "how": "Every symbol another company held before (52, from the vendor's ticker events, tools/history_lake/identity.py) was checked against production's daily series for a price break at the edges of the other company's window. These five serve another company inside a window. GEN (2026-11-18) was found by a census of every universe daily series for price breaks and checked day by day against an independent vendor's per-company series: its earlier holders are delisted, so the events file cannot name them. `source`: the symbol the current company traded as during the window (its bars replace the window's); null: it did not trade yet (the window is dropped). `from` null: everything before `until`. Dates are ET trading dates, `until` exclusive.",
   "symbols": {
     "META": [
       {"from": "2021-06-30", "until": "2022-01-31", "source": "FB",
@@ -22,6 +24,116 @@
     "STRC": [
       {"from": null, "until": "2025-07-30", "source": null,
        "why": "another security traded as STRC at $1.6-2.5 (2021-09 to 2024-04); Strategy's preferred from 2025-07-30 ($94.50)"}
+    ],
+    "GEN": [
+      {"from": "2010-12-06", "until": "2013-04-12", "source": null,
+       "why": "GenOn Energy ($3.72 on 2010-12-06 after Symantec's $17.09), then a $64-82 security from 2012-12-17, traded as GEN; the company's own series (Symantec) agrees again from 2013-04-12 ($24.25). Measured 2026-11-18 against an independent vendor's GEN, day by day within 2%"},
+      {"from": "2015-02-03", "until": "2021-03-26", "source": null,
+       "why": "Genesis Healthcare traded as GEN ($8.76 on 2015-02-03 after Symantec's $24.94, down to $0.42 on 2021-03-25); NortonLifeLock / Gen Digital from 2021-03-26 ($21.61). The company's own bars for these windows (SYMC, NLOK) are not in the store, so the windows are dropped"}
+    ],
+    "ACT": [
+      {"from": null, "until": "2021-09-16", "source": null,
+       "why": "an earlier listing (2017-12-13 to 2020-10-30) before a 321-day gap; this listing from 2021-09-16. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "ADPT": [
+      {"from": null, "until": "2019-06-27", "source": null,
+       "why": "an earlier listing (2014-06-25 to 2017-04-19) before a 799-day gap, the close 28.582x across it; this listing from 2019-06-27. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "ALF": [
+      {"from": null, "until": "2024-08-01", "source": null,
+       "why": "an earlier listing (2021-05-04 to 2022-10-24) before a 647-day gap, the close 90.189x across it; this listing from 2024-08-01. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "AMR": [
+      {"from": null, "until": "2021-02-04", "source": null,
+       "why": "an earlier listing (2018-02-12 to 2019-09-23) before a 500-day gap, the close 157.875x across it; this listing from 2021-02-04. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "BOX": [
+      {"from": null, "until": "2015-01-23", "source": null,
+       "why": "an earlier listing (2010-10-28 to 2013-04-24) before a 639-day gap; this listing from 2015-01-23. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "CAI": [
+      {"from": null, "until": "2025-06-18", "source": null,
+       "why": "an earlier listing (2015-08-14 to 2021-11-22) before a 1304-day gap; this listing from 2025-06-18. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "CRC": [
+      {"from": null, "until": "2020-10-28", "source": null,
+       "why": "an earlier listing (2014-12-01 to 2020-07-15) before a 105-day gap, the close 12.712x across it; this listing from 2020-10-28. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "FIG": [
+      {"from": null, "until": "2025-07-31", "source": null,
+       "why": "an earlier listing (2022-05-17 to 2025-05-23) before a 69-day gap, the close 4.848x across it; this listing from 2025-07-31. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "FRSH": [
+      {"from": null, "until": "2021-09-22", "source": null,
+       "why": "an earlier listing (2014-05-02 to 2019-05-22) before a 854-day gap, the close 7.372x across it; this listing from 2021-09-22. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "FSBC": [
+      {"from": null, "until": "2021-05-04", "source": null,
+       "why": "an earlier listing (2016-07-14 to 2020-04-30) before a 369-day gap; this listing from 2021-05-04. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "GIW": [
+      {"from": null, "until": "2025-10-27", "source": null,
+       "why": "an earlier listing (2021-07-12 to 2022-12-23) before a 1039-day gap; this listing from 2025-10-27. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "MDA": [
+      {"from": null, "until": "2026-03-12", "source": null,
+       "why": "an earlier listing (2017-10-05 to 2017-10-09) before a 3076-day gap; this listing from 2026-03-12. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "NINE": [
+      {"from": null, "until": "2026-03-31", "source": null,
+       "why": "an earlier listing (2018-01-19 to 2026-01-30) before a 60-day gap, the close 13.986x across it; this listing from 2026-03-31. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "PBA": [
+      {"from": null, "until": "2010-10-06", "source": null,
+       "why": "an earlier listing (2008-07-24 to 2009-07-31) before a 432-day gap, the close 3.053x across it; this listing from 2010-10-06. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "RVI": [
+      {"from": null, "until": "2026-03-06", "source": null,
+       "why": "an earlier listing (2018-07-02 to 2022-04-06) before a 1430-day gap, the close 7x across it; this listing from 2026-03-06. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "SE": [
+      {"from": null, "until": "2017-10-20", "source": null,
+       "why": "an earlier listing (2007-01-03 to 2017-02-24) before a 238-day gap; this listing from 2017-10-20. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "SLS": [
+      {"from": null, "until": "2007-05-25", "source": null,
+       "why": "an earlier listing (2005-10-13 to 2006-11-16) before a 190-day gap, the close 156.25x across it; this listing from 2007-05-25. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "SOLS": [
+      {"from": null, "until": "2025-10-20", "source": null,
+       "why": "an earlier listing (2025-03-31 to 2025-04-09) before a 194-day gap, the close 484000x across it; this listing from 2025-10-20. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "SUNC": [
+      {"from": null, "until": "2025-11-06", "source": null,
+       "why": "an earlier listing (2025-03-17 to 2025-04-16) before a 204-day gap, the close 248700x across it; this listing from 2025-11-06. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "TLN": [
+      {"from": null, "until": "2023-06-02", "source": null,
+       "why": "an earlier listing (2015-06-02 to 2016-12-05) before a 2370-day gap, the close 3.321x across it; this listing from 2023-06-02. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "VAL": [
+      {"from": null, "until": "2021-05-03", "source": null,
+       "why": "an earlier listing (2019-07-31 to 2020-08-14) before a 262-day gap, the close 71.818x across it; this listing from 2021-05-03. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "VIA": [
+      {"from": null, "until": "2025-09-12", "source": null,
+       "why": "an earlier listing (2021-08-10 to 2024-06-13) before a 456-day gap, the close 4.503x across it; this listing from 2025-09-12. The chart's cutoff judged only the largest gap until 2026-11-18 and served the earlier one (census)"}
+    ],
+    "B": [
+      {"from": "2013-04-03", "until": "2025-05-09", "source": null,
+       "why": "Barnes Group traded as B ($47.48 on 2025-01-24, then acquired); Barrick has traded as B from 2025-05-09 ($19.46). The bars 2013-04-03 .. 2025-01-24 disagree with an independent vendor's per-company B (Barrick) day by day; the bars before agree within 3%"}
+    ],
+    "DOC": [
+      {"from": "2003-09-10", "until": "2024-03-01", "source": null,
+       "why": "other DOC listings, then Physicians Realty Trust ($11.23 on 2024-02-29), traded as DOC; Healthpeak took DOC on 2024-03-01 ($17.10). Before 2003-09-10 the series agrees with an independent vendor's Healthpeak lineage ($19.76 on 2003-09-09, then $1.96 on 2003-09-10 here)"}
+    ],
+    "ARIS": [
+      {"from": "2021-10-22", "until": "2025-10-15", "source": null,
+       "why": "Aris Water Solutions traded as ARIS from its 2021-10-22 IPO ($14.30) until its 2025 acquisition ($23.69 on 2025-10-14); Aris Mining from 2025-10-15 ($11.04). Before and after, the series agrees with an independent vendor's per-company ARIS"}
+    ],
+    "ACIC": [
+      {"from": "2020-12-18", "until": "2021-09-17", "source": null,
+       "why": "Atlas Crest Investment Corp (a SPAC, ~$10) traded as ACIC until its 2021-09-16 merger into Archer Aviation; American Coastal's own lineage (then UIHC, $3.15 on 2021-09-17) agrees with an independent vendor before and after"}
     ]
   }
 }

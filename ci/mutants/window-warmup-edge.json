@@ -1,0 +1,159 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "RULING 1 (fix/htf-window-warmup-edge): off the listing, a call whose own window reaches before the chart's first bar is unknown on its warm-up there (the run of na it answers within its declared lookback from the first bar every argument it reads is held; every bar of it for rising / falling / mfiPine; valuewhen / valuewhenOccurrence by their events), and a drawn value read from it is withheld by name (history:before-chart); not an anchored total, never from the listing; both lanes. RULING 3: the Python lane names the code against the column before every withholding mask. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "W1",
+   "mutant": "JS: a window's own reach before the chart never read (the walk as it was)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      if (L > 0 && out !== ALL) {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/windowWarmupEdge.test.js",
+   "expectRed": "sma: every bar that answers before the chart is withheld"
+  },
+  {
+   "id": "W2",
+   "mutant": "JS: a call answering a number before the chart read like the others (only its na run)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const always = WINDOW_EDGE_FINITE.has(node.name)",
+   "to": "    const always = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/windowWarmupEdge.test.js",
+   "expectRed": "mfiPine: every bar that answers before the chart is withheld"
+  },
+  {
+   "id": "W3",
+   "mutant": "JS: the warm-up not bounded by the declared lookback (every na of the opening run)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    for (let i = f; i < Math.min(n, f + L); i++) {",
+   "to": "    for (let i = f; i < n; i++) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/windowWarmupEdge.test.js",
+   "expectRed": "pivothigh: every bar that answers before the chart is withheld, and nothing past its reach"
+  },
+  {
+   "id": "W4",
+   "mutant": "JS: the warm-up counted from bar 0, not from the first bar its arguments are held",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      if (j > f) f = j",
+   "to": "      if (false) f = j",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "RULING-1 nz(ema(sma(close, 5), 3))"
+  },
+  {
+   "id": "W5",
+   "mutant": "JS: valuewhenOccurrence with no known occurrence yet read as known",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "                if (trues.length < need) { if (lastUnknown >= 0 || beforeFirst) out[i] = 1 }",
+   "to": "                if (trues.length < need) { if (lastUnknown >= 0) out[i] = 1 }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/windowWarmupEdge.test.js",
+   "expectRed": "valuewhenOccurrence: every bar"
+  },
+  {
+   "id": "W6",
+   "mutant": "JS: valuewhen with no known true in a window reaching before the chart read as known",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "                else if (beforeFirst && start < 0 && lt < 0) out[i] = 1",
+   "to": "                else if (false) out[i] = 1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/windowWarmupEdge.test.js",
+   "expectRed": "valuewhen: every bar"
+  },
+  {
+   "id": "W7",
+   "mutant": "JS: an anchored total read as a window",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if (Array.isArray(spec.argRoles) && spec.argRoles.includes('anchor')) return 0",
+   "to": "  if (false) return 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/windowWarmupEdge.test.js",
+   "expectRed": "is not vacuous"
+  },
+  {
+   "id": "W8",
+   "mutant": "JS: a window's reach read by every walk, not only the one before the chart (the gate)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  const edgeReach = (node) => (beforeFirst ? windowEdgeLookback(node) : 0)",
+   "to": "  const edgeReach = (node) => windowEdgeLookback(node)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "CONTROL close > sma(close, 5) ? 1 : 0 from the listing"
+  },
+  {
+   "id": "PW1",
+   "mutant": "Python: a window's own reach before the chart never read",
+   "file": "api/services/ast_interpret.py",
+   "from": "        if reach > 0 and out != ALL:",
+   "to": "        if False:",
+   "rail": "python -m pytest tests/test_pine_window_warmup_edge.py -q -p no:cacheprovider",
+   "expectRed": "test_the_python_lane_serves_the_js_column_and_the_same_name"
+  },
+  {
+   "id": "PW2",
+   "mutant": "Python: a call answering a number before the chart read like the others",
+   "file": "api/services/ast_interpret.py",
+   "from": "        always = node.get(\"name\") in WINDOW_EDGE_FINITE",
+   "to": "        always = False",
+   "rail": "python -m pytest tests/test_pine_window_warmup_edge.py -q -p no:cacheprovider",
+   "expectRed": "mfiPine"
+  },
+  {
+   "id": "PW3",
+   "mutant": "Python: the warm-up not bounded by the declared lookback",
+   "file": "api/services/ast_interpret.py",
+   "from": "        end = n if reach == math.inf else min(n, f + int(reach))",
+   "to": "        end = n",
+   "rail": "python -m pytest tests/test_pine_window_warmup_edge.py -q -p no:cacheprovider",
+   "expectRed": "pivothigh"
+  },
+  {
+   "id": "PW4",
+   "mutant": "Python: the warm-up counted from bar 0",
+   "file": "api/services/ast_interpret.py",
+   "from": "            f = max(f, j)",
+   "to": "            f = 0",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "RULING-1 nz(ema(sma(close, 5), 3))"
+  },
+  {
+   "id": "PW5",
+   "mutant": "Python: valuewhenOccurrence with no known occurrence yet read as known",
+   "file": "api/services/ast_interpret.py",
+   "from": "                                if last_unknown >= 0 or before_first:",
+   "to": "                                if last_unknown >= 0:",
+   "rail": "python -m pytest tests/test_pine_window_warmup_edge.py -q -p no:cacheprovider",
+   "expectRed": "valuewhenOccurrence"
+  },
+  {
+   "id": "PW6",
+   "mutant": "Python: valuewhen with no known true in a window reaching before the chart read as known",
+   "file": "api/services/ast_interpret.py",
+   "from": "                            elif before_first and start < 0 and lt < 0:",
+   "to": "                            elif False:",
+   "rail": "python -m pytest tests/test_pine_window_warmup_edge.py -q -p no:cacheprovider",
+   "expectRed": "valuewhen"
+  },
+  {
+   "id": "PW7",
+   "mutant": "Python: an anchored total read as a window",
+   "file": "api/services/ast_interpret.py",
+   "from": "    if \"anchor\" in (spec.get(\"argRoles\") or []):",
+   "to": "    if False:",
+   "rail": "python -m pytest tests/test_pine_window_warmup_edge.py -q -p no:cacheprovider",
+   "expectRed": "test_the_window_edge_reads_the_same_reach_as_the_js_lane"
+  },
+  {
+   "id": "PW8",
+   "mutant": "Python: a window's reach read by every walk (the gate)",
+   "file": "api/services/ast_interpret.py",
+   "from": "        return _window_edge_lookback(node) if before_first else 0",
+   "to": "        return _window_edge_lookback(node)",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "CONTROL close > sma(close, 5) ? 1 : 0 from the listing"
+  },
+  {
+   "id": "PR3",
+   "mutant": "Python (RULING 3): the code named against the column after the merge mask (as it was)",
+   "file": "api/services/ast_interpret.py",
+   "from": "            column = [math.nan if merged[i] else v for i, v in enumerate(column)]",
+   "to": "            column = named_against = [math.nan if merged[i] else v for i, v in enumerate(column)]",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "RULING-3 nz(tf_merge(W, high) + close[1])"
+  }
+ ]
+}

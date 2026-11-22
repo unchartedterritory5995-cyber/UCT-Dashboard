@@ -28,6 +28,22 @@ This is the safe direction (no wrong number is drawn), but it is not yet Trading
 | M4 | `max_bars_back(x, 50)` then `x[60]` and `ta.sma(x, 60)`; probe `vw-w4-max-bars-back-m4.pine` | does a per-series buffer bound built-in windows over `x`? |
 | M5 | `n = 6000`, `plot(close[n])` on a chart with more than 6,000 bars; probe `vw-w4-max-bars-back-m5.pine` | the hard ceiling for a chart series |
 
+### Readings (captured 2026-11-18: TRADINGVIEW NEVER STOPS)
+
+- Run `wsc-mbb-2026-11-18`: rows M1-M5 on AMEX:SPY 1D from the listing, 8,510 bars, packet sha256
+  `6f54e4c81044ba73efe4c1af249f217698793fb20c476a76e338f47c7e457011`, promoted and committed.
+- Q-MBB-1 / -2: runs `mbb-2026-11-18` and `mbb-late-2026-11-18`, `uctprobe-mbb-dyn` / `-late` on SPY and RDDT 1D,
+  packets `2b3c2f290330` and `bc627481ec44`. Licence-held, so ledger rows only.
+
+| row | TradingView | the build that follows it |
+|---|---|---|
+| M1 | `close[30]` under a declared 20: real from bar 30, `na` before it | constant half: served on both lanes (engine 83, `feat/pine-wsc-history`) |
+| M2 | `close[n]` with `n` = 25 after bar 100, declared 20: real on every bar, no error | the runtime lane's dynamic reads (#1917, engine 81); the host lanes' read window, which a declaration no longer shrinks (`pine.js::historyReadBufferOf`, `feat/pine-wsc-history`): MATCH on both lanes |
+| M3 | no declaration, 250 after bar 300: real (MATCH before any change) | none |
+| M4 | `max_bars_back(x, 50)`, then `x[60]` and `ta.sma(x, 60)`: both real | constant half: `max_bars_back(x, n)` bounds nothing |
+| M5 | `close[6000]`: real on the bars past bar 6,000, `na` before it | constant half: drawn by the runtime lane; the production lane refuses it by name (the host lookback budget, kept by ruling) |
+| Q-MBB-1 / -2 | dynamic offsets past a declared 50 are real, early or late | the same two builds as M2 |
+
 ## Q2. An infinity inside a bar (plan 3.6 item 4)
 
 The lane now launders `+-Infinity` to `na` when it is READ BACK from history (`x[1]`), so both

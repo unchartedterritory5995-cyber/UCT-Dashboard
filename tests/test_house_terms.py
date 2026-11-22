@@ -9,6 +9,7 @@ from api.services import ast_table
 from api.services import chart_twins
 from api.services import definition_concierge as dc
 from api.services import definition_conversation as conv
+from api.services import named_indicators
 
 
 def test_the_door_reads_the_one_registry():
@@ -46,6 +47,7 @@ def test_every_spoken_phrase_reaches_its_column_and_every_column_has_a_twin():
     is read as the ONE column it names; and a phrase is only ever listed for a column with a twin."""
     pairs = chart_twins.spoken_phrases()
     assert len(pairs) > 100 and set(chart_twins.SPOKEN) <= set(chart_twins.TWINS)
+    assert set(chart_twins.PATTERN_SPOKEN) == set(chart_twins.PATTERNS)
     assert len({p for p, _ in pairs}) == len(pairs), "one phrase names two columns"
     missed = [(p, c) for p, c in pairs if c not in _terms(f"Plot the {p} in a lower pane")]
     assert not missed, missed[:5]
@@ -80,6 +82,12 @@ def test_CONTROL_the_screeners_own_planner_is_unchanged():
         rows = dc.LEXICON["index"].get(stems)
         if rows is None:
             new += 1                      # this door's own addition
+        elif column in chart_twins.PATTERNS:
+            # a bar pattern's phrase the Screener already used as one value of a TEXT column
+            # ("inside day" under Bar Character): for a screen it is unchanged, "not available"
+            # ... or the Screener's own column of the SAME name ("new 52w high" is `new_52w_high`): a
+            # screen reads its column as before, and the chart formula is that column's rule
+            assert all(r["kind"] == dc.EXCLUDED_ENTRY for r in rows) or {r["key"] for r in rows} == {column}, phrase
         else:                             # the firm's own label already says it ("Dist from 52W High")
             assert {r["key"] for r in rows} == {column}, phrase
     assert new > 600
@@ -90,11 +98,31 @@ def test_a_phrase_never_replaces_what_the_shared_lexicon_already_reads():
     chart function word replaced it (that rule is older and has its own test)."""
     function_stems = {dc._stem_key(dc._form_tokens(p))[0] for p, _ in conv.EXPANSION_PHRASES}
     converted = 0
+    taken_by_the_library = []
+    taken_by_a_pattern = []
     for stems, rows in dc.LEXICON["index"].items():
         if stems in function_stems:
             continue
         here = conv.CHART_LEXICON["index"][stems]
         if here is rows:
+            continue
+        # ⭐ 2026-11-18: THE THIRD DIFFERENCE, AND IT WAS RED ON MASTER FOR A MORNING. The named-indicator
+        # library takes a bucket that ONLY says "not available" (every row excluded) for a name it
+        # builds or holds: "pocket pivot" was one value of a Screener text column, which on a chart
+        # answered "not available"; it is now a held library name, refused by name with the way
+        # forward. A bucket holding anything else is still never replaced. (No lane, check or gate
+        # ran this file, which is how the library landed with it failing; it is in the door's lane
+        # list now.)
+        if all(r["kind"] == dc.EXCLUDED_ENTRY for r in rows) and all(r.get("section") == named_indicators.SECTION for r in here):
+            assert len(here) == 1 and here[0]["kind"] == dc.TABLE_ENTRY, stems
+            assert named_indicators.entry(here[0]["key"]) or here[0]["key"] in {h["id"] for h in named_indicators.held_names()}, stems
+            taken_by_the_library.append(stems)
+            continue
+        # ⭐ 2026-11-18: and a BAR PATTERN the firm's readers define takes such a bucket the same way
+        # ("inside day": tests/test_house_bar_patterns.py)
+        if all(r["kind"] == dc.EXCLUDED_ENTRY for r in rows) and [r["key"] for r in here] == ["inside_day"]:
+            assert here[0]["kind"] == dc.TABLE_ENTRY and stems == ("insid", "day"), stems
+            taken_by_a_pattern.append(stems)
             continue
         # the one other difference: a chart-only twin's own label, read as a term (backlog 47)
         assert all(r["kind"] == dc.EXCLUDED_ENTRY and r["key"] in chart_twins.CHART_ONLY for r in rows), stems
@@ -102,6 +130,9 @@ def test_a_phrase_never_replaces_what_the_shared_lexicon_already_reads():
         assert all(r["kind"] == dc.TABLE_ENTRY for r in here)
         converted += 1
     assert converted >= len(chart_twins.CHART_ONLY)
+    # which buckets the library took is pinned, so the next one is a decision someone reads
+    assert taken_by_the_library == [("pocket", "pivot")], taken_by_the_library
+    assert taken_by_a_pattern == [("insid", "day")], taken_by_a_pattern
 
 
 def test_a_column_the_chart_computes_exactly_is_a_term_not_unavailable():
@@ -126,3 +157,20 @@ def test_CONTROL_a_column_with_no_exact_chart_form_is_still_unavailable_on_a_cha
             if r["kind"] == dc.EXCLUDED_ENTRY]
     assert {r["key"] for r in left} & set(excluded)
     assert not ({r["key"] for r in left} & chart_twins.CHART_ONLY)
+
+
+def test_the_library_takes_only_a_bucket_that_says_not_available():
+    """The rule itself, on a planted lexicon (today's data holds no collision, so the data alone
+    cannot show it): a library name whose words ALREADY mean something real here leaves that
+    meaning alone; one whose words only ever said "not available" becomes the library's."""
+    words = dc._form_tokens("on balance volume")
+    stems, cost = dc._stem_key(words)
+    assert stems not in dc.LEXICON["index"]                                  # CONTROL: nothing is there today
+    real = [{"kind": dc.TABLE_ENTRY, "key": "planted_real_meaning", "section": "scalars", "words": words, "cost": cost}]
+    kept = conv._chart_lexicon({**dc.LEXICON, "index": {**dc.LEXICON["index"], stems: real}})
+    assert kept["index"][stems] is real
+    excluded = [{"kind": dc.EXCLUDED_ENTRY, "key": "planted_not_available", "section": "scalars", "words": words, "cost": cost}]
+    taken = conv._chart_lexicon({**dc.LEXICON, "index": {**dc.LEXICON["index"], stems: excluded}})
+    (row,) = taken["index"][stems]
+    assert (row["kind"], row["key"], row["section"]) == (dc.TABLE_ENTRY, "on_balance_volume", named_indicators.SECTION)
+

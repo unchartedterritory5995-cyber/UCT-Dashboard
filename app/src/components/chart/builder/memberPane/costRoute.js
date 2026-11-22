@@ -1,6 +1,6 @@
 // app/src/components/chart/builder/memberPane/costRoute.js
 //
-// ─── ⭐⭐ ROUTE BY COST (NUMBER PENDING): MOVE A HOST DOCUMENT ONLY WHEN THE RUN DRAWS THE SAME PICTURE ──
+// ─── ⭐⭐ ROUTE BY COST (Engine 73 (#1711)): MOVE A HOST DOCUMENT ONLY WHEN THE RUN DRAWS THE SAME PICTURE ──
 //
 // docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md. The member door asks the HOST lane first.
 // A host document whose recurrences cost more than a long task (`engine/hostLaneCost.js`) is offered

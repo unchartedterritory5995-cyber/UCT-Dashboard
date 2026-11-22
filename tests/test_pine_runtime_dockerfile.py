@@ -167,9 +167,15 @@ def test_no_secret_build_arg_or_env_reaches_the_bundle_stage():
     names = set(_env_pairs(body)) | {m.group(1) for ln in body if (m := re.match(r"ARG\s+(\S+)", ln))}
     assert names, "the parser read no name"
     assert not [n for n in names if SECRET_SHAPED.search(n)], "a secret-shaped build arg: %s" % sorted(names)
-    for web_secret in ("VITE_CHART_RENDER_TOKEN", "VITE_CHART_RENDER_TOKEN_PREVIOUS", "VITE_PICOVOICE_ACCESS_KEY"):
-        assert web_secret in _args(_stage(WEB, "frontend")), "control: web still declares %s" % web_secret
+    web_args = _args(_stage(WEB, "frontend"))
+    for web_secret in ("VITE_PICOVOICE_ACCESS_KEY",):
+        assert web_secret in web_args, "control: web still declares %s" % web_secret
         assert web_secret not in names
+    # 2026-11-19: web's build stopped reading the render token (the server checks it), so
+    # neither image declares these two.
+    for retired in ("VITE_CHART_RENDER_TOKEN", "VITE_CHART_RENDER_TOKEN_PREVIOUS"):
+        assert retired not in names, "%s is declared by the pine-runtime image" % retired
+        assert retired not in web_args, "%s is declared by Dockerfile.web again" % retired
 
 
 def test_env_allowlist_admits_exactly_the_bundles_build_args():
@@ -177,6 +183,23 @@ def test_env_allowlist_admits_exactly_the_bundles_build_args():
     bundle's flags (and no other VITE_*), or mirroring web's flag would refuse the boot."""
     allowed = set(_node_json("services/pine_runtime/server.mjs", "m.ENV_ALLOWLIST"))
     assert {n for n in allowed if n.startswith("VITE_")} == _bundle_vite_names()
+
+
+def test_web_builds_and_ships_the_server_bundle_its_client_hashes():
+    """Track 6 (2026-11-22, measured on the first armed run): web's runtime client signs every run with an
+    engine identity that includes the sha256 of app/dist-server/pine-runtime.mjs (caller_identity, BUNDLE_PATH).
+    web's image did not build it, so the identity was None and every server-lane run was withheld
+    runtime:server-unavailable while the service smoke passed. web must build the bundle with the SAME command
+    as the service image, after the same frontend build, and ship it at the path the client reads."""
+    web_rt = [ln for ln in _stage(WEB, "frontend") if ln.startswith("RUN cd app && node scripts/build-pine-runtime.mjs")]
+    assert len(web_rt) == 1, "web's frontend stage does not build the server bundle"
+    img = [ln for ln in _stage(IMG, "frontend") if ln.startswith("RUN cd app && npm install")]
+    assert img and img[0].endswith("node scripts/build-pine-runtime.mjs"), "the service image builds it the same way"
+    from api.services import pine_runtime_client as prc
+    rel = os.path.relpath(prc.BUNDLE_PATH, REPO).replace(os.sep, "/")
+    assert rel == "app/dist-server/pine-runtime.mjs"
+    copies = [ln for ln in _stage(WEB, "runtime") if ln.startswith("COPY --from=frontend") and "dist-server" in ln]
+    assert copies == ["COPY --from=frontend /src/app/dist-server/pine-runtime.mjs /app/" + rel], copies
 
 
 def test_the_build_runs_the_same_frontend_build_then_the_bundle():

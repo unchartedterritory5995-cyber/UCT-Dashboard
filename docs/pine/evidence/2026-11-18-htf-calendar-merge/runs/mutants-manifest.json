@@ -1,0 +1,61 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "B2-1",
+   "mutant": "the merge pick ignores the calendar (every period on its last bar, master's rule)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      out[i] = next !== null && b > 0 && htfClosesOnNextBar(iso, code) ? b - 1 : b",
+   "to": "      out[i] = b",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ast/htfCalendarMerge.test.js"
+  },
+  {
+   "id": "B2-2",
+   "mutant": "TradingView's closures read as starting in 2004 (the year the SR-MTF read first suggested)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "next < TRADINGVIEW_CLOSURES_FROM",
+   "to": "next < '2004-01-01'",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ast/htfCalendarMerge.test.js"
+  },
+  {
+   "id": "B2-3",
+   "mutant": "the closures TradingView never applied (11-14 September 2001) are ignored",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "TV_UNAPPLIED_CLOSURE_DAYS.has(next))) return true",
+   "to": "false)) return true",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ast/htfCalendarMerge.test.js"
+  },
+  {
+   "id": "B2-4",
+   "mutant": "a weekend day counts as an unclosed session",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const weekday = ((((z + k + 3) % 7) + 7) % 7) + 1 <= 5",
+   "to": "    const weekday = true",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ast/htfCalendarMerge.test.js"
+  },
+  {
+   "id": "B2-5",
+   "mutant": "the Python lane ignores the calendar",
+   "file": "api/services/ast_interpret.py",
+   "from": "out[i] = child[b - 1] if late else child[b]",
+   "to": "out[i] = child[b]",
+   "rail": "python -m pytest tests/test_pine_htf_calendar_merge.py -q -p no:cacheprovider"
+  },
+  {
+   "id": "B2-6",
+   "mutant": "the Python lane reads TradingView's closures as starting in 2004",
+   "file": "api/services/ast_interpret.py",
+   "from": "ymd < TRADINGVIEW_CLOSURES_FROM_YYYYMMDD",
+   "to": "ymd < 20040101",
+   "rail": "python -m pytest tests/test_pine_htf_calendar_merge.py -q -p no:cacheprovider"
+  },
+  {
+   "id": "B2-7",
+   "mutant": "the Python lane counts a weekend day as an unclosed session",
+   "file": "api/services/ast_interpret.py",
+   "from": "        if nxt.weekday() < 5 and (ymd < TRADINGVIEW_CLOSURES_FROM_YYYYMMDD",
+   "to": "        if nxt.weekday() < 7 and (ymd < TRADINGVIEW_CLOSURES_FROM_YYYYMMDD",
+   "rail": "python -m pytest tests/test_pine_htf_calendar_merge.py -q -p no:cacheprovider"
+  }
+ ]
+}

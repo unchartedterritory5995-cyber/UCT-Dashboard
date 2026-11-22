@@ -127,6 +127,16 @@ Nothing this track adds may reach the entry chunk.
 **Machine rules.** One heavy job at a time through the heavy lock, named test files, one
 worker, a sparse worktree. Tests of this track's own code stay engine-free.
 
+**Before a push: a local failure is compared with a recorded list, test by test.** The sparse
+worktree has no script corpus and no workflow files, so about ninety browser tests under
+`engine/ast` and a dozen door tests fail in it for that reason alone. On 2026-11-18 two NEW
+failures in `engine/ast/namedIndicators.test.js` were read as more of the same and went to the
+remote lane, which was red for them. The rule since: keep the list of tests that fail on an
+unchanged tree (file AND test name), and after a change compare the new list with it. A failing
+test that is not on the list is this change's until shown otherwise; "that directory always fails
+here" is not a reading of it. The remote lane stays the verdict; this is what keeps a known red
+from being sent to it.
+
 ## 5. One name, one verdict
 
 **One name.** The member-facing word is **indicator**, everywhere: the Builder's title, the
@@ -251,6 +261,7 @@ and because rows written before it exists can never be attributed.
 | L7 | **Was it wanted**: undone, tries before save, and still stored or on a chart seven days later | discarded, saved, turn count | an "undone" action, a hashed id on "saved", a nightly join | Indicators, small |
 | L8 | **"Send this to UCT"**: one press sends the request, the indicator, the patch and the read-back, with consent, retention and deletion | the consented report door for Pine imports | a "converse" kind on the same table and dialog, not a new one | support loop + Indicators, small |
 | L9 | **Later, when volume exists**: two instruction versions side by side by member bucket; a cheaper model for simple edits to an existing indicator, only after parity on the evaluation set | cohorts | - | deferred; underpowered and risky before L1, L2 and real use |
+| L10 | **Value cases (the sealed write evaluation)**: plain-words requests, each with the lane it belongs on, the answer the door gave on production, and an independent account of what was asked. Formula lane: a plain calculation written from the words, importing nothing of the engine, must equal what was built on every bar of a built market with deliberate ties. Wall lane: a request that cannot be served must be refused with the wall named in plain words. Script lane: the recorded script run through the member pane's own path and held to the same kind of calculation. A rule never learns from the door: its numbers are fingerprinted in the case and a change needs a reason with words quoted from the request. Each lane's threshold is written by its first full live run and is a ratchet. A hidden set is run by a separate session and only its scores come back | private, hand-driven rounds (about 190 requests checked by value in fifteen rounds, none of it in the repository); the runner compares an answer with a reference formula on the same engine | unit 1: `tests/fixtures/authoring/value_cases.json` (101 formula cases, 28 wall cases), `tools/value_cases/`, `tools/value_eval.py`, `tests/test_value_cases.py`. Then: the script lane, the live re-run with version stamps, the hidden set and "every capability word has a case" | this track; the Pine coordinator runs the hidden set. Unit 1 small, the rest medium |
 
 **Risks named once.** Examples are never admitted from member traffic automatically
 (poisoning). The hidden evaluation set is written and run by a session that never edits the
@@ -469,11 +480,18 @@ screenshot and logs) were read from their public pages and not used hands-on.
 | Adapted copies | all eight conditions hold: a Pine-writing model that meets a measured bar on a hidden set (the bar derived from its first run); no output dropped; a line-by-line view of what changed before install; a forced "Adapted: " name and badge that travels with shares; the original refusal still counted in demand; never for strategies; offered only where the engine refuses; "your original now runs, switch?" when it later does |
 | A separate community feed | not planned; the Members tab is the library |
 | Side-by-side instruction versions; model routing | section 7, L9 |
+| Ehlers Super Smoother, Instantaneous Trendline and Cyber Cycle as named, checked indicators | a published statement of each recurrence can be READ (2026-11-18: the author's own site refuses automated fetches and no page that could be read states them). They are not written from memory. Until then each is built from a member's words with the name withheld, where its shape settles |
+| A setting as a coefficient of linked running values written out by hand (a gamma the member can change inside their own accum2 to accum4) | the settle bound is recomputed for the member's value when it is bound, not read once from the numbers. (The Laguerre pair does not wait on this: `laguerre` and `laguerreRsi` take gamma as their argument and size their own restart from it, so their gamma is an Inputs field today) |
 
 This track will not: edit engine-owned files or bump the engine version; add a second
 scripting language, runtime or authoring door; save or apply anything without a press; show
 a model's description of its own output as a verdict; copy a competitor's documents,
 formulas or members' scripts.
+
+One exception, made by ruling and recorded here: `fisher(length)` (2026-11-18) is a formula
+function in the engine's shared expansion module, built by this track under the engine
+programme coordinator's authorisation, with no engine version bump (its number is pending and
+rides the next train) and no Pine name. It follows the SuperTrend and Parabolic SAR precedent.
 
 ## 14. What has been measured
 
@@ -741,6 +759,10 @@ the deploy gate.
 | spend | the picture door's prompt bound re-measured, so a reservation bounds the prompt again (a member's daily picture share now holds two worst-case reservations, not three; the owner may raise it). It turned the master deploy gate red for about 70 minutes: two Agent limit tests held the literal three. They derive the count now | #1509, #1522 |
 | L4 (second part) | the words members use for a house term reach its definition ("relative volume", "distance from the 52 week high"); nineteen twins, each proved equal to its Screener column | merged (#1572) |
 | L5 | worked examples: the nearest one or two house builds ride along as data for a new indicator. Built and dark. Measured on and off through the production door with new requests on 2026-11-17: every request built both ways, the formulas read correct both ways, and the share built without a repair did not rise. The bar in section 9 is not met, so it stays OFF for members | merged (#1563), OFF |
+| L10 (unit 1) | **value cases**: 129 plain-words requests held to an independent account of what was asked, with no paid call: 101 on the formula lane (the recorded answer equals a plain calculation on every bar), 28 on the wall lane (the recorded answer refuses and names the wall). Controls: a formula two bars late, a neighbouring request's answer, a rule read late, a refusal that names nothing and a build where a refusal belongs each go red; a rule whose numbers change is red until the case records why. `python tools/value_eval.py` grades the record; `--answers <run folder>` grades a fresh run against it. Not yet: the script lane, the live re-run, the thresholds (written by the first full live run), the hidden set | this pull request |
+| L10 (unit 2) | **value cases, the script lane, and a lane that holds the pull request**: 17 requests a formula cannot hold (a table, labels on bars, a line between two points, boxes, a count that carries state), each with the script the door wrote on production. The script is run through the member pane's own path in node (`tools/value_cases/script_lane.mjs`, the shipped engine modules) and held, columns and drawn things alike, to `tools/value_cases/script_rules.py`; a script that draws something the request did not name is a finding. `.github/workflows/value-cases.yml` runs all three lanes on any pull request that touches the door, the interpreter, the script reference and recipes, the engine or the cases, and a skip is a failure. Not yet: the live re-run with version stamps, the thresholds, the hidden set, and "every capability word has a case" | this pull request |
+| L10 (unit 3) | **value cases, the live re-run**: `tools/value_record.py` sends the cases through the Create Indicator window on production as a synthetic account (the MEMBER-role one by default; nothing is saved; resumable chunks of 18 minutes; every row says which account answered it) and `tools/value_eval.py` grades the run: `--answers <run> --full --write` writes a lane's threshold the first time every case of that lane is answered (lane by lane; a later such run below it is red), `--adopt` makes ONLY the right answers the record, and `--stale` names the records made before a door file last changed (the instructions, the script door, the script reference and recipes, the engine number). On 2026-11-21 every record is stale by that measure, which is true: each predates that day's instruction changes. The first full live run (coordinator's ruling: lane by lane, once production serves the day's last instruction change and engine 93, 20 USD at most) writes the thresholds | this pull request; the run itself is owed |
+| L10 (unit 4) | **value cases, every capability word has a case**: the script assistant is told it may use 29 capabilities (`pine_authoring.CAPABILITY_WORDS`); the recorded script cases use 13 of them, asked of the one detector (`pine_capabilities.capabilities_of`). The other 16 are named in the fixture (`capabilities_without_a_case`), a list that may only shrink: a NEW wording with no case is red, and a capability that gains a case must leave the list. One capability the recorded scripts use has no wording (`request-other`), named in `capabilities_used_without_words`. Closing the 16 means recording one script per capability live and holding it by value | this pull request |
 | S1 | **a built indicator's numbers are settings**: every length, level and multiple is an editable field, derived from the formula at read time and changed by the ordinary slot edit (no model call, live preview, Undo). In the Create Indicator dock (#1583), and in the New formula window under what was described and on its Inputs tab, whose count had read 0 (#1589). All fourteen house indicators checked: every setting shown can be changed in one step | merged; per-chart values are the engine's (Indicators backlog 45) |
 | R1 | run over a list from the indicator itself: a row on the legend chip and on each row of "Your indicators" opens the Screener's existing run flow on that indicator (`/screener?scan=<id>`, read once, removed through the router; an unknown or foreign id opens nothing) | merged (#1566, #1585) |
 | R4, R5 | the page-side spec for the verdict on a shared indicator and the two engine exports for "Inspect a bar" are filed with repros; the engine builds to them | Indicators backlog 43, 44 |
@@ -838,12 +860,49 @@ Not finished, and why (as of the afternoon of 2026-11-17):
 
 **Next, in order:** see #1701, #1708, #1722, #1730, #1738 and #1713 on production with the requests that found them (the daily allowance is durable and renews at midnight Eastern, so re-checks queue for after it); backlog 63 and 64; the same request sent three times, to measure how often an answer changes; then names and read-backs with the authoring owner, the house set a third time, and the owner's look.
 
+**State at the end of 2026-11-18.** One day's work on "anything a member can describe is built, and
+what is built is what was asked for". Every row below is merged; "live" means used on production as a
+synthetic account afterwards.
+
+| what | state |
+|---|---|
+| Several LINKED running values (`accum2` to `accum4`): built from a member's words when their starting values provably stop mattering (a filter, or a chain), refused by name otherwise | live (#1863) |
+| The door asks the ENGINE which shapes it computes: a running value inside a window function, under a bar offset or inside another running value is refused at the door, not accepted and then refused by the browser | live (#1895) |
+| The library: 37 checked indicators. Added this day: Positive Volume Index, Fisher Transform (`fisher`), Laguerre Filter and Laguerre RSI (`laguerre`, `laguerreRsi`), Detrended Price Oscillator (`dpo`), Stochastic Oscillator (fast, slow and full in one entry), Pocket Pivot | live; the Stochastic merged (#1907); Pocket Pivot merged with this record |
+| A new kind of evidence: an entry may FOLLOW UCT'S OWN READER. Pocket Pivot, held until now, is the chart formula of the Screener's own detector, proved equal to it bar for bar by a test that imports the detector and runs it. One authority; no member is told "published by" or anything about a vendor | merged with this record |
+| Engine 79 numbered the four new functions; a function waiting on a number is marked in data and held to a line in the version file | live (#1891) |
+| Clarify and learn: the door's own questions (no assistant call) now include the benchmark of a relative-strength request, how far back a breakout looks, and which Stochastic; an answer is remembered, used and said; a member's usual choices are offered first | live (#1866, #1890); the Stochastic's merged (#1907) |
+| A function's high, low and close are put in the engine's order when an answer writes them in another vendor's (a Stochastic that was a different number on every bar); the weekly owner report counts saved indicators that carry it, and changes none. On production the report counts none | live (#1900, #1904) |
+| The read-back names a bar-field argument by its role when it is not the bar's own field in order | #1909 (engine; the next train numbers it) |
+| A decline offers the closest part of the SAME indicator; a stop that only rises is a running value, not a refusal | live (#1890) |
+| The server spells small numbers as the browser does (an answer holding 0.000001 was refused twice) | live (#1886) |
+| Several number lines of one indicator are drawn in several colours; a library indicator's lines carry the library's labels; colours are read back by name | live (#1877, #1890) |
+
+| A name that is one of UCT's own built-in indicators (RS Rating, RS Phases) is answered with no assistant call and one button that adds it to the chart, for a browser that can; Mansfield Relative Strength says where it is today (a Screener column) | merged with this record |
+| The same request sent three times through production, six requests of different kinds: every send built in one call; five gave the same maths on all three; one differed on whether an inside day's edges may touch the bar before | measured 2026-11-18 (answers kept outside this repository) |
+
+**What is left, in order.**
+1. The Stochastic's capture: TradingView's built-in at (14, 1, 3) and (14, 3, 3). Graded equal, the entry carries all three tiers and may say so.
+2. The two HELD names. Mansfield Relative Strength waits on a built-in that draws the Screener's own column (a chart formula was ruled out: a second join, and different after a missing benchmark bar); the name then points at it with the one-tap offer. TTM Squeeze needs its author's formula on a page that can be read.
+2a. The offer, extended: the rest of UCT's own built-in indicators and the house set by name ("bind the house set into the library").
+2b. "Inside day" means one thing: the measurement above found two readings of it.
+3. Super Smoother, Instantaneous Trendline and Cyber Cycle as named entries: a published statement of each recurrence that can be READ (section 13). They are built from a member's words today, name withheld.
+4. An instruction slice, measured live before and after like every one: the assistant under-claims on a formula that needs a choice among several terms (it declined one the language can express).
+5. The second turns of the multi-turn evaluation cases, and the same request sent three times (how often an answer changes).
+6. A setting as a coefficient of linked running values a member writes by hand (section 13).
+
 **Open for the owner:**
 1. Look at each of the fourteen house indicators on a chart (Indicators, UCT tab) and say which
    stay. They were published on a value check, not on your look (D24).
 2. D23 to D28 in section 11 were taken as judgment calls. Reverse any by saying so.
 3. The 10 and 21 EMA trend indicator is held out of the house set by a false positive in the
    secret scanner (section 14b). Say whether to add an allow entry for that one identifier.
+4. (2026-11-18) The admin accounts' daily allowance at Create Indicator is 30 on production, raised
+   from the default 10 for the live checks (`docs/feature_flags.json`, `CONVERSE_ADMIN_CAP_DAILY`).
+   Say when to put it back; a member's allowance was not changed.
+5. (2026-11-18) The weekly report counts saved indicators that carry a function's high, low and
+   close in the wrong order. It counts none today. If it ever counts some, say whether they are
+   corrected for their owners or their owners are told; nothing touches a saved formula until then.
 
 **Kept outside this repository:** the competitor review, prompt sets and results, the
 hidden set, screenshots, the house-set pictures, and anything with cost figures.

@@ -107,9 +107,15 @@ def read_week(monday: date) -> Optional[dict]:
     """The calendar week that starts on `monday`, through the Calendar's own readers (fresh, else
     the last good week, else its single-flighted build). BACKGROUND THREAD ONLY."""
     from api.routers import calendar as route
+    from api.services.calendar_week_contract import week_days
     if monday == route._week_dates()[0]:
-        return route._get_calendar_payload(None)
-    return route._get_or_build_range_week(monday)
+        payload = route._get_calendar_payload(None)
+    else:
+        payload = route._get_or_build_range_week(monday)
+    # TERM-030: the shared shape check. A malformed week raises here, and the caller says the calendar could not be
+    # read; a week whose rows changed shape must never read as "nobody reports".
+    week_days(payload, reader="api.services.earnings_season.read_week")
+    return payload
 
 
 def read_priced(ds: str) -> dict[str, dict]:
@@ -531,6 +537,46 @@ def _build_bg(key: str, date_str: Optional[str], done: threading.Event) -> None:
         with _lock:
             _inflight.pop(key, None)
         done.set()
+
+
+def held_day(date_str: Optional[str] = None) -> tuple[Optional[dict], str]:
+    """READ ONLY: what this module already HOLDS for one day (or for the next day with a reporter
+    when none is given), as `(answer, how)`. It NEVER starts the background build and never waits
+    on one, so a caller that must not cause work (the Agent's `earnings.season` kind, inside a
+    turn) reads through here and never through `get_day`.
+
+      (answer, 'fresh')       the held answer, inside its freshness: an `ok` day, or what a build
+                              stored in its place (`no_day`, or `unavailable` for a few seconds)
+      (answer, 'last_good')   the last good answer, past its freshness and still servable. It is
+                              NOT marked `refreshing`: this read starts no build to replace it
+      (None, 'not_held')      nothing is held for the day
+      (answer, 'refused')     `bad_date` or `out_of_range`, by the same checks as `get_day`
+    """
+    if date_str is not None:
+        ds = _iso(date_str) if isinstance(date_str, str) and _ISO_DAY.match(date_str) else None
+        if ds is None:
+            return {"status": "bad_date", "date": None}, "refused"
+        today_d = today_et()
+        first, last = week_window(today_d)
+        if not first <= date.fromisoformat(ds) <= last:
+            return {"status": "out_of_range", "date": ds, "today": today_d.isoformat(),
+                    "range": {"from": first.isoformat(), "to": last.isoformat()}}, "refused"
+        date_str = ds
+    key = date_str or NEXT_KEY
+    held = _answer(key)
+    if held is not None and held.get("status") == "ok":
+        return held, "fresh"
+    with _lock:
+        old = _old.get(key)
+        if old is not None and old[0] <= time.time():
+            _old.pop(key, None)
+            old = None
+    if old is not None:
+        # a failed rebuild is held for a few seconds; the last good answer is worth more
+        return old[1], "last_good"
+    if held is not None:
+        return held, "fresh"
+    return None, "not_held"
 
 
 def get_day(date_str: Optional[str] = None, *, wait_s: Optional[float] = None) -> dict:

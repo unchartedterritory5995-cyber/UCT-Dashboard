@@ -605,12 +605,19 @@ export function viewTailT(bars, lastT, { session = 'rth' } = {}) {
 }
 
 /** May this cached intraday series be the FIRST VISIBLE FRAME of a (tf, session) view?
- *  A sound repair base (the raw tail is not gapped) whose DRAWN tail is within one
- *  expected bucket of the view's frontier. */
+ *  A sound repair base (the raw tail is not gapped) whose DRAWN tail is settled by the ONE
+ *  currentness rule (`intradayBarCurrentness`, which the store's status also reads): within one
+ *  expected bucket of the view's frontier, or, while no bucket of today is expected, carrying the
+ *  last session to its close (16:00 for a regular-hours view, 20:00 for an extended one).
+ *  ⚰️ It read `isCurrentEnoughForPaint`, which answers "current" whenever nothing of today is
+ *  expected: overnight on production (2026-11-18, 02:56 ET) a copy ending 11:35 ET the day before
+ *  was painted at once and the server's answer added the session's last 52 bars in view
+ *  (marketSession.cacheViewComplete.test.js). */
 export function isCacheCurrentForView(bars, lastT, tf, { session = 'rth', nowMs = Date.now() } = {}) {
   if (typeof lastT !== 'number' || !Number.isFinite(lastT)) return false
   if (classifyIntradayTail(lastT, tf) === 'gapped') return false
-  return isCurrentEnoughForPaint(viewTailT(bars, lastT, { session }), tf, { nowMs, session })
+  const tailT = viewTailT(bars, lastT, { session })
+  return isCurrentnessSettled(intradayBarCurrentness({ tf, tailT, nowMs, session, pending: true }))
 }
 
 /** The interval currently forming, or null when nothing is. */

@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, it, expect } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import MoversRender, { bucketUp, pctSign, rowUp } from '../MoversRender'
 
 // The Morning Wire's relative lanes ("Leading / Lagging the Market") are RELATIVE
@@ -16,20 +16,30 @@ function b64url(obj) {
   return s.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-function renderWith(buckets) {
+async function renderWith(buckets) {
   const url = `/r/movers?data=${b64url({ buckets })}`
-  return render(
+  const view = render(
     <MemoryRouter initialEntries={[url]}>
       <MoversRender />
     </MemoryRouter>,
   )
+  await waitFor(() => expect(view.container.querySelector('#panel-export')).not.toBeNull())
+  return view
 }
+
+// The page asks the server whether the address's token is accepted before it draws.
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200 })))
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 const pctColour = (txt) => screen.getByText(txt).style.color
 
 describe('MoversRender row colour', () => {
-  it('a Leading-the-Market name that is itself DOWN prints red, not green', () => {
-    renderWith([
+  it('a Leading-the-Market name that is itself DOWN prints red, not green', async () => {
+    await renderWith([
       { key: 'rel_up', title: 'Leading the Market', marker: '▲', lane: 'relative',
         items: [{ sym: 'XLU', pct: '-0.2%', news: 'utilities hold up', has_why: true },
                 { sym: 'GLD', pct: '+0.6%', news: 'gold bid', has_why: true }] },
@@ -38,8 +48,8 @@ describe('MoversRender row colour', () => {
     expect(pctColour('+0.6%')).toBe(GREEN)
   })
 
-  it('a Lagging name sent as big_dn + lane:relative that is itself UP prints green', () => {
-    renderWith([
+  it('a Lagging name sent as big_dn + lane:relative that is itself UP prints green', async () => {
+    await renderWith([
       { key: 'big_dn', lane: 'relative', title: 'Lagging the Market', marker: '▼',
         items: [{ sym: 'NVDA', pct: '+0.1%', news: 'x', has_why: true },
                 { sym: 'TSLA', pct: '-4.1%', news: 'y', has_why: true }] },
@@ -48,8 +58,8 @@ describe('MoversRender row colour', () => {
     expect(pctColour('-4.1%')).toBe(RED)
   })
 
-  it('accepts rel_dn as a red (down) bucket', () => {
-    renderWith([
+  it('accepts rel_dn as a red (down) bucket', async () => {
+    await renderWith([
       { key: 'rel_dn', title: 'Lagging the Market', marker: '▼',
         items: [{ sym: 'AAPL', pct: '0.0%', news: 'flat', has_why: true }] },
     ])
@@ -58,8 +68,8 @@ describe('MoversRender row colour', () => {
     expect(screen.getByText('▼').style.color).toBe(RED)
   })
 
-  it('existing buckets render identically (all green up, all red down)', () => {
-    renderWith([
+  it('existing buckets render identically (all green up, all red down)', async () => {
+    await renderWith([
       { key: 'small_up', title: 'Top Small-Cap Positive', marker: '▲',
         items: [{ sym: 'ABCD', pct: '+22.4%', news: 'a', has_why: true }] },
       { key: 'big_up', title: 'Top Big-Cap Positive', marker: '▲',
@@ -72,8 +82,8 @@ describe('MoversRender row colour', () => {
     expect(pctColour('-5.5%')).toBe(RED)
   })
 
-  it('two buckets sharing key big_dn both render (no React key collision)', () => {
-    renderWith([
+  it('two buckets sharing key big_dn both render (no React key collision)', async () => {
+    await renderWith([
       { key: 'big_dn', title: 'Top Big-Cap Negative', marker: '▼',
         items: [{ sym: 'META', pct: '-5.5%', news: 'c', has_why: true }] },
       { key: 'big_dn', lane: 'relative', title: 'Lagging the Market', marker: '▼',
@@ -85,7 +95,7 @@ describe('MoversRender row colour', () => {
 })
 
 describe('MoversRender helpers', () => {
-  it('pctSign parses signed strings, numbers, the unicode minus; flat/garbage is null', () => {
+  it('pctSign parses signed strings, numbers, the unicode minus; flat/garbage is null', async () => {
     expect(pctSign('+3.4%')).toBe(true)
     expect(pctSign('-0.2%')).toBe(false)
     expect(pctSign('−0.8%')).toBe(false)
@@ -96,7 +106,7 @@ describe('MoversRender helpers', () => {
     expect(pctSign(undefined)).toBe(null)
   })
 
-  it('bucketUp honours an explicit dir over the key, and keeps unknown keys up', () => {
+  it('bucketUp honours an explicit dir over the key, and keeps unknown keys up', async () => {
     expect(bucketUp({ key: 'big_dn' })).toBe(false)
     expect(bucketUp({ key: 'rel_dn' })).toBe(false)
     expect(bucketUp({ key: 'rel_up' })).toBe(true)
@@ -105,7 +115,7 @@ describe('MoversRender helpers', () => {
     expect(bucketUp({ key: 'big_dn', dir: 'up' })).toBe(true)
   })
 
-  it('rowUp falls back to the bucket only when the row has no sign', () => {
+  it('rowUp falls back to the bucket only when the row has no sign', async () => {
     expect(rowUp({ pct: '-0.2%' }, true)).toBe(false)
     expect(rowUp({ pct: '+0.2%' }, false)).toBe(true)
     expect(rowUp({ pct: '0%' }, false)).toBe(false)

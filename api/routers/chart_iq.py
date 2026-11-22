@@ -114,7 +114,7 @@ async def chart_iq_pack_status(user: dict = Depends(require_paid)):
 
 
 @router.post("/pack/build")
-async def chart_iq_pack_build(force: bool = Query(default=False), user: dict = Depends(require_paid)):
+def chart_iq_pack_build(force: bool = Query(default=False), user: dict = Depends(require_paid)):
     """Admin only: start a pack build in the background (refused during the session unless force=1)."""
     if not _gate(user):
         raise HTTPException(status_code=404, detail="Not found")

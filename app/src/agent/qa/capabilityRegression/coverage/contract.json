@@ -2255,9 +2255,35 @@
    ],
    "fast": false
   },
+  "stock.auctionCalendar": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.callSearch": {
    "domain": "stock",
    "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.callThemes": {
+   "domain": "stock",
+   "group": "marketViews",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2320,6 +2346,32 @@
    ],
    "fast": false
   },
+  "stock.dilutionWatch": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.dividendsCalendar": {
+   "domain": "stock",
+   "group": "marketCalendars",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.earnings": {
    "domain": "stock",
    "group": "data",
@@ -2336,6 +2388,32 @@
   "stock.earningsReactions": {
    "domain": "stock",
    "group": "marketBoards",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.earningsSeason": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.eventsTimeline": {
+   "domain": "stock",
+   "group": "marketReads",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2372,6 +2450,19 @@
    ],
    "fast": false
   },
+  "stock.fomcWatch": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.gammaLevels": {
    "domain": "stock",
    "group": "marketBoards",
@@ -2385,9 +2476,74 @@
    ],
    "fast": false
   },
+  "stock.groupDrill": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.ipoCalendar": {
+   "domain": "stock",
+   "group": "marketCalendars",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.ivHistory": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.longRunLeaders": {
    "domain": "stock",
    "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.marketRegime": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.oiChange": {
+   "domain": "stock",
+   "group": "marketRecords",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2424,6 +2580,45 @@
    ],
    "fast": true
   },
+  "stock.realCurve": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.seasonality": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.seasonalityBoard": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.sectorPerformance": {
    "domain": "stock",
    "group": "data",
@@ -2440,6 +2635,58 @@
   "stock.sessionHighsLows": {
    "domain": "stock",
    "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.setups": {
+   "domain": "stock",
+   "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.shortInterest": {
+   "domain": "stock",
+   "group": "shortInterest",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.shortList": {
+   "domain": "stock",
+   "group": "shortInterest",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.splitsDividends": {
+   "domain": "stock",
+   "group": "marketCalendars",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2476,9 +2723,48 @@
    ],
    "fast": false
   },
+  "stock.tideHistory": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.topFlowPicks": {
    "domain": "stock",
    "group": "marketBoards",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.treasuryYields": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.uct20List": {
+   "domain": "stock",
+   "group": "marketReads",
    "target": "market",
    "risk": "local",
    "reversible": true,

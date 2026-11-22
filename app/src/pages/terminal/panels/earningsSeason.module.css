@@ -1,17 +1,17 @@
-/* ERNS on a phone (2026-11-17, seen on a 390px screen: the fourth column was cut at the right edge).
-   The company name under the ticker is hidden at this width, so the symbol column gives its 8rem
-   floor back; and the result may take two lines ("Not reported" over the estimate), so all four
-   columns fit without a sideways scroll. Desktop and tablet are untouched. `!important` because the
-   floor comes from another module's `.table td.wrapCell` rule. */
-@media (max-width: 640px) {
-  .symCol {
-    min-width: 0 !important;
-    white-space: nowrap !important;
-  }
+/* ERNS where its table folds (2026-11-17, seen on a 390px screen: the fourth column was cut at the
+   right edge). The company name under the ticker is hidden there, so the symbol column gives its
+   8rem floor back; and the result may take two lines ("Not reported" over the estimate), so all four
+   columns fit without a sideways scroll. A wider panel is untouched. `!important` because the floor
+   comes from another module's `.table td.wrapCell` rule. The table folds on a phone screen, in a
+   panel at most 460px wide, or in a panel no wider than the step on its own `data-fold` (the fold
+   ladder, see marketPanels.module.css and ../panelFit.js). */
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .symCol {
+  min-width: 0 !important;
+  white-space: nowrap !important;
+}
 
-  .resultCell {
-    white-space: normal !important;
-    overflow-wrap: break-word;
-    min-width: 5.5rem;
-  }
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .resultCell {
+  white-space: normal !important;
+  overflow-wrap: break-word;
+  min-width: 5.5rem;
 }

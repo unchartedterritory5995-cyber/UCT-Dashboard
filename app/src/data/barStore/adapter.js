@@ -20,20 +20,33 @@
 // otherwise. A tail point's time is ≥ the last base time; equal means it REPLACES the
 // last base point (session preview extending yesterday's daily bar).
 //
-// Invalidation rule (the memo is a cache): entries are keyed by `${key}|${baseRev}|${vtid}`.
-// The store bumps baseRev on every change to sealed bars, so a stale entry can never be
-// served; the LRU bound (BASE_MEMO_MAX) only limits memory. Tested in adapter.test.js.
+// Invalidation rule (the memo is a cache): ONE SLOT PER KEY AND VIEW (`${key}|${vtid}`; the
+// legacy copy `${key}|${tf}`), served only to the same baseRev AND the same bars array. The store
+// bumps baseRev on every change to sealed bars, so a stale entry can never be served, and a new
+// revision REPLACES its key's slot. ⛔ (2026-11-20) They were keyed `${key}|${baseRev}|…`: every
+// revision of a key on screen (local copy, REST answer, deep join, lake join) took a slot of its
+// own, so 32 slots filled with OLD revisions, each pinning a whole legacy copy plus the store's
+// old bars array behind it (`src`). An intraday key holds up to 50,000 lake bars: production
+// soak, 30 flips, 1.37M legacy bars in the memo (856k of them old revisions) and 856k old store
+// bars. Two bounds now: BASE_MEMO_MAX entries and MEMO_BAR_BUDGET bars (the newest entry always
+// stays, however large). Tested in adapter.test.js.
 
-import { toChartTime, isRthBar } from '../../components/chart/barTime'
+import { toChartTime, isRthBar, etDateLabel } from '../../components/chart/barTime'
 import { foldOffGridBars } from '../../components/chart/offGridBars'
 import { applySessionCandle } from '../../components/chart/sessionPreview'
 import { unixToDateLabel } from './types'
 import { toHeikinAshi, heikinAshiNext } from '../../components/chart/indicators'
+import { neighborFramesOn } from '../../components/chart/neighborFrames'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 const DWM = new Set(['D', 'W', 'M'])
 
 export const BASE_MEMO_MAX = 32
+/** Bars the slots of one memo may hold together (each memo on its own). Two on-screen keys
+ *  (D ~8k, 60m up to ~56k with the lake) and a watchlist's prepared neighbours fit with room;
+ *  over it, least recently used slots go first. */
+export const MEMO_BAR_BUDGET = 600_000
+let _limits = { maxEntries: BASE_MEMO_MAX, maxBars: MEMO_BAR_BUDGET }
 
 /** The chart time of a legacy-shaped bar `t` — StockChart's `adjustTime`. */
 export function chartTimeOf(t) {
@@ -78,29 +91,48 @@ function tfOfSnapshot(snapshot, view) {
   return m ? (m[1] === '60e' ? '60' : m[1]) : ''
 }
 
-const _legacyBaseMemo = new Map()   // `${key}|${baseRev}|${tf}` → legacy sealed bars
-function lruGet(map, k) {
-  if (!map.has(k)) return undefined
-  const v = map.get(k)
-  map.delete(k); map.set(k, v)   // refresh recency
-  return v
+/** A memo of one slot per key: `get` refreshes recency; `set` REPLACES the key's slot, then
+ *  evicts least recently used slots while over the entry cap or the bar budget (never the one
+ *  just set). `n` is the bars the slot holds. */
+function slotMemo() {
+  const map = new Map()   // k → { v, n }
+  let bars = 0
+  return {
+    get(k) {
+      const e = map.get(k)
+      if (!e) return undefined
+      map.delete(k); map.set(k, e)   // refresh recency
+      return e.v
+    },
+    set(k, v, n) {
+      const old = map.get(k)
+      if (old) { bars -= old.n; map.delete(k) }
+      map.set(k, { v, n })
+      bars += n
+      while (map.size > 1 && (map.size > _limits.maxEntries || bars > _limits.maxBars)) {
+        const [ok, oe] = map.entries().next().value
+        map.delete(ok)
+        bars -= oe.n
+      }
+      return v
+    },
+    clear() { map.clear(); bars = 0 },
+    stats() { return { slots: map.size, bars, keys: [...map.keys()] } },
+  }
 }
-function lruSet(map, k, v) {
-  map.set(k, v)
-  while (map.size > BASE_MEMO_MAX) map.delete(map.keys().next().value)
-  return v
-}
+
+const _legacyBaseMemo = slotMemo()   // `${key}|${tf}` → { baseRev, src (the store's bars), out (legacy sealed bars) }
 
 function legacySealed(snapshot, tf) {
   const bars = snapshot?.bars || []
-  const k = `${snapshot?.key}|${snapshot?.baseRev}|${tf}`
-  const hit = lruGet(_legacyBaseMemo, k)
-  if (hit && hit.src === bars) return hit.out
+  const k = `${snapshot?.key}|${tf}`
+  const hit = _legacyBaseMemo.get(k)
+  if (hit && hit.src === bars && hit.baseRev === snapshot?.baseRev) return hit.out
   let out = bars
   for (let i = 0; i < bars.length; i++) {
     if (toLegacyBar(bars[i], tf) !== bars[i]) { out = bars.map(b => toLegacyBar(b, tf)); break }
   }
-  lruSet(_legacyBaseMemo, k, { src: bars, out })
+  _legacyBaseMemo.set(k, { baseRev: snapshot?.baseRev, src: bars, out }, out.length)
   return out
 }
 
@@ -117,13 +149,45 @@ function legacyDeveloping(snapshot, tf, sealed) {
 }
 
 /** The snapshot's developing bar in the legacy shape ({t,o,h,l,c,v}; D/W/M t = label), or
- *  null — exactly the bar `legacyBars` appends. O(1) on a memo hit (the dev channel's read). */
+ *  null — exactly the bar `legacyBars` appends. O(1): only the newest sealed bar decides it
+ *  (store invariant S3), so the dev channel's read (every tick) never builds or needs the whole
+ *  legacy copy, and never depends on the memo still holding it. */
 export function legacyDevelopingOf(snapshot, tf = tfOfSnapshot(snapshot, null)) {
   if (!snapshot?.developing) return null
-  return legacyDeveloping(snapshot, tf, legacySealed(snapshot, tf))
+  const bars = snapshot.bars || []
+  return legacyDeveloping(snapshot, tf, bars.length ? [toLegacyBar(bars[bars.length - 1], tf)] : [])
+}
+
+/** ⭐⭐ (2026-11-18) The route's `newest_bar_is_forming` for the snapshot's NEWEST row (the one `legacyBars` ends
+ *  with), or null (UNKNOWN) when no answer stated one or the last statement is about another bar (a newer
+ *  developing bar the live feed opened, an older answer). It is what the legacy source hands the chart
+ *  (`data.newest_bar_is_forming`): the tri-state rides with the bar it describes, never with the wall clock. */
+export function newestBarIsFormingOf(snapshot) {
+  const f = snapshot && snapshot.newestForming
+  if (!f || typeof f.forming !== 'boolean') return null
+  const bars = snapshot.bars || []
+  const newestT = legacyDevelopingOf(snapshot) ? snapshot.developing.t : (bars.length ? bars[bars.length - 1].t : null)
+  return newestT === f.t ? f.forming : null
 }
 
 const _legacyBarsMemo = new WeakMap()
+// ⭐⭐ NEIGHBOR FRAMES (2026-11-20, `uct.neighborframes`) — sealed array → `{tf, dev, out}`: the last
+// sealed + developing array built for it. A NEW SNAPSHOT OF THE SAME BARS (a status or meta change: a warm's
+// answer that moved nothing, a subscribe's mem hydrate) used to append the same developing bar to the same
+// sealed rows as a NEW array, so everything filed under the old one (a row's indicators, computed ahead)
+// missed. Same sealed rows + an equal developing bar = the same array. A WeakMap keyed by the sealed array:
+// an entry lives exactly as long as the store keeps those rows, never past an eviction.
+const _withDevMemo = new WeakMap()
+const sameLegacyBar = (a, b) => !!a && !!b && a.t === b.t && a.o === b.o && a.h === b.h && a.l === b.l
+  && a.c === b.c && a.v === b.v
+function withDeveloping(sealed, dev, tf) {
+  if (!neighborFramesOn()) return [...sealed, dev]
+  const hit = _withDevMemo.get(sealed)
+  if (hit && hit.tf === tf && sameLegacyBar(hit.dev, dev)) return hit.out
+  const out = [...sealed, dev]
+  _withDevMemo.set(sealed, { tf, dev, out })
+  return out
+}
 /** Today's downstream `bars` array for a snapshot: sealed + developing appended, legacy
  *  shape. Memoized per (frozen, identity-stable) snapshot, so indicators / drawings /
  *  engine keep receiving a stable array between store revisions. */
@@ -137,7 +201,7 @@ export function legacyBars(snapshot, tf = tfOfSnapshot(snapshot, null)) {
   if (hit) return hit
   const sealed = legacySealed(snapshot, tf)
   const dev = legacyDeveloping(snapshot, tf, sealed)
-  const out = dev ? [...sealed, dev] : sealed
+  const out = dev ? withDeveloping(sealed, dev, tf) : sealed
   byTf.set(tf, out)
   return out
 }
@@ -202,16 +266,16 @@ function rthKeep(b) {
 }
 function cutoffKeep(cutoff) {
   return (b) => (typeof b.t === 'number'
-    ? new Date(b.t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) <= cutoff
+    ? etDateLabel(b.t) <= cutoff
     : String(b.t).slice(0, 10) <= cutoff)
 }
 
-const _baseMemo = new Map()
+const _baseMemo = slotMemo()   // `${key}|${vtid}` → the base series of the key's newest revision read
 function computeBase(snapshot, view, tf, vtid) {
   const sealed = legacySealed(snapshot, tf)
-  const k = `${snapshot?.key}|${snapshot?.baseRev}|${vtid}`
-  const hit = lruGet(_baseMemo, k)
-  if (hit && hit.src === sealed) return hit
+  const k = `${snapshot?.key}|${vtid}`
+  const hit = _baseMemo.get(k)
+  if (hit && hit.src === sealed && hit.baseRev === snapshot?.baseRev) return hit
   const intraday = INTRADAY.has(tf)
   let session = intraday ? foldOffGridBars(sealed, tf, { showExtended: !!view.showExtended }) : sealed
   if (intraday && !view.showExtended) session = session.filter(rthKeep)
@@ -220,12 +284,12 @@ function computeBase(snapshot, view, tf, vtid) {
   if (view.replayCutoff && filtered.length) filtered = filtered.filter(cutoffKeep(view.replayCutoff))
   const display = view.heikinAshi && filtered.length ? toHeikinAshi(filtered) : filtered
   const out = {
-    src: sealed, sessionCount, filtered, display,
+    src: sealed, baseRev: snapshot?.baseRev, sessionCount, filtered, display,
     candles: display.map(candlePoint),
     volume: filtered.map(volumePoint),   // volume rides sessionAppliedBars (pre-HA) today
     closes: display.map(closePoint),
   }
-  return lruSet(_baseMemo, k, out)
+  return _baseMemo.set(k, out, filtered.length)
 }
 
 /**
@@ -302,5 +366,15 @@ function composeBars(base, tail) {
   return [...base.slice(0, cut), ...tail]
 }
 
-/** Test-only: drop the memos (they are bounded caches; never needed for correctness). */
-export function _resetAdapterMemos() { _baseMemo.clear(); _legacyBaseMemo.clear() }
+/** Test-only: drop the memos (they are bounded caches; never needed for correctness) and
+ *  restore their bounds. */
+export function _resetAdapterMemos() {
+  _baseMemo.clear(); _legacyBaseMemo.clear()
+  _limits = { maxEntries: BASE_MEMO_MAX, maxBars: MEMO_BAR_BUDGET }
+}
+/** Test-only: what the memos hold — slots, bars, slot keys. */
+export function _adapterMemoStats() { return { legacy: _legacyBaseMemo.stats(), base: _baseMemo.stats() } }
+/** Test-only: smaller bounds, so a test can reach them with small series. */
+export function _setAdapterMemoLimits({ maxEntries = BASE_MEMO_MAX, maxBars = MEMO_BAR_BUDGET } = {}) {
+  _limits = { maxEntries, maxBars }
+}

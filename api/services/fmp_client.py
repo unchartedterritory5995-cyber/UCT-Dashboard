@@ -122,7 +122,8 @@ def budget() -> dict:
 
 # ── Low-level transport (spec §9.2, §9.5) ───────────────────────────────────
 
-def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
+def _get_raw(path: str, params: dict, timeout: Optional[int] = None,
+             forbidden_scope: Optional[str] = None) -> Any:
     """Fires one FMP GET. Returns the parsed JSON body on a normal 200
     (which may be an empty list/dict — genuinely empty is NOT this
     function's business to classify; each typed function above applies its
@@ -137,6 +138,8 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
         raise _ERR.not_configured("FMP_API_KEY not set")
 
     forbidden_since = cache.get(f"fmp_forbidden_{path}")
+    if forbidden_since is None and forbidden_scope:
+        forbidden_since = cache.get(f"fmp_forbidden_{path}::{forbidden_scope}")
     if forbidden_since is not None:
         return _CachedForbidden(since=forbidden_since)
 
@@ -169,7 +172,10 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
         raise _ERR.rate_limited(f"FMP {path} rate-limited", status=429)
     if resp.status_code in (401, 403):
         now = time.time()
-        cache.set(f"fmp_forbidden_{path}", now, ttl=_FORBIDDEN_TTL)
+        # A scoped read (crypto) marks ONLY its own key: the same path serves stocks and
+        # indices, and FMP refusing one asset class must not blank the others for 24 h.
+        cache.set(f"fmp_forbidden_{path}::{forbidden_scope}" if forbidden_scope
+                  else f"fmp_forbidden_{path}", now, ttl=_FORBIDDEN_TTL)
         raise _ERR.auth_error(f"FMP {path} rejected ({resp.status_code})", status=resp.status_code)
     if resp.status_code >= 500:
         raise _ERR.transient(f"FMP {path} server error ({resp.status_code})", status=resp.status_code)
@@ -218,6 +224,7 @@ def _fetch(
     not_found_if: Optional[Callable[[Any], bool]] = None,
     freshness: Optional[_pe.FreshnessClass] = None, timeout: Optional[int] = None,
     observed_at_of: Optional[Callable[[Any], Optional[float]]] = None,
+    forbidden_scope: Optional[str] = None,
 ) -> _pe.ProviderResult:
     """The shared body every typed function below calls. Owns: raising
     FMPNotFound via the caller-supplied predicate (FMP has no status field
@@ -235,7 +242,10 @@ def _fetch(
     `freshness` is unaffected -- this hook is additive, not a behavior
     change for the 16 endpoints that don't opt in."""
     licensing_class = _plc.licensing_class_for("fmp", data_class)
-    raw = _get_raw(path, params, timeout=timeout)
+    # `forbidden_scope` is passed only when a caller set one, so every other read calls
+    # `_get_raw` exactly as before.
+    raw = (_get_raw(path, params, timeout=timeout, forbidden_scope=forbidden_scope)
+           if forbidden_scope else _get_raw(path, params, timeout=timeout))
     if isinstance(raw, _CachedForbidden):
         return _pe.ProviderResult(
             value=None,
@@ -413,6 +423,57 @@ def get_index_history_eod_full(index_symbol: str, from_date: str, to_date: str, 
                    {"symbol": _fmp_index_symbol(index_symbol), "from": from_date, "to": to_date},
                    source_activity="fmp_client.get_index_history_eod_full", data_class="indices",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+def get_index_intraday(index_symbol: str, interval: str, from_date: str, to_date: str, *,
+                       timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Intraday OHLCV for a cash index in a date window (`/stable/historical-chart/{interval}`,
+    `interval` one of FMP's `1min` / `5min` / `15min` / `30min` / `1hour`): `[{date, open, low,
+    high, close, volume}, ...]`, NEWEST FIRST, `date` the bar's START as Eastern wall-clock text
+    ("2026-02-02 09:30:00"), `volume` may be null. The shape this repo already parses on the same
+    endpoint (`bars_fetch._fetch_intraday_fmp`, provider-ledger.md "FMP timestamps are ET text").
+
+    The ONE caller is `api/index_bars.py`'s hole repair: settled sessions only, the sessions
+    Yahoo's answer lacks (2026-11-18: ^GSPC 60m had no 2026-01-30 11:30 .. 2026-02-02 12:30 ET and
+    no 12:30 bar on any half-day). Same data class, vendor and audience as the daily index
+    primary above (licensing row ("fmp", "indices"))."""
+    return _fetch(f"/stable/historical-chart/{interval}",
+                   {"symbol": _fmp_index_symbol(index_symbol), "from": from_date, "to": to_date},
+                   source_activity="fmp_client.get_index_intraday", data_class="indices",
+                   not_found_if=_empty_list, freshness="historical", timeout=timeout)
+
+
+#: The refusal mark of the crypto reads below. `_get_raw` keeps a 401/403 per PATH for 24 h,
+#: and these paths are the ones stock quotes and index bars use: a plan that does not carry
+#: crypto would otherwise switch those off too. With a scope, a refused crypto read marks
+#: `fmp_forbidden_<path>::crypto` only (and still honours a path-wide mark).
+_CRYPTO_SCOPE = "crypto"
+
+
+def get_crypto_history_eod_full(pair_symbol: str, from_date: str, to_date: str, *,
+                                timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Daily OHLCV for a currency pair (`BTCUSD`) between two ISO dates, newest first: the
+    endpoint `get_index_history_eod_full` reads, asked with the pair symbol as it is (no
+    caret). The one caller is `api/crypto_bars.py`, dark behind `CRYPTO_BARS_ENABLED`.
+    `data_class="crypto"` has no row in `provider_licensing_class` (the owner has not said
+    whether FMP crypto may be shown), so the result is stamped `U`."""
+    return _fetch("/stable/historical-price-eod/full",
+                   {"symbol": pair_symbol.upper(), "from": from_date, "to": to_date},
+                   source_activity="fmp_client.get_crypto_history_eod_full", data_class="crypto",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout,
+                   forbidden_scope=_CRYPTO_SCOPE)
+
+
+def get_crypto_quote(pair_symbol: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """The quote row for a currency pair (`BTCUSD`): the endpoint `get_quote` reads. The
+    row's own `timestamp` is carried as `provenance.source_observed_at`. `freshness` is
+    left None (not established): how far behind FMP's crypto quote runs has not been
+    measured, so no delay class is claimed for it."""
+    return _fetch("/stable/quote", {"symbol": pair_symbol.upper()},
+                   source_activity="fmp_client.get_crypto_quote", data_class="crypto",
+                   not_found_if=_empty_list, freshness=None,
+                   observed_at_of=_quote_observed_at, timeout=timeout,
+                   forbidden_scope=_CRYPTO_SCOPE)
 
 
 def get_earnings(ticker: str, *, limit: int = 20, timeout: Optional[int] = None) -> _pe.ProviderResult:
@@ -642,6 +703,9 @@ def get_cash_flow_statement(ticker: str, *, period: str = "quarter", limit: int,
 #       Both consumers are owner-excluded from this branch, so a typed
 #       function for either would be adapter surface no authorized caller
 #       could ever migrate onto. Recorded, deliberately not built.
+#       ⭐ 2026-11-18: built for a NEW caller, `get_index_intraday` above (cash
+#       indices only, `api/index_bars.py`'s hole repair). `bars_fetch`'s equity
+#       fallback still builds its own URL and is NOT migrated by that change.
 #
 # Also deliberately excluded: every FMP path that appears ONLY inside
 # `api/routers/earnings.py::debug_earnings_sources` (`/stable/earnings-
@@ -764,14 +828,21 @@ def get_grades_news(ticker: str, *, limit: Optional[int] = None, timeout: Option
     per date with no firm attached; this one carries the
     `gradingCompany`/`action`/`previousGrade`/`newGrade` fields.
 
-    `data_class="analyst_grades"` (not "news") because the payload IS the
-    grade action — the `newsURL`/`newsPublisher` fields are the citation
-    for it, not the content."""
+    `data_class="analyst_actions_news"` — neither "news" nor "analyst_grades"
+    (2026-11-19). The payload IS a grade action, but its ORIGIN is TheFly /
+    StreetInsider: the live capture in tests/test_analyst_intel_fmp_shapes.py
+    reads `newsPublisher: "TheFly"`, `newsURL: thefly.com/...`. Licensing
+    register T-45 names that sublicence chain and holds it at U even with the
+    DDLA, so the pair is deliberately UNREGISTERED in
+    `provider_licensing_class._TABLE` and stamps "U". ⚰️ It stamped
+    "analyst_grades" until the 2026-11-19 restatement moved that class to LA
+    (T-34): the split had to land first, or the restatement would have
+    reached a TheFly-origin feed."""
     params: dict = {"symbol": ticker.upper()}
     if limit is not None:
         params["limit"] = limit
     return _fetch("/stable/grades-news", params,
-                   source_activity="fmp_client.get_grades_news", data_class="analyst_grades",
+                   source_activity="fmp_client.get_grades_news", data_class="analyst_actions_news",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
@@ -780,12 +851,16 @@ def get_grades_latest_news(*, limit: Optional[int] = None, timeout: Optional[int
     (`/stable/grades-latest-news`) — `catalyst/sources.py`'s analyst pull.
     Market-wide, not per-symbol, so like `get_earnings_calendar` /
     `get_economic_calendar` / `get_ipo_calendar` it does NOT take
-    `ticker: str`; the caller filters by symbol from the returned rows."""
+    `ticker: str`; the caller filters by symbol from the returned rows.
+
+    `data_class="analyst_actions_news"`, unregistered, stamps "U": this is
+    the endpoint licensing register T-45 names (TheFly + StreetInsider
+    origin, DDLA U). See `get_grades_news` above."""
     params: dict = {}
     if limit is not None:
         params["limit"] = limit
     return _fetch("/stable/grades-latest-news", params,
-                   source_activity="fmp_client.get_grades_latest_news", data_class="analyst_grades",
+                   source_activity="fmp_client.get_grades_latest_news", data_class="analyst_actions_news",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
@@ -894,6 +969,112 @@ def get_etf_holdings(ticker: str, *, timeout: Optional[int] = None) -> _pe.Provi
     between them will reach for the wrong field."""
     return _fetch("/stable/etf/holdings", {"symbol": ticker.upper()},
                    source_activity="fmp_client.get_etf_holdings", data_class="etf_holdings",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+# ── 2026-11-21: revenue by segment (the Terminal's SEG) ─────────────────────
+# One typed function per endpoint, named after what it returns. Both paths were
+# already named in `fmp_response_cache.TTL` (a one-day lifetime) with no caller;
+# `api/services/revenue_segments.py` is the first and only one. FMP's stable docs
+# ("Revenue Product Segmentation API", "Revenue Geographic Segmentation API")
+# give `symbol` and an annual / quarter `period` (the Basic and Starter plans are
+# "Period Limited to Annual Reports"), which is what is sent; nothing else is.
+#
+# `data_class="segments"` is DELIBERATELY UNREGISTERED in
+# `provider_licensing_class._TABLE`, so it stamps "U": no licensing-register row
+# names segment revenue, and borrowing "fundamentals" for its class would be the
+# inference from resemblance `get_company_profile`'s docstring refuses. Nothing
+# gates display on the stamp (the IPO calendar shows FMP's unregistered
+# `("fmp", "ipo")` the same way). No internal timeout literal: the module
+# default applies unless a caller passes one.
+
+def get_revenue_product_segmentation(ticker: str, *, period: str = "annual",
+                                     timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Revenue by product or business line, period by period
+    (`/stable/revenue-product-segmentation?symbol=&period=`). `period` is
+    `annual` or `quarter`, sent as given (the vendor owns the vocabulary)."""
+    return _fetch("/stable/revenue-product-segmentation", {"symbol": ticker.upper(), "period": period},
+                   source_activity="fmp_client.get_revenue_product_segmentation", data_class="segments",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+def get_revenue_geographic_segmentation(ticker: str, *, period: str = "annual",
+                                        timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Revenue by region, period by period
+    (`/stable/revenue-geographic-segmentation?symbol=&period=`)."""
+    return _fetch("/stable/revenue-geographic-segmentation", {"symbol": ticker.upper(), "period": period},
+                   source_activity="fmp_client.get_revenue_geographic_segmentation", data_class="segments",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+# ── 2026-11-21: mergers and acquisitions (the Terminal's MNA) ───────────────
+# The repo named no FMP M&A path before this. Both paths below are taken from
+# FMP's public stable docs as a web search indexes them (2026-11-21; the docs
+# site itself refuses automated reading): "Latest Mergers & Acquisitions API",
+# `https://financialmodelingprep.com/stable/mergers-acquisitions-latest?page=0&limit=100`,
+# and "Search Mergers & Acquisitions API",
+# `https://financialmodelingprep.com/stable/mergers-acquisitions-search?name=`.
+# The answer's fields are NOT confirmed against a live answer here: the docs'
+# description names the transaction date, the company names and a link to the
+# SEC filing, and its sample row names symbol, companyName, cik,
+# targetedCompanyName, transactionDate, acceptedDate and link
+# (targetedSymbol / targetedCik are read only if present).
+# `api/services/mergers.py` parses defensively and lists every field it reads.
+# Market-wide: neither takes `ticker: str` (the `search_insider_purchases`
+# precedent for a non-`get_` name). `data_class="mergers"` is unregistered and
+# stamps "U", as `("fmp", "ipo")` does.
+
+def get_mergers_acquisitions_latest(*, page: int = 0, limit: int = 100,
+                                    timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """The newest M&A filings across the market, one page at a time
+    (`/stable/mergers-acquisitions-latest?page=&limit=`), newest first."""
+    return _fetch("/stable/mergers-acquisitions-latest", {"page": int(page), "limit": int(limit)},
+                   source_activity="fmp_client.get_mergers_acquisitions_latest", data_class="mergers",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+def search_mergers_acquisitions(name: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """M&A filings whose company names match `name`
+    (`/stable/mergers-acquisitions-search?name=`). Sends the name as given; the
+    caller decides which rows name the company it means."""
+    return _fetch("/stable/mergers-acquisitions-search", {"name": str(name)},
+                   source_activity="fmp_client.search_mergers_acquisitions", data_class="mergers",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+# ── 2026-11-21: historical index changes (the Terminal's IDXC) ──────────────
+# `index_rebalance_calendar.py` notes no historical-constituent endpoint was
+# called before this. The three paths are FMP's stable docs' own ("Historical
+# S&P 500 API", "Historical Nasdaq API", "Historical Dow Jones API", as a web
+# search indexes them, 2026-11-21): `/stable/historical-sp500-constituent`,
+# `/stable/historical-nasdaq-constituent`, `/stable/historical-dowjones-constituent`
+# (no hyphen in "dowjones"), each needing no parameter but the key. The docs
+# describe additions and removals with their dates and reasons; the field names
+# read (dateAdded, addedSecurity, removedTicker, removedSecurity, date, symbol,
+# reason) are from the docs' sample as indexed and are NOT confirmed against a
+# live answer here: `api/services/index_changes.py` parses defensively. Three
+# functions, not one with an `index` argument, for the reason the current
+# constituent functions above give. `data_class="constituents"`, the same
+# unregistered class (stamps "U") as today's members.
+
+def get_historical_sp500_constituents(*, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Every S&P 500 addition and removal FMP holds (`/stable/historical-sp500-constituent`)."""
+    return _fetch("/stable/historical-sp500-constituent", {},
+                   source_activity="fmp_client.get_historical_sp500_constituents", data_class="constituents",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+def get_historical_nasdaq_constituents(*, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Every Nasdaq 100 addition and removal FMP holds (`/stable/historical-nasdaq-constituent`)."""
+    return _fetch("/stable/historical-nasdaq-constituent", {},
+                   source_activity="fmp_client.get_historical_nasdaq_constituents", data_class="constituents",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
+def get_historical_dowjones_constituents(*, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Every Dow 30 addition and removal FMP holds (`/stable/historical-dowjones-constituent`)."""
+    return _fetch("/stable/historical-dowjones-constituent", {},
+                   source_activity="fmp_client.get_historical_dowjones_constituents", data_class="constituents",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 

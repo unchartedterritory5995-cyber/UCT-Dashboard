@@ -28,6 +28,7 @@
 // onReconnect gap-backfill is unchanged.
 
 import { registerRecoveryStream } from './recoveryRegistry'
+import { REBUILD_GATHER_MS } from './streamRebuildDelay'
 import { STREAM_RECONNECT_CAP_MS, LIVE_CANDLE_CADENCE_MS, liveCandleCadenceMs } from '../utils/streamStatus'
 
 export const MAX_BARS_PAIRS = 50   // mirror of api/routers/stream.py MAX_BARS_PAIRS
@@ -61,6 +62,8 @@ let _buckets = []               // [{ key, pairs:Set<string>, es, connected, ret
 const _keyState = new Map()     // 'SYM:TF' -> { everDelivered:boolean, lastBarAt:number }
 let _lastResume = null          // the newest `event: resume` declaration, with its bucket key
 let _rebuildTimer = null
+let _lastActivityAt = -Infinity   // the last subscription change or reconnect (streamRebuildDelay.js)
+let _gathering = false            // the pending reconnect is a quiet pool's REBUILD_GATHER_MS wait
 let _watchdogTimer = null
 // ⭐ KEEP THE EDGE ENTITLEMENT FRESH WHILE A LIVE CHART IS OPEN (2026-11-17, stream-edge).
 // `/api/stream/bars` may be served by stream-edge, which admits a member by the signed
@@ -181,9 +184,12 @@ export function getStatus(sym, tf, session) {
   // would flip delivering false→push-off→Finnhub→true on the next tick, and each handoff is a
   // potential seam (the two feeds disagree on the developing close/volume). Hysteresis turns
   // that recurring thrash into a one-time fallback only when the feed is GENUINELY dead.
+  // VENDOR DOWN (2026-11-18): the server said the Massive socket behind this stream is down
+  // (`event: status` {live:false}, stream.py). No bar will come, so stop waiting out the
+  // hysteresis: not delivering NOW, and the Finnhub tick writers move the candle meanwhile.
   const recent = ks ? Date.now() - ks.lastBarAt : Infinity
   const wasDelivering = !!(ks && ks.delivering)
-  const delivering = connected && !!(ks && ks.everDelivered) &&
+  const delivering = connected && !bucket.vendorDown && !!(ks && ks.everDelivered) &&
     recent < (wasDelivering ? BARS_LIVE_DISENGAGE_MS : BARS_LIVE_STALE_MS)
   if (ks) ks.delivering = delivering   // persist for next call's hysteresis
   return { connected, healthy, delivering }
@@ -203,12 +209,18 @@ function _union() {
 }
 
 function _scheduleRebuild() {
+  const t = Date.now()
+  // gather while a gather is pending, or on a quiet pool; otherwise the full debounce from this change
+  _gathering = (!!_rebuildTimer && _gathering) || t - _lastActivityAt >= REBUILD_DEBOUNCE_MS
+  _lastActivityAt = t
   if (_rebuildTimer) clearTimeout(_rebuildTimer)
-  _rebuildTimer = setTimeout(_rebuild, REBUILD_DEBOUNCE_MS)
+  _rebuildTimer = setTimeout(_rebuild, _gathering ? REBUILD_GATHER_MS : REBUILD_DEBOUNCE_MS)
 }
 
 function _rebuild() {
   _rebuildTimer = null
+  _lastActivityAt = Date.now()
+  _gathering = false
   const union = _union()
   const chunks = []
   for (const sess of ['rth', 'eth']) {
@@ -224,6 +236,7 @@ function _rebuild() {
     if (existing) { existingByKey.delete(key); next.push(existing); continue }
     const bucket = {
       key, pairs: new Set(chunk), session: _keySession(chunk[0]), es: null, connected: false,
+      vendorDown: false,   // the server's `event: status` {live:false}; see getStatus
       retryDelay: INITIAL_RETRY_MS, reconnectTimer: null, lastMsg: Date.now(),
       lastEventId: null,   // a NEW subscription presents no id — it is not a resume
     }
@@ -261,6 +274,7 @@ function _connectBucket(bucket) {
   const es = new EventSource(`/api/stream/bars?bars=${wire}&v=${BARS_STREAM_PROTOCOL}${sessionParam}${resumeParam}`)
   bucket.es = es
   bucket.lastMsg = Date.now()
+  bucket.vendorDown = false   // a new connection hears the server's word again at its start
 
   // Every frame is liveness; every frame's id is the newest this bucket has seen.
   const touch = (event) => {
@@ -350,6 +364,18 @@ function _connectBucket(bucket) {
   // the watchdog doesn't false-reconnect a healthy-but-idle connection.
   es.addEventListener('heartbeat', (event) => { if (bucket.es === es) touch(event) })
 
+  // The server's word on the vendor socket behind this stream (stream.py, `event: status`
+  // {live}), sent at the start and on every change. Only a change re-notifies.
+  es.addEventListener('status', (event) => {
+    if (bucket.es !== es) return
+    touch(event)
+    let down
+    try { down = JSON.parse(event.data)?.live === false } catch { return }
+    if (down === bucket.vendorDown) return
+    bucket.vendorDown = down
+    for (const sub of _subscribers.values()) if (bucket.pairs.has(sub.key)) _notifyStatus(sub)
+  })
+
   es.onerror = () => {
     if (bucket.es !== es) return  // a rebuild/watchdog already replaced this connection
     try { es.close() } catch { /* ignore */ }
@@ -421,6 +447,8 @@ registerRecoveryStream({ name: 'bars', reconnectNow, isConnected })
 
 export function _resetForTests() {
   if (_rebuildTimer) { clearTimeout(_rebuildTimer); _rebuildTimer = null }
+  _lastActivityAt = -Infinity
+  _gathering = false
   if (_watchdogTimer) { clearInterval(_watchdogTimer); _watchdogTimer = null }
   if (_edgeRefreshTimer) { clearInterval(_edgeRefreshTimer); _edgeRefreshTimer = null }
   if (_barThrottleTimer) { clearTimeout(_barThrottleTimer); _barThrottleTimer = null }

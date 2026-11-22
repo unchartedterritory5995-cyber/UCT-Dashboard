@@ -155,6 +155,48 @@ describe('barsStreamManager', () => {
     } finally { vi.useRealTimers() }
   })
 
+  it('VENDOR DOWN: a status live:false drops delivering at once, and live:true restores it (2026-11-18)', () => {
+    let notified = 0
+    bars.subscribe('AAPL', '1', { onStatus: () => { notified += 1 } })
+    flush()
+    const es = MockES.instances[0]
+    es._open()
+    es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 1, c: 1 } })
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+    es._emit('status', { live: true })                 // the start-of-stream word: nothing changes
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+    const before = notified
+    es._emit('status', { live: false })                // a fresh bar, but the vendor socket is down
+    expect(bars.getStatus('AAPL', '1')).toMatchObject({ connected: true, delivering: false })
+    expect(notified).toBe(before + 1)                  // the chart re-reads its gate now
+    es._emit('status', { live: false })                // the same word again: no new notice
+    expect(notified).toBe(before + 1)
+    es._emit('status', { live: true })
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+  })
+
+  it('VENDOR DOWN: a malformed status is ignored, and a new connection forgets the old word', () => {
+    vi.useFakeTimers()
+    try {
+      bars.subscribe('AAPL', '1', {})
+      flush()
+      const es = MockES.instances[0]
+      es._open()
+      es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 1, c: 1 } })
+      ;(es.listeners.status || []).forEach(fn => fn({ data: 'not json' }))
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+      es._emit('status', { live: false })
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(false)
+      es._error()                                      // reconnect: a new EventSource
+      vi.advanceTimersByTime(60000)
+      const es2 = MockES.instances[MockES.instances.length - 1]
+      expect(es2).not.toBe(es)
+      es2._open()
+      es2._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 2, c: 1 } })
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+    } finally { vi.useRealTimers() }
+  })
+
   it('watchdog re-notifies each sweep so a stale delivering is OBSERVED, not dead code (re-review)', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-07-06T14:00:00Z'))

@@ -77,7 +77,7 @@ describe('the chart own timeframe is fixed for the call site', () => {
     const [o] = run5(`${HEAD5}${STATE}inS(r, s) => not na(time(r, s))\nplot(inS(timeframe.period, "0930-1000:23456") ${FLAG})\n`)
     expect(head(o)).toEqual(WANT)
   })
-  // ⚰️ (bt, NUMBER PENDING) these v4 rails wrote the bare `period`, which TradingView's v4 compiler
+  // ⚰️ (bt, Engine 66 (#1473)) these v4 rails wrote the bare `period`, which TradingView's v4 compiler
   // refuses ("Undeclared identifier 'period'"); v4 spells it `timeframe.period`
   // (`pine.js::legacyPeriodUndeclared`, railed below under "what stays refused").
   it('v4: `timeinrange(res, sess) => time(res, sess) != 0` called with `timeframe.period` (the corpus idiom)', () => {
@@ -209,8 +209,10 @@ s := close > 0 ? "1000" : "1100"
   it('CONTROL: a function parameter named like a constant `var` is the call value in a branch test', () => {
     // `s` the constant is "x"; `f(s)` decides a history branch on its OWN `s`, which the call passes
     // as a value only known while the bar runs: the branch is not fixed, so the refusal stands
+    // ⭐ A4 (feat/a4-param-branch-checked) — declared `simple`, so a per-bar value stays refused (an undeclared
+    // parameter now compiles a checked copy instead); read as the constant "x" it would be fixed and build
     const r = refuse5(`${HEAD5}var string s = "x"
-f(s) =>
+f(simple string s) =>
     s ? ta.sma(close, 3) : ta.sma(open, 3)
 `
       + `plot(f(close > 0 ? "a" : "b"))
@@ -326,7 +328,7 @@ describe('what stays refused BY NAME', () => {
     expect(r.guard).toBe('pine:function')
     expect(r.message).toMatch(/Asia\/Tokyo/)
   })
-  // ⚰️ (bt, NUMBER PENDING) was `HEAD4`: a v4 session with no day list is Monday to Friday (the v4
+  // ⚰️ (bt, Engine 66 (#1473)) was `HEAD4`: a v4 session with no day list is Monday to Friday (the v4
   // reference and the v4->v5 migration guide, `pine.js::sessionClockOf`); v1-v3 keep the refusal.
   it('a session with no day list before Pine v4 (no reference text states the default days)', () => {
     // (v3 has no `var`: the state is a plain mutable name)

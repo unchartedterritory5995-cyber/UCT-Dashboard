@@ -77,6 +77,20 @@ BIG_ALLOWLIST = {
     "tests/fixtures/vendor/harness/elliot-wave-detector-pro-spy-60-2026-11-14.json",
     "tests/fixtures/vendor/harness/renderingnature-smc-reversal-engine-v71-spy-60-2026-11-14.json",
     "tests/fixtures/vendor/harness/zigzag-ma-pattern-recognition-spy-60-2026-11-14.json",
+    # 2026-11-20: four Q-BI capture fixtures from PR #2146 (our own vw-bi-* probes, nothing licence-held) crossed
+    # 5 MB and turned the master deploy gate red for every deploy (gate run 44696646515). Same reason as the
+    # 2026-11-15 block: the in-repo capture corpus the Pine parity rails read (the time("D") anchor fix rails TD1b/
+    # TD1d bar for bar; the pivot_point_levels rows grade ta.pivot_point_levels). The capture program may shrink
+    # or split them and delete these lines.
+    "tests/fixtures/vendor/harness/vw-bi-pivot-point-levels-a-spy-1d-2026-11-19.json",
+    "tests/fixtures/vendor/harness/vw-bi-pivot-point-levels-b-spy-1d-2026-11-19.json",
+    "tests/fixtures/vendor/harness/vw-bi-time-d-extended-btcusd-60-2026-11-19.json",
+    "tests/fixtures/vendor/harness/vw-bi-time-d-extended-spy-60-2026-11-19.json",
+    # 2026-11-21: one HTF-forming capture fixture (our own vw-request-htf-forming probe, nothing licence-held) is
+    # 6.15 MB: AMEX:SPY 5-minute, in session, the intraday history TradingView loads from the listing window. Same
+    # corpus and same reason as the blocks above; a capture cannot be trimmed after the fact (its receipt binds
+    # every bar). The capture program may shrink or split it and delete this line.
+    "tests/fixtures/vendor/harness/vw-request-htf-forming-spy-5-2026-11-19-insession.json",
     # 2026-11-18: one e73 capture fixture (10.2 MB, filed by 9ab9a7b457 "evidence: tonight's captures filed at e73",
     # read by vendorHarness.b1Paints.test.js and the evidence ledger) turned the master deploy gate red at 04:15 UTC
     # and held every deploy for 90 minutes. Same corpus and same reason as the S9 lines above; listed to unblock the
@@ -113,6 +127,12 @@ BIG_ALLOWLIST = {
     # cannot be trimmed after the fact. Allow-listed by another session to unblock deploys, not by the capture
     # programme: if that programme splits or shrinks this capture, delete this line.
     "tests/fixtures/vendor/harness/heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17.json",
+    # 2026-11-18, #1858 (Pine's tolerant compare, engine 78 (#1858)): the Q-FCMP2 row 9 probe capture,
+    # vw-fcmp-builtins-v2 on AMEX:SPY 1D from the 1993 listing (8,509 bars x 63 plots), is 6.9 MB. Promoted from
+    # packet 6f854939fa72 and read by the built-in rails (pineCompareBuiltins.test.js, test_pine_compare_builtins.py)
+    # and the vector provenance rail; it stays byte-identical to its promoted packet (a capture cannot be trimmed
+    # after the fact: its receipt binds every bar). Same corpus and same reason as the S9 / S12 / BTCUSD lines above.
+    "tests/fixtures/vendor/harness/vw-fcmp-builtins-v2-spy-1d-2026-11-18.json",
 }
 # A `.env*` may be tracked only when it carries no value — a template.
 ENV_ALLOWLIST = {".env.example"}

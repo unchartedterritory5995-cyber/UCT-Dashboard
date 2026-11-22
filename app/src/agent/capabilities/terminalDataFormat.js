@@ -5,6 +5,7 @@
 // NO-DATA ANSWERS use fixed words keyed on the envelope's status only: an envelope's notes are never echoed (they can
 // carry numbers such as a budget count; agent-qa F-20).
 import * as agentClient from '../agentClient'
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 
 /** Is this kind switched on for the Agent on this server (UCT_AGENT_DATA_KINDS, fail closed)? */
 export function kindServed(kind) {
@@ -31,8 +32,10 @@ export const money = (v) => (finite(v) ? `$${v.toLocaleString('en-US', { minimum
 export const pct = (v) => (finite(v) ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)}%` : null)
 /** "1,234,567", or null. */
 export const whole = (v) => (finite(v) ? Math.round(v).toLocaleString('en-US') : null)
-/** A dollar amount in millions: "$25.0M", or null. */
-export const millions = (v) => (finite(v) ? `$${(v / 1e6).toFixed(1)}M` : null)
+/** The fixed millions unit at one decimal: "$25.0M", "$0.4M", "$1500.0M" (no K or B tier, on purpose). */
+const MILLIONS_TIER = Object.freeze([Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 })])
+/** A dollar amount in millions: "$25.0M", or null. The suffix is decided by the shared formatter (TERM-066). */
+export const millions = (v) => (finite(v) ? formatCompact(v, { tiers: MILLIONS_TIER, prefix: '$', fixedUnit: true, promote: false, absent: null }) : null)
 export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 export const andList = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
 

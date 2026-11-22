@@ -4,8 +4,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import FULL from './market_calendar.json'
-import { compactCalendar, expandCalendar } from './calendarCompact'
+import { BUNDLE_DROPS, bundleCalendar, compactCalendar, expandCalendar } from './calendarCompact'
 
 const withoutComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\])\/\/.*$/gm, '$1')
 
@@ -46,7 +47,33 @@ describe('market_calendar.json in the bundle — interned, and rebuilt exactly',
   it('the vite build applies it to this file, in code rather than prose', () => {
     const cfg = withoutComments(fs.readFileSync(path.resolve(__dirname, '../../../vite.config.js'), 'utf8'))
     expect(cfg).toMatch(/\/lib\/marketClock\/market_calendar\.json/)
-    expect(cfg).toMatch(/compactCalendar\(JSON\.parse\(code\)\)/)
+    expect(cfg).toMatch(/bundleCalendar\(JSON\.parse\(code\)\)/)
+  })
+
+  it('the bundle leaves out the source note and nothing else', () => {
+    expect(BUNDLE_DROPS).toEqual(['source'])
+    // non-vacuity: the note is really there, and really long
+    expect(FULL.source.length).toBeGreaterThan(500)
+    const { doc, savedBytes } = bundleCalendar(FULL)
+    expect(doc.source).toBeUndefined()
+    const { source: _note, ...rest } = FULL
+    expect(expandCalendar(doc)).toEqual(rest)
+    expect(savedBytes).toBeGreaterThan(compactCalendar(FULL).savedBytes + 500)
+    // the caller's document is not changed
+    expect(typeof FULL.source).toBe('string')
+  })
+
+  it('⛔ nothing the browser runs reads a field the bundle leaves out', () => {
+    // `sessionCalendar.js` is the file's only importer (interpret.test.js pins that) and keeps
+    // the document to itself. If it ever reads `source`, or hands the whole document out, the
+    // field has to come back into the bundle first.
+    const code = withoutComments(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'sessionCalendar.js'), 'utf8'))
+    expect(code).toMatch(/const DATA = expandCalendar\(RAW\)/)
+    for (const field of BUNDLE_DROPS) {
+      expect(code, `sessionCalendar.js reads ${field}`).not.toMatch(new RegExp(`\\b(DATA|RAW)\\s*(\\.|\\[\\s*['"\`])\\s*${field}\\b`))
+    }
+    expect(code, 'the document left the module').not.toMatch(/export\s+(default\s+)?(\{[^}]*\b(DATA|RAW)\b|(const|let|var)\s+\w+\s*=\s*(DATA|RAW)\b(?!\s*[.[]))/)
+    expect(code.replace('expandCalendar(RAW)', ''), 'the document was spread or passed whole').not.toMatch(/\.\.\.(DATA|RAW)\b|[(,]\s*(DATA|RAW)\s*[,)]/)
   })
 
   it('⭐⭐ the real session calendar answers the SAME from the compact document', async () => {
@@ -63,7 +90,7 @@ describe('market_calendar.json in the bundle — interned, and rebuilt exactly',
     expect(want.names.every(Boolean)).toBe(true)
 
     vi.resetModules()
-    vi.doMock('./market_calendar.json', () => ({ default: compactCalendar(FULL).doc }))
+    vi.doMock('./market_calendar.json', () => ({ default: bundleCalendar(FULL).doc }))
     const got = snapshot(await import('./sessionCalendar.js'))
     vi.doUnmock('./market_calendar.json')
     expect(got).toEqual(want)

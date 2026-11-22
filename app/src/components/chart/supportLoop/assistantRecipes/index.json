@@ -1,0 +1,290 @@
+{
+ "_": "THE RECIPES of the assistant's Pine reference: one whole script per request family a formula cannot hold, with the words a member uses for it (`asks`). Each is run through the member's own paste path when the reference is generated (assistantPineReference.test.js); one that does not run fully is never shown to the assistant. The script turn is handed only the recipes whose `asks` its request names (api/services/pine_authoring.py). `chart` is the kind of chart a recipe says something on: the generator computes it on bars of that kind.",
+ "recipes": [
+  {
+   "id": "zigzag-percent",
+   "title": "Zigzag by percent",
+   "asks": [
+    "zigzag",
+    "zig zag",
+    "connect swings",
+    "swing lines",
+    "swings of at least"
+   ],
+   "shows": "a state machine kept in `var`: the running extreme, its bar, and the direction; a leg is confirmed when price reverses by the input percent, and ONE line per confirmed leg is drawn from the last confirmed swing to the new one",
+   "chart": "daily",
+   "file": "zigzag-percent.pine"
+  },
+  {
+   "id": "supply-demand-zones",
+   "title": "Supply and demand zones",
+   "asks": [
+    "supply and demand",
+    "supply zone",
+    "demand zone",
+    "zones",
+    "order block",
+    "support and resistance zones"
+   ],
+   "shows": "a zone is a box from a confirmed pivot (known `right` bars late) one ATR deep, extended to the right; boxes are kept in arrays so a zone price closes through is deleted, and the oldest is deleted past the input count",
+   "chart": "daily",
+   "file": "supply-demand-zones.pine"
+  },
+  {
+   "id": "volume-profile",
+   "title": "Volume profile of the last N bars",
+   "asks": [
+    "volume profile",
+    "volume by price",
+    "volume at price",
+    "point of control",
+    "poc"
+   ],
+   "shows": "the range of the last N bars is cut into rows, each bar's volume is added to the row its close falls in, and each row is a box whose length is its share of the largest row; the point of control is PLOTTED so the script has an output besides its drawings. ⛔ THE WORK IS DONE UNDER `if barstate.islast` ON PURPOSE: it loops over past bars, which is too slow to repeat on every bar. A script that reads where the chart ends is drawn only on a FINISHED bar, so on a live chart this one appears when the newest bar closes",
+   "chart": "daily",
+   "finishedBarsOnly": true,
+   "file": "volume-profile.pine"
+  },
+  {
+   "id": "vwap-deviation-bands",
+   "title": "Session VWAP with its own deviation bands",
+   "asks": [
+    "vwap bands",
+    "vwap with standard deviation",
+    "vwap deviation",
+    "vwap with bands",
+    "standard deviation bands"
+   ],
+   "shows": "VWAP's own bands, worked by hand because `ta.vwap`'s three-value form is not served: three running sums restart on each new day (`var`, reset when the day changes), VWAP is the volume-weighted mean of hlc3 and the band is the volume-weighted standard deviation of hlc3 around it; no `fill` (a script that carries values in `var` is run bar by bar, and that run does not draw a fill between plots yet)",
+   "chart": "intraday",
+   "file": "vwap-deviation-bands.pine"
+  },
+  {
+   "id": "rsi-divergence",
+   "title": "Divergence between price and RSI, pivot to pivot",
+   "asks": [
+    "divergence",
+    "bullish divergence",
+    "bearish divergence",
+    "rsi divergence",
+    "hidden divergence"
+   ],
+   "shows": "a divergence is read from one confirmed pivot of the oscillator to the one before it (`ta.valuewhen(found, x, 1)`): price makes a lower low while the oscillator makes a higher low; the pivot is known `right` bars late, so the mark is offset back to the pivot's own bar",
+   "chart": "daily",
+   "file": "rsi-divergence.pine"
+  },
+  {
+   "id": "market-structure",
+   "title": "Higher highs and higher lows, labelled",
+   "asks": [
+    "higher highs",
+    "higher lows",
+    "lower highs",
+    "lower lows",
+    "market structure",
+    "hh hl",
+    "swing structure"
+   ],
+   "shows": "each confirmed pivot is compared with the pivot of the same kind before it (kept in `var`) and labelled HH, LH, HL or LL at the pivot's own bar; the labels are kept in an ARRAY and the oldest deleted past the input count, so the run owns them and the chart never fills (at most two are added on a bar, so two `if` trim it); the trend state is plotted as 1, -1 or 0 so it can be screened and alerted on, and so is the size of the label list, a value taken from the list the drawings are in",
+   "chart": "daily",
+   "file": "market-structure.pine"
+  },
+  {
+   "id": "gap-zones",
+   "title": "Unfilled gaps as zones",
+   "asks": [
+    "gap zones",
+    "unfilled gaps",
+    "open gaps",
+    "gap fill",
+    "gaps that have not filled"
+   ],
+   "shows": "a gap is a bar whose low is above the high before it (or the reverse) by the input percent; its box is extended right and deleted on the bar that trades back through the far side of it; the number of gaps still open is plotted, a value taken from the lists the boxes are in",
+   "chart": "daily",
+   "file": "gap-zones.pine"
+  },
+  {
+   "id": "regression-channel",
+   "title": "Linear regression channel with its own deviation",
+   "asks": [
+    "regression channel",
+    "linear regression channel",
+    "linreg channel",
+    "regression bands"
+   ],
+   "shows": "the channel's bands are the deviation of price AROUND THE LINE (the root-mean-square residual over the window, by a loop), never a deviation of the close; `ta.linreg(src, n, 0)` minus `ta.linreg(src, n, 1)` is the line's slope per bar; no `fill` (a script with a loop is run bar by bar, and that run does not draw a fill between plots yet)",
+   "chart": "daily",
+   "file": "regression-channel.pine"
+  },
+  {
+   "id": "schaff-trend-cycle",
+   "title": "Schaff Trend Cycle, two stages",
+   "asks": [
+    "schaff",
+    "schaff trend cycle",
+    "stc"
+   ],
+   "shows": "two stochastic stages, each smoothed with a value CARRIED from the bar before (`var`, updated with `:=`): the first stage is where the MACD sits in its own range, the second where the smoothed first stage sits in its own; a flat range keeps the value before",
+   "chart": "daily",
+   "file": "schaff-trend-cycle.pine"
+  },
+  {
+   "id": "weekday-returns-table",
+   "title": "Average return by day of the week",
+   "asks": [
+    "day of the week",
+    "weekday",
+    "best day",
+    "seasonality",
+    "average return by day"
+   ],
+   "shows": "statistics are worked over a FIXED window of the last N bars, by a loop: a running total kept since the first bar depends on where the chart's history starts, and this engine does not draw that on a chart that does not reach the listing; the best day's average is PLOTTED so the script has an output besides the table. ⛔ THE WORK IS DONE UNDER `if barstate.islast` ON PURPOSE: it loops over past bars, which is too slow to repeat on every bar. A script that reads where the chart ends is drawn only on a FINISHED bar, so on a live chart this one appears when the newest bar closes",
+   "chart": "daily",
+   "finishedBarsOnly": true,
+   "file": "weekday-returns-table.pine"
+  },
+  {
+   "id": "prior-day-levels",
+   "title": "Prior day's high, low and close as lines",
+   "asks": [
+    "prior day high",
+    "previous day high",
+    "yesterday's high",
+    "prior day levels",
+    "pdh",
+    "pdl",
+    "previous day low"
+   ],
+   "shows": "the prior day's values come from `request.security(syminfo.tickerid, \"D\", high[1])` and are PLOTTED as stepped lines (each needs a title); on a daily chart they are simply the bar before",
+   "chart": "daily",
+   "file": "prior-day-levels.pine"
+  },
+  {
+   "id": "anchored-vwap-date",
+   "title": "VWAP anchored to a date the member picks",
+   "asks": [
+    "anchored vwap",
+    "avwap",
+    "vwap from",
+    "vwap since",
+    "anchor a vwap"
+   ],
+   "shows": "the anchor date is three whole-number inputs compared with the bar's own `year`, `month` and `dayofmonth` (an `input.time` default is not held by this engine, so the date is not one setting); two running sums start at the first bar on or after that date, and nothing is drawn before it",
+   "chart": "daily",
+   "file": "anchored-vwap-date.pine"
+  },
+  {
+   "id": "opening-range",
+   "title": "Opening range of the first minutes",
+   "asks": [
+    "opening range",
+    "orb",
+    "first 30 minutes",
+    "first hour high",
+    "opening range breakout"
+   ],
+   "shows": "the range is built while the bar is inside the opening minutes of the day (minutes since the day's first bar, kept in `var`) and held for the rest of the day; it is for intraday charts and says nothing on a daily one",
+   "chart": "intraday",
+   "file": "opening-range.pine"
+  },
+  {
+   "id": "fibonacci-swings",
+   "title": "Fibonacci retracement between the last two swings",
+   "asks": [
+    "fibonacci",
+    "fib retracement",
+    "fib levels",
+    "retracement levels",
+    "fibonacci levels"
+   ],
+   "shows": "the last confirmed pivot high and pivot low are kept in `var` with their bars; each level's PRICE is worked out on every bar into an array; the lines and labels are made ONCE (kept in arrays) and MOVED on every bar with their setters, so nothing waits for the last bar and nothing is deleted and remade; and the 61.8% level is plotted so it can be alerted on",
+   "chart": "daily",
+   "file": "fibonacci-swings.pine"
+  },
+  {
+   "id": "auto-trendlines",
+   "title": "Trendlines through the last two swing highs and lows",
+   "asks": [
+    "trendline",
+    "trend line",
+    "trendlines",
+    "draw trendlines",
+    "automatic trendlines",
+    "trend channel"
+   ],
+   "shows": "the last two confirmed pivots of each kind are kept in `var`; each side's line is kept in an ARRAY, deleted and made again when a new pivot arrives, and extended to the right; where each line stands on the current bar is plotted, so a break of it can be alerted on",
+   "chart": "daily",
+   "file": "auto-trendlines.pine"
+  },
+  {
+   "id": "heikin-ashi-candles",
+   "title": "Heikin Ashi candles, in their own pane",
+   "asks": [
+    "heikin ashi",
+    "heiken ashi",
+    "heikinashi",
+    "ha candles",
+    "smoothed candles"
+   ],
+   "shows": "each candle is made from the bar and the candle before it: its close is the average of the bar's four prices, its open is halfway between the open and close of the candle before (the first one uses the bar's own open and close), and its high and low reach the bar's high and low. The candles are drawn in their OWN pane under the chart (a script cannot replace the chart's candles). All three colours of a candle are written (body, wick and border): a candle given only one is drawn half in the chart's default colours",
+   "chart": "daily",
+   "file": "heikin-ashi-candles.pine"
+  },
+  {
+   "id": "average-cloud",
+   "title": "A shaded cloud between two exponential averages",
+   "asks": [
+    "ema cloud",
+    "ema clouds",
+    "cloud between two emas",
+    "shade between two moving averages",
+    "moving average cloud",
+    "shade the area between"
+   ],
+   "shows": "two plots kept in variables (`a = plot(...)`), both TITLED, and one `fill(a, b, ...)` between them whose colour says which average is on top; a fill between plots needs a script with no `var` in it",
+   "chart": "daily",
+   "file": "average-cloud.pine"
+  },
+  {
+   "id": "time-of-day-volume",
+   "title": "Volume so far today against the usual for this time of day",
+   "asks": [
+    "time of day volume",
+    "volume at the same time of day",
+    "same time of day",
+    "volume so far today",
+    "intraday relative volume",
+    "cumulative volume versus its average",
+    "relative volume at time"
+   ],
+   "shows": "today's running volume divided by the average, over the last N FINISHED days, of the running volume at the same bar of the day. Each finished day is one row of a flat array (`array.push` a fixed number of values per day, a short day padded with its own total; the oldest row trimmed with `array.shift` in a counted loop), today's row is rebuilt from `array.clear` at each day change, and nothing is drawn until N whole days are stored. The bars before the first day change may be part of a day and are never stored. An intraday chart only",
+   "chart": "intraday",
+   "file": "time-of-day-volume.pine"
+  },
+  {
+   "id": "distribution-days",
+   "title": "A count of distribution days in which each day stops counting after a rally",
+   "asks": [
+    "distribution day",
+    "distribution days",
+    "distribution day count"
+   ],
+   "shows": "a count over a window in which each counted bar is judged by the bars AFTER it: a loop over the window (`for i = 0 to win - 1`, reading the condition `i` bars back with `isDist[i]`) and, inside it, a loop over the later bars (`for j = 0 to i - 1`) that drops the day once a later close has risen far enough above its close. No `var` is needed (each bar counts afresh). ONE plot, the count, in its own pane",
+   "chart": "daily",
+   "file": "distribution-days.pine"
+  },
+  {
+   "id": "follow-through-day",
+   "title": "A rally attempt and its follow-through day",
+   "asks": [
+    "follow-through day",
+    "follow-through days",
+    "rally attempt",
+    "day 1 of a rally"
+   ],
+   "shows": "a state kept across bars in `var` variables (is an attempt live, which day of it this is, the low it started on), with the order of the two steps written out: FIRST the ending test and the day count of a live attempt, THEN the start test, so a new attempt may start on the bar the old one ended. The signal is one condition over that state, drawn as ONE `plotshape` under the bar and nothing else",
+   "chart": "daily",
+   "file": "follow-through-day.pine"
+  }
+ ]
+}

@@ -206,9 +206,16 @@ describe('R2 / R4 — a daily read below the weekly chart is the run\'s: the hel
   it('R2: each week reads the previous-session bar at its LAST session (Wednesday\'s in a Good Friday week)', () => {
     const cols = run(SRC, ['x', 'xo', 's', 'sna'])
     WEEKLY.forEach((b, i) => {
-      expect(same(cols.x[i], weekLastPreviousSession(b.t)), `${b.t}: ${cols.x[i]}`).toBe(true)
-      expect(same(cols.xo[i], weekLastPreviousSession(b.t, 'o')), b.t).toBe(true)
+      // ⭐ RS RATING L13 — THE FORMING WEEK reads the NEWEST SPX row (today's close), which the previous-session
+      // read places on its NEXT session (2026-11-18, inside this week): TradingView's X04 on the 21:18Z weekly
+      // capture (7340.53, the 2026-11-17 close) and on the pre-market monthly one (`otherSymbols.js::
+      // belowChartSeriesOf`). Every settled week as before.
+      const forming = i === WEEKLY.length - 1
+      const want = (field) => (forming ? spxByDay.get(TODAY)[field] : weekLastPreviousSession(b.t, field))
+      expect(same(cols.x[i], want('c')), `${b.t}: ${cols.x[i]}`).toBe(true)
+      expect(same(cols.xo[i], want('o')), b.t).toBe(true)
     })
+    expect(cols.x[WEEKLY.length - 1]).not.toBe(weekLastPreviousSession(WEEKLY[WEEKLY.length - 1].t))   // it moved
     const gf = WEEKLY.findIndex((b) => b.t === '2026-04-03')
     expect(cols.x[gf]).toBe(spxByDay.get('2026-04-01').c)
     const full = WEEKLY.findIndex((b) => b.t === '2026-11-13')
@@ -296,7 +303,11 @@ describe('the fetch: on a weekly chart SP:SPX and the seed are fetched at D, dee
     expect(symbolsNeeded(insts, () => def)).toEqual([SEED_KEY, 'SPX'])
     expect(heldFetchOf('SPX', 'W')).toEqual({ symbol: 'SPX', tf: 'D', key: 'SPX@D' })
     expect(heldFetchOf('SPX', 'D')).toBe(null)
-    expect(heldFetchOf('SPX', 'M')).toBe(null)
+    // ⭐ L13 — a monthly chart holds SPX at D too (`periods.M`); ⭐ L12 — an intraday chart holds it at its own
+    // timeframe under the plain key (`rsIntradayWitness.test.js`); an unwitnessed timeframe holds nothing
+    expect(heldFetchOf('SPX', 'M')).toEqual({ symbol: 'SPX', tf: 'D', key: 'SPX@D' })
+    expect(heldFetchOf('SPX', '60')).toEqual({ symbol: 'SPX', tf: '60', key: 'SPX' })
+    expect(heldFetchOf('SPX', '240')).toBe(null)
   })
 
   it('the chart asks /api/bars at D, seven calendar days a week deep plus two weeks, capped at the index door\'s 12,500', async () => {
@@ -326,7 +337,8 @@ describe('the fetch: on a weekly chart SP:SPX and the seed are fetched at D, dee
 describe('a DAILY chart is untouched', () => {
   it('the rows carry a weekly block and nothing else moved: on D the series is the daily read, under the plain key', () => {
     const rows = requestWitnessRows()
-    expect(rows['SP:SPX'].timeframes).toEqual(['D', 'W'])
+    // ⭐ L13 adds M, ⭐ L12 the intraday timeframes (each its own block)
+    expect(rows['SP:SPX'].timeframes).toEqual(['D', 'W', 'M', '1', '5', '15', '30', '60'])
     expect(rows['SP:SPX'].alignment).toBe('previous-session')
     const def = { compute: { kind: 'ast', ast: { type: 'sym', value: 'SPX', args: [{ type: 'series', name: 'close' }] } },
       meta: { recurrenceOrigin: 'pine', otherSymbols: [{ ticker: 'SPX', spellings: ['SP'] }] } }

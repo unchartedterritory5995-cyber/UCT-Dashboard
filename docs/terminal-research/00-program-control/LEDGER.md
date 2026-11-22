@@ -4943,3 +4943,78 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
 - **Flow-worker.** Reaches `perplexity_search` through its import graph but never passes the new keyword, so it runs
   byte-identical behaviour on the old code (pinned by `test_RESEARCH_cost_rides_only_on_an_opted_in_call`).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal `ECON` economy dashboard + `GET /api/econ/latest` · `feat/terminal-eco` (PR #2376) · 2026-11-21
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: ADDITIVE, safe; NO marker bump** |
+| stranded file | `api/services/econ/serving.py` |
+
+- **Additive.** `latest()` is new; its only caller is the new `GET /api/econ/latest` route in `api/routers/econ.py`
+  (web). `_series_body()` is new.
+- **Refactor.** `series()` now builds its body through `_series_body()`: the same two reads (`_from_db` /
+  `_from_artifacts`) under the same cache key, moved, with no behaviour change (the econ serving and router suites
+  unchanged and green). The 5 deleted `api/` lines are that move.
+- **Flow-worker.** Reaches `econ.serving` through the market-intel series adapters' lazy imports and never calls
+  `latest()`; the older file it keeps running lacks only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal `OWN` Funds (13F) block: every 13F holder field on the ownership answer · `feat/terminal-holders-13f` · 2026-11-21
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded file | `api/services/research/ownership.py` |
+
+- **Additive.** `_thirteen_f()` passes on more of the FMP holder row it already fetched (the filer's CIK, the
+  filing date, the quarter end, last quarter's shares / value / percent of shares and the change in that percent,
+  the position's weight in the filer's portfolio now / last quarter / the change, the quarter-end price), adds
+  `total_shares` / `total_shares_change` to the summary and `holders_limit` to the block. The holders read's page
+  (`_TF_MAX_HOLDERS`) is 50 rows, was 12: still ONE call per symbol per quarter, same endpoint. Existing keys are
+  unchanged; the only caller that draws the new ones is the OWN panel (`GET /api/research/ownership/{sym}`, web).
+- **Flow-worker.** Reaches `research.ownership` only through a static import chain (`flow_worker_main` ->
+  `auth_surface_check` -> `flow_proxy` -> `auth_service` -> `auth_db` -> `journal_two.db` -> `template_gallery` ->
+  `notebook_widgets` -> `coach_chat_tools` -> `voice_tool_impls` -> `institutional_holdings` -> `research.ownership`,
+  the last hop a function-level import) and serves neither the ownership route nor the Compass tools at its end;
+  the older file it keeps running lacks only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal `DVD MARKET`, `SEG`, `MNA`, `IDXC` + four `GET /api/research/*` routes · `feat/terminal-company-deals` · 2026-11-21
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: ADDITIVE, safe; NO marker bump** |
+| stranded files | `api/services/fmp_client.py`, `api/services/reference_corp_actions.py` |
+
+- **Additive.** `fmp_client.py` gains seven typed functions (`get_revenue_product_segmentation`,
+  `get_revenue_geographic_segmentation`, `get_mergers_acquisitions_latest`, `search_mergers_acquisitions`,
+  `get_historical_sp500_constituents`, `get_historical_nasdaq_constituents`, `get_historical_dowjones_constituents`);
+  `reference_corp_actions.py` gains `fetch_market_dividends_strict` and its page bound `_MARKET_READ_MAX_PAGES`. No
+  existing function, constant or import is changed; 0 deleted `api/` lines in either file.
+- **Callers.** Only the new web modules call them (`api/services/revenue_segments.py`, `mergers.py`, `index_changes.py`,
+  `dividends_market.py`, behind four new routers mounted in `api/main.py`); none is in flow-worker's import closure.
+- **Flow-worker.** Reaches `fmp_client` through `flow_exposure_history` -> `gex_service` -> `massive` ->
+  `catalyst.ticker_metadata`, and `reference_corp_actions` through `live_massive_router` -> `dividends_calendar`; it never
+  calls any of the new functions, so the older files it keeps running lack only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Screener fundamental trend filters (eight point-in-time columns from SEC filings) · `feat/screener-trend-filters` · 2026-11-21
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/screener/filters.py`, `api/services/screener/snapshot_builder.py`, `api/services/screener/snapshot_db.py` |
+
+- **Additive.** Eight new snapshot columns (`snapshot_db.COLUMNS`, ALTER-added on init), their eight bare filters in a new
+  `fundamental_trends` category and view (`filters.py`), and one more `_read_market_source` read in the nightly build
+  (`snapshot_builder.py`) of the side table the new evening job (`fund_trends.py`, web, registered in
+  `register_screener_jobs`) writes. Existing columns, filters and build steps are unchanged.
+- **Flow-worker.** Reaches the three files only through static import chains whose hops into the Screener are
+  function-level imports (`flow_worker_main` -> `flow_gap_autofill` -> `flow_admin_auth` -> `auth_service` -> `auth_db`
+  -> `journal_two.db` -> ... -> `rs_ranking` -> `screener.snapshot_builder`; `... -> notebook_widgets` ->
+  `screener.scan_store` -> `screener.snapshot_db`; `... -> coach_chat_tools` -> `rs_screens_service` -> the Screener
+  query and registry). It never builds the snapshot, never runs a Screener query and never registers the evening job;
+  the older files it keeps running lack only what it never invokes. `fund_trends.py` and `api/main.py` are not in its
+  closure.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.

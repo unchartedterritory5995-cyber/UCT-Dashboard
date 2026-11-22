@@ -50,14 +50,21 @@ export function holdsStrategyReport(capture) {
 export const threeOf = (v) => (v === 'MATCH' || v === 'DIVERGE' ? v : 'INCONCLUSIVE')
 
 /**
- * The capture as TradingView's strategy RAN it. A report capture whose value rows are exactly its bars but the
+ * The capture as TradingView's strategy RAN it. A STRATEGY capture whose value rows are exactly its bars but the
  * newest (`barsTradingViewRan`, the strategy grade's own rule: TradingView had not run a bar it had not
  * confirmed) is restricted to the bars before it, on BOTH sides: our side is handed those bars, and every grade
  * reads them. Any other capture is returned unchanged.
+ * ⭐ (coordinator ruling 2026-11-18, (b)(i)) EVERY strategy capture, not only one holding a Strategy Tester report:
+ * r1-strategy-draws-rddt-1d-2026-10-02 (no report) holds 636 bars and 635 value rows, its bar 635 closed three hours
+ * before the capture (`newestBarIsForming: false`), and it graded DIVERGE on four plots there (TradingView: no row,
+ * ours: a value). ⛔ The cut is keyed on the ROW BEING ABSENT, the newest bar only and only while the bar list holds
+ * it (`barsTradingViewRan` checks every other row time for time): a row of `na` is compared, and a row missing
+ * anywhere else is not cut. When TradingView confirms a closed daily bar for a strategy is an open question, the
+ * parity roadmap's wall U-CONFIRM; until a capture pins it the engine does not guess.
  * @returns {{view: object, unrun: (number|null)}}
  */
 export function strategyRanView(capture) {
-  if (!holdsStrategyReport(capture)) return { view: capture, unrun: null }
+  if (!isStrategyCapture(capture)) return { view: capture, unrun: null }
   const { unrun } = barsTradingViewRan(capture)
   if (unrun === null) return { view: capture, unrun: null }
   const rows = capture.bars.rows.slice(0, -1)

@@ -315,6 +315,144 @@ export function sarTrees(stepNode, maxNode, warmup = SAR_WARMUP) {
  * name → `{ min, max, describe, build(args) → tree | null }`. `args` are canonical
  * trees; `describe` is the formula-reference line for the vocabulary list.
  */
+// ─── ⭐⭐ FISHER TRANSFORM — Engine 79 (#1871) (studio, 2026-11-18) ────────────────
+//
+// TradingView's built-in, as a capture reads it (SPY daily from its listing, 8,509 bars, lengths
+// 9 and 20) and as Tulip Indicators publishes it, citing Ehlers:
+//
+//   x      = (hl2 − lowest(hl2, n)) / (highest(hl2, n) − lowest(hl2, n))
+//   value  = 0.66 · (x − 0.5) + 0.67 · value[1]         (a missing value[1] is read as 0)
+//   value  = 0.999 if value > 0.99, −0.999 if value < −0.99      ← a SNAP, not a clamp
+//   fisher = 0.5 · ln((1 + value) / (1 − value)) + 0.5 · fisher[1]
+//
+// Two running values replaced together (`accum2`): the first is `value`, the second the Fisher
+// line, which needs `value` as it is on THIS bar and so writes its update out again. The snap is a
+// choice on its own value, so nothing in its SHAPE proves that where it started stops mattering;
+// it is offered on evidence instead, like `supertrend` and `sar`. GRADED: this exact tree, through
+// this engine, with each value restarted FISHER_WARMUP bars back, equals TradingView's Fisher line
+// on every bar it has a value for at both lengths (8,209 of 8,209; largest relative difference 3
+// parts in 10 quadrillion). It has no value on a chart's first FISHER_WARMUP bars, where
+// TradingView's has one from the first full range. The capture is vendor data and is not in the
+// repository; `callExpansions.test.js` holds this builder to the fingerprint of the tree that was
+// graded, so the evidence cannot drift from the code.
+//
+// ⛔ NO PINE NAME. Pine has no `ta.fisher`; `pine.js::BUILTIN_CALL_TREE` gets no entry for it, and
+// the translator's output is unchanged by this function existing.
+//
+// The trigger line TradingView draws beside it is `fisher(n)[1]`: the same function, one bar back.
+export const FISHER_WARMUP = 300
+export const FISHER_NOTE = `This Fisher Transform starts each value ${FISHER_WARMUP} bars back on every bar, so the first ${FISHER_WARMUP} bars of a chart's history have no value. After that it is equal to TradingView's Fisher Transform on captured charts.`
+
+export function fisherTree(lengthNode, warmup = FISHER_WARMUP) {
+  const n = windowOf(lengthNode, 2)
+  if (!Number.isFinite(n)) return null
+  // every use is a fresh node: a stored tree shares nothing
+  const hl2 = () => cOp('/', [cOp('+', [cSeries('high'), cSeries('low')]), cNum(2)])
+  const lo = () => cCall('lowest', [hl2(), cNum(n)])
+  const hi = () => cCall('highest', [hl2(), cNum(n)])
+  const x = () => cOp('/', [cOp('-', [hl2(), lo()]), cOp('-', [hi(), lo()])])
+  const raw = () => cOp('+', [
+    cOp('*', [cNum(0.66), cOp('-', [x(), cNum(0.5)])]),
+    cOp('*', [cNum(0.67), cCall('nz', [cSeries('state1'), cNum(0)])]),
+  ])
+  const value = () => cOp('?:', [
+    cOp('>', [raw(), cNum(0.99)]), cNum(0.999),
+    cOp('?:', [cOp('<', [raw(), cNum(-0.99)]), cNum(-0.999), raw()]),
+  ])
+  const fisher = cOp('+', [
+    cOp('*', [cNum(0.5), cCall('ln', [cOp('/', [cOp('+', [cNum(1), value()]), cOp('-', [cNum(1), value()])])])]),
+    cOp('*', [cNum(0.5), cCall('nz', [cSeries('state2'), cNum(0)])]),
+  ])
+  return cCall('accum2', [cNum(2), cNum(warmup), cNum(0), cNum(0), value(), fisher])
+}
+
+// ─── ⭐⭐ LAGUERRE FILTER AND LAGUERRE RSI — Engine 79 (#1882) (studio, 2026-11-18) ─
+//
+// Ehlers' four-stage Laguerre filter ("Time Warp - Without Space Travel"), as published:
+//
+//   L0 = (1 − γ)·src + γ·L0[1]
+//   L1 = −γ·L0 + L0[1] + γ·L1[1]          (L2 and L3 the same, one stage on)
+//   Laguerre Filter = (L0 + 2·L1 + 2·L2 + L3) / 6
+//   Laguerre RSI    = CU / (CU + CD), where each neighbouring pair's gap goes to CU when the
+//                     earlier stage is at or above the later one and to CD otherwise
+//
+// Four running values replaced together (`accum4`); a stage that needs the one before it on THIS
+// bar writes that stage's update out again. Every update is a plain-number mix of the four, so by
+// its shape the starting values provably stop mattering (the linear shape of
+// `api/services/running_values.py`); these two are functions for a different reason: written out,
+// the RSI reads the four stages a dozen times and is thousands of nodes.
+//
+// ⭐ THE RSI IS WRITTEN AS 0.5 + 0.5·(L0 − L3) / (|L0−L1| + |L1−L2| + |L2−L3|). The three gaps
+// telescope: CU − CD is L0 − L3 and CU + CD is the sum of their sizes, so this is CU / (CU + CD),
+// the same number, read from eight stage references where the published wording needs thirty-six
+// (which would write out three times what a formula may hold). 0 to 1; no value where all four
+// stages are equal, as published.
+//
+// ⭐ THE RESTART WINDOW IS SIZED FROM GAMMA (`LAGUERRE_WARMUPS`). The larger gamma is, the longer
+// the filter remembers: it needs 27 bars to forget its start at 0.5, 82 at 0.8, 354 at 0.95, and
+// more than a chart formula may reach above about 0.97. Each tier's window leaves less than a
+// billionth of the start at its largest gamma; a gamma above LAGUERRE_MAX_GAMMA is declined.
+//
+// GRADED: TradingView running a probe written from the published equations (SPY daily from its
+// listing, 8,509 bars) against these trees through this engine: the filter at γ 0.8 over hl2 is
+// equal on every bar it has a value for to 1 part in a quadrillion, the RSI at γ 0.5 over the
+// close to 2 parts in 100 billion (what a 64-bar restart leaves). That witnesses this engine's
+// restart against a carried run of the SAME equations; TradingView has no Laguerre of its own, so
+// nothing here "matches TradingView's". `callExpansions.test.js` holds these builders to the
+// fingerprints of the trees that were graded.
+//
+// ⛔ NO PINE NAME, as for `fisher`.
+export const LAGUERRE_MAX_GAMMA = 0.95
+/** [the largest gamma of the tier, how many bars back each value is restarted]. */
+export const LAGUERRE_WARMUPS = Object.freeze([[0.5, 64], [0.7, 128], [0.8, 192], [0.9, 400], [0.95, 800]])
+/** A source may not itself be a running value: one never sits inside another. */
+const RUNNING_NAMES = new Set(['accum', 'accum2', 'accum3', 'accum4', 'supertrend', 'supertrendDirection', 'sar', 'sarDirection',
+  'fisher', 'laguerre', 'laguerreRsi'])
+function gammaOf(node) {
+  const g = node && node.type === 'num' ? Number(node.value) : NaN
+  return Number.isFinite(g) && g > 0 && g <= LAGUERRE_MAX_GAMMA ? g : NaN
+}
+export function laguerreWarmup(gamma) {
+  for (const [most, bars] of LAGUERRE_WARMUPS) if (gamma <= most) return bars
+  return NaN
+}
+function holdsRunningValue(node) {
+  const stack = [node]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'call' && RUNNING_NAMES.has(n.name)) return true
+    if (Array.isArray(n.args)) stack.push(...n.args)
+  }
+  return false
+}
+/** Stage `which` (1 to 4) of the Laguerre filter of `sourceNode`, or null. */
+export function laguerreStage(sourceNode, gammaNode, which) {
+  const g = gammaOf(gammaNode)
+  if (!Number.isFinite(g) || !sourceNode || typeof sourceNode !== 'object' || holdsRunningValue(sourceNode)) return null
+  const warmup = laguerreWarmup(g)
+  const st = (i) => cSeries(`state${i}`)
+  const l0 = () => cOp('+', [cOp('*', [cOp('-', [cNum(1), cNum(g)]), sourceNode]), cOp('*', [cNum(g), st(1)])])
+  const next = (now, was, own) => cOp('+', [cOp('-', [was, cOp('*', [cNum(g), now])]), cOp('*', [cNum(g), own])])
+  const l1 = () => next(l0(), st(1), st(2))
+  const l2 = () => next(l1(), st(2), st(3))
+  const l3 = () => next(l2(), st(3), st(4))
+  return cCall('accum4', [cNum(which), cNum(warmup), sourceNode, sourceNode, sourceNode, sourceNode, l0(), l1(), l2(), l3()])
+}
+function laguerreFilterTree(a) {
+  if (!laguerreStage(a[0], a[1], 1)) return null
+  const L = (k) => laguerreStage(a[0], a[1], k)
+  const total = cOp('+', [cOp('+', [cOp('+', [L(1), cOp('*', [cNum(2), L(2)])]), cOp('*', [cNum(2), L(3)])]), L(4)])
+  return cOp('/', [total, cNum(6)])
+}
+function laguerreRsiTree(a) {
+  if (!laguerreStage(a[0], a[1], 1)) return null
+  const L = (k) => laguerreStage(a[0], a[1], k)
+  const gap = (i) => cCall('abs', [cOp('-', [L(i), L(i + 1)])])
+  const gaps = cOp('+', [cOp('+', [gap(1), gap(2)]), gap(3)])
+  return cOp('+', [cNum(0.5), cOp('/', [cOp('*', [cNum(0.5), cOp('-', [L(1), L(4)])]), gaps])])
+}
+
 export const CALL_EXPANSIONS = Object.freeze({
   // ta.roc(src, n) = 100 * (src - src[n]) / src[n], grouped left (pine.js note).
   roc: {
@@ -336,6 +474,20 @@ export const CALL_EXPANSIONS = Object.freeze({
     },
   },
   // ta.vwma = sma(src·volume, n) / sma(volume, n) — TradingView's published closed form.
+  // ⭐ 2026-11-18 — the Detrended Price Oscillator, in TradingView's DEFAULT (not centred) form:
+  // the source minus its n-bar simple average AS IT STOOD floor(n / 2) + 1 bars ago. The bars-back
+  // count is DERIVED from the length, which is why this is a function: a library entry records
+  // where each setting's number sits and has no way to say "half of that one, plus one". An exact
+  // closed form over the table, as roc and mom are. (The textbook form reads the PRICE that many
+  // bars back against today's average and is drawn shifted into the past: another number.)
+  dpo: {
+    min: 2, max: 2, signature: 'dpo(source, length)', describe: 'Detrended Price Oscillator (TradingView\'s default form): source − its n-bar simple average as it stood floor(n ÷ 2) + 1 bars ago',
+    build: (a) => {
+      const n = windowOf(a[1], 1)
+      if (!Number.isFinite(n)) return null
+      return cOp('-', [a[0], { type: 'offset', value: Math.floor(n / 2) + 1, args: [cCall('sma', [a[0], cNum(n)])] }])
+    },
+  },
   vwma: {
     min: 2, max: 2, signature: 'vwma(source, length)', describe: 'volume-weighted moving average: sma(source × volume) ÷ sma(volume)',
     build: (a) => {
@@ -460,6 +612,21 @@ export const CALL_EXPANSIONS = Object.freeze({
     vendorNote: SAR_NOTE,
     build: (a) => { const t = sarTrees(a[0], a[1]); return t ? t.direction : null },
   },
+  // Fisher Transform — `fisherTree` above. Engine 79 (#1871).
+  fisher: {
+    min: 1, max: 1, signature: 'fisher(length)', describe: 'the Fisher Transform as TradingView computes it: where the bar\'s midpoint sits in its range over `length` bars, smoothed, stretched with a log and smoothed again. Its trigger line is `fisher(length)` one bar earlier',
+    vendorNote: FISHER_NOTE,
+    build: (a) => fisherTree(a[0]),
+  },
+  // Laguerre Filter and Laguerre RSI — `laguerreStage` above. Engine 79 (#1882).
+  laguerre: {
+    min: 2, max: 2, signature: 'laguerre(source, gamma)', describe: 'the Laguerre Filter (Ehlers): four smoothing stages of `source`, each keeping `gamma` of itself, averaged with weights 1, 2, 2, 1. A larger gamma is smoother and slower',
+    build: (a) => laguerreFilterTree(a),
+  },
+  laguerreRsi: {
+    min: 2, max: 2, signature: 'laguerreRsi(source, gamma)', describe: 'the Laguerre RSI (Ehlers), 0 to 1: of the gaps between the four Laguerre stages of `source`, the share where an earlier stage is above the later one',
+    build: (a) => laguerreRsiTree(a),
+  },
 })
 
 export const EXPANSION_NAMES = Object.freeze(Object.keys(CALL_EXPANSIONS))
@@ -485,7 +652,10 @@ export function expansionProblem(call) {
     return `${call.name} needs a step of at least ${SAR_MIN_STEP} and a maximum of at least ${SAR_MIN_MAX_STEP} (and no more than 1), both written as numbers, the maximum at least the step — ${spec.signature}. `
       + `Slower settings are not offered because a value computed from a bounded window of recent bars was measured to drift from the full-history SAR there; the chart's Parabolic SAR indicator runs from the first bar and takes any setting`
   }
-  return `${call.name} needs a whole-number length${call.name === 'linreg' || call.name === 'correlation' ? ' of at least 2' : ''} written as a number — ${spec.signature}`
+  if (call.name === 'laguerre' || call.name === 'laguerreRsi') {
+    return `${call.name} needs a gamma written as a number above 0 and at most ${LAGUERRE_MAX_GAMMA} (above that the filter does not settle within the bars a chart formula may reach), and a source that is not itself a running value — ${spec.signature}`
+  }
+  return `${call.name} needs a whole-number length${call.name === 'linreg' || call.name === 'correlation' || call.name === 'fisher' ? ' of at least 2' : ''} written as a number — ${spec.signature}`
 }
 
 /** The expansion of one call node of an expansion name, or null (`expansionProblem` says why). */
@@ -630,6 +800,10 @@ function candidates(t) {
   }
   if (isOp(t, '-', 2) && t.args[1] && t.args[1].type === 'offset') {
     out.push(['mom', [t.args[0], cNum(t.args[1].value)]])
+    // dpo: the same outline with an average read back (confirmed by rebuilding: the count must be
+    // the one that length derives, and the average must be of the same source)
+    const avg = t.args[1].args && t.args[1].args[0]
+    if (isCall(avg, 'sma') && avg.args.length === 2) out.push(['dpo', [t.args[0], avg.args[1]]])
   }
   if (isOp(t, '/', 2) && isCall(t.args[1], 'sma') && isCall(t.args[0], 'sma') && isOp(t.args[0].args[0], '*', 2)) {
     out.push(['vwma', [t.args[0].args[0].args[0], t.args[1].args[1]]])
@@ -688,6 +862,27 @@ function candidates(t) {
         out.push(['sarDirection', [stepNode, maxNode]])
       }
     }
+  }
+  // laguerre / laguerreRsi: built on `accum4` stages whose first update is `(1 − γ)·src + γ·state1`;
+  // the source is a seed and gamma is read off that update. Rebuilt and compared below.
+  const stageIn = (node) => findNode(node, (n) => isCall(n, 'accum4') && n.args.length === 10)
+  const gammaIn = (stage) => {
+    const l0 = stage && stage.args[6]
+    return isOp(l0, '+', 2) && isOp(l0.args[1], '*', 2) ? l0.args[1].args[0] : null
+  }
+  if (isOp(t, '/', 2) && numOf(t.args[1]) === 6) {
+    const stage = stageIn(t.args[0])
+    if (stage && gammaIn(stage)) out.push(['laguerre', [stage.args[2], gammaIn(stage)]])
+  }
+  if (isOp(t, '+', 2) && numOf(t.args[0]) === 0.5 && isOp(t.args[1], '/', 2)) {
+    const stage = stageIn(t.args[1])
+    if (stage && gammaIn(stage)) out.push(['laguerreRsi', [stage.args[2], gammaIn(stage)]])
+  }
+  // fisher: an `accum2` whose first update ranges something with `lowest(…, n)`; the length is
+  // read off that. Rebuilt and compared below, so a guess here can only miss, never misname.
+  if (isCall(t, 'accum2') && t.args.length === 6) {
+    const low = findNode(t.args[4], (n) => isCall(n, 'lowest') && n.args.length === 2)
+    if (low) out.push(['fisher', [low.args[1]]])
   }
   return out
 }

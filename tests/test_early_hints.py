@@ -35,6 +35,7 @@ def test_the_page_hints_its_entry_vendors_and_css_with_crossorigin(dist):
         "</assets/index-DDD.css>; rel=preload; as=style; crossorigin")
     assert "X-EEE" not in link  # lazy pages are never hinted: that would be first-open bytes
     assert resp.headers["cache-control"] == "no-cache, no-store, must-revalidate"
+    assert resp.headers["document-policy"] == "js-profiling"   # live-site profiling (2026-11-19)
 
 
 def test_no_manifest_means_no_header_and_the_page_still_serves(dist, tmp_path):

@@ -49,7 +49,8 @@
     "app/src/pages/terminal/panels/BreakoutPanel.jsx",
     "app/src/pages/terminal/panels/LongRunPanel.jsx",
     "app/src/pages/terminal/panels/MoversPanel.jsx",
-    "app/src/pages/terminal/panels/RsScreensPanel.jsx"
+    "app/src/pages/terminal/panels/RsScreensPanel.jsx",
+    "app/src/pages/terminal/panels/UnusualVolumePanel.jsx"
   ],
   "coverage_line_exempt": {
     "app/src/components/screener/MethodologyPanel.jsx": "not-a-result-set: renders the screener's methodology prose from /api/screener/methodology; nothing is evaluated, so there is nothing to count",

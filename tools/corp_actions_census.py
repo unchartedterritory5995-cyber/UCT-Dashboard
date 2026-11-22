@@ -53,6 +53,7 @@ import ast
 import json
 import os
 import re
+import sys
 from dataclasses import asdict, dataclass
 from typing import Iterable
 
@@ -115,10 +116,10 @@ REGISTER: dict[tuple, tuple] = {
     # ── PROVIDER_READ ────────────────────────────────────────────────────────
     ("api/services/bars_sanitize.py", PROVIDER_READ): (
         OUTSTANDING,
-        "FMP /stable/splits, read to decide whether a stored series is "
-        "unadjusted. CP4's dual-compute target; it is also an INERT STRAND "
-        "(flow-worker RUNS this file and does not WATCH it), so CP4 must "
-        "classify live-or-incidental before it merges."),
+        "FMP /stable/splits, read in the background metadata warm to decide "
+        "whether a stored series is unadjusted. CP4's dual-compute against "
+        "reference_corp_actions was REMOVED 2026-11-20: that ledger has no "
+        "writer in production, so the comparison only ever read FMP_ONLY."),
     ("api/services/fmp_response_cache.py", PROVIDER_READ): (
         OUTSIDE,
         "a transport cache, not a reader: it names /stable/splits only to give "
@@ -130,8 +131,10 @@ REGISTER: dict[tuple, tuple] = {
     ("api/services/reference_corp_actions.py", PROVIDER_READ): (
         MIGRATED,
         "D5 CP3 — the one confirmed splits source. Massive /v3/reference/"
-        "splits, its own pagination, writes confirmed_splits rows. Nothing "
-        "reads the ledger yet (CP4/CP7 are the readers). TERM-036 "
+        "splits, its own pagination. Its ledger writer (refresh_confirmed_"
+        "splits) has NO CALLER, so confirmed_splits is EMPTY in production, "
+        "and its one reader (CP4's dual-compute) was removed 2026-11-20. "
+        "MIGRATED refers to the reads below, which are live. TERM-036 "
         "(2026-09-27) added per-ticker /v3/reference/splits and "
         "/v3/reference/dividends reads here — no table — which "
         "dividends_calendar.py and earnings_estimates.py now call instead of "
@@ -152,6 +155,18 @@ REGISTER: dict[tuple, tuple] = {
         "lives in a DIFFERENT REPOSITORY, so reconciling it is a two-repo "
         "change; product-architecture.md already calls it its own project. D5 "
         "makes the divergence nameable and does not get to resolve it."),
+
+    ("api/services/breadth_nhnl_intraday.py", PROVIDER_READ): (
+        OUTSTANDING,
+        "Massive /v3/reference/splits by execution date, its own pagination and "
+        "raise-on-failure (d00b5fcbbd): restates the NH/NL and 20/150-SMA rings "
+        "across splits. A second Massive split read beside reference_corp_"
+        "actions, not D5's source."),
+    ("api/services/marketcap/acquire.py", PROVIDER_READ): (
+        OUTSTANDING,
+        "Massive /v3/reference/splits per ticker, by URL (fc2d8f8848): the "
+        "share-count events behind Market Cap PIT. A third Massive split read, "
+        "not D5's source."),
 
     # ⚰️ TERM-036 (2026-09-27) RETIRED TWO OUTSTANDING ROWS HERE:
     # `api/services/dividends_calendar.py` (the Calendar's forward
@@ -204,6 +219,29 @@ REGISTER: dict[tuple, tuple] = {
         "the RS evidence job's split guard: unadjusted_splits() finds the "
         "boundaries in a ticker's held bars so a forward window that crosses one "
         "is left out of the statistics. It never rescales a price or writes bars."),
+    # The earnings run-up and past-moves reads ask the same one detector
+    # READ-ONLY, to decide whether our own daily bars can answer: a frame with
+    # a declared split still unapplied is not used, and the read goes to Yahoo
+    # instead. Same OUTSIDE pattern as the three rows above.
+    # ⛔ 2026-11-20: registered after the census rail sat red on master since 2026-09-29. The rail
+    # ran only in the report-only nightly, so every site below landed unclassified. Each row was
+    # classified by reading its call site.
+    ("api/services/intraday_split_heal.py", ADJUSTMENT_APPLIED): (
+        OUTSTANDING,
+        "TERM-055 / W-F (9dffe2d6ce): the one detector over per-session closes, "
+        "then a REAL rescale of stored intraday rows (bars_sqlite.apply_split_"
+        "basis), stamped in series_meta.adj_basis. A THIRD rescale site beside "
+        "bars_sanitize and bars_split_repair; the first one that records itself."),
+    ("api/services/rs_leader_test/panel.py", ADJUSTMENT_APPLIED): (
+        OUTSIDE,
+        "the RS screens' (32bb102b22) split guard: unadjusted_splits() over a "
+        "name's closes marks the boundaries a window must not cross. It never "
+        "rescales a price or writes bars."),
+    ("api/services/earnings_enrichment.py", ADJUSTMENT_APPLIED): (
+        OUTSIDE,
+        "the own-daily-bars test for the earnings run-up and past moves: "
+        "unadjusted_splits() over the frame decides whether it is used or the "
+        "read falls back to Yahoo. It never rescales a price or writes bars."),
 
     # ── VENDOR_ADJUSTED ──────────────────────────────────────────────────────
     # ⛔ These are NOT debt in the same sense: asking a vendor for an adjusted
@@ -276,6 +314,51 @@ REGISTER: dict[tuple, tuple] = {
         "still an unrecorded basis at the row level (`breadth_daily_ohlc` has no "
         "adjustment column either), so it is honest debt, not an exclusion. CP7's "
         "label covers it with the other grouped-daily readers."),
+
+    ("api/services/breadth_ma_extra.py", VENDOR_ADJUSTED): (
+        OUTSTANDING,
+        "get_grouped_daily_frame(..., adjusted=True) for the 20/150-SMA ring "
+        "(d00b5fcbbd). Same unrecorded grouped-daily basis as breadth_pit_frame. "
+        "CP7's label."),
+    ("api/services/breadth_nhnl_intraday.py", VENDOR_ADJUSTED): (
+        OUTSTANDING,
+        "get_grouped_daily_frame(..., adjusted=True) for the NH/NL ring. Same "
+        "unrecorded basis. CP7's label."),
+    ("api/services/screener/snapshot_builder.py", VENDOR_ADJUSTED): (
+        OUTSTANDING,
+        "get_grouped_daily_frame(..., adjusted=True) settles the newest daily bar "
+        "on the basis of the rest of the series (a86a7d2b19); the screener's "
+        "values record no basis. CP7's label."),
+    ("api/services/marketcap/acquire.py", VENDOR_ADJUSTED): (
+        OUTSTANDING,
+        "grouped-daily ?adjusted=true closes multiplied by point-in-time share "
+        "counts. The price basis must match the share events it multiplies, and "
+        "nothing records it. CP7's label."),
+    ("api/services/breadth_eod_extras.py", VENDOR_ADJUSTED): (
+        OUTSIDE,
+        "yfinance ^GSPC (auto_adjust=True) as the S&P 500 close fallback when the "
+        "licensed feed has no row. An index does not split, so the flag is inert "
+        "here (as index_bars.py); the other mention is prose about the collector."),
+    ("api/services/breadth_eod_source.py", VENDOR_ADJUSTED): (
+        OUTSIDE,
+        "no request: both mentions are explanation TEXT naming the off-repo "
+        "collector's yfinance auto_adjust basis (the new_ath parity note)."),
+    ("api/services/breadth_server_universe.py", VENDOR_ADJUSTED): (
+        OUTSIDE,
+        "asks for RAW (adjusted=False) on purpose: the UCT universe's price and "
+        "dollar-volume filters judge the previous session's as-traded price. The "
+        "basis is the as-traded one and no split basis is claimed or rendered."),
+    ("api/services/raw_price_view.py", VENDOR_ADJUSTED): (
+        OUTSIDE,
+        "TERM-055's raw view reads BOTH bases on purpose (adjusted=false and "
+        "=true, same vendor and endpoint) and shows each one labelled with the "
+        "factor between them. The basis is what it displays, recorded by "
+        "construction."),
+    ("api/services/uct_agent/session_stats.py", VENDOR_ADJUSTED): (
+        OUTSIDE,
+        "one session's as-traded close x volume (dollar volume, adjusted=False). "
+        "Within one session the raw basis is the right one, and no history is "
+        "compared across a split."),
 
     ("api/services/watchlist_prebuilt_refresh.py", VENDOR_ADJUSTED): (
         OUTSTANDING,
@@ -496,6 +579,10 @@ def repo_root() -> str:
 
 
 def main(argv=None) -> int:                      # pragma: no cover - operator entry
+    # The report carries em dashes and stop signs; a redirected Windows stdout is cp1252 and
+    # raised mid-print (tests/test_corp_actions_census.py reads the child as UTF-8).
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)

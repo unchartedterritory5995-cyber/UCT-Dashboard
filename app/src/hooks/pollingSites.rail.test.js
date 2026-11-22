@@ -310,6 +310,11 @@ const BARE_POLL_SITES = {
   'app/src/components/tiles/MorningWireIndexes.jsx': 1,
   'app/src/components/tiles/UCT20Backtest.jsx': 1,
   'app/src/hooks/useAnalystIntel.js': 1,
+  // #2125 (Terminal currency-pair GP): useCryptoQuote's quote poll is bare useSWR ON PURPOSE. It
+  // passes revalidateOnFocus: false itself, so a pair's quote refreshes only on its own tick (the
+  // app-global choice), and SWR already skips ticks while the app is hidden. useMobileSWR would turn
+  // focus revalidation back on (fact 3 in the header).
+  'app/src/lib/cryptoPairs.js': 1,
   'app/src/hooks/useCallRecap.js': 1,
   'app/src/hooks/useCatalysts.js': 1,
   'app/src/hooks/useEarningsAudio.js': 1,
@@ -489,6 +494,11 @@ const BARE_POLL_SITES = {
   'app/src/pages/terminal/panels/BreakoutPanel.jsx': 1,
   'app/src/pages/terminal/panels/marketRead.js': 1,
   'app/src/pages/terminal/panels/TwtPanel.jsx': 1,
+  // ⭐ UNVOL (#1832, 2026-11-18): the same terminal-panel decision, one site (`useScan`, three calls).
+  // 60 s only while the by-now reading is live and moving (`unvolIsMoving`), else 5 min, and the
+  // empty-pick probe and the last-session read tick at 5 min. It sets `revalidateOnFocus: false`
+  // itself, which is the half of the trade the wrapper would undo.
+  'app/src/pages/terminal/panels/UnusualVolumePanel.jsx': 1,
   'app/src/pages/terminal/panels/WatchlistPanel.jsx': 3,
 }
 

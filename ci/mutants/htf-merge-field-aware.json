@@ -1,0 +1,105 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "HTF-MERGE-FIELD-AWARE (fix/htf-merge-field-aware, items 2 + 3): a weekly / monthly merge's first partial period is withheld field by field (its child walked on the higher-timeframe bars, every field but close unknown on the first one, each chart bar reading the merge's own pick); a merge of close alone is drawn (item 3); a history inside the merge reaches the next period (item 2); a merge holding or under another request, and the run's request, keep review L2's field-unaware bars; both lanes. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "M1",
+   "mutant": "JS: a merge of close alone is a site again (review L2's field-unaware bars: a correct picture taken away)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (!childReadsPartialPeriod(child)) return null            // item 3: a merge of close alone is drawn",
+   "to": "    if (!childReadsPartialPeriod(child)) return first            // item 3: a merge of close alone is drawn",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfMergeFieldAware.test.js",
+   "expectRed": "KEPT merge(close) (item 3"
+  },
+  {
+   "id": "M2",
+   "mutant": "JS: every merge field-unaware (a history inside the merge leaks into the next period)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (FIELD_UNAWARE === u) return first                       // a child holding another request: review L2",
+   "to": "    if (FIELD_UNAWARE === u || u) return first                       // a child holding another request: review L2",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfMergeFieldAware.test.js",
+   "expectRed": "merge(high[1]) (item 2"
+  },
+  {
+   "id": "M3",
+   "mutant": "JS: the look-ahead pick in place of the merge's",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const reads = tfMergeReads(isos, code, at)",
+   "to": "    const reads = tfLiveReads(isos, code, at)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfMergeFieldAware.test.js",
+   "expectRed": "merge(high) (bars 2-5"
+  },
+  {
+   "id": "M4",
+   "mutant": "JS: the run's request walked field by field over its stand-in leaf (its first period no longer withheld)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (opts && opts.requestFieldUnaware === true) return first",
+   "to": "    if (false) return first",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfMergeFieldAware.test.js",
+   "expectRed": "requestAlignment (look-ahead off)"
+  },
+  {
+   "id": "M5",
+   "mutant": "JS: another request holding a merge is no site",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      const m = merges.length ? firstPeriodPartialMask(bars, merges, opts) : null",
+   "to": "      const m = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfMergeFieldAware.test.js",
+   "expectRed": "sym('SPY', merge(close))"
+  },
+  {
+   "id": "M6",
+   "mutant": "JS: a chart that reaches the listing judged partial (the coordinator's S&R condition: TradingView's first period is partial too, so the value is provable and must stay drawn)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const first = firstPeriodPartialMask(bars, [{ code: node.value }], opts)",
+   "to": "    const first = firstPeriodPartialMask(bars, [{ code: node.value }], { ...(opts || {}), historyFromListing: false })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfMergeFieldAware.test.js",
+   "expectRed": "CONTROL S&R shape from the listing"
+  },
+  {
+   "id": "PM1",
+   "mutant": "Python: close counted as a partial field, so a merge of close alone is a site again (the walk's field set: `merge_own`'s early `_child_reads_partial_period` return is the walk's own answer, an early-out a mutant cannot tell apart, CI run 44653648894)",
+   "file": "api/services/ast_interpret.py",
+   "from": "_PARTIAL_PERIOD_SERIES = frozenset(name for name in TABLE[SERIES_SECTION] if name != \"close\")",
+   "to": "_PARTIAL_PERIOD_SERIES = frozenset(name for name in TABLE[SERIES_SECTION] if True)",
+   "rail": "python -m pytest tests/test_pine_htf_merge_field_aware.py -q -p no:cacheprovider",
+   "expectRed": "KEPT merge(close) (item 3"
+  },
+  {
+   "id": "PM2",
+   "mutant": "Python: every merge field-unaware",
+   "file": "api/services/ast_interpret.py",
+   "from": "        if _FIELD_UNAWARE == u:                               # a child holding another request: review L2",
+   "to": "        if _FIELD_UNAWARE == u or u:                               # a child holding another request: review L2",
+   "rail": "python -m pytest tests/test_pine_htf_merge_field_aware.py -q -p no:cacheprovider",
+   "expectRed": "merge(high[1]) (item 2"
+  },
+  {
+   "id": "PM3",
+   "mutant": "Python: the look-ahead pick in place of the merge's",
+   "file": "api/services/ast_interpret.py",
+   "from": "        picks = _tf_merge_reads(iso, keys, at, code)",
+   "to": "        picks = [at[k] if k is not None else -1 for k in keys]",
+   "rail": "python -m pytest tests/test_pine_htf_merge_field_aware.py -q -p no:cacheprovider",
+   "expectRed": "merge(high) (bars 2-5"
+  },
+  {
+   "id": "PM4",
+   "mutant": "Python: another request holding a merge is no site",
+   "file": "api/services/ast_interpret.py",
+   "from": "            m = _first_period_partial_mask(bars, merges, opts) if merges else None",
+   "to": "            m = None",
+   "rail": "python -m pytest tests/test_pine_htf_merge_field_aware.py -q -p no:cacheprovider",
+   "expectRed": "sym('SPY', merge(close))"
+  },
+  {
+   "id": "PM5",
+   "mutant": "Python: a chart that reaches the listing judged partial (the S&R condition)",
+   "file": "api/services/ast_interpret.py",
+   "from": "        first = _first_period_partial_mask(bars, [(False, None, node.get(\"value\"))], opts)",
+   "to": "        first = _first_period_partial_mask(bars, [(False, None, node.get(\"value\"))], dict(opts or {}, historyFromListing=False))",
+   "rail": "python -m pytest tests/test_pine_htf_merge_field_aware.py -q -p no:cacheprovider",
+   "expectRed": "CONTROL S&R shape from the listing"
+  }
+ ]
+}

@@ -207,7 +207,7 @@ def rsi_from_wilder_averages(avg_gain: float, avg_loss: float) -> MaybeNum:
     return 100.0 - 100.0 / (1 + avg_gain / avg_loss)
 
 
-def compute_rsi_raw(closes: List[Number], period: int = 14) -> List[MaybeNum]:
+def compute_rsi_raw(closes: List[Number], period: int = 14, seed_mean=None) -> List[MaybeNum]:
     """Wilder-smoothed RSI, unrounded. Mirrors ``computeRSI`` in indicators.js.
 
     First RSI value lands at index ``period`` (needs ``period`` price diffs
@@ -226,6 +226,11 @@ def compute_rsi_raw(closes: List[Number], period: int = 14) -> List[MaybeNum]:
     and read exactly like a hold while the state underneath had been scaled down.
     Every later bar was then wrong and never re-converged. TradingView instead
     holds: ``na`` on the hole AND on the bar after it, then one normal step.
+
+    ⭐ RMA-SEED (engine 92) -- ``seed_mean(values)`` is how the two Wilder averages are SEEDED from the
+    first ``period`` gains and losses: Pine's ``ta.rsi`` passes ``ast_interpret._rma_seed_mean`` (the exactly
+    rounded sum / n) through ``FN_PINE["rsi"]``, twin of ``indicators.js::computeRSI``'s ``opts.seedMean``.
+    Without it (the native RSI, the screener) the seed is the running sum / n, as before.
     """
     n = len(closes)
     out: List[MaybeNum] = [None] * n
@@ -236,6 +241,8 @@ def compute_rsi_raw(closes: List[Number], period: int = 14) -> List[MaybeNum]:
     seen = 0
     sum_gain = 0.0
     sum_loss = 0.0
+    gains: List[float] = []
+    losses: List[float] = []
     for i in range(1, n):
         a, b = closes[i], closes[i - 1]
         if a is None or b is None:
@@ -246,13 +253,17 @@ def compute_rsi_raw(closes: List[Number], period: int = 14) -> List[MaybeNum]:
         gain = diff if diff > 0 else 0.0
         loss = -diff if diff < 0 else 0.0
         if avg_gain is None:
-            sum_gain += gain
-            sum_loss += loss
+            if seed_mean is not None:
+                gains.append(gain)
+                losses.append(loss)
+            else:
+                sum_gain += gain
+                sum_loss += loss
             seen += 1
             if seen < period:
                 continue
-            avg_gain = sum_gain / period
-            avg_loss = sum_loss / period
+            avg_gain = seed_mean(gains) if seed_mean is not None else sum_gain / period
+            avg_loss = seed_mean(losses) if seed_mean is not None else sum_loss / period
         else:
             avg_gain = (avg_gain * (period - 1) + gain) / period
             avg_loss = (avg_loss * (period - 1) + loss) / period
@@ -659,6 +670,7 @@ def compute_atr(bars: List[dict], period: int = 14) -> List[MaybeNum]:
 def compute_adx_raw(
     bars: List[dict],
     period: int = 14,
+    gt: Optional["Callable[[float, float], bool]"] = None,
 ) -> Tuple[List[MaybeNum], List[MaybeNum], List[MaybeNum]]:
     """Returns (adx, plus_di, minus_di) unrounded. Mirrors ``computeADX``.
 
@@ -666,6 +678,7 @@ def compute_adx_raw(
     of DX and first lands on ``bars[2 * period - 1]``. All three are bar-aligned
     and the same length — the JS lane used to return ``adx`` shorter than its DIs.
     """
+    _gt = gt if callable(gt) else (lambda a, b: a > b)
     n = len(bars)
     adx_out: List[MaybeNum] = [None] * n
     plus_di: List[MaybeNum] = [None] * n
@@ -679,8 +692,10 @@ def compute_adx_raw(
     for i in range(1, n):
         up = bars[i]["h"] - bars[i - 1]["h"]
         down = bars[i - 1]["l"] - bars[i]["l"]
-        plus_dm[i] = up if (up > down and up > 0) else 0.0
-        minus_dm[i] = down if (down > up and down > 0) else 0.0
+        # engine 78 (#1858) -- ``gt`` is IEEE for the native ADX (the default) and
+        # ``pine_compare.pine_gt`` for Pine's ``ta.dmi`` (``indicators.js::computeADX``'s ``opts.gt``)
+        plus_dm[i] = up if (_gt(up, down) and _gt(up, 0)) else 0.0
+        minus_dm[i] = down if (_gt(down, up) and _gt(down, 0)) else 0.0
         prev_c = bars[i - 1]["c"]
         tr[i] = max(
             bars[i]["h"] - bars[i]["l"],

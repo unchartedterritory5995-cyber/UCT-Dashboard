@@ -63,11 +63,21 @@ def test_no_api_key_means_nothing_was_sent(ledger, monkeypatch):
     assert cost_guard.charge_unreported_call(DAY, "PL", "claude-haiku-4-5", BODY, RuntimeError("no key")) == 0.0
 
 
-def test_a_ledger_failure_does_not_raise(ledger, monkeypatch):
+def test_a_ledger_failure_does_not_raise_and_the_charge_still_counts(ledger, monkeypatch):
+    # ⚰️ RE-PINNED 2026-11-18. This asserted the return was 0.0. That was the old mechanism, not
+    # the rule: before c3c63c8930 ("spend that cannot be written still counts", 11-16) `record`
+    # raised when `log_cost` failed and `charge_unreported_call`'s own except returned 0.0, so a
+    # paid call whose ledger write failed advanced no cap. Since then `record` keeps the cost in
+    # the per-process floor `_UNRECORDED`, which every cap reader adds (`spend_by_kind`), and
+    # returns it. What this rail still guards: a ledger failure never raises out of this door.
     def boom(**_kw):
         raise OSError("disk")
     monkeypatch.setattr(store, "log_cost", boom)
-    assert cost_guard.charge_unreported_call(DAY, "PL", "claude-haiku-4-5", BODY, TIMEOUT) == 0.0
+    monkeypatch.setattr(cost_guard, "_UNRECORDED", {})     # the floor is process state: keep it per test
+    cost = cost_guard.charge_unreported_call(DAY, "PL", "claude-haiku-4-5", BODY, TIMEOUT)
+    assert cost >= 8000 * 5.0 / 1_000_000                  # the worst case, written or not
+    assert _spent() == 0.0                                 # nothing reached the ledger...
+    assert cost_guard.spend_by_kind(DAY)["total"] == pytest.approx(cost)   # ...and every cap still sees it
 
 
 def test_a_synthesis_timeout_on_both_models_charges_both(ledger):

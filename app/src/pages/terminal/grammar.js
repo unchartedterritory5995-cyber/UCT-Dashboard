@@ -11,6 +11,7 @@ import { BY_CODE, ABSENT, isCode } from './functions'
 import { applyArgs, argsEcho } from './args'
 import { MAX_VISIBLE } from './boardModel'
 import { money, planAlert } from './alertModel'
+import { STOCK_BOARDS, STOCK_BOARD_WORD, defaultStockBoard, findStockBoard, stockBoardCommand } from './stockBoards'
 
 // ── V5: codes that are ALSO real tickers ───────────────────────────────────────
 /** Function codes that are ALSO ticker symbols (the TERMINAL-NEXT scope audit's list,
@@ -34,7 +35,7 @@ export const COLLISION_RULE = 'A bare word that is a function code runs the func
   + 'you press Enter: it is never resolved silently.'
 
 /** A market-wide code given a ticker: the code that shows that ticker's own version, if any. */
-export const TICKER_INSTEAD = Object.freeze({ NEWS: 'CN', INS: 'PPL' })
+export const TICKER_INSTEAD = Object.freeze({ NEWS: 'CN', INS: 'PPL', SHRTS: 'SHINT', UNEWS: 'UCN' })
 
 /** Pure: "NEWS is market-wide; NVDA is ignored." plus, when one exists, the code to type for the
  *  ticker's own view. `verb` is "is ignored" before Enter and "was not applied" after it. */
@@ -73,7 +74,7 @@ export const CHANNEL_RULE = '@A … @D sends the command to the panel linked to 
 
 // ── V6b: member aliases ───────────────────────────────────────────────────────
 /** Words the grammar itself owns: never usable as an alias name. */
-export const RESERVED_WORDS = Object.freeze(['HELP', 'ASK', 'ALIAS', 'UNALIAS', 'SECTOR', 'BOARD'])
+export const RESERVED_WORDS = Object.freeze(['HELP', 'ASK', 'ALIAS', 'UNALIAS', 'SECTOR', 'BOARD', STOCK_BOARD_WORD])
 export const ALIAS_NAME_RE = /^[A-Z][A-Z0-9_]{1,11}$/
 export const ALIAS_RULE = 'ALIAS NAME = command saves a shortcut (ALIAS SEMIS = SMH GP). '
   + 'A name that is a function code, a reserved word, or a real ticker is refused, never '
@@ -157,6 +158,12 @@ export const BOARD_RULE = 'BOARD GP opens the focused panel\'s list (MOST, the s
   + 'instead: BOARD GP NVDA AMD MSFT TSLA, BOARD GP W:3 (a watchlist) or BOARD GP FLAGGED. A board '
   + `shows ${MAX_VISIBLE} panels at a time: a longer list opens its first ${MAX_VISIBLE} and Next / Previous page `
   + 'through the rest, and every name not on screen is named. Back to my layout returns your own board.'
+/** Ready-made stock boards (stockBoards.js). Every board named here is read from the list. */
+export const STOCK_BOARD_RULE = `${stockBoardCommand(defaultStockBoard())} opens a ready-made stock board for that ticker: `
+  + `${STOCK_BOARDS.map((b) => `${stockBoardCommand(b)} is ${b.name} (${b.codes.join(', ')})`).join('; ')}. `
+  + `${STOCK_BOARD_WORD} alone uses the ticker your board is on. The panels share one color group, so a new ticker in `
+  + 'any of them moves the whole board, and the charts page is not changed. The Boards button lists them too. '
+  + 'Back to my layout returns your own board.'
 export const ROW_RULE = 'A bare number (3, then Enter) opens row 3 of the numbered list in '
   + 'the focused panel.'
 
@@ -198,6 +205,15 @@ function describeBoard(cmd) {
   return { text: `Open the focused panel's list as ${as}, ${BOARD_PAGE_SIZE} names at a time`, tone: 'ok', shape: BOARD_SHAPE }
 }
 
+/** The echo for `NVDA STOCK [WORD]`: which board, and for which ticker. */
+export const STOCK_BOARD_SHAPE = `[TICKER] ${STOCK_BOARD_WORD}${STOCK_BOARDS.length > 1 ? ` [${STOCK_BOARDS.slice(1).map((b) => b.word).join(' | ')}]` : ''}`
+function describeStockBoard(cmd) {
+  const b = (cmd.board && findStockBoard(cmd.board)) || defaultStockBoard()
+  if (!b) return { text: 'There is no stock board on this release', tone: 'error', shape: STOCK_BOARD_SHAPE }
+  const who = cmd.sym ? `for ${cmd.sym}` : 'for the ticker your board is on'
+  return { text: `Open the stock board ${b.name} (${b.codes.join(', ')}) ${who}, in one color group`, tone: 'ok', shape: STOCK_BOARD_SHAPE }
+}
+
 /**
  * What a parse will DO, in words, before Enter (IA §7.4). Never empty for a non-empty line:
  * a failure echoes its own error, so the echo and the notice say the same thing.
@@ -227,6 +243,8 @@ export function describeCommand(cmd) {
       return { text: 'List your aliases', tone: 'ok', shape: 'ALIAS' }
     case 'board':
       return describeBoard(cmd)
+    case 'stock-board':
+      return describeStockBoard(cmd)
     default: break
   }
   const fn = BY_CODE[cmd.code]

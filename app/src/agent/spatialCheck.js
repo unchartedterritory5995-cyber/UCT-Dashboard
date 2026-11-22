@@ -17,6 +17,7 @@
 // a line or place that is a move's destination, a comparison ("like the top row") or a source states none either.
 import { ordinalChart, chartsNamedBy, relativeChart, selectedChart, chartRefOf } from './deixis'
 import { CLICK_ACT_NP } from './clickRef'
+import { chartsLandedOn } from './chartLanding'
 import { tickerChanged, namedTickers } from './chartRail'
 
 const INERT = /\b(?:fine|alone|already|leave|leaving|left alone|can stay|stays?|stay put|untouched|as (?:it|they) (?:is|are)|don'?t|do not|doesn'?t|not|never|ignore|skip|keep)\b/i
@@ -856,8 +857,12 @@ export function withoutExcludedCharts(ops, texts, { host, getTargetKind, getCapa
     const kind = cap ? getTargetKind(cap.target) : null
     if (kind && !cap.query) {
       const snap = (kind.list(host) || []).find(s => s.ref === o.target)
-      const chart = snap ? chartRefOf(kind, snap) : null
-      if (chart && ex.has(chart)) { dropped++; continue }
+      // ⛔ EVERY chart the change lands on, not only the one its snapshot names: a drawing shows on every chart of its symbol,
+      // and a symbol change on a linked chart retargets its whole link group (chartLanding) — "…except the top-right one" never
+      // changes the top-right chart through the chart it is linked to / shares drawings with
+      const landed = snap ? chartsLandedOn(cap, kind, snap, charts) : null
+      // ⛔ fail closed: a landing that cannot be read (chartLanding `unknown`) is never assumed to miss the excluded chart
+      if (landed && (landed.unknown || [...landed].some(r => ex.has(r)))) { dropped++; continue }
     }
     // (AUDIT, #988 GO) a change that lands on charts named in its ARGS — an indicator Save's `addTo`, run later as follow-ups
     // that never pass through execute — loses the excluded ones too

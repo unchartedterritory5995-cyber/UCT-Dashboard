@@ -14,6 +14,10 @@ know, never from memory or from a summary:
   * desktop app          : newest release, its rollout share, app changes not yet released.
   * not live by choice   : features built and switched off (docs/feature_flags.json), open PRs,
                            recent branches with no PR.
+  * the nightly tests    : the newest VALID master record the full suite published on `ci-results`
+                           is under 36 h old, and the NEW failures it found (only NEW, never the
+                           baseline it already carried). 2026-11-18: the nightly was dead two nights
+                           running and nothing said so.
 
 Each row is one of:
   LIVE        running the newest thing that matters for it
@@ -53,8 +57,26 @@ import time
 import urllib.error
 import urllib.request
 
+
+def _this_repo(fallback: str) -> str:
+    """owner/name of this repository: $GITHUB_REPOSITORY in Actions, else this checkout's origin remote.
+
+    Derived, never hardcoded, so moving the repository to another owner needs no edit here. `fallback`
+    is used only when neither answers (no git, no origin)."""
+    env = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    if env:
+        return env
+    try:
+        url = subprocess.run(["git", "-C", str(pathlib.Path(__file__).resolve().parent), "remote", "get-url", "origin"],
+                             capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        url = ""
+    m = re.search(r"github\.com[:/]+([^/\s]+/[^/\s]+?)(?:\.git)?/?$", url)
+    return m.group(1) if m else fallback
+
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-REPO = os.environ.get("GITHUB_REPOSITORY", "unchartedterritory5995-cyber/uct-dashboard")
+REPO = _this_repo("unchartedterritory5995-cyber/UCT-Dashboard")
 SITE = os.environ.get("LIVE_CHECK_SITE", "https://uctintelligence.com")
 RAILWAY_GQL = "https://backboard.railway.com/graphql/v2"
 RAILWAY_PROJECT = os.environ.get("RAILWAY_PROJECT_ID", "d6574d0b-7973-4ece-b35c-65c0ad4c453d")
@@ -76,6 +98,13 @@ PROMOTE_STUCK_MIN = 60
 DEPLOY_START_STUCK_MIN = 20
 #: While stuck, the same alert is repeated at most this often.
 REPEAT_ALERT_H = 6
+#: The nightly full suite is STUCK when its newest VALID master record is older than this. It is meant to
+#: publish one a day; GitHub delivered its cron 7-10 h late on 11-12..11-17, so a day plus that slack.
+NIGHTLY_STALE_H = 36
+#: How many of the newest records on ci-results are read looking for a valid master one (each is one blob).
+NIGHTLY_LOOKBACK = 40
+#: At most this many NEW failure ids are named in an alert; the record names them all.
+NIGHTLY_NEW_SHOWN = 8
 IN_PROGRESS = {"BUILDING", "DEPLOYING", "INITIALIZING", "QUEUED", "WAITING"}
 FAILED = {"FAILED", "CRASHED"}
 
@@ -391,7 +420,45 @@ def collect(*, fetch=True, flag_values=False) -> dict:
         return {"open": [{"n": p["number"], "title": p["title"], "draft": p["draft"], "at": p["created_at"]}
                          for p in open_prs], "no_pr": branches_out}
     f["work"] = attempt("open work", prs)
+    f["nightly"] = attempt("nightly record", lambda: nightly_facts(fetch=fetch))
     return f
+
+
+def _ci_inventory():
+    """tools/ci_inventory.py, the ONE authority on what a VALID record is (never restated here)."""
+    spec = importlib.util.spec_from_file_location("ci_inventory_for_live_check", ROOT / "tools" / "ci_inventory.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def nightly_facts(*, fetch=True, ref="origin/ci-results") -> dict:
+    """The newest master record and the newest VALID master record on ci-results, newest run id first."""
+    if fetch:
+        git("fetch", "--quiet", "origin", "+refs/heads/ci-results:refs/remotes/origin/ci-results")
+    names = git("ls-tree", "--name-only", f"{ref}:results").split()
+    ids = sorted((n for n in names if n.isdigit()), key=int, reverse=True)[:NIGHTLY_LOOKBACK]
+    if not ids:
+        raise SourceError(f"{ref} holds no results/<run_id> records")
+    valid = _ci_inventory().record_is_valid
+    out = {"newest_master": None, "newest_valid": None, "read": 0}
+    for rid in ids:
+        s = json.loads(git("show", f"{ref}:results/{rid}/summary.json"))
+        out["read"] += 1
+        if (s.get("branch") or "") != "master":
+            continue
+        rec = {"run": rid, "finished": s.get("finished"), "sha": s.get("sha"), "verdict": s.get("verdict")}
+        if out["newest_master"] is None:
+            out["newest_master"] = rec
+        if valid(s):
+            try:
+                d = json.loads(git("show", f"{ref}:results/{rid}/diff.json"))
+                rec.update(diff_verdict=d.get("verdict"), new=list(d.get("new") or []))
+            except (SourceError, ValueError):
+                rec.update(diff_verdict=None, new=None)   # no diff in the record: NEW is unknowable
+            out["newest_valid"] = rec
+            break
+    return out
 
 
 # ----------------------------------------------------------------------------------------- verdicts
@@ -631,6 +698,46 @@ def eval_work(f, now):
     return out
 
 
+def eval_nightly(f, now):
+    """The nightly full suite: is it alive (a VALID master record < NIGHTLY_STALE_H old), and what is NEW in it.
+
+    ⛔ The `says` text carries no ages: the alert memory compares it, and an "N h ago" would re-post every hour."""
+    name = "nightly full suite"
+    n = f.get("nightly")
+    if n is None:
+        return [row("tests", name, UNKNOWN, "could not read the ci-results record store",
+                    f["errors"].get("nightly record", ""))]
+    m, v = n.get("newest_master"), n.get("newest_valid")
+    if not v:
+        return [row("tests", name, STUCK,
+                    f"no VALID master record among the newest {n.get('read')} on ci-results",
+                    f"newest master record: run {m['run']} ({m.get('verdict')})" if m else "no master record at all")]
+    at = _parse_ts(v.get("finished"))
+    out = []
+    if at is None or now - at > dt.timedelta(hours=NIGHTLY_STALE_H):
+        detail = f"newest valid: run {v['run']} on {short(v.get('sha'))}, finished {ago(at, now)}"
+        if m and m["run"] != v["run"]:
+            detail += f"; a newer master record (run {m['run']}) is INVALID ({m.get('verdict')})"
+        out.append(row("tests", name, STUCK,
+                       f"no VALID master run for over {NIGHTLY_STALE_H} h (newest valid is run {v['run']})", detail,
+                       since=at and at.isoformat()))
+    else:
+        out.append(row("tests", name, LIVE, f"newest valid master run {v['run']}", f"finished {ago(at, now)}"))
+    new = v.get("new")
+    if new is None:
+        out.append(row("tests", "nightly NEW failures", UNKNOWN, f"run {v['run']} published no diff",
+                       "the record has no diff.json, so what is NEW cannot be read"))
+    elif new:
+        out.append(row("tests", "nightly NEW failures", STUCK,
+                       f"run {v['run']} found {len(new)} NEW failure{'s' if len(new) != 1 else ''} "
+                       f"against the previous valid master run",
+                       "; ".join(str(k) for k in new[:NIGHTLY_NEW_SHOWN])
+                       + (f"; and {len(new) - NIGHTLY_NEW_SHOWN} more" if len(new) > NIGHTLY_NEW_SHOWN else "")))
+    else:
+        out.append(row("tests", "nightly NEW failures", LIVE, f"run {v['run']} found no NEW failures"))
+    return out
+
+
 def evaluate(f, *, now=None, freeze_ends_at=None, landed=None, diff_files=None) -> list:
     now = now or _parse_ts(f["now"])
     freeze_ends_at = freeze_ends_at or _freeze_fn()
@@ -652,6 +759,7 @@ def evaluate(f, *, now=None, freeze_ends_at=None, landed=None, diff_files=None) 
     rows += eval_desktop(f, now)
     rows += eval_flags(f)
     rows += eval_work(f, now)
+    rows += eval_nightly(f, now)
     return rows
 
 
@@ -682,7 +790,8 @@ def render(rows, now, auth=None) -> str:
     stamp = now.astimezone(_et()).strftime("%a %b %d %H:%M ET")
     lines = [f"UCT live check, {stamp}", headline(rows), ""]
     titles = {"pipeline": "Pipeline", "service": "Railway services", "members": "What members get",
-              "app": "Desktop app", "off": "Built but not on", "work": "Built but not merged"}
+              "app": "Desktop app", "off": "Built but not on", "work": "Built but not merged",
+              "tests": "Nightly tests"}
     for area in titles:
         group = sorted([r for r in rows if r["area"] == area], key=lambda r: (_ORDER[r["state"]], r["name"]))
         if not group:
@@ -732,7 +841,8 @@ def discord_text(rows, now, link=None) -> str:
     stamp = now.astimezone(_et()).strftime("%a %b %d %H:%M ET")
     lines = [f"UCT live check, {stamp}", headline(rows), ""]
     titles = {"pipeline": "Pipeline", "service": "Railway services", "members": "What members get",
-              "app": "Desktop app", "off": "Built but not on", "work": "Built but not merged"}
+              "app": "Desktop app", "off": "Built but not on", "work": "Built but not merged",
+              "tests": "Nightly tests"}
     for area, title in titles.items():
         group = [r for r in rows if r["area"] == area]
         if not group:
@@ -804,6 +914,11 @@ def _fixture(**over):
         "desktop": {"release": "v0.1.11", "published": "2026-11-12T00:00:00Z", "stage": None,
                     "main_version": "0.1.11", "unreleased": []},
         "flags": [], "work": {"open": [], "no_pr": []},
+        "nightly": {"read": 3,
+                    "newest_master": {"run": "9", "finished": "2026-11-16T08:00:00+00:00", "sha": "m1",
+                                      "verdict": "RED"},
+                    "newest_valid": {"run": "9", "finished": "2026-11-16T08:00:00+00:00", "sha": "m1",
+                                     "verdict": "RED", "diff_verdict": "NO_NEW_FAILURES", "new": []}},
     }
     base.update(over)
     return base
@@ -897,6 +1012,32 @@ def self_check() -> int:
     expect("glob requirements*.txt", bool(touches(["requirements-dev.txt"], ["requirements*.txt"])), True)
     expect("bare dir name matches beneath it", bool(touches(["front/a/b.css"], ["front"])), True)
     expect("no patterns = every file", bool(touches(["x"], [])), True)
+
+    night = _fixture()["nightly"]
+    old = {**night, "newest_valid": {**night["newest_valid"], "finished": "2026-11-15T07:00:00+00:00"}}
+    expect("nightly valid 12 h ago -> LIVE", state(run(_fixture()), "nightly full suite"), LIVE)
+    expect("nightly valid 37 h ago -> STUCK", state(run(_fixture(nightly=old)), "nightly full suite"), STUCK)
+    edge = {**night, "newest_valid": {**night["newest_valid"], "finished": "2026-11-15T09:00:00+00:00"}}
+    expect("  ...35 h ago is still LIVE (the line is 36 h)", state(run(_fixture(nightly=edge)), "nightly full suite"),
+           LIVE)
+    dead = {"read": 40, "newest_master": {"run": "12", "finished": "2026-11-16T19:00:00+00:00", "verdict": "INVALID"},
+            "newest_valid": None}
+    expect("no valid master record at all -> STUCK", state(run(_fixture(nightly=dead)), "nightly full suite"), STUCK)
+    expect("ci-results unreadable -> CAN'T CHECK", state(run(_fixture(nightly=None, errors={"nightly record": "x"})),
+                                                         "nightly full suite"), UNKNOWN)
+    reds = {**night, "newest_valid": {**night["newest_valid"], "diff_verdict": "NEW_FAILURES",
+                                      "new": ["pytest|tests.test_house_terms|test_a"]}}
+    expect("NEW failures in the newest valid run -> STUCK", state(run(_fixture(nightly=reds)), "nightly NEW failures"),
+           STUCK)
+    expect("  ...and none -> LIVE (the baseline is never re-reported)",
+           state(run(_fixture()), "nightly NEW failures"), LIVE)
+    nodiff = {**night, "newest_valid": {**night["newest_valid"], "new": None}}
+    expect("  ...a record with no diff -> CAN'T CHECK, never 'none'",
+           state(run(_fixture(nightly=nodiff)), "nightly NEW failures"), UNKNOWN)
+    a1 = fingerprint(run(_fixture(nightly=old)))
+    expect("the stale alert's text does not change hour to hour (no re-post every run)",
+           a1 == fingerprint(evaluate(_fixture(nightly=old), now=now + dt.timedelta(hours=1), freeze_ends_at=never,
+                                      landed=long_ago, diff_files=no_diff)), True)
 
     stuck_rows = run(_fixture(pending=pend))
     expect("alert: a new stuck item posts", should_post(stuck_rows, {}, now)[0], True)

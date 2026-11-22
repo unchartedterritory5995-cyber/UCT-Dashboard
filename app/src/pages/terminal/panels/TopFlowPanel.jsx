@@ -286,7 +286,7 @@ export default function TopFlowPanel({ status: statusProp = null, direction: dir
         ) : null}
       </div>
       {matched.length ? (
-        <div className={styles.tableBox}>
+        <div className={styles.tableBox} data-fold="550">
           <table className={styles.table} data-testid="terminal-topf-table"
             aria-label={`Top Flow picks, ${TOP_FLOW_SORTS[sort].words}, ${shown.length} of ${matched.length}`}>
             <thead>

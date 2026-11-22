@@ -29,6 +29,7 @@
       "app/src/components/chart/engine/ast/callExpansions.js",
       "app/src/components/chart/engine/ast/closedTable.json",
       "app/src/components/chart/engine/ast/conceptVocabulary.json",
+      "app/src/components/chart/engine/ast/doorDeadline.js",
       "app/src/components/chart/engine/ast/guardIdText.js",
       "app/src/components/chart/engine/ast/interpret.js",
       "app/src/components/chart/engine/ast/parse.js",
@@ -36,11 +37,19 @@
       "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
       "app/src/components/chart/engine/ast/sentence.js",
       "app/src/components/chart/engine/ast/symbolScope.json",
+      "app/src/components/chart/engine/heldWithholds.json",
       "app/src/components/chart/engine/hostKnownDivergence.json",
+      "app/src/components/chart/engine/pineDataCatalog.json",
+      "app/src/components/chart/engine/pineCompare.js",
       "app/src/components/chart/engine/runtime/ir.js",
       "app/src/components/chart/engine/runtime/runtimeRepaint.json",
       "app/src/components/chart/engine/scriptEngineVersion.js",
+      "app/src/components/chart/engine/**",
+      "app/src/components/chart/timeframes.js",
+      "app/scripts/build-pine-runtime.mjs",
       "app/src/components/chart/indicators.js",
+      "app/src/components/chart/supportLoop/assistantPineReference.json",
+      "app/src/components/chart/supportLoop/assistantRecipes.json",
       "app/src/components/chart/supportLoop/doorNameCoverage.json",
       "app/src/components/chart/supportLoop/pineBuiltins.json",
       "app/src/constants/quotes.json",
@@ -67,7 +76,9 @@
       "app/src/pages/optionsFlow/flowSearchProduct.js",
       "app/src/pages/optionsFlow/flowTopPicksProduct.js",
       "app/src/utils/barsBackfill.js",
-      "app/src/utils/barsIDB.js"
+      "app/src/utils/barsIDB.js",
+      "app/src/pages/breadth/shadeCutoffs.generated.json",
+      "app/src/pages/breadth/shadeSpec.json"
     ]
   },
   "deploy": {

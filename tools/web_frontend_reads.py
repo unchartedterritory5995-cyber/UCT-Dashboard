@@ -51,6 +51,7 @@ DECLARED_READS = {
     "app/src/components/chart/engine/ast/closedTable.json": "api/services/ast_lint.py, ast_table.py, conversation_preflight.py: the formula table",
     "app/src/components/chart/engine/ast/conceptVocabulary.json": "api/services/concept_vocabulary.py",
     "app/src/components/chart/engine/ast/symbolScope.json": "api/services/ast_bind.py",
+    "app/src/components/chart/engine/pineDataCatalog.json": "api/services/pine_data_catalog.py, read at runtime by api/services/pine_events.py (track 4 E1): which Pine data families may be fetched and served, and their disclosure sentences",
     "app/src/components/chart/builder/authoring/preflightRules.json": "api/services/conversation_preflight.py",
     "app/src/components/chart/builder/authoring/colourWords.json": "api/services/definition_conversation.py",
     "app/src/components/chart/builder/authoring/crossContext.json": "api/services/conversation_preflight.py, definition_conversation.py",
@@ -58,16 +59,22 @@ DECLARED_READS = {
     "app/src/constants/setupGroups.js": "api/services/concept_vocabulary.py: firm setup names",
     "app/src/constants/quotes.json": "api/services/quote_of_the_day.py",
     "app/src/pages/modelbook/setupCatalog.js": "api/services/concept_vocabulary.py, wisdom/publish/adapters/modelbook.py",
+    "app/src/pages/breadth/shadeSpec.json": "api/services/breadth_shade_rule.py (via breadth_reading.py): the breadth shading spec",
+    "app/src/pages/breadth/shadeCutoffs.generated.json": "api/services/breadth_shade_rule.py (via breadth_reading.py): the frozen shading cutoffs",
     "app/src/pages/modelbook/setupPlaybooks.js": "api/services/wisdom/publish/adapters/modelbook.py",
     "app/src/pages/charts/boardBound.json": "api/services/board_bound.py: widgets per board",
     "app/src/components/chart/engine/runtime/runtimeRepaint.json": "api/services/runtime_repaint.py",
     "app/src/components/chart/engine/runtime/ir.js": "api/services/pine_runtime_client.py: engine identity",
     "app/src/components/chart/engine/ast/pineRuntimeFrontend.js": "api/services/pine_runtime_client.py: engine identity",
     "app/src/components/chart/engine/ast/pineLibraryDeny.json": "api/services/pine_library_store.py: the library deny list (unreadable = every library denied)",
+    "app/src/components/chart/supportLoop/assistantPineReference.json": "api/services/pine_authoring.py: what the assistant may write in a script (unreadable = no script turn is made)",
+    "app/src/components/chart/supportLoop/assistantRecipes.json": "api/services/pine_authoring.py: the proven scripts a script turn is handed, and the run's standing stops",
     "app/src/components/chart/supportLoop/pineBuiltins.json": "api/services/indicator_support.py",
     "app/src/components/chart/supportLoop/doorNameCoverage.json": "api/services/indicator_support_loop.py",
     "app/src/components/chart/engine/scriptEngineVersion.js": "api/services/user_definitions.py: SCRIPT_ENGINE_VERSION",
     "app/src/components/chart/engine/hostKnownDivergence.json": "api/services/host_known_divergence.py: the host lane's known-divergence list (save, served rows, server lanes)",
+    "app/src/components/chart/engine/heldWithholds.json": "api/services/held_withholds.py: the narrow held withholds a saved copy is judged against (save, share, served rows, server lanes)",
+    "app/src/components/chart/engine/pineCompare.js": "api/services/pine_compare.py: PINE_EQ_EPSILON / PINE_EQ_INCLUSIVE, Pine's float comparison (unreadable = the import fails)",
 }
 
 #: JavaScript `web` runs under node. Each entry is needed together with everything it imports.
@@ -76,6 +83,11 @@ NODE_ENTRIES = {
     "app/src/components/chart/engine/ast/parse.js": "run from source by node (tools/ast_conformance.py)",
     "app/src/pages/cot/cotFactsEntry.js": "bundled into app/dist/cot-facts.cjs, which api/services/cot_prewarm.py runs",
     "app/src/pages/optionsFlow/flowFactsEntry.js": "bundled into app/dist/flow-facts.cjs; web runs it whenever FLOW_READS_PROXY_ENABLED is off",
+    # Track 6 (2026-11-22, coordinator ruling (a)): web builds the pine-runtime server bundle (Dockerfile.web) and its
+    # runtime client signs every run with the bundle's sha256 (pine_runtime_client.caller_identity). A change to any file
+    # of its closure rebuilds pine-runtime; unless web rebuilds too, every run is refused runtime:server-engine-mismatch
+    # until web's next deploy.
+    "app/src/components/chart/engine/runtime/serverEntry.js": "bundled into app/dist-server/pine-runtime.mjs, whose sha256 web's runtime client signs every run with",
 }
 
 #: What decides how those bundles are built and which packages node finds.
@@ -84,6 +96,7 @@ BUILD_FILES = {
     "app/package-lock.json": "the exact esbuild and jsep versions",
     "app/scripts/build-cot-facts.mjs": "builds app/dist/cot-facts.cjs",
     "app/scripts/build-flow-facts.mjs": "builds app/dist/flow-facts.cjs",
+    "app/scripts/build-pine-runtime.mjs": "builds app/dist-server/pine-runtime.mjs (track 6: web hashes it into its engine identity)",
 }
 
 #: Python files that mention a path under app/ and do NOT open it while `web` serves. Each needs a reason.
@@ -102,6 +115,9 @@ NOT_RUNTIME = {
 
 #: Single mentions that are not runtime reads, in files that may hold real ones. (file, path) -> reason.
 IGNORED_MENTIONS = {
+    ("api/services/pine_authoring.py", "app/src/components/chart/supportLoop/assistantGaps.json"):
+        "named in the text of the generated gaps document, and read only by `gaps_document` "
+        "(tools/assistant_gaps_build.py and its test); nothing at runtime calls it",
     ("api/services/pine_capabilities.py", "app/src/components/chart/engine/ast/pine.js"):
         "read only by `usage_of`, the census; nothing at runtime calls it",
 }

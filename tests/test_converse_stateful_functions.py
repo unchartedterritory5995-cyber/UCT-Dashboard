@@ -83,7 +83,8 @@ def test_a_running_values_own_name_outside_its_update_is_refused_by_name(conv, c
 # inside its update. This block used to refuse that too. What it still refuses is unchanged.
 STILL_REFUSED = [
     (call("accum", ser("self"), ser("close"), num(50)), "schema:name"),        # the name in a seed
-    # two running values that feed each other: closed, and refused by its own gate with the way out
+    # two running values that never forget where they started (a running total of each other):
+    # refused by its own gate with the way out (the shapes that settle are open, 2026-11-18)
     (call("accum2", num(1), num(50), ser("close"), ser("close"),
           op("+", ser("state1"), ser("state2")), ser("state2")), "unsupported:running-value"),
     # an offered function handed the name as an argument (it asks for numbers)
@@ -161,8 +162,11 @@ def test_the_instructions_name_the_two_as_functions_with_each_directions_own_sig
     # the two directions do NOT share a sign, and the instructions say each one's
     assert "-1 while the trend is UP, 1 while it is DOWN" in text
     assert "1 while the dots are under price, -1 while they are above" in text
-    assert "a window is always a literal whole number" in text
-    assert "ratchets" in text and "set disposition unsupported" in text
+    assert "A window is always a literal whole number" in text
+    # (2026-11-18) a stop that only moves one way is a running value; only one that FLIPS sides is
+    # declined. This line used to hold the sentence that said any ratchet "cannot be written".
+    assert "A stop that FLIPS to the other side when price crosses it" in text and "set disposition unsupported" in text
+    assert "only ever moves ONE way" in text and "is a RUNNING VALUE" in text
 
 
 def test_the_signs_the_instructions_state_are_the_ones_the_expansions_compute():

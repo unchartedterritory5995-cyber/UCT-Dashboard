@@ -1,0 +1,27 @@
+== off bigverdict rate1 100KB
+table      landed   0.00s  window: STILL BEING CHECKED (window gave up)   verdict@27.4s  pendings=7 ['G2 verdict duty cool-down 1/6 (561 ms left, process-wide)', 'G2 verdict duty cool-down 1/6 (765 ms left, process-wide)', 'G2 verdict duty cool-down 1/6 (784 ms left, process-wide)', 'G2 verdict duty cool-down 1/6 (852 ms left, process-wide)', 'G2 verdict duty cool-down 1/6 (95 ms left, process-wide)', 'G4 detector gate held (one run per process)', 'G? (state changed between snapshot and call)']
+pivots     landed  27.40s  window: admitted                               verdict@0.01s  pendings=0 []
+zones      landed  30.41s  window: admitted                               verdict@0.01s  pendings=0 []
+levels     landed  33.41s  window: admitted                               verdict@0.01s  pendings=0 []
+worker stats: {'starts': 0, 'calls': 0, 'ok': 0, 'busy': 0, 'unavailable': 0, 'quarantined': 0, 'timeout': 0, 'crashed': 0, 'error': 0, 'raised': 0, 'killed': 0}
+== off listload rate1 100KB
+table      landed   0.00s  window: admitted                               verdict@1.67s  pendings=1 ['G? (state changed between snapshot and call)']
+pivots     landed   3.01s  window: admitted                               verdict@0.01s  pendings=0 []
+zones      landed   6.04s  window: admitted                               verdict@1.53s  pendings=1 ['G3 persisted-work cool-down 1/3 (356 ms left, process-wide)']
+levels     landed   9.05s  window: admitted                               verdict@0.01s  pendings=0 []
+worker stats: {'starts': 0, 'calls': 0, 'ok': 0, 'busy': 0, 'unavailable': 0, 'quarantined': 0, 'timeout': 0, 'crashed': 0, 'error': 0, 'raised': 0, 'killed': 0}
+== on listload rate4
+[warm] worker READY after 0.10s; warmed before the sequence
+table      landed   0.00s  window: STILL BEING CHECKED (window gave up)   verdict@9.05s  pendings=5 ['G3 persisted-work cool-down 1/3 (134 ms left, process-wide)', 'G3 persisted-work cool-down 1/3 (206 ms left, process-wide)', 'G3 persisted-work cool-down 1/3 (298 ms left, process-wide)', 'G3 persisted-work cool-down 1/3 (60 ms left, process-wide)', 'G? (state changed between snapshot and call)']
+pivots     landed   9.06s  window: admitted                               verdict@0.01s  pendings=0 []
+zones      landed  12.06s  window: STILL BEING CHECKED (window gave up)   verdict@Nones  pendings=10 ['G3 persisted-work cool-down 1/3 (19 ms left, process-wide)', 'G3 persisted-work cool-down 1/3 (202 ms left, process-wide)', 'G3 persisted-work cool-down 1/3 (253 ms left, process-wide)', 'G3 persisted-work cool-down 1/3 (298 ms left, process-wide)', 'G3 persisted-work cool-down 1/3 (32 ms left, process-wide)', 'G3 persisted-work cool-down 1/3 (34 ms left, process-wide)', 'G3 persisted-work cool-down 1/3 (359 ms left, process-wide)', 'G3 persisted-work cool-down 1/3 (39 ms left, process-wide)', 'G4 detector gate held (one run per process)']
+levels     landed 111.15s  window: STILL BEING CHECKED (window gave up)   verdict@27.07s  pendings=7 ['G3 persisted-work cool-down 1/3 (116 ms left, process-wide)', 'G3 persisted-work cool-down 1/3 (194 ms left, process-wide)', 'G3 persisted-work cool-down 1/3 (255 ms left, process-wide)', 'G4 detector gate held (one run per process)']
+worker stats: {'starts': 1, 'calls': 200, 'ok': 200, 'busy': 0, 'unavailable': 0, 'quarantined': 0, 'timeout': 0, 'crashed': 0, 'error': 0, 'raised': 0, 'killed': 0}
+== on quarantine
+[warm] worker READY after 0.08s; warmed before the sequence
+table      landed   0.00s  window: STILL BEING CHECKED (window gave up)   verdict@Nones  pendings=10 ['W2 worker quarantine (source or MEMBER)']
+pivots     landed  99.07s  window: STILL BEING CHECKED (window gave up)   verdict@Nones  pendings=10 ['W2 worker quarantine (source or MEMBER)']
+zones      landed 198.14s  window: STILL BEING CHECKED (window gave up)   verdict@Nones  pendings=10 ['W2 worker quarantine (source or MEMBER)']
+levels     landed 297.20s  window: admitted                               verdict@3.02s  pendings=2 ['W2 worker quarantine (source or MEMBER)']
+worker stats: {'starts': 1, 'calls': 33, 'ok': 1, 'busy': 0, 'unavailable': 0, 'quarantined': 32, 'timeout': 0, 'crashed': 0, 'error': 0, 'raised': 0, 'killed': 0}
+done

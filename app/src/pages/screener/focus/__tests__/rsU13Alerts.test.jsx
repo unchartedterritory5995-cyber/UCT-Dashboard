@@ -109,9 +109,15 @@ describe('on the page', () => {
     expect(sw).toHaveAccessibleDescription(rsAlertHint(LEADERS.name))
     expect(document.getElementById(sw.getAttribute('aria-describedby'))).toHaveTextContent(rsAlertHint(LEADERS.name))
     expect(sw).toHaveAttribute('title', rsAlertHint(LEADERS.name))
-    // the visible state word is not read twice
-    expect(sw).toHaveTextContent(/Tell me what joins and leavesOff$/)
-    expect(sw.querySelector('[aria-hidden="true"]')).toHaveTextContent('Off')
+    // the shared switch (components/ui/Switch, 2026-11-20): its visible label is a real <label> for it, and the state
+    // word beside it is not read twice
+    const box = screen.getByTestId('rs-alert')
+    const label = box.querySelector(`label[for="${sw.id}"]`)
+    expect(label).toHaveTextContent(RS_ALERT_LABEL)
+    // named by aria-labelledby, not by the <label> alone: HTML-AAM names a <button> from aria-labelledby, its content
+    // or its title, so a reader that does not follow label-for on a button would read the title instead
+    expect(sw).toHaveAttribute('aria-labelledby', label.id)
+    expect(box.querySelector('[aria-hidden="true"]')).toHaveTextContent('Off')
     // in the list's header line, above the list
     expect(screen.getByTestId('rs-head')).toContainElement(sw)
     const list = await screen.findByRole('listbox')
@@ -128,7 +134,7 @@ describe('on the page', () => {
     await landedOn('UCT RS Leaders')
     const sw = await shown()
     expect(sw).toHaveAttribute('aria-checked', 'true')
-    expect(sw.querySelector('[aria-hidden="true"]')).toHaveTextContent('On')
+    expect(screen.getByTestId('rs-alert').querySelector('[aria-hidden="true"]')).toHaveTextContent('On')
   })
 
   test.each([
@@ -185,6 +191,18 @@ describe('pressing it', () => {
     expect(screen.queryByRole('alert')).toBeNull()
     // the payload is not read again: the request's own answer is the new state
     expect(savedReads()).toBe(1)
+  })
+
+  test('a click on its visible label presses it too (the words were inside the old button)', async () => {
+    net.alerts = OFF
+    pin([L])
+    mount()
+    await landedOn('UCT RS Leaders')
+    const sw = await shown()
+    fireEvent.click(screen.getByTestId('rs-alert').querySelector(`label[for="${sw.id}"]`))
+    await waitFor(() => expect(alertCalls()).toEqual([['POST', `/api/screener/rs-alerts/${L}`]]))
+    await waitFor(() => expect(toggle()).not.toHaveAttribute('aria-busy'))
+    expect(toggle()).toHaveAttribute('aria-checked', 'true')
   })
 
   test('on to off asks with DELETE', async () => {

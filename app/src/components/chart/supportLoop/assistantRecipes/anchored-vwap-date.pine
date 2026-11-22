@@ -1,0 +1,14 @@
+//@version=5
+indicator("Anchored VWAP", overlay=true)
+y = input.int(2026, "Anchor year", minval=1990, maxval=2100)
+mo = input.int(1, "Anchor month", minval=1, maxval=12)
+d = input.int(1, "Anchor day", minval=1, maxval=31)
+started = year > y or (year == y and (month > mo or (month == mo and dayofmonth >= d)))
+src = hlc3
+var float sumV = 0.0
+var float sumPV = 0.0
+if started
+    sumV += volume
+    sumPV += src * volume
+avwap = started and sumV > 0 ? sumPV / sumV : na
+plot(avwap, "Anchored VWAP", color=color.orange, linewidth=2)

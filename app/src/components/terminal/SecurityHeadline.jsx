@@ -40,6 +40,8 @@ import useFundamentalSnapshot from '../../hooks/useFundamentalSnapshot'
 import useVolumeCurve from '../../hooks/useVolumeCurve'
 import { RVOL_TOOLTIP, formatRvol, rvolForSymbol } from '../../lib/volumeCurve'
 import TickerNotFound, { notFoundOf } from './TickerNotFound'
+import { useCryptoPair } from '../../lib/cryptoPairs'
+import PairHeadline from './PairHeadline'
 import styles from './SecurityHeadline.module.css'
 
 export const HEADLINE_SNAPSHOT_URL = '/api/research/snapshot-batch'
@@ -155,7 +157,18 @@ export function closeClause(row, now = new Date()) {
   return `at the ${day} ${clock} close`
 }
 
+/** A currency pair (BTCUSD, dark behind CRYPTO_BARS_ENABLED) has no row in the stock price
+ *  pool and no company snapshot, so the stock line below would say "No data ... check the
+ *  ticker". For a pair the server admits this member to, the line is the pair's own
+ *  (PairHeadline.jsx). `useCryptoPair` sends nothing for any other symbol and answers null
+ *  while the switch is off: every other security gets the stock line, unchanged. */
 export default function SecurityHeadline({ sym, onRun = null }) {
+  const pair = useCryptoPair(sym)
+  if (pair) return <PairHeadline pair={pair} />
+  return <StockHeadline sym={sym} onRun={onRun} />
+}
+
+function StockHeadline({ sym, onRun = null }) {
   const name = String(sym || '').trim().toUpperCase()
   const { prices } = useLivePrices(name ? [name] : [])
   const market = useMarketOpen()

@@ -25,7 +25,7 @@
 //
 // ⛔ A WITHHELD FAMILY IS NOT DRAWN AT ALL, and the reason rides out with the run.
 // Correctness over coverage: a drawing that may be wrong is worse than none.
-import { POOL_LIMITS, resolveCapacity, collectsAbove, countAtCapReason, COUNT_AT_CAP_FAMILIES } from '../objectPool.js'
+import { POOL_LIMITS, resolveCapacity, collectsAbove, countAtCapReason, COUNT_AT_CAP_FAMILIES, COUNT_AT_CAP_PREFIX } from '../objectPool.js'
 import { packedToObjectHex } from './colours.js'
 import { objectHandle, isDrawingHandle } from './handles.js'
 import { ENUM_NA_SENTENCE, ENUM_DROPS } from '../enumNaRule.js'
@@ -270,6 +270,12 @@ export class ObjectRunError extends Error {
 const isNum = (v) => typeof v === 'number'
 const isNa = (v) => v === undefined || (typeof v === 'number' && Number.isNaN(v))
 
+/** ⭐⭐ PARITY UNIT LF — the store's reason when the line collector deleted a line a fill spans
+ *  (`collect`): which fills TradingView keeps then is not measured. Begins with the count-at-cap prefix,
+ *  so the member reads it under the count-at-cap note (`ast/objectLoss.js`). */
+export const LINEFILL_COUNT_AT_CAP_REASON = `${COUNT_AT_CAP_PREFIX}lines than its maximum count and TradingView's `
+  + 'collector deleted a line a linefill spans; which linefills TradingView still shows then is not measured'
+
 /**
  * One run's drawings.
  *
@@ -420,9 +426,11 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     const cap = limits[fam]
     if (!Number.isFinite(cap) || counts[fam] <= collectsAbove(cap)) return
     const held = heldNow()
+    let filledLineCollected = false
     for (const inst of [...live.values()]) {
       if (counts[fam] <= cap) break
       if (inst.family !== fam || inst.createdBar === bar || held.vars.has(inst.id)) continue
+      if (fam === 'line' && [...(fillsOfLine.get(inst.id) || [])].some((fid) => live.has(fid))) filledLineCollected = true
       // ⭐ W-C22-DEL r6 — a BOX held only in arrays is collected like any other box
       // (objectPool.js C7: witnessed on sonarlab-order-blocks-spy-1d); every other
       // kind in an array, and any kind in a map, a matrix or a UDT field, is not
@@ -441,6 +449,14 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     // C7 above, the newest kept (rs-arm-label-last-bar-spy 503 / 503, sonarlab-order-blocks 24 / 24).
     // Said AFTER the walk, so a box held in a user type keeps that sentence.
     if (COUNT_AT_CAP_FAMILIES.includes(fam) && historyHeld.has(fam)) withhold(fam, countAtCapReason(fam, cap))
+    // ⭐⭐ PARITY UNIT LF (2026-11-18, coordinator ruling) — THE LINE COLLECTOR REACHED A LINE A FILL SPANS.
+    // A linefill dies with either of its lines (Pine's manual: "If any line of the two is deleted, the
+    // linefill object is also deleted"), so once the collector deletes a filled line this run holds fewer
+    // fills than TradingView shows: fvg-detector-tradingfinder (AMEX:SPY 1D, 2026-11-18, max_lines_count
+    // 500) holds 289 linefills where this rule leaves 250. Which fills TradingView keeps once its line
+    // collector has run is not measured, so the linefill family is withheld by name, as a box family is
+    // (`objectPool.js::COUNT_AT_CAP_FAMILIES`). A run whose collector never reaches a filled line is untouched.
+    if (filledLineCollected) withhold('linefill', LINEFILL_COUNT_AT_CAP_REASON)
   }
 
   function tablePos(props) {

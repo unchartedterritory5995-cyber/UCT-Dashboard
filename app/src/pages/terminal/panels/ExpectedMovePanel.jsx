@@ -205,14 +205,14 @@ function Report({ sym: s, code, today, earn, earnState, earnQ, moveUrl }) {
 
       {rows.length ? (
         <>
-          <div className={styles.tableBox}>
+          <div className={styles.tableBox} data-fold="550">
             <table className={styles.table} data-testid="terminal-exmv-table"
               aria-label={`${s} earnings reports, newest first: the move options priced before each and the move the stock made`}>
               <thead>
                 <tr>
                   <th scope="col">Report</th>
                   <th scope="col" className={styles.wrapCell} title="What the at-the-money straddle priced before the report, as recorded by the nightly job, and the day it was recorded">Priced before</th>
-                  <th scope="col" className={styles.wrapCell} title="The close-to-close move of the session that first traded the result">Actual move</th>
+                  <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight}`} title="The close-to-close move of the session that first traded the result">Actual move</th>
                   <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell}`} title="The size of the actual move against the move that was priced before the report">Against the priced move</th>
                 </tr>
               </thead>
@@ -234,7 +234,7 @@ function Report({ sym: s, code, today, earn, earnState, earnQ, moveUrl }) {
                         </>
                       )}
                     </td>
-                    <td className={`${styles.wrapCell} ${r.actualPct != null ? tone(r.actualPct) || '' : ''}`}>
+                    <td className={`${styles.wrapCell} ${styles.phoneTight} ${r.actualPct != null ? tone(r.actualPct) || '' : ''}`}>
                       {r.actualPct != null ? signed(r.actualPct) : ACTUAL_WORDS[r.state] || 'Not on file'}
                     </td>
                     <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{r.verdict ? VERDICT_WORDS[r.verdict] : 'Not compared'}</td>

@@ -18,16 +18,28 @@ MECHANISM:
      `+<40-hex>:refs/agent-ci-evidence/pr-<n>` before the push runs. The ref is NOT under refs/heads/ or refs/tags/,
      so no workflow's push / create / pull_request trigger can fire on it (rail: tests/test_agent_ci_evidence.py,
      derived from .github/workflows/*.yml), and it keeps C reachable so every job can fetch it by sha.
-  4. `gh workflow run agent-ci.yml --ref master -f pr=<n> -f merge_sha=C` ONCE. Every job checks out exactly C.
-  The run ALWAYS uses agent-ci.yml as it is on MASTER (the reviewed copy): there is no --ref option (AUDIT F2), and
-  verify --accept-dispatch refuses a dispatch run whose workflow came from anywhere else. Its concurrency group is the
-  PR's own (`agent-ci-pr-<n>`), so it supersedes an older evidence run of the same PR and never touches another PR's run.
-  Verify afterwards with: python tools/agent_ci_evidence.py verify --pr <n> --tree <T> --accept-dispatch
+  4. ONE repository_dispatch (P2c, 2026-11-18; workflow_dispatch needs Actions:write, which the re-arm token does not
+     have, while POST /repos/{repo}/dispatches needs Contents:write, which it does; no token changed):
+       gh api -X POST repos/<repo>/dispatches -f event_type=agent-ci-evidence -F client_payload[pr]=<n> -f client_payload[merge_sha]=C
+     `-F` sends pr as a JSON INTEGER (gh's typed field: an integer literal becomes a number), `-f` sends merge_sha as a
+     string, and `key[subkey]=v` nests both under client_payload, i.e. the body is exactly
+       {"event_type": "agent-ci-evidence", "client_payload": {"pr": <n>, "merge_sha": "<C>"}}
+     The argv is built ONLY from the integer PR and the C this tool just built, and is re-checked against that exact
+     shape (assert_dispatch_is_own) before it runs, like the refspec. Every job of the run validates the payload first
+     and checks out exactly C. A repository_dispatch ALWAYS runs agent-ci.yml as it is on the DEFAULT branch (master,
+     the reviewed copy): there is no ref to choose (AUDIT F2 by construction), and verify --accept-dispatch still refuses
+     a dispatch run whose workflow came from anywhere else. Its concurrency group is the PR's own (`agent-ci-pr-<n>`), so
+     it supersedes an older evidence run of the same PR and never touches another PR's run.
+  The dispatch API answers 204 with no run id. verify finds the run itself: it lists agent ci runs with
+  event=repository_dispatch and keeps the one whose artifacts are named agent-ci-evidence-pr<n>-*, then checks its
+  records against refs/agent-ci-evidence/pr-<n> (only this tool's LATEST merge for the PR counts). Afterwards:
+      python tools/agent_ci_evidence.py verify --pr <n> --tree <T> --accept-dispatch
 
 REF NAMESPACE: refs/agent-ci-evidence/** is owned by this tool. One ref per PR; only this tool writes it; it never
 writes any other ref (never master, production, agent/*, refs/pull/*, handoff/*). Deleting a stale one is harmless.
 
-It never loops over PRs, never retries a push or a dispatch, and never touches the PR or its branch. Exit 0 =
+It never loops over PRs, never retries a push or a dispatch, and never touches the PR or its branch. The only `gh`
+calls are read-only `gh api -X GET` (in _get) and that ONE POST to /dispatches; no other gh subcommand is reachable. Exit 0 =
 dispatched (or would be, with --dry-run); 2 = refused (nothing pushed or dispatched); 1 = the push or dispatch failed.
 """
 from __future__ import annotations
@@ -35,14 +47,18 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import pathlib
 import re
 import subprocess
 import sys
 
 REFUSED, FAILED = 2, 1
-WORKFLOW_REF = "master"   # F2: never configurable
+#: the repository_dispatch event_type agent-ci.yml's `types:` lists (rail: tests/test_ci_agent_merge_ref.py)
+EVENT_TYPE = "agent-ci-evidence"
 EVIDENCE_NS = "refs/agent-ci-evidence/"
 SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
+REPO_RE = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\Z")
+PR_RE = re.compile(r"[1-9][0-9]{0,6}\Z")   # the same bound agent-ci.yml's payload validation step enforces
 REFSPEC_RE = re.compile(r"\+([0-9a-f]{40}):refs/agent-ci-evidence/pr-([1-9][0-9]*)\Z")
 #: commit-tree identity: fixed, so the same (master tip, PR head) always yields the same evidence commit
 COMMIT_ENV = {"GIT_AUTHOR_NAME": "agent-ci-evidence", "GIT_AUTHOR_EMAIL": "agent-ci-evidence@invalid",
@@ -96,7 +112,22 @@ def assert_push_is_own_ref(argv: list[str], number: int, commit: str) -> None:
 
 
 def dispatch_argv(repo: str, number: int, merge_sha: str) -> list[str]:
-    return ["gh", "workflow", "run", "agent-ci.yml", "-R", repo, "--ref", WORKFLOW_REF, "-f", f"pr={number}", "-f", f"merge_sha={merge_sha}"]
+    return ["gh", "api", "-X", "POST", f"repos/{repo}/dispatches", "-f", f"event_type={EVENT_TYPE}",
+            "-F", f"client_payload[pr]={number}", "-f", f"client_payload[merge_sha]={merge_sha}"]
+
+
+def assert_dispatch_is_own(argv: list[str], repo: str, number: int, commit: str) -> None:
+    """Hard refuse, whatever produced the argv: exactly ONE `gh api -X POST repos/<repo>/dispatches` with the literal
+    event_type agent-ci-evidence, pr = the integer PR as a typed (-F) field, merge_sha = the evidence commit this run
+    built (-f), and nothing else (no other gh subcommand, field, header, --input or option)."""
+    if type(number) is not int or not PR_RE.match(str(number)):
+        raise Refused(f"not a PR number: {number!r}")
+    if not SHA_RE.match(str(commit or "")) or not REPO_RE.match(str(repo or "")):
+        raise Refused(f"evidence commit {commit!r} / repo {repo!r} is malformed")
+    want = ["gh", "api", "-X", "POST", f"repos/{repo}/dispatches", "-f", "event_type=agent-ci-evidence",
+            "-F", f"client_payload[pr]={number}", "-f", f"client_payload[merge_sha]={commit}"]
+    if list(argv) != want:
+        raise Refused(f"dispatch argv {argv!r} is not the one repository_dispatch for PR #{number} at {commit}"[:400])
 
 
 def _get(path: str):
@@ -137,13 +168,31 @@ def build_merge(run, repo: str, number: int, tip: str, head: str) -> tuple[str, 
     return tree, commit
 
 
+
+def _this_repo(fallback: str) -> str:
+    """owner/name of this repository: $GITHUB_REPOSITORY in Actions, else this checkout's origin remote.
+
+    Derived, never hardcoded, so moving the repository to another owner needs no edit here. `fallback`
+    is used only when neither answers (no git, no origin)."""
+    env = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    if env:
+        return env
+    try:
+        url = subprocess.run(["git", "-C", str(pathlib.Path(__file__).resolve().parent), "remote", "get-url", "origin"],
+                             capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        url = ""
+    m = re.search(r"github\.com[:/]+([^/\s]+/[^/\s]+?)(?:\.git)?/?$", url)
+    return m.group(1) if m else fallback
+
+
 def main(argv=None, get=_get, run=subprocess.run) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--pr", type=int, action="append", required=True, help="the ONE PR to re-arm (given once)")
-    ap.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", "unchartedterritory5995-cyber/UCT-Dashboard"))
+    ap.add_argument("--repo", default=_this_repo("unchartedterritory5995-cyber/UCT-Dashboard"))
     ap.add_argument("--dry-run", action="store_true", help="build the merge locally; push and dispatch nothing")
     a = ap.parse_args(argv)
-    if len(a.pr) != 1 or a.pr[0] <= 0:
+    if len(a.pr) != 1 or not PR_RE.match(str(a.pr[0])):
         print(f"REFUSED: exactly one positive --pr is required, got {a.pr}")
         return REFUSED
     n = a.pr[0]
@@ -159,8 +208,7 @@ def main(argv=None, get=_get, run=subprocess.run) -> int:
         push_ = push_argv(a.repo, n, commit)
         assert_push_is_own_ref(push_, n, commit)
         disp = dispatch_argv(a.repo, n, commit)
-        if disp[disp.index("--ref") + 1] != "master":   # F2: hard refuse, whatever produced the argv
-            raise Refused("the re-arm workflow ref must be master")
+        assert_dispatch_is_own(disp, a.repo, n, commit)
     except (Refused, RuntimeError, ValueError, KeyError, TypeError) as e:
         print(f"REFUSED: {e}"[:400])
         return REFUSED
@@ -177,7 +225,8 @@ def main(argv=None, get=_get, run=subprocess.run) -> int:
     if p.returncode != 0:
         print(f"FAILED dispatch: {(p.stderr or p.stdout or '').strip()[:300]}")
         return FAILED
-    print(f"dispatched. verify: python tools/agent_ci_evidence.py verify --pr {n} --tree {tree} --accept-dispatch")
+    print(f"dispatched (repository_dispatch {EVENT_TYPE}; the API returns no run id). verify finds the run by its "
+          f"agent-ci-evidence-pr{n}-* artifacts:\n  python tools/agent_ci_evidence.py verify --pr {n} --tree {tree} --accept-dispatch")
     return 0
 
 

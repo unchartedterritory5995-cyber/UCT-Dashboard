@@ -23,15 +23,34 @@ variable and redeploy.
 If the IPv6 socket cannot be created or bound, that is logged in one line and the server
 starts on the public socket alone. If the PUBLIC socket cannot be bound, the error is
 raised: a process with no public listener must fail its start, not serve nobody.
+
+The process ENDS when the server has shut down (`exit_after_shutdown`). Measured
+2026-11-22: after Railway's SIGTERM, uvicorn finished its shutdown (the lifespan saved
+the cache snapshot and stopped the scheduler) and `main()` returned, but the interpreter
+then waited on a non-daemon thread (a scheduler job still running) until Railway killed
+it at drainingSeconds=30. `web` has a volume, so the next pod cannot start until this
+one is gone: about 24 s of every deploy's member hold was a process with nothing left to
+do. uvicorn's own way out (re-raising the SIGTERM it caught) does nothing here, because
+this process is PID 1 and the kernel ignores a default-action signal sent to PID 1.
 """
 from __future__ import annotations
 
 import os
 import socket
 import sys
+import threading
+import time
 
 APP = "api.main:app"
 DEFAULT_PORT = 8080
+
+#: The total time, across all leftover non-daemon threads, that the process waits for
+#: them after the server's shutdown, before it exits anyway.
+THREAD_JOIN_SECONDS = 5.0
+
+#: The exit code when the server never started: uvicorn's own (`uvicorn.main.STARTUP_FAILURE`),
+#: what the plain command line exits with.
+STARTUP_FAILURE = 3
 
 
 def enabled() -> bool:
@@ -89,6 +108,34 @@ def build_config():
     )
 
 
+def exit_after_shutdown(code: int, *, budget: float | None = None) -> None:
+    """End the process after the server's shutdown, without waiting on stragglers forever.
+
+    Called only once `uvicorn.Server.run()` has RETURNED, which is after the lifespan
+    shutdown has run to its end. Each leftover non-daemon thread is joined against ONE
+    shared deadline (`THREAD_JOIN_SECONDS` in total, never per thread); any still alive
+    after it is named in one log line. stdio is flushed, then `os._exit`: no further
+    interpreter shutdown, so nothing can hold the pod past this point.
+    """
+    budget = THREAD_JOIN_SECONDS if budget is None else budget
+    deadline = time.monotonic() + budget
+    skip = {threading.current_thread(), threading.main_thread()}
+    for t in threading.enumerate():
+        if t in skip or t.daemon:
+            continue
+        t.join(max(0.0, deadline - time.monotonic()))
+    alive = [t.name for t in threading.enumerate() if t not in skip and not t.daemon and t.is_alive()]
+    if alive:
+        print(f"[serve-dual] exiting with {len(alive)} non-daemon thread(s) still running after "
+              f"{budget:g}s: {', '.join(alive)}", file=sys.stderr, flush=True)
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.flush()
+        except Exception:  # noqa: BLE001 - a closed stream never blocks the exit
+            pass
+    os._exit(code)
+
+
 def main() -> None:
     import uvicorn
 
@@ -99,7 +146,12 @@ def main() -> None:
     socks = build_sockets(port)
     families = "+".join("ipv6" if s.family == socket.AF_INET6 else "ipv4" for s in socks)
     print(f"[serve-dual] listening on port {port} ({families})", file=sys.stderr, flush=True)
-    uvicorn.Server(build_config()).run(sockets=socks)
+    server = uvicorn.Server(build_config())
+    server.run(sockets=socks)
+    # run() has returned, so the lifespan shutdown is over (snapshot saved, scheduler
+    # stopped). If run() raised instead, the exception propagates as before: no hard exit
+    # from a shutdown that may not have finished.
+    exit_after_shutdown(0 if server.started else STARTUP_FAILURE)
 
 
 if __name__ == "__main__":

@@ -94,6 +94,36 @@ def test_other_symbols_and_intraday_are_untouched():
     assert BI.apply("META", bars, "5", lambda s, tf: []) is bars
 
 
+def test_gen_serves_only_its_own_company():
+    """2026-11-18, production GEN daily against the company's own series (an independent vendor's
+    GEN = Symantec, NortonLifeLock, Gen Digital): GenOn Energy and a $64-82 security 2010-12-06 ..
+    2013-04-11, Genesis Healthcare 2015-02-03 .. 2021-03-25; everything else agrees to 2%."""
+    t = BI._table()["symbols"]
+    assert [(w["from"], w["until"], w["source"]) for w in t["GEN"]] == [
+        (day("2010-12-06"), day("2013-04-12"), None), (day("2015-02-03"), day("2021-03-26"), None)]
+    served = [{"t": d, "o": c, "h": c, "l": c, "c": c, "v": 1} for d, c in (
+        ("2010-12-03", 17.09), ("2010-12-06", 3.72), ("2012-12-17", 63.94), ("2013-04-11", 70.0),
+        ("2013-04-12", 22.1), ("2015-02-02", 24.94), ("2015-02-03", 8.76), ("2021-03-25", 0.42),
+        ("2021-03-26", 21.61))]
+    out = BI.apply("GEN", served, "D", lambda s, tf: [])
+    assert [b["t"] for b in out] == ["2010-12-03", "2013-04-12", "2015-02-02", "2021-03-26"]
+
+
+def test_the_second_vendor_census_windows():
+    """2026-11-18, every universe daily series compared day by day with an independent vendor's
+    per-company series: four tickers carried another company inside today's lineage with no gap
+    (Barnes Group in B, Physicians Realty and others in DOC, Aris Water in ARIS, the Atlas Crest
+    SPAC in ACIC). Each window is dropped; the bars on both sides agree with that vendor."""
+    t = BI._table()["symbols"]
+    assert [(w["from"], w["until"], w["source"]) for w in t["B"]] == [(day("2013-04-03"), day("2025-05-09"), None)]
+    assert [(w["from"], w["until"]) for w in t["DOC"]] == [(day("2003-09-10"), day("2024-03-01"))]
+    assert [(w["from"], w["until"]) for w in t["ARIS"]] == [(day("2021-10-22"), day("2025-10-15"))]
+    assert [(w["from"], w["until"]) for w in t["ACIC"]] == [(day("2020-12-18"), day("2021-09-17"))]
+    served = [{"t": d, "o": c, "h": c, "l": c, "c": c, "v": 1} for d, c in (
+        ("2013-04-02", 28.08), ("2013-04-03", 27.89), ("2025-01-24", 47.48), ("2025-05-09", 19.46))]
+    assert [b["t"] for b in BI.apply("B", served, "D", lambda s, tf: [])] == ["2013-04-02", "2025-05-09"]
+
+
 def test_history_epoch_moves_only_a_corrected_date_series():
     v = BI._table()["version"]
     assert v >= 1
@@ -106,7 +136,14 @@ def test_the_table_names_the_measured_windows():
     t = BI._table()["symbols"]
     assert t["META"] == [{"from": day("2021-06-30"), "until": day("2022-01-31"), "source": "FB"}]
     assert t["CALY"][0]["source"] == "MODG"
-    assert {s for s, ws in t.items() if any(w["source"] is None and w["from"] is None for w in ws)} == {"CCC", "MSGE", "STRC"}
+    # 2026-11-18 census (every universe daily series as production served it): an earlier listing in
+    # front of today's, behind the NEWEST listing break, which the chart's cutoff did not cut (it judged
+    # only the largest gap). The windows carry the table epoch so a browser's older copy is replaced.
+    census = {"ACT", "ADPT", "ALF", "AMR", "BOX", "CAI", "CRC", "FIG", "FRSH", "FSBC", "GIW", "MDA",
+              "NINE", "PBA", "RVI", "SE", "SLS", "SOLS", "SUNC", "TLN", "VAL", "VIA"}
+    assert {s for s, ws in t.items() if any(w["source"] is None and w["from"] is None for w in ws)} == \
+        {"CCC", "MSGE", "STRC"} | census
+    assert t["ADPT"] == [{"from": None, "until": day("2019-06-27"), "source": None}]
 
 
 def test_the_serve_path_applies_it(monkeypatch):

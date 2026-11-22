@@ -1,0 +1,78 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "S14 fix 1 (feat/pine-s14-uncalled-frame-sites, engine 84): a function body's state sites (carried, carried2, window, a variable's history ring) are checked against that function's own counts in the IR check and the bytecode verifier; each call site's block against the table; each instance's own rule over the table. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "G1",
+   "mutant": "the IR check reads a body's site against the whole table again",
+   "file": "app/src/components/chart/engine/runtime/ir.js",
+   "from": "    return fn && Number.isInteger(fn[countKey]) ? fn[countKey] : (table || []).length",
+   "to": "    return (table || []).length",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/uncalledHelperState.test.js",
+   "expectRed": "an uncalled helper"
+  },
+  {
+   "id": "G2",
+   "mutant": "a call site's block is no longer checked against the table",
+   "file": "app/src/components/chart/engine/runtime/ir.js",
+   "from": "      if (Number.isInteger(cs[base]) && Number.isInteger(fn[countKey]) && cs[base] + fn[countKey] > (table || []).length) {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/uncalledHelperState.test.js",
+   "expectRed": "carried block lies past the table"
+  },
+  {
+   "id": "G3",
+   "mutant": "the bytecode check bounds a CARRIED operand by the table again",
+   "file": "app/src/components/chart/engine/runtime/program.js",
+   "from": "  const maxCarried = frameMax(p.carried, 'carriedCount')",
+   "to": "  const maxCarried = (p.carried || []).length",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/uncalledHelperState.test.js",
+   "expectRed": "a carried built-in"
+  },
+  {
+   "id": "G4",
+   "mutant": "a carried instance's length is no longer checked over the table",
+   "file": "app/src/components/chart/engine/runtime/program.js",
+   "from": "    if (!(c.n >= 1)) throw new ProgramError(`carried[${i}]: CARRIED length ${c.n} — a carried builtin needs a length of at least 1`)",
+   "to": "    if (false) throw new ProgramError('')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/uncalledHelperState.test.js",
+   "expectRed": "no length"
+  },
+  {
+   "id": "G5",
+   "mutant": "the bytecode check bounds a READ_HIST_SLOT operand by the table again",
+   "file": "app/src/components/chart/engine/runtime/program.js",
+   "from": "      const maxHist = Math.max(frameMax(p.history, 'historyCount'), 1)",
+   "to": "      const maxHist = Math.max(p.history.length, 1)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/uncalledHelperState.test.js",
+   "expectRed": "two variables"
+  },
+  {
+   "id": "G6",
+   "mutant": "the IR's window site is checked against the whole table again",
+   "file": "app/src/components/chart/engine/runtime/ir.js",
+   "from": "        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= frameBound('windowCount', p.windows)) {",
+   "to": "        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.windows || []).length) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/uncalledHelperState.test.js",
+   "expectRed": "a window"
+  },
+  {
+   "id": "G7",
+   "mutant": "the bytecode check bounds a WINDOW operand by the table again",
+   "file": "app/src/components/chart/engine/runtime/program.js",
+   "from": "  const maxWindows = frameMax(p.windows, 'windowCount')",
+   "to": "  const maxWindows = (p.windows || []).length",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/uncalledHelperState.test.js",
+   "expectRed": "a window"
+  },
+  {
+   "id": "G8",
+   "mutant": "the two-input carried count no longer reaches the IR",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        carried2Count: f.carried2Count || 0,",
+   "to": "        carried2Count: 0,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/uncalledHelperState.test.js",
+   "expectRed": "two-input"
+  }
+ ]
+}

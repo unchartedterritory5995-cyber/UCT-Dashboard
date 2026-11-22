@@ -229,7 +229,7 @@ describe('source: ONE writer — the popover and UCT Agent share runPeriodSort; 
   it('the Agent host\'s run is runPeriodSort with NO timeframe; dock is the panel\'s handleDockPeriodSort, which returns the new id', () => {
     expect(src).toMatch(/run: runPeriodSort, dock: handleDockPeriodSort/)
     expect(src).toMatch(/r\.run\(a\.start, a\.end, !!a\.replay, a\.group \|\| null, null, a\.markStart \|\| 'off'\)/)
-    expect(src).toMatch(/const id = `w-periodsort-\$\{Date\.now\(\)\}`[\s\S]{0,1600}?return id\n {2}\}, \[scheduleSave, groupSyms\]\)/)
+    expect(src).toMatch(/const id = `w-periodsort-\$\{Date\.now\(\)\}`[\s\S]{0,1600}?return id\n {2}\}, \[scheduleSave, groupSymsStore\]\)/)
     expect(src).toMatch(/onDock=\{\(\) => handleDockPeriodSort\(periodSortPanel\.start, periodSortPanel\.end, periodSortPanel\.group\)\}/)
   })
 })

@@ -77,7 +77,8 @@ def test_hp7_the_adapters_build_the_same_call():
     p = subprocess.run(["node", str(TOOL), "--adapters"], cwd=str(REPO), capture_output=True, text=True, encoding="utf-8")
     assert p.returncode == 0, p.stdout + p.stderr
     assert "HP-7 GREEN" in p.stdout
-    assert "worker: args (def, rows || [], ctx || {}) opts {budgetMs}" in p.stdout
+    # the worker's budget scales with the bars a run covers (`budgetScales`, coordinator ruling 2026-11-19), exempted by name
+    assert "worker: args (def, rows || [], ctx || {}) opts {budgetMs, budgetScales}" in p.stdout
     assert "node: args (c.def, rows, c.ctx) opts {incremental}" in p.stdout
     # W5-INT: the tool compares its own measurement host only; job.mjs has ONE HP-7 rail (below)
     assert "\njob:" not in "\n" + p.stdout

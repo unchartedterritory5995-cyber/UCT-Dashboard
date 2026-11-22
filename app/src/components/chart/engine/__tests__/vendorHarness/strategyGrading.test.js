@@ -249,6 +249,19 @@ const STRATEGY_CAPTURE_ROWS = Object.freeze({
   'w9-q-s1b-v4-shape-a-rddt-1d-2026-11-17': 'Q-S1b',
   'w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17': 'Q-S1b',
   'w9-q-s1i-funds-rddt-1d-2026-11-17': 'Q-S1i',
+  // the community strategy (supertrend-strategy, corpus/committed, MPL-2.0), held out of the e73 filing while step 7
+  // could not pair a source's bound plots (#1770), re-filed at the engine that draws its fill anchor (#1788)
+  'supertrend-strategy-rddt-1d-2026-11-17': 'Q-SD1',
+  'supertrend-strategy-alab-1d-2026-11-17': 'Q-SD2',
+  // 2026-11-18 (run qs1p-is-2026-11-18, packet d64e34c28819): the two community strategies captured IN SESSION, the
+  // newest daily bar forming, with their Strategy Tester reports: [B-EXEC], a strategy executes once per closed bar
+  'supertrend-strategy-is-rddt-1d-2026-11-18': 'Q-S1p',
+  'macd-shortlong-strategy-is-rddt-1d-2026-11-18': 'Q-S1p',
+  // 2026-11-20 (PR #2146, the rig run): the community strategy on a DEEP daily chart, scrolled back to the listing,
+  // with its Strategy Tester report (`settings.dateRange.backtest.from` = the listing): where TradingView starts a
+  // backtest deeper than the shared window, [B-START-DEEP] (docs/pine/capture-queue-2026-11-19-strategy-unit.md, A)
+  'supertrend-strategy-deep-spy-1d-2026-11-19': 'Q-SU-7',
+  'supertrend-strategy-deep-aapl-1d-2026-11-19': 'Q-SU-8',
 })
 
 function committedReportCaptures() {

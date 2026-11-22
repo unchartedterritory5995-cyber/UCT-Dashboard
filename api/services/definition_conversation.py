@@ -65,6 +65,7 @@ from jsonschema import Draft202012Validator
 from api.services import ast_interpret, ast_lint, call_expansions, conversation_preflight, user_definitions
 from api.services import definition_concierge as dc
 from api.services import chart_twins
+from api.services import named_indicators
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal
 from api.services.catalyst import cost_guard
@@ -241,8 +242,15 @@ def composed_schema() -> Dict[str, Any]:
         "formula and are shown after a ~400-bar warm-up; they carry a disclosed difference "
         "(where the trend has not flipped for a long time the line can differ slightly from "
         "TradingView), so never call them identical to TradingView. Tell the member that in "
-        "those plain words; never describe how it is computed. The others are exact closed "
-        "forms over the table.")
+        "those plain words; never describe how it is computed. fisher(length) is the Fisher "
+        "Transform as UCT's checked library holds it (its trigger line is offset 1 of the same "
+        "call): its first 300 bars of history have no value. Never write a Fisher Transform out "
+        "by hand. laguerre(source, gamma) is the Laguerre Filter and laguerreRsi(source, gamma) "
+        "the Laguerre RSI (0 to 1, not 0 to 100), as UCT's checked library holds them: gamma is "
+        "a plain number above 0 and at most 0.95 (the filter's usual is 0.8 over the bar's "
+        "midpoint, the RSI's 0.5 over the close), and the first bars of history have no value. "
+        "Never write a Laguerre filter out by hand. The others are exact closed forms over the "
+        "table.")
     # ⭐ SLICE 2 — THE MODEL MUST SAY WHAT ITS TURN IS. Optional in the shared
     # engine file (older envelopes and the engine's own tests carry none); required
     # of the model here, so mutation is never inferred from which fields happen to
@@ -251,12 +259,38 @@ def composed_schema() -> Dict[str, Any]:
     return schema
 
 
+#: ⭐ 2026-11-18 -- A NOTE SAYS WHO SAID IT. The door's own notes ("Built to UCT's checked formula
+#: ...", "as you chose before") carry ``by: "uct"`` so the window prints them as statements, never
+#: as something the assistant assumed. Three rules hold it:
+#:   * ONLY THE DOOR WRITES IT: the property is marked door-only in the contract, the assistant's
+#:     copy of the schema leaves it out (`_strip_meta`), and it is taken off the assistant's answer
+#:     before anything reads it (`_own_notes_only`);
+#:   * IT IS SENT ONLY TO A BROWSER THAT ACCEPTS IT (`ACCEPTS_NOTE_BY` in the request's `accepts`):
+#:     a tab on an older build never meets a field its validator refuses;
+#:   * it changes nothing the door decides: notes are compared by output and text, as before.
+NOTE_BY = "uct"
+ACCEPTS_NOTE_BY = "note.by"
+#: ⭐ 2026-11-18 -- AN OFFER: an answer may carry `offer` {kind: "add_built_in", indicator, name, label},
+#: one action the member takes with one tap (add one of UCT's own built-in indicators to the chart).
+#:   * IT IS SENT ONLY TO A BROWSER THAT ACCEPTS IT (this word in `accepts`) AND THAT SAID IT CAN ADD
+#:     THAT INDICATOR NOW (its id in the request's `addable`: the browser's own registry and the
+#:     live server decide what is offered, so the door never names something that build cannot add).
+#:   * Any other browser gets the sentence that says where to look, and no offer.
+ACCEPTS_OFFER = "offer"
+OFFER_ADD_BUILT_IN = "add_built_in"
+#: The most indicator ids a request's `addable` may hold, and the longest one (bounds, not a list).
+BUILT_INS_MAX, BUILT_IN_ID_MAX = 40, 64
+NAMED_BUILT_IN_GATE = "named:built-in"
+DOOR_ONLY = "x-uct-door-only"
+
+
 def _strip_meta(node: Any) -> Any:
-    """The tool copy of the schema: no ``$schema``/``$id`` and no ``x-*``
-    annotations. Validation keywords are untouched."""
+    """The tool copy of the schema: no ``$schema``/``$id``, no ``x-*`` annotations, and no property
+    marked door-only (the assistant is never offered it). Validation keywords are untouched."""
     if isinstance(node, dict):
         return {k: _strip_meta(v) for k, v in node.items()
-                if k not in ("$schema", "$id") and not k.startswith("x-")}
+                if k not in ("$schema", "$id") and not k.startswith("x-")
+                and not (isinstance(v, dict) and v.get(DOOR_ONLY) is True)}
     if isinstance(node, list):
         return [_strip_meta(v) for v in node]
     return node
@@ -296,11 +330,26 @@ def anthropic_tool() -> Dict[str, Any]:
 #: are reported under ``dc.REFUSALS``. ⛔ Disjoint from every other door's phrases
 #: (``tests/test_p2_truth_server.py`` asserts it).
 REFUSALS: Mapping[str, str] = {
+    # ⭐ THE NAMED-INDICATOR LIBRARY (`named_indicators.py`)
+    "named:formula": (
+        "the UCT Agent did not build that named indicator to UCT's checked formula, so nothing was changed"),
+    "named:unchecked": (
+        "that indicator is not in UCT's checked library yet, so the assistant will not build it by name"),
+    "named:withheld": (
+        "the UCT Agent kept putting a name on the chart that UCT has no checked formula for, so nothing was changed"),
     # ⭐ BATCH 2 -- linreg / correlation / vwma / roc / mom / Keltner with an unusable length
     "resolve:expansion": (
         "a formula function was given a length it cannot use (a whole number is needed)"),
     "converse:too-large": (
         "this conversation turn carries more than the assistant may read at once"),
+    # ⭐ 2026-11-18 (after the contract-check incident): an answer refused for its SIZE, before
+    # anything examines it (`answer_size_problem`)
+    "envelope:formula-size": (
+        "the UCT Agent wrote a formula too large to check, so nothing was changed"),
+    # ⭐ 2026-11-18 (ruling): a whole turn passed its wall-clock ceiling (`TURN_CEILING_S`). Said in
+    # full, as the member reads it; the window says this same sentence (`memberWords.TOOK_TOO_LONG`).
+    "internal:timeout": (
+        "That took too long on our side and nothing was changed. Try again."),
     "converse:view": (
         "the indicator view sent with this turn is not one the assistant can read"),
     "envelope:schema": (
@@ -351,6 +400,121 @@ REFUSALS: Mapping[str, str] = {
 _TERMINAL_GATES = frozenset({"unsupported:node", "unsupported:scalar",
                              "unsupported:symbol-ambiguous", "unsupported:symbol-count",
                              "unsupported:symbol-unasked"})
+
+# ⭐⭐ 2026-11-18 -- TWO GUARDS, ADDED AFTER THE CONTRACT-CHECK INCIDENT (`_contract_errors` says what
+# happened). The check itself is linear now. These bound the two things nothing bounded:
+#
+# 1. THE SIZE OF AN ANSWER, refused BY NAME before anything walks it. Sized from what is real:
+#    the largest formula in the library, every scripted answer and every live answer on file was 70
+#    nodes and 12 levels deep (measured 2026-11-18, 767 formulas); with several linked running
+#    values it is 107 and 16 (an update that needs another value on this bar repeats that value's
+#    update, so a smoothed, stretched range position holds its first stage three times). The caps
+#    leave four times that, and were raised with it (300 and 48 before).
+#    Defence in depth for a failure class the linear check does not cover: anything else that walks
+#    a formula (a mend, a planner check, the evaluator) is handed at most this much.
+#    `tests/test_turn_guards.py` holds the headroom, so a library entry that outgrows it is a red
+#    test and a decision, not a refused member.
+#: The most nodes ONE formula may hold, and how deep it may nest.
+MAX_FORMULA_NODES = 600
+MAX_FORMULA_DEPTH = 64
+#: The same for the whole answer (every op, every formula, every note): how many values it may
+#: hold in all, and how deep its objects and lists may nest (a formula level is an object and its
+#: list of arguments, so two). Far above anything real (the largest scripted answer holds under
+#: 400 values), and low enough that nothing after this can recurse out of the interpreter's stack.
+MAX_ANSWER_ITEMS = 20000
+MAX_ANSWER_DEPTH = 2 * MAX_FORMULA_DEPTH + 16
+#: ⭐ AND AFTER THE MENDS. One mend writes an output's formula into every place another formula
+#: reads its key (`_mend_output_refs`), so what is checked, applied and held in the browser can be
+#: far larger than what the assistant wrote: an oscillator drawn from four hidden filter stages was
+#: accepted as 80 nodes and held as 3,032. That INLINED form has its own cap, counted WHILE the mend
+#: writes it, so the mend itself never builds more than this: every formula node of the whole
+#: answer, once inlined. Sized from the largest legitimate one on file (that oscillator: 3,364 for
+#: the whole answer); `tests/test_turn_guards.py` holds four times that. Over it the member is
+#: answered by name. (The engine computes identical sub-formulas once and the store keeps the
+#: shared form, so neither speed nor the saved size grows with the repeats: measured 209 ms for the
+#: oscillator against 211 ms for one stage, on 5,000 bars.)
+MAX_INLINED_NODES = 15000
+SIZE_GATE = "envelope:formula-size"
+
+# 2. THE LENGTH OF A TURN. One call in flight per member (`dc.interactive_slot`) means a turn that
+#    does not end holds that member out for as long as it runs: ten minutes, in the incident. A
+#    turn now has a wall-clock ceiling. When it passes, the member is answered by name, their slot
+#    is freed, and the turn is recorded as an internal error. Sized from what is real: of 314 live
+#    turns that called the model (2026-11-17 and -18) the median took 8.0 s, the 99th percentile
+#    26.9 s and the slowest 31.5 s. 90 s is about three times the slowest, and longer than one
+#    model call's own 60 s limit, so a single slow call still gets to answer.
+#: Seconds a whole turn may take. Read at call time (a test shortens it).
+TURN_CEILING_S = 90.0
+TIMEOUT_GATE = "internal:timeout"
+
+
+def answer_size_problem(answer: Any) -> Optional[str]:
+    """Why this answer is too large to examine, or None. ITERATIVE, and a value's children are
+    counted BEFORE they are looked at, so its own cost is the caps whatever it is handed (a list of
+    a million items is refused on its length, not walked)."""
+    items = 0
+    stack: List[Tuple[Any, int, bool, int, List[int]]] = [(answer, 1, False, 0, [0])]
+    while stack:
+        value, depth, in_formula, formula_depth, counter = stack.pop()
+        if not isinstance(value, (Mapping, list)):
+            continue
+        if depth > MAX_ANSWER_DEPTH:
+            return f"the answer nests more than {MAX_ANSWER_DEPTH} levels deep"
+        items += len(value)
+        if items > MAX_ANSWER_ITEMS:
+            return f"the answer holds more than {MAX_ANSWER_ITEMS} values"
+        if in_formula and isinstance(value, Mapping):
+            formula_depth += 1
+            counter[0] += 1
+            if counter[0] > MAX_FORMULA_NODES:
+                return f"a formula holds more than {MAX_FORMULA_NODES} nodes"
+            if formula_depth > MAX_FORMULA_DEPTH:
+                return f"a formula nests more than {MAX_FORMULA_DEPTH} levels deep"
+        if isinstance(value, Mapping):
+            for key, child in value.items():
+                starts = not in_formula and key in _SIZED_FORMULA_KEYS
+                stack.append((child, depth + 1, in_formula or starts, formula_depth, [0] if starts else counter))
+        else:
+            for child in value:
+                stack.append((child, depth + 1, in_formula, formula_depth, counter))
+    return None
+
+
+#: The property names a formula sits under in an answer, for COUNTING its size only (a `when` that
+#: is a plain word holds nothing to count). Typed here because this check runs BEFORE the contract
+#: is consulted; `tests/test_turn_guards.py` holds it equal to what the contract says.
+_SIZED_FORMULA_KEYS = frozenset({"tree", "when"})
+
+
+def _bounded_turn(run: Any, cancelled: threading.Event) -> Optional[Dict[str, Any]]:
+    """Run one turn on its own thread and wait at most `TURN_CEILING_S` for it. Its result, or None
+    when the ceiling passed: `cancelled` is then set, so the turn makes no further model call, and
+    whatever it goes on to conclude is discarded (a model call already in flight is paid for and
+    recorded in the ledger by the turn itself). What the member ANSWERED to one of the door's
+    questions is theirs and was remembered when they said it, before any call."""
+    box: Dict[str, Any] = {}
+    done = threading.Event()
+    started = time.monotonic()
+
+    def work() -> None:
+        try:
+            box["result"] = run()
+        except BaseException:                      # noqa: BLE001 -- a thread never raises out
+            logger.exception("[converse] the turn raised")
+            box["result"] = {"ok": False, "gate": "internal:error", "reason": dc.REFUSALS["internal:error"]}
+        finally:
+            done.set()
+            if cancelled.is_set():
+                logger.warning("[converse] a turn past its ceiling ended after %.0f s; its answer was discarded",
+                               time.monotonic() - started)
+
+    threading.Thread(target=work, name="converse-turn", daemon=True).start()
+    if done.wait(TURN_CEILING_S):
+        return box["result"]
+    cancelled.set()
+    logger.error("[converse] a turn passed its %.0f s ceiling: the member was answered and their slot freed",
+                 TURN_CEILING_S)
+    return None
 
 #: ⭐ Node types that are NOT the advertised union, each refused BY NAME. The
 #: concierge's own ``_UNFINISHABLE`` reasons for sym/tf/textop, plus the shapes
@@ -536,8 +700,15 @@ CONVERSE_SYSTEM_PROMPT = (
     "question naming the options (for example a shorter length, or a different "
     "average), optionally with 2-4 `choices`. Never pick the number yourself.\n"
     "  * unsupported: the request needs something not offered here. Emit `ops: []` and "
-    "say so plainly in `reply`; you may suggest what IS possible. Never substitute "
+    "say so plainly in `reply`, in one sentence. Then offer, in one more sentence, the "
+    "CLOSEST THING TO WHAT WAS ASKED that can be built: the same indicator without the part "
+    "that cannot be written (one side of it only, a fixed length where a computed one was "
+    "asked), before naming any other indicator. Offer it, do not build it. Never substitute "
     "something different.\n"
+    "    ANOTHER PUBLISHER'S OWN NUMBER (IBD's RS Rating or Composite Rating, a Zacks Rank, a Morningstar rating, a "
+    "TipRanks score): FIRST say plainly that it is that publisher's own and is not available here. Only then may "
+    "you offer UCT's own indicator, or a formula of the member's, named as UCT's or the member's and as NOT that "
+    "publisher's. Never imply the two are the same number.\n"
     "    ANOTHER SYMBOL: a request that reads a symbol other than the chart's own "
     "(\"only when SPY's RSI is above 50\", \"use QQQ's close\") is a change written "
     "with a `sym` node around exactly the part read from that symbol (see TREES). "
@@ -624,7 +795,10 @@ CONVERSE_SYSTEM_PROMPT = (
     "whole-number literals; `capabilities.formulaFunctions` lists them). A number the "
     "MEMBER sets (account size, risk %, entry, stop): declare it as an input (create `inputs`, "
     "or set_input) and read it in a tree as a series named by its key. NEVER invent the member's "
-    "own figures -- default 0 and tell them to set it in the indicator's settings. Changing a "
+    "own figures -- default 0 and tell them to set it in the indicator's settings. A setting that "
+    "is DRAWN on the price chart (an entry, a stop, an average cost) draws NOTHING until the member "
+    "fills it in: write `avgCost > 0 ? avgCost : 0 / 0`, never the bare setting, which is a line at "
+    "price 0 that squeezes the member's chart to fit it. Changing a "
     "setting's value (set_input) also sets it on the chart being edited when the member saves. Informational "
     "only: nothing here places an order. When the member NAMES the indicator or an output "
     "(\"call it My Trend\"), use exactly their words; to rename later, rename_definition / "
@@ -648,17 +822,23 @@ CONVERSE_SYSTEM_PROMPT = (
     "  A count of bars is never negative here: `highestbars`, `lowestbars` and `barssince` "
     "answer how many bars BACK (0 = this bar, 3 = three bars ago). This is not TradingView's "
     "sign: never negate one, and compare it with numbers of 0 or more.\n"
+    "  THE BAR'S FIELDS GO IN THIS ORDER: high, low, close (then volume for mfi), then the "
+    "length. stoch(high, low, close, 14) is the 14-bar stochastic %K; atr, adx, cci, plusDI, "
+    "minusDI and williamsR take them the same way. This is NOT TradingView's order: its "
+    "ta.stoch takes the source first, and stoch(close, high, low, 14) here is a different, "
+    "wrong number.\n"
     "  SuperTrend and Parabolic SAR are FUNCTIONS, called by name: `supertrend(factor, atrPeriod)` "
     "with `supertrendDirection` (TradingView's sign: -1 while the trend is UP, 1 while it is "
     "DOWN), and `sar(step, maxStep)` with `sarDirection` (1 while the dots are under price, -1 "
     "while they are above). \"SuperTrend 10, 3\" is ATR period 10 and factor "
-    "3: supertrend(3, 10). Nothing else can read its own earlier value: there is no name for "
-    "that, and a window is always a literal whole number, never a computed one (\"since it was "
-    "last hit\" is not a window). A stop or level that ratchets -- it only moves one way until "
-    "price crosses it -- and is not one of those two cannot be written: set disposition "
-    "unsupported, say it needs a line that remembers its own earlier value, and offer what can "
-    "be built instead: SuperTrend, Parabolic SAR, or a line a fixed distance under the highest "
-    "close of a FIXED window.\n"
+    "3: supertrend(3, 10). A window is always a literal whole number, never a computed one "
+    "(\"since it was last hit\" is not a window). A stop or level that only ever moves ONE way "
+    "(a stop that only rises under price, or only falls above it) is a RUNNING VALUE: write it "
+    "with accum, below. A stop that FLIPS to the other side when price crosses it, and is not "
+    "one of those two functions, cannot be written: set disposition unsupported, say in one "
+    "sentence that it would have to switch sides, and offer the same stop on ONE side (the "
+    "long side that only rises, or the short side that only falls) first, then SuperTrend or "
+    "Parabolic SAR.\n"
     "  A length the member gives in weeks, months or years is that much TIME, never that many "
     "bars of the chart: read it on that timeframe (\"over 52 weeks\" is 52 bars INSIDE a `tf` W "
     "read; a whole indicator in weeks is set_calculation_timeframe W), or, for a price extreme, "
@@ -669,6 +849,24 @@ CONVERSE_SYSTEM_PROMPT = (
     "the chart's own bars and ask the member to switch charts. \"Yesterday's\", \"the prior "
     "day's\" and \"today's\" values are DAILY values: set_calculation_timeframe D, so they hold "
     "on an intraday chart; `high[1]` alone is only the previous BAR.\n"
+    "  ON A CHART BELOW A DAY A LENGTH IN DAYS IS DAYS (\"the 50 day average\", \"the 14 day ATR\", \"a new 20 day "
+    "high\"): never that many bars of the chart. `uct_language_notes.day_lengths` lists each one with what that "
+    "many bars of THIS chart really span (`on_this_chart`). When EVERY part of the indicator is a daily LINE on the "
+    "chart's own symbol, build it and add set_calculation_timeframe D. When it is not, it cannot be written yet: the "
+    "words compare each bar of this chart with the daily measure (a cross, a marker, a colour, a dot on each bar that "
+    "closes above it), or add today's own values to it (\"today's low so far plus the 14 day ATR\"), or read another "
+    "symbol (which takes no calculation timeframe at all). Do NOT build it on the chart's bars under a note: a line "
+    "of 50 bars of a 5 minute chart is about four hours, not 50 days, whatever the note says, and the member reads "
+    "the chart. Set disposition clarify, emit `ops: []`, and ask ONE question: one plain sentence of why, then two "
+    "`choices` that each name what they draw IN TIME. Write the bars version with the `on_this_chart` words exactly "
+    "as given, and never call it by its number of days. For \"show when the close crosses above its 50 day average\" "
+    "on a 5 minute chart: \"I can't yet compare each 5 minute bar with a daily measure like the 50 day average. Which "
+    "would you like?\" with the choices \"The 50 day average as a line, on daily bars\" and \"Crosses of the average "
+    "of 50 five-minute bars (about 4 hours)\". For a daily measure of another symbol (\"the ratio against SPY with "
+    "its 21 day average\"): \"I can't yet build a daily measure of a ratio against SPY on a 5 minute chart. Which "
+    "would you like?\" with \"The ratio with an average of 21 five-minute bars (about 1 hour 45 minutes)\" and "
+    "\"Nothing for now: on a daily chart this builds exactly as asked\". Build only what the member picks, named "
+    "for what it is.\n"
     "  THE REGULAR SESSION has names of its own, right on every intraday timeframe: "
     "`sessionOpen()` (today's open), `sessionHigh()` and `sessionLow()` (today's high and low so "
     "far, regular hours only), and `openingRangeHigh(minutes)` / `openingRangeLow(minutes)` (the "
@@ -680,11 +878,81 @@ CONVERSE_SYSTEM_PROMPT = (
     "An opening range needs bars that divide it (30 minutes on a 1, 5, 15 or 30-minute chart); on "
     "longer bars it is withheld and says so, so mention that an opening range is for intraday "
     "charts.\n"
+    "  \"LAST WEEK'S\" OR \"LAST MONTH'S\" VALUE on a chart of shorter bars (\"last month's high and low\", \"the "
+    "prior week's close\") is the `tf` read as it stands: tf(high, M) already IS the last closed month's high "
+    "on every bar of this month. Do NOT put an offset around it: an offset outside a `tf` read counts bars of "
+    "the CHART, so offset 1 of tf(high, M) is one daily bar late and still shows the month before last on the "
+    "first bar of each month. Only when the member asks for a period further back (\"the month before last\") "
+    "put the offset INSIDE the read, where it counts periods: tf(offset 1 of high, M).\n"
+    "  A VALUE THAT RESTARTS WITH THE CALENDAR on every year, quarter, month or week (\"year to date "
+    "percent change\", \"month to date\", \"this year's high\", \"the high so far this month\", \"since the "
+    "start of each month\") is built from the bar's OWN calendar and NEVER from a date, so it is right on "
+    "every year of the chart and stays right after the year turns. The restart is `year != offset 1 of "
+    "year` for a year, `monthfirst` for a month, `weekfirst` for a week, and `monthfirst && (month == 1 || "
+    "month == 4 || month == 7 || month == 10)` for a quarter. The year to date percent change is the close "
+    "against the prior year's last close: valuewhen(year != offset 1 of year, offset 1 of close, 300). This "
+    "year's running high is accum(high, year != offset 1 of year ? high : max(self, high), 300). The last "
+    "argument of `valuewhen` is a WINDOW in bars and must reach back past the event (a year of daily bars "
+    "is about 252): never 1, which is blank on every bar but the event's own. These need no date, so never "
+    "ask for one. The dates of the next paragraph are for an ANCHOR only (an anchored VWAP from the start "
+    "of this year).\n"
+    "  A DATE THE MEMBER NAMES BY THE CALENDAR (\"this year\", \"year to date\", \"this quarter\", \"since the start of the month\", \"this week\"): you do NOT know today's date, so never work out "
+    "the year, quarter, month or week yourself. `uct_language_notes.calendar` gives today's date and the exact "
+    "start of each, in New York time, as the number `avwap(...)` takes. Use that number as it is and say the "
+    "date it stands for in `assumptions`. With no `calendar` in the notes and no date in the member's words, "
+    "ask which date.\n"
+    "  A DATE THE MEMBER WRITES OUT (\"2 June 2025\", \"June 2\", \"2025-06-02\"): `uct_language_notes.dates` "
+    "gives each one as the number `time` holds and `avwap(...)` takes (the start of that day, New York time). "
+    "Use that number as it is. NEVER work a date's number out yourself: you cannot, and a wrong one starts the "
+    "line on the wrong day under a sentence that names the right one. NEVER ask the member for a number, a "
+    "timestamp or seconds: a member gives a date in words. When `year_assumed` is true the member gave no "
+    "year and the note took the most recent such day: say the year in `assumptions`. When a date in the "
+    "member's words is NOT in `dates` (\"6/2/2026\" can be read two ways, \"March 2026\" names no day), ask "
+    "for it in plain words: the day, the month and the year.\n"
     "  When this bar is COMPARED with \"the last N\", \"the previous N\" or \"the prior N\" bars "
     "or days, the window is the N bars BEFORE this one: wrap it in an offset of 1 (volume above "
     "the highest volume of the last 10 days is volume > offset 1 of highest(volume, 10)). A "
     "window that includes this bar compares it with itself. Only \"is AT an N-bar high or low\" "
     "includes this bar (close >= highest(close, N)).\n"
+    "  THE EXTREME, THE SUM OR THE AVERAGE OF ONLY SOME BARS IN A WINDOW (\"the highest down-day volume of "
+    "the last 10 days\", \"the lowest close among the up days of the last 20\"): the window is still the "
+    "last N BARS. lowest, highest, an average and a sum SKIP a bar that has no value and look further back "
+    "for one, so a bar given no value (0 / 0, or any division by zero: there is no infinity here) turns "
+    "the window into the last N bars THAT QUALIFY, which is a different number. Give the bars to leave out "
+    "a number that cannot win or count: 0 inside highest and inside a sum, a number far above any real one "
+    "inside lowest (lowest(close > offset 1 of close ? volume : 1000000000000000, 10)). That number is a "
+    "STAND-IN, never an answer: on a bar whose window holds no qualifying bar the stand-in itself comes "
+    "back. Where the extreme is only COMPARED (volume > offset 1 of highest(...)) that is fine. Where it is "
+    "DRAWN or used in arithmetic, make it no value on those bars: sum(cond ? 1 : 0, N) > 0 ? "
+    "lowest(cond ? low : 1000000000000000, N) : 0 / 0. An AVERAGE of only some bars of the last N has no "
+    "stand-in: write it as sum(cond ? x : 0, N) / sum(cond ? 1 : 0, N), which is no value by itself when "
+    "none qualify (an average given no value on the other bars is the average of the last N that "
+    "qualify). Only when the member asks for the last N bars that qualify (\"the average volume of the last "
+    "10 up days\") is no value right, written 0 / 0, and then say in `assumptions` that the window reaches "
+    "back past other bars.\n"
+    "  A COUNT, A SUM OR AN AVERAGE OVER A WINDOW OF A CONDITION THAT READS SOMETHING WITH ITS OWN WARM-UP "
+    "(\"the percent of the last 50 days the close was above its 20 day average\", \"how many of the last 20 "
+    "days closed above the 200 day average\"): a comparison with a value that does not exist yet is FALSE "
+    "here, so on the bars where that average has no value the count would add a 0 and show a NUMBER for "
+    "something that is not known. On a symbol with less history than the average needs, that number is 0 "
+    "on every bar. The count must have NO VALUE until the thing the condition reads (X: the average, the "
+    "highest, the RSI) has a value on the window's OLDEST bar: na(offset N - 1 of X) ? 0 / 0 : <the "
+    "count>. For the last 50 bars above a 20-bar average: na(offset 49 of sma(close, 20)) ? 0 / 0 : "
+    "sum(close > sma(close, 20) ? 1 : 0, 50) * 100 / 50. A condition that reads only this bar and the one "
+    "before it (close > offset 1 of close) needs no such guard.\n"
+    "  A COUNT OF BARS SINCE something, when the count itself is what the member wants to see: give "
+    "`barssince` a window far longer than the thing being measured (500 unless the member names one), "
+    "never the event's own length (\"bars since the last 50-bar high\" is barssince(cond, 500), not 50: "
+    "at 50 the line would stop at 50 and read 50 for 51, 80 or 300 bars). Say in `assumptions` where the "
+    "count stops.\n"
+    "  A RANK, or a count of the bars of a window measured against TODAY's value (\"where does today's "
+    "volume rank among the last 20 bars\", \"how many of the last 50 closes were above today's\"): inside "
+    "sum(..., N) and every other window, each series is read at ITS OWN bar, so nothing written there "
+    "means today's value, and volume > volume compares each bar with itself and is never true. Use "
+    "percentrank: percentrank(x, N) is the percent of the N bars BEFORE this one whose x is at or below "
+    "today's. So among the last N bars with this one, the bars above today's are (N - 1) - percentrank(x, "
+    "N - 1) * (N - 1) / 100, and the rank with 1 for the highest is N - percentrank(x, N - 1) * (N - 1) / "
+    "100 (the last 20 bars: 20 - percentrank(volume, 19) * 19 / 100).\n"
     "  A RUNNING VALUE reads its own previous value: an adaptive average, a stop that ratchets, a "
     "streak or a count. It is accum(seed, update, warmup): it starts at `seed` and becomes "
     "`update` on each of the last `warmup` bars, and inside `update` the series named `self` is "
@@ -693,9 +961,50 @@ CONVERSE_SYSTEM_PROMPT = (
     "300). An adaptive average: accum(close, self + k * (close - self), 300) with k any formula "
     "between 0 and 1. `warmup` is a plain whole number up to 960: use 300 unless the member "
     "asks. `self` exists ONLY inside an accum's update; one accum never sits inside another "
-    "(give the inner one its own output's formula instead); accum2, accum3 and accum4 are NOT "
-    "available, so an indicator needing two running values that feed each other is unsupported. "
-    "A named indicator built this way is built to its PUBLISHED formula or not at all.\n"
+    "(give the inner one its own output's formula instead). A TOTAL THAT NEVER FORGETS (on-balance "
+    "volume, an accumulation and distribution line, any \"running total\" or \"cumulative\" value with no "
+    "window) is cum(x): the running total of x over every bar of the loaded history. On-balance volume is "
+    "cum(close > offset 1 of close ? volume : close < offset 1 of close ? 0 - volume : 0). It is NEVER an "
+    "accum: an accum over W bars is that total's CHANGE across the last W bars, a different line. Only "
+    "when the member names a window (\"over the last 300 bars\") is it sum(x, N).\n"
+    "  A RUNNING VALUE THAT STARTS ON A DATE the member names (\"a trailing stop from my entry on 2 June "
+    "2026\", \"the highest high since 3 March\", \"count the up days since 1 May\") has NO value before "
+    "that date and STARTS FRESH on the first bar on or after it: on that bar it is its starting value "
+    "itself, and only the bars after it read `self`. With D that date's number from `uct_language_notes.dates`, write "
+    "time < D ? 0 / 0 : accum(start, offset 1 of time < D ? start : update, 900). The stop two ATRs under "
+    "the close that only rises from the date: time < D ? 0 / 0 : accum(close - 2 * atr(high, low, close, "
+    "14), offset 1 of time < D ? close - 2 * atr(high, low, close, 14) : max(self, close - 2 * atr(high, "
+    "low, close, 14)), 900). NEVER let the first bar read `self`: max(self, x) on the start bar carries "
+    "the level of the bar BEFORE the date into the value, so a stop starts too high and a count starts "
+    "above its first number. Do not draw the unstarted level before the date; when the member wants that "
+    "line as well it is a second output. Say in `assumptions` the date it starts on.\n"
+    "  SEVERAL RUNNING VALUES THAT FEED EACH OTHER are accum2, accum3 or accum4: accumK(which, "
+    "warmup, start1..startK, update1..updateK). All K values are replaced together on each bar. "
+    "Inside the updates `state1`..`stateK` are their PREVIOUS values, and `which` (a plain whole "
+    "number 1..K) is the one drawn. An update that needs another value as it is on THIS bar "
+    "writes that value's update out again in its place. TWO shapes only. A FILTER: every update "
+    "is a sum of plain-number multiples of the states plus terms that read no state. A two-pole "
+    "smoother of the close, period 10: accum2(1, 300, close, close, c1 * (close + offset 1 of "
+    "close) / 2 + c2 * state1 + c3 * state2, state1), where state2 carries the value before last "
+    "and the coefficients are written out as arithmetic of plain numbers: c2 is 2 * exp(-1.414 * "
+    "3.14159 / 10) * cos(1.414 * 3.14159 / 10), c3 is -(exp(-1.414 * 3.14159 / 10) * exp(-1.414 "
+    "* 3.14159 / 10)), c1 is 1 - c2 - c3. A CHAIN: each update reads its OWN state only as a "
+    "plain-number multiple under 1 (a clamp by max or min around it is fine) and EARLIER states "
+    "through arithmetic and ONE-BAR functions only (max, min, abs, ln, exp, sqrt). A running value "
+    "has one bar of its past, not a history: NEVER put a state inside a function that reads a "
+    "window of bars (lowest, highest, an average, a sum, a standard deviation) and never give it a "
+    "bar offset. An indicator that needs the highest or lowest of a running value over a window "
+    "cannot be written: say so and offer the part that can. Within those limits, read earlier states "
+    "any way at all. Where the price sits in its 10-bar range (x, from 0 to 1), smoothed, "
+    "stretched with a log and smoothed again: accum2(2, 300, 0, 0, v, 0.5 * ln((1 + v) / (1 - v)) + 0.5 * state2) with "
+    "v written out both times as max(-0.999, min(0.999, 0.66 * (x - 0.5) + 0.67 * state1)). A "
+    "coefficient on a state is a plain number (arithmetic, exp, cos, sin, sqrt of plain numbers), "
+    "NEVER a setting: write the numbers for the length asked for and say in an assumption that "
+    "the length is fixed in the formula and they can ask for another. A ratchet, a count or a "
+    "switch across several running values (a trailing stop that flips with a trend direction, a "
+    "counter reset by another counter) is unsupported: say so and offer the nearest thing ONE "
+    "accum can do. A named indicator built with running values is built to its PUBLISHED formula "
+    "or not at all.\n"
     "  AN UP DAY is a close above the PREVIOUS close (close > offset 1 of close), a down day a "
     "close below it; the same for an up or down week or month. That is what up/down volume, "
     "accumulation and distribution days, and \"up on volume\" count. A close above its own OPEN "
@@ -706,6 +1015,16 @@ CONVERSE_SYSTEM_PROMPT = (
     "cond && (offset 1 of barssince(cond, N)) >= N. `barssince` takes its window as its second "
     "argument and answers N when the condition was not true that recently. Never leave the "
     "\"first time\" part out: without it the mark repeats on every bar of a run.\n"
+    "  READINGS UCT HAS RULED (2026-11-19: each was measured coming back two ways, or wrong): "
+    "A BAND WITH A PUBLISHED CONSTRUCTION IS NEVER REPLACED BY ANOTHER DEVIATION. VWAP's bands are the volume-weighted deviation of price around VWAP since its anchor; a regression channel's bands are the deviation of price around the regression line. Neither is a deviation of the close over N bars, and a formula here cannot hold either: say so (unsupported) and offer the line itself (the VWAP, the regression line). For VWAP's bands, also say that UCT's built-in Session VWAP in the Indicators list draws them (its Std dev bands setting). Never draw another deviation under that name. "
+    "\"More than X\" and \"above X\" are STRICT (>); \"at least X\" and \"X or more\" are >=. "
+    "\"Volume above average\" with no length named is volume above its 50-bar simple average, UCT's usual: say so in `assumptions`. "
+    "MARK EVERY BAR the condition is true on. Add \"only the first in N bars\" ONLY when the member says first, new signal, once, or not on every bar; a request for \"new 52 week highs\" marks every bar that makes one. "
+    "A DIVERGENCE between price and an oscillator is read from swing to swing (pivot lows or pivot highs of each). A formula here cannot hold that: say so (unsupported). Never substitute \"price at an N-bar low while the oscillator is above its own\". "
+    "TIGHT CLOSES (\"three tight closes within 1 percent\"): UCT's own reader (three weeks tight) measures each close against the close BEFORE it. N tight closes within X% is every one of the last N closes within X% of the close before it (N - 1 comparisons), and nothing else. With no percent named use 1.5%, the Screener's own tolerance, and say so. "
+    "kcUpper / kcLower are the EMA plus and minus the multiple times the EMA OF TRUE RANGE over the same length (Pine's ta.kc). Describe them as that, not as \"ATR\": Wilder's ATR is a different number. "
+    "A correlation between two symbols is of their closes over N bars, as TradingView's Correlation Coefficient is; say so. "
+    "A TRAILING STOP measured from \"the highest close\" (or the highest high) with no window and no start date: ASK \"the highest close over how many bars, or since what date?\". Never pick a window silently.\n"
     "  A `sym` goes OUTSIDE a timeframe read, never under one: SPY's weekly close is "
     "sym(SPY, tf(close, W)). Wrap only what is read from the other symbol: "
     "\"close above SPY's 50 EMA\" compares the chart's close with "
@@ -778,6 +1097,378 @@ _block = dc.data_block
 DATA_PREAMBLE = dc.DATA_PREAMBLE
 
 
+#: ⭐ 2026-11-19 -- A REQUEST THAT NAMES A DATE BY THE CALENDAR. The defect: a line anchored to "the
+#: start of this year" was anchored to the first day of an EARLIER year and read back as the current
+#: one. The assistant is not told the date, so it used the last year it knew. The door knows it: when
+#: the member's words name a calendar start, the turn carries today's date and the exact start of
+#: this year, quarter, month and week (`calendar_notes`), and the instructions forbid working any of
+#: them out. Any other turn is byte for byte what it was (nothing is added, the clock is not read).
+#: ⭐ 2026-11-21 -- "this CALENDAR year" names one too (it was unmatched, so the assistant asked for a
+#: date the door had). And the dates are for an ANCHOR only: a value that RESTARTS each year, month or
+#: week is built from the bar's own calendar (the instructions' paragraph above the dated one), since a
+#: date written into such a value is blank or wrong on every other year and goes stale when the year turns.
+_CALENDAR_WORDS = re.compile(
+    r"\b(?:this|current)\s+(?:calendar\s+)?(?:year|quarter|month|week)\b|\byear[\s-]+to[\s-]+date\b|\bytd\b|\bqtd\b|\bmtd\b|"
+    r"\bstart\s+of\s+(?:the\s+|this\s+)?(?:calendar\s+)?(?:year|quarter|month|week)\b|\b(?:yearly|quarterly|monthly|weekly)\s+(?:anchored\s+)?vwap\b",
+    re.I)
+CALENDAR_TZ = "America/New_York"
+
+
+def _now():
+    """The door's clock, in New York time (one function, so a test pins it)."""
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    return _dt.datetime.now(ZoneInfo(CALENDAR_TZ))
+
+
+def names_a_calendar_start(message: Any) -> bool:
+    return isinstance(message, str) and bool(_CALENDAR_WORDS.search(message))
+
+
+def calendar_notes(now: Any = None) -> Dict[str, Any]:
+    """Today's date and the start of this year, quarter, month and week, each at midnight New York
+    time as epoch seconds (what `avwap` takes). The week starts on Monday."""
+    import datetime as _dt
+    now = now or _now()
+    tz = now.tzinfo
+
+    def start(year, month, day):
+        at = _dt.datetime(year, month, day, tzinfo=tz)
+        return {"date": at.date().isoformat(), "epoch": int(at.timestamp())}
+
+    monday = now.date() - _dt.timedelta(days=now.weekday())
+    return {
+        "today": now.date().isoformat(),
+        "timezone": CALENDAR_TZ,
+        "start_of_this_year": start(now.year, 1, 1),
+        "start_of_this_quarter": start(now.year, 3 * ((now.month - 1) // 3) + 1, 1),
+        "start_of_this_month": start(now.year, now.month, 1),
+        "start_of_this_week": start(monday.year, monday.month, monday.day),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# a date the member writes out -- resolved by the DOOR, never by the assistant
+# --------------------------------------------------------------------------- #
+#: ⭐ 2026-11-22 -- found by the live re-check of "a running value that starts on a date". The door gave the
+#: assistant a number for "this year" and none for "2 June 2026", so it either worked the number out (four
+#: days off on the re-check: the line started on 6 June under a sentence naming 2 June) or asked the member
+#: for "the exact start-of-day timestamp in seconds". The fix is the fact, as it was for the calendar.
+_MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+_MONTH_RE = (r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|"
+             r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?(?![a-z])")
+_DAY_RE = r"(\d{1,2})(?:st|nd|rd|th)?"
+_YEAR_RE = r"(?:,?\s+((?:19|20)\d{2})(?!\d))?"
+#: "2 June 2026", "2nd of June", "2 Jun, 2026"
+_DATE_DAY_FIRST = re.compile(rf"(?<![\d/.:-]){_DAY_RE}\s+(?:of\s+)?{_MONTH_RE}{_YEAR_RE}", re.I)
+#: "June 2, 2026", "June 2nd", "Jun 2 2026" -- never "June 20 day average" (a length, not a day)
+_DATE_MONTH_FIRST = re.compile(
+    rf"\b{_MONTH_RE}\s+{_DAY_RE}(?![\d:%/.-])(?!\s*-?\s*(?:day|bar|week|month|period|session|ema|sma|ma)s?\b){_YEAR_RE}", re.I)
+#: "2026-06-02" -- the one all-number form that reads one way. "6/2/2026" reads two ways and is NOT resolved.
+_DATE_ISO = re.compile(r"(?<![\d/.-])((?:19|20)\d{2})-(\d{1,2})-(\d{1,2})(?![\d/.-])")
+#: how many dates one turn carries
+MAX_DATES = 6
+
+
+def _date_note(words: str, year: Optional[int], month: int, day: int, today: Any) -> Optional[Dict[str, Any]]:
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    assumed = year is None
+    if assumed:                                   # no year: the most recent such day, today included
+        for candidate in range(today().year, today().year - 9, -1):
+            try:
+                if _dt.date(candidate, month, day) <= today():
+                    year = candidate
+                    break
+            except ValueError:                    # 29 February of a year that has none
+                continue
+        if year is None:
+            return None
+    try:
+        at = _dt.datetime(year, month, day, tzinfo=ZoneInfo(CALENDAR_TZ))
+    except ValueError:                            # 31 June
+        return None
+    note: Dict[str, Any] = {"words": " ".join(words.split()), "date": at.date().isoformat(), "epoch": int(at.timestamp())}
+    if assumed:
+        note["year_assumed"] = True
+    return note
+
+
+def dates_named(message: Any, now: Any = None) -> List[Dict[str, Any]]:
+    """Every date the member WROTE OUT, each at 00:00 New York time as epoch seconds (the number `time`
+    holds and `avwap` takes), in the order written. A date with no year is the most recent such day and
+    says so (`year_assumed`). A form that reads two ways ("6/2/2026") or names no day ("March 2026") is
+    not resolved: the assistant asks for it in plain words. The clock is read only for a date with no year."""
+    if not isinstance(message, str) or not message.strip():
+        return []
+    clock: Dict[str, Any] = {}
+
+    def today() -> Any:
+        if "today" not in clock:
+            clock["today"] = (now or _now()).date()
+        return clock["today"]
+
+    found: List[Tuple[int, int, Dict[str, Any]]] = []
+
+    def taken(start: int, end: int) -> bool:
+        return any(start < e and s < end for s, e, _ in found)
+
+    def keep(match: Any, year: Any, month: Any, day: Any) -> None:
+        if taken(match.start(), match.end()):
+            return
+        if isinstance(month, str):
+            name = month.lower()
+            # "may" is a word: it is a month only with a capital or a year ("it may 5x" is not the 5th of May)
+            if name == "may" and year is None and "M" not in match.group(0):
+                return
+            month = _MONTHS.index(name[:3]) + 1
+        note = _date_note(match.group(0), int(year) if year else None, int(month), int(day), today)
+        if note:
+            found.append((match.start(), match.end(), note))
+
+    for m in _DATE_ISO.finditer(message):
+        keep(m, m.group(1), int(m.group(2)), m.group(3))
+    for m in _DATE_DAY_FIRST.finditer(message):
+        keep(m, m.group(3), m.group(2), m.group(1))
+    for m in _DATE_MONTH_FIRST.finditer(message):
+        keep(m, m.group(3), m.group(1), m.group(2))
+    out: List[Dict[str, Any]] = []
+    for _, _, note in sorted(found, key=lambda f: f[0]):
+        if all(note["date"] != seen["date"] for seen in out):
+            out.append(note)
+    return out[:MAX_DATES]
+
+
+#: a number this large beside `time` is a date (epoch seconds since 1979, or milliseconds)
+_DATE_NUMBER_FLOOR = 300_000_000
+_NUMBER_RUN = re.compile(r"(?<![\d.])\d{9,13}(?![\d.])")
+
+
+def supplied_date_numbers(message: Any, notes: Any, view: Any, turns: Any) -> Dict[int, str]:
+    """Every date number this turn may use, with the words it stands for: the dates and the calendar of
+    the notes, a date the member wrote in an earlier turn, a number the member typed, and every number
+    already in the member's own indicator (an edit re-sends its formulas)."""
+    out: Dict[int, str] = {}
+    notes = notes if isinstance(notes, Mapping) else {}
+    for note in notes.get("dates") or []:
+        out[note["epoch"]] = note["date"]
+    for key, value in (notes.get("calendar") or {}).items():
+        if isinstance(value, Mapping) and isinstance(value.get("epoch"), int):
+            out[value["epoch"]] = key.replace("_", " ")
+    for turn in turns or []:
+        if isinstance(turn, Mapping) and turn.get("role") == "member":
+            for note in dates_named(turn.get("text")):
+                out.setdefault(note["epoch"], note["date"])
+    for text, what in ((message if isinstance(message, str) else "", "a number in the member's words"),
+                       (json.dumps(view, default=str) if view is not None else "", "already in the indicator")):
+        for run in _NUMBER_RUN.findall(text):
+            out.setdefault(int(run), what)
+    return out
+
+
+def _reads_time(node: Any) -> bool:
+    if isinstance(node, list):
+        return any(_reads_time(child) for child in node)
+    if not isinstance(node, Mapping):
+        return False
+    return (node.get("type") == "series" and node.get("name") == "time") or _reads_time(node.get("args"))
+
+
+def _is_date_number(node: Any) -> bool:
+    return (isinstance(node, Mapping) and node.get("type") == "num" and isinstance(node.get("value"), (int, float))
+            and not isinstance(node.get("value"), bool) and node["value"] >= _DATE_NUMBER_FLOOR)
+
+
+_DATE_COMPARISONS = frozenset({"<", "<=", ">", ">=", "==", "!="})
+
+
+def check_date_numbers(envelope: Mapping[str, Any], supplied: Mapping[int, str]) -> None:
+    """A DATE NUMBER THE TURN DID NOT SUPPLY IS REFUSED, so the model gets its repair with the right one.
+
+    Looked for where a date number does its work: compared with `time` (read on this bar or a bar back),
+    and as the anchor of `avwap`. A number the notes gave, the member typed, or the indicator already
+    holds passes. Measured before it was written over the 200 recorded answers that change something:
+    four hold a date number; it refuses ONE, the answer that started four days late, and no other.
+    """
+    def refuse(where: str, value: Any, how: str) -> None:
+        have = "; ".join(f"{words} is {number}" for number, words in supplied.items()
+                         if "member's words" not in words and "already in" not in words)
+        raise _Refused(
+            "envelope:reference",
+            f"{where}: {how} {int(value)}, a date number this turn did not give you. A date's number is never "
+            "worked out. Use the `epoch` of the date in `uct_language_notes.dates` (or `calendar`) exactly as it "
+            f"is given{' (' + have + ')' if have else ''}; for a later day add whole days to it as arithmetic "
+            "(D + 86400). If the member's date is in neither, ask for it in plain words (the day, the month "
+            "and the year), and never ask for a number.")
+
+    def visit(node: Any, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        args = node.get("args")
+        if node.get("type") == "op" and node.get("name") in _DATE_COMPARISONS and isinstance(args, list) and len(args) == 2:
+            for number, other in ((args[0], args[1]), (args[1], args[0])):
+                if _is_date_number(number) and _reads_time(other) and int(number["value"]) not in supplied:
+                    refuse(where, number["value"], "`time` is compared with")
+        if node.get("type") == "call" and node.get("name") == "avwap" and isinstance(args, list) and args:
+            if _is_date_number(args[0]) and int(args[0]["value"]) not in supplied:
+                refuse(where, args[0]["value"], "`avwap` is anchored at")
+        visit(args, where)
+
+    for where, tree in _trees_of(envelope):
+        visit(tree, where)
+
+
+# --------------------------------------------------------------------------- #
+# on a chart below a day a length in days is days
+# --------------------------------------------------------------------------- #
+#: ⭐ 2026-11-22 -- found by the value cases' 5 minute chart. Asked on a 5 minute chart for "today's low so far plus
+#: 60 percent of the 14 day ATR", the assistant built the ATR of fourteen 5 MINUTE bars and said so in a note. By
+#: value it was not what was asked on any of 3,120 bars; the member reads the chart, not the note. The ruling:
+#: right by value, or refused by name with the nearest builds offered. Never a stand-in under a disclosure.
+#: MEASURED before it shipped, over the 200 answers recorded in the live rounds AS IF asked on a 5 minute chart: 61
+#: requests give a length in days that their answer takes as a window of bars (no false trigger among them); 31 of
+#: those are lines only and can be built on daily bars, 30 cannot (a marker or a condition on each bar, or another
+#: symbol) and end at the question until a daily read below a day exists.
+#: a length in days in the member's words ("14 day", "20-day", "3 sessions"); "2 days ago" is a look-back, not a length
+_DAY_LENGTH = re.compile(r"(?<![\d.])(\d{1,3})[\s-]*(?:day|session)s?\b(?!\s+(?:ago|back|earlier|before|prior))", re.I)
+#: the member's words name a chart below a day
+_MINUTE_WORDS = re.compile(r"(?<![\d.])(\d{1,3})[\s-]*(?:minutes?|mins?)\b", re.I)
+_HOUR_WORDS = re.compile(r"(?<![\d.])(\d{1,2})[\s-]*(?:hours?|hr)\b|\b(hourly)\b", re.I)
+_INTRADAY_WORD = re.compile(r"\bintraday\b", re.I)
+_HIGHER_FRAMES = ("D", "W", "M")
+#: a regular session, in minutes (09:30 to 16:00)
+SESSION_MINUTES = 390
+_MINUTE_NAMES = {1: "one", 2: "two", 3: "three", 5: "five", 10: "ten", 15: "fifteen", 30: "thirty", 45: "forty-five"}
+
+
+def chart_minutes(message: Any, chart: Any) -> Optional[int]:
+    """The minutes in one bar of a chart below a day: the chart's own timeframe when it is one (a number of
+    minutes), else the one the member's words name ("on a 5 minute chart", "the hourly chart"). None when the
+    chart is not below a day, or is only known to be ("intraday")."""
+    tf = chart.get("tf") if isinstance(chart, Mapping) else None
+    if isinstance(tf, (str, int)) and not isinstance(tf, bool) and str(tf).isdigit() and int(tf) > 0:
+        return int(tf)
+    words = message if isinstance(message, str) else ""
+    m = _MINUTE_WORDS.search(words)
+    if m and int(m.group(1)) > 0:
+        return int(m.group(1))
+    h = _HOUR_WORDS.search(words)
+    if h:
+        return 60 if h.group(2) else int(h.group(1)) * 60 or None
+    return None
+
+
+def below_a_day(message: Any, chart: Any) -> bool:
+    """Is this request about a chart below a day: the chart itself is, or the member's words name one."""
+    return chart_minutes(message, chart) is not None or (isinstance(message, str) and bool(_INTRADAY_WORD.search(message)))
+
+
+def day_lengths(message: Any) -> List[int]:
+    """Every length in days the member's words give (each once, in order): 2 or more. A number the member ALSO gives
+    in bars ("50 five-minute bars", "a 14 bar ATR") is theirs in bars: that is how an offered choice is picked."""
+    words = message if isinstance(message, str) else ""
+    out: List[int] = []
+    for m in _DAY_LENGTH.finditer(words):
+        n = int(m.group(1))
+        if n >= 2 and n not in out and not re.search(rf"(?<![\d.]){n}\s+(?:[a-z-]+\s+)?bars?\b", words, re.I):
+            out.append(n)
+    return out
+
+
+def span_on_this_chart(bars: int, minutes: Optional[int]) -> str:
+    """What `bars` bars of a chart below a day really span, the way a trader says it: "50 five-minute bars, about 4
+    hours". Under a session in hours and minutes, a session or more in trading days. The DOOR works this out; the
+    assistant is told to use it as written (it once worked a date out four days wrong)."""
+    if not minutes:
+        return f"{bars} bars of this chart"
+    kind = "hourly" if minutes == 60 else f"{_MINUTE_NAMES.get(minutes, minutes)}-minute"
+    total = bars * minutes
+    if total >= SESSION_MINUTES:
+        days = round(total / SESSION_MINUTES * 2) / 2
+        about = f"about {days:g} trading day{'' if days == 1 else 's'}"
+    elif total < 60:
+        about = f"about {total} minutes"
+    else:
+        step = 5 if total < 120 else 30
+        total = int(round(total / step) * step)
+        hours, rest = divmod(total, 60)
+        about = f"about {hours} hour{'' if hours == 1 else 's'}" + (f" {rest} minutes" if rest else "")
+    return f"{bars} {kind} bars, {about}"
+
+
+def day_length_notes(message: Any, chart: Any) -> List[Dict[str, Any]]:
+    """For a request below a day that gives lengths in days: each one with what that many bars of the chart span."""
+    if not below_a_day(message, chart):
+        return []
+    minutes = chart_minutes(message, chart)
+    return [{"days": n, "on_this_chart": span_on_this_chart(n, minutes)} for n in day_lengths(message)]
+
+
+def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> None:
+    """A LENGTH IN DAYS BUILT AS THAT MANY BARS OF A CHART BELOW A DAY IS REFUSED, so the model gets its repair; and
+    a QUESTION that offers the bars version must say what it spans and never call it by its number of days.
+
+    A change passes when the whole indicator is moved to a daily (or higher) calculation timeframe, which is how a
+    daily value is built; when the member asked in bars; and on a daily chart, where N bars ARE N days.
+    """
+    lengths = day_length_notes(message, chart)
+    if not lengths:
+        return
+    by_days = {n["days"]: n["on_this_chart"] for n in lengths}
+    if envelope.get("disposition") == "clarify":
+        for q in envelope.get("questions") or []:
+            for choice in (q.get("choices") or []) if isinstance(q, Mapping) else []:
+                text = " ".join(str(choice).split())
+                # the BARS version is a choice that speaks of this chart's bars; "on daily bars" is the daily line
+                if not re.search(r"\bbars?\b", text, re.I) or re.search(r"\bdaily\s+bars?\b", text, re.I):
+                    continue
+                span = next((s for s in by_days.values() if s.split(",")[0] in text and s.split(", ")[-1] in text), None)
+                called_days = next((n for n in by_days if re.search(rf"(?<![\d.]){n}[\s-]*days?\b", text, re.I)), None)
+                if span is None or called_days is not None:
+                    raise _Refused(
+                        "envelope:reference",
+                        f"the choice {text!r} offers a version on this chart's bars. Name it for what it spans, with the "
+                        f"words of `uct_language_notes.day_lengths` exactly ({'; '.join(by_days.values())}), and never "
+                        "call it by its number of days.")
+        return
+    if envelope.get("disposition") not in (None, "change") or not envelope.get("ops"):
+        return
+    for o in envelope.get("ops") or []:
+        if isinstance(o, Mapping) and o.get("op") == "set_calculation_timeframe" and o.get("timeframe") in _HIGHER_FRAMES:
+            return
+
+    def visit(node: Any, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        args = node.get("args")
+        if node.get("type") == "call" and isinstance(args, list):
+            for a in args:
+                if (isinstance(a, Mapping) and a.get("type") == "num" and isinstance(a.get("value"), (int, float))
+                        and not isinstance(a.get("value"), bool) and a["value"] in by_days):
+                    n = int(a["value"])
+                    raise _Refused(
+                        "envelope:reference",
+                        f"{where}: `{node.get('name')}(..., {n})` is {by_days[n]}, and the member asked for {n} DAYS. If "
+                        "EVERY part of the indicator is a daily line on the chart's own symbol, keep the formula and "
+                        "add set_calculation_timeframe D. If not (each bar is compared with the daily measure, today's "
+                        "own values are added to it, or another symbol is read), it cannot be written yet: do NOT build "
+                        "it on the chart's bars under a note. Answer with disposition clarify, `ops: []`, and ONE "
+                        "question: one plain sentence of why, then two `choices` that each name what they draw in time, "
+                        f"the bars version written as \"{by_days[n]}\" and never as {n} days.")
+        visit(args, where)
+
+    for where, tree in _trees_of(envelope):
+        visit(tree, where)
+
+
 def user_turn(message: str, notes: Mapping[str, Any], view: Mapping[str, Any],
               state: Mapping[str, Any], snippets: List[Mapping[str, str]]) -> str:
     """The ONE place request data enters the conversation."""
@@ -819,18 +1510,1029 @@ def _chart_form(tree: Any) -> Optional[Dict[str, Any]]:
     return out
 
 
+#: ⭐ 2026-11-18 -- PHRASES EVERY TRADER SAYS THAT NAME NO ONE FUNCTION. "Plot the Moving Average" and
+#: "Add a 50 day Moving Average" were refused before any model call: the bare phrase was no phrase
+#: of this door, so in Title Case it read as an unknown named indicator. Each is a TERM here, with
+#: the rule for what to do about the part it leaves open.
+GENERIC_SECTION = "generic_phrases"
+#: ⭐ OWNER RULING, 2026-11-18: A MOVING AVERAGE WITH NO KIND NAMED IS A QUESTION, NEVER AN ASSUMPTION.
+#: Members say which they mean ("50 EMA", "a 50 day simple moving average"); when they do not, ASK.
+#: For a NEW indicator the door asks itself, before any model call (`asks_which_average`), so the
+#: answer is the same every time and costs nothing. Beside an indicator already on the chart the
+#: assistant reads the chart, under this rule.
+MOVING_AVERAGE_RULE = (
+    "a moving average with no kind named. If the member's words name the kind, or the indicator already on the "
+    "chart uses one kind of average and they plainly mean that one, use it. Otherwise ASK which kind "
+    "(disposition clarify, one question offering Simple, Exponential, Weighted, Hull and Volume-weighted). "
+    "NEVER assume a kind")
+# ⭐ 2026-11-18 (ruling) -- A HOUSE TERM HOLDS ITS OWN CONVENTION, SO THE ASSISTANT IS HANDED IT AND
+# NEED NOT INFER IT. "Follow-through day" is the firm's term. Asked for "day 4 through day 12
+# after the lowest low", the assistant counted the day of the low as day 1 (the low 3 to 11 bars
+# back) and said so; the house counts the day AFTER the low as day 1 (4 to 12 bars back). It was
+# the one house indicator still graded different after the instruction changes of that day, and
+# everything else in it matched. A firm definition settles a house term: it is never a question.
+# (A GENERIC request that counts days from a low, with no house term, is a different matter. It was
+# measured on the requests on file before anything was built: 1 of 965, and that one is this
+# house term's own request. So no question was added; it is a row in the backlog.)
+FOLLOW_THROUGH_DAY_RULE = (
+    "a HOUSE TERM. UCT's convention for its day count: THE DAY AFTER THE LOWEST LOW IS DAY 1, so day N is N "
+    "bars after the low. \"Day 4 through day 12 after the lowest low of the last 50 sessions\" is the low "
+    "sitting 4 to 12 bars back: lowestbars(low, 50) >= 4 and lowestbars(low, 50) <= 12. Use the member's own "
+    "numbers for the gain, the days and the lookback, and compare the close with the PREVIOUS close. Say the "
+    "day-count convention in one assumption")
+GENERIC_PHRASES: Mapping[str, Tuple[str, str]] = {
+    "moving average": ("moving_average", MOVING_AVERAGE_RULE),
+    "ma": ("moving_average", MOVING_AVERAGE_RULE),
+    "dma": ("moving_average", MOVING_AVERAGE_RULE),
+    "follow through day": ("follow_through_day", FOLLOW_THROUGH_DAY_RULE),
+    "follow through days": ("follow_through_day", FOLLOW_THROUGH_DAY_RULE),
+}
+#: The terms that NAME a kind of average. One of them beside the bare phrase settles it.
+AVERAGE_TERMS = frozenset({"sma", "ema", "wma", "hma", "vwma", "alma"})
+# --------------------------------------------------------------------------- #
+# ⭐ CLARIFY FIRST (owner direction, 2026-11-18): "always clarify". When a choice that changes the
+# MATHS is not settled, the door asks ONE short question with the options before anything is built,
+# and never guesses. The questions are DATA (`api/data/clarify_questions.json`); WHEN one is open is
+# read here, from what the planner already found. No model call: the same question every time.
+# --------------------------------------------------------------------------- #
+
+CLARIFY_PATH = Path(__file__).resolve().parents[1] / "data" / "clarify_questions.json"
+
+
+@functools.lru_cache(maxsize=1)
+def clarify_registry() -> Dict[str, Dict[str, Any]]:
+    """The door's own questions, by id, in the order they are asked."""
+    doc = json.loads(CLARIFY_PATH.read_text(encoding="utf-8"))
+    return {q["id"]: q for q in doc["questions"]}
+
+
+def clarify_question(question_id: str) -> Dict[str, Any]:
+    """One registry question in the patch contract's shape: {id, text, choices}."""
+    q = clarify_registry()[question_id]
+    return {"id": q["id"], "text": q["text"], "choices": list(q["choices"])}
+
+
+#: (kept by name for the tests that pin it) the first question of the registry.
+AVERAGE_QUESTION: Mapping[str, Any] = clarify_question("average_kind")
+
+_CROSS_WORD = re.compile(r"\bcross(?:es|ed|ing|over|overs)?\b", re.I)
+_PRICE_WORD = re.compile(r"\bprice\b", re.I)
+#: More than one average in one request.
+_SEVERAL_AVERAGES = re.compile(r"\b(?:averages|emas|smas|wmas|hmas|mas|ribbon|ribbons)\b", re.I)
+#: Words that say WHEN a cross counts: on the close, or as soon as price trades through.
+_CROSS_SETTLED = re.compile(
+    r"\b(?:close|closes|closed|closing|touch|touches|touched|intraday|intrabar|wick|wicks|trades?\s+through|high|low)\b", re.I)
+
+
+# ⭐ SLICE F (2026-11-18): TWO MORE CHOICES THAT CHANGE THE MATHS. Measured before they were written,
+# with these rules, over the 400 first requests on file: 14 use the words for relative strength or a
+# comparison with the market and 13 already settle it (most name the symbol); 2 use the words for a
+# breakout or a new high and 1 names its span. So each question is asked of one request in 400. Until
+# now the first was asked by the assistant in its own words (a paid call, nothing remembered) and the
+# second was the assistant's guess.
+#: Words that ask for a comparison with the market.
+_BENCHMARK_WORD = re.compile(
+    r"\b(?:relative strength|rs line|rs rating|relative performance|out-?perform\w*|under-?perform\w*|"
+    r"(?:versus|vs\.?|against|relative to|compared (?:to|with)|stronger than|weaker than|beat(?:s|ing)?|lag(?:s|ging)?) "
+    r"the (?:market|index))", re.I)
+#: A comparison the choices cannot answer (a sector, an industry, its peers), and the oscillator
+#: whose name merely holds the words: neither is this question's.
+_BENCHMARK_NOT_OURS = re.compile(r"\b(?:sector|industry|group|peers?|theme|relative strength index)\b", re.I)
+#: Words that ask for a breakout.
+_BREAKOUT_WORD = re.compile(r"\b(?:break(?:s|ing)?[ -]?outs?|broke out|new highs?|new lows?)\b", re.I)
+#: What a breakout is FROM, or the span it is over, said in words: then the level is that thing's.
+_BREAKOUT_SETTLED = re.compile(
+    r"\b(?:range|squeeze|bands?|channel|average|trend ?line|resistance|support|base|consolidation|pivot|vwap|cloud|"
+    r"(?:bull|bear|tight) flag|flag pattern|pennant|triangle|wedge|all[- ]time|ath|year|yearly|month|monthly|week|weekly|day|daily|session|opening|prior|"
+    r"previous|yesterday|earnings|gap)\b", re.I)
+
+
+def _benchmark_open(understood: Mapping[str, Any], words: str) -> bool:
+    """Relative strength, or a comparison with the market, and no symbol to compare with."""
+    if not _BENCHMARK_WORD.search(words) or _BENCHMARK_NOT_OURS.search(words):
+        return False
+    if understood.get("named") or understood.get("withheld") or understood.get("other_sym"):
+        return False
+    return not conversation_preflight.named_tickers(words, {"sym": understood.get("chart_sym")})
+
+
+def _breakout_open(understood: Mapping[str, Any], words: str, numbers: Any) -> bool:
+    """A breakout or a new high, with no number and nothing named that it breaks out of."""
+    if not _BREAKOUT_WORD.search(words) or _BREAKOUT_SETTLED.search(words) or numbers:
+        return False
+    return not (understood.get("named") or understood.get("withheld"))
+
+
+#: The bare word, which is no spelling of the library entry (it is part of other names).
+_STOCHASTIC_WORD = re.compile(r"\bstochastics?\b(?!\s+(?:rsi|momentum|of)\b)", re.I)
+_STOCHASTIC_KIND = re.compile(r"\b(?:slow|fast|full)\b", re.I)
+STOCHASTIC_ENTRY = "stochastic_oscillator"
+
+
+def _stochastic_open(understood: Mapping[str, Any], words: str, numbers: Any) -> bool:
+    """⭐ WHICH STOCHASTIC (ruling 2026-11-18). The slow one (14, 3, 3) is what members write; the fast
+    one (14, 1, 3) is TradingView's default. They are different lines, so a request that says
+    neither a kind nor any number is asked. It is the Stochastic OSCILLATOR that is meant: the
+    library entry by name, or the bare word where it is not part of another name."""
+    if numbers or _STOCHASTIC_KIND.search(words):
+        return False
+    named = [e.get("id") for e in understood.get("named") or []]
+    if STOCHASTIC_ENTRY in named:
+        return True
+    return bool(_STOCHASTIC_WORD.search(words)) and not named and not understood.get("withheld")
+
+
+def open_questions(understood: Mapping[str, Any]) -> List[str]:
+    """The registry questions this request leaves OPEN, in the order they are asked.
+
+    ⭐ MEASURED BEFORE IT WAS WRITTEN (2026-11-18, 320 first-turn requests on file): 11 leave the
+    kind of average open, 8 the length (every one a bare name such as "Simple moving average"),
+    and none the meaning of a cross. A convention the product already holds is never a question:
+    a named-library indicator brings its own numbers, so naming one asks nothing here."""
+    names = [t.get("name") for t in understood.get("terms") or [] if isinstance(t, Mapping)]
+    bare = "moving_average" in names
+    # a library entry that IS a kind of average names the kind and brings its own numbers
+    library = [e for e in understood.get("named") or [] if e.get("family") == "average"]
+    kinds = [n for n in names if n in AVERAGE_TERMS]
+    numbers = (understood.get("notes") or {}).get("member_numbers") or []
+    words = str(understood.get("request_text") or "")
+    found = set()
+    if bare and not kinds and not library:
+        found.add("average_kind")
+    # (ONE average: "a ribbon of EMAs" or "moving averages" wants several lengths, which this
+    # question's choices cannot give; that request is the assistant's to ask about)
+    if (bare or kinds) and not numbers and not library and not _SEVERAL_AVERAGES.search(words):
+        found.add("average_length")
+    if _CROSS_WORD.search(words) and _PRICE_WORD.search(words) and not _CROSS_SETTLED.search(words):
+        found.add("cross_meaning")
+    if _benchmark_open(understood, words):
+        found.add("benchmark")
+    if _breakout_open(understood, words, numbers):
+        found.add("breakout_window")
+    if _stochastic_open(understood, words, numbers):
+        found.add("stochastic_kind")
+    found.update(open_acronyms(understood))
+    return [qid for qid in clarify_registry() if qid in found]
+
+
+def meant_by(question: Mapping[str, Any], understood: Mapping[str, Any]) -> Optional[str]:
+    """Which of an acronym question's choices a request NAMES, if any: the choice whose catalogue
+    row the door recognises in it (a library entry, or a withheld name)."""
+    from api.services import indicator_names
+    in_library = indicator_names.now_in_library()
+    recognised = {e.get("id") for e in understood.get("named") or []} | {w.get("id") for w in understood.get("withheld") or []}
+    for label, row in (question.get("rows") or {}).items():
+        if row in recognised or in_library.get(row) in recognised:
+            return label
+    return None
+
+
+def open_acronyms(understood: Mapping[str, Any]) -> List[str]:
+    """⭐ AN ACRONYM THAT COULD MEAN TWO INDICATORS (ruling 2026-11-18). The acronym questions this
+    request leaves open: it writes the letters, as a whole word, and names neither indicator they
+    could mean. ("DMI" names two rows UCT knows by name; guessing one would put the wrong indicator
+    on the chart under a name the member did type.)"""
+    words = str(understood.get("request_text") or "")
+    found: List[str] = []
+    for qid, q in clarify_registry().items():
+        letters = q.get("acronym")
+        if not letters:
+            continue
+        pattern = rf"(?<![A-Za-z0-9.]){re.escape(letters.upper() if q.get('capitals_only') else letters)}(?![A-Za-z0-9]|\.[A-Za-z0-9])"
+        if re.search(pattern, words, 0 if q.get("capitals_only") else re.I) and meant_by(q, understood) is None:
+            found.append(qid)
+    return found
+
+
+def door_question(understood: Mapping[str, Any], view: Any) -> Optional[str]:
+    """The ONE question the door asks before building, or None. Only for a NEW indicator and only
+    for a request to build: a question from the member is answered, and beside an indicator already
+    on the chart the assistant reads the chart (under the rules it is handed)."""
+    if understood.get("advisory"):
+        return None
+    if isinstance(view, Mapping) and isinstance(view.get("definition"), Mapping):
+        return None
+    still_open = open_questions(understood)
+    return still_open[0] if still_open else None
+
+
+def asks_which_average(understood: Mapping[str, Any], view: Any) -> bool:
+    """Is the kind of a moving average the question this request gets?"""
+    return door_question(understood, view) == "average_kind"
+
+
+def _question_asked_in(text: Any) -> Optional[str]:
+    """The registry question a line of the conversation IS, if any."""
+    said = str(text or "")
+    return next((qid for qid, q in clarify_registry().items() if q["text"] in said), None)
+
+
+def with_pending_answers(message: str, turns: List[Dict[str, str]], chart: Any) -> str:
+    """The message to read this turn as: the request plus the answer when it answers one of the
+    door's own questions (`pending_answer`), else the message itself."""
+    got = pending_answer(message, turns, chart)
+    return got["message"] if got else message
+
+
+def pending_answer(message: str, turns: List[Dict[str, str]], chart: Any) -> Optional[Dict[str, Any]]:
+    """⭐ AN ANSWER IS THE REQUEST PLUS THE ANSWER. When the last thing said to the member was one of
+    the door's own questions and this message SETTLES it, the turn is read as the words they
+    first wrote and what they have answered since: "Add a moving average. Exponential (EMA). 50".
+    So the next open question is asked, or the build goes ahead with everything they said.
+
+    A message that does not settle the question is a new request and stands alone (the member
+    changed their mind; nothing is asked twice).
+
+    Returns ``{question, message, answer}`` (the question settled, the whole request, the answer
+    as read), or None."""
+    j = len(turns) - 1
+    asked = _question_asked_in(turns[j]["text"]) if j >= 1 and turns[j]["role"] == "assistant" else None
+    if asked is None:
+        return None
+    said: List[str] = []
+    while j >= 1 and turns[j]["role"] == "assistant" and _question_asked_in(turns[j]["text"]) \
+            and turns[j - 1]["role"] == "member":
+        said.append(turns[j - 1]["text"].strip().rstrip("."))
+        j -= 2
+    original = ". ".join(reversed(said))
+    # a plain word for one of the choices ("simple", "exponential") is read as that choice
+    answer = message.strip()
+    typed = " " + " ".join(dc._form_tokens(answer)) + " "
+    also = [(w, label) for label, words in (clarify_registry()[asked].get("also") or {}).items() for w in words]
+    for w, label in sorted(also, key=lambda pair: -len(pair[0])):          # the longest first: "volume weighted" before "weighted"
+        if f" {w} " in typed:
+            answer = answer if label in answer else f"{answer} ({label})"
+            break
+    combined = f"{original}. {answer}"
+    if not original or len(combined) > MAX_MESSAGE_CHARS:
+        return None
+    before, after = understand_turn(original, chart), understand_turn(combined, chart)
+    if before["refusal"] is not None:
+        return None
+    if after["refusal"] is not None:
+        # ⭐ ONE OF AN ACRONYM'S MEANINGS MAY BE A NAME UCT DOES NOT BUILD ("ADL" -> Advance Decline
+        # Line). Choosing it IS the answer: the turn is read as the request plus that name, and
+        # goes on to that name's own answer (the way forward), never back to the question.
+        question = clarify_registry()[asked]
+        chose = question.get("acronym") and any(choice in answer for choice in question["choices"])
+        return {"question": asked, "message": combined, "answer": answer} if chose and asked in open_questions(before) else None
+    if asked in open_questions(before) and asked not in open_questions(after):
+        return {"question": asked, "message": combined, "answer": answer}
+    return None
+
+
+# ⭐ LEARN THE MEMBER (owner direction, 2026-11-18; `indicator_memory.py`). An ANSWER to one of the
+# door's questions is remembered in the member's own account. Next time that choice is open the
+# door uses it and SAYS so, instead of asking again. Only closed values are kept: a choice's own
+# value or a number, never a word the member typed.
+
+def answer_value(question_id: str, answered: Mapping[str, Any], chart: Any) -> Optional[Tuple[Any, str]]:
+    """What the member CHOSE, as (closed value, the label it is shown by), or None when their
+    answer is not one of the question's own choices (then nothing is remembered)."""
+    question = clarify_registry()[question_id]
+    values = question.get("values") or {}
+    after = understand_turn(answered["message"], chart)
+    if question_id == "average_kind":
+        names = [t.get("name") for t in after.get("terms") or []]
+        chosen = next((n for n in names if n in AVERAGE_TERMS), None)
+        if chosen is None and any(e.get("id") == "kaufman_adaptive_moving_average" for e in after.get("named") or []):
+            chosen = "kama"
+        return next(((chosen, label) for label, value in values.items() if value == chosen), None)
+    if question.get("number"):
+        mine = (understand_turn(answered["answer"], chart).get("notes") or {}).get("member_numbers") or []
+        number = mine[0].get("value") if mine else None
+        if isinstance(number, (int, float)) and not isinstance(number, bool) and float(number).is_integer() \
+                and 1 <= number <= 960:
+            return int(number), _number_label(question, int(number))
+        return None
+    if question_id == "cross_meaning":
+        said = answered["answer"].lower()
+        chosen = "close" if re.search(r"\bclos", said) else "touch" if _CROSS_SETTLED.search(said) else None
+        return next(((chosen, label) for label, value in values.items() if value == chosen), None)
+    if question.get("acronym"):
+        label = meant_by(question, after)
+        return (values[label], label) if label in values else None
+    if question_id == "stochastic_kind":
+        # the choice tapped, or the plain word for one (`pending_answer` writes its label beside it)
+        return next(((value, label) for label, value in values.items() if label in answered["answer"]), None)
+    if question_id == "benchmark":
+        # only one of the question's own symbols is kept; any other ticker settles the turn and is not remembered
+        named = {t.lower() for t in conversation_preflight.named_tickers(answered["answer"], chart)}
+        return next(((value, label) for label, value in values.items() if value in named), None)
+    return None
+
+
+def remembered_defaults(message: str, understood: Dict[str, Any], view: Any, chart: Any,
+                        memory: Any) -> Tuple[str, Dict[str, Any], List[Tuple[str, str]]]:
+    """The request with the member's REMEMBERED choices added where the door would otherwise ask:
+    (the message, how it reads now, [(question id, the choice used)]). Only a question whose
+    registry entry says `remember: default`, and only while the remembered choice still SETTLES
+    the question (one the door no longer reads is asked again)."""
+    used: List[Tuple[str, str]] = []
+    if memory is None:
+        return message, understood, used
+    for _ in clarify_registry():
+        asking = door_question(understood, view)
+        if asking is None:
+            break
+        question, kept = clarify_registry()[asking], memory.choice(asking)
+        if question.get("remember") != "default" or not kept:
+            break
+        joined = f"{message.strip().rstrip('.')}. {kept['label']}"
+        if len(joined) > MAX_MESSAGE_CHARS:
+            break
+        again = understand_turn(joined, chart)
+        if again["refusal"] is not None or asking in open_questions(again):
+            break                                    # it no longer settles the question: ask
+        message, understood = joined, again
+        used.append((asking, kept["label"]))
+    return message, understood, used
+
+
+#: What follows a choice the member answered last time, and one their saved indicators mostly use.
+#: ⛔ NO DIGITS IN EITHER. A tapped choice comes back as the member's message, and a number in it
+#: would be read as a length ("Exponential (EMA), in 7 of 9" asks for a 7-bar average). The
+#: counts go in the question's own sentence, which is never sent back.
+LAST_MARK = "(your last)"
+USUAL_MARK = "(your usual)"
+#: The questions a habit can answer, and nothing else is read for any other.
+HABIT_QUESTIONS = ("average_kind", "average_length")
+
+
+def usual_choices(question_id: str, definitions: Any) -> Dict[str, Any]:
+    """⭐ WHAT THIS MEMBER USUALLY USES for one of the door's questions, read from the formulas of
+    their OWN saved indicators (`indicator_habits`; slice E of "clarify and learn"): the labels to
+    offer first and the sentence that says why, or {} when there is no habit. Derived each time;
+    nothing is stored. Never raises (a store that cannot be read is no habit)."""
+    if question_id not in HABIT_QUESTIONS:
+        return {}
+    try:
+        from api.services import indicator_habits
+        counts = indicator_habits.habits(definitions)
+        if question_id == "average_kind":
+            top = indicator_habits.usual_kind(counts)
+            values = clarify_registry()[question_id].get("values") or {}
+            label = next((lab for lab, value in values.items() if top and value == top["value"]), None)
+            if label is None:
+                return {}
+            return {"labels": [label], "counts": [top],
+                    "why": f"You usually use {label}: it is in {top['indicators']} of your {top['of']} saved "
+                           "indicators that use an average."}
+        rows = indicator_habits.usual_lengths(counts)
+        if not rows:
+            return {}
+        labels = [str(r["value"]) for r in rows]
+        return {"labels": labels, "counts": rows,
+                "why": f"Your saved indicators most often use {' and '.join(labels)}."}
+    except Exception:                              # noqa: BLE001 -- a habit is a courtesy, never a failed turn
+        logger.warning("[converse] the member's usual choices could not be read; none are offered")
+        return {}
+
+
+def _usual_for(question_id: str, saved: Any, user_id: Any) -> Dict[str, Any]:
+    """`usual_choices` for the question about to be asked, reading the member's saved indicators
+    through `saved` only when that question is one a habit can answer. Never raises."""
+    if saved is None or question_id not in HABIT_QUESTIONS:
+        return {}
+    try:
+        return usual_choices(question_id, saved(user_id))
+    except Exception:                              # noqa: BLE001 -- a habit is a courtesy, never a failed turn
+        logger.warning("[converse] the member's saved indicators could not be read; no usual choice is offered")
+        return {}
+
+
+def offered_first(question: Dict[str, Any], memory: Any, usual: Any = None) -> Dict[str, Any]:
+    """The question with the member's LAST answer first (`remember: offer`), then what their saved
+    indicators mostly use (`usual_choices`), then the rest. A length they used before is the
+    likeliest again, but nothing is ever applied without being chosen. When a usual choice is
+    offered the question says why, in one more sentence."""
+    entry = clarify_registry()[question["id"]]
+    kept = memory.choice(question["id"]) if memory is not None and entry.get("remember") == "offer" else None
+    # (a remembered number is shown as the choice that says more about it, where there is one)
+    mine = next((c for c in question["choices"] if kept and _leading_number(c) == _leading_number(kept["label"])
+                 and _leading_number(c) is not None), kept["label"] if kept else None)
+    first: List[Tuple[str, str]] = [(mine, f"{mine} {LAST_MARK}")] if kept else []
+    habit = usual if isinstance(usual, Mapping) else {}
+    for label in habit.get("labels") or []:
+        if label in question["choices"] or entry.get("number"):
+            if all(label != have for have, _shown in first):
+                first.append((label, f"{label} {USUAL_MARK}"))
+    if not first:
+        return question
+    rest = [c for c in question["choices"] if all(c != have for have, _shown in first)]
+    choices = ([shown for _have, shown in first] + rest)[:6]
+    offered = {**question, "choices": choices}
+    if habit.get("why") and any(c.endswith(USUAL_MARK) for c in choices):
+        offered["text"] = f"{question['text']} {habit['why']}"
+    return offered
+
+
+# ⭐ VISIBLE, EDITABLE, FORGETTABLE (slice C). What the door remembers about a member is theirs to
+# see and change: Settings shows it ("What Create Indicator remembers"), each entry with where it
+# came from, and can change or forget it. Every write is checked HERE against the registry, so a
+# member can only ever store one of a question's own choices.
+
+MEMORY_LENGTH_RANGE = (1, 960)
+
+
+def _leading_number(label: Any) -> Optional[int]:
+    """The whole number a choice starts with ("252 (about 52 weeks)" is 252), or None."""
+    found = re.match(r"\d+", str(label or ""))
+    return int(found.group()) if found else None
+
+
+def _number_label(question: Mapping[str, Any], number: int) -> str:
+    """How a number is shown for a number question: the choice that IS that number where there is
+    one (it may say more: "252 (about 52 weeks)"), else the number."""
+    return next((c for c in question.get("choices") or [] if _leading_number(c) == number), str(number))
+
+
+def memory_choices(question_id: str) -> List[Dict[str, Any]]:
+    """The choices a member may keep for one question, as {label, value}."""
+    question = clarify_registry()[question_id]
+    values = question.get("values")
+    if values:
+        return [{"label": label, "value": values[label]} for label in question["choices"]]
+    return [{"label": label, "value": _leading_number(label)} for label in question["choices"]
+            if _leading_number(label) is not None]
+
+
+def usual_sentence(question_id: str, definitions: Any) -> Optional[str]:
+    """What Settings says about a member's usual choice for one question, or None."""
+    habit = usual_choices(question_id, definitions)
+    if not habit:
+        return None
+    if question_id == "average_kind":
+        top = habit["counts"][0]
+        said = f"{habit['labels'][0]}, in {top['indicators']} of {top['of']} that use an average"
+    else:
+        said = ", ".join(f"{r['value']} (in {r['indicators']})" for r in habit["counts"])
+    return (f"From your saved indicators: {said}. Offered first when it asks, never used without you choosing; "
+            "nothing is stored.")
+
+
+def memory_view(memory: Any, definitions: Any = None) -> Dict[str, Any]:
+    """What Settings shows: every question the door can remember an answer to, and this member's
+    answer where they have one. Only what the registry still knows is shown (an entry for a
+    question that no longer exists is not). With the member's saved indicators (`definitions`),
+    each row also says what they USUALLY use, where that is a habit (`usual`)."""
+    kept = memory.read()["choices"] if memory is not None else {}
+    rows = []
+    for qid, question in clarify_registry().items():
+        mine = kept.get(qid)
+        rows.append({
+            "usual": usual_sentence(qid, definitions) if definitions is not None else None,
+            "id": qid, "title": question["title"], "question": question["text"],
+            # what an answer does next time, in the member's words
+            "use": ("Used without asking, and said each time." if question.get("remember") == "default"
+                    else "Asked each time, with yours listed first."),
+            "choices": memory_choices(qid),
+            "any_number": bool(question.get("number")),
+            "remembered": None if not mine else {
+                "label": mine["label"], "value": mine["value"], "last": mine["last"], "times": mine["times"],
+                "from": mine["from"]},
+        })
+    return {"questions": rows, "remembers": sum(1 for r in rows if r["remembered"])}
+
+
+def set_memory(memory: Any, question_id: Any, value: Any) -> bool:
+    """The member sets a remembered choice themselves. True when it was stored; False when the
+    value is not one this question can hold (nothing is written)."""
+    question = clarify_registry().get(question_id) if isinstance(question_id, str) else None
+    if question is None or isinstance(value, bool):
+        return False
+    if question.get("number"):
+        lo, hi = MEMORY_LENGTH_RANGE
+        if not isinstance(value, (int, float)) or not float(value).is_integer() or not (lo <= value <= hi):
+            return False
+        return memory.remember(question_id, int(value), _number_label(question, int(value)), source="settings")
+    label = next((c["label"] for c in memory_choices(question_id) if c["value"] == value), None)
+    return label is not None and memory.remember(question_id, value, label, source="settings")
+
+
+def as_before_notes(used: List[Tuple[str, str]]) -> List[Dict[str, Any]]:
+    """What the member is told when the door used a remembered choice instead of asking."""
+    notes = []
+    for qid, label in used:
+        question = clarify_registry()[qid]
+        words = (question.get("said") or {}).get(label, label)      # the choice as it reads in a sentence
+        notes.append({"text": question["as_before"].format(choice=words)[:named_indicators.SENTENCE_MAX]})
+    return notes
+
+
+#: ⭐ THE NAMED-INDICATOR LIBRARY -- the rules the model reads beside a name the member wrote.
+NAMED_RULE = ("a NAMED indicator: UCT builds it to ONE checked formula. For each output you build, copy "
+              "its `tree` exactly. The only numbers that may differ are the ones in `numbers`, and only when "
+              "the member gave their own (within min and max, the same number everywhere that parameter "
+              "appears). Use `placement` and each output's `label`. Never write your own version of it; if "
+              "what the member asked cannot be this formula, emit no ops and say so in `note`")
+NAMED_UNCHECKED_RULE = ("in UCT's library but its formula is NOT CHECKED YET: you may discuss it, never "
+                        "author with it")
+#: What a member is told for a Title-Case name nothing here knows: the way forward, not a dead end.
+UNKNOWN_NAME_REASON = ('"{name}" is not an indicator UCT knows by name. Describe the rule itself in your own '
+                       "words (what it measures, over how many bars) and the assistant will build exactly that.")
+#: A name with no checked formula, beside the member's OWN description of the rule.
+NAMED_OWN_WORDS_RULE = ("UCT has NO checked formula for this name. Build ONLY the rule the member's own words "
+                        "describe, exactly as they describe it. Add nothing you know about the name beyond their "
+                        "words. If their words do not state a rule you can build, emit no ops and say so in `note`")
+NAMED_GATE = "named:formula"
+NAMED_UNCHECKED_GATE = "named:unchecked"
+
+# ⭐ THE WITHHELD NAME (ruling 2026-11-18). A DISTINCTIVE well-known name with no library entry
+# ("Klinger Volume Oscillator", "QQE": `indicator_names.withheld_spellings`). Measured: such names
+# were either refused outright or, written in lower case, built from the assistant's recollection
+# UNDER THE NAME, as if UCT stood behind it. Now the build goes ahead and the NAME IS WITHHELD:
+#   * the assistant is told to build what the name is generally understood to compute, to name the
+#     indicator and every line by what it computes, and to say in plain words what it built;
+#   * the door refuses a patch that writes the name (or its abbreviation) on the chart anyway;
+#   * the door itself tells the member, on every output, that the name is not in the checked library.
+# We never put a name we have not checked on a member's chart; and nothing is refused that can be built.
+WITHHELD_SECTION = "unchecked_names"
+WITHHELD_GATE = "named:withheld"
+WITHHELD_RULE = ("a well-known indicator NAME that UCT has NO checked formula for. If the member describes the rule "
+                 "themselves, build exactly their description. Otherwise, if you know what this name is generally "
+                 "understood to compute and it can be built here, build that. EITHER WAY: (1) never write this name "
+                 "or its abbreviation on the chart: name the indicator and label every output by what it computes "
+                 "(for example 'Running signed volume', never the name); (2) in `reply`, say in one or two plain "
+                 "sentences exactly what you built, so the member can check it. If you do not know what it computes, "
+                 "or it cannot be built on a chart, emit no ops and say so in `note`")
+
+
+def withheld_in(terms: Any) -> List[Dict[str, Any]]:
+    """The withheld names a turn's terms name, as {id, name}: each once, in the order written."""
+    from api.services import indicator_names
+    found: List[Dict[str, Any]] = []
+    for t in terms or []:
+        if not isinstance(t, Mapping) or t.get("section") != WITHHELD_SECTION:
+            continue
+        if not any(f["id"] == t.get("name") for f in found):
+            found.append({"id": t.get("name"), "name": indicator_names.name_of(t.get("name"))})
+    return found
+
+
+#: Where a patch writes words a member reads on the chart (names, labels, a marker's text). A value
+#: under any other key is not a name; a formula never is.
+_WRITTEN_KEYS = frozenset({"name", "label", "text", "title"})
+_FORMULA_KEYS = frozenset({"tree", "when", "condition", "value", "with"})
+
+
+def _written_words(node: Any, out: Optional[List[str]] = None) -> List[str]:
+    out = [] if out is None else out
+    if isinstance(node, Mapping):
+        for key, value in node.items():
+            if key in _FORMULA_KEYS:
+                continue
+            if key in _WRITTEN_KEYS and isinstance(value, str):
+                out.append(value)
+            else:
+                _written_words(value, out)
+    elif isinstance(node, (list, tuple)):
+        for item in node:
+            _written_words(item, out)
+    return out
+
+
+def _own_words_of(name_id: Any) -> frozenset:
+    """The words that belong to a withheld name and to nothing else here: each word of its spellings
+    that is no word of the product's own vocabulary ("klinger", "schaff", "qstick"). A label that
+    holds one is that name in part ("Klinger line")."""
+    from api.services import indicator_names
+    vocabulary = dc._lexicon_vocabulary(CHART_LEXICON)
+    own = set()
+    for spelling in indicator_names.every_spelling(name_id):
+        for word in spelling.split():
+            stems, _cost = dc._stem_key(dc._form_tokens(word))
+            if len(word) >= 4 and not (stems and all(s in vocabulary for s in stems)):
+                own.add(word)
+    return frozenset(own)
+
+
+def check_withheld(envelope: Mapping[str, Any], withheld: Any, member_names: Any = ()) -> None:
+    """⛔ A WITHHELD NAME IS NEVER WRITTEN ON THE CHART. A change that names the indicator, a line or
+    a marker with the withheld name (in any spelling the catalogue holds, its abbreviation included,
+    or by a word that is the name's alone) is refused, with what to do as the repair's diagnostic.
+    The member's OWN name for the indicator ("call it Klinger") is theirs to give, and is left alone."""
+    if not withheld or envelope.get("disposition") != "change":
+        return
+    from api.services import indicator_names
+    own = {indicator_names.norm(n) for n in member_names or ()}
+    for words in _written_words(envelope.get("ops") or []):
+        plain = indicator_names.norm(words)
+        if plain in own:
+            continue
+        padded = f" {plain} "
+        for w in withheld:
+            whole = any(f" {spelling} " in padded for spelling in indicator_names.every_spelling(w["id"]))
+            its_own = [word for word in plain.split() if word in _own_words_of(w["id"])]
+            if whole or its_own:
+                # ⭐ 2026-11-18 (ruling, after a live round): a recognisable VARIANT of the name is
+                # the name ("Fractal Dimension Adaptive Average" for the Fractal Adaptive Moving
+                # Average). The repair says WHICH word gave it away and asks for what the indicator
+                # DOES, in other words: describing what it computes tends to reach for the name's own.
+                which = "" if whole else (" (" + ", ".join(f'"{x}"' for x in its_own)
+                                          + (" is" if len(its_own) == 1 else " are") + " that name's own)")
+                raise _Refused(
+                    WITHHELD_GATE,
+                    f'"{words}" writes the name {w["name"]} on the chart{which}, and UCT has no checked formula for '
+                    "that name. Keep the formula; change the indicator's name and every label to say what it DOES, in "
+                    'other words (for example "an average that speeds up in trends and slows in ranges"), with no form '
+                    "of that name, none of its own words and no abbreviation of it.",
+                    member=w["name"])
+
+
+def withheld_notes(envelope: Mapping[str, Any], withheld: Any) -> List[Dict[str, Any]]:
+    """What the member is told, by the door itself, when a turn built something for a withheld
+    name: it is not in the checked library, so it is not offered under that name. Said ONCE, on the
+    first output (it was once per output: the same sentence three times on a three-line indicator)."""
+    if not withheld or envelope.get("disposition") != "change":
+        return []
+    names = " or ".join(w["name"] for w in withheld)
+    text = (f"{names} is not in UCT's checked library yet, so this is not offered under that name. It was built from "
+            "what the name is generally understood to mean. Check the formula before you rely on it.")
+    first = next((key for key, _tree in _patch_outputs(envelope) if isinstance(key, str)), None)
+    return [] if first is None else [{"output": first, "text": text[:named_indicators.SENTENCE_MAX]}]
+
+
+def _named_term(e: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+    """What the assistant is handed for a library name: the formula as data, never a recollection."""
+    if e is None:
+        return {}
+    if not named_indicators.passes(e):
+        return {"named_indicator": e["name"], "rule": NAMED_UNCHECKED_RULE}
+    at = named_indicators.defaults(e)
+    return {
+        "named_indicator": e["name"], "placement": e["placement"],
+        "outputs": [{"key": o["key"], "label": o["label"], "type": o["type"],
+                     "formula": named_indicators.formula_at(o["formula"], at), "tree": o["tree"]}
+                    for o in e["outputs"]],
+        "numbers": [{"name": p["label"], "in_the_formula": named_indicators.number_text(p["default"]),
+                     "min": p["min"], "max": p["max"], "whole_number": bool(p.get("integer"))}
+                    for p in e["params"]],
+        "rule": NAMED_RULE,
+    }
+
+
+def named_in(terms: Any) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """The library entries a turn's terms name: (those the assistant may build, those not checked
+    yet as {entry, wrote}). Each entry once, in the order written."""
+    ready: List[Dict[str, Any]] = []
+    unchecked: List[Dict[str, Any]] = []
+    seen: set = set()
+    for t in terms or []:
+        if not isinstance(t, Mapping) or t.get("section") != named_indicators.SECTION or t.get("name") in seen:
+            continue
+        seen.add(t.get("name"))
+        e = named_indicators.entry(t.get("name"))
+        if e is None:
+            continue
+        if named_indicators.passes(e):
+            ready.append(e)
+        else:
+            unchecked.append({"entry": e, "wrote": t.get("matched_as")})
+    return ready, unchecked
+
+
+def described_in_own_words(plain: str, chart: Any) -> bool:
+    """Did the member DESCRIBE a rule beside the unchecked name(s) they wrote? Asked of what is
+    left of the message once those names are taken out.
+
+    ⭐ A SMALL, MEASURED TEST, NOT A JUDGEMENT OF MEANING (2026-11-18, fourteen wordings): the rest
+    must name at least one thing a formula reads (a vocabulary term, or a ticker) and at least two
+    of {terms, tickers, the member's numbers} in all. "Mansfield relative strength versus SPY over
+    52 weeks" is a description (a ticker and a number); "Add the TTM Squeeze", "ttm squeeze
+    marker in a lower pane" and "TTM Squeeze 20 2 1.5" (numbers and no rule) are not. Both ways of
+    being wrong are soft: a description judged missing gets the way forward; one judged present is
+    built from the member's words alone and labelled as their own formula."""
+    found = dc._matches(plain, CHART_LEXICON)
+    cut = sorted(((f["start"], f["end"]) for f in found if f.get("section") == named_indicators.SECTION
+                  and not named_indicators.passes(named_indicators.entry(f["key"]) or {})), reverse=True)
+    rest = plain
+    for a, b in cut:
+        rest = rest[:a] + " " + rest[b:]
+    if not rest.strip():
+        return False
+    understanding = dc.plan(rest, dc.INDICATOR_KIND, lexicon=CHART_LEXICON)
+    reads = len(understanding.get("terms") or []) + len(understanding.get("concepts") or []) + len(
+        conversation_preflight.named_tickers(rest, chart))
+    return reads >= 1 and reads + len(understanding.get("numbers") or []) >= 2
+
+
+def own_words_notes(envelope: Mapping[str, Any], own_words: Any) -> List[Dict[str, Any]]:
+    """What the member is told about every output of a turn that named an unchecked indicator and
+    described the rule: it is THEIR formula. UCT has checked none under that name."""
+    if not own_words:
+        return []
+    # (a name that is one of UCT's own BUILT-INS: the built-in exists and is on the list; what was built here is
+    # the member's own version, and it is not that built-in)
+    own = [e for e in own_words if named_indicators.built_in(e) is None]
+    built = [named_indicators.built_in(e)["name"] for e in own_words if named_indicators.built_in(e) is not None]
+    text = "Built from your own description, as your own formula."
+    if own:
+        text += f" UCT has not checked a formula for {' or '.join(e['name'] for e in own)}."
+    if built:
+        # (never "UCT's own UCT RS Rating"; and a list reads "A, B and C": review 2026-11-19)
+        names = built[0] if len(built) == 1 else ", ".join(built[:-1]) + " and " + built[-1]
+        text += (f" {names} is one of UCT's own indicators, in the Indicators list." if len(built) == 1
+                 else f" {names} are UCT's own indicators, in the Indicators list.")
+    return [{"output": key, "text": text[:named_indicators.SENTENCE_MAX]}
+            for key, _tree in _patch_outputs(envelope) if isinstance(key, str)]
+
+
+def _patch_outputs(envelope: Mapping[str, Any]) -> List[Tuple[Any, Any]]:
+    """Every (output key, tree) a patch brings a formula in by."""
+    found: List[Tuple[Any, Any]] = []
+    for op in envelope.get("ops") or []:
+        if not isinstance(op, Mapping):
+            continue
+        if op.get("op") == "create":
+            found.extend((o.get("key"), o.get("tree")) for o in op.get("outputs") or [] if isinstance(o, Mapping))
+        elif op.get("op") == "add_output":
+            found.append((op.get("key"), op.get("tree")))
+        elif op.get("op") == "set_output_tree":
+            found.append((op.get("output"), op.get("tree")))
+    return found
+
+
+def _view_trees(view: Any) -> List[Any]:
+    definition = view.get("definition") if isinstance(view, Mapping) else None
+    outputs = definition.get("outputs") if isinstance(definition, Mapping) else None
+    return [o.get("tree") for o in outputs or [] if isinstance(o, Mapping)]
+
+
+def check_named(envelope: Mapping[str, Any], view: Any, named: Any) -> None:
+    """⛔ NEVER APPROXIMATED. The member named a library indicator, so a patch that brings a formula
+    in must hold that indicator's checked formula (`named_indicators.output_in`: equal in shape
+    and in every number but a declared parameter's) -- or the indicator already on the chart must.
+    Anything else is refused with the checked formula as the repair's diagnostic; wrong twice ends
+    in a refusal, never in something near it."""
+    if not named:
+        return
+    trees = [tree for _key, tree in _patch_outputs(envelope)]
+    if not trees:
+        return                                       # no formula enters by this patch
+    inputs = sorted(declared_inputs(envelope, view))
+    existing = _view_trees(view)
+    for e in named:
+        if named_indicators.held(trees, e, inputs) or named_indicators.held(existing, e, inputs):
+            continue
+        at = named_indicators.defaults(e)
+        formulas = "; ".join(f"{o['key']} = {named_indicators.formula_at(o['formula'], at)}" for o in e["outputs"])
+        numbers = ", ".join(f"{p['label']} {named_indicators.number_text(p['default'])} "
+                            f"({named_indicators.number_text(p['min'])} to {named_indicators.number_text(p['max'])})"
+                            for p in e["params"])
+        raise _Refused(
+            NAMED_GATE,
+            f"the member named {e['name']}, which UCT builds to ONE checked formula, and no formula in this "
+            f"patch holds it. Copy the `tree` given for it in uct_language_notes.matched_terms exactly "
+            f"({formulas}). Only these numbers may differ, and only to the member's own: {numbers}. "
+            "If the member wants something this formula cannot be, emit no ops and say so in `note`.",
+            member=e["name"])
+
+
+def named_notes(envelope: Mapping[str, Any], view: Any, named: Any) -> List[Dict[str, Any]]:
+    """What this patch built to a library formula and how that formula was checked, in the member's
+    words: ONE assumption per indicator, on the first output that holds it.
+
+    ⭐ 2026-11-18, read in the live window: it was one per OUTPUT, so the Directional Movement Index
+    said the same sentence three times in a row (+DI, -DI, ADX). Outputs built with different
+    numbers still get a sentence each, because the sentences differ."""
+    said: Dict[str, str] = {}
+    for key, e, got in _named_outputs(envelope, view, named):
+        said.setdefault(named_indicators.member_sentence(e, got), key)
+    return [{"output": key, "text": text} for text, key in said.items()]
+
+
+def _named_outputs(envelope: Mapping[str, Any], view: Any, named: Any) -> List[Tuple[str, Dict[str, Any], Any]]:
+    """(output key, library entry, the numbers it was built with) for each output of this patch that
+    holds a library formula."""
+    found: List[Tuple[str, Dict[str, Any], Any]] = []
+    if not named:
+        return found
+    inputs = sorted(declared_inputs(envelope, view))
+    for key, tree in _patch_outputs(envelope):
+        if not isinstance(key, str):
+            continue
+        for e in named:
+            got = next((g for g in (named_indicators.output_in(tree, e, o, inputs) for o in e["outputs"]) if g is not None), None)
+            if got is not None:
+                found.append((key, e, got))
+                break
+    return found
+
+
+def by_acronym(terms: Any) -> Dict[str, str]:
+    """{the acronym as written: library entry id} for each library entry a turn named by its ACRONYM
+    ("OBV"). The library's spelling wins over a ticker of the same letters (ruling 2026-11-18: a bare
+    word typed into Create Indicator is an indicator request, and what was built is named in full)."""
+    found: Dict[str, str] = {}
+    for t in terms or []:
+        if isinstance(t, Mapping) and t.get("section") == named_indicators.SECTION \
+                and named_indicators.acronym_entry(t.get("matched_as")) == t.get("name"):
+            found[str(t.get("matched_as"))] = t["name"]
+    return found
+
+
+def without_acronyms(message: Any, acronyms: Mapping[str, str]) -> str:
+    """The message with those acronyms taken out, for the TICKER readers only: "PVT" named the Price
+    Volume Trend, so it is not also a symbol the member asked to read. Every other word stays, so
+    "PVT of AAPL" still names AAPL."""
+    text = str(message or "")
+    for wrote in acronyms:
+        # (a whole word only, and never the first part of a dotted symbol: "PVT.TO" is a symbol)
+        text = re.sub(rf"(?<![A-Za-z0-9.]){re.escape(wrote)}(?![A-Za-z0-9]|\.[A-Za-z0-9])", " ", text)
+    return text
+
+
+def named_built(envelope: Mapping[str, Any], view: Any, named: Any) -> List[str]:
+    """The ids of the library entries this patch built, each once, in the order built."""
+    ids: List[str] = []
+    for _key, e, _got in _named_outputs(envelope, view, named):
+        if e["id"] not in ids:
+            ids.append(e["id"])
+    return ids
+
+
+def refused_names(not_understood: Any) -> List[str]:
+    """The phrases a turn was refused for AS UNKNOWN NAMES (the planner's name rule, answered with
+    this door's own sentence), as written. For the record's use only: `asked_names` turns them into
+    catalogue ids and they go no further."""
+    return [n["phrase"] for n in not_understood or []
+            if isinstance(n, Mapping) and isinstance(n.get("phrase"), str)
+            and n.get("reason") == UNKNOWN_NAME_REASON.format(name=n["phrase"])]
+
+
+def asked_names(message: Any, refused: Any = ()) -> List[str]:
+    """⭐ WHICH WELL-KNOWN NAMES A REQUEST ASKED FOR, AS CATALOGUE IDS (`indicator_names`): every
+    catalogue name written in it, and `other` when a phrase refused as an unknown name is in no
+    catalogue row. IDS ONLY: nothing a member typed is in the answer."""
+    from api.services import indicator_names
+    ids = indicator_names.names_in(message)
+    if any(not indicator_names.names_in(phrase) for phrase in refused or ()):
+        ids = ids[:indicator_names.MAX_PER_TURN] + [indicator_names.OTHER]
+    return ids
+
+
+def _own_notes_only(envelope: Any) -> Any:
+    """The patch with ``by`` taken off every note. Used on whatever did NOT come from the door this
+    turn: the assistant's answer (it may not sign a note as UCT's), and a patch the browser sends
+    back for repair (so the assistant re-reads its own answer as it wrote it)."""
+    if not isinstance(envelope, Mapping) or not isinstance(envelope.get("assumptions"), list):
+        return envelope
+    if not any(isinstance(a, Mapping) and "by" in a for a in envelope["assumptions"]):
+        return envelope
+    out = dict(envelope)
+    out["assumptions"] = [{k: v for k, v in a.items() if k != "by"} if isinstance(a, Mapping) else a
+                          for a in envelope["assumptions"]]
+    return out
+
+
+def can_add_built_ins(accepts: Any, built_ins: Any) -> frozenset:
+    """The built-in indicator ids this browser said it can add from where the member is: empty
+    unless it accepts an offer at all. Untrusted input: anything not a short list of short words
+    is nothing."""
+    if not (isinstance(accepts, list) and ACCEPTS_OFFER in accepts) or not isinstance(built_ins, list):
+        return frozenset()
+    return frozenset(i for i in built_ins[:BUILT_INS_MAX] if isinstance(i, str) and 0 < len(i) <= BUILT_IN_ID_MAX)
+
+
+def built_in_offer(entry: Mapping[str, Any], value: Any = None) -> Dict[str, Any]:
+    """The one action an answer about a built-in name offers. ⭐ For a name that is one SETTING of a
+    built-in, the offer carries that setting's value (`inputs`): the one asked for when the library
+    allows it, else the library's default. It is never offered without it."""
+    b = named_indicators.built_in(entry) or {}
+    offer = {"kind": OFFER_ADD_BUILT_IN, "indicator": b["indicator"], "name": b["name"],
+             "label": f"Add {b['name']} to this chart"}
+    setting = named_indicators.built_in_setting(entry)
+    if setting is not None:
+        offer["inputs"] = {setting["input"]: value if value in setting["values"] else setting["default"]}
+        offer["label"] = f"Add {b['name']} with its {setting['label']} on to this chart"
+    return offer
+
+
+# ⭐ VWAP'S STANDARD-DEVIATION BANDS (coordinator's approval 2026-11-19). They are not a formula: UCT's
+# built-in Session VWAP draws them when its "Std dev bands" setting is on. A request that is ONLY that
+# is answered by the door, with no assistant call, and offered in one tap.
+#
+# ⛔ A CLOSED-FORM READER, NOT A JUDGEMENT OF MEANING. The request must be "vwap", "band(s)", multiples
+# of 1, 2 or 3, and words from the list below, and NOTHING else. One other word ("anchored", "weekly",
+# "when", "price", "alert", "2.5") and the door does not answer: the assistant reads the request, as
+# before. So the door can be wrong one way only: by not offering.
+VWAP_BANDS_ENTRY = "session_vwap_bands"
+_VWAP_BANDS_WORDS = frozenset(
+    "add show plot draw put give display get me the a an with and at on to of its it my this chart charts "
+    "session intraday standard std dev devs deviation deviations stdev sigma sigmas sd upper lower above below "
+    "around lines line please i want need can you could would like plus minus both either side sides too also "
+    "in for times".split())
+# (`[0-9]`, not `\d`: `\d` also matches full-width and Arabic-Indic digits, which the reader below cannot
+# parse; "vwap bands ２" raised instead of going on to the assistant. Review 2026-11-19.)
+_VWAP_BANDS_NUMBER = r"(?:\+/-|\+-|±|\+|-)?\s*[0-9]+(?:\.[0-9]+)?"
+_VWAP_BANDS_TOKEN = re.compile(_VWAP_BANDS_NUMBER + r"|[a-z]+|σ")
+_VWAP_BANDS_REST = re.compile(_VWAP_BANDS_NUMBER + r"|[a-z]+|σ|[\s,.;:!?()&/'\"-]+")
+VWAP_BANDS_MAX_CHARS = 160
+
+
+def vwap_bands_ask(message: Any) -> Optional[str]:
+    """The value of Session VWAP's bands setting this message asks for, when the WHOLE message is a
+    request for VWAP with its standard-deviation bands; else None. The value is the largest multiple
+    named (the setting draws every band up to it), or the library's default when none is named."""
+    entry = named_indicators.entry(VWAP_BANDS_ENTRY)
+    setting = named_indicators.built_in_setting(entry)
+    text = str(message or "").lower() if isinstance(message, str) else ""
+    if setting is None or not text.strip() or len(text) > VWAP_BANDS_MAX_CHARS or _VWAP_BANDS_REST.sub("", text):
+        return None
+    words, multiples = [], []
+    for token in _VWAP_BANDS_TOKEN.findall(text):
+        if token == "σ":                                     # (a letter to `isalpha`, and not a word here)
+            continue
+        if token[0].isalpha():
+            words.append(token)
+        else:
+            number = float(re.sub(r"[^0-9.]", "", token))
+            if not number.is_integer() or str(int(number)) not in setting["values"]:
+                return None                                  # a multiple the setting does not draw (2.5, 4)
+            multiples.append(int(number))
+    if words.count("vwap") != 1 or not any(w in ("band", "bands") for w in words):
+        return None
+    if any(w not in _VWAP_BANDS_WORDS and w not in ("vwap", "band", "bands") for w in words):
+        return None
+    return str(max(multiples)) if multiples else setting["default"]
+
+
+def _door_offer(pointer: Mapping[str, Any], revision: Any, view: Any, trace: Dict[str, Any],
+                read: Mapping[str, Any], value: Any = None, message: Any = None) -> Optional[Dict[str, Any]]:
+    """⭐ THE DOOR ANSWERS, with no model call, and OFFERS THE ACTION: this browser said it can add that
+    built-in now. Nothing is built and nothing is changed by the answer itself. None when the door's own
+    answer does not pass the door (never: if it ever is, the turn goes on as if nothing was offered)."""
+    # (another publisher's own number is refused by name FIRST, in place of the usual sentence: `their_number`)
+    said = named_indicators.their_number(message, pointer, True) or named_indicators.built_in_answer(pointer)
+    answer = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "answer",
+              "reply": said}
+    try:
+        answer = check_envelope(answer, revision, view)
+    except _Refused:
+        logger.exception("[converse] the door's own answer did not pass the door")
+        return None
+    trace["offered"] = pointer["id"]
+    logger.info("[converse] the door offered the built-in %s (no model call)", pointer["id"])
+    return {"ok": True, "disposition": "answer", "reply": said, "turn": "offer", "envelope": answer,
+            "answered_by": "door", "offer": built_in_offer(pointer, value),
+            "not_understood": read.get("not_understood") or [],
+            "unavailable": read.get("unavailable") or [],
+            "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0, "attempts": 0, "model": None}
+
+
+def accepts_note_by(accepts: Any) -> bool:
+    """Did the browser say it accepts a note's ``by``? (A list holding that word; anything else is no.)"""
+    return isinstance(accepts, list) and ACCEPTS_NOTE_BY in accepts
+
+
+def _with_door_notes(envelope: Dict[str, Any], notes: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """The patch with the door's own notes ahead of what it already carries (never more than the
+    contract allows; a note already there for that output, word for word, is not repeated)."""
+    if not notes:
+        return envelope
+    have = [a for a in (envelope.get("assumptions") or []) if isinstance(a, Mapping)]
+    # (a note may have NO `output`: "as you chose before" is about the whole indicator. Read it with
+    # .get: indexed, it raised on any turn whose patch already carried an assumption.)
+    fresh = [{**n, "by": NOTE_BY}
+             for n in notes if not any(a.get("output") == n.get("output") and a.get("text") == n["text"] for a in have)]
+    out = dict(envelope)
+    out["assumptions"] = (fresh + have)[:MAX_ASSUMPTIONS]
+    return out
+
+
 def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
     """One term the member wrote that names a table entry. ⭐ L4: a Screener column with a
     chart twin carries the house formula, so "ADR %" on a chart is the Screener's ADR %
     (21 sessions of (high - low) / close), not whatever the model would improvise."""
     out: Dict[str, Any] = {"wrote": t.get("matched_as"), "entry": t.get("name")}
-    twin = CHART_TWINS.get(t.get("name")) if isinstance(t.get("name"), str) else None
+    if t.get("section") == named_indicators.SECTION:
+        return {**out, **_named_term(named_indicators.entry(t.get("name")))}
+    if t.get("section") == GENERIC_SECTION:
+        return {**out, "rule": next(rule for key, rule in GENERIC_PHRASES.values() if key == t.get("name"))}
+    if t.get("section") == WITHHELD_SECTION:
+        from api.services import indicator_names
+        return {**out, "well_known_name": indicator_names.name_of(t.get("name")), "rule": WITHHELD_RULE}
+    # a Screener column's twin, or a bar pattern UCT's own readers define ("inside day")
+    twin = chart_twins.house_formula(t.get("name")) if isinstance(t.get("name"), str) else None
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
+        # ⭐ 2026-11-21 (ruling) -- THE MEMBER'S OWN RULE WINS. Found live: asked to mark inside bars "where the
+        # high is below the prior high and the low is above the prior low", the assistant built the firm's
+        # formula (a touch allowed, on a bar that traded) and said so. Nothing was hidden, but the member had
+        # stated the rule and got ours. A house term settles what the WORD means when the member only names
+        # it (the 2026-11-18 ruling: never a question, never two formulas for one word); a member who spells
+        # the rule out has asked for that rule.
         out["rule"] = ("the firm's meaning of this term on a chart: use this formula and "
                        "disclose its numbers in `assumptions`. If the member gave their own "
                        "number for it (a different length or window), keep this formula's shape "
-                       "with the member's number")
+                       "with the member's number. If the member spells out the RULE itself in the "
+                       "same request (what is compared with what, and whether a touch counts), "
+                       "build THEIR rule exactly and say in `assumptions` how it differs from the "
+                       "firm's")
+        subject = chart_twins.PATTERN_SUBJECT.get(t.get("name"))
+        if subject:
+            out["rule"] += ". " + subject
     return out
 
 
@@ -1073,6 +2775,350 @@ def _refuse_negative_bars_back(trees: List[Tuple[str, Any]]) -> None:
                         "with numbers of 0 or more: \"3 to 11 bars ago\" is `>= 3` and `<= 11`.")
 
 
+def _is_literal_number(node: Any) -> Optional[float]:
+    """A literal number's value (a plain one, or one behind a unary minus), else None."""
+    if not isinstance(node, Mapping):
+        return None
+    if node.get("type") == "num" and isinstance(node.get("value"), (int, float)) and not isinstance(node.get("value"), bool):
+        return float(node["value"])
+    if node.get("type") == "op" and node.get("name") == "u-" and isinstance(node.get("args"), list) and len(node["args"]) == 1:
+        inner = _is_literal_number(node["args"][0])
+        return None if inner is None else -inner
+    return None
+
+
+def _infinity_by_division(node: Any) -> bool:
+    """A NONZERO literal divided by a literal zero: written to mean "infinity". (``0 / 0`` is this engine's
+    own "no value" and is not this.)"""
+    if not (isinstance(node, Mapping) and node.get("type") == "op" and node.get("name") == "/"
+            and isinstance(node.get("args"), list) and len(node["args"]) == 2):
+        return False
+    top, bottom = _is_literal_number(node["args"][0]), _is_literal_number(node["args"][1])
+    return bottom == 0 and top is not None and top != 0
+
+
+def _windows_that_look_back() -> frozenset:
+    """The window functions that skip a bar with no value and read further back for one (the engine's own
+    table, `ast_interpret.WINDOW_NA`: the SKIP and FINITE members)."""
+    from api.services import ast_interpret
+    return frozenset(name for name, policy in ast_interpret.WINDOW_NA.items()
+                     if policy in (ast_interpret.NA_SKIP, ast_interpret.NA_FINITE))
+
+
+def _refuse_infinity_in_a_window(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-20 -- "INFINITY" INSIDE A WINDOW IS NO VALUE, AND THE WINDOW THEN READS FURTHER BACK.
+
+    Found by a value check. For the lowest of only SOME bars in a window, a formula of the shape
+    ``lowest(close > offset 1 of close ? volume : 1 / 0, 10)`` gives every other bar "infinity", so that
+    it could never be the lowest. Here a division by zero is NO VALUE, and `lowest` skips a bar with no
+    value and looks further back for one (the engine's measured behaviour, and TradingView's). So that
+    formula reads the lowest volume of the last 10 bars THAT QUALIFY, however far back they are: a
+    different number from the one asked for wherever the qualifying bars are sparse, under a reply that
+    described a 10-bar window.
+
+    Refused: a nonzero number divided by a literal zero anywhere in the series a look-back window reads
+    (and not inside a window of its own, which answers for itself). ``0 / 0`` is not refused: it is the
+    engine's own "no value", and "the last N bars that qualify" is a real request; the instruction above
+    says when each is right.
+    """
+    windows = _windows_that_look_back()
+
+    def reads_infinity(node: Any) -> bool:
+        stack = [node]
+        while stack:
+            n = stack.pop()
+            if not isinstance(n, Mapping):
+                if isinstance(n, list):
+                    stack.extend(n)
+                continue
+            if _infinity_by_division(n):
+                return True
+            if n.get("type") == "call" and n.get("name") in windows:
+                continue                       # an inner window is judged on its own visit
+            args = n.get("args")
+            if isinstance(args, list):
+                stack.extend(args)
+        return False
+
+    for where, tree in trees:
+        for node in _walk(tree):
+            if node.get("type") != "call" or node.get("name") not in windows:
+                continue
+            args = node.get("args")
+            if isinstance(args, list) and args and reads_infinity(args[0]):
+                name = node["name"]
+                raise _Refused(
+                    "envelope:reference",
+                    f"{where}: `{name}` reads a number divided by zero for the bars it should leave out. "
+                    "There is no infinity here: a division by zero is NO VALUE, and "
+                    f"`{name}` skips a bar with no value and looks further BACK for one, so this reads the "
+                    "last N bars that qualify, not the qualifying bars among the last N. For the bars among "
+                    "the last N, give the others a number that cannot win or count: 0 inside highest or a "
+                    "sum, a number far above any real one inside lowest (1000000000000000). If the last N "
+                    "qualifying bars is what the member asked for, write the no value as 0 / 0 and say in "
+                    "`assumptions` that the window reaches back past other bars.")
+
+
+#: The call whose last argument is how far BACK it looks for the bar it reads from, and the smallest window
+#: that can reach a bar other than this one.
+_VALUE_AT_AN_EVENT = "valuewhen"
+_SMALLEST_WINDOW_THAT_LOOKS_BACK = 2
+
+
+def _refuse_a_value_at_an_event_that_cannot_look_back(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-21 -- `valuewhen(cond, value, 1)` READS ONLY THIS BAR.
+
+    Found by a value check. Asked for the year to date change, the assistant read "the prior year's last
+    close" as ``valuewhen(<a bar of an earlier year>, close, 1)``. The last argument is a WINDOW in bars: the
+    value comes from the most recent of the last N bars where the condition was true. With N = 1 that is this
+    bar or nothing, so the line had a value only where the condition itself was true and was blank on every
+    bar after the event it was meant to remember, under a reply that described a held level.
+
+    Refused: a literal window below 2. Written honestly that formula is ``cond ? value : 0 / 0``, which is
+    not refused, so nothing a member can ask for is lost. A window that is too short for the event's spacing
+    cannot be seen from the formula; the window's own statement of what is empty on the chart answers that.
+    """
+    for where, tree in trees:
+        for node in _walk(tree):
+            if node.get("type") != "call" or node.get("name") != _VALUE_AT_AN_EVENT:
+                continue
+            args = node.get("args")
+            window = _is_literal_number(args[-1]) if isinstance(args, list) and len(args) == 3 else None
+            if window is not None and window < _SMALLEST_WINDOW_THAT_LOOKS_BACK:
+                raise _Refused(
+                    "envelope:reference",
+                    f"{where}: `{_VALUE_AT_AN_EVENT}` is given a window of {window:g} bar. Its last argument is how "
+                    "many bars it looks BACK for the most recent bar where the condition was true, so this reads "
+                    "only the bar itself: a value where the condition is true and NO VALUE on every bar after "
+                    "it. To hold the value from the last time the condition was true, give it a window that "
+                    "reaches back past that event (500 unless the member names one; a year of daily bars is "
+                    "about 252). If a value on only the bars where the condition is true is what the member "
+                    "asked for, write that as a choice: cond ? value : 0 / 0.")
+
+
+_EXTREMES_OF_A_WINDOW = frozenset({"highest", "lowest"})
+
+
+def _same_tree(a: Any, b: Any) -> bool:
+    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+def _stand_in_of(arg: Any) -> Optional[float]:
+    """The stand-in number of ``cond ? value : NUMBER`` (or ``cond ? NUMBER : value``), or None. A CLAMP is
+    not a stand-in: ``x > 0 ? x : 0`` keeps a real number on every bar (the comparison is of the kept branch
+    with the very number the other branch gives)."""
+    if not (isinstance(arg, Mapping) and arg.get("type") == "op" and arg.get("name") == "?:"
+            and isinstance(arg.get("args"), list) and len(arg["args"]) == 3):
+        return None
+    cond, yes, no = arg["args"]
+    for kept, other in ((yes, no), (no, yes)):
+        number = _is_literal_number(other)
+        if number is None or _is_literal_number(kept) is not None:
+            continue
+        if (isinstance(cond, Mapping) and cond.get("type") == "op" and cond.get("name") in _COMPARISONS
+                and isinstance(cond.get("args"), list) and len(cond["args"]) == 2):
+            left, right = cond["args"]
+            for series, literal in ((left, right), (right, left)):
+                if _same_tree(series, kept) and _is_literal_number(literal) == number:
+                    return None
+        return number
+    return None
+
+
+def _refuse_a_stand_in_drawn_as_a_value(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-20 -- THE STAND-IN FOR "LEAVE THIS BAR OUT" COMES BACK AS THE ANSWER WHEN NO BAR QUALIFIES.
+
+    Found by a value check, the day the rule above it shipped. For the highest or lowest of only SOME bars of
+    a window the other bars are given a number that cannot win: 0 inside ``highest``, a huge number inside
+    ``lowest``. On a bar whose window holds NO qualifying bar that number is the answer. Compared with
+    something it is harmless. DRAWN, it is a price of 0, or a line at a million billion, on every such bar:
+    built, read back plausibly, and wrong (dozens of bars in a few hundred on real daily bars, over a short
+    window).
+
+    Refused: ``highest`` / ``lowest`` of ``cond ? value : NUMBER`` whose answer reaches the output without
+    passing through a comparison or a ``?:`` (which is how it is made no value when none qualify:
+    ``sum(cond ? 1 : 0, N) > 0 ? lowest(...) : 0 / 0``). A clamp (``x > 0 ? x : 0``) is not a stand-in.
+    """
+    def visit(node: Any, guarded: bool, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, guarded, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        args = node.get("args")
+        if (not guarded and node.get("type") == "call" and node.get("name") in _EXTREMES_OF_A_WINDOW
+                and isinstance(args, list) and args):
+            stand_in = _stand_in_of(args[0])
+            if stand_in is not None:
+                name = node["name"]
+                raise _Refused(
+                    "envelope:reference",
+                    f"{where}: `{name}` leaves bars out by giving them the number {stand_in:g}, and its answer "
+                    "is drawn (or used in arithmetic) as it is. On a bar whose window holds no qualifying bar "
+                    f"that stand-in is the answer, so {stand_in:g} would be drawn as if it were a real value. "
+                    f"Make it no value on those bars: `sum(cond ? 1 : 0, N) > 0 ? {name}(...) : 0 / 0`. "
+                    "A stand-in needs no such guard only where the answer is just compared with something.")
+        inside = guarded or (node.get("type") == "op" and (node.get("name") in _COMPARISONS or node.get("name") == "?:"))
+        if isinstance(args, list):
+            visit(args, inside, where)
+
+    for where, tree in trees:
+        visit(tree, False, where)
+
+
+_ORDERINGS = frozenset({"<", "<=", ">", ">="})
+
+
+def _same_bar_reading(node: Any) -> Any:
+    """`node` with every read of "0 bars back" taken away: `barsAgo(x, 0, n)` and `offset 0 of x` are `x`."""
+    if isinstance(node, list):
+        return [_same_bar_reading(child) for child in node]
+    if not isinstance(node, Mapping):
+        return node
+    args = node.get("args")
+    if isinstance(args, list) and args:
+        zero = lambda a: isinstance(a, Mapping) and a.get("type") == "num" and a.get("value") == 0  # noqa: E731
+        if node.get("type") == "call" and node.get("name") == "barsAgo" and len(args) == 3 and zero(args[1]):
+            return _same_bar_reading(args[0])
+        if node.get("type") == "offset" and node.get("value") == 0 and len(args) == 1:
+            return _same_bar_reading(args[0])
+    return {key: _same_bar_reading(value) for key, value in node.items()}
+
+
+def _refuse_a_reading_compared_with_itself(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-20 -- A RANK THAT IS 1 ON EVERY BAR. Found by a value check on real bars.
+
+    Asked where today's value ranks among the last N bars, the model counted `x > x` inside a window (once
+    plainly, once as `barsAgo(x, 0, N) > x`, which reads 0 bars back and is `x`). Inside a window each series
+    is read at its own bar, so that compares every bar with itself: never true, the count is 0, and the rank
+    reads 1 on every bar. Built, described confidently, and wrong on nearly every bar.
+
+    Refused: `<`, `<=`, `>`, `>=` whose two sides are the same reading on the same bar. It is never an answer
+    (`==` and `!=` are left alone: `x == x` is how a formula asks "is this a number"). The note says how a
+    window is measured against today's value.
+    """
+    def visit(node: Any, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        args = node.get("args")
+        if (node.get("type") == "op" and node.get("name") in _ORDERINGS and isinstance(args, list) and len(args) == 2
+                and _same_bar_reading(args[0]) == _same_bar_reading(args[1])):
+            name = node["name"]
+            raise _Refused(
+                "envelope:reference",
+                f"{where}: `a {name} b` compares a reading with ITSELF (both sides are the same value on the same "
+                "bar), so it says nothing. Inside sum(..., N) and every other window each series is read at its "
+                "own bar: nothing written there means today's value. To measure the bars of a window against "
+                "TODAY's value use percentrank: percentrank(x, N) is the percent of the N bars before this one "
+                "whose x is at or below today's, so among the last N bars with this one the bars above today's "
+                "are (N - 1) - percentrank(x, N - 1) * (N - 1) / 100, and the rank with 1 for the highest is "
+                "N - percentrank(x, N - 1) * (N - 1) / 100.")
+        if isinstance(args, list):
+            visit(args, where)
+
+    for where, tree in trees:
+        visit(tree, where)
+
+
+#: a wrapper that reads ITS CHILD somewhere else: on another timeframe, or on another symbol
+_SCOPE_WRAPPERS = ("tf", "tf_live", "sym")
+
+
+def _reads_a_bar(node: Any) -> bool:
+    """Does this formula read anything of a bar: a series, or a call (which computes from bars)?"""
+    if isinstance(node, list):
+        return any(_reads_a_bar(child) for child in node)
+    if not isinstance(node, Mapping):
+        return False
+    return node.get("type") in ("series", "call") or _reads_a_bar(node.get("args"))
+
+
+def _refuse_a_scope_read_of_nothing(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-22 -- A NUMBER STANDING WHERE A VALUE SHOULD BE. Found by a value check of a live round.
+
+    Asked for "today's low so far plus the 14 day ATR, and today's high so far minus the 14 day ATR", the model
+    answered `sessionLow() + tf(0, W)` and `sessionHigh() - tf(0, W)`: a weekly read of the CONSTANT 0 where the
+    ATR it could not write should have been. The door accepted it on the first attempt. Labelled "Session low +
+    ATR", it drew the session low. A wrong picture under an honest-looking label.
+
+    Refused: a `tf`, `tf_live` or `sym` wrapper whose child reads nothing of a bar (no series, no call). Such a
+    read is that number on every bar and never an answer; the model gets its one repair, told to write the value
+    or to say it cannot. Measured before it was written over the 298 answers recorded in the live rounds (281
+    formulas): it refuses that one answer and no other.
+    """
+    def visit(node: Any, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        if node.get("type") in _SCOPE_WRAPPERS and not _reads_a_bar(node.get("args")):
+            raise _Refused(
+                "envelope:reference",
+                f"{where}: `{node['type']}` here reads a plain number, not a value of a bar, so it is that number on "
+                "every bar: a number is standing where the value the member asked for should be. Write the formula "
+                "the read is OF inside it (the weekly close is tf(close, W)). If what the member asked for cannot be "
+                "written with what the table offers, do not stand a number in for it: answer `unsupported` and say "
+                "what is missing.")
+        visit(node.get("args"), where)
+
+    for where, tree in trees:
+        visit(tree, where)
+
+
+#: a reply that is a word left where the sentence should be
+_PLACEHOLDER_REPLY = re.compile(r"^\W*(?:placeholder|todo|tbd|n/?a|reply|text|string|lorem ipsum\b.*)\W*$", re.IGNORECASE)
+
+
+def _refuse_a_placeholder_reply(envelope: Mapping[str, Any]) -> None:
+    """2026-11-22 -- THE SAME ANSWER SAID "Placeholder" TO THE MEMBER. A change whose `reply` is a placeholder
+    word is refused, so the model gets its one repair and writes the sentence. A reply is never checked for what
+    it claims here (the engine writes what was built); only that it IS one. An empty reply is left as it was."""
+    reply = envelope.get("reply")
+    if envelope.get("ops") and isinstance(reply, str) and _PLACEHOLDER_REPLY.match(reply):
+        raise _Refused(
+            "envelope:reference",
+            f"`reply` is {reply.strip()!r}: a placeholder, not what the member is told. Write one or two plain "
+            "sentences saying what was built; and check the formulas for a number left standing in for a value.")
+
+
+def _refuse_a_bare_fill_in_setting(envelope: Mapping[str, Any]) -> None:
+    """2026-11-22 -- A SETTING AT 0 DRAWN AS A LEVEL AT 0. Found by the first full live run of the value cases.
+
+    Asked to "plot the number of shares I own and my average cost", the door built two settings for the member to fill
+    in (right: it cannot read an account, and it said so) and drew the average cost as the BARE setting. Until the
+    member fills it in that is a line at price 0, and the price pane rescales to include 0, so the member's chart is
+    squeezed into a strip. A value standing where nothing should be.
+
+    Refused: on a `create` placed on the PRICE pane, a visible output whose tree is nothing but a setting this same
+    create declares with a default of 0 (or none). It passes when the setting has a real default (a level the member
+    asked for: "a line at 100"), when the output is hidden, on any other pane (a zero line under a chart is a line
+    at zero), and when the tree says when to draw (`x > 0 ? x : 0 / 0`). Measured before it was written over the 202
+    recorded answers that change something: ONE declares settings (this one), and it is the one refused.
+    """
+    for o in envelope.get("ops") or []:
+        if not isinstance(o, Mapping) or o.get("op") != "create" or o.get("placement") != "price":
+            continue
+        unfilled = {x["key"] for x in o.get("inputs") or []
+                    if isinstance(x, Mapping) and isinstance(x.get("key"), str) and x.get("default") in (0, 0.0, None)}
+        for i, out in enumerate(o.get("outputs") or []):
+            tree = out.get("tree") if isinstance(out, Mapping) else None
+            if (isinstance(tree, Mapping) and tree.get("type") == "series" and tree.get("name") in unfilled
+                    and not out.get("hidden")):
+                key = tree["name"]
+                raise _Refused(
+                    "envelope:reference",
+                    f"outputs[{i}] draws the setting `{key}` bare on the price chart. Until the member fills it in "
+                    "it is 0: a line at price 0, and the chart is squeezed to fit it. Draw nothing until it is "
+                    f"filled: `{key} > 0 ? {key} : 0 / 0`.")
+
+
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
     """BY NAME, before the schema (whose ``series`` enum no longer offers them):
     defence in depth for a model that emits a nightly scalar anyway."""
@@ -1106,14 +3152,98 @@ def _branch_errors(error: Any) -> List[Any]:
     return [b for s in meant[0] for b in _branch_errors(s)]
 
 
+# ⭐⭐ 2026-11-18 -- THE CONTRACT CHECK IS LINEAR IN THE SIZE OF THE ANSWER.
+#
+# ⚰️ THE INCIDENT (production, 10:36Z, found by a live check): the assistant answered "Add the
+# Fractal Adaptive Moving Average" with a deep formula holding ONE piece the contract refuses. The
+# turn never came back. For about ten minutes every other request from that account was answered
+# "still working on your previous request", answers that take a second took 10 to 30, and the pod
+# was restarted.
+#
+# WHY. A formula node is `oneOf` eight kinds, and six of those kinds hold child nodes. The schema
+# library, on a node that FAILS, collects every branch's errors in full: it descends into the
+# children under each of the six, at every enclosing level. One invalid piece at depth d costs
+# about 6^d: 2 s at depth 4, 87 s at depth 6, ten minutes at depth 7 (measured). A VALID formula
+# never paid this (the library stops at the first branch that fits), which is why no test met it.
+# It holds the interpreter lock the whole time, so the whole pod stalls, not one request.
+#
+# THE RULE NOW. The envelope is checked with every formula OPAQUE, and each formula is checked
+# node by node, each node ONCE, against the contract with its children opaque. A formula is valid
+# exactly when every node in it is, so the verdict is the full contract's
+# (`tests/test_contract_check_is_linear.py` holds the two equal, error for error, on every scripted
+# answer and on a set of broken ones), and the cost is the number of nodes.
+_ONE_NODE = "uct-one-node"
+
+
+@functools.lru_cache(maxsize=1)
+def _linear_validators() -> Tuple[Draft202012Validator, Draft202012Validator, frozenset]:
+    """(the envelope with every node's CHILDREN opaque, ONE node with its children opaque, the
+    kinds of node). All read off the composed contract; nothing is typed here.
+
+    ⛔ NO PROPERTY NAMES (corrected 2026-11-18, the same day). The first version found formulas by
+    the names the contract points at a node from (`tree`, `when`) and checked whatever sat under
+    those names as a formula. A colour rule also has a `when`, and there it is a plain word ("up"):
+    a VALID answer was refused. So every formula ROOT is left exactly where the contract has it and
+    is checked by the contract itself, whatever it is called; only what sits INSIDE a node is taken
+    out of the recursive check and checked node by node."""
+    schema = composed_schema()
+    node = schema["$defs"]["node"]
+    is_node = {"$ref": "#/$defs/node"}
+    kinds = frozenset(b["$ref"].split("/")[-1] for b in node["oneOf"])
+    opaque = copy.deepcopy(schema)
+    nested = 0
+    for kind in kinds:
+        args = (opaque["$defs"][kind].get("properties") or {}).get("args")
+        if isinstance(args, dict) and args.get("items") == is_node:
+            args["items"] = {}                             # any value: a node's children are checked one by one
+            nested += 1
+    # the ONLY way one node holds another is `args.items`: if the contract grows a second way, the
+    # recursive check would be back, so refuse to build rather than be quietly slow
+    still = json.dumps([opaque["$defs"][k] for k in sorted(kinds)]).count(json.dumps(is_node))
+    if _ONE_NODE in schema["$defs"] or not nested or still:
+        raise RuntimeError("the patch contract no longer has the shape the linear check reads")
+    one = {"$ref": f"#/$defs/{_ONE_NODE}", "$defs": {**opaque["$defs"], _ONE_NODE: copy.deepcopy(node)}}
+    Draft202012Validator.check_schema(opaque)
+    Draft202012Validator.check_schema(one)
+    return Draft202012Validator(opaque), Draft202012Validator(one), kinds
+
+
+def _contract_errors(envelope: Any) -> List[Tuple[List[str], str]]:
+    """Every way the envelope breaks the contract, as (where, what), in path order."""
+    whole, one_node, kinds = _linear_validators()
+    found = [([str(p) for p in b.absolute_path], b.message)
+             for e in whole.iter_errors(envelope) for b in _branch_errors(e)]
+    # every object in the answer, each once. A formula node (an object whose `type` is one of the
+    # contract's kinds) has each of its children checked as one node; the children are then
+    # visited in their turn. What is under an object of some OTHER `type` is not ours to judge: that
+    # object is itself the error, as the full contract reports it.
+    stack: List[Tuple[Tuple[str, ...], Any]] = [((), envelope)]
+    while stack:
+        path, value = stack.pop()
+        if isinstance(value, list):
+            stack.extend((path + (str(i),), v) for i, v in enumerate(value))
+            continue
+        if not isinstance(value, Mapping):
+            continue
+        kind = value.get("type")
+        if isinstance(kind, str) and kind in kinds:
+            args = value.get("args")
+            if isinstance(args, list):
+                for i, child in enumerate(args):
+                    at = path + ("args", str(i))
+                    for e in one_node.iter_errors(child):
+                        for b in _branch_errors(e):
+                            found.append((list(at) + [str(p) for p in b.absolute_path], b.message))
+                    stack.append((at, child))
+            continue
+        if "type" in value and "args" in value:
+            continue                                       # a node of no known kind: not looked inside
+        stack.extend((path + (str(k),), v) for k, v in value.items())
+    return sorted(found, key=lambda pair: pair[0])
+
+
 def _schema_errors(envelope: Any) -> List[str]:
-    errors = sorted((b for e in _validator().iter_errors(envelope) for b in _branch_errors(e)),
-                    key=lambda e: [str(p) for p in e.absolute_path])
-    out = []
-    for e in errors[:5]:
-        path = "/".join(str(p) for p in e.absolute_path) or "(envelope)"
-        out.append(f"{path}: {e.message[:200]}")
-    return out
+    return [f"{'/'.join(path) or '(envelope)'}: {message[:200]}" for path, message in _contract_errors(envelope)[:5]]
 
 
 def _unscoped(tree: Any) -> Any:
@@ -1318,18 +3448,130 @@ def _offered_calls_as_plain(tree: Any, declared: Any) -> Any:
 #     recomputes from `warmup` bars back, so a count or a level older than that is forgotten.
 #     The door says so itself, on every such output, in the member's own list of assumptions:
 #     the model is not trusted to remember to.
+#
+# ⭐ 2026-11-18 -- SEVERAL RUNNING VALUES, OPENED FOR THE SHAPES THAT SETTLE. A live round of
+# well-known names showed a whole class declined for "only one running value": two-pole filters,
+# Laguerre filters, transforms of a smoothed range position. The engine computes them (`accum2`..`accum4`).
+# Opened by ruling for the two shapes whose starting point PROVABLY stops mattering inside the
+# window (`api/services/running_values.py`, where the rule and its measurements are):
+#   * LINEAR: every update a plain-number mix of the values. The bound is the coupled system's.
+#   * CASCADE: each value reads itself as a plain-number multiple under 1, and earlier ones through
+#     arithmetic and one-bar functions (the engine carries one bar of each, not a history).
+# Everything else that reads a previous value (a ratchet, a count, a switch across several values)
+# is PATH-DEPENDENT and stays refused BY NAME: there a restart `warmup` bars back is a different
+# indicator from the same formula run from the first bar, and no sentence makes that right.
+# A coefficient that reads a SETTING is not a plain number (the bound would move when the member
+# moved the setting): the model is told to write the numbers for the length asked for.
 RUNNING_VALUE_GATE = "unsupported:running-value"
 RUNNING_VALUE_FN = "accum"
 RUNNING_VALUE_SELF = "self"
-RUNNING_VALUE_CLOSED = ("accum2", "accum3", "accum4")
+RUNNING_VALUES_FNS = ("accum2", "accum3", "accum4")
+#: The most bars a formula may reach back (the budget gate's own cap): a warm-up past it is refused there.
+RUNNING_VALUE_WINDOW_CAP = 960
 
 
 def _is_call(node: Any, names: Any) -> bool:
     return isinstance(node, dict) and node.get("type") == "call" and node.get("name") in names
 
 
-def _refuse_closed_running_values(where: str, tree: Any) -> None:
-    """The forms that stay closed, refused by name with the way out for the model."""
+def _refuse_unsettled_running_values(where: str, node: Mapping[str, Any], inputs: frozenset) -> None:
+    """One accumK call, as the model wrote it: allowed only when its starting values provably stop
+    mattering inside its own window. Every refusal says what decided it and the way out."""
+    from api.services import running_values
+    name = node.get("name")
+    got = running_values.classify(node, RUNNING_VALUE_SETTLED, RUNNING_VALUE_WINDOW_CAP)
+    shape, needs, why = got["shape"], got["needs"], got["why"]
+    if shape == running_values.MALFORMED:
+        raise _Refused(
+            RUNNING_VALUE_GATE,
+            f"{where}: {name} is not written as the engine reads it: {why}. It is "
+            f"{name}(which value to draw, warmup, the starting values, then the updates), the first two plain "
+            "whole numbers, and `state1`.. exist only inside the updates.",
+            member="its running values were not written in a form UCT can check")
+    if shape == running_values.UNREADABLE:
+        raise _Refused(
+            RUNNING_VALUE_GATE,
+            f"{where}: the engine cannot compute this {name}: {why}. A running value carries ONE bar of its past, "
+            "so it is read through arithmetic and one-bar functions (max, min, abs, ln, exp, sqrt), never inside a "
+            "function that reads a window of bars (lowest, highest, an average, a sum) and never with a bar offset. "
+            "Take the window of something that reads no running value; if the indicator needs the highest, lowest or "
+            "average OF a running value, it cannot be built here: say so (disposition unsupported) and offer the part "
+            "that can.",
+            member="it needs the highest, lowest or average of a running value over a window, which a running value "
+                   "cannot give")
+    if shape == running_values.PATH:
+        as_numbers = (running_values.classify(_inputs_as_constants(node, inputs), RUNNING_VALUE_SETTLED,
+                                              RUNNING_VALUE_WINDOW_CAP)["shape"] if inputs else shape)
+        if as_numbers in (running_values.LINEAR, running_values.CASCADE):
+            raise _Refused(
+                RUNNING_VALUE_GATE,
+                f"{where}: inside {name} a running value is multiplied or divided by a SETTING. There the "
+                "coefficients must be plain numbers (arithmetic and exp/cos/sqrt of plain numbers are fine): "
+                "write them for the length the member asked for, and say in an assumption that the length is "
+                "fixed in the formula and they can ask for another.",
+                member="its running values were tied to a setting, which UCT cannot check yet")
+        raise _Refused(
+            RUNNING_VALUE_GATE,
+            f"{where}: this {name} never settles: {why}. Several running values are available ONLY as a "
+            "filter (every update a sum of plain-number multiples of state1.. plus terms that read no state) "
+            "or as a chain (each update reads its own state only as a plain-number multiple under 1, and "
+            "earlier states through arithmetic and one-bar functions). A ratchet, a count or a switch across several running values is "
+            "unsupported: say so (disposition unsupported) and offer the nearest thing ONE running value "
+            "(accum with `self`) can do.",
+            member="it needs several running values that depend on each other in a way that never settles "
+                   "(a ratchet, a count or a switch)")
+    if needs is None:
+        raise _Refused(
+            RUNNING_VALUE_GATE,
+            f"{where}: this {name} never forgets where it started: {why}. Recomputed from `warmup` bars back "
+            "on every bar it would be a different indicator from the same formula run from the first bar. "
+            "Unsupported as written: say so (disposition unsupported), or use a form whose values decay.",
+            member="its running values never stop depending on where they started")
+    if got["warmup"] < needs:
+        raise _Refused(
+            RUNNING_VALUE_GATE,
+            f"{where}: this {name} needs {needs} bars for its starting values to stop mattering and its warmup "
+            f"is {got['warmup']}. Set warmup to at least {needs} (300 is the usual; the formula's whole reach "
+            f"may not pass {RUNNING_VALUE_WINDOW_CAP}).",
+            member="its running values were given too few bars to settle")
+
+
+def _refuse_edits_inside_linked(envelope: Mapping[str, Any], view: Any) -> None:
+    """⛔ A RUNNING VALUE'S OWN NUMBER IS NOT CHANGED ON ITS OWN (`running_value_owns` says which
+    numbers those are). Linked running values were accepted because their coefficients, TOGETHER,
+    settle inside their window; a one-value running value's sentence was written from its gain and
+    its warm-up. A `set_slot` that moves one of them would leave a formula nothing checked, under a
+    sentence that no longer describes it. This door never applies a patch, so it cannot check the
+    result of a one-number edit: the model is sent back to write the whole formula again
+    (`set_output_tree`), which IS checked and gets its sentence afresh. Any other slot of the same
+    formula (a multiple outside the function, the length of an average inside it) is an ordinary edit."""
+    d = (view or {}).get("definition") if isinstance(view, Mapping) else None
+    stored = {o["key"]: o["tree"] for o in ((d or {}).get("outputs") or [])
+              if isinstance(o, Mapping) and isinstance(o.get("key"), str) and isinstance(o.get("tree"), Mapping)}
+    for o in envelope.get("ops") or []:
+        if not (isinstance(o, Mapping) and o.get("op") == "set_slot" and isinstance(o.get("slot"), str) and "#" in o["slot"]):
+            continue
+        key, path = o["slot"].split("#", 1)
+        owner = running_value_owns(stored.get(key), [] if path == "root" else path.split("."))
+        if owner == RUNNING_VALUE_FN:
+            raise _Refused(
+                RUNNING_VALUE_GATE,
+                f"set_slot {o['slot']}: that is the running value's own gain or warm-up, and what the member was "
+                "told about where it starts was written from them. Do not change it on its own: send the whole "
+                f"formula again with set_output_tree on output {key!r}, so that is said afresh.",
+                member="a running value's own number was changed on its own")
+        if owner is not None:
+            raise _Refused(
+                RUNNING_VALUE_GATE,
+                f"set_slot {o['slot']}: that number sits inside {owner}, whose numbers were checked "
+                "TOGETHER (they settle only as a set). Do not change one on its own: send the whole formula "
+                f"again with set_output_tree on output {key!r}, with the new number in every place it belongs.",
+                member="one number inside its linked running values was changed on its own")
+
+
+def _refuse_closed_running_values(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
+    """The forms that stay closed, refused by name with the way out for the model. `tree` is what
+    the model WROTE (a setting still reads as a setting: `_refuse_unsettled_running_values`)."""
     stack: List[Tuple[Any, bool]] = [(tree, False)]
     while stack:
         node, inside = stack.pop()
@@ -1338,21 +3580,17 @@ def _refuse_closed_running_values(where: str, tree: Any) -> None:
             continue
         if not isinstance(node, dict):
             continue
-        if _is_call(node, RUNNING_VALUE_CLOSED):
-            raise _Refused(
-                RUNNING_VALUE_GATE,
-                f"{where}: {node.get('name')} is not available -- ONE running value only: "
-                "accum(seed, update, warmup) with `self`. An indicator that needs two running values "
-                "feeding each other is unsupported: say so (disposition unsupported) and offer the "
-                "nearest thing one running value can do.",
-                member="it needs two or more running values that feed each other")
-        here = _is_call(node, (RUNNING_VALUE_FN,))
+        several = _is_call(node, RUNNING_VALUES_FNS)
+        if several and not inside:
+            _refuse_unsettled_running_values(where, node, inputs)
+        here = several or _is_call(node, (RUNNING_VALUE_FN,))
         if here and inside:
             raise _Refused(
                 RUNNING_VALUE_GATE,
                 f"{where}: an accum sits inside another accum -- a running value cannot contain "
                 "another. Give the inner one its own hidden output and read that output's formula, or "
-                "restructure with one accum.",
+                "restructure with one accum (values that feed each other on the same bar are ONE "
+                "accum2..accum4, not one inside another).",
                 member="one running value sits inside another")
         args = node.get("args")
         if isinstance(args, list):
@@ -1364,22 +3602,29 @@ def _running_values_as_plain(tree: Any) -> Any:
     boundary's name list (which has no `self`) judges every other name the model wrote. `self` in
     a seed, in a warm-up or outside an `accum` is left as it is, and is refused by name there.
     Iterative copy; the input is never mutated."""
+    from api.services import running_values
     root = copy.deepcopy(tree)
-    stack: List[Tuple[Any, bool]] = [(root, False)]
+    stack: List[Tuple[Any, frozenset]] = [(root, frozenset())]
     while stack:
-        node, in_update = stack.pop()
+        node, bound = stack.pop()
         if not isinstance(node, dict):
             continue
         args = node.get("args")
         if not isinstance(args, list):
             continue
         is_accum = _is_call(node, (RUNNING_VALUE_FN,)) and len(args) == 3
+        k = running_values.FUNCTIONS.get(node.get("name"), 0) if _is_call(node, RUNNING_VALUES_FNS) else 0
+        several = k and len(args) == 2 + 2 * k
         for i, a in enumerate(args):
-            reads_self = in_update or (is_accum and i == 1)
-            if reads_self and isinstance(a, dict) and a.get("type") == "series" and a.get("name") == RUNNING_VALUE_SELF:
+            names = bound
+            if is_accum and i == 1:
+                names = bound | {RUNNING_VALUE_SELF}
+            elif several and i >= 2 + k:                   # an accumK's updates: state1..stateK, as `self`
+                names = bound | frozenset(running_values.STATES[:k])
+            if names and isinstance(a, dict) and a.get("type") == "series" and a.get("name") in names:
                 args[i] = {"type": "num", "value": 1}
             else:
-                stack.append((a, reads_self))
+                stack.append((a, names))
     return root
 
 
@@ -1391,7 +3636,7 @@ def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
     from api.services import ast_table
     declared = lambda name: name in (ast_table.TABLE.get("functions") or {})  # noqa: E731
     written = _inputs_as_constants(tree, inputs)          # what the MODEL wrote
-    _refuse_closed_running_values(where, written)
+    _refuse_closed_running_values(where, tree, inputs)    # (a setting still reads as a setting there)
     try:
         tree = call_expansions.expand_calls(tree, declared)
     except call_expansions.ExpansionRefused as exc:
@@ -1760,8 +4005,11 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
 # the third replaces one op with the op that says the same thing.
 
 MEND_OUTPUT_REF = "output-ref"
+#: ⭐ 2026-11-18 -- A LIST WRITTEN AS ONE PIECE OF TEXT (`lists_from_text`).
+MEND_LIST_AS_TEXT = "list-as-text"
 MEND_ASSUMPTION = "assumption-link"
 MEND_STATE_PAINT = "state-as-paint"
+MEND_BAR_FIELDS = "bar-field-order"
 _MEND_MAX_PASSES = 8
 
 
@@ -1807,6 +4055,11 @@ def _inline_refs(tree: Any, own: Optional[str], trees: Mapping[str, Any], skip: 
         return [_inline_refs(x, own, trees, skip, seen, count) for x in tree]
     if not isinstance(tree, Mapping):
         return tree
+    if len(count) > 1:                             # every formula node this mend visits or writes
+        count[1] += 1
+        if count[1] > MAX_INLINED_NODES:
+            raise _Refused(SIZE_GATE, f"the answer holds more than {MAX_INLINED_NODES} formula nodes once the "
+                                      "outputs its formulas read are written into them")
     name = tree.get("name")
     if (tree.get("type") == "series" and isinstance(name, str) and name in trees
             and name not in skip and name != own and name not in seen
@@ -1826,7 +4079,7 @@ def _mend_output_refs(envelope: Dict[str, Any], view: Any) -> int:
     if not trees:
         return 0
     skip = _formula_names() | declared_inputs(envelope, view)
-    count = [0]
+    count = [0, 0]                                 # [reads replaced, formula nodes visited: `MAX_INLINED_NODES`]
     for o in envelope.get("ops") or []:
         if not isinstance(o, dict):
             continue
@@ -1842,6 +4095,78 @@ def _mend_output_refs(envelope: Dict[str, Any], view: Any) -> int:
             if isinstance(s, dict) and isinstance(s.get("when"), Mapping):
                 s["when"] = _inline_refs(s["when"], None, trees, skip, (), count)
     return count[0]
+
+
+#: The roles of a function's arguments that are the bar's own fields.
+_BAR_FIELD_ROLES = ("open", "high", "low", "close", "volume")
+
+
+@functools.lru_cache(maxsize=1)
+def bar_field_functions() -> Dict[str, Tuple[str, ...]]:
+    """Every engine function whose FIRST arguments are the bar's fields by position, and the order
+    it takes them in: `{"stoch": ("high", "low", "close"), "mfi": ("high", "low", "close", "volume"),
+    "donchianUpper": ("high", "low"), ...}`. Read from the engine's own table, never typed here."""
+    from api.services import ast_interpret as engine
+    out: Dict[str, Tuple[str, ...]] = {}
+    for name, spec in (engine.TABLE.get("functions") or {}).items():
+        lead: List[str] = []
+        for role in spec.get("argRoles") or ():
+            if role not in _BAR_FIELD_ROLES:
+                break
+            lead.append(role)
+        if len(lead) >= 2 and len(set(lead)) == len(lead):
+            out[name] = tuple(lead)
+    return out
+
+
+def _mend_bar_field_order(envelope: Dict[str, Any]) -> int:
+    """⭐ THE BAR'S FIELDS IN THE ENGINE'S ORDER. `stoch`, `atr`, `adx`, `cci`, the DI pair, Williams
+    %R and `mfi` take high, low, close (then volume) and then the length. TradingView's `ta.stoch`
+    takes the SOURCE first: `stoch(close, high, low, 14)`. Both forms have the same number of
+    arguments, so nothing refuses the wrong one; it computes a different oscillator, and the
+    read-back says "of the close, the high and the low" as if that were the request.
+
+    ⚰️ Measured 2026-11-18 in the answers on file: every Stochastic built from the bar's fields was
+    written in TradingView's order.
+
+    The mend is made ONLY where the intent cannot be anything else: the leading arguments are the
+    bar's own fields, each exactly once, a PERMUTATION of the fields the function takes. Then they
+    are put in the engine's order. Any other argument (an average, another symbol's field, a
+    member's own input, the same field twice) is left exactly as written: there the order may be
+    what was meant. Returns how many calls were reordered."""
+    return sum(len(reorder_bar_fields(tree)) for _path, tree in _trees_of(envelope))
+
+
+def reorder_bar_fields(tree: Any) -> List[str]:
+    """Put the bar's fields in the engine's order, IN PLACE, in every call of `tree` where they are
+    plainly out of it (the rule of `_mend_bar_field_order`). Returns the name of each function
+    reordered, one per call. A caller that only wants to KNOW hands in a copy
+    (`misordered_bar_fields`)."""
+    order = bar_field_functions()
+    found: List[str] = []
+    stack = [tree]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        args = node.get("args")
+        if isinstance(args, list):
+            want = order.get(node.get("name")) if node.get("type") == "call" else None
+            if want and len(args) > len(want):
+                got = [a.get("name") if isinstance(a, dict) and a.get("type") == "series" and set(a) == {"type", "name"}
+                       else None for a in args[:len(want)]]
+                if None not in got and sorted(got) == sorted(want) and tuple(got) != want:
+                    by_name = {a["name"]: a for a in args[:len(want)]}
+                    args[:len(want)] = [by_name[field] for field in want]
+                    found.append(str(node.get("name")))
+            stack.extend(args)
+    return found
+
+
+def misordered_bar_fields(tree: Any) -> List[str]:
+    """Which functions `tree` calls with the bar's fields plainly out of the engine's order, one
+    name per call. READ-ONLY: the tree is not touched."""
+    return reorder_bar_fields(copy.deepcopy(tree))
 
 
 def _mend_single_state_paint(envelope: Dict[str, Any], view: Any) -> int:
@@ -1907,9 +4232,13 @@ def mend(candidate: Any, view: Any) -> Tuple[Any, List[str]]:
             names.append(MEND_OUTPUT_REF)
         if _mend_single_state_paint(work, view):
             names.append(MEND_STATE_PAINT)
+        if _mend_bar_field_order(work):
+            names.append(MEND_BAR_FIELDS)
         if _mend_assumptions(work, view):
             names.append(MEND_ASSUMPTION)
         return (work, names) if names else (candidate, [])
+    except _Refused:                               # the ONE thing a mend refuses: the inlined form's size
+        raise
     except Exception:                              # noqa: BLE001 -- a mend never costs the turn
         logger.exception("[converse] mend failed; the answer is checked as it came")
         return candidate, []
@@ -2080,6 +4409,13 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
         raise _Refused("model:no-tool", "no patch in the answer")
     _refuse_unsupported_nodes(_trees_of(envelope))
     _refuse_negative_bars_back(_trees_of(envelope))
+    _refuse_infinity_in_a_window(_trees_of(envelope))
+    _refuse_a_value_at_an_event_that_cannot_look_back(_trees_of(envelope))
+    _refuse_a_stand_in_drawn_as_a_value(_trees_of(envelope))
+    _refuse_a_reading_compared_with_itself(_trees_of(envelope))
+    _refuse_a_scope_read_of_nothing(_trees_of(envelope))
+    _refuse_a_placeholder_reply(envelope)
+    _refuse_a_bare_fill_in_setting(envelope)
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
@@ -2106,6 +4442,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
                        member=f"a setting may not be named {', '.join(clash)}")
     for where, tree in _trees_of(envelope):
         _check_tree(where, tree, inputs)
+    _refuse_edits_inside_linked(envelope, view)
     _check_references(envelope, view)
     # ⭐ PHASE 5 -- THE FAN-OUT BOUND, over the whole turn (the browser gate holds
     # it over the whole RESULT, which also counts symbols already in the indicator).
@@ -2175,11 +4512,62 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
     for phrase, column in chart_twins.spoken_phrases():
         words = dc._form_tokens(phrase)
         stems, cost = dc._stem_key(words)
-        if stems in index:
+        # ⭐ 2026-11-18 -- A BAR PATTERN TAKES A BUCKET THAT ONLY SAYS "NOT AVAILABLE": "inside day" was
+        # one value of a Screener TEXT column, which on a chart answered "not available" and left the
+        # assistant to choose a meaning. The house formula is the better answer. A bucket holding
+        # anything else is still never replaced, and a column's phrase never takes one.
+        takes = (column in chart_twins.PATTERNS and stems in index
+                 and all(r.get("kind") == dc.EXCLUDED_ENTRY for r in index[stems]))
+        if stems in index and not takes:
             continue
         index[stems] = [{"kind": dc.TABLE_ENTRY, "key": column, "section": ast_table.SCALARS_SECTION,
                          "words": words, "cost": cost}]
+    for phrase, (key, _rule) in GENERIC_PHRASES.items():
+        words = dc._form_tokens(phrase)
+        stems, cost = dc._stem_key(words)
+        if stems not in index:
+            index[stems] = [{"kind": dc.TABLE_ENTRY, "key": key, "section": GENERIC_SECTION, "words": words, "cost": cost}]
+    # ⭐ THE NAMED-INDICATOR LIBRARY -- a name in it ("McGinley Dynamic", "connors rsi") is a term of
+    # its entry, so the planner's Title-Case rule finds it already accounted for and `_matched_term`
+    # hands the assistant the ONE checked formula. ⛔ ADDED, NEVER REPLACED, as above; a name that
+    # could not be added is a failing test (`tests/test_named_indicators.py`), never a silent skip.
+    # ⭐ A BUCKET THAT ONLY SAYS "NOT AVAILABLE" MAY BE TAKEN (slice 2): "pocket pivot" was already a
+    # phrase here, as one value of a Screener TEXT column no formula can read; on this door that
+    # answered "not available" and handed the request on. A library name (built, or held and
+    # refused by name with the way forward) is the better answer, so it takes that bucket. A
+    # bucket holding anything else is still never replaced.
+    # ⭐ AND THE PHRASE OF THE ENGINE FUNCTION IT IS THE INDICATOR OF (2026-11-18): "stochastic
+    # oscillator" was the phrase of the raw %K function, so the one name every member uses for the
+    # indicator reached the assistant as a bare function and was built from recollection. An entry
+    # that declares `names_function` takes a bucket holding ONLY that function. Nothing else.
+    for phrase, entry_id in named_indicators.phrases():
+        words = dc._form_tokens(phrase)
+        stems, cost = dc._stem_key(words)
+        if stems in index and not all(r.get("kind") == dc.EXCLUDED_ENTRY for r in index[stems]):
+            mine = (named_indicators.entry(entry_id) or {}).get("names_function")
+            if not (mine and all(r.get("kind") == dc.TABLE_ENTRY and r.get("section") == ast_table.FUNCTIONS_SECTION
+                                 and r.get("key") == mine for r in index[stems])):
+                continue
+        index[stems] = [{"kind": dc.TABLE_ENTRY, "key": entry_id, "section": named_indicators.SECTION,
+                         "words": words, "cost": cost}]
+    # ⭐ THE WITHHELD NAMES (`indicator_names.withheld_spellings`): each is a term, so the planner's
+    # Title-Case rule finds it accounted for (it is no longer refused as an unknown name) and
+    # `_matched_term` hands the assistant the rule for it. ⛔ ADDED, NEVER REPLACED, and after the
+    # library: a spelling the library answers is the library's.
+    # ⛔ Their WORDS are no vocabulary (`names_only`): a withheld name is recognised whole, and
+    # "Fisher", "Williams" or "Swing" inside any other Title-Case name is still a foreign word.
+    from api.services import indicator_names
+    names_only = set()
+    for phrase, name_id in indicator_names.withheld_spellings():
+        words = dc._form_tokens(phrase)
+        stems, cost = dc._stem_key(words)
+        if stems in index:
+            continue
+        index[stems] = [{"kind": dc.TABLE_ENTRY, "key": name_id, "section": WITHHELD_SECTION,
+                         "words": words, "cost": cost}]
+        names_only.add(stems)
     return {"index": index, "max_words": max((len(k) for k in index), default=1),
+            "names_only": frozenset(names_only), "names_only_section": WITHHELD_SECTION,
             "collisions": {k: v for k, v in (base.get("collisions") or {}).items() if k in index
                            and index[k] is base["index"].get(k)}}
 
@@ -2239,6 +4627,43 @@ def _tool_input(msg: Any) -> Optional[dict]:
 INPUT_WRAPPERS: Tuple[str, ...] = ("args",)
 
 
+@functools.lru_cache(maxsize=1)
+def _list_fields() -> Tuple[str, ...]:
+    """The fields of an answer the contract types as a LIST (read off the contract)."""
+    props = composed_schema().get("properties") or {}
+    return tuple(sorted(k for k, v in props.items() if isinstance(v, Mapping) and v.get("type") == "array"))
+
+
+def lists_from_text(candidate: Any) -> Tuple[Any, List[str]]:
+    """``(answer, which fields)``. ⭐ SEEN on production, 2026-11-18, on long formulas: the
+    assistant can write its whole list of changes as ONE PIECE OF TEXT holding
+    the list (``"ops": "[{\"op\": \"create\", ...}]"``), on a long formula. The contract refused
+    the format, the repair did the same again, and the member read "couldn't produce a valid change
+    ... Try rephrasing it" about an answer whose content was never looked at.
+
+    A field the contract types as a list, holding text that parses to a list, becomes that list.
+
+    ⛔ EXTRACTION, NOT VALIDATION, exactly as `_unwrap_input`: what comes out meets the same size
+    cap and the same strict check as an answer that arrived as a list. Nothing is defaulted or
+    repaired, text that is not a list is left for the check to refuse, and nothing else is parsed."""
+    if not isinstance(candidate, dict):
+        return candidate, []
+    out, which = candidate, []
+    for field in _list_fields():
+        text = candidate.get(field)
+        if not isinstance(text, str) or not text.lstrip().startswith("["):
+            continue
+        try:
+            parsed = json.loads(text)              # (text that opens with "[" and parses IS a list)
+        except Exception:                          # noqa: BLE001 -- not a list in text: the check says so
+            continue
+        if out is candidate:
+            out = dict(candidate)
+        out[field] = parsed
+        which.append(field)
+    return out, which
+
+
 def _unwrap_input(value: Optional[dict]) -> Tuple[Optional[dict], Optional[str]]:
     """``(envelope, wrapper)``. Removes ONE known argument wrapper -- an input whose
     ONLY key is a name in ``INPUT_WRAPPERS`` and whose value is an object -- and says
@@ -2295,7 +4720,7 @@ def browser_refusal(raw: Any, revision: int, view: Any) -> Optional[Tuple[Dict[s
     try:
         if len(json.dumps(envelope)) > MAX_INPUT_CHARS // 4:
             return None
-        checked = check_envelope(dict(envelope), revision, view)
+        checked = check_envelope(_own_notes_only(dict(envelope)), revision, view)
     except Exception:                              # noqa: BLE001 -- not ours: an ordinary turn
         return None
     if checked.get("disposition") != "change" or not checked.get("ops"):
@@ -2339,6 +4764,18 @@ def _settles(update: Any, warmup: Any) -> bool:
     `x` not reading `self`, and (1 - k) ** warmup below `RUNNING_VALUE_SETTLED`? Anything else
     (a series for k, a condition, a max or a min, a running total) answers False, and the door
     uses the stronger sentence: it cannot tell a ratchet from a filter by looking."""
+    path = _settled_gain_path(update)
+    if path is None:
+        return False
+    k = update["args"][path[0]]["args"][path[1]]["value"]
+    return (0 < k <= 1 and isinstance(warmup, int) and not isinstance(warmup, bool) and warmup > 0
+            and (1 - k) ** warmup < RUNNING_VALUE_SETTLED)
+
+
+def _settled_gain_path(update: Any) -> Optional[Tuple[int, int]]:
+    """Where the gain `k` sits when a one-value update has the shape `self + k * (x - self)` with a
+    LITERAL k (either order of the sum and of the product): the two `args` indices from the update
+    to that number, or None. The shape only; whether it settles is `_settles`."""
     def is_self(n: Any) -> bool:
         return isinstance(n, dict) and n.get("type") == "series" and n.get("name") == RUNNING_VALUE_SELF
 
@@ -2359,25 +4796,129 @@ def _settles(update: Any, warmup: Any) -> bool:
 
     plus = op(update, "+")
     if not plus:
-        return False
-    for a, b in (plus, plus[::-1]):
+        return None
+    for i in (0, 1):
+        a, b = plus[i], plus[1 - i]
         times = op(b, "*")
         if not is_self(a) or not times:
             continue
-        for k, diff in (times, times[::-1]):
+        for j in (0, 1):
+            k, diff = times[j], times[1 - j]
             minus = op(diff, "-")
             if (isinstance(k, dict) and k.get("type") == "num" and isinstance(k.get("value"), (int, float))
-                    and not isinstance(k.get("value"), bool) and 0 < k["value"] <= 1
-                    and minus and is_self(minus[1]) and not reads_self(minus[0])
-                    and isinstance(warmup, int) and not isinstance(warmup, bool) and warmup > 0):
-                return (1 - k["value"]) ** warmup < RUNNING_VALUE_SETTLED
-    return False
+                    and not isinstance(k.get("value"), bool)
+                    and minus and is_self(minus[1]) and not reads_self(minus[0])):
+                return (1 - i, j)
+    return None
+
+
+def running_value_owns(tree: Any, segs: Sequence[Any]) -> Optional[str]:
+    """⭐ IS THE NUMBER AT `segs` ONE OF A RUNNING VALUE'S OWN? The name of the function that owns
+    it, or None. (`segs`: the `args` indices from the formula's root, as a slot id writes them.)
+
+    * EVERY number inside several linked running values (`accum2`..`accum4`): they were accepted
+      because, TOGETHER, they settle inside their window.
+    * Of a one-value running value (`accum`): its warm-up, and its gain `k` when the update is the
+      shape that can settle (`_settled_gain_path`). The door's sentence about where the value starts
+      is written from exactly those two. Any other number inside it (the length of an average it
+      reads, the multiple of a stop) is an ordinary number.
+
+    One of these changed on its own would leave a formula nothing checked under a sentence that no
+    longer describes it. The window holds the same rule for its Inputs (`derivedSettings.js`,
+    `runningValueOwns`); `tests/fixtures/authoring/running_value_own_numbers.json` holds the two
+    equal, case by case."""
+    node = tree
+    path = [str(s) for s in segs]
+    for i, seg in enumerate(path):
+        if _is_call(node, RUNNING_VALUES_FNS):
+            return str(node.get("name"))
+        args = node.get("args") if isinstance(node, Mapping) else None
+        if _is_call(node, (RUNNING_VALUE_FN,)) and isinstance(args, list) and len(args) == 3:
+            gain = _settled_gain_path(args[1])
+            rest = tuple(path[i:])
+            if rest == ("2",) or (gain is not None and rest == ("1", str(gain[0]), str(gain[1]))):
+                return RUNNING_VALUE_FN
+        if not (isinstance(args, list) and seg.isdigit() and int(seg) < len(args)):
+            return None                              # an offset's count, or a path this formula does not hold
+        node = args[int(seg)]
+    return None
 
 
 def running_value_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
     """One assumption per output this patch builds from a running value: where it starts, in the
     member's words. The STRONGER sentence unless the update is the one shape that provably
-    settles (`_settles`). Deterministic: the same patch always carries the same notes."""
+    settles (`_settles`). Several LINKED running values (accum2..accum4) reach here only when they
+    settle (`_refuse_unsettled_running_values`), and their sentence gives the number of bars and
+    the tolerance it was measured to. Deterministic: the same patch always carries the same notes."""
+    from api.services import running_values
+    notes: List[Dict[str, Any]] = []
+    for op in envelope.get("ops") or []:
+        if not isinstance(op, Mapping):
+            continue
+        if op.get("op") == "create":
+            # ⭐ THE OUTPUTS A MEMBER SEES COME FIRST. The contract holds a few notes, and an
+            # indicator built on hidden working lines (four filter stages and the one line drawn
+            # from them) spent every one on the hidden lines and left the visible line with none.
+            rows = [o for o in op.get("outputs") or [] if isinstance(o, Mapping)]
+            rows = [o for o in rows if not o.get("hidden")] + [o for o in rows if o.get("hidden")]
+            outputs = [(o.get("key"), o.get("tree")) for o in rows]
+        elif op.get("op") == "add_output":
+            outputs = [(op.get("key"), op.get("tree"))]
+        elif op.get("op") == "set_output_tree":
+            outputs = [(op.get("output"), op.get("tree"))]
+        else:
+            continue
+        for key, tree in outputs:
+            found: List[Tuple[int, bool]] = []
+            linked: List[Tuple[int, int]] = []             # (how many values, bars they need)
+            stack = [tree]
+            while stack:
+                node = stack.pop()
+                if isinstance(node, dict):
+                    args = node.get("args")
+                    if _is_call(node, (RUNNING_VALUE_FN,)) and isinstance(args, list) and len(args) == 3:
+                        w = args[2].get("value") if isinstance(args[2], dict) and args[2].get("type") == "num" else None
+                        if isinstance(w, int) and not isinstance(w, bool):
+                            found.append((w, _settles(args[1], w)))
+                    elif _is_call(node, RUNNING_VALUES_FNS):
+                        got = running_values.classify(node, RUNNING_VALUE_SETTLED, RUNNING_VALUE_WINDOW_CAP)
+                        if isinstance(got.get("warmup"), int):
+                            settled = isinstance(got.get("needs"), int) and got["needs"] <= got["warmup"]
+                            found.append((got["warmup"], settled))
+                            if settled:
+                                linked.append((got["k"], got["needs"]))
+                    if isinstance(args, list):
+                        stack.extend(args)
+            if not found or not isinstance(key, str):
+                continue
+            window = min(w for w, _ in found)
+            if linked and all(ok for _, ok in found):
+                most, needs = max(k for k, _ in linked), max(n for _, n in linked)
+                text = (f"This value is built from {most} linked running values that start {window} bars back on "
+                        f"every bar. After {needs} bars their starting points no longer matter (to within "
+                        f"{RUNNING_VALUE_SETTLED:.2%} of where they started).")
+            elif all(ok for _, ok in found):
+                text = (f"This value starts {window} bars back on every bar. After that many bars its "
+                        "starting point no longer matters.")
+            else:
+                text = (f"This value is recomputed from {window} bars back on every bar, so its counts "
+                        f"and levels restart {window} bars back. A chart computed from the symbol's "
+                        "first bar can differ.")
+            notes.append({"output": key, "text": text})
+    return (notes + running_total_notes(envelope))[:RUNNING_VALUE_NOTE_MAX]
+
+
+#: A total over every bar of the loaded history (the table's own function; `ta.cum` on the Pine lane is this call).
+RUNNING_TOTAL_FN = "cum"
+RUNNING_TOTAL_NOTE = ("This is a running total from the first bar of the loaded history, so its level depends on "
+                      "where that history starts. Its bar-to-bar changes do not.")
+
+
+def running_total_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    """2026-11-20 -- One assumption per output this patch builds from a TRUE running total (`cum`): where it
+    starts, in the member's words. The same honesty by shape as a running value's note, and for the same
+    reason: the door says it itself, the model is not trusted to remember to. The level of such a total moves
+    when more history is loaded (the table's `window_dependent` tag); its changes from bar to bar do not."""
     notes: List[Dict[str, Any]] = []
     for op in envelope.get("ops") or []:
         if not isinstance(op, Mapping):
@@ -2391,30 +4932,16 @@ def running_value_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
         else:
             continue
         for key, tree in outputs:
-            found: List[Tuple[int, bool]] = []
-            stack = [tree]
-            while stack:
+            stack, total = [tree], False
+            while stack and not total:
                 node = stack.pop()
                 if isinstance(node, dict):
-                    args = node.get("args")
-                    if _is_call(node, (RUNNING_VALUE_FN,)) and isinstance(args, list) and len(args) == 3:
-                        w = args[2].get("value") if isinstance(args[2], dict) and args[2].get("type") == "num" else None
-                        if isinstance(w, int) and not isinstance(w, bool):
-                            found.append((w, _settles(args[1], w)))
-                    if isinstance(args, list):
-                        stack.extend(args)
-            if not found or not isinstance(key, str):
-                continue
-            window = min(w for w, _ in found)
-            if all(ok for _, ok in found):
-                text = (f"This value starts {window} bars back on every bar. After that many bars its "
-                        "starting point no longer matters.")
-            else:
-                text = (f"This value is recomputed from {window} bars back on every bar, so its counts "
-                        f"and levels restart {window} bars back. A chart computed from the symbol's "
-                        "first bar can differ.")
-            notes.append({"output": key, "text": text})
-    return notes[:RUNNING_VALUE_NOTE_MAX]
+                    total = _is_call(node, (RUNNING_TOTAL_FN,))
+                    if isinstance(node.get("args"), list):
+                        stack.extend(node["args"])
+            if total and isinstance(key, str):
+                notes.append({"output": key, "text": RUNNING_TOTAL_NOTE})
+    return notes
 
 
 def with_running_value_notes(envelope: Dict[str, Any]) -> Dict[str, Any]:
@@ -2425,7 +4952,8 @@ def with_running_value_notes(envelope: Dict[str, Any]) -> Dict[str, Any]:
         return envelope
     have = [a for a in (envelope.get("assumptions") or []) if isinstance(a, Mapping)]
     said = {a.get("text") for a in have}
-    merged = [n for n in notes if n["text"] not in said or not any(a.get("output") == n["output"] and a.get("text") == n["text"] for a in have)] + have
+    merged = [{**n, "by": NOTE_BY} for n in notes
+              if n["text"] not in said or not any(a.get("output") == n["output"] and a.get("text") == n["text"] for a in have)] + have
     out = dict(envelope)
     out["assumptions"] = merged[:MAX_ASSUMPTIONS]
     return out
@@ -2489,10 +5017,14 @@ CONVERSE_ADMIN_CAP_ENV = "CONVERSE_ADMIN_CAP_DAILY"
 ADMIN_CAP_DEFAULT_USD: float = 10.0
 
 
-def _env_usd(name: str) -> Optional[float]:
+def _env_usd(name: str, raw: Optional[str]) -> Optional[float]:
     """A finite, non-negative dollar amount from the environment, or None (unset
-    or unreadable -- logged, never raised, never treated as unlimited)."""
-    raw = os.environ.get(name)
+    or unreadable -- logged, never raised, never treated as unlimited).
+
+    The CALLER reads the variable and hands the text in: `os.environ.get(<its own constant>)` at
+    the call site is a read the flags ledger's scan can see (`feature_flag_index`), where a read
+    through this function's parameter was invisible to it, and the two allowances had no ledger
+    row to say what production holds (found 2026-11-18, the day one was changed)."""
     if raw is None or not raw.strip():
         return None
     try:
@@ -2524,12 +5056,12 @@ def allowance_left(user_id: Any, cap_usd: float, market_date: Optional[str] = No
 
 def conversation_cap_usd(*, admin: bool = False) -> float:
     """The daily $ cap ``converse`` compares the member's ledger against."""
-    member = _env_usd(CONVERSE_USER_CAP_ENV)
+    member = _env_usd(CONVERSE_USER_CAP_ENV, os.environ.get(CONVERSE_USER_CAP_ENV))
     if member is None:
         member = dc._user_cap_usd()
     if not admin:
         return member
-    admin_cap = _env_usd(CONVERSE_ADMIN_CAP_ENV)
+    admin_cap = _env_usd(CONVERSE_ADMIN_CAP_ENV, os.environ.get(CONVERSE_ADMIN_CAP_ENV))
     if admin_cap is None:
         admin_cap = ADMIN_CAP_DEFAULT_USD
     return max(member, admin_cap)
@@ -2620,11 +5152,32 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
     return usage
 
 
+def _as_it_stood(live: Any) -> Any:
+    """A copy of a list or dict another thread may still be writing to."""
+    for _ in range(5):
+        try:
+            return [dict(c) for c in live] if isinstance(live, list) else dict(live)
+        except RuntimeError:                       # it changed size while being copied: read it again
+            continue
+    return [] if isinstance(live, list) else {}
+
+
 def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
              conversation_id: Any = None, examples: Any = False,
-             browser_refusal: Any = None) -> Dict[str, Any]:
+             browser_refusal: Any = None, memory: Any = None, accepts: Any = None,
+             saved: Any = None, addable: Any = None, script_refusal: Any = None) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
+
+    ``saved`` reads this member's OWN saved indicators (`saved(user_id)` -> their definitions), or
+    None for a turn that offers no usual choice (every test that does not ask for one). It is
+    called only when the door is about to ask one of `HABIT_QUESTIONS`, never on any other turn.
+
+    ``accepts`` is what the browser said it accepts beyond the first contract (`ACCEPTS_NOTE_BY`).
+    Without it the answer is exactly what an older tab has always been sent.
+
+    ``memory`` is this member's remembered choices (`indicator_memory.Memory`), or None for a turn
+    that remembers nothing and uses nothing remembered (every test that does not ask for one).
 
     ``{ok: True, disposition: 'change'|'answer'|'clarify'|'unsupported', reply,
     turn: 'question'|'patch'|'noop', envelope, not_understood, unavailable, tokens,
@@ -2654,12 +5207,30 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     # (`dc.interactive_slot`): a concurrent turn is refused and spends nothing.
     with dc.interactive_slot(user_id) as free:
         if free:
-            result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
-                                    snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
-                                    trace=trace, admin=admin, examples=examples is True,
-                                    refused_by_browser=browser_refusal)
+            cancelled = threading.Event()
+            def formula_turn():
+                return _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
+                                      snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
+                                      trace=trace, admin=admin, examples=examples is True,
+                                      refused_by_browser=browser_refusal, memory=memory, cancelled=cancelled,
+                                      saved=saved, can_add=can_add_built_ins(accepts, addable))
+
+            result = _bounded_turn(
+                lambda: _with_script_lane(formula_turn, message, user_id=user_id, view=view, authoring=authoring,
+                                          snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls, trace=trace,
+                                          admin=admin, accepts=accepts, script_refusal=script_refusal,
+                                          cancelled=cancelled, can_add=can_add_built_ins(accepts, addable)),
+                cancelled)
+            if result is None:
+                # ⭐ THE CEILING PASSED. The member is answered now and their slot is freed as this
+                # block ends. The turn's own thread may still be inside a model call: what is
+                # recorded here is a copy of what it had done so far, never its live objects.
+                calls, trace = _as_it_stood(calls), dict(_as_it_stood(trace))
+                result = _refusal(TIMEOUT_GATE)
         else:
             result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
+    if not accepts_note_by(accepts) and isinstance(result.get("envelope"), Mapping):
+        result["envelope"] = _own_notes_only(result["envelope"])      # an older tab: the answer it always got
     latency_ms = int((time.monotonic() - started) * 1000)
     outcome = result.get("turn") if result.get("ok") else result.get("gate")
     try:
@@ -2672,7 +5243,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     except Exception:                              # noqa: BLE001 -- telemetry never breaks a turn
         logger.exception("[converse] usage accounting failed")
     _record_turn(user_id, conversation_id, result, admin=admin, message=message,
-                 latency_ms=latency_ms)
+                 latency_ms=latency_ms, learned=trace)
     # ⭐ F1 (2026-11-16): how much of today's allowance is left, so the dock can say so before
     # it runs out rather than only when it has. A SHARE, never dollars. Never breaks a turn.
     try:
@@ -2708,7 +5279,7 @@ _BUDGET_GATES = {"cost:user": "budget_user", "cost:global": "budget_global",
 _PLATFORM_GATES = {"model:transport"}
 #: ⭐ O7 -- the provider refused OUR ACCOUNT. Its own class: an outage heals, this needs a person.
 _ACCOUNT_GATES = {"model:unavailable"}
-_INTERNAL_GATES = {"internal:error"}
+_INTERNAL_GATES = {"internal:error", "internal:timeout"}
 _MODEL_GATE_PREFIXES = ("envelope:", "model:", "schema:", "lint:", "budget:", "converse:")
 
 #: ⭐ UNSUPPORTED DEMAND. Deterministic buckets over a model-"unsupported" turn's own
@@ -2809,8 +5380,31 @@ def turn_stamps() -> Dict[str, Any]:
     return out
 
 
+def learned_fields(result: Mapping[str, Any], learned: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+    """⭐ LEARN AS A PRODUCT: what a turn says about questions, memory and names, as CLOSED IDS (a
+    registry question id, a library entry id, a name-catalogue id). Each is held to its own closed
+    set again where it is stored (`indicator_telemetry._VALUE_RULES`).
+
+      asked         the registry question the door asked, or ``assistant`` for one the assistant asked
+      answered      the registry question this turn's message answered
+      remembered    the registry questions answered from the member's memory instead of asking
+      named_built   the library entries the change built
+      acronym_built the ones of those the member named by ACRONYM ("OBV"): watched for misreads
+      named_held    the held names the turn was refused for
+      unknown_name  the catalogue names the request asked for (``other``: a refused name in no row)
+    """
+    t = learned or {}
+    csv = lambda ids: ",".join(i for i in ids or [] if isinstance(i, str)) or None  # noqa: E731
+    asked = t.get("asked") or ("assistant" if result.get("ok") and result.get("turn") == "question" else None)
+    return {"asked": asked, "answered": t.get("answered"), "remembered": csv(t.get("remembered")),
+            "named_built": csv(t.get("named_built")), "acronym_built": csv(t.get("acronym_built")),
+            "named_held": csv(t.get("named_held")),
+            "unknown_name": csv(t.get("unknown_name"))}
+
+
 def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], *,
-                 admin: bool, message: Any, latency_ms: int) -> None:
+                 admin: bool, message: Any, latency_ms: int,
+                 learned: Optional[Mapping[str, Any]] = None) -> None:
     """⛔ NEVER RAISES and stores SHAPE ONLY (indicator_telemetry's allowlists)."""
     try:
         from api.services import indicator_telemetry
@@ -2841,6 +5435,7 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
             latency_ms=latency_ms,
             op_kinds=",".join(o for o in ops if isinstance(o, str)) or None,
             preflight=bool(result.get("preflight")),
+            **learned_fields(result, learned),
             **turn_stamps(),
         )
     except Exception:                              # noqa: BLE001
@@ -2885,7 +5480,10 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     # (`derivedName.memberCueNames`, one shared rule in `preflightRules.json`).
     member_names, unnamed = conversation_preflight.naming_split(message)
     plain = _product_nouns_plain(unnamed if member_names else message)
-    understanding = dc.plan(plain, dc.INDICATOR_KIND, lexicon=CHART_LEXICON) if plain.strip() else \
+    # ⭐ 2026-11-18 -- THE WHOLE-PHRASE RULE, on this door: a short Title-Case name with an unknown word
+    # in it is an unknown name even when another of its words is known (`dc._foreign_words`).
+    understanding = dc.plan(plain, dc.INDICATOR_KIND, lexicon=CHART_LEXICON, strict_names=True,
+                            name_refusal=UNKNOWN_NAME_REASON) if plain.strip() else \
         {"understood": "", "not_understood": [], "unavailable": [], "concepts": []}
     not_understood = understanding["not_understood"]
     unavailable = understanding["unavailable"]
@@ -2905,7 +5503,34 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     else:
         request_text = understanding["understood"]
 
+    # ⭐ THE NAMED-INDICATOR LIBRARY -- a name whose formula is not checked yet is refused BY NAME
+    # on an authoring turn (never handed to a model that could approximate it); on a question it is
+    # discussed, and the advisory backstop below keeps that turn from coming back as a change.
+    # ⭐ ONLY THE NAME IS WITHHELD. With the member's own description of the rule beside it, the
+    # turn goes on: the assistant is told to build that description and nothing else, and the door
+    # labels the result as the member's own formula (`own_words_notes`).
+    named, unchecked = named_in(understanding.get("terms"))
+    own_words: List[Dict[str, Any]] = []
+    if unchecked and not advisory:
+        if not described_in_own_words(plain, chart):
+            first = unchecked[0]["entry"]
+            is_built_in = named_indicators.built_in(first) is not None
+            return {"refusal": {"ok": False, "gate": NAMED_BUILT_IN_GATE if is_built_in else NAMED_UNCHECKED_GATE,
+                                "reason": named_indicators.their_number(message, first, False) or named_indicators.way_forward(first),
+                                "not_understood": not_understood, "unavailable": unavailable},
+                    "held": [u["entry"]["id"] for u in unchecked],
+                    # ⭐ one of UCT's own built-in indicators: the turn may be ANSWERED with an offer
+                    # to add it (`_converse_turn`), for a browser that can
+                    **({"built_in": first} if is_built_in else {})}
+        own_words = [u["entry"] for u in unchecked]
+    elif unchecked:
+        discussed = discussed + [{"phrase": u["wrote"], "gate": NAMED_UNCHECKED_GATE,
+                                  "reason": named_indicators.way_forward(u["entry"])} for u in unchecked]
+
     notes = _language_notes(understanding)
+    for term in notes["matched_terms"] if own_words else ():
+        if term.get("rule") == NAMED_UNCHECKED_RULE:
+            term["rule"] = NAMED_OWN_WORDS_RULE
     if discussed:
         notes["not_understood"] = []
         notes["not_in_vocabulary"] = [{"phrase": n.get("phrase"), "rule": NOT_IN_VOCABULARY_RULE}
@@ -2917,7 +5542,92 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     return {"refusal": None, "request_text": request_text, "notes": notes,
             "advisory": advisory, "other_sym": other_sym, "discussed": discussed,
             "not_understood": not_understood, "unavailable": unavailable,
-            "terms": understanding.get("terms") or []}
+            "terms": understanding.get("terms") or [], "named": named, "own_words": own_words,
+            "withheld": withheld_in(understanding.get("terms")),
+            "member_names": list(member_names or []),
+            # the chart's own symbol: naming it is not naming something to compare WITH
+            "chart_sym": chart.get("sym") if isinstance(chart, Mapping) else None}
+
+
+def door_answers_by_name(message: Any, chart: Any, can_add: Any = frozenset()) -> bool:
+    """Would the door answer this request itself, BY NAME and with no assistant call? A request that is only a
+    built-in's name (offered in one tap, or pointed at in the Indicators list), or only "VWAP with its bands" for a
+    browser that can add Session VWAP, or one that names an indicator UCT HOLDS BACK (no checked formula yet).
+    Pure: no model, nothing stored. Never raises (False).
+
+    ⛔ A HELD NAME IS REFUSED BY NAME WHATEVER VERB ASKS FOR IT (measured 2026-11-20). "show TTM Squeeze" was
+    refused by name with the way forward, and "draw TTM Squeeze with a label" went to the script lane, where the
+    assistant would have written a TTM Squeeze from memory: the one thing a held name exists to prevent ("nothing
+    it could approximate from", `named_indicators.held_names`). The door's answer cannot depend on the verb.
+    ⭐ Two cases still go on, as they always did: a held name whose published form only a script holds
+    (`needs_script`) is written as a script, and a member who describes the rule in their own words gets exactly
+    that built (`understand_turn` refuses neither)."""
+    try:
+        if vwap_bands_ask(message) is not None:
+            pointer = named_indicators.entry(VWAP_BANDS_ENTRY)
+            if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in (can_add or ()):
+                return True
+        understood = understand_turn(message, chart)
+        if understood.get("refusal") is None:
+            return False
+        if understood.get("built_in") is not None:
+            return True
+        held = [named_indicators.entry(i) for i in understood.get("held") or []]
+        return bool(held) and not any(named_indicators.needs_script(e) for e in held)
+    except Exception:                              # noqa: BLE001 -- the ordinary turn decides
+        return False
+
+
+def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: Any, authoring: Any, snippets: Any,
+                      chart: Any, cap_usd: float, calls: List[Dict[str, Any]], trace: Dict[str, Any], admin: bool,
+                      accepts: Any, script_refusal: Any, cancelled: Optional[threading.Event],
+                      can_add: Any = frozenset()) -> Dict[str, Any]:
+    """⭐ THE ASSISTANT WRITES PINE (`script_conversation`): where a script turn stands beside the
+    formula turn. With the lane closed (the default: the switch is off, or the account is not an
+    admin, or the browser does not accept a script) this IS the formula turn, untouched.
+
+    With it open, for a NEW indicator only (an indicator already on the bench is a formula, and
+    changing it stays a formula turn):
+      * the engine refused a script this door offered (`script_refusal`): the assistant repairs it;
+      * the request names something only a script can hold (a table, a label, a drawn line): the
+        assistant writes a script, and no formula call is made;
+      * otherwise the formula turn runs as always, and ONLY if it declines is a script tried. A
+        script that could not be written leaves the formula turn's own answer standing."""
+    from api.services import script_conversation as sc
+    if not sc.lane_open(accepts, admin):
+        return formula_turn()
+    try:
+        words, bounded_view, _state, _turns = _bounded_inputs(message, view, authoring, snippets)
+    except _Refused:
+        return formula_turn()                      # the formula turn says why, in its own words
+    if not bounded_view.get("empty"):
+        return formula_turn()
+    revision = bounded_view["revision"]
+
+    def script(refused=None):
+        return sc.script_turn(words, user_id=user_id, chart=chart, cap_usd=cap_usd, calls=calls, revision=revision,
+                              contract=PATCH_CONTRACT, trace=trace, refused=refused, cancelled=cancelled)
+
+    refused = sc.script_refusal(script_refusal)
+    if refused is not None:
+        return script(refused)
+    # ⛔ A DRAWING WORD DOES NOT TAKE A BUILT-IN'S NAME AWAY FROM THE DOOR (review 2026-11-19). "draw" is a script
+    # word, and it is also how members ask for anything: "draw vwap bands" went to a paid script while "show vwap
+    # bands" got the one-tap offer, and "draw ATR Bands" was improvised where UCT has the indicator. The same holds
+    # for a name UCT holds back: it is refused by name below, never written from memory because the verb was "draw".
+    if sc.wants_script(words) and not door_answers_by_name(words, chart, can_add):
+        return script()
+    result = formula_turn()
+    if cancelled is not None and cancelled.is_set():
+        return result
+    # a held name whose published form only a script holds (`needs_script`) was refused BY NAME, with
+    # no assistant call: here it is written as a script instead, and the refusal stands if that fails
+    by_name = (not result.get("ok")) and any(
+        named_indicators.needs_script(named_indicators.entry(i)) for i in trace.get("named_held") or [])
+    if result.get("disposition") != "unsupported" and not by_name:
+        return result
+    scripted = script()
+    return scripted if scripted.get("ok") else result
 
 
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
@@ -2925,7 +5635,9 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                    calls: List[Dict[str, Any]],
                    trace: Optional[Dict[str, Any]] = None,
                    admin: bool = False, examples: bool = False,
-                   refused_by_browser: Any = None) -> Dict[str, Any]:
+                   refused_by_browser: Any = None, memory: Any = None,
+                   cancelled: Optional[threading.Event] = None, saved: Any = None,
+                   can_add: frozenset = frozenset()) -> Dict[str, Any]:
     trace = trace if trace is not None else {}
     try:
         message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
@@ -2933,11 +5645,60 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         return {"ok": False, "gate": refused.gate, "reason": refused.reason}
     revision = view["revision"]
 
+    answered = pending_answer(message, turns, chart)            # an answer is the request plus the answer
+    if answered:
+        message = answered["message"]
+        trace["answered"] = answered["question"]
+        chose = answer_value(answered["question"], answered, chart) if memory is not None else None
+        if chose is not None:
+            memory.remember(answered["question"], chose[0], chose[1])
     understood_turn = understand_turn(message, chart)
+    try:                                           # the record's own reading: it never costs a turn
+        refused_as_names = refused_names((understood_turn["refusal"] or understood_turn).get("not_understood"))
+        trace["unknown_name"] = asked_names(message, refused_as_names)
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] the name catalogue could not be read for the record")
+    # ⭐ ONE SETTING OF A BUILT-IN: a request that is only "VWAP with its standard-deviation bands" is
+    # answered here and offered in one tap, for a browser that can add Session VWAP now. Any other
+    # browser, and any request with one more word in it, goes on exactly as before.
+    bands = vwap_bands_ask(message)
+    if bands is not None:
+        pointer = named_indicators.entry(VWAP_BANDS_ENTRY)
+        if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in can_add:
+            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"] or understood_turn, bands, message)
+            if offered is not None:
+                return offered
     if understood_turn["refusal"] is not None:
+        trace["named_held"] = understood_turn.get("held") or []
+        pointer = understood_turn.get("built_in")
+        if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in can_add:
+            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"], None, message)
+            if offered is not None:
+                return offered
         if understood_turn["refusal"].get("preflight"):
             logger.info("[converse] preflight %s (no model call)", understood_turn["refusal"]["gate"])
         return understood_turn["refusal"]
+    # what this member chose before stands in for the question (and is said, below)
+    message, understood_turn, as_before = remembered_defaults(message, understood_turn, view, chart, memory)
+    if as_before:
+        trace["remembered"] = [qid for qid, _label in as_before]
+    asking = door_question(understood_turn, view)
+    if asking is not None:
+        trace["asked"] = asking
+        # ⭐ THE DOOR ASKS, with no model call: the same question every time, for nothing. ONE
+        # question; the next open one is asked on the next turn (`with_pending_answers`).
+        question = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "clarify",
+                    "questions": [offered_first(clarify_question(asking), memory, _usual_for(asking, saved, user_id))]}
+        try:
+            question = check_envelope(question, revision, view)
+        except _Refused:                           # never: the question is this door's own. If it ever is, the model asks.
+            logger.exception("[converse] the door's own question did not pass the door")
+        else:
+            logger.info("[converse] the door asked %s (no model call)", asking)
+            return {"ok": True, "disposition": "clarify", "reply": "", "turn": "question", "envelope": question,
+                    "asked_by": "door", "asked": asking, "not_understood": understood_turn["not_understood"],
+                    "unavailable": understood_turn["unavailable"],
+                    "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0, "attempts": 0, "model": None}
     request_text = understood_turn["request_text"]
     notes = understood_turn["notes"]
     advisory = understood_turn["advisory"]
@@ -2945,10 +5706,27 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     discussed = understood_turn["discussed"]
     not_understood = understood_turn["not_understood"]
     unavailable = understood_turn["unavailable"]
+    named = understood_turn.get("named") or []
+    own_words = understood_turn.get("own_words") or []
+    withheld = understood_turn.get("withheld") or []
+    acronyms = by_acronym(understood_turn.get("terms"))
+    asked_symbols = without_acronyms(message, acronyms)        # what the ticker readers read
     # ⭐ L5 -- WORKED EXAMPLES (`worked_examples.py`): for a NEW indicator, the nearest one or two of
     # UCT's own checked builds ride along INSIDE <uct_language_notes> (data, by the instructions' own
     # rule; the cached instruction block is untouched). Dark for members; an admin turn can ask.
     # ⛔ They never cost a turn: if they would push it over the size cap, the turn goes without.
+    if names_a_calendar_start(message):
+        notes = {**notes, "calendar": calendar_notes()}
+        trace["calendar"] = True
+    written_dates = dates_named(message)
+    if written_dates:
+        notes = {**notes, "dates": written_dates}
+        trace["dates"] = len(written_dates)        # how many, never which
+    date_numbers = supplied_date_numbers(message, notes, view, turns)
+    days_as_bars = day_length_notes(message, chart)
+    if days_as_bars:
+        notes = {**notes, "day_lengths": days_as_bars}
+        trace["day_lengths"] = len(days_as_bars)       # how many, never which
     from api.services import worked_examples
     carried = worked_examples.for_turn(message, view, admin=admin, asked=examples)
     content = user_turn(request_text, {**notes, "worked_examples": carried} if carried else notes,
@@ -2983,6 +5761,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     extra = {"not_understood": not_understood, "unavailable": unavailable}
 
     while attempts < MAX_MODEL_CALLS:
+        if cancelled is not None and cancelled.is_set():
+            # the ceiling passed and the member has been answered: no (further) model call is made.
+            # (A call already in flight when it passed is paid for, and is in the ledger below.)
+            return _refusal(TIMEOUT_GATE, **extra)
         # ⭐ THE CAPS ARE CONSULTED BEFORE EVERY SPEND, including the repair.
         if not cost_guard.may_member_spend(market_date):
             return _refusal("cost:global", **extra)
@@ -2992,11 +5774,12 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         attempts += 1
         try:
             msg, in_tokens, out_tokens = _call_model(messages)
+            dc.note_model_answered()
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             gate = dc.model_failure_gate(exc)
             if gate == "model:unavailable":
-                # ERROR, not WARNING: this does not heal by itself (O7)
-                logger.error("[converse] the provider refused the account: %s", type(exc).__name__)
+                # ERROR, not WARNING: this does not heal by itself (O7); with the kind of refusal
+                dc.log_account_refusal(logger, "converse", exc)
             else:
                 logger.warning("[converse] model call failed: %s", exc)
             dc.charge_unreported(exc, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, _request_for(messages))
@@ -3023,20 +5806,48 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                       "usd": round(spent, 6)})
 
         tool_input = _tool_input(msg)
+        oversize = answer_size_problem(tool_input)             # ⭐ BEFORE anything walks the answer
+        if oversize is not None:
+            # TERMINAL: an answer this shape is not sent back for a second paid call
+            logger.warning("[converse] the answer was refused for its size on attempt=%d: %s", attempts, oversize)
+            return _refusal(SIZE_GATE, oversize, **extra)
         candidate, wrapper = _unwrap_input(tool_input)
+        candidate, from_text = lists_from_text(candidate)
+        if from_text:
+            # what arrived as text is about to be walked: it meets the size cap first, like any answer
+            oversize = answer_size_problem(candidate)
+            if oversize is not None:
+                logger.warning("[converse] the answer was refused for its size on attempt=%d: %s", attempts, oversize)
+                return _refusal(SIZE_GATE, oversize, **extra)
+        candidate = _own_notes_only(candidate)             # the assistant may not sign a note as UCT's
         if wrapper:
             # shape only: the wrapper NAME and the attempt, never its content
             logger.info("[converse] unwrapped %r on attempt=%d", wrapper, attempts)
             trace.setdefault("input_wrapper", wrapper)
-        candidate, mended = mend(candidate, view)
+        try:
+            candidate, mended = mend(candidate, view)
+        except _Refused as inlined:                # the inlined form is over its cap: answered by name, nothing built
+            logger.warning("[converse] the answer was refused for its inlined size on attempt=%d", attempts)
+            return _refusal(SIZE_GATE, inlined.detail, **extra)
+        if from_text:
+            mended = [MEND_LIST_AS_TEXT] + list(mended)
         if mended:
             # shape only: WHICH mends, never what they touched
             logger.info("[converse] mended %s on attempt=%d", ",".join(mended), attempts)
             trace.setdefault("mended", ",".join(mended))
         try:
             envelope = check_envelope(candidate, revision, view)
+            check_date_numbers(envelope, date_numbers)         # a date number is the door's, never the assistant's
+            check_day_lengths(envelope, message, chart)        # below a day, a length in days is never that many bars
             check_output_renames(envelope, message, view, turns)
+            check_named(envelope, view, named)                 # a named indicator is its checked formula, or nothing
+            check_withheld(envelope, withheld, understood_turn.get("member_names"))   # an unchecked name is never written
             envelope = with_running_value_notes(envelope)      # the door says where a running value starts
+            envelope = _with_door_notes(envelope, named_notes(envelope, view, named))
+            envelope = _with_door_notes(envelope, own_words_notes(envelope, own_words))
+            envelope = _with_door_notes(envelope, withheld_notes(envelope, withheld))
+            if envelope.get("disposition") == "change":
+                envelope = _with_door_notes(envelope, as_before_notes(as_before))
             if replayed and envelope.get("ops") == replayed[0].get("ops"):
                 raise _Refused("envelope:reference",
                                f"this is the patch the app already refused ({replayed[1]}); change it")
@@ -3071,12 +5882,12 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         # ⭐ PHASE 5: another symbol is authorable now, so a change for one is
         # refused only when it reads NONE of the symbols the member named (the
         # substitution). "From SPY to QQQ" names both; a change reading QQQ is it.
-        named = {conversation_preflight.store_ticker(t)
-                 for t in conversation_preflight.named_tickers(message, chart)} | (
+        named_syms = {conversation_preflight.store_ticker(t)
+                      for t in conversation_preflight.named_tickers(message, chart)} | (
             {conversation_preflight.store_ticker(other_sym)} if other_sym else set())
         reads_other = bool(other_sym) and bool(
-            named & {conversation_preflight.store_ticker(t) for t in envelope_tickers(envelope)})
-        unasked = unasked_tickers(envelope, message, view)
+            named_syms & {conversation_preflight.store_ticker(t) for t in envelope_tickers(envelope)})
+        unasked = unasked_tickers(envelope, asked_symbols, view)
         if envelope.get("disposition") == "change" and unasked:
             refused = _Refused("unsupported:symbol-unasked", f"reads {', '.join(unasked)}",
                                member=f"it reads {', '.join(unasked)}")
@@ -3104,7 +5915,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         else:
             turn = "noop"
         reply = envelope.get("reply")
+        trace["named_built"] = named_built(envelope, view, named)   # what the patch holds; nothing on a turn with no formula
+        trace["acronym_built"] = [i for i in trace["named_built"] if i in acronyms.values()]
         return {
+            **({"remembered": [qid for qid, _label in as_before]} if as_before else {}),
             "ok": True,
             "disposition": envelope["disposition"],
             "reply": reply.strip() if isinstance(reply, str) else "",

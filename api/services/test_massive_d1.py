@@ -67,7 +67,7 @@ def test_get_quote_returns_provider_result_with_value_and_provenance():
     assert result.value == {"day": {"c": 230.0}, "todaysChangePerc": 1.2}
     assert result.provenance.vendor == "massive"
     assert result.provenance.source_activity == "massive.get_quote"
-    assert result.licensing_class == "R"
+    assert result.licensing_class == "LA"     # ("massive", "quotes"), T-01 Bus column (restated 2026-11-19)
     assert result.freshness == "real_time"
     assert result.degraded is None
 

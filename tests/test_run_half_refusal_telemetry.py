@@ -63,14 +63,49 @@ def test_the_code_pattern_is_the_clients():
     assert m.group(1) == tel.RUN_HALF_CODE_PATTERN
 
 
+def _constant_value(name: str, reg: str) -> str:
+    """The quoted value of a refusal constant `refused(NAME)` names: declared in nativeRegistry.js
+    itself, or in the engine module nativeRegistry.js IMPORTS it from (`RUNTIME_FORMING_GUARD`
+    lives in runtimeKill.js since 13af4ef782). Not found anywhere is a named failure, never a
+    `NoneType` crash: the rail must say which constant it could not read."""
+    m = re.search(rf"export const {name} = '([^']+)'", reg)
+    if m:
+        return m.group(1)
+    for found in re.finditer(r"import\s*\{([^}]*)\}\s*from\s*'\./([A-Za-z0-9_]+)(?:\.js)?'", reg):
+        names = {n.strip().split(" as ")[-1].strip() for n in found.group(1).split(",")}
+        if name in names:
+            src = (ENGINE / f"{found.group(2)}.js").read_text(encoding="utf-8")
+            m = re.search(rf"export const {name} = '([^']+)'", src)
+            assert m, f"{name} is imported from ./{found.group(2)} but declared there without a quoted literal"
+            return m.group(1)
+    raise AssertionError(f"refused({name}) in withRunHalf: no quoted `export const {name}` in nativeRegistry.js "
+                         "or in the engine module it is imported from")
+
+
 def test_every_literal_run_half_refusal_code_is_accepted():
     reg = (ENGINE / "nativeRegistry.js").read_text(encoding="utf-8")
     body = reg[reg.index("function withRunHalf("):reg.index("function runHalfGateSignature(")]
     codes = set(re.findall(r"refused\('([^']+)'\)", body))
-    for name in re.findall(r"refused\(([A-Z_]+)\)", body):
-        codes.add(re.search(rf"export const {name} = '([^']+)'", reg).group(1))
+    named = set(re.findall(r"refused\(([A-Z_]+)\)", body))
+    for name in named:
+        codes.add(_constant_value(name, reg))
+    # control: the imported constant the earlier version could not see is read, and read as itself
+    assert "RUNTIME_FORMING_GUARD" in named
+    assert _constant_value("RUNTIME_FORMING_GUARD", reg) == "pane:forming-ungraded"
     rail = (ENGINE / "runHalfObjectRail.js").read_text(encoding="utf-8")
-    codes |= set(re.findall(r"export const RUN_HALF_[A-Z_]+ = '([^']+)'", rail))
+    # The object rail's REFUSAL codes: every constant it refuses with (`refuse(NAME, why)`), which
+    # `withRunHalf` hands to `refused(verdict.code)` and so to the telemetry. NOT every `RUN_HALF_*`
+    # export: `RUN_HALF_ADMITTED_LOST` ('lost-drawings') is the `admittedBy` of a PASSING verdict, an
+    # answer `withRunHalf` notes as no code at all (`runHalfLostDrawings.test.js` proves no beacon and
+    # no count ever carries it).
+    refused_with = set(re.findall(r"\brefuse\(([A-Z_]+)\b", rail))
+    # controls: the narrowing still collects a real refusal, and leaves the admission out
+    assert "RUN_HALF_NO_COMPARABLE_OBJECTS" in refused_with
+    assert "RUN_HALF_ADMITTED_LOST" not in refused_with
+    for name in refused_with:
+        m = re.search(rf"export const {name} = '([^']+)'", rail)
+        assert m, f"runHalfObjectRail.js refuses with {name} but does not declare it where this rail reads it"
+        codes.add(m.group(1))
     assert {"run-half:program-unbound", "run-half:object-rail", "run-half:no-comparable-objects",
             "run-half:host-object-withheld", "run-half:rail-not-loaded"} <= codes
     for code in codes:

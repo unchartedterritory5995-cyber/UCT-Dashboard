@@ -20,6 +20,8 @@
 // refuses anywhere outside `__tests__`. What the run REACHED is its `rulesUsed`: the rules this
 // capture exercises, and so the rules a MATCH may pin.
 
+import path from 'node:path'
+import process from 'node:process'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lexPine, blockStatements, parseWholeExpression, findTop, isPunct, OUTPUT_CALLS as PINE_OUTPUT_CALLS } from '../../ast/pine.js'
 import { splitCommaStatements } from '../../ast/objectFnInline.js'
@@ -29,7 +31,10 @@ import { execute } from '../../runtime/vm.js'
 import { strategyRecordOf } from '../../runtime/strategyRecord.js'
 import { strategyReportOf } from '../../runtime/brokerReport.js'
 import { symbolConstants, minContractOf } from '../../ast/bind.js'
+import { historyWindowBarsOf } from '../../runtime/__tests__/strategyArmed.js'
+import { toProductBars } from './ourSide.js'
 import { storeExchangeOfCapture } from './storeExchange.js'
+import { startsAtBar0Holds } from '../../../../../../../tools/vendor_harness/history_claim.mjs'
 import { gradeStrategy, strategyFirstDifference, decodeVendorText } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { settingsAgreement, propertiesByKey, pineVersionOf, extractReportFields, isStrategyCapture } from '../../../../../../../tools/vendor_harness/strategy_capture.mjs'
 import {
@@ -94,8 +99,14 @@ export function barsTradingViewRan(capture) {
  * at build the moment its `strategy.*` reads were served.
  * @returns {{ok:true, built, drawing:boolean, drawingRefusal:(object|null)} | {ok:false, refusal}}
  */
-function buildAsTheDoorDoes(capture, bars) {
-  const opts = { bars, inputs: {}, symbol: symbolOf(capture), strategyBroker: true, ...runtimeClockOpts(capture.newestBarIsForming) }
+function buildAsTheDoorDoes(capture, bars, member = null) {
+  // ⭐⭐ (2026-11-20) `member`: a DAILY capture is built on the bars a member's daily chart hands the build (`/api/bars`'s
+  // ISO date keys, `ourSide.js::toProductBars`) with the chart's timeframe, as `runtimeColumns.js::runtimeIrOptions` builds
+  // it; `bars` (TradingView's epoch seconds) still decide where the run starts and key every point and fill
+  const opts = member
+    ? { bars: member.bars, inputs: {}, symbol: symbolOf(capture), strategyBroker: true, basePeriod: member.tf, tf: member.tf,
+      ...runtimeClockOpts(capture.newestBarIsForming, { tf: member.tf }) }
+    : { bars, inputs: {}, symbol: symbolOf(capture), strategyBroker: true, ...runtimeClockOpts(capture.newestBarIsForming) }
   // the capture says whether its newest bar had finished; the build is told through the one producer
   // (`pineRuntimeFrontendGate`: no file reaches the runtime lane without it), unknown stays unknown
   const drawing = buildRuntimeIr(capture.source.text, { ...opts, objectsInRun: true })
@@ -113,6 +124,18 @@ function buildAsTheDoorDoes(capture, bars) {
   return { ok: false, refusal }
 }
 
+const DAILY_TF = /^1?D$/i
+
+/** The member's daily chart's keys for `bars` (TradingView's epoch rows, the capture's own order): each row's ISO
+ *  date as `/api/bars` keys it (`ourSide.js::toProductBars`), or null when a row has none. */
+function memberDailyBarsOf(capture, bars) {
+  const product = toProductBars(capture)
+  const rows = capture.bars.rows
+  const keyOf = new Map(rows.map((r, i) => [r[0], product[i] && product[i].t]))
+  const out = bars.map((b) => ({ ...b, t: keyOf.get(b.t) }))
+  return out.every((b) => typeof b.t === 'string') ? { bars: out, tf: 'D' } : null
+}
+
 /**
  * Run our broker on the capture's script and bars.
  * @returns {{ok:true, record, report, plots, drawn} | {ok:false, refusal:{rule, guard, expected, message}}}
@@ -121,9 +144,24 @@ function buildAsTheDoorDoes(capture, bars) {
  *   `{status:'ungraded', reason}` (the drawing build refused, or the store withheld the labels).
  */
 export function runOurBroker(capture, { pins = ALL } = {}) {
-  const { bars } = barsTradingViewRan(capture)
+  const ranOn = barsTradingViewRan(capture)
+  // ⭐⭐ (2026-11-18, Q-S1p) A CAPTURE TAKEN IN SESSION is graded on the member's own run: every bar, the forming one
+  // too, with the newest NOT confirmed, so our vm leaves it out ([B-EXEC]): the rule the capture grades.
+  // ⚰️ The harness handed such a run the bars TradingView ran (the forming bar already cut) AND said the newest was
+  // forming, so the vm left out a second bar: the last closed bar read `na` on our side (supertrend-strategy-is, the
+  // first in-session strategy capture graded, DIVERGE at 11-17 on a run no member makes).
+  const forming = capture.newestBarIsForming === true && ranOn.unrun !== null
+  const bars = forming ? barsOfCapture(capture) : ranOn.bars
   if (!bars) return { ok: false, refusal: { rule: 'harness:bars', guard: 'harness:bars', expected: false, message: 'the capture has no unix-s bars' } }
-  const made = buildAsTheDoorDoes(capture, bars)
+  // ⭐⭐ (2026-11-20, Q-SU-8) A DAILY CAPTURE IS GRADED ON THE MEMBER'S OWN BAR KEYS. The build's clock reads a bar's
+  // epoch seconds through the unit gate (`indicators.js::barOpenInstant`), whose number branch refuses anything before
+  // 1990 (it guards a `YYYYMMDD` int read as seconds), so one pre-1990 bar blanked `time` on every bar: AAPL 1D from its
+  // 1980 listing ran no `time`-windowed order at all (0 trades against TradingView's 59) on a run no member makes. A
+  // member's daily chart hands ISO dates, which the date branch reads to TradingView's own 09:30 New York instant
+  // (#1686: byte-identical records), so the build is handed those; the series, every point and every fill stay keyed
+  // by TradingView's epoch seconds, the same instants (`strategyBarTimeIdentity.test.js`).
+  const member = DAILY_TF.test(String(capture.timeframe || '')) ? memberDailyBarsOf(capture, bars) : null
+  const made = buildAsTheDoorDoes(capture, bars, member)
   if (!made.ok) {
     const r = made.refusal || {}
     const guard = r.guard || r.code || 'build'
@@ -138,6 +176,13 @@ export function runOurBroker(capture, { pins = ALL } = {}) {
   // `bars_window.HISTORY_WINDOW_BARS`) is not what TradingView ran on (w9-r1-risk-intraday-range: 6,343 SPY 15m
   // bars), and a run cut to it would start on another bar than TradingView's
   const windowBars = Math.max(5000, bars.length)
+  // ⭐⭐ (2026-11-19, the strategy-only daily window) A METHOD (a) CAPTURE FROM THE LISTING DEEPER THAN THE SHARED
+  // WINDOW is a deep start ([B-START-DEEP], Q-SU-7 / Q-SU-8): the run is handed the depth a member's run is served at
+  // without it (`bars_window.HISTORY_WINDOW_BARS`, read off the module), so the rule is exercised and a MATCH pins it.
+  // ⛔ Method (b) never: its time guard keeps every order inside [X, Y), so where TradingView started is not what it
+  // grades, and its run must never be evidence for (or against) the deep start.
+  const deepDepth = capture.provenance && capture.provenance.gradeMethod === 'a'
+    ? historyWindowBarsOf(path.resolve(process.cwd(), '..')) : null
   // ⭐⭐ PARITY (2026-11-16) — the symbol's minimum contract, derived exactly as the member's run derives it
   // (`runtimeColumns.js`: `minContractOf(symbolConstants(symbol))`, the witnessed `symbolScope.json::min_contract`
   // row). ⚰️ The harness passed none, so every cash / percent-of-equity size refused Q-S1a here while a member's run
@@ -146,7 +191,7 @@ export function runOurBroker(capture, { pins = ALL } = {}) {
   let res
   try {
     res = execute(program, { bars: bars.length, series, columns: program.columns, confirmed, barTimes, historyWindowBars: windowBars,
-      minContract }, undefined, { brokerPinned: pins })
+      minContract, ...(deepDepth !== null ? { listingDepthBars: deepDepth } : {}) }, undefined, { brokerPinned: pins })
   } catch (e) {
     const guard = (e && e.guard) || 'runtime:error'
     // ruling D12: a refusal about a SETTING the run would have to assume (`BrokerRefusal.setting`, raised at bind,
@@ -164,6 +209,15 @@ export function runOurBroker(capture, { pins = ALL } = {}) {
   for (const [k, o] of (program.outputs || []).entries()) {
     if (!o || !VALUE_SLOT_CALLS.has(o.call) || !res.outputs[k]) continue
     plots.push({ kind: o.call, points: Array.from(res.outputs[k], (value, i) => ({ time: barTimes[i], value: Number.isFinite(value) ? value : null })) })
+  }
+  // the forming bar is neither side's evidence (TradingView's strategy did not run it, `newestBarNotRun`): its point
+  // leaves our series ONLY when our run computed nothing there; a value of ours on it stays, and the grade reads it
+  // as a bar of ours TradingView does not have (DIVERGE)
+  if (forming) {
+    for (const pl of plots) {
+      const last = pl.points[pl.points.length - 1]
+      if (last && last.time === ranOn.unrun && last.value === null) pl.points.pop()
+    }
   }
   // ruling D11: the bar TIME each rule was first asked on (null: before the first bar)
   const ruleFirstTime = {}
@@ -466,7 +520,7 @@ export function referenceTextsOf(capture) {
  *  first bar is the window's `firstBarTime`); the guard keeps every order inside [X, Y). */
 function runsFromTradingViewsFirstBar(capture, bars) {
   const method = capture.provenance && capture.provenance.gradeMethod
-  if (method === 'a') return !!(capture.history && capture.history.startsAtBar0 === true)
+  if (method === 'a') return startsAtBar0Holds(capture)
   if (method === 'b') return !!(capture.window && bars.length && capture.window.firstBarTime === bars[0].t)
   return false
 }

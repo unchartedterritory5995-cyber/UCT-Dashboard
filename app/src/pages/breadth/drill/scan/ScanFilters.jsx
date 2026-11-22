@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import UIcon from '../../../../components/ui/UIcon'
+import Input from '../../../../components/ui/Input'
 import { DRILL_POPOVER_ATTR, GROUP_OPTIONS } from './scanFacets'
 import styles from './ScanFilters.module.css'
 
@@ -32,8 +33,8 @@ export function FilterButton({ filters, total, shown }) {
       <button ref={btnRef} type="button" className={styles.filterBtn} aria-expanded={open} aria-haspopup="dialog"
         data-active={n > 0 || undefined} onClick={() => { setAnchorRect(btnRef.current?.getBoundingClientRect() || null); setOpen(o => !o) }} title="Filter this list"
         aria-label={n > 0 ? `Filters, ${n} applied` : "Filters"}>
-        <UIcon name="sliders" size={13} />
-        <span>Filters</span>
+        <UIcon name="sliders" size={13} gold={false} />
+        <span className={styles.filterLbl}>Filters</span>
         {n > 0 && <b className={styles.badge}>{n}</b>}
       </button>
       {open && (
@@ -128,7 +129,7 @@ function FilterPanel({ anchorRect, anchorRef, filters, total, shown, onClose }) 
         <span className={styles.panelCount}><b>{shown.toLocaleString()}</b> of {total.toLocaleString()} stocks</span>
         <span className={styles.spacer} />
         {filters.count > 0 && <button type="button" className={styles.clearLink} onClick={filters.clear}>Reset</button>}
-        <button type="button" className={styles.close} onClick={onClose} aria-label="Close filters"><UIcon name="x" size={13} /></button>
+        <button type="button" className={styles.close} onClick={onClose} aria-label="Close filters"><UIcon name="x" size={13} gold={false} /></button>
       </div>
       <div className={styles.panelBody}>
         {m.signals.length > 0 && (
@@ -144,7 +145,7 @@ function FilterPanel({ anchorRect, anchorRef, filters, total, shown, onClose }) 
         )}
         {m.industry.length > 1 && (
           <Section title="Industry" right={(
-            <input className={styles.search} value={industryQ} onChange={e => setIndustryQ(e.target.value)}
+            <Input className={styles.search} value={industryQ} onChange={e => setIndustryQ(e.target.value)}
               placeholder="Search industries" aria-label="Search industries" />
           )}>
             <OptChips opts={industries} onToggle={t('industry')} limit={industryQ ? Infinity : 12} />

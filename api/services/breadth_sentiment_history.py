@@ -5,7 +5,8 @@ deep-history rows carry them where they exist.
 The 4:15pm collector only began storing `breadth_snapshots` on 2026-01-02, so
 every reconstructed (pre-collector) Monitor row is missing the sentiment block
 that the collector pushes live: AAII (weekly since 1987), NAAIM (weekly since
-2006), CBOE equity put/call (daily, ~2003), CNN Fear & Greed (daily, ~2011).
+2006), CBOE equity put/call (daily, 2003+; 2019-10-07 onward from CBOE's per-date
+endpoint, tools/breadth/refill_equity_putcall.py), CNN Fear & Greed (daily, ~2011).
 This store holds whatever of those we could source publicly, keyed exactly by the
 metric names the Monitor already uses (`aaii_bulls`, `naaim`, `cboe_putcall`,
 `cnn_fear_greed`, …), so the merge just overlays them onto historical rows.

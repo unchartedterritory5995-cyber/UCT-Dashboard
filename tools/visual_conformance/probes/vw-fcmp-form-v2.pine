@@ -1,0 +1,87 @@
+//@version=2
+study("vw-fcmp-form-v2")
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme, the second float-comparison probe (after Q-FCMP,
+// vw-float-compare-tolerance.pine). Q-FCMP found TradingView's comparisons TOLERANT: `(0.1 + 0.2) == 0.3` is true,
+// `1.0 + 3e-14 == 1.0` is true, and SPY 1D bar 5,333's up/down moves (2.84e-14 apart) compare equal, not greater.
+// The v6 reference says of `==` and `!=`: "This operator rounds "float" operands to nine fractional digits."
+// It says nothing for `<` `<=` `>` `>=`, and the v4 / v5 references say nothing at all.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION (form): is the tolerance ROUNDING to nine fractional digits (the documented `==` rule: two values compare
+// equal when they land in the same 1e-9 bucket, so a pair 2e-14 apart either side of a bucket edge is UNEQUAL while a
+// pair 4.9e-10 apart inside one bucket is EQUAL) or an EPSILON on the difference (absolute, relative or ulp)? Do
+// `<` `<=` `>` `>=` round too? How is a half-way value rounded? Does an int operand round? What does an `na` give?
+// T01-T03 controls. T04-T13: 1 vs 1 + d at a bucket centre. T14-T19: the same grid from a base 1e-11 below an edge.
+// T20-T22: 2e-14 straddles of an edge (rounding reads 14 / 50; every epsilon wide enough for Q-FCMP's F04, >= 3e-14,
+// reads 41). T23: a 2e-13 straddle at magnitude 100 (a relative tolerance >= 3.2e-13 reads 41). T24-T26 negatives.
+// T27-T31 around zero. T32-T39 half-way values: 1 = rounded to lo, 2 = to hi, 0 = neither.
+// T40-T44 int operands. T45-T48 na operands. T49-T50 const twins of T08 and T20.
+// THE v2 TWIN of vw-fcmp-form.pine: the same rows, T01-T50, under //@version=2.
+// Coordinator ruling D4 (2026-11-18): every version is measured, none assumed. v1-v3 grammar: `n` is the bar
+// counter (T00), the functions are untyped, `one` is built from `close` (close * 0 + 1.0 is exactly 1.0 on every
+// bar), and the int rows T40-T44 have no int type to test in v1 / v2 (they read as float rows).
+// CODE: cmp(a, b) = 1*(a == b) + 2*(a != b) + 4*(a < b) + 8*(a <= b) + 16*(a > b) + 32*(a >= b).
+//   An exact compare reads 41 when a == b, 14 when a < b, 50 when a > b. Any other number means the six
+//   operators disagree with each other (e.g. 13 = `==` says equal while `<` says less).
+// Every operand is a literal times the series `one` (exactly 1.0 on every bar), so nothing folds at compile time,
+// except the `const_` rows, which repeat two rows with the literals inline.
+// CAPTURE: AMEX:SPY 1D FROM THE LISTING (history.startsAtBar0 asserted), inputs at defaults.
+
+one = close * 0 + 1.0
+iOne = close * 0 + 1
+nf = na(close) ? 1.0 : na
+ni = na(close) ? 1 : na
+cmp(a, b) => (a == b ? 1 : 0) + (a != b ? 2 : 0) + (a < b ? 4 : 0) + (a <= b ? 8 : 0) + (a > b ? 16 : 0) + (a >= b ? 32 : 0)
+bucket(x, lo, hi) => (x == lo ? 1 : 0) + (x == hi ? 2 : 0)
+
+plot(n, title="T00_bar_index_CONTROL")
+plot(cmp(1.0 * one, 1.0 * one), title="T01_ctl_eq")
+plot(cmp(1.0 * one, 2.0 * one), title="T02_ctl_lt")
+plot(cmp(2.0 * one, 1.0 * one), title="T03_ctl_gt")
+plot(cmp(1.0 * one, 1.0000000000001 * one), title="T04_center_1e-13")
+plot(cmp(1.0 * one, 1.000000000001 * one), title="T05_center_1e-12")
+plot(cmp(1.0 * one, 1.00000000001 * one), title="T06_center_1e-11")
+plot(cmp(1.0 * one, 1.0000000001 * one), title="T07_center_1e-10")
+plot(cmp(1.0 * one, 1.0000000003 * one), title="T08_center_3e-10")
+plot(cmp(1.0 * one, 1.00000000049 * one), title="T09_center_4.9e-10")
+plot(cmp(1.0 * one, 1.00000000051 * one), title="T10_center_5.1e-10")
+plot(cmp(1.0 * one, 1.0000000009 * one), title="T11_center_9e-10")
+plot(cmp(1.0 * one, 1.0000000014 * one), title="T12_center_1.4e-9")
+plot(cmp(1.0 * one, 1.00000001 * one), title="T13_center_1e-8")
+plot(cmp(1.00000000049 * one, 1.000000000491 * one), title="T14_edge_0491")
+plot(cmp(1.00000000049 * one, 1.000000000495 * one), title="T15_edge_0495")
+plot(cmp(1.00000000049 * one, 1.000000000499 * one), title="T16_edge_0499")
+plot(cmp(1.00000000049 * one, 1.000000000501 * one), title="T17_edge_0501")
+plot(cmp(1.00000000049 * one, 1.00000000051 * one), title="T18_edge_051")
+plot(cmp(1.00000000049 * one, 1.00000000059 * one), title="T19_edge_059")
+plot(cmp(1.00000000049999 * one, 1.00000000050001 * one), title="T20_straddle_1")
+plot(cmp(1.00000000050001 * one, 1.00000000049999 * one), title="T21_straddle_1_rev")
+plot(cmp(0.09000000049999 * one, 0.09000000050001 * one), title="T22_straddle_0.09")
+plot(cmp(100.0000000004999 * one, 100.0000000005001 * one), title="T23_straddle_100")
+plot(cmp(-1.0 * one, -1.0000000003 * one), title="T24_neg_bucket")
+plot(cmp(-1.00000000049999 * one, -1.00000000050001 * one), title="T25_neg_straddle")
+plot(cmp(-1.0000000003 * one, -0.9999999997 * one), title="T26_neg_across")
+plot(cmp(0.0 * one, 4e-10 * one), title="T27_zero_p4e-10")
+plot(cmp(0.0 * one, -4e-10 * one), title="T28_zero_m4e-10")
+plot(cmp(-4e-10 * one, 4e-10 * one), title="T29_m4e-10_p4e-10")
+plot(cmp(0.0 * one, 6e-10 * one), title="T30_zero_p6e-10")
+plot(cmp(1e-300 * one, 0.0 * one), title="T31_tiny_zero")
+plot(bucket(1.0000000025 * one, 1.000000002 * one, 1.000000003 * one), title="T32_half_1.0000000025")
+plot(bucket(1.0000000075 * one, 1.000000007 * one, 1.000000008 * one), title="T33_half_1.0000000075")
+plot(bucket(1.0000000015 * one, 1.000000001 * one, 1.000000002 * one), title="T34_half_1.0000000015")
+plot(bucket(1.0000000005 * one, 1.0 * one, 1.000000001 * one), title="T35_half_1.0000000005")
+plot(bucket(-1.0000000005 * one, -1.0 * one, -1.000000001 * one), title="T36_half_-1.0000000005")
+plot(bucket(0.0000000005 * one, 0.0 * one, 0.000000001 * one), title="T37_half_0.0000000005")
+plot(bucket(-0.0000000005 * one, 0.0 * one, -0.000000001 * one), title="T38_half_-0.0000000005")
+plot(bucket(2.0000000035 * one, 2.000000003 * one, 2.000000004 * one), title="T39_half_2.0000000035")
+plot(cmp(1 * iOne, 1.0000000003 * one), title="T40_int1_f1.0000000003")
+plot(cmp(1 * iOne, 0.9999999997 * one), title="T41_int1_f0.9999999997")
+plot(cmp(1 * iOne, 1.0000000006 * one), title="T42_int1_f1.0000000006")
+plot(cmp(1.0000000003 * one, 1 * iOne), title="T43_f1.0000000003_int1")
+plot(cmp(7 * iOne, 7 * iOne), title="T44_int7_int7_CONTROL")
+plot(cmp(nf, nf), title="T45_naf_naf")
+plot(cmp(nf, 1.0 * one), title="T46_naf_1")
+plot(cmp(1.0 * one, nf), title="T47_1_naf")
+plot(cmp(ni, ni), title="T48_nai_nai")
+plot(((1.0 == 1.0000000003 ? 1 : 0) + (1.0 != 1.0000000003 ? 2 : 0) + (1.0 < 1.0000000003 ? 4 : 0) + (1.0 <= 1.0000000003 ? 8 : 0) + (1.0 > 1.0000000003 ? 16 : 0) + (1.0 >= 1.0000000003 ? 32 : 0)), title="T49_const_center_3e-10")
+plot(((1.00000000049999 == 1.00000000050001 ? 1 : 0) + (1.00000000049999 != 1.00000000050001 ? 2 : 0) + (1.00000000049999 < 1.00000000050001 ? 4 : 0) + (1.00000000049999 <= 1.00000000050001 ? 8 : 0) + (1.00000000049999 > 1.00000000050001 ? 16 : 0) + (1.00000000049999 >= 1.00000000050001 ? 32 : 0)), title="T50_const_straddle_1")

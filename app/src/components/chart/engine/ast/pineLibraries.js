@@ -49,7 +49,9 @@
 // into the member's import line plus "in library X, line L".
 
 import { pineLibraryEntry, pineLibraryHeld, libraryEntryProblem, libraryLicenceProblem, libraryDenied } from './pineLibraryStore.js'
-import { crossVersionDifference, crossVersionAdmitted, admissionTableOf, LIBRARY_VERSION } from './pineLibraryVersion.js'
+import {
+  crossVersionDifference, crossVersionAdmitted, admissionTableOf, LIBRARY_VERSION, stampLibraryVersion,
+} from './pineLibraryVersion.js'
 
 export { importPathsOf } from './pineLibraryStore.js'
 
@@ -287,8 +289,11 @@ function isLocalRef(locals, name, i) {
  *  tokens spliced in, plus `libraries` (what was linked, for the member's licence
  *  notice and for location remapping); or the input unchanged when it imports
  *  nothing. Never throws: a library that cannot be linked leaves its `import` line
- *  in place with `libraryRefusal` on its first token, and the lane refuses it. */
-export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
+ *  in place with `libraryRefusal` on its first token, and the lane refuses it.
+ *  ⭐⭐ The version island: `islandFamilies` (code-only, never a member's option) names the
+ *  families of the v6 migration guide the calling lane judges per token (`versionAt`); the
+ *  cross-version check skips exactly those (`RUNTIME_ISLAND_FAMILIES`, the runtime lane's). */
+export function linkLibraries(lexed, opts, { lexPine, blockStatements, islandFamilies = [] }) {
   const { tokens, indents } = lexed
   const lines = importLinesOf(tokens, indents)
   if (!lines.length) return lexed
@@ -448,7 +453,7 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
   const emit = (unit) => {
     const kept = unit.defs.filter((d) => unit.keep.has(d))
     if (unit.crossVersion) {
-      const diff = crossVersionDifference(kept, unit.lib.indents)
+      const diff = crossVersionDifference(kept, unit.lib.indents, { skip: islandFamilies })
       if (diff) {
         const at = diff.tok && Number.isFinite(diff.tok.line) ? `, line ${diff.tok.line}` : ''
         throw new LinkRefusal(`the library \`${unit.imp.path}\` is written in Pine v5 and this script in v6, and the code this script uses holds ${diff.what}${at}: ${diff.why}. TradingView runs a library at its own version; this engine compiles one program at one version, so it links a v5 library only where the two versions mean the same thing`, LIBRARY_VERSION)
@@ -505,7 +510,9 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
         if (t === skip) continue
         if (isPunct(t, '(') || isPunct(t, '[')) depth += 1
         else if (isPunct(t, ')') || isPunct(t, ']')) depth = Math.max(0, depth - 1)
-        const c = { ...t, line: t.line + lineBase, lib: unit.imp.path, libLine: t.line }
+        // ⭐⭐ the version island: a token of a library in another Pine version carries that version (`versionAt`)
+        const c = stampLibraryVersion({ ...t, line: t.line + lineBase, lib: unit.imp.path, libLine: t.line },
+          unit.lib.version, mainVersion)
         if (t.kind === 'ident' && !t.member) {
           const v = String(t.value)
           const parts = v.split('.')
@@ -620,6 +627,8 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       url: u.entry.url || null,
       lineBase: u.lineBase,
       lineEnd: u.lineEnd,
+      // ⭐⭐ the version island: the Pine version its code is judged under, only when it is not the script's
+      ...(u.lib.version !== mainVersion ? { pineVersion: u.lib.version } : {}),
       importLine: s.line.tok.line,
       importColumn: s.line.tok.column,
       importIndex: s.line.tok.index,
@@ -685,11 +694,15 @@ export function remapLibraryLocation(r, link) {
     : null
   if (lib) {
     const libLine = r.line - lib.lineBase
+    // ⭐⭐ the version island: a refusal inside a library judged under another Pine version says which
+    const island = Number.isFinite(lib.pineVersion)
     out.line = lib.importLine
     out.column = lib.importColumn
     out.index = lib.importIndex
-    out.library = { path: lib.path, line: libLine }
-    if (typeof out.message === 'string') out.message = `${out.message} — in the imported library \`${lib.path}\`, line ${libLine}`
+    out.library = { path: lib.path, line: libLine, ...(island ? { pineVersion: lib.pineVersion } : {}) }
+    if (typeof out.message === 'string') {
+      out.message = `${out.message} — in the imported library \`${lib.path}\`${island ? ` (Pine v${lib.pineVersion})` : ''}, line ${libLine}`
+    }
   }
   for (const k of ['message', 'token', 'excerpt']) {
     if (typeof out[k] === 'string') out[k] = demangle(out[k], link)

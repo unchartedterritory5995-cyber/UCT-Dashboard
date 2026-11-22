@@ -349,6 +349,11 @@
      scrolled row still says which contract it is. */
   .tapeTable th:first-child, .tapeTable td:first-child { position: sticky; left: 0; z-index: 1; background: var(--bg-surface); }
   .tapeTable .pickCell { max-width: 150px; }
+  /* The grade table has five short columns and no pick to pin: it fits the phone instead of
+     scrolling (it ran 163px past a 340px screen). Its headers may take a second line and sit closer
+     letter to letter, and its cells sit 3px a side in place of 10 (2026-11-20). */
+  .gradeTable th { white-space: normal; letter-spacing: 0.3px; }
+  .gradeTable th, .gradeTable td { padding-inline: 3px; }
 }
 
 /* Inside a UCT Terminal panel the shell insets the body (--panel-inset); the page's own

@@ -257,6 +257,236 @@ const TERMINAL_DATA = {
     const all = [row('BBB', 'bmo', -7.5, { eps_act: 0.8 }), row('AAA', 'amc', 4.25), row('CCC', 'tbd', null)]
     return { freshness: 'historical', data: { date: p.date || '2026-11-02', day_kind: 'past', scheduled: 5, reporters: all.slice(0, p.limit || 25), count: 3, moves: 'held', moved: 2, up: 1, down: 1, flat: 0, no_move: 1 } }
   },
+  // Terminal data wave 4 (dark kinds `earnings.season`, `earnings.callThemes`, `group.drill`; MD-1 §4.13): the same rule — each
+  // adapter's own data shape, made-up names and figures.
+  'earnings.season': (p) => {
+    const row = (sym, session, mc, o = {}) => ({ sym, name: `Fixture ${sym}`, session, mc_b: mc, eps_est: 1, eps_act: null, rev_est: 500, rev_act: null, reported: false, verdict: null,
+      priced: { pct: 6.2, dollar: 12.4, captured_at: '2026-11-02T16:35:04-05:00', expiry: '2026-11-06' }, past: { moves: [{ date: '2026-08-04', pct: 3.1 }, { date: '2026-05-05', pct: -2 }], avg_abs: 2.55, n: 2 },
+      past_state: 'ok', move: null, move_state: null, ...o })
+    const all = { bmo: [row('AAA', 'bmo', 900, { eps_act: 1.5, rev_act: 520, reported: true, verdict: 'beat', move: 3.21, move_state: 'live' }), row('BBB', 'bmo', 50, { priced: null, past: null, past_state: 'not_held' })],
+      amc: [row('CCC', 'amc', 300)], tbd: [] }
+    const want = p.session === 'bmo' || p.session === 'amc' ? [p.session] : ['bmo', 'amc', 'tbd']
+    const sessions = Object.fromEntries(['bmo', 'amc', 'tbd'].map(s => [s, want.includes(s) ? all[s] : []]))
+    const count = want.reduce((n, s) => n + all[s].length, 0)
+    return { data: { date: p.date || '2026-11-03', today: '2026-11-03', day_kind: 'today', default: !p.date, session: p.session || 'all', sessions, count, shown: count, scheduled: 3,
+      counts: { scheduled: 3, reported: 1, priced: 2, priced_withheld: 0, with_past: 2, past_not_held: 1, moved: 1 }, priced_state: 'read', moves_state: 'live',
+      calendar_as_of: '2026-11-03T15:50:00Z', built_at: '2026-11-03T15:58:00Z', capture: { hour_et: 16, minute_et: 35 }, range: { from: '2026-10-26', to: '2026-11-13' }, held: 'fresh', no_day: false } }
+  },
+  'earnings.callThemes': (p) => {
+    const row = (phrase, calls, pct, base, o = {}) => ({ phrase, words: phrase.split(' ').length, calls, pct, companies: calls - 2, base_calls: Math.round(base * 4), base_pct: base, base_raw_pct: base,
+      rise: Math.round((pct - base) * 10) / 10, ratio: base ? Math.round(pct / base * 10) / 10 : null, related: [], examples: ['AAA', 'BBB'], ...o })
+    const lists = { new: [row('fixture phrase', 40, 13.3, 0), row('synthetic words', 22, 7.3, 0.2)], rising: [row('made up theme', 90, 30, 18.5)] }
+    const want = p.list === 'new' || p.list === 'rising' ? [p.list] : ['new', 'rising']
+    const cut = (name) => (want.includes(name) ? lists[name].slice(0, p.limit || 10) : [])
+    return { as_of: '2026-11-02T05:00:00Z', data: { month: p.month || '2026-11', months: ['2026-11', '2026-10'], list: p.list || 'both', calls: 300, companies: 290,
+      baseline: { months: ['2026-08', '2026-09', '2026-10'], calls: 410, matched_pct: 87.5 }, floor: { calls: 8, companies: 6 }, new: cut('new'), rising: cut('rising'),
+      qualified: { new: 2, rising: 1 }, shown: { new: cut('new').length, rising: cut('rising').length }, built_at: '2026-11-03T11:00:00Z', refreshing: false,
+      corpus: { calls: 520, oldest: '2026-08-15', newest: '2026-11-02' }, rules: {} } }
+  },
+  'group.drill': (p) => {
+    const common = { range: p.range || 'ytd', start_day: '2025-12-31', end_day: '2026-11-02', built_at: '2026-11-03T15:55:00Z', held: 'fresh', partial_history: false, kind: p.kind || null }
+    if (!p.group) {
+      const lists = { sector: [{ name: 'Technology', pct: 15, count: 4 }, { name: 'Energy', pct: -5, count: 1 }], industry: [{ name: 'Semiconductors', pct: 20, count: 2 }, { name: 'Software', pct: 10, count: 2 }],
+        theme: [{ name: 'Fixture Theme', pct: 12.5, count: 2 }] }
+      const kinds = p.kind ? [p.kind] : ['sector', 'industry', 'theme']
+      return { data: { mode: 'groups', ...common, lists: Object.fromEntries(kinds.map(k => [k, lists[k]])), counts: Object.fromEntries(kinds.map(k => [k, lists[k].length])) } }
+    }
+    const row = (sym, pct, rs, flow) => ({ sym, pct, start_close: 100, end_close: 100 + pct, industry: 'Semiconductors', sector: 'Technology', rs, flow })
+    const rows = [row('AAA', 30, 97, { dir: 'BULL', status: 'BUILDING' }), row('BBB', 20, 55, null), row('DDD', 10, null, { dir: 'BEAR', status: 'STEADY' }), row('EEE', 0, 12, null)]
+    return { data: { mode: 'group', ...common, name: p.group, found: true, group_pct: 15, rows: rows.slice(0, p.limit || 25), count: 4, shown: Math.min(4, p.limit || 25), known: 4, ranked: 3, on_board: 2,
+      sort: p.sort || 'pct', dir: p.dir || 'desc', rs_state: 'held', flow_state: 'held', flow_built_at: '2026-11-03T15:45:00Z' } }
+  },
+  // Terminal data wave 5 (dark kinds `short.interest`, `short.list`; MD-1 §4.14): the same rule — each adapter's own data
+  // shape, made-up names and figures. `as_of` is the settlement date (never the day of the read).
+  'short.interest': (p) => {
+    const report = (day, short, change, o = {}) => ({ settlement_date: day, short_interest: short, avg_daily_volume: 1000000, days_to_cover: 6, change_shares: change, change_pct: change == null ? null : 50, ...o })
+    const reports = [report('2026-10-15', 3000000, 1000000), report('2026-09-30', 2000000, 1000000, { days_to_cover: 4 }), report('2026-09-15', 1000000, null, { days_to_cover: null })]
+    const days = [{ date: '2026-10-30', short_volume: 400000, total_volume: 1000000, short_volume_ratio: 40 }, { date: '2026-10-29', short_volume: 300000, total_volume: null, short_volume_ratio: null }]
+    const shown = reports.slice(0, p.reports || 12)
+    return { freshness: 'historical', as_of: '2026-10-15T04:00:00Z', data: { sym: String(p.symbol || '').toUpperCase(), settlement_date: '2026-10-15', latest: reports[0], publication_estimate: '2026-10-26',
+      read_at: '2026-11-03T15:40:00Z', held: 'fresh', interest: { state: 'ok', reason: null, http_status: 200, reports: shown, count: 3, shown: shown.length, cut: false, first_date: '2026-09-15' },
+      volume: { state: 'ok', reason: null, http_status: 200, days: days.slice(0, p.days || 10), count: 2, shown: Math.min(2, p.days || 10), window_days: 60 },
+      float: { shares: 10000000, pct_float: 30, withheld: false, state: 'ok', source: 'fixture' }, source: 'fixture' } }
+  },
+  'short.list': (p) => {
+    const row = (sym, short, dtc, prev, o = {}) => ({ sym, short_interest: short, avg_daily_volume: 1000000, days_to_cover: dtc, prev_short_interest: prev, change_shares: prev == null ? null : short - prev,
+      change_pct: prev == null ? null : Math.round((short - prev) / prev * 1000) / 10, float_shares: 10000000, pct_float: short / 100000, ...o })
+    const all = [row('CCC', 900000, 9, null, { float_shares: null, pct_float: null }), row('AAA', 3000000, 6, 2000000), row('BBB', 600000, 1.2, 1000000)]
+    const rank = p.rank || 'dtc'
+    const ranked = rank === 'up' ? all.filter(r => r.change_pct > 0) : rank === 'down' ? all.filter(r => r.change_pct < 0) : rank === 'float' ? all.filter(r => r.pct_float != null).sort((a, b) => b.pct_float - a.pct_float) : all
+    const rows = ranked.slice(0, p.limit || 25)
+    return { freshness: 'historical', as_of: '2026-10-15T04:00:00Z', data: { rank, settlement_date: '2026-10-15', previous_settlement_date: '2026-09-30', newer_report_landing: null, newer_report_due: null,
+      publication_estimate: '2026-10-26', read_at: '2026-11-03T15:40:00Z', held: 'held', count: 3, universe: 4, ranked: ranked.length, limit: p.limit || 25, shown: rows.length, cut: rows.length < ranked.length, rows,
+      floor_shares: rank === 'up' || rank === 'down' ? 500000 : null, float: { state: 'ok', with_float: 2, withheld: 0, source: 'fixture' }, check: null, source: 'fixture' } }
+  },
+  // Terminal data wave 6 (dark kinds `seasonality.stock`, `seasonality.board`, `options.tideHistory`, `options.oiChange`,
+  // `rates.treasury`; MD-1 §4.15): the same rule — each adapter's own data shape, made-up names and figures. `as_of` is the
+  // data's own date (the newest bar, session, log file or curve day; never the day of the read).
+  'seasonality.stock': (p) => ({ freshness: 'historical', as_of: '2026-10-30T20:00:00Z', data: { ticker: String(p.symbol || '').toUpperCase(), source: 'fixture', months: SEASON_MONTHS(0),
+    weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((label, i) => ({ weekday: i, label, n: 500, avg_pct: (i - 2) * 0.05, median_pct: (i - 2) * 0.04, pct_up: 50 + i })),
+    covered_from: '2016-01-04', covered_to: '2026-10-30', full_months: 129, min_years: 5, sessions: 2725, first_bar: '2016-01-04', last_bar: '2026-10-30',
+    latest_completed_session: '2026-10-30', pre_vendor_floor: false, read_at: '2026-11-03T15:40:00Z' } }),
+  'seasonality.board': () => {
+    const fund = (symbol, name, kind, shift) => ({ symbol, name, kind, status: 'ok', months: SEASON_MONTHS(shift), covered_from: '2016-01-04', covered_to: '2026-10-30', full_months: 129 })
+    return { freshness: 'historical', as_of: '2026-10-30T20:00:00Z', data: { funds: [fund('AAA', 'Made-up index fund', 'index', 0), fund('BBB', 'Made-up sector one', 'sector', 1), fund('CCC', 'Made-up sector two', 'sector', -1),
+      { symbol: 'DDD', name: 'Made-up sector three', kind: 'sector', status: 'pending', reason: 'warming' }],
+      this_month: 11, next_month: 12, et_date: '2026-11-03', min_years: 5, source: 'fixture', data_through: '2026-10-30', complete: false, settled: false, built_at: '2026-11-03T15:30:00Z', read_at: '2026-11-03T15:40:00Z' } }
+  },
+  'options.tideHistory': (p) => {
+    const row = (session, call, put, prints) => ({ session, net_call_premium: call, net_put_premium: put, net_premium: call == null || put == null ? null : call - put, prints_counted: prints, prints_unsigned: 10, prints_unreadable: 0,
+      data_through: '16:00', stored_at: `${session}T20:30:00Z`, source: 'fixture' })
+    const all = [row('2026-10-30', 5000000, 2000000, 2000), row('2026-10-29', 1000000, 3000000, 1500), row('2026-10-28', 4000000, 1000000, 1000)]
+    const sessions = all.slice(0, p.rows || 20)
+    return { freshness: 'historical', as_of: '2026-10-30T20:00:00Z', data: { scope: p.scope || 'all', sessions, sessions_stored: 3, sessions_asked: p.rows || 20, sessions_left_out: 3 - sessions.length, history_began: '2026-10-28',
+      latest_session: '2026-10-30', missing_sessions: [], missing_total: 0, missing_checked_through: '2026-10-30', backfill: false, stored_note: 'fixture', filters: 'fixture', method: 'fixture', label: 'fixture', read_at: '2026-10-30T20:30:00Z' } }
+  },
+  'options.oiChange': (p) => {
+    const all = [{ contract: 'O:AAA261120C00150000', expiration: '2026-11-20', strike: 150, type: 'call', oi: 5000, kind: 'change', prior_oi: 4000, change: 1000, change_pct: 25, volume: 1200 },
+      { contract: 'O:AAA261120P00140000', expiration: '2026-11-20', strike: 140, type: 'put', oi: 2500, kind: 'change', prior_oi: 3000, change: -500, change_pct: -17, volume: 600 },
+      { contract: 'O:AAA261218C00160000', expiration: '2026-12-18', strike: 160, type: 'call', oi: 300, kind: 'new', prior_oi: null, change: null, change_pct: null, volume: null }]
+    const side = p.side || 'any'
+    const matched = all.filter(r => side === 'any' || r.type === side)
+    const rows = matched.slice(0, p.rows || 15)
+    return { freshness: 'historical', as_of: '2026-10-30T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), side, session: '2026-10-30', prior_session: '2026-10-29', skipped_sessions: [], known: true, has_symbol: true, prior_has_symbol: true,
+      rows, matched: matched.length, shown: rows.length, left_out: matched.length - rows.length, max_rows: 50,
+      summary: { call: { contracts: 4, oi: 9000, prior_oi: 8000, change: 1000 }, put: { contracts: 3, oi: 6500, prior_oi: 7000, change: -500 }, contracts: 7, unchanged: 5 },
+      new: { contracts: 1, oi: 300 }, gone: { contracts: 0, prior_oi: null, expired: 0 }, not_reported: 0, volume_present: true, volume_session: '2026-10-29', built_at: '2026-11-03T15:30:00Z', source: 'fixture',
+      coverage: 'fixture', read_at: '2026-11-03T15:40:00Z' } }
+  },
+  'rates.treasury': () => {
+    const mat = (key, label, months, y, d1, m1) => ({ key, label, months, yield: y, was: { d1: y - d1 / 100, w1: null, m1: y - m1 / 100, m3: null, y1: null }, change_bp: { d1, w1: null, m1, m3: null, y1: null } })
+    return { freshness: 'historical', as_of: '2026-10-30T04:00:00Z', data: { as_of: '2026-10-30', ref_dates: { d1: '2026-10-29', w1: null, m1: '2026-09-30', m3: null, y1: null },
+      maturities: [mat('3m', '3-month', 3, 3.5, 1, -10), mat('2y', '2-year', 24, 3.75, -2, 5), mat('10y', '10-year', 120, 4.25, 3, 12)],
+      spreads: [{ key: '10y2y', label: '10-year minus 2-year', long: '10y', short: '2y', value: 0.5, state: 'positive', inverted: false, days_in_state: 40, since: '2026-09-03', days_at_least: false,
+        was: { d1: 0.45, w1: null, m1: 0.43, m3: null, y1: null }, change_bp: { d1: 5, w1: null, m1: 7, m3: null, y1: null } },
+      { key: '10y3m', label: '10-year minus 3-month', long: '10y', short: '3m', value: 0.75, state: 'positive', inverted: false, days_in_state: 12, since: '2026-10-14', days_at_least: false,
+        was: { d1: 0.73, w1: null, m1: 0.53, m3: null, y1: null }, change_bp: { d1: 2, w1: null, m1: 22, m3: null, y1: null } }],
+      history: { from: '2025-10-30', to: '2026-10-30', points: 250, years: 1, columns_left_out: true }, rows: 250, read_at: '2026-11-03T15:40:00Z', basis: 'fixture', units: 'fixture', source: 'fixture', check: null } }
+  },
+  // Terminal data wave 7 (dark kinds `market.regime`, `stock.setups`, `stock.eventsTimeline`, `uct20.list`, `options.ivHistory`,
+  // `dilution.watch`; MD-1 §4.16): the same rule — each adapter's own data shape, made-up names and figures. `as_of` is the
+  // data's own date (the time the read was computed, the newest bar judged, the newest event, the wire run, the newest
+  // logged session, the newest filing; never the day of the read).
+  'market.regime': () => ({ freshness: 'periodic', as_of: '2026-11-03T15:30:00Z', data: { regime: 'made_up_regime', label: 'Made-up regime', band: 'YELLOW', confidence: 0.6,
+    signals: { pct_above_50ma: 48, pct_above_200ma: 61, new_highs: 40, new_lows: null, distribution_days: 4, market_phase: 'Made-up phase' },
+    reasons: ['a made-up reason line'], reasons_left_out: 1, left_out: ['uct_exposure_rating', 'vix'], vocabulary_version: 'fixture', computed_at: '2026-11-03T15:30:00Z' } }),
+  'stock.setups': (p) => {
+    const all = [{ setup: 'made_up_base', name: 'Made-up base', asof_date: '2026-10-30', confidence: 82, key_level: 105.5, checks_passed: 5, checks_made: 6 },
+      { setup: 'made_up_flag', name: 'Made-up flag', asof_date: '2026-10-28', confidence: 64, key_level: null, checks_passed: 3, checks_made: 4 }]
+    const rows = all.slice(0, p.rows || 10)
+    return { freshness: 'historical', as_of: '2026-10-30T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), tf: 'D', rows, count: rows.length, confirmed_total: all.length, cut: rows.length < all.length,
+      evaluated: 5, window_days: 10, min_confidence: 50, as_of: '2026-10-30', judged_at: '2026-10-30T21:30:00Z', expected_session: '2026-10-30', left_out: ['rationale', 'checks'] } }
+  },
+  'stock.eventsTimeline': (p) => {
+    const all = [{ date: '2026-11-12', kind: 'earnings', title: 'Made-up scheduled report', detail: null, source: 'earnings', print_date: '2026-11-12', print_label: 'Q3', print_state: 'scheduled', offset: 0, stage: 'T' },
+      { date: '2026-10-29', kind: 'filing', title: 'Made-up filing', detail: 'Form 8-K', source: 'filing', print_date: '2026-11-12', print_label: 'Q3', print_state: 'scheduled', offset: -10, stage: 'T-10' },
+      { date: '2026-08-13', kind: 'earnings', title: 'Made-up earnings report', detail: 'a made-up detail', source: 'earnings', print_date: '2026-08-13', print_label: 'Q2', print_state: 'reported', offset: 0, stage: 'T' }]
+    const rows = all.slice(0, p.rows || 20)
+    return { status: 'partial', freshness: 'historical', as_of: '2026-10-29T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), staged: true, reason: null, offset_unit: 'weekdays (fixture)',
+      prints: [{ date: '2026-11-12', label: 'Q3', state: 'scheduled' }, { date: '2026-08-13', label: 'Q2', state: 'reported' }], rows, count: rows.length, total: all.length, cut: rows.length < all.length,
+      sources: { earnings: 'ok', uct_catalyst: 'empty', filing: 'ok', room_spike: 'not_held' }, as_of: '2026-10-29', left_out: ['thesis', 'url'] } }
+  },
+  'uct20.list': (p) => {
+    const all = [{ rank: 1, symbol: 'AAA', rs: 97, score: 88, ret_1m: 12.5, ret_3m: 40.25, earnings_date: '2026-11-18' },
+      { rank: 2, symbol: 'BBB', rs: 95, score: 84, ret_1m: -2, ret_3m: 18, earnings_date: null },
+      { rank: 3, symbol: 'CCC', rs: null, score: 80, ret_1m: null, ret_3m: null, earnings_date: null }]
+    const rows = all.slice(0, p.rows || 20)
+    return { freshness: 'historical', as_of: '2026-11-03T04:00:00Z', data: { rows, count: rows.length, total: all.length, cut: rows.length < all.length, as_of: '2026-11-03', status: 'fresh', held_since: null,
+      pending_removed: 1, left_out: ['entry', 'stop', 'target_1', 'target_2', 'portfolio', 'nav', 'price', 'change', 'thesis', 'company_desc'] } }
+  },
+  'options.ivHistory': (p) => {
+    const all = [{ date: '2026-10-30', atm_iv: 0.425, atm_dte: 28, atm_expiration: '2026-11-27', rule: 'closest-30', complete: true },
+      { date: '2026-10-29', atm_iv: null, atm_dte: null, atm_expiration: null, rule: 'closest-30', complete: false },
+      { date: '2026-10-28', atm_iv: 0.4, atm_dte: 30, atm_expiration: '2026-11-27', rule: 'closest-30', complete: true }]
+    const rows = all.slice(0, p.rows || 20)
+    return { freshness: 'historical', as_of: '2026-10-30T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), rows, count: rows.length, total: all.length, cut: rows.length < all.length, as_of: '2026-10-30',
+      logging_began: '2026-10-28', covers_from: '2026-10-28', covers_to: '2026-10-30', sessions_logged: 3, sessions_with_iv: 2, missing_sessions: 0, rank: null, rank_note: '3 sessions logged, rank needs 20.',
+      rank_min_sessions: 20, partial: false, partial_reasons: [], expected_session: '2026-10-30', source: 'fixture' } }
+  },
+  'dilution.watch': (p) => {
+    const all = [{ date: '2026-10-21', form: '424B5', kind: 'offering', what: 'Made-up prospectus supplement', under: { form: 'S-3', filed: '2025-06-02', shelf: true } },
+      { date: '2026-03-10', form: '8-K', kind: 'unregistered', what: 'Made-up unregistered sale', under: null },
+      { date: '2025-06-02', form: 'S-3', kind: 'registration', what: 'Made-up shelf registration', under: null }]
+    const rows = all.slice(0, p.rows || 15)
+    return { freshness: 'historical', as_of: '2026-10-27T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), state: 'ok', company: 'Made-up Company Inc', fund_like: false,
+      window: { years: 3, from: '2023-11-03', to: '2026-11-03', recent_months: 12, recent_from: '2025-11-03' }, coverage: { complete: true, from: '2023-11-03', pages_unread: 0 }, newest_filing: '2026-10-27',
+      summary: { live_shelves: 1, pending_shelves: 0, offerings: { m12: 1, y3: 1, latest: '2026-10-21' }, unregistered: { m12: 1, y3: 1, latest: '2026-03-10' }, registrations: { m12: 0, y3: 1, latest: '2025-06-02' } },
+      shelves: [{ form: 'S-3', filed: '2025-06-02', effective: '2025-06-20', expires_estimate: '2028-06-20', state: 'live', offerings: 1, latest_offering: '2026-10-21' }],
+      rows, count: rows.length, total: all.length, cut: rows.length < all.length, as_of: '2026-10-27', read_at: '2026-11-03T15:40:00Z', last_good: false } }
+  },
+  // Terminal data wave 8 (dark kinds `stock.corporateActions`, `calendar.ipos`, `calendar.dividends`; MD-1 §4.17): the same
+  // rule — each adapter's own data shape, made-up names, tickers, dates and figures. `as_of` is the data's own date (the newest
+  // event of the corporate actions record), or null where the data has none (the two forward calendars), with the time UCT
+  // read it beside it; never the day of the read.
+  'stock.corporateActions': (p) => {
+    const splits = [{ date: '2019-05-14', ratio: '3:2', to_factor: 1.5 }].slice(0, p.rows || 12)
+    const dividends = [{ date: '2026-08-14', amount: 0.1375 }, { date: '2026-05-15', amount: 0.13 }].slice(0, p.rows || 12)
+    return { freshness: 'historical', as_of: '2026-08-14T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), state: 'ok',
+      splits: { rows: splits, count: splits.length, total: 1, cut: splits.length < 1, window_years: 45, as_of: '2019-05-14' },
+      dividends: { rows: dividends, count: dividends.length, total: 2, cut: dividends.length < 2, window_years: 5, as_of: '2026-08-14', basis: 'split_adjusted' },
+      as_of: '2026-08-14', read_at: '2026-11-03T15:40:00Z', left_out: ['names'] } }
+  },
+  'calendar.ipos': (p) => {
+    const ahead = [{ symbol: 'ZZQA', name: 'Made-up Robotics Inc', date: '2026-11-05', exchange: 'NASDAQ', price_range: '$18.00-$20.00', shares: 12500000, value: 250000000, status: 'expected' },
+      { symbol: null, name: 'Made-up Foods Corp', date: '2026-11-10', exchange: null, price_range: null, shares: null, value: null, status: 'expected' }].slice(0, p.rows || 20)
+    const earlier = [{ symbol: 'ZZQB', name: 'Made-up Bio Ltd', date: '2026-10-29', exchange: 'NASDAQ', price_range: '$21.00', shares: 8000000, value: 168000000, status: 'priced' }].slice(0, p.rows || 20)
+    return { freshness: 'periodic', as_of: null, data: { window: { from: '2026-10-26', to: '2026-11-13' }, split_day: '2026-11-03',
+      ahead: { rows: ahead, count: ahead.length, total: 2, cut: ahead.length < 2 }, earlier: { rows: earlier, count: earlier.length, total: 1, cut: earlier.length < 1 },
+      total: 3, dropped: 0, as_of: null, read_at: '2026-11-03T15:40:00Z' } }
+  },
+  'calendar.dividends': (p) => {
+    const symbols = Array.isArray(p.symbols) ? p.symbols : []
+    const rows = symbols.flatMap(s => [{ symbol: s, type: 'dividend', date: '2026-11-20', amount: 0.26, ratio: null }, { symbol: s, type: 'split', date: '2026-12-15', amount: null, ratio: '4:1' }])
+    return { freshness: 'periodic', as_of: null, data: { symbols, stocks: symbols.map(s => ({ symbol: s, state: 'complete', read_at: '2026-11-03T15:40:00Z', events: 2 })),
+      rows, count: rows.length, total: rows.length, cut: false, as_of: null, read_at: '2026-11-03T15:40:00Z' } }
+  },
+  // Terminal data wave 9 (dark kinds `rates.auctions`, `rates.realYields`, `fed.watch`; MD-1 §4.18): the same rule — each
+  // adapter's own data shape, made-up securities, dates, rates and words. `as_of` is the data's own date (the newest auction
+  // record, the real curve's day), or null where each block carries its own (the Fed watch); never the day of the read.
+  'rates.auctions': (p) => {
+    const upcoming = [{ security_type: 'Bill', security_term: '13-Week', auction_date: '2026-11-05', issue_date: '2026-11-10', announced_date: '2026-10-30', offering_amount: 81000000000, reopening: false, cusip: null }].slice(0, p.rows || 12)
+    const results = [{ security_type: 'Note', security_term: '10-Year', auction_date: '2026-10-29', issue_date: '2026-11-02', maturity_date: '2036-11-15', offering_amount: 42000000000, rate: 9.117, rate_kind: 'high_yield',
+      bid_to_cover: 2.58, reopening: false, tips: false, floating_rate: false, cash_management: false, cusip: null,
+      bidders: { primary_dealers: { amount: 4200000000, share: 10.0 }, direct: { amount: 8400000000, share: 20.0 }, indirect: { amount: 29400000000, share: 70.0 }, total: 42000000000 } }].slice(0, p.rows || 12)
+    return { freshness: 'periodic', as_of: '2026-10-30T04:00:00Z', data: { as_of: '2026-10-30', upcoming_as_of: '2026-10-30', results_through: '2026-10-29', window_days: 45,
+      upcoming: { rows: upcoming, count: upcoming.length, total: 1, cut: upcoming.length < 1 }, results: { rows: results, count: results.length, total: 1, cut: results.length < 1 },
+      dropped: 0, publisher_cut: { upcoming: false, results: false }, read_at: '2026-11-03T15:40:00Z', basis: 'as_published', source: 'US Treasury Fiscal Data', check: null } }
+  },
+  'rates.realYields': () => {
+    const mat = (key, label, months, y, d1, w1) => ({ key, label, months, yield: y, was: { d1: y == null ? null : y - d1 / 100, w1: y == null ? null : y - w1 / 100 }, change_bp: { d1: y == null ? null : d1, w1: y == null ? null : w1 } })
+    const maturities = [mat('5y', '5-year', 60, 1.21, -4, 10), mat('7y', '7-year', 84, 1.43, 2, 6), mat('10y', '10-year', 120, 1.64, 4, 14), mat('20y', '20-year', 240, 2.02, 1, 3), mat('30y', '30-year', 360, null, 0, 0)]
+    const be = (key, label, months, nominal, real) => ({ key, label, months, date: '2026-10-30', nominal, real, value: nominal != null && real != null ? Math.round((nominal - real) * 100) / 100 : null })
+    return { freshness: 'historical', as_of: '2026-10-30T04:00:00Z', data: { as_of: '2026-10-30', ref_dates: { d1: '2026-10-29', w1: '2026-10-23' }, maturities,
+      breakevens: { as_of: '2026-10-30', rows: [be('5y', '5-year', 60, 3.85, 1.21), be('7y', '7-year', 84, 3.99, 1.43), be('10y', '10-year', 120, 4.12, 1.64), be('20y', '20-year', 240, null, 2.02), be('30y', '30-year', 360, 4.61, null)] },
+      rows: 40, read_at: '2026-11-03T15:40:00Z', basis: 'end_of_day', source: 'US Treasury daily par real yield curve', check: null } }
+  },
+  'fed.watch': (p) => {
+    const speeches = [{ kind: 'speech', speaker: 'Quillfeather', title: 'Notes on Orchard Credit', where: 'the Invented Lending Forum', published: '2026-10-30T15:00:00Z', url: null }].slice(0, p.rows || 10)
+    const headlines = [{ text: 'Fed\'s Quillfeather invented remark on orchards', received_at: '2026-11-03T14:05:00Z', tickers: [] }].slice(0, p.rows || 10)
+    return { freshness: 'periodic', as_of: null, data: {
+      statement: { state: 'ok', source: 'Federal Reserve Board', read_at: '2026-10-28T19:05:00Z', check: null, date: '2026-10-28', url: null, minutes: null,
+        redline: { state: 'ok', previous: { date: '2026-09-16', url: null }, added: 1, removed: 1,
+          changes: { rows: [{ text: 'The Committee voted 10-0 on this invented statement.', was: 'The Committee voted 9-1 on this invented statement.', added: 1, removed: 1 }], count: 1, total: 1, cut: false } } },
+      speeches: { state: 'ok', source: 'Federal Reserve Board', read_at: '2026-11-03T15:00:00Z', rows: speeches, count: speeches.length, total: 1, cut: false, missing: [], checks: null },
+      headlines: { state: 'ok', source: 'news wire', rows: headlines, count: headlines.length, matched: 1, scanned: 3000, cut: false, newest_at: '2026-11-03T14:05:00Z' },
+      next_meeting: { state: 'ok', source: 'the economic calendar', date: '2026-12-09', time: '2:00 PM', event: 'FOMC Statement', label: null, days_to_go: 36 },
+      rates: { state: 'ok', source: 'Federal Reserve Bank of New York', notice: 'The New York Fed notice for the two rates, invented for this fixture.',
+        effective: { value: 9.12, date: '2026-11-02' }, upper: { value: 9.25, date: '2026-11-02' }, lower: { value: 9.0, date: '2026-11-02' } },
+      projections: { state: 'ok', source: 'Federal Reserve Board', check: null, date: '2026-09-16', meeting: 'September 15-16', release_url: null, page_url: null,
+        medians: [{ label: '2026', value: 9.4 }, { label: '2027', value: 8.9 }, { label: 'Longer run', value: 7.0 }], read_at: '2026-09-16T19:05:00Z' },
+      survey: { state: 'ok', source: 'Federal Reserve Bank of New York', check: null, survey: 'October 2026', questions_sent: '2026-10-15', responses_due: '2026-10-20',
+        before_meeting: { label: 'Oct. 27-28 2026', date: '2026-10-28' }, path: [{ label: 'Dec. 8-9 2026', date: '2026-12-09', median: 9.13, p25: 8.88, p75: 9.13, respondents: 29 }],
+        credit: 'Invented credit line for the New York Fed survey fixture.', file_url: null, read_at: '2026-10-21T12:00:00Z' },
+      as_of: null, board_cite: 'Source: Board of Governors of the Federal Reserve System.', left_out: ['statement_text', 'this_week_speakers', 'survey_distributions'] } }
+  },
+}
+/** Wave 6's made-up calendar months: ten years each, except a month nobody counted (February) and a thin one (March). */
+function SEASON_MONTHS(shift) {
+  return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((label, i) => {
+    if (i === 1) return { month: 2, label, n: 0, avg_pct: null, median_pct: null, pct_up: null, thin: false }
+    if (i === 2) return { month: 3, label, n: 3, avg_pct: 2, median_pct: 1.5, pct_up: 67, thin: true }
+    return { month: i + 1, label, n: 10, avg_pct: (i - 5) * 0.4 + shift, median_pct: (i - 5) * 0.5 + shift, pct_up: 30 + (i % 5) * 10, thin: false }
+  })
 }
 // SG-1: T13–T18 sit FAR below their 52-week high (the Screener's sign: a distance from a high is NEGATIVE) and meet every
 // other condition of the owner's screen — so only a correctly signed "near the high" filter leaves them out
@@ -447,7 +677,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
     }
-    // terminal data waves 1, 2 and 3 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    // terminal data waves 1 to 9 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
     if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
         stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })

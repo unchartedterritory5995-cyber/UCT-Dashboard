@@ -923,7 +923,17 @@ def get_period_change_groups(start_ymd: int, end_ymd: int, group: str) -> dict:
     group; members still show their own raw % change."""
     if group not in ("theme", "sector", "industry"):
         return {"status": "error", "group": group, "results": [], "count": 0, "error": "bad group"}
-    base = get_period_change(start_ymd, end_ymd)
+    return period_groups_of(get_period_change(start_ymd, end_ymd), group)
+
+
+def period_groups_of(base: dict, group: str) -> dict:
+    """The groups answer worked out from a per-stock answer ALREADY IN HAND (`get_period_change`'s
+    shape). It reads the stored sector / industry map or the stored theme list and nothing else:
+    it never asks for the per-stock ranking, so it can never start that build. A caller that must
+    not cause work (the Agent's `group.drill` kind, inside a turn) passes the answer this module
+    already holds (`_period_answer`, else `_period_old_answer`)."""
+    if group not in ("theme", "sector", "industry"):
+        return {"status": "error", "group": group, "results": [], "count": 0, "error": "bad group"}
     if base.get("status") != "ok":
         return {"status": base.get("status", "computing"), "group": group, "results": [], "count": 0, "error": base.get("error")}
     chg = {r["sym"]: r["period_change"] for r in base["results"]}

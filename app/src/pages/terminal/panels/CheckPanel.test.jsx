@@ -210,6 +210,8 @@ describe('CHK panel', () => {
     const links = await screen.findByTestId('terminal-chk-links')
     expect(links.textContent).toContain('GRADE')
     expect(links.textContent).toContain('SIZE')
+    // the member's own whole record on the ticker (the journal section below lists the latest ten)
+    expect(links.textContent).toContain('My history (MYH)')
     cleanup()
     render(<CheckPanel sym="" />)
     expect(document.body.textContent).toContain('CHK needs a ticker.')

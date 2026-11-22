@@ -1,0 +1,37 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "A1",
+   "mutant": "the region's own committed series is not taken (a static offset keeps its chart column)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (inRequestValue && hoistSink) {",
+   "to": "        if (false && inRequestValue && hoistSink) {",
+   "rail": "cd app && npx vitest run src/components/chart/engine/runtime/__tests__/requestHoistedHistory.test.js"
+  },
+  {
+   "id": "A2",
+   "mutant": "the region's series is read one requested bar too far back",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "return histSlot(slot, hoistedHistorySlot(slot, back, at), back)",
+   "to": "return histSlot(slot, hoistedHistorySlot(slot, back + 1, at), back + 1)",
+   "rail": "cd app && npx vitest run src/components/chart/engine/runtime/__tests__/requestHoistedHistory.test.js"
+  },
+  {
+   "id": "A3",
+   "mutant": "the last line of a hoisted body declares its series into the main program again",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            stmtHoistSink = localSink",
+   "to": "            stmtHoistSink = outerStmtSink",
+   "rail": "cd app && npx vitest run src/components/chart/engine/runtime/__tests__/requestHoistedHistory.test.js"
+  },
+  {
+   "id": "A4",
+   "mutant": "the e78 guard no longer walks the hoisted statements (the backstop is gone)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "if (hoisted.some((s) => carriesColumn(s))) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run src/components/chart/engine/runtime/__tests__/requestHoistedHistory.test.js"
+  }
+ ]
+}

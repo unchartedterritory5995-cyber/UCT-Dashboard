@@ -11,7 +11,7 @@
    "group": "example",
    "turns": [
     {
-     "words": "A squeeze: momentum, and dots on zero that are red in a squeeze and green out of it.",
+     "words": "Close minus its 20 day average, and dots on zero that are red in a squeeze and green out of it.",
      "expect": {
       "kind": "change",
       "outputs": [
@@ -373,11 +373,11 @@
    ]
   },
   {
-   "id": "ctl-mcginley",
+   "id": "ctl-unknown-name",
    "group": "control",
    "turns": [
     {
-     "words": "Add the McGinley Dynamic",
+     "words": "Add the Gann Fan",
      "model_expected": false,
      "expect": {
       "kind": "refused",
