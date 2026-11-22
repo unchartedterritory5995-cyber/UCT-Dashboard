@@ -1,0 +1,87 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "NUMBER PENDING (train e95), unit 1, computed number formats: a `str.tostring` format that is a pure function of literals and inputs is folded to its text on both lanes (`pine.js::Resolver.formatTextOf`, `pineRuntimeFrontend.js::fixedFormatOf`, one `formatTextCall`), and a text still withheld for its format is said to the member (`objectRuntime.js`, `FORMAT_WITHHELD_KEY`). Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "FF1",
+   "mutant": "the host lane never uses the fold (the defect: an alias of a literal leaves the cell empty)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "if (folded && (typeof folded.text === 'string' || typeof folded.named === 'string')) {",
+   "to": "if (false && folded && (typeof folded.text === 'string' || typeof folded.named === 'string')) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "an alias of a literal"
+  },
+  {
+   "id": "FF2",
+   "mutant": "the runtime lane never uses the fold (it keeps refusing runtime:call-text-state)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "const folded = fixedFormatOf(f, scope)",
+   "to": "const folded = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "an alias of a literal"
+  },
+  {
+   "id": "FF3",
+   "mutant": "the host fold takes a ternary's first arm without asking whether its test is fixed (a per-bar format folded)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "try { taken = this.constantBranchOf(node) } catch (err) { if (isStackOverflow(err)) throw err; return null }",
+   "to": "taken = node.yes",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "a per-bar format"
+  },
+  {
+   "id": "FF4",
+   "mutant": "the runtime fold takes a ternary's first arm without asking whether its test is fixed",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "const v = fixedTestOf(node.test, scope)",
+   "to": "const v = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "keeps its refusal for a per-bar format"
+  },
+  {
+   "id": "FF5",
+   "mutant": "a substring past the end of its text is clamped instead of left unfolded (a guess)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "begin > end || end > source.length) return null",
+   "to": "begin > end) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "past the end"
+  },
+  {
+   "id": "FF6",
+   "mutant": "the run withholds the text but says nothing to the member (the silent defect's other half)",
+   "file": "app/src/components/chart/engine/objectRuntime.js",
+   "from": "...(fmtWhy ? { [FORMAT_WITHHELD_KEY]: fmtWhy } : {}),",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "names why"
+  },
+  {
+   "id": "FF7",
+   "mutant": "a clean rewrite does not clear the mark (a drawn text is named as withheld)",
+   "file": "app/src/components/chart/engine/objectRuntime.js",
+   "from": "    else fmtMarks.delete(key)",
+   "to": "    else { /* the mark is kept */ }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "ANOTHER reason"
+  },
+  {
+   "id": "FF8",
+   "mutant": "a text input declared as a live knob is folded to its default (a knob the format would not follow)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "if (viaName && d && (d === 'all' || (typeof d.has === 'function' && d.has(viaName)))) return null",
+   "to": "if (false) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "live knob is not folded"
+  },
+  {
+   "id": "FF9",
+   "mutant": "a number the formatter withholds under a written-out pattern is withheld silently (no mark, no sentence)",
+   "file": "app/src/components/chart/engine/objectRuntime.js",
+   "from": "const why = formatNumberWhy(n, fmt) || 'format:withheld'\n    textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1\n    fmtWhyNow = `number:${why}`",
+   "to": "const why = formatNumberWhy(n, fmt) || 'format:withheld'\n    textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "never silent"
+  }
+ ]
+}

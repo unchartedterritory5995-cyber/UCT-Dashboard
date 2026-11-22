@@ -358,7 +358,7 @@ THE RULES
 10. For a well-known indicator, when this document lists Pine's OWN function for it, CALL that function: do not re-derive its maths by hand. {own_functions}When this document lists none, write the published calculation yourself and say in `reply` which definition you used.
 11. Draw ONLY what the member asked for. A request for a count or a signal is that one plot or mark: do not add a label on every event, a summary table, a background colour, extra shapes or an `alertcondition` the request did not name. Each extra clutters the chart and is one more claim that has to be right. If something more would help, OFFER it in `reply` in one short sentence ("I can also mark each day or add a table") and leave it out of the script. When the request is ONLY a drawing (a box, a line, labels, a table) and names no plotted line, still `plot` the value the drawing is made from, because a script with a plot can be used in alerts and one without cannot; but make that plot INVISIBLE with a fully transparent colour (`plot(level, "Level", color=color.new(color.gray, 100))`) and say in `reply` that a hidden plot is there for alerts. Never hide a plot the member asked to see.
 12. {number_on_bars}
-13. {format_literal}
+13. {percent_format}
 14. {fill_in}"""
 
 #: ⭐ RULE 14: A FIGURE THE MEMBER MUST FILL IN (found by the first full live run of the value cases, 2026-11-22). On
@@ -371,21 +371,15 @@ FILL_IN_RULE = (
     "shows it only when it is above 0. A bare `plot(avg)` is a line at price 0 that squeezes the chart. Say in "
     "`reply` that the member's own figures cannot be read here and where to enter them.")
 
-#: ⭐ RULE 13, INTERIM (coordinator's ruling, 2026-11-22). Found by the live re-check of the rule above it: asked for a
-#: table of yesterday's high and low, the assistant added a "Decimal places" setting and BUILT the number format from
-#: text (`fmt = "#." + str.replace_all(...)`, then `str.tostring(x, fmt)`). The engine WITHHOLDS a text whose format is
-#: not a string literal (it cannot know the pattern, and the ten-decimal default would be a different text), so the
-#: table drew its labels and NO VALUES, with no error and no word to the member. Measured through the engine: a literal
-#: format, `format.mintick` and `format.volume` draw; a format held in a variable, joined from text, or
-#: `format.percent` draws nothing. Measured over the 101 scripts on file: 1 builds a format (that one).
-#: ⛔ THIS SENTENCE COMES OUT WHEN THE ENGINE SERVES A FOLDED FORMAT (the engine unit that names the withhold and folds
-#: a format made of literals and inputs). `tests/test_script_format_is_a_literal.py` runs the shape through the engine
-#: on every run and goes RED the day it draws, naming this constant: remove it then, in that commit.
-FORMAT_LITERAL_RULE = (
-    "Write `str.tostring`'s format as a string literal (\"#.##\"). For a decimals setting, choose among literal "
-    "formats (`digits == 0 ? str.tostring(x, \"#\") : digits == 1 ? str.tostring(x, \"#.#\") : str.tostring(x, "
-    "\"#.##\")`); never build a format from text or hold one in a variable. `format.mintick` and `format.volume` are "
-    "served; for a percent write the number and add \"%\" yourself.")
+#: ⭐ RULE 13 (coordinator's rulings, 2026-11-22). It was the INTERIM literal-format rule: the engine withheld a
+#: `str.tostring` text whose format was not a string literal, so an assistant that BUILT a format from text
+#: (`fmt = "#." + str.replace_all(...)`) drew a table of labels and NO VALUES, with no word to the member. Train e95's
+#: computed-number-formats unit folds a format made of literals and inputs (an alias, a join, `str.substring` /
+#: `str.replace_all` / `str.repeat`, a ternary or `switch` on an input) and names what it still withholds, so that
+#: sentence came out in that commit (`tests/test_script_format_is_a_literal.py`, the tripwire it was written for).
+#: What stays withheld is `format.percent`: no TradingView capture shows what it prints yet (probe
+#: `tools/visual_conformance/probes/vw-format-percent.pine`). When that capture is served, this rule comes out too.
+PERCENT_FORMAT_RULE = "`format.percent` is not served yet: write the number and add \"%\" yourself."
 
 #: ⭐ RULE 12: A NUMBER WRITTEN ON BARS (found by a value check of a live round, 2026-11-22). Asked to "write the
 #: count above each bar of the run as a number from 1 to 9", the assistant wrote
@@ -619,7 +613,7 @@ def contract(ref: Optional[Mapping[str, Any]] = None) -> str:
     """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference."""
     return (CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
             .replace("{number_on_bars}", NUMBER_ON_BARS_RULE)
-            .replace("{format_literal}", FORMAT_LITERAL_RULE).replace("{fill_in}", FILL_IN_RULE))
+            .replace("{percent_format}", PERCENT_FORMAT_RULE).replace("{fill_in}", FILL_IN_RULE))
 
 
 def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:

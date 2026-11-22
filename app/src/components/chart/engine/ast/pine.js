@@ -8324,6 +8324,57 @@ export function colourBlockRunsOf(t, table) {
  *  corpus tops out at two). */
 const MAX_CALL_DEPTH = 24
 
+/** ⭐⭐ e95 (computed number formats) — Pine's own `format.*` constants, as `Resolver.formatTextOf` hands them
+ *  back when a name the script binds holds one (`f = format.mintick`). Only `format.mintick` and
+ *  `format.volume` have a printed form here; the rest stay withheld, named. */
+export const PINE_NAMED_FORMATS = Object.freeze({
+  'format.mintick': true, 'format.volume': true, 'format.percent': true, 'format.price': true, 'format.inherit': true,
+})
+/** The text calls `formatTextOf` folds, with their parameter names in Pine's order. */
+const FORMAT_TEXT_CALLS = Object.freeze({
+  'str.substring': Object.freeze(['source', 'begin_pos', 'end_pos']),
+  'str.replace_all': Object.freeze(['source', 'target', 'replacement']),
+  'str.repeat': Object.freeze(['source', 'repeat', 'separator']),
+})
+/** A bound on `str.repeat`'s count in a format (a number pattern has at most a few dozen characters). */
+const FORMAT_TEXT_MAX_REPEAT = 64
+
+/** ⭐⭐ e95 — `str.substring` / `str.replace_all` / `str.repeat` of fixed texts, as Pine answers them, or null:
+ *  ONE reading for both lanes (`Resolver.formatTextOf`, `pineRuntimeFrontend.js::fixedFormatOf`), each lane
+ *  handing in how IT fixes a text (`textOf`) and a whole number (`intOf`, a non-negative integer or null).
+ *  ⛔ Only where Pine's answer is plain: an index outside the text, `begin > end`, an empty target or a count
+ *  past `FORMAT_TEXT_MAX_REPEAT` is null (not folded), never a clamp or a guess. */
+export function formatTextCall(node, textOf, intOf) {
+  if (!node || node.type !== 'call' || !own(FORMAT_TEXT_CALLS, node.name) || !Array.isArray(node.args)) return null
+  const params = FORMAT_TEXT_CALLS[node.name]
+  const given = {}
+  let k = 0
+  for (const a of node.args) {
+    const key = a.name || params[k]
+    if (!a.name) k += 1
+    if (!key || !params.includes(key) || own(given, key)) return null
+    given[key] = a.value
+  }
+  const source = given[params[0]] ? textOf(given[params[0]]) : null
+  if (typeof source !== 'string') return null
+  if (node.name === 'str.substring') {
+    const begin = given.begin_pos ? intOf(given.begin_pos) : null
+    const end = given.end_pos ? intOf(given.end_pos) : source.length
+    if (!Number.isInteger(begin) || !Number.isInteger(end) || begin < 0 || begin > end || end > source.length) return null
+    return source.slice(begin, end)
+  }
+  if (node.name === 'str.replace_all') {
+    const target = given.target ? textOf(given.target) : null
+    const replacement = given.replacement ? textOf(given.replacement) : null
+    if (typeof target !== 'string' || target === '' || typeof replacement !== 'string') return null
+    return source.split(target).join(replacement)
+  }
+  const times = given.repeat ? intOf(given.repeat) : null
+  const sep = given.separator ? textOf(given.separator) : ''
+  if (!Number.isInteger(times) || times < 0 || times > FORMAT_TEXT_MAX_REPEAT || typeof sep !== 'string') return null
+  return Array.from({ length: times }, () => source).join(sep)
+}
+
 /**
  * ⭐⭐ THE WALL-CLOCK BUDGET — a hang becomes a refusal, and never takes the batch.
  *
@@ -10540,6 +10591,114 @@ export class Resolver {
       return defval ? this.stringValueOf(defval, depth + 1) : null
     }
     return null
+  }
+
+  /** ⭐⭐ e95 (computed number formats) — A `str.tostring` FORMAT THAT IS FIXED BEFORE BAR 0: `{text}` for a
+   *  pattern, `{named}` for one of Pine's `format.*` constants, or null.
+   *
+   *  ⚰️ A format that was not a string literal at the call (`fmt = "#.##"; str.tostring(x, fmt)`) was carried
+   *  as `fmtUnread` and every finite value was WITHHELD: an empty table cell or a label not drawn, for a format
+   *  the script fixed before its first bar. This folds what is a pure function of literals and of inputs at the
+   *  value this translation holds them at, so the text is printed through the SAME one formatter a literal is
+   *  (`objectRuntime.formatNumber`, which still withholds a pattern it does not read):
+   *    · a literal; a name bound once (a function's parameter too: `throughBinding` reads the frame);
+   *    · `a + b` of two fixed texts;
+   *    · `str.substring` / `str.replace_all` / `str.repeat` of fixed texts and whole numbers, only where Pine's
+   *      answer is plain (an index outside the text, an empty target: not folded, never guessed);
+   *    · a ternary whose test is fixed (`constantBranchOf`: a constant, or an input this translation folds);
+   *      a `switch` binding on a fixed subject; a one-expression function of the script's own;
+   *    · `format.mintick` / `format.volume` / `format.percent` / ... reached through a name, as that format.
+   *  ⛔ An input is fixed only where this Resolver folds it: a NUMBER through `resolve` (a declared knob resolves
+   *  to a series and is not fixed), a TEXT input only when its name is not a declared knob (`declareInputs`).
+   *  ⛔ Anything read per bar or per symbol (`syminfo.mintick`, `syminfo.ticker == ...`) is not fixed here: such
+   *  a format stays withheld, and the run names it to the member (`objectRuntime.js`, `FORMAT_WITHHELD_KEY`). */
+  formatTextOf(node, depth = 0, viaName = null) {
+    if (!node || typeof node !== 'object' || depth > 64) return null
+    if (node.type === 'string') return { text: String(node.value) }
+    if (node.type === 'name' && own(PINE_NAMED_FORMATS, node.name) && !this.env.get(node.name)) return { named: node.name }
+    const viaBinding = (name) => (b) => {
+      if (!b) return null
+      if (b.kind === 'expr' && b.node) return this.formatTextOf(b.node, depth + 1, name)
+      if (b.kind === 'switch') return this.formatSwitchOf(b, depth + 1)
+      return null
+    }
+    if (node.type === 'bound') return this.throughBinding(node.binding, viaBinding(viaName))
+    if (node.type === 'name') {
+      if (own(this.table.series, node.name)) return null
+      const b = this.env.get(node.name)
+      return b ? this.throughBinding(b, viaBinding(node.name)) : null
+    }
+    const textOf = (n) => {
+      const f = this.formatTextOf(n, depth + 1)
+      return f && typeof f.text === 'string' ? f.text : null
+    }
+    if (node.type === 'binary' && node.op === '+') {
+      const l = textOf(node.left)
+      if (l === null) return null
+      const r = textOf(node.right)
+      return r === null ? null : { text: l + r }
+    }
+    if (node.type === 'ternary') {
+      let taken = null
+      try { taken = this.constantBranchOf(node) } catch (err) { if (isStackOverflow(err)) throw err; return null }
+      return taken ? this.formatTextOf(taken, depth + 1, viaName) : null
+    }
+    if (node.type !== 'call' || !Array.isArray(node.args) || typeof node.name !== 'string') return null
+    if (node.name === 'input' || node.name.startsWith('input.')) {
+      // ⛔ a declared text knob moves without a re-translation: its default is not its only value
+      const d = this.declareInputs
+      if (viaName && d && (d === 'all' || (typeof d.has === 'function' && d.has(viaName)))) return null
+      if (!(node.name === 'input' || node.name === 'input.string' || node.name === 'input.text_area')) return null
+      const s = this.stringValueOf(node)
+      return s === null ? null : { text: s }
+    }
+    if (own(FORMAT_TEXT_CALLS, node.name)) {
+      const int = (n) => {
+        try { return this.constIntOf(n) } catch (err) { if (isStackOverflow(err)) throw err; return null }
+      }
+      const t = formatTextCall(node, textOf, int)
+      return t === null ? null : { text: t }
+    }
+    // a function of the script's own whose body is one expression, called positionally (`textEqTree`'s rule)
+    const fn = this.env.get(node.name)
+    if (!fn || fn.kind !== 'fn' || !fn.value || fn.value.kind !== 'expr' || !fn.value.node) return null
+    if (node.args.some((a) => a.name) || !Array.isArray(fn.params) || node.args.length !== fn.params.length) return null
+    if (this.frames.length >= MAX_CALL_DEPTH) return null
+    const callerEnv = this.env
+    this.frames.push(node.args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv })))
+    this.env = fn.value.env || callerEnv
+    try { return this.formatTextOf(fn.value.node, depth + 1) } finally { this.frames.pop(); this.env = callerEnv }
+  }
+
+  /** ⭐⭐ e95 — a `switch` binding as a format: the arm its fixed subject takes (a text this Resolver fixes, or
+   *  a fixed whole number against numeric labels), else its default, folded by `formatTextOf`; null otherwise. */
+  formatSwitchOf(bound, depth) {
+    if (!bound || !Array.isArray(bound.arms)) return null
+    const subjectText = bound.subject ? this.stringValueOf(bound.subject) : null
+    let subjectNum = null
+    if (subjectText === null && bound.subject) {
+      let r = null
+      try { r = this.resolve(bound.subject) } catch (err) { if (isStackOverflow(err)) throw err; return null }
+      if (!r || r.type !== 'num' || !Number.isFinite(r.value)) return null
+      subjectNum = r.value
+    }
+    if (subjectText === null && subjectNum === null) return null
+    let picked = null
+    for (const arm of bound.arms) {
+      let label = null
+      try { label = parseWholeExpression(arm.match) } catch { return null }
+      if (subjectText !== null) {
+        const s = this.stringValueOf(label)
+        if (s === null) return null
+        if (s === subjectText) { picked = arm.binding; break }
+      } else {
+        if (!label || label.type !== 'number') return null
+        if (Number(label.value) === subjectNum) { picked = arm.binding; break }
+      }
+    }
+    if (!picked) picked = bound.fallback
+    if (!picked) return null
+    return this.throughBinding(picked, (b) => (b && b.kind === 'expr' && b.node ? this.formatTextOf(b.node, depth + 1) : null))
   }
 
   /** ⭐⭐ C22 — `node == lit` (`want`) or `node != lit` (`!want`) as a per-bar
@@ -15701,7 +15860,10 @@ export class Resolver {
    *  @param {Map} callerEnv the scope those arguments read
    *  @param {object} node the node to resolve, from inside the function
    */
-  resolveInFrame(inline, node) {
+  resolveInFrame(inline, node) { return this.inFrame(inline, node, () => this.resolve(node)) }
+
+  /** `resolveInFrame`'s frame protocol, asking `ask` in it (⭐ e95: `formatTextOf` asks the same frame). */
+  inFrame(inline, node, ask) {
     // ⛔ EXACTLY ONE FRAME, because exactly one level is inlined. A text
     // expression that calls a helper from inside another helper is REFUSED BY
     // NAME in `textNodeOf` before it ever reaches here (see
@@ -15730,7 +15892,7 @@ export class Resolver {
     // condition of `f_getVolumeUnit` failed to resolve while looking correct.
     this.env = bodyEnv || (bound.value && bound.value.env) || prevEnv
     try {
-      return this.resolve(node)
+      return ask()
     } finally {
       for (let k = 0; k < chain.length; k += 1) this.frames.pop()
       this.env = prevEnv
@@ -22903,6 +23065,36 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // understands WHOLE (`objectRuntime.js::formatNumber`); `format.mintick`, a
       // pattern with a thousands comma or with words in it
       // (swing-highlow-zigzag's `"Swing H  (#,###.####)"`) keeps its refusal.
+      // ⭐⭐ e95 (computed number formats) — A FORMAT THE SCRIPT FIXES BEFORE BAR 0 IS READ AS THE TEXT IT
+      // FOLDS TO (`Resolver.formatTextOf`: an alias, a join, `str.substring` / `str.replace_all` / `str.repeat`
+      // of literals, a ternary or `switch` on an input, an alias of `format.mintick`), and the call goes on
+      // below exactly as if that text had been written there: the same one formatter prints it, and still
+      // withholds a pattern it does not read. ⛔ A format read per bar or per symbol is not folded: it keeps
+      // `fmtUnread` below, and the run names the withheld text to the member.
+      {
+        const fmtArg = node.args && node.args[1]
+        const given = fmtArg && fmtArg.value
+        if (given && given.type !== 'string'
+            && !(given.type === 'name' && (given.name === 'format.mintick' || given.name === 'format.volume'))) {
+          let folded = null
+          try {
+            const r = makeResolver(scopeEnv)
+            folded = inline ? r.inFrame(inline, given, () => r.formatTextOf(given)) : r.formatTextOf(given)
+          } catch (err) {
+            if (isStackOverflow(err)) throw err
+            folded = null
+          }
+          if (folded && (typeof folded.text === 'string' || typeof folded.named === 'string')) {
+            const value = typeof folded.text === 'string'
+              ? { type: 'string', value: folded.text, tok: given.tok }
+              : { type: 'name', name: folded.named, tok: given.tok }
+            const kind = typeof folded.text === 'string' ? 'text' : folded.named
+            diagnostics.textFormatFolded = diagnostics.textFormatFolded || {}
+            diagnostics.textFormatFolded[kind] = (diagnostics.textFormatFolded[kind] || 0) + 1
+            node = { ...node, args: node.args.map((a, k) => (k === 1 ? { ...a, value } : a)) }
+          }
+        }
+      }
       const stateFmt = node.args && node.args[1] ? node.args[1].value : null
       // ⭐ F3 — a pattern with literal words around it (`"Swing H  (#,###.####)"`)
       // is read by the same grammar the runtime renders with
