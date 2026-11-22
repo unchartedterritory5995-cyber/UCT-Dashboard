@@ -354,6 +354,25 @@ CREATE TABLE IF NOT EXISTS definition_load_measurements (
 );
 CREATE INDEX IF NOT EXISTS idx_definition_load_measurements_owner
   ON definition_load_measurements(user_id, def_id, version, id DESC);
+-- TRACK 6, RE-TRANSLATE (b) PR (3a): what the pine-runtime SERVICE's translator answered for a member's
+-- held script document at one engine. A DERIVED artifact beside the member's versions: never a version,
+-- never written into `user_definitions`; one per (user_id, def_id, version, engine); superseded rows are
+-- ignored, never deleted (`server_translations.py`). Erased with the member (MEMBER_TABLES).
+CREATE TABLE IF NOT EXISTS definition_server_translations (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id        TEXT    NOT NULL,
+  def_id         TEXT    NOT NULL,
+  version        INTEGER NOT NULL,
+  engine         INTEGER NOT NULL,
+  status         TEXT    NOT NULL,
+  guard          TEXT,
+  reason         TEXT,
+  document_json  TEXT,
+  maths_identity TEXT,
+  digest         TEXT,
+  created_at     REAL    NOT NULL,
+  UNIQUE(user_id, def_id, version, engine)
+);
 """
 
 
