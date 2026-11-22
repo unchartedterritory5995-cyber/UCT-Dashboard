@@ -115,6 +115,13 @@ export function fetchTf(code) {
   return spec ? spec.base : code
 }
 
+/** The native base rows a CUSTOM timeframe's chart series is built from: a generous window so the resampled series
+ *  fills the view (5,000 of an intraday base, 6,000 of a D/W/M base). ONE number for the chart's own custom series
+ *  and a Compare symbol's (`useLegacyChartBars.js`), so the two are built from the same depth. */
+export function customBaseBarsOf(base) {
+  return ['1', '5', '15', '30', '60'].includes(String(base)) ? 5000 : 6000
+}
+
 // The full menu, grouped as the user specified. Codes only; labels via tfLabel.
 export const TF_MENU = [
   { group: 'Minutes', codes: ['1', '2', '3', '5', '10', '15', '30', '45', '65', '195'] },
